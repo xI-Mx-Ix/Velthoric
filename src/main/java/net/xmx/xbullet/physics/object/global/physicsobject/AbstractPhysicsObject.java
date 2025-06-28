@@ -1,0 +1,82 @@
+
+package net.xmx.xbullet.physics.object.global.physicsobject;
+
+import com.github.stephengold.joltjni.BodyCreationSettings;
+import com.github.stephengold.joltjni.SoftBodyCreationSettings;
+import com.github.stephengold.joltjni.Vec3;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.xmx.xbullet.math.PhysicsTransform;
+import net.xmx.xbullet.physics.object.global.physicsobject.properties.IPhysicsObjectProperties;
+
+import javax.annotation.Nullable;
+import java.util.UUID;
+
+public abstract class AbstractPhysicsObject implements IPhysicsObject {
+
+    protected final UUID physicsId;
+    protected final Level level;
+    protected final String objectTypeIdentifier;
+    protected final PhysicsTransform currentTransform;
+    protected final IPhysicsObjectProperties properties;
+
+    protected int bodyId = 0;
+    protected boolean isRemoved = false;
+    protected boolean physicsInitialized = false;
+
+    protected AbstractPhysicsObject(UUID physicsId, Level level, String objectTypeIdentifier, PhysicsTransform initialTransform, IPhysicsObjectProperties properties, @Nullable CompoundTag initialNbt) {
+        this.physicsId = physicsId;
+        this.level = level;
+        this.objectTypeIdentifier = objectTypeIdentifier;
+        this.properties = properties;
+        this.currentTransform = initialTransform != null ? initialTransform.copy() : new PhysicsTransform();
+        if (initialNbt != null) {
+            this.loadFromNbt(initialNbt);
+        }
+    }
+
+    @Override public UUID getPhysicsId() { return this.physicsId; }
+    @Override public String getObjectTypeIdentifier() { return this.objectTypeIdentifier; }
+    @Override public Level getLevel() { return this.level; }
+    @Override public boolean isRemoved() { return this.isRemoved; }
+    @Override public void markRemoved() { if (!this.isRemoved) this.isRemoved = true; }
+    @Override public PhysicsTransform getCurrentTransform() { return this.currentTransform.copy(); }
+    @Override public int getBodyId() { return this.bodyId; }
+    @Override public void setBodyId(int bodyId) { this.bodyId = bodyId; }
+    @Override public boolean isPhysicsInitialized() { return this.physicsInitialized; }
+    @Override public void confirmPhysicsInitialized() { if (!this.physicsInitialized) this.physicsInitialized = true; }
+
+    @Override
+    public final CompoundTag saveToNbt(CompoundTag tag) {
+        tag.putUUID("physicsId", this.physicsId);
+        tag.putString("objectTypeIdentifier", this.objectTypeIdentifier);
+        CompoundTag transformTag = new CompoundTag();
+        currentTransform.toNbt(transformTag);
+        tag.put("transform", transformTag);
+        addAdditionalSaveData(tag);
+        return tag;
+    }
+
+    @Override
+    public final void loadFromNbt(CompoundTag tag) {
+        if (tag.contains("transform", 10)) {
+            currentTransform.fromNbt(tag.getCompound("transform"));
+        }
+        readAdditionalSaveData(tag);
+    }
+
+    @Override @Nullable public BodyCreationSettings createBodyCreationSettings() { return null; }
+    @Override @Nullable public SoftBodyCreationSettings createSoftBodyCreationSettings() { return null; }
+
+    protected abstract void addAdditionalSaveData(CompoundTag tag);
+    protected abstract void readAdditionalSaveData(CompoundTag tag);
+
+    @Override
+    public void onLeftClick(Player player, Vec3 hitPoint, Vec3 hitNormal) {
+    }
+
+    @Override
+    public void onRightClick(Player player, Vec3 hitPoint, Vec3 hitNormal) {
+    }
+}
