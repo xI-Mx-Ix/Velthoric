@@ -1,7 +1,9 @@
 package net.xmx.xbullet.builtin.rope;
 
-import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.Edge;
+import com.github.stephengold.joltjni.SoftBodySharedSettings;
+import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.Vertex;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
@@ -24,31 +26,25 @@ public class RopeSoftBody extends SoftPhysicsObject {
 
     public RopeSoftBody(UUID physicsId, Level level, String objectTypeIdentifier, PhysicsTransform initialTransform, IPhysicsObjectProperties properties, @Nullable CompoundTag initialNbt) {
         super(physicsId, level, objectTypeIdentifier, initialTransform, properties, initialNbt);
-
-        CompoundTag nbt = (initialNbt != null) ? initialNbt : new CompoundTag();
-        this.mass = nbt.contains("mass") ? nbt.getFloat("mass") : 5.0f;
-        this.compliance = nbt.contains("compliance") ? nbt.getFloat("compliance") : 0.001f;
-
-        this.readAdditionalSaveData(nbt);
     }
 
     @Override
     protected SoftBodySharedSettings buildSharedSettings() {
-        int numNodes = (this.numSegments > 0) ? this.numSegments + 1 : 21;
+        int numNodes = this.numSegments + 1;
 
         SoftBodySharedSettings settings = new SoftBodySharedSettings();
         settings.setVertexRadius(this.ropeRadius);
 
-        RVec3 startPos = this.currentTransform.getTranslation();
-        Quat rotation = this.currentTransform.getRotation();
-        Vec3 direction = Op.star(rotation, new Vec3(0, -1, 0));
-        float segmentLength = ropeLength / (numNodes - 1);
+        float segmentLength = ropeLength / (float)this.numSegments;
+        float invMassPerNode = (this.mass > 0) ? numNodes / this.mass : 0f;
 
         for (int i = 0; i < numNodes; i++) {
-            RVec3 nodePosR = Op.plus(startPos, Op.star(direction, i * segmentLength));
+
+            Vec3 localPos = new Vec3(0, -i * segmentLength, 0);
+
             Vertex v = new Vertex();
-            v.setPosition(nodePosR.toVec3());
-            v.setInvMass(1f / (this.mass / numNodes));
+            v.setPosition(localPos);
+            v.setInvMass(invMassPerNode);
             settings.addVertex(v);
         }
 
@@ -57,11 +53,27 @@ public class RopeSoftBody extends SoftPhysicsObject {
             edge.setVertex(0, i);
             edge.setVertex(1, i + 1);
             edge.setCompliance(this.compliance);
+
+            edge.setRestLength(segmentLength);
+
             settings.addEdgeConstraint(edge);
         }
 
         settings.getVertex(0).setInvMass(0f);
+
+        settings.optimize();
         return settings;
+    }
+
+    @Override
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        this.ropeLength = tag.contains("ropeLength") ? tag.getFloat("ropeLength") : 10.0f;
+        this.numSegments = tag.contains("numSegments") ? tag.getInt("numSegments") : 20;
+        this.ropeRadius = tag.contains("ropeRadius") ? tag.getFloat("ropeRadius") : 0.1f;
+
+        this.mass = tag.contains("mass") ? tag.getFloat("mass") : 5.0f;
+        this.compliance = tag.contains("compliance") ? tag.getFloat("compliance") : 0.001f;
     }
 
     @Override
@@ -71,25 +83,23 @@ public class RopeSoftBody extends SoftPhysicsObject {
         tag.putInt("numSegments", this.numSegments);
         tag.putFloat("ropeRadius", this.ropeRadius);
         tag.putFloat("mass", this.mass);
-    }
-
-    @Override
-    protected void readAdditionalSaveData(CompoundTag tag) {
-        super.readAdditionalSaveData(tag);
-        this.ropeLength = tag.contains("ropeLength") ? tag.getFloat("ropeLength") : 10.0f;
-        this.numSegments = tag.contains("numSegments") ? tag.getInt("numSegments") : 20;
-        this.ropeRadius = tag.contains("ropeRadius") ? tag.getFloat("ropeRadius") : 0.1f;
+        tag.putFloat("compliance", this.compliance);
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-
     public static class Builder extends SoftPhysicsObjectBuilder {
         public Builder() {
             super();
             this.type(TYPE_IDENTIFIER);
+
+            this.initialNbt.putFloat("mass", 5.0f);
+            this.initialNbt.putFloat("compliance", 0.001f);
+            ropeLength(10.0f);
+            numSegments(20);
+            ropeRadius(0.1f);
         }
 
         public Builder ropeLength(float length) {
@@ -109,6 +119,11 @@ public class RopeSoftBody extends SoftPhysicsObject {
 
         public Builder mass(float mass) {
             this.initialNbt.putFloat("mass", mass);
+            return this;
+        }
+
+        public Builder compliance(float compliance) {
+            this.initialNbt.putFloat("compliance", compliance);
             return this;
         }
     }

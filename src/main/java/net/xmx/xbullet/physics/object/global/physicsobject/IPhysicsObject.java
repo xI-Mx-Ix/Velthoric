@@ -8,7 +8,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
-import net.xmx.xbullet.physics.core.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -38,4 +38,7 @@ public interface IPhysicsObject {
     @Nullable BodyCreationSettings createBodyCreationSettings();
     @Nullable SoftBodyCreationSettings createSoftBodyCreationSettings();
     void updateStateFromPhysicsThread(PhysicsTransform transform, Vec3 linearVelocity, Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive);
+
+    Vec3 getLastSyncedLinearVel();
+    Vec3 getLastSyncedAngularVel();
 }

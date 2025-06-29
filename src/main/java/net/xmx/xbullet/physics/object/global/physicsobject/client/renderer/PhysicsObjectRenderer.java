@@ -83,14 +83,22 @@ public class PhysicsObjectRenderer {
         ClientSoftPhysicsObjectData softData = data.getSoftData();
         if (softData == null || softData.getRenderer() == null) return;
 
-        float[] renderData = softData.getRenderVertexData(partialTicks);
-        if (renderData == null || renderData.length < 3) return;
-
-        BlockPos lightPos = BlockPos.containing(renderData[0], renderData[1], renderData[2]);
-        int packedLight = LevelRenderer.getLightColor(mc.level, lightPos);
+        PhysicsTransform renderTransform = softData.getRenderTransform(partialTicks);
+        if (renderTransform == null) return;
 
         poseStack.pushPose();
+        RVec3 pos = renderTransform.getTranslation();
+        var rot = renderTransform.getRotation();
+
+        poseStack.translate(pos.xx(), pos.yy(), pos.zz());
+        REUSABLE_QUATERNION.set(rot.getX(), rot.getY(), rot.getZ(), rot.getW());
+        poseStack.mulPose(REUSABLE_QUATERNION);
+
+        assert mc.level != null;
+        int packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(pos.xx(), pos.yy(), pos.zz()));
+
         softData.getRenderer().render(softData, poseStack, bufferSource, partialTicks, packedLight);
+
         poseStack.popPose();
     }
 }

@@ -1,6 +1,7 @@
-package net.xmx.xbullet.physics.core;
+package net.xmx.xbullet.physics.physicsworld;
 
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.init.XBullet;
@@ -77,5 +78,18 @@ public class PhysicsWorldRegistry {
     public boolean isDimensionPhysicsRunning(ResourceKey<Level> dimensionKey) {
         PhysicsWorld world = physicsWorlds.get(dimensionKey);
         return world != null && world.isRunning();
+    }
+
+    @Nullable
+    public ResourceKey<Level> getDimensionKeyForPhysicsWorld(PhysicsWorld physicsWorld) {
+        if (physicsWorld == null) {
+            return null;
+        }
+        for (Map.Entry<ResourceKey<Level>, PhysicsWorld> entry : physicsWorlds.entrySet()) {
+            if (entry.getValue() == physicsWorld) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 }

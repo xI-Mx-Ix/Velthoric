@@ -13,6 +13,6 @@ public class SpherePhysicsProperties {
             .angularDamping(0.2f)
             .gravityFactor(1.0f)
             .buoyancyFactor(1.6f)
-            .motionType(EMotionType.Kinematic)
+            .motionType(EMotionType.Dynamic)
             .build();
 }

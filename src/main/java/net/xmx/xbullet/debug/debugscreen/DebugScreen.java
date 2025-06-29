@@ -1,24 +1,19 @@
-package net.xmx.xbullet.debug;
+package net.xmx.xbullet.debug.debugscreen;
 
 import com.github.stephengold.joltjni.Jolt;
 import net.minecraft.client.Minecraft;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModContainer;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.forgespi.language.IModInfo;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.client.ClientPhysicsObjectManager;
+
 import java.util.Optional;
 
-@OnlyIn(Dist.CLIENT)
-public class DebugEvents {
+public class DebugScreen {
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onDebugText(CustomizeGuiOverlayEvent.DebugText event) {
         Minecraft mc = Minecraft.getInstance();
         if (!mc.options.renderDebug || mc.level == null) {

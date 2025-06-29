@@ -18,8 +18,8 @@ import net.xmx.xbullet.physics.object.global.physicsobject.packet.RemovePhysicsO
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.SpawnPhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncPhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.registry.GlobalPhysicsObjectRegistry;
-import net.xmx.xbullet.physics.core.PhysicsWorld;
-import net.xmx.xbullet.physics.core.PhysicsWorldRegistry;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorldRegistry;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -275,7 +275,6 @@ public class PhysicsObjectManager {
         if (isShutdown.getAndSet(true)) {
             return;
         }
-        XBullet.LOGGER.info("Shutting down PhysicsObjectManager for dimension {}...", managedLevel.dimension().location());
         isInitializedInternal.set(false);
         if (this.savedData != null) {
             for (IPhysicsObject obj : managedObjects.values()) {
@@ -291,7 +290,6 @@ public class PhysicsObjectManager {
         this.savedData = null;
         this.physicsWorld = null;
         this.managedLevel = null;
-        XBullet.LOGGER.info("PhysicsObjectManager for its dimension shut down completely.");
     }
 
     public int getPendingLoadCount() {

@@ -12,6 +12,7 @@ public class ModConfig {
     public static ConfigValue<List<? extends String>> DISABLED_PHYSICS_DIMENSIONS;
     public static ForgeConfigSpec.IntValue NUM_ITERATIONS;
     public static ForgeConfigSpec.DoubleValue ERP;
+    public static ForgeConfigSpec.IntValue MAX_SUBSTEPS;
 
     public static void init() {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
@@ -28,6 +29,12 @@ public class ModConfig {
                 .comment("Number of iterations for the physics solver",
                         "Higher values improve accuracy but reduce performance")
                 .defineInRange("numIterations", 11, 1, 100);
+
+        MAX_SUBSTEPS = builder
+                .comment("Maximum number of physics sub-steps per game tick.",
+                        "Prevents the 'spiral of death' on severe lag. 5-10 is a reasonable range.")
+                .defineInRange("maxSubsteps", 5, 1, 50);
+
 
         ERP = builder
                 .comment("Error Reduction Parameter for the physics simulation",

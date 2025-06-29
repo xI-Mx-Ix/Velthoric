@@ -23,10 +23,42 @@ public class ClientPhysicsObjectData {
         this.objectType = objectType;
     }
 
+    /**
+     * Speichert die NBT-Daten und leitet sie sofort an das bereits vorhandene
+     * Kind-Objekt (rigid oder soft) weiter.
+     */
     public void updateNbt(CompoundTag nbt) {
         this.syncedNbtData = nbt.copy();
-        if (rigidData != null) rigidData.updateNbt(nbt);
-        if (softData != null) softData.updateNbt(nbt);
+        if (rigidData != null) {
+            rigidData.updateNbt(this.syncedNbtData);
+        }
+        if (softData != null) {
+            softData.updateNbt(this.syncedNbtData);
+        }
+    }
+
+    /**
+     * Setzt die RigidBody-Daten.
+     * WICHTIG: Wenn für diesen Container bereits NBT-Daten gespeichert wurden,
+     * werden sie sofort an das neue rigidData-Objekt übergeben.
+     * Das macht die Initialisierungsreihenfolge flexibler.
+     */
+    public void setRigidData(ClientRigidPhysicsObjectData rigidData) {
+        this.rigidData = rigidData;
+        if (this.rigidData != null && !this.syncedNbtData.isEmpty()) {
+            this.rigidData.updateNbt(this.syncedNbtData);
+        }
+    }
+
+    /**
+     * Setzt die SoftBody-Daten.
+     * WICHTIG: Übergibt ebenfalls bereits vorhandene NBT-Daten sofort weiter.
+     */
+    public void setSoftData(ClientSoftPhysicsObjectData softData) {
+        this.softData = softData;
+        if (this.softData != null && !this.syncedNbtData.isEmpty()) {
+            this.softData.updateNbt(this.syncedNbtData);
+        }
     }
 
     public void updateInterpolation() {
@@ -45,7 +77,4 @@ public class ClientPhysicsObjectData {
     public CompoundTag getSyncedNbtData() { return syncedNbtData.copy(); }
     @Nullable public ClientRigidPhysicsObjectData getRigidData() { return rigidData; }
     @Nullable public ClientSoftPhysicsObjectData getSoftData() { return softData; }
-
-    public void setRigidData(ClientRigidPhysicsObjectData rigidData) { this.rigidData = rigidData; }
-    public void setSoftData(ClientSoftPhysicsObjectData softData) { this.softData = softData; }
 }

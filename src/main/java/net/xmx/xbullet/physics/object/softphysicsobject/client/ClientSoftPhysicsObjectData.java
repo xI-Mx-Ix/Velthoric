@@ -1,7 +1,11 @@
 package net.xmx.xbullet.physics.object.softphysicsobject.client;
 
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
+import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 
 import javax.annotation.Nullable;
@@ -12,7 +16,9 @@ import java.util.UUID;
 public class ClientSoftPhysicsObjectData {
     private final UUID id;
     @Nullable private final SoftPhysicsObject.Renderer renderer;
-    private final Deque<TimestampedState> stateBuffer = new ArrayDeque<>();
+
+    private final Deque<TimestampedState> vertexStateBuffer = new ArrayDeque<>();
+    private final Deque<TimestampedTransform> transformStateBuffer = new ArrayDeque<>();
 
     private static final long INTERPOLATION_DELAY_MS = 100;
     private static final int MAX_BUFFER_SIZE = 250;
@@ -24,10 +30,12 @@ public class ClientSoftPhysicsObjectData {
     private static final double OFFSET_SMOOTHING_FACTOR = 0.05;
 
     @Nullable private float[] latestSyncedVertexData = null;
+    @Nullable private PhysicsTransform latestSyncedTransform = null;
     private long lastServerTimestamp = 0;
-    private float[] renderBuffer = null;
+
+    private float[] renderVertexBuffer = null;
+    private final PhysicsTransform renderTransform = new PhysicsTransform();
     private CompoundTag syncedNbtData = new CompoundTag();
-    private float mass;
 
     public ClientSoftPhysicsObjectData(UUID id, @Nullable SoftPhysicsObject.Renderer renderer, long initialTimestamp) {
         this.id = id;
@@ -35,8 +43,8 @@ public class ClientSoftPhysicsObjectData {
         this.lastServerTimestamp = initialTimestamp;
     }
 
-    public void updateVertexDataFromServer(@Nullable float[] newVertexData, long serverTimestamp, boolean isActive) {
-        if (newVertexData == null || newVertexData.length == 0 || serverTimestamp <= 0) return;
+    public void updateDataFromServer(@Nullable PhysicsTransform transform, @Nullable Vec3 linearVel, @Nullable Vec3 angularVel, @Nullable float[] newVertexData, long serverTimestamp, boolean isActive) {
+        if (serverTimestamp <= 0) return;
 
         long clientReceiptTime = System.nanoTime();
         if (!isClockOffsetInitialized) {
@@ -48,91 +56,122 @@ public class ClientSoftPhysicsObjectData {
         }
 
         if (serverTimestamp > this.lastServerTimestamp) {
-            stateBuffer.addLast(new TimestampedState(serverTimestamp, newVertexData, isActive));
-            this.latestSyncedVertexData = newVertexData;
+            if (newVertexData != null && newVertexData.length > 0) {
+                vertexStateBuffer.addLast(new TimestampedState(serverTimestamp, newVertexData, isActive));
+                this.latestSyncedVertexData = newVertexData;
+            }
+            if (transform != null) {
+                transformStateBuffer.addLast(new TimestampedTransform(serverTimestamp, transform.copy(), isActive));
+                this.latestSyncedTransform = transform.copy();
+            }
             this.lastServerTimestamp = serverTimestamp;
         }
     }
 
     public void updateNbt(CompoundTag nbt) {
         this.syncedNbtData = nbt.copy();
-        if (this.syncedNbtData.contains("mass")) {
-            this.mass = this.syncedNbtData.getFloat("mass");
-        }
     }
 
     @Nullable
     public float[] getRenderVertexData(float partialTicks) {
-        if (stateBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
+        if (vertexStateBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
             return latestSyncedVertexData;
         }
 
         long renderTimestamp = System.nanoTime() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
-
-        TimestampedState latest = stateBuffer.peekLast();
+        TimestampedState latest = vertexStateBuffer.peekLast();
         if (latest != null && !latest.isActive) return latest.vertexData;
 
-        TimestampedState before = null;
-        TimestampedState after = null;
-        for (TimestampedState current : stateBuffer) {
+        TimestampedState before = null, after = null;
+        for (TimestampedState current : vertexStateBuffer) {
             if (current.timestampNanos <= renderTimestamp) before = current;
             else { after = current; break; }
         }
 
-        if (before == null) {
-            return stateBuffer.isEmpty() ? latestSyncedVertexData : stateBuffer.peekFirst().vertexData;
-        }
-        if (after == null) {
-            return latestSyncedVertexData;
-        }
-
-        if (renderBuffer == null || renderBuffer.length != before.vertexData.length) {
-            renderBuffer = new float[before.vertexData.length];
-        }
+        if (before == null) return vertexStateBuffer.isEmpty() ? latestSyncedVertexData : vertexStateBuffer.peekFirst().vertexData;
+        if (after == null) return latestSyncedVertexData;
+        if (renderVertexBuffer == null || renderVertexBuffer.length != before.vertexData.length) renderVertexBuffer = new float[before.vertexData.length];
 
         long timeDiff = after.timestampNanos - before.timestampNanos;
-        float alpha = (timeDiff <= 0) ? 1.0f : (float)(renderTimestamp - before.timestampNanos) / timeDiff;
-        alpha = Mth.clamp(alpha, 0.0f, 1.0f);
+        float alpha = (timeDiff <= 0) ? 1.0f : Mth.clamp((float)(renderTimestamp - before.timestampNanos) / timeDiff, 0.0f, 1.0f);
 
         for (int i = 0; i < before.vertexData.length; i++) {
-            renderBuffer[i] = Mth.lerp(alpha, before.vertexData[i], after.vertexData[i]);
+            renderVertexBuffer[i] = Mth.lerp(alpha, before.vertexData[i], after.vertexData[i]);
         }
-        return renderBuffer;
+        return renderVertexBuffer;
     }
 
-    public CompoundTag getSyncedNbtData() {
-        return syncedNbtData.copy();
+    @Nullable
+    public PhysicsTransform getRenderTransform(float partialTicks) {
+        if (transformStateBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
+            return latestSyncedTransform;
+        }
+
+        long renderTimestamp = System.nanoTime() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
+        TimestampedTransform latest = transformStateBuffer.peekLast();
+        if (latest != null && !latest.isActive) return latest.transform;
+
+        TimestampedTransform before = null, after = null;
+        for (TimestampedTransform current : transformStateBuffer) {
+            if (current.timestampNanos <= renderTimestamp) before = current;
+            else { after = current; break; }
+        }
+
+        if (before == null) return transformStateBuffer.isEmpty() ? latestSyncedTransform : transformStateBuffer.peekFirst().transform;
+        if (after == null) return latestSyncedTransform;
+
+        long timeDiff = after.timestampNanos - before.timestampNanos;
+        float alpha = (timeDiff <= 0) ? 1.0f : Mth.clamp((float)(renderTimestamp - before.timestampNanos) / timeDiff, 0.0f, 1.0f);
+
+        RVec3 beforePos = before.transform.getTranslation();
+        RVec3 afterPos = after.transform.getTranslation();
+        double ix = Mth.lerp(alpha, beforePos.xx(), afterPos.xx());
+        double iy = Mth.lerp(alpha, beforePos.yy(), afterPos.yy());
+        double iz = Mth.lerp(alpha, beforePos.zz(), afterPos.zz());
+        renderTransform.getTranslation().set(ix, iy, iz);
+
+        Quat beforeRot = before.transform.getRotation();
+        Quat afterRot = after.transform.getRotation();
+
+        float dot = beforeRot.getX() * afterRot.getX() + beforeRot.getY() * afterRot.getY() + beforeRot.getZ() * afterRot.getZ() + beforeRot.getW() * afterRot.getW();
+
+        float qx, qy, qz, qw;
+        if (dot < 0.0f) {
+
+            qx = Mth.lerp(alpha, beforeRot.getX(), -afterRot.getX());
+            qy = Mth.lerp(alpha, beforeRot.getY(), -afterRot.getY());
+            qz = Mth.lerp(alpha, beforeRot.getZ(), -afterRot.getZ());
+            qw = Mth.lerp(alpha, beforeRot.getW(), -afterRot.getW());
+        } else {
+            qx = Mth.lerp(alpha, beforeRot.getX(), afterRot.getX());
+            qy = Mth.lerp(alpha, beforeRot.getY(), afterRot.getY());
+            qz = Mth.lerp(alpha, beforeRot.getZ(), afterRot.getZ());
+            qw = Mth.lerp(alpha, beforeRot.getW(), afterRot.getW());
+        }
+
+        Quat tempRot = new Quat(qx, qy, qz, qw);
+        Quat normalized = tempRot.normalized();
+        renderTransform.getRotation().set(normalized.getX(), normalized.getY(), normalized.getZ(), normalized.getW());
+
+        return renderTransform;
     }
 
     public void cleanupBuffer() {
-        if (stateBuffer.isEmpty() || !isClockOffsetInitialized) return;
-
+        if (!isClockOffsetInitialized) return;
         long timeHorizonNanos = System.nanoTime() + clockOffsetNanos - (MAX_BUFFER_TIME_MS * 1_000_000L);
-        while (stateBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION && stateBuffer.peekFirst().timestampNanos < timeHorizonNanos) {
-            stateBuffer.removeFirst();
-        }
-        while (stateBuffer.size() > MAX_BUFFER_SIZE) {
-            stateBuffer.removeFirst();
-        }
+
+        while (vertexStateBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION && vertexStateBuffer.peekFirst().timestampNanos < timeHorizonNanos) vertexStateBuffer.removeFirst();
+        while (vertexStateBuffer.size() > MAX_BUFFER_SIZE) vertexStateBuffer.removeFirst();
+
+        while (transformStateBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION && transformStateBuffer.peekFirst().timestampNanos < timeHorizonNanos) transformStateBuffer.removeFirst();
+        while (transformStateBuffer.size() > MAX_BUFFER_SIZE) transformStateBuffer.removeFirst();
     }
 
     public UUID getId() { return id; }
     @Nullable public SoftPhysicsObject.Renderer getRenderer() { return renderer; }
+    public CompoundTag getSyncedNbtData() { return syncedNbtData.copy(); }
+    @Nullable public float[] getLatestVertexData() { return latestSyncedVertexData; }
 
-    private static class TimestampedState {
-        final long timestampNanos;
-        final float[] vertexData;
-        final boolean isActive;
-
-        TimestampedState(long timestampNanos, float[] vertexData, boolean isActive) {
-            this.timestampNanos = timestampNanos;
-            this.vertexData = vertexData;
-            this.isActive = isActive;
-        }
-    }
-
-    @Nullable
-    public float[] getLatestVertexData() {
-        return latestSyncedVertexData;
-    }
+    private record TimestampedState(long timestampNanos, float[] vertexData, boolean isActive) {}
+    private record TimestampedTransform(long timestampNanos, PhysicsTransform transform, boolean isActive) {}
 }

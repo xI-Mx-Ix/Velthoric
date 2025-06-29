@@ -1,16 +1,18 @@
-package net.xmx.xbullet.physics.core;
+package net.xmx.xbullet.physics.physicsworld;
 
 import com.github.stephengold.joltjni.*;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.network.PacketDistributor;
 import net.xmx.xbullet.init.ModConfig;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.natives.NativeJoltInitializer;
+import net.xmx.xbullet.network.NetworkHandler;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.core.pcmd.ICommand;
-import net.xmx.xbullet.physics.core.pcmd.RunTaskCommand;
-import net.xmx.xbullet.physics.core.pcmd.UpdatePhysicsStateCommand;
+import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
+import net.xmx.xbullet.physics.physicsworld.pcmd.RunTaskCommand;
+import net.xmx.xbullet.physics.physicsworld.pcmd.UpdatePhysicsStateCommand;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -38,6 +40,9 @@ public class PhysicsWorld implements Runnable {
     private long accumulatedPauseTimeNanos = 0L;
     private long pauseStartTimeNanos = 0L;
     private float fixedTimeStep;
+    private float timeAccumulator = 0.0f;
+
+    private volatile boolean isShutdown = false;
 
     private final Map<UUID, IPhysicsObject> physicsObjectsMap = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> bodyIds = new ConcurrentHashMap<>();
@@ -87,66 +92,42 @@ public class PhysicsWorld implements Runnable {
         try {
             NativeJoltInitializer.initialize();
             initializePhysicsSystem();
-        } catch (Exception e) {
-            XBullet.LOGGER.error("Failed to initialize Jolt physics for dimension {}", dimensionKey.location(), e);
+        } catch (Throwable t) {
+            XBullet.LOGGER.error("FATAL: Failed to initialize Jolt physics for dimension {}. The physics thread will not run.", dimensionKey.location(), t);
             this.shouldRun = false;
             cleanupInternal();
             return;
         }
 
         long lastLoopTimeNanos = System.nanoTime();
-        float accumulator = 0.0f;
-        final int maxSubStepsPerFrame = 5;
 
         while (this.shouldRun) {
-            long currentTimeNanos = System.nanoTime();
-            long elapsedNanos = currentTimeNanos - lastLoopTimeNanos;
-            lastLoopTimeNanos = currentTimeNanos;
+            try {
+                long currentTimeNanos = System.nanoTime();
+                long elapsedNanos = currentTimeNanos - lastLoopTimeNanos;
+                lastLoopTimeNanos = currentTimeNanos;
 
-            float deltaTimeSeconds = Math.min(elapsedNanos / 1_000_000_000.0f, 0.1f);
-            accumulator += deltaTimeSeconds;
+                float deltaTimeSeconds = Math.min(elapsedNanos / 1_000_000_000.0f, 0.1f);
 
-            processCommandQueue();
+                this.update(deltaTimeSeconds);
 
-            if (this.isPaused) {
-                if (pauseStartTimeNanos == 0L) {
-                    pauseStartTimeNanos = System.nanoTime();
-                }
-                accumulator = 0f;
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    this.shouldRun = false;
-                    Thread.currentThread().interrupt();
-                }
-                continue;
-            }
+                long loopEndTimeNanos = System.nanoTime();
+                long actualLoopDurationNanos = loopEndTimeNanos - currentTimeNanos;
+                long sleepTimeNanos = (long)(fixedTimeStep * 1_000_000_000.0) - actualLoopDurationNanos;
 
-            if (pauseStartTimeNanos != 0L && !this.isPaused) {
-                accumulatedPauseTimeNanos += System.nanoTime() - pauseStartTimeNanos;
-                pauseStartTimeNanos = 0L;
-            }
+                if (sleepTimeNanos > 0) {
 
-            int substepsPerformed = 0;
-            while (accumulator >= this.fixedTimeStep && substepsPerformed < maxSubStepsPerFrame) {
-                try {
-                    physicsSystem.update(this.fixedTimeStep, 1, tempAllocator, jobSystem);
-                } catch (Exception e) {
-                    XBullet.LOGGER.error("PhysicsThread: Exception during one physics sub-step.", e);
-                }
-                accumulator -= this.fixedTimeStep;
-                substepsPerformed++;
-            }
-
-            new UpdatePhysicsStateCommand(System.nanoTime()).execute(this);
-
-            long loopEndTimeNanos = System.nanoTime();
-            long actualLoopDurationNanos = loopEndTimeNanos - currentTimeNanos;
-            long sleepTimeNanos = (long)(fixedTimeStep * 1_000_000_000.0) - actualLoopDurationNanos;
-
-            if (sleepTimeNanos > 0) {
-                try {
                     Thread.sleep(sleepTimeNanos / 1_000_000L, (int) (sleepTimeNanos % 1_000_000L));
+                }
+            } catch (InterruptedException e) {
+                XBullet.LOGGER.info("Physics thread for dimension {} was interrupted. Shutting down.", dimensionKey.location());
+                this.shouldRun = false;
+                Thread.currentThread().interrupt();
+            } catch (Throwable t) {
+                XBullet.LOGGER.error("An uncaught exception occurred in the main physics loop for dimension {}. The simulation might be unstable.", dimensionKey.location(), t);
+
+                try {
+                    Thread.sleep(100);
                 } catch (InterruptedException e) {
                     this.shouldRun = false;
                     Thread.currentThread().interrupt();
@@ -154,6 +135,38 @@ public class PhysicsWorld implements Runnable {
             }
         }
         cleanupInternal();
+    }
+
+    public void update(float deltaTime) {
+        if (this.isPaused || !this.shouldRun || physicsSystem == null) {
+            if (isPaused && pauseStartTimeNanos == 0L) {
+                pauseStartTimeNanos = System.nanoTime();
+            }
+            return;
+        }
+
+        if (pauseStartTimeNanos != 0L) {
+            accumulatedPauseTimeNanos += System.nanoTime() - pauseStartTimeNanos;
+            pauseStartTimeNanos = 0L;
+        }
+
+        processCommandQueue();
+
+        timeAccumulator += deltaTime;
+        final int maxSubSteps = ModConfig.MAX_SUBSTEPS.get();
+        int substepsPerformed = 0;
+
+        while (timeAccumulator >= this.fixedTimeStep && substepsPerformed < maxSubSteps) {
+            try {
+                physicsSystem.update(this.fixedTimeStep, 1, tempAllocator, jobSystem);
+            } catch (Exception e) {
+                XBullet.LOGGER.error("PhysicsThread: Exception during one physics sub-step.", e);
+            }
+            timeAccumulator -= this.fixedTimeStep;
+            substepsPerformed++;
+        }
+
+        new UpdatePhysicsStateCommand(System.nanoTime()).execute(this);
     }
 
     private void initializePhysicsSystem() {
@@ -201,6 +214,11 @@ public class PhysicsWorld implements Runnable {
     }
 
     public void stop() {
+        if (isShutdown) {
+            return;
+        }
+        isShutdown = true;
+
         this.shouldRun = false;
         if (physicsThreadExecutor != null) {
             physicsThreadExecutor.interrupt();
@@ -217,6 +235,7 @@ public class PhysicsWorld implements Runnable {
             physicsSystem.close();
             physicsSystem = null;
         }
+
         if (jobSystem != null) jobSystem.close();
         if (tempAllocator != null) tempAllocator.close();
         clearAllMaps();
@@ -259,7 +278,7 @@ public class PhysicsWorld implements Runnable {
     }
 
     public boolean isRunning() {
-        return shouldRun && physicsThreadExecutor != null && physicsThreadExecutor.isAlive();
+        return !isShutdown && shouldRun && physicsThreadExecutor != null && physicsThreadExecutor.isAlive();
     }
 
     public boolean isPaused() {

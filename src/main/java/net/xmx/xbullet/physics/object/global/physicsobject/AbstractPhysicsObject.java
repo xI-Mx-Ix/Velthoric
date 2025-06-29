@@ -18,8 +18,11 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     protected final UUID physicsId;
     protected final Level level;
     protected final String objectTypeIdentifier;
-    protected final PhysicsTransform currentTransform;
+    protected PhysicsTransform currentTransform;
     protected final IPhysicsObjectProperties properties;
+
+    protected Vec3 lastSyncedLinearVel = new Vec3();
+    protected Vec3 lastSyncedAngularVel = new Vec3();
 
     protected int bodyId = 0;
     protected boolean isRemoved = false;
@@ -46,6 +49,9 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     @Override public void setBodyId(int bodyId) { this.bodyId = bodyId; }
     @Override public boolean isPhysicsInitialized() { return this.physicsInitialized; }
     @Override public void confirmPhysicsInitialized() { if (!this.physicsInitialized) this.physicsInitialized = true; }
+
+    @Override public Vec3 getLastSyncedLinearVel() { return this.lastSyncedLinearVel; }
+    @Override public Vec3 getLastSyncedAngularVel() { return this.lastSyncedAngularVel; }
 
     @Override
     public final CompoundTag saveToNbt(CompoundTag tag) {

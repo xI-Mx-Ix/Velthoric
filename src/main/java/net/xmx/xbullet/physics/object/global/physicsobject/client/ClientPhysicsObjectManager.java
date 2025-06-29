@@ -72,7 +72,7 @@ public class ClientPhysicsObjectManager {
             float angDamp = nbt.getFloat("angularDamping");
 
             ClientRigidPhysicsObjectData rigidData = new ClientRigidPhysicsObjectData(id, transform, mass, friction, restitution, linDamp, angDamp, renderer, serverTimestamp);
-            rigidData.updateNbt(nbt);
+
             data.setRigidData(rigidData);
 
         } else if (objectType == EObjectType.SOFT_BODY) {
@@ -81,12 +81,15 @@ public class ClientPhysicsObjectManager {
             if (renderer == null) XBullet.LOGGER.warn("Client: No renderer found for soft body type '{}'.", typeIdentifier);
 
             ClientSoftPhysicsObjectData softData = new ClientSoftPhysicsObjectData(id, renderer, serverTimestamp);
-            softData.updateNbt(nbt);
+
             if (vertices != null) {
-                softData.updateVertexDataFromServer(vertices, serverTimestamp, true);
+                softData.updateDataFromServer(transform, null, null, vertices, serverTimestamp, true);
             }
+
             data.setSoftData(softData);
         }
+
+        data.updateNbt(nbt);
 
         allObjects.put(id, data);
     }
@@ -99,7 +102,7 @@ public class ClientPhysicsObjectManager {
             data.getRigidData().updateTransformFromServer(transform, linearVel, angularVel, serverTimestamp, isActive);
             if (nbt != null) data.getRigidData().updateNbt(nbt);
         } else if (objectType == EObjectType.SOFT_BODY && data.getSoftData() != null) {
-            data.getSoftData().updateVertexDataFromServer(vertices, serverTimestamp, isActive);
+            data.getSoftData().updateDataFromServer(transform, linearVel, angularVel, vertices, serverTimestamp, isActive);
             if (nbt != null) data.getSoftData().updateNbt(nbt);
         }
     }

@@ -7,6 +7,7 @@ import com.github.stephengold.joltjni.operator.Op;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlas;
@@ -30,17 +31,64 @@ public class RopeSoftBodyRenderer extends SoftPhysicsObject.Renderer {
 
     @Override
     public void render(ClientSoftPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
+        XBullet.LOGGER.error("ROPE RENDER CALLED!");
+
         float[] renderVertexData = data.getRenderVertexData(partialTicks);
-        if (renderVertexData == null || renderVertexData.length < 6) {
-            return;
-        }
+        if (renderVertexData == null || renderVertexData.length < 6) return;
 
         int numNodes = renderVertexData.length / 3;
         float ropeRadius = data.getSyncedNbtData().getFloat("ropeRadius");
         if (ropeRadius <= 0) ropeRadius = 0.1f;
 
+        float x = renderVertexData[0];
+        float y = renderVertexData[1];
+        float z = renderVertexData[2];
+
+        LevelRenderer.addChainedFilledBoxVertices(
+                poseStack,
+                bufferSource.getBuffer(RenderType.debugFilledBox()),
+                x - 0.1, y - 0.1, z - 0.1,
+                x + 0.1, y + 0.1, z + 0.1,
+                0f, 1f, 0f, 0.6f
+        );
+
+        renderSimpleRope(renderVertexData, numNodes, ropeRadius, poseStack, bufferSource, packedLight);
         renderSmoothRope(renderVertexData, numNodes, ropeRadius, poseStack, bufferSource, packedLight);
     }
+
+    private void renderSimpleRope(float[] vertexData, int numNodes, float ropeRadius, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
+        // Erstmal nur Lines testen
+        VertexConsumer buffer = bufferSource.getBuffer(RenderType.lines());
+        PoseStack.Pose last = poseStack.last();
+
+        XBullet.LOGGER.error("Rendering {} nodes as lines", numNodes);
+
+        // Einfache Linien zwischen den Nodes
+        for (int i = 0; i < numNodes - 1; i++) {
+            float x1 = vertexData[i * 3];
+            float y1 = vertexData[i * 3 + 1];
+            float z1 = vertexData[i * 3 + 2];
+
+            float x2 = vertexData[(i + 1) * 3];
+            float y2 = vertexData[(i + 1) * 3 + 1];
+            float z2 = vertexData[(i + 1) * 3 + 2];
+
+            XBullet.LOGGER.error("Line from ({}, {}, {}) to ({}, {}, {})", x1, y1, z1, x2, y2, z2);
+
+            // Erste Vertex der Linie
+            buffer.vertex(last.pose(), x1, y1, z1)
+                    .color(255, 255, 0, 255)
+                    .normal(0, 1, 0)
+                    .endVertex();
+
+            // Zweite Vertex der Linie
+            buffer.vertex(last.pose(), x2, y2, z2)
+                    .color(255, 255, 0, 255)
+                    .normal(0, 1, 0)
+                    .endVertex();
+        }
+    }
+
 
     private void renderSmoothRope(float[] vertexData, int numNodes, float ropeRadius, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
         VertexConsumer buffer = bufferSource.getBuffer(RenderType.cutoutMipped());
@@ -159,12 +207,22 @@ public class RopeSoftBodyRenderer extends SoftPhysicsObject.Renderer {
 
         PoseStack.Pose last = poseStack.last();
 
+        // Erstes Dreieck (v1, v2, v3)
         buffer.vertex(last.pose(), v1.getX(), v1.getY(), v1.getZ())
                 .color(255, 255, 255, 255).uv(u1, v1Coord).uv2(packedLight)
                 .normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
 
         buffer.vertex(last.pose(), v2.getX(), v2.getY(), v2.getZ())
                 .color(255, 255, 255, 255).uv(u2, v2Coord).uv2(packedLight)
+                .normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
+
+        buffer.vertex(last.pose(), v3.getX(), v3.getY(), v3.getZ())
+                .color(255, 255, 255, 255).uv(u3, v3Coord).uv2(packedLight)
+                .normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
+
+        // Zweites Dreieck (v1, v3, v4)
+        buffer.vertex(last.pose(), v1.getX(), v1.getY(), v1.getZ())
+                .color(255, 255, 255, 255).uv(u1, v1Coord).uv2(packedLight)
                 .normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
 
         buffer.vertex(last.pose(), v3.getX(), v3.getY(), v3.getZ())

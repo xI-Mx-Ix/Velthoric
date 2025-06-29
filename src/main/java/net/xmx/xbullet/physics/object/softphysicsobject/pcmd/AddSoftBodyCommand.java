@@ -5,8 +5,8 @@ import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.core.pcmd.ICommand;
-import net.xmx.xbullet.physics.core.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 
 public record AddSoftBodyCommand(SoftPhysicsObject physicsObject) implements ICommand {
@@ -47,6 +47,7 @@ public record AddSoftBodyCommand(SoftPhysicsObject physicsObject) implements ICo
                     world.getBodyIds().put(physicsObject.getPhysicsId(), bodyId);
                     world.getBodyIdToUuidMap().put(bodyId, physicsObject.getPhysicsId());
                     world.getPhysicsObjectsMap().put(physicsObject.getPhysicsId(), physicsObject);
+                    world.getSyncedActiveStates().put(physicsObject.getPhysicsId(), true);
                 } else {
                     XBullet.LOGGER.error("Jolt failed to create soft body for object {}", physicsObject.getPhysicsId());
                     physicsObject.markRemoved();

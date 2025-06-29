@@ -1,0 +1,18 @@
+# Temporäre Java-Dateien
+*.java~
+
+# ProGuard-Konfiguration ignorieren
+proguard.pro
+
+# Debug-/Test-Dateien ignorieren
+random_names.txt
+
+# Ganze Ordner ignorieren
+build/
+.gradle/
+run/
+
+# IntelliJ spezifisch (optional, falls du’s auf GitHub sauber halten willst)
+.idea/
+*.iml
+out/

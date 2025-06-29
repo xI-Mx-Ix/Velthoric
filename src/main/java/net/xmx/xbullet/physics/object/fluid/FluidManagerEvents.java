@@ -4,7 +4,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerRegistry;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
-import net.xmx.xbullet.physics.core.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 

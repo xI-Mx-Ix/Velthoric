@@ -7,7 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerRegistry;
-import net.xmx.xbullet.physics.core.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 class PauseResumePhysicsCommandExecutor {
 

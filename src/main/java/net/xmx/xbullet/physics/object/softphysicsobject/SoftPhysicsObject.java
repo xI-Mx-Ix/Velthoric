@@ -13,7 +13,7 @@ import net.minecraft.world.level.Level;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.item.PhysicsRemoverItem;
 import net.xmx.xbullet.math.PhysicsTransform;
-import net.xmx.xbullet.physics.core.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.xmx.xbullet.physics.object.global.physicsobject.AbstractPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
@@ -58,17 +58,21 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
         if (this.sharedSettingsRef == null) {
             SoftBodySharedSettings settingsTarget = buildSharedSettings();
             if (settingsTarget != null) {
-                if (lastSyncedVertexData != null) {
+                if (lastSyncedVertexData != null && lastSyncedVertexData.length > 0) {
                     Vertex[] vertices = settingsTarget.getVertices();
                     if (vertices != null && vertices.length * 3 == lastSyncedVertexData.length) {
+
+                        RVec3 bodyPosition = this.currentTransform.getTranslation();
+
                         for (int i = 0; i < vertices.length; ++i) {
                             Vertex v = vertices[i];
                             if (v != null) {
-                                v.setPosition(new Vec3(
-                                        lastSyncedVertexData[i * 3],
-                                        lastSyncedVertexData[i * 3 + 1],
-                                        lastSyncedVertexData[i * 3 + 2]
-                                ));
+
+                                float localX = lastSyncedVertexData[i * 3] - (float) bodyPosition.xx();
+                                float localY = lastSyncedVertexData[i * 3 + 1] - (float) bodyPosition.yy();
+                                float localZ = lastSyncedVertexData[i * 3 + 2] - (float) bodyPosition.zz();
+
+                                v.setPosition(new Vec3(localX, localY, localZ));
                             }
                         }
                     } else {
@@ -118,12 +122,21 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
 
     @Override
     public void updateStateFromPhysicsThread(PhysicsTransform transform, Vec3 linearVelocity, Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
-        if (this.isRemoved || level.isClientSide()) return;
+        if (this.isRemoved || this.level.isClientSide()) return;
+
+        if (transform != null) {
+            this.currentTransform = transform;
+        }
+        if (linearVelocity != null) {
+            this.lastSyncedLinearVel = linearVelocity;
+        }
+        if (angularVelocity != null) {
+            this.lastSyncedAngularVel = angularVelocity;
+        }
         if (softBodyVertices != null) {
             this.lastSyncedVertexData = softBodyVertices;
         }
     }
-
     @Override
     public void onRightClickWithTool(Player player) {
         if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem && player.level() instanceof ServerLevel sl) {

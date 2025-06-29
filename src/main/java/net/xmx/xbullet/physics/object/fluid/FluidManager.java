@@ -5,7 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.material.FluidState;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
-import net.xmx.xbullet.physics.core.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 import java.util.Collection;
 import java.util.Optional;

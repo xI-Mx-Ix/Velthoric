@@ -3,8 +3,8 @@ package net.xmx.xbullet.physics.object.rigidphysicsobject.pcmd;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.core.pcmd.ICommand;
-import net.xmx.xbullet.physics.core.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 
 public record AddRigidBodyCommand(RigidPhysicsObject physicsObject) implements ICommand {
@@ -60,6 +60,7 @@ public record AddRigidBodyCommand(RigidPhysicsObject physicsObject) implements I
                             world.getBodyIds().put(physicsObject.getPhysicsId(), bodyId);
                             world.getBodyIdToUuidMap().put(bodyId, physicsObject.getPhysicsId());
                             world.getPhysicsObjectsMap().put(physicsObject.getPhysicsId(), physicsObject);
+                            world.getSyncedActiveStates().put(physicsObject.getPhysicsId(), true);
                         } else {
                             XBullet.LOGGER.error("Jolt failed to create body for object {}", physicsObject.getPhysicsId());
                             physicsObject.markRemoved();

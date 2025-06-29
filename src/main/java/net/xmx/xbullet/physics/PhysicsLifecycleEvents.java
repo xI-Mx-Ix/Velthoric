@@ -8,7 +8,7 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.xmx.xbullet.init.ModConfig;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerRegistry;
-import net.xmx.xbullet.physics.core.PhysicsWorldRegistry;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorldRegistry;
 
 public class PhysicsLifecycleEvents {
 

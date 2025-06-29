@@ -7,8 +7,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.core.PhysicsWorld;
-import net.xmx.xbullet.physics.core.PhysicsWorldRegistry;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorldRegistry;
 
 import java.util.Optional;
 

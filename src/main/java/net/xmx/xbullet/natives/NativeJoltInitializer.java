@@ -2,7 +2,7 @@ package net.xmx.xbullet.natives;
 
 import com.github.stephengold.joltjni.*;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.core.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 public class NativeJoltInitializer {
 
@@ -13,7 +13,7 @@ public class NativeJoltInitializer {
     private static ObjectVsBroadPhaseLayerFilter objectVsBroadPhaseLayerFilter;
     private static ObjectLayerPairFilter objectLayerPairFilter;
 
-    public static void initialize() throws Exception {
+    public static void initialize() {
         if (isInitialized) {
             return;
         }
@@ -25,14 +25,12 @@ public class NativeJoltInitializer {
             XBullet.LOGGER.debug("Performing one-time global Jolt Physics initialization...");
 
             NativeLibraryLoader.load();
-            JoltPhysicsObject.startCleaner();
             Jolt.registerDefaultAllocator();
             Jolt.installDefaultAssertCallback();
             Jolt.installDefaultTraceCallback();
 
-            //DAS DEBUG DAS DING MUSS WEG BEI RELEASE ---------------------
             Jolt.setTraceAllocations(true);
-            //-------------------------------------------------------------
+
             if (!Jolt.newFactory()) {
                 throw new IllegalStateException("Global Jolt Factory could not be created.");
             }

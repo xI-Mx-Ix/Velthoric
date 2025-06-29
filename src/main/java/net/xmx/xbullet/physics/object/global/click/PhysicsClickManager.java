@@ -9,8 +9,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.NetworkEvent;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.core.PhysicsWorld;
-import net.xmx.xbullet.physics.core.PhysicsWorldRegistry;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorldRegistry;
 import net.xmx.xbullet.physics.object.global.PhysicsRaytracing;
 
 import java.util.Optional;
