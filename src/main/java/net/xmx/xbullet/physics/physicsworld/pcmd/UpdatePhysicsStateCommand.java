@@ -43,10 +43,9 @@ public record UpdatePhysicsStateCommand(long timestampNanos) implements ICommand
                     if (lock.succeededAndIsInBroadPhase()) {
                         Body body = lock.getBody();
                         if (body != null && body.isSoftBody()) {
-                            // Cast zu SoftBodyMotionProperties ist sicher, da wir isSoftBody() geprüft haben.
+
                             SoftBodyMotionProperties motionProps = (SoftBodyMotionProperties) body.getMotionProperties();
 
-                            // Sicherere Methode: Anzahl der Vertices holen und dann einzeln abrufen.
                             ConstSoftBodySharedSettings sharedSettings = motionProps.getSettings();
                             int numVertices = sharedSettings.countVertices();
 
@@ -55,9 +54,9 @@ public record UpdatePhysicsStateCommand(long timestampNanos) implements ICommand
                                 float[] vertexData = new float[numVertices * 3];
 
                                 for (int i = 0; i < numVertices; i++) {
-                                    // Jeden Vertex einzeln holen, anstatt das ganze Array.
+
                                     SoftBodyVertex vertex = motionProps.getVertex(i);
-                                    if (vertex == null) continue; // Sicherheitsabfrage
+                                    if (vertex == null) continue;
 
                                     Vec3 localPos = vertex.getPosition();
                                     RVec3 worldPos = worldTransform.multiply3x4(localPos);
