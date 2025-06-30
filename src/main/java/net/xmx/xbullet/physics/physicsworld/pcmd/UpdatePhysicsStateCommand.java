@@ -7,8 +7,6 @@ import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 
-import java.nio.FloatBuffer;
-
 public record UpdatePhysicsStateCommand(long timestampNanos) implements ICommand {
 
     @Override

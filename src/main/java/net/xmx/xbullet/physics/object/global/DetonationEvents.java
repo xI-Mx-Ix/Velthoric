@@ -82,41 +82,44 @@ public class DetonationEvents {
     }
 
     private static void applyImpulseToSoftBody(Body body, RVec3 explosionCenter, float radius, float radiusSq, float magnitude) {
-        try (SoftBodyMotionProperties mp = (SoftBodyMotionProperties) body.getMotionProperties()) {
-            if (mp == null) return;
 
-            RVec3 bodyPos = body.getPosition();
-            SoftBodyVertex[] vertices = mp.getVertices();
+        SoftBodyMotionProperties mp = (SoftBodyMotionProperties) body.getMotionProperties();
+        if (mp == null) return;
 
-            for (int i = 0; i < vertices.length; i++) {
-                try (SoftBodyVertex vertex = vertices[i]) {
-                    Vec3 localPos = vertex.getPosition();
-                    RVec3 worldPos = Op.plus(bodyPos, localPos);
+        int numVertices = mp.getSettings().countVertices();
+        if (numVertices == 0) return;
 
-                    double distanceSq = Op.minus(worldPos, explosionCenter).lengthSq();
-                    if (distanceSq > radiusSq) {
-                        continue;
-                    }
+        RMat44 worldTransform = body.getWorldTransform();
 
-                    Vec3 direction = Op.minus(worldPos, explosionCenter).toVec3();
-                    if (direction.lengthSq() < 1e-6f) {
-                        direction.set(0, 1, 0);
-                    } else {
-                        direction.normalizeInPlace();
-                    }
+        for (int i = 0; i < numVertices; i++) {
 
-                    float distance = (float) Math.sqrt(distanceSq);
-                    float attenuation = 1.0f - (distance / radius);
-                    attenuation = Math.max(0f, attenuation);
-
-                    float invMass = vertex.getInvMass();
-                    if (invMass > 0f) {
-                        Vec3 impulse = Op.star(direction, magnitude * attenuation);
-                        Vec3 deltaV = Op.star(impulse, invMass);
-                        vertex.setVelocity(Op.plus(vertex.getVelocity(), deltaV));
-                    }
-                }
+            SoftBodyVertex vertex = mp.getVertex(i);
+            if (vertex == null || vertex.getInvMass() <= 0f) {
+                continue;
             }
+
+            Vec3 localPos = vertex.getPosition();
+
+            RVec3 worldPos = worldTransform.multiply3x4(localPos);
+
+            double distanceSq = Op.minus(worldPos, explosionCenter).lengthSq();
+            if (distanceSq > radiusSq) {
+                continue;
+            }
+
+            Vec3 direction = Op.minus(worldPos, explosionCenter).toVec3();
+            if (direction.lengthSq() < 1e-6f) {
+                direction.set(0, 1, 0);
+            } else {
+                direction.normalizeInPlace();
+            }
+
+            float distance = (float) Math.sqrt(distanceSq);
+            float attenuation = 1.0f - (distance / radius);
+            attenuation = Math.max(0f, attenuation);
+
+            Vec3 impulse = Op.star(direction, magnitude * attenuation);
+            body.addImpulse(impulse, worldPos);
         }
     }
 }

@@ -8,7 +8,6 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
@@ -33,8 +32,6 @@ public class ClothSoftBodyRenderer extends SoftPhysicsObject.Renderer {
         int heightSegments = data.getSyncedNbtData().getInt("heightSegments");
         if (widthSegments <= 0 || heightSegments <= 0) return;
 
-        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-
         int numVerticesX = widthSegments + 1;
         VertexConsumer buffer = bufferSource.getBuffer(RenderType.solid());
         TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(BLUE_WOOL_TEXTURE);
@@ -47,20 +44,17 @@ public class ClothSoftBodyRenderer extends SoftPhysicsObject.Renderer {
 
         for (int y = 0; y < heightSegments; ++y) {
             for (int x = 0; x < widthSegments; ++x) {
-                Vector3f v1_world = getVertexWorldPos.apply(x, y);
-                Vector3f v2_world = getVertexWorldPos.apply(x + 1, y);
-                Vector3f v3_world = getVertexWorldPos.apply(x + 1, y + 1);
-                Vector3f v4_world = getVertexWorldPos.apply(x, y + 1);
 
-                Vector3f v1 = new Vector3f(v1_world).sub((float)cameraPos.x, (float)cameraPos.y, (float)cameraPos.z);
-                Vector3f v2 = new Vector3f(v2_world).sub((float)cameraPos.x, (float)cameraPos.y, (float)cameraPos.z);
-                Vector3f v3 = new Vector3f(v3_world).sub((float)cameraPos.x, (float)cameraPos.y, (float)cameraPos.z);
-                Vector3f v4 = new Vector3f(v4_world).sub((float)cameraPos.x, (float)cameraPos.y, (float)cameraPos.z);
+                Vector3f v1 = getVertexWorldPos.apply(x, y);
+                Vector3f v2 = getVertexWorldPos.apply(x + 1, y);
+                Vector3f v3 = getVertexWorldPos.apply(x + 1, y + 1);
+                Vector3f v4 = getVertexWorldPos.apply(x, y + 1);
 
                 float u1 = sprite.getU((float) x / widthSegments * 16f);
                 float u2 = sprite.getU((float) (x + 1) / widthSegments * 16f);
                 float v1Coord = sprite.getV((float) y / heightSegments * 16f);
                 float v2Coord = sprite.getV((float) (y + 1) / heightSegments * 16f);
+
                 Vector3f edge1 = new Vector3f(v2).sub(v1);
                 Vector3f edge2 = new Vector3f(v4).sub(v1);
                 Vector3f normal = edge1.cross(edge2).normalize();
