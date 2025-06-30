@@ -1,21 +1,23 @@
 package net.xmx.xbullet.physics.physicsworld;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
-import net.minecraftforge.network.PacketDistributor;
 import net.xmx.xbullet.init.ModConfig;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.natives.NativeJoltInitializer;
-import net.xmx.xbullet.network.NetworkHandler;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
 import net.xmx.xbullet.physics.physicsworld.pcmd.RunTaskCommand;
 import net.xmx.xbullet.physics.physicsworld.pcmd.UpdatePhysicsStateCommand;
 
 import javax.annotation.Nullable;
-import java.util.*;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -39,7 +41,7 @@ public class PhysicsWorld implements Runnable {
 
     private long accumulatedPauseTimeNanos = 0L;
     private long pauseStartTimeNanos = 0L;
-    private float fixedTimeStep;
+    private final float fixedTimeStep;
     private float timeAccumulator = 0.0f;
 
     private volatile boolean isShutdown = false;
@@ -61,6 +63,8 @@ public class PhysicsWorld implements Runnable {
     private volatile boolean shouldRun = false;
     private volatile boolean isPaused = false;
     private static final int DEFAULT_SIMULATION_HZ = 60;
+
+    private static final float MAX_ACCUMULATED_TIME = 0.2f;
 
     private final ResourceKey<Level> dimensionKey;
 
@@ -115,8 +119,7 @@ public class PhysicsWorld implements Runnable {
                 long actualLoopDurationNanos = loopEndTimeNanos - currentTimeNanos;
                 long sleepTimeNanos = (long)(fixedTimeStep * 1_000_000_000.0) - actualLoopDurationNanos;
 
-                if (sleepTimeNanos > 0) {
-
+                if (sleepTimeNanos > 500_000L) {
                     Thread.sleep(sleepTimeNanos / 1_000_000L, (int) (sleepTimeNanos % 1_000_000L));
                 }
             } catch (InterruptedException e) {
@@ -124,14 +127,8 @@ public class PhysicsWorld implements Runnable {
                 this.shouldRun = false;
                 Thread.currentThread().interrupt();
             } catch (Throwable t) {
-                XBullet.LOGGER.error("An uncaught exception occurred in the main physics loop for dimension {}. The simulation might be unstable.", dimensionKey.location(), t);
-
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    this.shouldRun = false;
-                    Thread.currentThread().interrupt();
-                }
+                XBullet.LOGGER.error("An uncaught exception occurred in the main physics loop for dimension {}. The simulation will now shut down to prevent further issues.", dimensionKey.location(), t);
+                this.shouldRun = false;
             }
         }
         cleanupInternal();
@@ -153,20 +150,36 @@ public class PhysicsWorld implements Runnable {
         processCommandQueue();
 
         timeAccumulator += deltaTime;
+
+        if (timeAccumulator > MAX_ACCUMULATED_TIME) {
+            XBullet.LOGGER.warn("Physics for dimension {} is running slow, clamping accumulated time from {} to {}.", dimensionKey.location(), timeAccumulator, MAX_ACCUMULATED_TIME);
+            timeAccumulator = MAX_ACCUMULATED_TIME;
+        }
+
         final int maxSubSteps = ModConfig.MAX_SUBSTEPS.get();
         int substepsPerformed = 0;
 
         while (timeAccumulator >= this.fixedTimeStep && substepsPerformed < maxSubSteps) {
             try {
-                physicsSystem.update(this.fixedTimeStep, 1, tempAllocator, jobSystem);
+
+                int error = physicsSystem.update(this.fixedTimeStep, 1, tempAllocator, jobSystem);
+                if (error != EPhysicsUpdateError.None) {
+                    XBullet.LOGGER.error("Jolt physicsSystem.update returned an error: {}. Shutting down physics thread for dimension {}.", error, dimensionKey.location());
+                    this.shouldRun = false;
+                    return;
+                }
             } catch (Exception e) {
-                XBullet.LOGGER.error("PhysicsThread: Exception during one physics sub-step.", e);
+                XBullet.LOGGER.error("PhysicsThread: Exception during one physics sub-step. The simulation will be shut down.", e);
+                this.shouldRun = false;
+                return;
             }
             timeAccumulator -= this.fixedTimeStep;
             substepsPerformed++;
         }
 
-        new UpdatePhysicsStateCommand(System.nanoTime()).execute(this);
+        if (this.shouldRun) {
+            new UpdatePhysicsStateCommand(System.nanoTime()).execute(this);
+        }
     }
 
     private void initializePhysicsSystem() {
@@ -175,10 +188,10 @@ public class PhysicsWorld implements Runnable {
         jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
 
         physicsSystem = new PhysicsSystem();
-        final int maxBodies = 65536;
-        final int numBodyMutexes = 0;
-        final int maxBodyPairs = 65536;
-        final int maxContactConstraints = 10240;
+        int maxBodies = ModConfig.MAX_BODIES.get();
+        int numBodyMutexes = ModConfig.MAX_BODY_MUTEXES.get();
+        int maxBodyPairs = ModConfig.MAX_BODY_PAIRS.get();
+        int maxContactConstraints = ModConfig.MAX_CONTACT_CONSTRAINTS.get();
         physicsSystem.init(maxBodies, numBodyMutexes, maxBodyPairs, maxContactConstraints,
                 NativeJoltInitializer.getBroadPhaseLayerInterface(),
                 NativeJoltInitializer.getObjectVsBroadPhaseLayerFilter(),
