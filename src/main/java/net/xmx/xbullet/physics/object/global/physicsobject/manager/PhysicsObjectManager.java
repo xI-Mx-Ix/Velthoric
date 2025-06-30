@@ -46,14 +46,21 @@ public class PhysicsObjectManager {
     }
 
     public void initialize(ServerLevel level) {
+
+        PhysicsWorldRegistry worldRegistry = PhysicsWorldRegistry.getInstance();
+
+        this.physicsWorld = worldRegistry.getPhysicsWorld(level.dimension());
+
+        if (this.physicsWorld == null) {
+
+            XBullet.LOGGER.debug("PhysicsWorld for dimension {} not found. Manager will not initialize. (This is normal during server shutdown)", level.dimension().location());
+            return;
+        }
+
         this.isShutdown.set(false);
         this.isInitializedInternal.set(false);
         this.managedLevel = level;
-        this.physicsWorld = PhysicsWorldRegistry.getInstance().getPhysicsWorld(level.dimension());
-        if (this.physicsWorld == null) {
-            XBullet.LOGGER.error("PhysicsWorld for dimension {} not found. Manager will not function.", level.dimension().location());
-            return;
-        }
+
         this.managedObjects.clear();
         this.lastActiveState.clear();
         this.objLoader.reset();

@@ -1,7 +1,6 @@
 package net.xmx.xbullet.physics.physicsworld;
 
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.init.XBullet;
@@ -10,14 +9,17 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PhysicsWorldRegistry {
 
     private static PhysicsWorldRegistry instance;
     private final Map<ResourceKey<Level>, PhysicsWorld> physicsWorlds = new ConcurrentHashMap<>();
 
+    private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
+
     private PhysicsWorldRegistry() {
-        XBullet.LOGGER.debug("PhysicsWorldManager initialized.");
+        XBullet.LOGGER.debug("PhysicsWorldRegistry initialized.");
     }
 
     public static PhysicsWorldRegistry getInstance() {
@@ -32,13 +34,15 @@ public class PhysicsWorldRegistry {
     }
 
     public void initializeForDimension(ServerLevel level) {
+        if (isShuttingDown.get()) {
+            return;
+        }
         if (level == null) {
             XBullet.LOGGER.error("Attempted to initialize PhysicsWorld for null level.");
             return;
         }
         ResourceKey<Level> dimensionKey = level.dimension();
         if (physicsWorlds.containsKey(dimensionKey)) {
-            XBullet.LOGGER.warn("PhysicsWorld for dimension {} is already initialized.", dimensionKey.location());
             return;
         }
 
@@ -51,12 +55,15 @@ public class PhysicsWorldRegistry {
     public void shutdownForDimension(ResourceKey<Level> dimensionKey) {
         PhysicsWorld world = physicsWorlds.remove(dimensionKey);
         if (world != null) {
-            XBullet.LOGGER.debug("Shutting down PhysicsWorld for dimension {}.", dimensionKey.location());
             world.stop();
+            XBullet.LOGGER.debug("Shutting down PhysicsWorld for dimension {}.", dimensionKey.location());
         }
     }
 
     public void shutdownAll() {
+        if (!isShuttingDown.compareAndSet(false, true)) {
+            return;
+        }
         XBullet.LOGGER.debug("Shutting down all PhysicsWorlds.");
 
         for (ResourceKey<Level> dimensionKey : Collections.unmodifiableSet(physicsWorlds.keySet())) {
@@ -64,6 +71,7 @@ public class PhysicsWorldRegistry {
         }
         physicsWorlds.clear();
         XBullet.LOGGER.debug("All PhysicsWorlds shut down.");
+
     }
 
     @Nullable

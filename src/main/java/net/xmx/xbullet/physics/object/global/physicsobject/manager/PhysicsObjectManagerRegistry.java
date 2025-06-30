@@ -9,11 +9,14 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PhysicsObjectManagerRegistry {
 
     private static PhysicsObjectManagerRegistry instance;
     private final Map<ResourceKey<Level>, PhysicsObjectManager> managers = new ConcurrentHashMap<>();
+
+    private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 
     private PhysicsObjectManagerRegistry() {
         XBullet.LOGGER.debug("Global PhysicsObjectManagerRegistry initialized.");
@@ -32,6 +35,10 @@ public class PhysicsObjectManagerRegistry {
 
     @Nullable
     public PhysicsObjectManager getManagerForLevel(ServerLevel level) {
+        if (isShuttingDown.get()) {
+            return null;
+        }
+
         return managers.computeIfAbsent(level.dimension(), k -> {
             PhysicsObjectManager manager = new PhysicsObjectManager();
             manager.initialize(level);
@@ -48,18 +55,23 @@ public class PhysicsObjectManagerRegistry {
     public void removeManager(ResourceKey<Level> dimensionKey) {
         PhysicsObjectManager manager = managers.remove(dimensionKey);
         if (manager != null) {
-            XBullet.LOGGER.debug("Removed PhysicsObjectManager for dimension {}.", dimensionKey.location());
             manager.shutdown();
+            XBullet.LOGGER.debug("Removed PhysicsObjectManager for dimension {}.", dimensionKey.location());
         }
     }
 
     public void shutdownAll() {
+        if (!isShuttingDown.compareAndSet(false, true)) {
+            return;
+        }
+
         XBullet.LOGGER.debug("Shutting down all PhysicsObjectManagers.");
         for (ResourceKey<Level> key : Collections.unmodifiableSet(managers.keySet())) {
             removeManager(key);
         }
         managers.clear();
         XBullet.LOGGER.debug("All PhysicsObjectManagers shut down.");
+
     }
 
     public Map<ResourceKey<Level>, PhysicsObjectManager> getAllManagers() {

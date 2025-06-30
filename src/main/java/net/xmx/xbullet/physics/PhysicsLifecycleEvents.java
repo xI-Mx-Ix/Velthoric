@@ -14,12 +14,14 @@ public class PhysicsLifecycleEvents {
 
     @SubscribeEvent
     public static void onServerStarted(ServerStartedEvent event) {
+
         PhysicsWorldRegistry.getInstance();
         PhysicsObjectManagerRegistry.getInstance();
     }
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
+
         PhysicsObjectManagerRegistry.getInstance().shutdownAll();
         PhysicsWorldRegistry.getInstance().shutdownAll();
     }
@@ -40,6 +42,7 @@ public class PhysicsLifecycleEvents {
 
     @SubscribeEvent
     public static void onLevelUnload(LevelEvent.Unload event) {
+
         if (event.getLevel().isClientSide() || !(event.getLevel() instanceof ServerLevel serverLevel)) {
             return;
         }
