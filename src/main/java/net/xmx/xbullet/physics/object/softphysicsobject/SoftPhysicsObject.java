@@ -41,11 +41,7 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
             throw new IllegalArgumentException("SoftPhysicsObject requires SoftPhysicsObjectProperties");
         }
 
-        if (initialNbt != null && initialNbt.contains("softBodyProperties", 10)) {
-            this.softProperties = SoftPhysicsObjectProperties.fromNbt(initialNbt.getCompound("softBodyProperties"));
-        } else {
-            this.softProperties = defaultProps;
-        }
+        this.softProperties = defaultProps;
     }
 
     @Override
@@ -65,7 +61,7 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
 
                         RVec3 bodyPosition = this.currentTransform.getTranslation();
                         Quat bodyRotation = this.currentTransform.getRotation();
-                        Quat invRotation = bodyRotation.conjugated(); // Inverse rotation
+                        Quat invRotation = bodyRotation.conjugated();
 
                         for (int i = 0; i < vertices.length; ++i) {
                             Vertex v = vertices[i];
@@ -161,6 +157,10 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
+        if (tag.contains("softBodyProperties", 10)) {
+            this.softProperties = SoftPhysicsObjectProperties.fromNbt(tag.getCompound("softBodyProperties"));
+        }
+
         if (tag.contains("vertexData", 9)) {
             ListTag list = tag.getList("vertexData", 5);
             lastSyncedVertexData = new float[list.size()];

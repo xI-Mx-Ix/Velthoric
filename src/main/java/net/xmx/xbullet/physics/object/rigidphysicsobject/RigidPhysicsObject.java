@@ -33,9 +33,6 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
 
     protected ShapeSettingsRef shapeSettingsRef;
 
-    protected final Vec3 lastSyncedLinearVel = new Vec3();
-    protected final Vec3 lastSyncedAngularVel = new Vec3();
-
     protected float mass;
     protected float friction;
     protected float restitution;
@@ -57,16 +54,6 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
         this.buoyancyFactor = defaultProps.getBuoyancyFactor();
         this.gravityFactor = defaultProps.getGravityFactor();
         this.motionType = defaultProps.getMotionType();
-
-        if (initialNbt != null) {
-            this.mass = initialNbt.contains("mass") ? initialNbt.getFloat("mass") : this.mass;
-            this.friction = initialNbt.contains("friction") ? initialNbt.getFloat("friction") : this.friction;
-            this.restitution = initialNbt.contains("restitution") ? initialNbt.getFloat("restitution") : this.restitution;
-            this.linearDamping = initialNbt.contains("linearDamping") ? initialNbt.getFloat("linearDamping") : this.linearDamping;
-            this.angularDamping = initialNbt.contains("angularDamping") ? initialNbt.getFloat("angularDamping") : this.angularDamping;
-            this.buoyancyFactor = initialNbt.contains("buoyancyFactor") ? initialNbt.getFloat("buoyancyFactor") : this.buoyancyFactor;
-            this.gravityFactor = initialNbt.contains("gravityFactor") ? initialNbt.getFloat("gravityFactor") : this.gravityFactor;
-        }
     }
 
     @Override
@@ -148,6 +135,14 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
+        this.mass = tag.contains("mass") ? tag.getFloat("mass") : this.mass;
+        this.friction = tag.contains("friction") ? tag.getFloat("friction") : this.friction;
+        this.restitution = tag.contains("restitution") ? tag.getFloat("restitution") : this.restitution;
+        this.linearDamping = tag.contains("linearDamping") ? tag.getFloat("linearDamping") : this.linearDamping;
+        this.angularDamping = tag.contains("angularDamping") ? tag.getFloat("angularDamping") : this.angularDamping;
+        this.buoyancyFactor = tag.contains("buoyancyFactor") ? tag.getFloat("buoyancyFactor") : this.buoyancyFactor;
+        this.gravityFactor = tag.contains("gravityFactor") ? tag.getFloat("gravityFactor") : this.gravityFactor;
+
         if (tag.contains("motionType", StringTag.TAG_STRING)) {
             try {
                 this.motionType = EMotionType.valueOf(tag.getString("motionType"));
@@ -157,21 +152,13 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
         }
 
         if (tag.contains("linVel", 9)) {
-            ListTag list = tag.getList("linVel", 9);
+            ListTag list = tag.getList("linVel", 5);
             if (list.size() == 3) this.lastSyncedLinearVel.set(list.getFloat(0), list.getFloat(1), list.getFloat(2));
         }
         if (tag.contains("angVel", 9)) {
-            ListTag list = tag.getList("angVel", 9);
+            ListTag list = tag.getList("angVel", 5);
             if (list.size() == 3) this.lastSyncedAngularVel.set(list.getFloat(0), list.getFloat(1), list.getFloat(2));
         }
-    }
-
-    public Vec3 getLastSyncedLinearVel() {
-        return lastSyncedLinearVel;
-    }
-
-    public Vec3 getLastSyncedAngularVel() {
-        return lastSyncedAngularVel;
     }
 
     @Override
