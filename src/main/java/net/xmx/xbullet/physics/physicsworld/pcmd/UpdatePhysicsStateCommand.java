@@ -45,14 +45,28 @@ public record UpdatePhysicsStateCommand(long timestampNanos) implements ICommand
                     if (lock.succeededAndIsInBroadPhase()) {
                         Body body = lock.getBody();
                         if (body != null && body.isSoftBody()) {
+                            // Cast zu SoftBodyMotionProperties ist sicher, da wir isSoftBody() geprüft haben.
                             SoftBodyMotionProperties motionProps = (SoftBodyMotionProperties) body.getMotionProperties();
+
+                            // Sicherere Methode: Anzahl der Vertices holen und dann einzeln abrufen.
                             ConstSoftBodySharedSettings sharedSettings = motionProps.getSettings();
                             int numVertices = sharedSettings.countVertices();
 
                             if (numVertices > 0) {
+                                RMat44 worldTransform = body.getWorldTransform();
                                 float[] vertexData = new float[numVertices * 3];
-                                FloatBuffer buffer = FloatBuffer.wrap(vertexData);
-                                motionProps.putVertexLocations(body.getPosition(), buffer);
+
+                                for (int i = 0; i < numVertices; i++) {
+                                    // Jeden Vertex einzeln holen, anstatt das ganze Array.
+                                    SoftBodyVertex vertex = motionProps.getVertex(i);
+                                    if (vertex == null) continue; // Sicherheitsabfrage
+
+                                    Vec3 localPos = vertex.getPosition();
+                                    RVec3 worldPos = worldTransform.multiply3x4(localPos);
+                                    vertexData[i * 3] = worldPos.x();
+                                    vertexData[i * 3 + 1] = worldPos.y();
+                                    vertexData[i * 3 + 2] = worldPos.z();
+                                }
                                 world.getSyncedSoftBodyVertexData().put(obj.getPhysicsId(), vertexData);
                             }
                         }

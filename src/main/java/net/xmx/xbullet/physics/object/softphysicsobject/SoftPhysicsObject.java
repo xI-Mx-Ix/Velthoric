@@ -1,6 +1,7 @@
 package net.xmx.xbullet.physics.object.softphysicsobject;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.operator.Op;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.nbt.CompoundTag;
@@ -63,21 +64,26 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
                     if (vertices != null && vertices.length * 3 == lastSyncedVertexData.length) {
 
                         RVec3 bodyPosition = this.currentTransform.getTranslation();
+                        Quat bodyRotation = this.currentTransform.getRotation();
+                        Quat invRotation = bodyRotation.conjugated(); // Inverse rotation
 
                         for (int i = 0; i < vertices.length; ++i) {
                             Vertex v = vertices[i];
                             if (v != null) {
+                                RVec3 worldVertexPos = new RVec3(
+                                        (double)lastSyncedVertexData[i * 3],
+                                        (double)lastSyncedVertexData[i * 3 + 1],
+                                        (double)lastSyncedVertexData[i * 3 + 2]
+                                );
 
-                                float localX = lastSyncedVertexData[i * 3] - (float) bodyPosition.xx();
-                                float localY = lastSyncedVertexData[i * 3 + 1] - (float) bodyPosition.yy();
-                                float localZ = lastSyncedVertexData[i * 3 + 2] - (float) bodyPosition.zz();
-
-                                v.setPosition(new Vec3(localX, localY, localZ));
+                                RVec3 relativePos = Op.minus(worldVertexPos, bodyPosition);
+                                Vec3 localPos = Op.star(invRotation, relativePos.toVec3());
+                                v.setPosition(localPos);
                             }
                         }
-                    } else {
+                    } else if (vertices != null) {
                         XBullet.LOGGER.warn("Vertex data length mismatch for soft body {}. Saved: {}, Expected: {}",
-                                physicsId, lastSyncedVertexData.length, (vertices != null ? vertices.length * 3 : "null"));
+                                physicsId, lastSyncedVertexData.length, vertices.length * 3);
                     }
                 }
                 this.sharedSettingsRef = settingsTarget.toRef();
