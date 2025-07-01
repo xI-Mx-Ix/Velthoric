@@ -1,7 +1,9 @@
 package net.xmx.xbullet.physics.terrain.manager;
 
 import com.github.stephengold.joltjni.RVec3;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
 import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.xmx.xbullet.physics.terrain.chunk.TerrainSection;
@@ -19,8 +21,13 @@ public class TerrainPriorityUpdater {
     private final PhysicsObjectManager physicsObjectManager;
     private final PhysicsWorld physicsWorld;
 
-    private static final double ACTIVATION_RADIUS = 32.0;
+    private static final double ACTIVATION_RADIUS = 64.0;
+    private static final double MESHING_RADIUS = 96.0;
+
+    private static final double PHYSICS_OBJECT_WEIGHT = 4.0;
+
     private static final double ACTIVATION_RADIUS_SQ = ACTIVATION_RADIUS * ACTIVATION_RADIUS;
+    private static final double MESHING_RADIUS_SQ = MESHING_RADIUS * MESHING_RADIUS;
 
     public TerrainPriorityUpdater(ServerLevel level, PhysicsObjectManager physicsObjectManager, PhysicsWorld physicsWorld) {
         this.level = level;
@@ -28,49 +35,75 @@ public class TerrainPriorityUpdater {
         this.physicsWorld = physicsWorld;
     }
 
-    public PriorityQueue<TerrainSection> createPriorityQueue(TerrainChunkManager chunkManager) {
-        List<RVec3> pointsOfInterest = gatherPointsOfInterest();
-        if (pointsOfInterest.isEmpty()) {
+    public PriorityQueue<TerrainSection> updateAndCreateQueue(TerrainChunkManager chunkManager) {
+
+        List<RVec3> playerPOIs = gatherPlayerPOIs();
+        List<RVec3> physicsObjectPOIs = gatherPhysicsObjectPOIs();
+
+        if (playerPOIs.isEmpty() && physicsObjectPOIs.isEmpty()) {
+            chunkManager.getManagedSections().stream()
+                    .filter(s -> s.getState() == TerrainSection.State.READY_ACTIVE)
+                    .forEach(s -> physicsWorld.queueCommand(new DeactivateTerrainSectionCommand(s)));
             return new PriorityQueue<>();
         }
 
-        chunkManager.getManagedSections().forEach(section -> {
-            double minDstSq = calculateMinDistanceSq(section, pointsOfInterest);
+        PriorityQueue<TerrainSection> meshingQueue = new PriorityQueue<>(Comparator.comparingDouble(TerrainSection::getPriority).reversed());
 
-            handleActivation(section, minDstSq);
+        for (TerrainSection section : chunkManager.getManagedSections()) {
+            double weightedMinDistanceSq = calculateWeightedMinDistanceSq(section, playerPOIs, physicsObjectPOIs);
+            double realMinDistanceSq = calculateRealMinDistanceSq(section, playerPOIs, physicsObjectPOIs);
 
-            if (section.getState() == TerrainSection.State.PLACEHOLDER) {
-                if (section.getPriority() != Double.MAX_VALUE) {
-                    section.setPriority(1.0 / (1.0 + Math.sqrt(minDstSq)));
-                }
-            }
-        });
+            handleActivation(section, realMinDistanceSq);
+            handleMeshingPriority(section, weightedMinDistanceSq, meshingQueue);
+        }
 
-        PriorityQueue<TerrainSection> queue = new PriorityQueue<>(Comparator.comparingDouble(TerrainSection::getPriority).reversed());
-        chunkManager.getManagedSections().stream()
-                .filter(s -> s.getState() == TerrainSection.State.PLACEHOLDER && s.getPriority() > 0)
-                .forEach(queue::add);
-
-        return queue;
+        return meshingQueue;
     }
 
-    private void handleActivation(TerrainSection section, double minDistanceSq) {
-        boolean shouldBeActive = minDistanceSq <= ACTIVATION_RADIUS_SQ;
+    private void handleActivation(TerrainSection section, double realMinDistanceSq) {
+        final boolean shouldBeActive = realMinDistanceSq <= ACTIVATION_RADIUS_SQ;
+        final TerrainSection.State currentState = section.getState();
 
-        if (shouldBeActive && section.getState() == TerrainSection.State.READY_INACTIVE) {
-
+        if (shouldBeActive && currentState == TerrainSection.State.READY_INACTIVE) {
             physicsWorld.queueCommand(new ActivateTerrainSectionCommand(section));
-        } else if (!shouldBeActive && section.getState() == TerrainSection.State.READY_ACTIVE) {
-
+        } else if (!shouldBeActive && currentState == TerrainSection.State.READY_ACTIVE) {
             physicsWorld.queueCommand(new DeactivateTerrainSectionCommand(section));
         }
     }
 
-    private double calculateMinDistanceSq(TerrainSection section, List<RVec3> pointsOfInterest) {
+    private void handleMeshingPriority(TerrainSection section, double weightedMinDistanceSq, PriorityQueue<TerrainSection> queue) {
+        if (section.getState() != TerrainSection.State.PLACEHOLDER) {
+            return;
+        }
+        if (weightedMinDistanceSq > MESHING_RADIUS_SQ && section.getPriority() != Double.MAX_VALUE) {
+            section.setPriority(0.0);
+            return;
+        }
+        if (section.getPriority() != Double.MAX_VALUE) {
+            section.setPriority(1.0 / (1.0 + Math.sqrt(weightedMinDistanceSq)));
+        }
+        queue.add(section);
+    }
+
+    private double calculateRealMinDistanceSq(TerrainSection section, List<RVec3> playerPOIs, List<RVec3> physicsObjectPOIs) {
+        double minPlayerDistSq = calculateMinDistanceSqForList(section, playerPOIs);
+        double minPhysicsObjDistSq = calculateMinDistanceSqForList(section, physicsObjectPOIs);
+        return Math.min(minPlayerDistSq, minPhysicsObjDistSq);
+    }
+
+    private double calculateWeightedMinDistanceSq(TerrainSection section, List<RVec3> playerPOIs, List<RVec3> physicsObjectPOIs) {
+        double minPlayerDistSq = calculateMinDistanceSqForList(section, playerPOIs);
+        double minPhysicsObjDistSq = calculateMinDistanceSqForList(section, physicsObjectPOIs) / (PHYSICS_OBJECT_WEIGHT * PHYSICS_OBJECT_WEIGHT);
+        return Math.min(minPlayerDistSq, minPhysicsObjDistSq);
+    }
+
+    private double calculateMinDistanceSqForList(TerrainSection section, List<RVec3> pointsOfInterest) {
+        if (pointsOfInterest.isEmpty()) {
+            return Double.MAX_VALUE;
+        }
         final double centerX = section.getPos().center().getX();
         final double centerY = section.getPos().center().getY();
         final double centerZ = section.getPos().center().getZ();
-
         return pointsOfInterest.stream()
                 .mapToDouble(poi -> {
                     double dx = poi.xx() - centerX;
@@ -78,18 +111,31 @@ public class TerrainPriorityUpdater {
                     double dz = poi.zz() - centerZ;
                     return dx * dx + dy * dy + dz * dz;
                 })
-                .min().orElse(Double.MAX_VALUE);
+                .min()
+                .orElse(Double.MAX_VALUE);
     }
 
-    private List<RVec3> gatherPointsOfInterest() {
+    private List<RVec3> gatherPlayerPOIs() {
         List<RVec3> points = new ArrayList<>();
-        level.players().forEach(p -> points.add(new RVec3(p.getX(), p.getY(), p.getZ())));
-
-        if (physicsObjectManager != null && physicsObjectManager.isInitialized()) {
-            physicsObjectManager.getManagedObjects().values().stream()
-                    .filter(o -> o.isPhysicsInitialized() && o.getBodyId() != 0)
-                    .forEach(o -> points.add(o.getCurrentTransform().getTranslation()));
+        for (ServerPlayer player : level.players()) {
+            points.add(new RVec3(player.getX(), player.getY(), player.getZ()));
         }
+        return points;
+    }
+
+    private List<RVec3> gatherPhysicsObjectPOIs() {
+        List<RVec3> points = new ArrayList<>();
+
+        if (this.physicsObjectManager == null || !this.physicsObjectManager.isInitialized()) {
+            return points;
+        }
+
+        for (IPhysicsObject physicsObject : this.physicsObjectManager.getManagedObjects().values()) {
+            if (physicsObject.isPhysicsInitialized() && physicsObject.getBodyId() != 0) {
+                points.add(physicsObject.getCurrentTransform().getTranslation());
+            }
+        }
+
         return points;
     }
 }

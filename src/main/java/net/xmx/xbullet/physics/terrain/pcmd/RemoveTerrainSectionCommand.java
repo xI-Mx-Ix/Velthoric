@@ -17,7 +17,11 @@ public record RemoveTerrainSectionCommand(TerrainSection section, TerrainSystem 
         }
 
         BodyInterface bodyInterface = world.getBodyInterface();
-        bodyInterface.removeBody(bodyId);
+
+        if (bodyInterface.isAdded(bodyId)) {
+            bodyInterface.removeBody(bodyId);
+        }
+
         bodyInterface.destroyBody(bodyId);
 
         world.getBodyIdToUuidMap().remove(bodyId);

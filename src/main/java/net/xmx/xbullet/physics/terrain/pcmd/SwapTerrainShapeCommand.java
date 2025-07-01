@@ -21,9 +21,8 @@ public record SwapTerrainShapeCommand(TerrainSection section, ShapeSettings newS
             if (result.isValid()) {
                 try (ShapeRefC newShapeRef = result.get()) {
                     BodyInterface bodyInterface = world.getBodyInterface();
-                    boolean wasAdded = bodyInterface.isAdded(section.getBodyId());
 
-                    if (wasAdded) {
+                    if (bodyInterface.isAdded(section.getBodyId())) {
                         bodyInterface.removeBody(section.getBodyId());
                     }
 
@@ -38,12 +37,9 @@ public record SwapTerrainShapeCommand(TerrainSection section, ShapeSettings newS
 
                     section.setState(TerrainSection.State.READY_INACTIVE);
 
-                    if (wasAdded) {
-                        bodyInterface.addBody(section.getBodyId(), EActivation.DontActivate);
-                        section.setState(TerrainSection.State.READY_ACTIVE);
-                    }
                 }
             } else {
+
                 section.setState(TerrainSection.State.PLACEHOLDER);
                 XBullet.LOGGER.error("Failed to create shape for section {}: {}", section.getPos(), result.getError());
             }
