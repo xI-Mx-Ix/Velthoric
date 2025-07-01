@@ -5,6 +5,8 @@ import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.FloatTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
@@ -70,6 +72,12 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
             currentTransform.fromNbt(tag.getCompound("transform"));
         }
         readAdditionalSaveData(tag);
+    }
+
+    protected static ListTag newFloatList(float... values) {
+        ListTag tag = new ListTag();
+        for (float v : values) tag.add(FloatTag.valueOf(v));
+        return tag;
     }
 
     @Override @Nullable public BodyCreationSettings createBodyCreationSettings() { return null; }

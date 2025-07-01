@@ -72,16 +72,25 @@ public class TerrainPriorityUpdater {
     }
 
     private void handleMeshingPriority(TerrainSection section, double weightedMinDistanceSq, PriorityQueue<TerrainSection> queue) {
+
         if (section.getState() != TerrainSection.State.PLACEHOLDER) {
             return;
         }
-        if (weightedMinDistanceSq > MESHING_RADIUS_SQ && section.getPriority() != Double.MAX_VALUE) {
-            section.setPriority(0.0);
-            return;
+
+        if (weightedMinDistanceSq > MESHING_RADIUS_SQ) {
+
+            if (section.getPriority() != Double.MAX_VALUE) {
+
+                return;
+            }
+
         }
+
         if (section.getPriority() != Double.MAX_VALUE) {
+
             section.setPriority(1.0 / (1.0 + Math.sqrt(weightedMinDistanceSq)));
         }
+
         queue.add(section);
     }
 

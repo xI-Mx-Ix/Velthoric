@@ -1,14 +1,9 @@
 package net.xmx.xbullet.physics.terrain.mesh;
 
-import com.github.stephengold.joltjni.EmptyShapeSettings;
-import com.github.stephengold.joltjni.Float3;
-import com.github.stephengold.joltjni.IndexedTriangle;
-import com.github.stephengold.joltjni.IndexedTriangleList;
-import com.github.stephengold.joltjni.MeshShapeSettings;
-import com.github.stephengold.joltjni.ShapeSettings;
+import com.github.stephengold.joltjni.*;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,111 +13,168 @@ import java.util.function.Supplier;
 
 public class MeshGenerationTask implements Supplier<ShapeSettings> {
 
-    private final BlockState[] blockStates;
-    private Map<BlockPos, Integer> vertexIndexMap;
+    private static final int RESOLUTION = 16;
+    private static final int SECTION_DIM = 16 * RESOLUTION;
 
-    public MeshGenerationTask(BlockState[] blockStates) {
-        if (blockStates.length != 4096) {
-            throw new IllegalArgumentException("BlockState array must have a size of 4096 (16x16x16)");
+    private final VoxelShape[] voxelShapes;
+    private final boolean[][][] voxels;
+
+    private final List<Float3> vertices = new ArrayList<>();
+    private final IndexedTriangleList triangles = new IndexedTriangleList();
+    private final Map<BlockPos, Integer> vertexIndexMap = new HashMap<>();
+
+    public MeshGenerationTask(VoxelShape[] voxelShapes) {
+        if (voxelShapes.length != 4096) {
+            throw new IllegalArgumentException("VoxelShape array must have a size of 4096 (16x16x16)");
         }
-        this.blockStates = blockStates;
+        this.voxelShapes = voxelShapes;
+        this.voxels = new boolean[SECTION_DIM][SECTION_DIM][SECTION_DIM];
     }
 
     @Override
     public ShapeSettings get() {
-        this.vertexIndexMap = new HashMap<>();
-        List<Float3> vertices = new ArrayList<>();
+        try {
 
-        try (IndexedTriangleList triangles = new IndexedTriangleList()) {
-            for (int d = 0; d < 3; ++d) {
-                for (boolean backFace : new boolean[]{true, false}) {
-                    generateGreedyMeshForDirection(d, backFace, vertices, triangles);
-                }
-            }
+            voxelizeSectionOptimized();
+
+            generateGreedyMesh();
 
             if (triangles.empty()) {
                 return new EmptyShapeSettings();
             }
 
             return new MeshShapeSettings(vertices, triangles);
-
         } finally {
-            this.vertexIndexMap = null;
+            triangles.close();
         }
     }
 
-    private int getBlockIndex(int x, int y, int z) {
-        return (y * 16 + z) * 16 + x;
-    }
+    private void voxelizeSectionOptimized() {
+        for (int blockY = 0; blockY < 16; blockY++) {
+            for (int blockZ = 0; blockZ < 16; blockZ++) {
+                for (int blockX = 0; blockX < 16; blockX++) {
+                    int blockIndex = (blockY * 16 + blockZ) * 16 + blockX;
+                    VoxelShape shape = voxelShapes[blockIndex];
+                    if (shape.isEmpty()) {
+                        continue;
+                    }
 
-    private BlockState getBlockState(int x, int y, int z) {
-        if (x < 0 || x >= 16 || y < 0 || y >= 16 || z < 0 || z >= 16) {
-            return Blocks.AIR.defaultBlockState();
-        }
-        return blockStates[getBlockIndex(x, y, z)];
-    }
+                    for (AABB aabb : shape.toAabbs()) {
 
-    private void generateGreedyMeshForDirection(int d, boolean backFace, List<Float3> vertices, IndexedTriangleList triangles) {
-        int u = (d + 1) % 3;
-        int v = (d + 2) % 3;
-        int[] p1 = new int[3];
-        int[] p2 = new int[3];
-        boolean[][] mask = new boolean[16][16];
+                        int startX = (int) Math.floor(aabb.minX * RESOLUTION) + blockX * RESOLUTION;
+                        int startY = (int) Math.floor(aabb.minY * RESOLUTION) + blockY * RESOLUTION;
+                        int startZ = (int) Math.floor(aabb.minZ * RESOLUTION) + blockZ * RESOLUTION;
+                        int endX = (int) Math.ceil(aabb.maxX * RESOLUTION) + blockX * RESOLUTION;
+                        int endY = (int) Math.ceil(aabb.maxY * RESOLUTION) + blockY * RESOLUTION;
+                        int endZ = (int) Math.ceil(aabb.maxZ * RESOLUTION) + blockZ * RESOLUTION;
 
-        for (int i = -1; i < 16; ++i) {
-            for (int j = 0; j < 16; ++j) {
-                for (int k = 0; k < 16; ++k) {
-                    setCoords(p1, d, i, u, j, v, k);
-                    setCoords(p2, d, i + 1, u, j, v, k);
-                    BlockState s1 = getBlockState(p1[0], p1[1], p1[2]);
-                    BlockState s2 = getBlockState(p2[0], p2[1], p2[2]);
-                    mask[j][k] = backFace ? (!s1.isAir() && s2.isAir()) : (s1.isAir() && !s2.isAir());
-                }
-            }
-            for (int j = 0; j < 16; ++j) {
-                for (int k = 0; k < 16; ) {
-                    if (mask[j][k]) {
-                        int w = 1;
-                        while (k + w < 16 && mask[j][k + w]) w++;
-                        int h = 1;
-                        outer:
-                        while (j + h < 16) {
-                            for (int l = 0; l < w; ++l) {
-                                if (!mask[j + h][k + l]) break outer;
+                        for (int z = startZ; z < endZ; z++) {
+                            for (int y = startY; y < endY; y++) {
+                                for (int x = startX; x < endX; x++) {
+
+                                    if (x >= 0 && x < SECTION_DIM && y >= 0 && y < SECTION_DIM && z >= 0 && z < SECTION_DIM) {
+                                        voxels[x][y][z] = true;
+                                    }
+                                }
                             }
-                            h++;
                         }
-                        int slicePos = i + 1;
-                        int[] du = new int[3];
-                        setCoords(du, d, 0, u, h, v, 0);
-                        int[] dv = new int[3];
-                        setCoords(dv, d, 0, u, 0, v, w);
-                        int[] v1_coords = new int[3];
-                        setCoords(v1_coords, d, slicePos, u, j, v, k);
-                        BlockPos v1 = new BlockPos(v1_coords[0], v1_coords[1], v1_coords[2]);
-                        BlockPos v2 = v1.offset(dv[0], dv[1], dv[2]);
-                        BlockPos v3 = v1.offset(du[0] + dv[0], du[1] + dv[1], du[2] + dv[2]);
-                        BlockPos v4 = v1.offset(du[0], du[1], du[2]);
-                        if (backFace) {
-                            addQuad(v4, v3, v2, v1, vertices, triangles);
-                        } else {
-                            addQuad(v1, v2, v3, v4, vertices, triangles);
-                        }
-                        for (int l = 0; l < h; ++l) for (int m = 0; m < w; ++m) mask[j + l][k + m] = false;
-                        k += w;
-                    } else {
-                        k++;
                     }
                 }
             }
         }
     }
 
-    private void addQuad(BlockPos p1, BlockPos p2, BlockPos p3, BlockPos p4, List<Float3> vertices, IndexedTriangleList triangles) {
-        int i1 = getOrAddVertex(p1, vertices);
-        int i2 = getOrAddVertex(p2, vertices);
-        int i3 = getOrAddVertex(p3, vertices);
-        int i4 = getOrAddVertex(p4, vertices);
+    private void generateGreedyMesh() {
+
+        for (int d = 0; d < 3; d++) {
+            int u = (d + 1) % 3;
+            int v = (d + 2) % 3;
+
+            int[] x = new int[3];
+            int[] q = new int[3];
+            q[d] = 1;
+
+            boolean[][] mask = new boolean[SECTION_DIM][SECTION_DIM];
+
+            for (x[d] = -1; x[d] < SECTION_DIM; x[d]++) {
+
+                for (x[u] = 0; x[u] < SECTION_DIM; x[u]++) {
+                    for (x[v] = 0; x[v] < SECTION_DIM; x[v]++) {
+
+                        boolean voxel1 = getVoxel(x[0], x[1], x[2]);
+                        boolean voxel2 = getVoxel(x[0] + q[0], x[1] + q[1], x[2] + q[2]);
+
+                        mask[x[u]][x[v]] = voxel1 != voxel2;
+                    }
+                }
+
+                for (int j = 0; j < SECTION_DIM; j++) {
+                    for (int k = 0; k < SECTION_DIM; ) {
+                        if (mask[j][k]) {
+
+                            int w = 1;
+                            while (k + w < SECTION_DIM && mask[j][k + w]) {
+                                w++;
+                            }
+
+                            int h = 1;
+                            boolean done = false;
+                            while (j + h < SECTION_DIM) {
+                                for (int m = 0; m < w; m++) {
+                                    if (!mask[j + h][k + m]) {
+                                        done = true;
+                                        break;
+                                    }
+                                }
+                                if (done) break;
+                                h++;
+                            }
+
+                            x[u] = j;
+                            x[v] = k;
+                            boolean isBackFace = !getVoxel(x[0], x[1], x[2]);
+
+                            int[] du = new int[3]; du[u] = h;
+                            int[] dv = new int[3]; dv[v] = w;
+
+                            BlockPos v1 = new BlockPos(x[0] + q[0], x[1] + q[1], x[2] + q[2]);
+                            BlockPos v2 = new BlockPos(x[0] + q[0] + dv[0], x[1] + q[1] + dv[1], x[2] + q[2] + dv[2]);
+                            BlockPos v3 = new BlockPos(x[0] + q[0] + du[0] + dv[0], x[1] + q[1] + du[1] + dv[1], x[2] + q[2] + du[2] + dv[2]);
+                            BlockPos v4 = new BlockPos(x[0] + q[0] + du[0], x[1] + q[1] + du[1], x[2] + q[2] + du[2]);
+
+                            if (isBackFace) {
+                                addQuad(v1, v2, v3, v4);
+                            } else {
+                                addQuad(v4, v3, v2, v1);
+                            }
+
+                            for (int l = 0; l < h; l++) {
+                                for (int m = 0; m < w; m++) {
+                                    mask[j + l][k + m] = false;
+                                }
+                            }
+                            k += w;
+                        } else {
+                            k++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean getVoxel(int x, int y, int z) {
+        if (x < 0 || y < 0 || z < 0 || x >= SECTION_DIM || y >= SECTION_DIM || z >= SECTION_DIM) {
+            return false;
+        }
+        return voxels[x][y][z];
+    }
+
+    private void addQuad(BlockPos p1, BlockPos p2, BlockPos p3, BlockPos p4) {
+        int i1 = getOrAddVertex(p1);
+        int i2 = getOrAddVertex(p2);
+        int i3 = getOrAddVertex(p3);
+        int i4 = getOrAddVertex(p4);
 
         try (IndexedTriangle t1 = new IndexedTriangle(i1, i2, i3);
              IndexedTriangle t2 = new IndexedTriangle(i1, i3, i4)) {
@@ -131,19 +183,18 @@ public class MeshGenerationTask implements Supplier<ShapeSettings> {
         }
     }
 
-    private int getOrAddVertex(BlockPos localPos, List<Float3> vertices) {
-        return vertexIndexMap.computeIfAbsent(localPos.immutable(), p -> {
-            float localX = p.getX() - 8.0f;
-            float localY = p.getY() - 8.0f;
-            float localZ = p.getZ() - 8.0f;
+    private int getOrAddVertex(BlockPos voxelPos) {
+        return vertexIndexMap.computeIfAbsent(voxelPos.immutable(), p -> {
+            float worldX = (float) p.getX() / RESOLUTION;
+            float worldY = (float) p.getY() / RESOLUTION;
+            float worldZ = (float) p.getZ() / RESOLUTION;
+
+            float localX = worldX - 8.0f;
+            float localY = worldY - 8.0f;
+            float localZ = worldZ - 8.0f;
+
             vertices.add(new Float3(localX, localY, localZ));
             return vertices.size() - 1;
         });
-    }
-
-    private void setCoords(int[] coords, int d, int i, int u, int j, int v, int k) {
-        coords[d] = i;
-        coords[u] = j;
-        coords[v] = k;
     }
 }

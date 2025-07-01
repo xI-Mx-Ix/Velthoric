@@ -24,19 +24,18 @@ public record AddTerrainSectionCommand(TerrainSection section, TerrainSystem ter
                     PhysicsWorld.Layers.STATIC
             )) {
                 BodyInterface bodyInterface = world.getBodyInterface();
-                if (bodyInterface == null) {
-                    return;
-                }
+                if (bodyInterface == null) return;
 
                 Body body = bodyInterface.createBody(settings);
                 int newBodyId = body.getId();
-
                 body.setUserData(section.getId().getMostSignificantBits() ^ section.getId().getLeastSignificantBits());
 
                 section.setBodyId(newBodyId);
+
                 section.setCurrentShapeRef(placeholderShape.toRefC());
                 section.setState(TerrainSection.State.PLACEHOLDER);
                 world.getBodyIdToUuidMap().put(newBodyId, section.getId());
+
             }
         }
     }

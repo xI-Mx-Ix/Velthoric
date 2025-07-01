@@ -1,6 +1,5 @@
 package net.xmx.xbullet.physics.terrain.manager;
 
-
 import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -55,9 +54,7 @@ public class TerrainSystem implements Runnable {
     public void run() {
         while (isRunning && !Thread.currentThread().isInterrupted()) {
             try {
-
                 if (level.getServer().isSameThread()) {
-
                     XBullet.LOGGER.error("TerrainSystem-run() is executing on the main server thread! This should not happen.");
                     Thread.sleep(100);
                     continue;
@@ -66,6 +63,7 @@ public class TerrainSystem implements Runnable {
                 PriorityQueue<TerrainSection> queue = priorityUpdater.updateAndCreateQueue(chunkManager);
 
                 mesher.processCompletedMeshes();
+
                 mesher.submitNewTasks(queue);
 
                 Thread.sleep(50);
@@ -76,7 +74,6 @@ public class TerrainSystem implements Runnable {
                 XBullet.LOGGER.info("TerrainSystem thread for {} was interrupted.", level.dimension().location());
             } catch (Exception e) {
                 XBullet.LOGGER.error("An error occurred in the TerrainSystem thread for {}.", level.dimension().location(), e);
-
                 try { Thread.sleep(5000); } catch (InterruptedException ie) { this.isRunning = false; }
             }
         }
@@ -96,35 +93,30 @@ public class TerrainSystem implements Runnable {
     public void onBlockChanged(BlockPos pos) {
         if (!isRunning) return;
 
-        System.out.println("TerrainSystem.onBlockChanged(" + pos + ")");
-
         invalidateSectionAt(pos);
 
-        int x = pos.getX() & 15;
-        int y = pos.getY() & 15;
-        int z = pos.getZ() & 15;
+        final int localX = pos.getX() & 15;
+        if (localX == 0) invalidateSectionAt(pos.west());
+        if (localX == 15) invalidateSectionAt(pos.east());
 
-        if (x == 0) invalidateSectionAt(pos.west());
-        if (x == 15) invalidateSectionAt(pos.east());
-        if (y == 0) invalidateSectionAt(pos.below());
-        if (y == 15) invalidateSectionAt(pos.above());
-        if (z == 0) invalidateSectionAt(pos.north());
-        if (z == 15) invalidateSectionAt(pos.south());
+        final int localY = pos.getY() & 15;
+        if (localY == 0) invalidateSectionAt(pos.below());
+        if (localY == 15) invalidateSectionAt(pos.above());
+
+        final int localZ = pos.getZ() & 15;
+        if (localZ == 0) invalidateSectionAt(pos.north());
+        if (localZ == 15) invalidateSectionAt(pos.south());
 
         wakeUpBodiesNear(pos);
     }
 
     private void wakeUpBodiesNear(BlockPos pos) {
-
         final double blockCenterX = pos.getX() + 0.5;
         final double blockCenterY = pos.getY() + 0.5;
         final double blockCenterZ = pos.getZ() + 0.5;
 
         for (IPhysicsObject obj : PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(level).getManagedObjects().values()) {
-
-            if (obj.getBodyId() == 0) {
-                continue;
-            }
+            if (obj.getBodyId() == 0) continue;
 
             RVec3 objPos = obj.getCurrentTransform().getTranslation();
             double dx = objPos.xx() - blockCenterX;
@@ -139,12 +131,13 @@ public class TerrainSystem implements Runnable {
     }
 
     private void invalidateSectionAt(BlockPos pos) {
+
         if (pos.getY() < level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight()) return;
 
         SectionPos sectionPos = SectionPos.of(pos);
         TerrainSection section = chunkManager.getSection(sectionPos);
 
-        if (section != null && (section.getState() == TerrainSection.State.READY_ACTIVE || section.getState() == TerrainSection.State.READY_INACTIVE)) {
+        if (section != null && section.getState() != TerrainSection.State.UNLOADED && section.getState() != TerrainSection.State.MESHING) {
             section.setState(TerrainSection.State.PLACEHOLDER);
             section.setPriority(Double.MAX_VALUE);
         }

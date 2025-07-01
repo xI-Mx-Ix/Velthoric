@@ -170,12 +170,6 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
         }
     }
 
-    protected static ListTag newFloatList(float... values) {
-        ListTag tag = new ListTag();
-        for (float v : values) tag.add(FloatTag.valueOf(v));
-        return tag;
-    }
-
     public abstract static class Renderer {
         public abstract void render(ClientSoftPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight);
     }
