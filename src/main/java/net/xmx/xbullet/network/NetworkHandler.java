@@ -58,6 +58,13 @@ public class NetworkHandler {
                 C2SRequestPhysicsGunActionPacket::handle
         );
 
+        registerPacket(
+                SyncPhysicsObjectPacket.class,
+                SyncPhysicsObjectPacket::encode,
+                SyncPhysicsObjectPacket::new,
+                SyncPhysicsObjectPacket::handle
+        );
+
         registerPacket(S2CConfirmGrabPacket.class,
                 S2CConfirmGrabPacket::encode,
                 S2CConfirmGrabPacket::decode,
@@ -98,12 +105,6 @@ public class NetworkHandler {
                 SpawnPhysicsObjectPacket::handle
         );
 
-        registerPacket(SyncPhysicsObjectPacket.class,
-                SyncPhysicsObjectPacket::encode,
-                SyncPhysicsObjectPacket::new,
-                SyncPhysicsObjectPacket::handle
-
-        );
 
         registerPacket(
                 ClientPhysicsObjectCountResponsePacket.class,

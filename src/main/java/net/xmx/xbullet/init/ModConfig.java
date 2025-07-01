@@ -33,7 +33,7 @@ public class ModConfig {
         NUM_ITERATIONS = builder
                 .comment("Number of iterations for the physics solver",
                         "Higher values improve accuracy but reduce performance")
-                .defineInRange("numIterations", 11, 1, 100);
+                .defineInRange("numIterations", 6, 1, 100);
 
         MAX_SUBSTEPS = builder
                 .comment("Maximum number of physics sub-steps per game tick.",

@@ -3,9 +3,9 @@ package net.xmx.xbullet.physics.physicsworld.pcmd;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodySharedSettings;
 import net.xmx.xbullet.math.PhysicsTransform;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 public record UpdatePhysicsStateCommand(long timestampNanos) implements ICommand {
 
@@ -18,11 +18,14 @@ public record UpdatePhysicsStateCommand(long timestampNanos) implements ICommand
         BodyLockInterface lockInterface = world.getBodyLockInterface();
         if (lockInterface == null) return;
 
+        PhysicsTransform tempTransform = new PhysicsTransform();
+        Vec3 tempLinVel = new Vec3();
+        Vec3 tempAngVel = new Vec3();
+
         for (IPhysicsObject obj : world.getPhysicsObjectsMap().values()) {
             if (obj.isRemoved() || obj.getBodyId() == 0) continue;
 
             int bodyId = obj.getBodyId();
-
             if (!bodyInterface.isAdded(bodyId)) {
                 continue;
             }
@@ -32,44 +35,54 @@ public record UpdatePhysicsStateCommand(long timestampNanos) implements ICommand
             world.getSyncedActiveStates().put(obj.getPhysicsId(), isActive);
             world.getSyncedStateTimestampsNanos().put(obj.getPhysicsId(), this.timestampNanos);
 
-            PhysicsTransform transform = new PhysicsTransform();
-            bodyInterface.getPositionAndRotation(bodyId, transform.getTranslation(), transform.getRotation());
-            world.getSyncedTransforms().put(obj.getPhysicsId(), transform);
-            world.getSyncedLinearVelocities().put(obj.getPhysicsId(), bodyInterface.getLinearVelocity(bodyId));
-            world.getSyncedAngularVelocities().put(obj.getPhysicsId(), bodyInterface.getAngularVelocity(bodyId));
+            if (isActive) {
+                bodyInterface.getPositionAndRotation(bodyId, tempTransform.getTranslation(), tempTransform.getRotation());
+                tempLinVel.set(bodyInterface.getLinearVelocity(bodyId));
+                tempAngVel.set(bodyInterface.getAngularVelocity(bodyId));
 
-            if (obj.getPhysicsObjectType() == EObjectType.SOFT_BODY) {
-                try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {
-                    if (lock.succeededAndIsInBroadPhase()) {
-                        Body body = lock.getBody();
-                        if (body != null && body.isSoftBody()) {
+                float[] vertexData = null;
+                if (obj.getPhysicsObjectType() == EObjectType.SOFT_BODY) {
+                    vertexData = getSoftBodyVertices(lockInterface, bodyId);
+                }
 
-                            SoftBodyMotionProperties motionProps = (SoftBodyMotionProperties) body.getMotionProperties();
+                obj.updateStateFromPhysicsThread(tempTransform, tempLinVel, tempAngVel, vertexData, true);
 
-                            ConstSoftBodySharedSettings sharedSettings = motionProps.getSettings();
-                            int numVertices = sharedSettings.countVertices();
+            } else {
 
-                            if (numVertices > 0) {
-                                RMat44 worldTransform = body.getWorldTransform();
-                                float[] vertexData = new float[numVertices * 3];
+                obj.updateStateFromPhysicsThread(null, null, null, null, false);
+            }
+        }
+    }
 
-                                for (int i = 0; i < numVertices; i++) {
+    private float[] getSoftBodyVertices(BodyLockInterface lockInterface, int bodyId) {
+        try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {
+            if (lock.succeededAndIsInBroadPhase()) {
+                Body body = lock.getBody();
+                if (body != null && body.isSoftBody()) {
+                    SoftBodyMotionProperties motionProps = (SoftBodyMotionProperties) body.getMotionProperties();
+                    ConstSoftBodySharedSettings sharedSettings = motionProps.getSettings();
+                    int numVertices = sharedSettings.countVertices();
 
-                                    SoftBodyVertex vertex = motionProps.getVertex(i);
-                                    if (vertex == null) continue;
+                    if (numVertices > 0) {
+                        RMat44 worldTransform = body.getWorldTransform();
+                        float[] vertexData = new float[numVertices * 3];
 
-                                    Vec3 localPos = vertex.getPosition();
-                                    RVec3 worldPos = worldTransform.multiply3x4(localPos);
-                                    vertexData[i * 3] = worldPos.x();
-                                    vertexData[i * 3 + 1] = worldPos.y();
-                                    vertexData[i * 3 + 2] = worldPos.z();
-                                }
-                                world.getSyncedSoftBodyVertexData().put(obj.getPhysicsId(), vertexData);
-                            }
+                        for (int i = 0; i < numVertices; i++) {
+                            SoftBodyVertex vertex = motionProps.getVertex(i);
+                            if (vertex == null) continue;
+
+                            Vec3 localPos = vertex.getPosition();
+                            RVec3 worldPos = worldTransform.multiply3x4(localPos);
+                            int baseIndex = i * 3;
+                            vertexData[baseIndex] = worldPos.x();
+                            vertexData[baseIndex + 1] = worldPos.y();
+                            vertexData[baseIndex + 2] = worldPos.z();
                         }
+                        return vertexData;
                     }
                 }
             }
         }
+        return null;
     }
 }

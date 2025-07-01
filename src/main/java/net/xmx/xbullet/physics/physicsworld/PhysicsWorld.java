@@ -201,6 +201,7 @@ public class PhysicsWorld implements Runnable {
         settings.setNumVelocitySteps(ModConfig.NUM_ITERATIONS.get());
         settings.setBaumgarte(ModConfig.ERP.get().floatValue());
         physicsSystem.setGravity(0f, -9.81f, 0f);
+        physicsSystem.optimizeBroadPhase();
     }
 
     public void processCommandQueue() {
