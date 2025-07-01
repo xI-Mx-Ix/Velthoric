@@ -42,8 +42,10 @@ public class NativeJoltInitializer {
     }
 
     private static void initializeCollisionFilters() {
+
         final int numObjectLayers = PhysicsWorld.Layers.NUM_LAYERS;
-        final int numBroadPhaseLayers = 1;
+
+        final int numBroadPhaseLayers = PhysicsWorld.BroadPhaseLayers.NUM_LAYERS;
 
         ObjectLayerPairFilterTable olpfTable = new ObjectLayerPairFilterTable(numObjectLayers);
 
@@ -56,8 +58,9 @@ public class NativeJoltInitializer {
         objectLayerPairFilter = olpfTable;
 
         BroadPhaseLayerInterfaceTable bpliTable = new BroadPhaseLayerInterfaceTable(numObjectLayers, numBroadPhaseLayers);
-        bpliTable.mapObjectToBroadPhaseLayer(PhysicsWorld.Layers.STATIC, 0);
-        bpliTable.mapObjectToBroadPhaseLayer(PhysicsWorld.Layers.DYNAMIC, 0);
+
+        bpliTable.mapObjectToBroadPhaseLayer(PhysicsWorld.Layers.STATIC, PhysicsWorld.BroadPhaseLayers.STATIC);
+        bpliTable.mapObjectToBroadPhaseLayer(PhysicsWorld.Layers.DYNAMIC, PhysicsWorld.BroadPhaseLayers.DYNAMIC);
 
         broadPhaseLayerInterface = bpliTable;
 
