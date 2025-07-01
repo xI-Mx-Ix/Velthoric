@@ -260,74 +260,61 @@ task findWords {
     }
 }
 
-// build.gradle
-
 task generateJoltDoc {
     group = 'Documentation'
     description = 'Erstellt eine Dokumentation aller Methoden aus der jolt-jni.jar.'
 
-    // -- KONFIGURATION --
-    // Der Pfad zur JAR-Datei, die analysiert werden soll.
-    // Dieser Pfad ist bereits für dich angepasst.
     def inputJar = file("C:/Users/milan/.gradle/caches/modules-2/files-2.1/com.github.stephengold/jolt-jni-Windows64/1.0.0/d59234919a5c397d4e6a31e79ee6b5e9454b14d6/jolt-jni-Windows64-1.0.0.jar")
 
-    // Zieldatei für die Dokumentation
     def outputFile = file("$buildDir/docs/jolt-methoden-liste.txt")
 
-    // Wir deklarieren die Inputs und Outputs für effiziente Builds.
     inputs.file(inputJar)
     outputs.file(outputFile)
 
     doLast {
-        // Sicherstellen, dass die Input-JAR existiert
+
         if (!inputJar.exists()) {
             throw new FileNotFoundException("Input-JAR nicht gefunden: ${inputJar.absolutePath}")
         }
 
-        // Ausgabe-Datei vorbereiten
         outputFile.parentFile.mkdirs()
         outputFile.text = ''
 
         println "Analysiere JAR: ${inputJar.name}"
         println "Schreibe Ausgabe nach: ${outputFile.absolutePath}"
 
-        // Lese die JAR-Datei wie eine ZIP-Datei
         def zipFile = new java.util.zip.ZipFile(inputJar)
         def classEntries = zipFile.entries().findAll { entry ->
             !entry.isDirectory() && entry.name.endsWith('.class')
         }
 
-        // Für jede Klassendatei...
         classEntries.each { entry ->
-            // Wandle den Dateipfad in einen Klassennamen um
+
             def className = entry.name.replace('/', '.').replaceAll('\\.class$', '')
 
             def commandOutput = new ByteArrayOutputStream()
 
-            // Führe 'javap' für die Klasse aus
             project.exec {
                 executable = 'javap'
                 args '-p', '-classpath', inputJar.absolutePath, className
                 standardOutput = commandOutput
-                ignoreExitValue = true // Wichtig, da manche Klassen (z.B. native-loader) fehlschlagen können
+                ignoreExitValue = true
             }
 
-            // Schreibe den Klassennamen als Überschrift
             outputFile.append("${className.substring(className.lastIndexOf('.') + 1)}.class:\n")
 
-            // Verarbeite die Ausgabe von javap
             def javapResult = commandOutput.toString()
             javapResult.lines()
-            // Filtere nur Zeilen, die Methodensignaturen sind
+
                     .findAll { it.contains('(') && it.contains(')') && !it.contains('{') && !it.contains('Compiled from') }
                     .each { line ->
-                        // Bereinige die Zeile für eine saubere Optik
+
                         String cleanedLine = line.trim()
                                 .replaceAll('public |private |protected |static |final |synchronized |native ', '')
                         outputFile.append("  ${cleanedLine}\n")
                     }
 
-            outputFile.append("\n") // Leerzeile für bessere Lesbarkeit
+            outputFile.append("\n")
         }
 
         zipFile.close()

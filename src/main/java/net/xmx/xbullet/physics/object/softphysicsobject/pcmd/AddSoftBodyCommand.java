@@ -5,8 +5,8 @@ import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
 import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 
 public record AddSoftBodyCommand(SoftPhysicsObject physicsObject) implements ICommand {
@@ -22,21 +22,19 @@ public record AddSoftBodyCommand(SoftPhysicsObject physicsObject) implements ICo
         }
 
         try {
-
             SoftBodySharedSettings sharedSettings = physicsObject.getOrBuildSharedSettings();
-
             if (sharedSettings == null) {
                 XBullet.LOGGER.error("Failed to create SoftBodySharedSettings for {}. Aborting add.", physicsObject.getPhysicsId());
                 physicsObject.markRemoved();
                 return;
             }
 
-            try (SoftBodyCreationSettings settings = new SoftBodyCreationSettings(
-                    sharedSettings,
-                    physicsObject.getCurrentTransform().getTranslation(),
-                    physicsObject.getCurrentTransform().getRotation(),
-                    PhysicsWorld.Layers.DYNAMIC
-            )) {
+            try (SoftBodyCreationSettings settings = new SoftBodyCreationSettings()) {
+                settings.setSettings(sharedSettings);
+                settings.setPosition(physicsObject.getCurrentTransform().getTranslation());
+                settings.setRotation(physicsObject.getCurrentTransform().getRotation());
+
+                settings.setObjectLayer(PhysicsWorld.Layers.DYNAMIC);
 
                 physicsObject.configureSoftBodyCreationSettings(settings);
 

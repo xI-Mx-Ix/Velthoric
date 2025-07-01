@@ -44,8 +44,6 @@ public class PhysicsWorld implements Runnable {
     private final float fixedTimeStep;
     private float timeAccumulator = 0.0f;
 
-    private volatile boolean isShutdown = false;
-
     private final Map<UUID, IPhysicsObject> physicsObjectsMap = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> bodyIds = new ConcurrentHashMap<>();
     private final Map<Integer, UUID> bodyIdToUuidMap = new ConcurrentHashMap<>();
@@ -60,12 +58,10 @@ public class PhysicsWorld implements Runnable {
 
     private final Queue<ICommand> commandQueue = new ConcurrentLinkedQueue<>();
     private volatile Thread physicsThreadExecutor;
-    private volatile boolean shouldRun = false;
+    private volatile boolean isRunning = false;
     private volatile boolean isPaused = false;
     private static final int DEFAULT_SIMULATION_HZ = 60;
-
     private static final float MAX_ACCUMULATED_TIME = 0.2f;
-
     private final ResourceKey<Level> dimensionKey;
 
     public PhysicsWorld(ResourceKey<Level> dimensionKey) {
@@ -81,14 +77,13 @@ public class PhysicsWorld implements Runnable {
     }
 
     public void initialize() {
-        if (physicsThreadExecutor != null && physicsThreadExecutor.isAlive()) {
+        if (this.physicsThreadExecutor != null && this.physicsThreadExecutor.isAlive()) {
             return;
         }
-        this.shouldRun = true;
-        physicsThreadExecutor = new Thread(this, "XBullet-Jolt-Physics-" + dimensionKey.location().getPath());
-        physicsThreadExecutor.setDaemon(true);
-        physicsThreadExecutor.setPriority(Thread.NORM_PRIORITY);
-        physicsThreadExecutor.start();
+        this.isRunning = true;
+        this.physicsThreadExecutor = new Thread(this, "XBullet-Jolt-Physics-" + dimensionKey.location().getPath());
+        this.physicsThreadExecutor.setDaemon(true);
+        this.physicsThreadExecutor.start();
     }
 
     @Override
@@ -98,45 +93,44 @@ public class PhysicsWorld implements Runnable {
             initializePhysicsSystem();
         } catch (Throwable t) {
             XBullet.LOGGER.error("FATAL: Failed to initialize Jolt physics for dimension {}. The physics thread will not run.", dimensionKey.location(), t);
-            this.shouldRun = false;
+            this.isRunning = false;
             cleanupInternal();
             return;
         }
 
         long lastLoopTimeNanos = System.nanoTime();
 
-        while (this.shouldRun) {
+        while (this.isRunning) {
             try {
                 long currentTimeNanos = System.nanoTime();
                 long elapsedNanos = currentTimeNanos - lastLoopTimeNanos;
                 lastLoopTimeNanos = currentTimeNanos;
-
                 float deltaTimeSeconds = Math.min(elapsedNanos / 1_000_000_000.0f, 0.1f);
-
                 this.update(deltaTimeSeconds);
-
                 long loopEndTimeNanos = System.nanoTime();
                 long actualLoopDurationNanos = loopEndTimeNanos - currentTimeNanos;
-                long sleepTimeNanos = (long)(fixedTimeStep * 1_000_000_000.0) - actualLoopDurationNanos;
-
+                long sleepTimeNanos = (long) (fixedTimeStep * 1_000_000_000.0) - actualLoopDurationNanos;
                 if (sleepTimeNanos > 500_000L) {
                     Thread.sleep(sleepTimeNanos / 1_000_000L, (int) (sleepTimeNanos % 1_000_000L));
                 }
             } catch (InterruptedException e) {
-                XBullet.LOGGER.info("Physics thread for dimension {} was interrupted. Shutting down.", dimensionKey.location());
-                this.shouldRun = false;
+                this.isRunning = false;
                 Thread.currentThread().interrupt();
             } catch (Throwable t) {
                 XBullet.LOGGER.error("An uncaught exception occurred in the main physics loop for dimension {}. The simulation will now shut down to prevent further issues.", dimensionKey.location(), t);
-                this.shouldRun = false;
+                this.isRunning = false;
             }
         }
         cleanupInternal();
     }
 
     public void update(float deltaTime) {
-        if (this.isPaused || !this.shouldRun || physicsSystem == null) {
+
+        processCommandQueue();
+
+        if (this.isPaused || !this.isRunning || physicsSystem == null) {
             if (isPaused && pauseStartTimeNanos == 0L) {
+
                 pauseStartTimeNanos = System.nanoTime();
             }
             return;
@@ -147,12 +141,9 @@ public class PhysicsWorld implements Runnable {
             pauseStartTimeNanos = 0L;
         }
 
-        processCommandQueue();
-
         timeAccumulator += deltaTime;
-
         if (timeAccumulator > MAX_ACCUMULATED_TIME) {
-            XBullet.LOGGER.warn("Physics for dimension {} is running slow, clamping accumulated time from {} to {}.", dimensionKey.location(), timeAccumulator, MAX_ACCUMULATED_TIME);
+            XBullet.LOGGER.warn("Physics simulation for dimension {} is running slow. Capping accumulated time to {}.", dimensionKey.location(), MAX_ACCUMULATED_TIME);
             timeAccumulator = MAX_ACCUMULATED_TIME;
         }
 
@@ -161,41 +152,49 @@ public class PhysicsWorld implements Runnable {
 
         while (timeAccumulator >= this.fixedTimeStep && substepsPerformed < maxSubSteps) {
             try {
-
                 int error = physicsSystem.update(this.fixedTimeStep, 1, tempAllocator, jobSystem);
                 if (error != EPhysicsUpdateError.None) {
                     XBullet.LOGGER.error("Jolt physicsSystem.update returned an error: {}. Shutting down physics thread for dimension {}.", error, dimensionKey.location());
-                    this.shouldRun = false;
+                    this.isRunning = false;
                     return;
                 }
             } catch (Exception e) {
                 XBullet.LOGGER.error("PhysicsThread: Exception during one physics sub-step. The simulation will be shut down.", e);
-                this.shouldRun = false;
+                this.isRunning = false;
                 return;
             }
             timeAccumulator -= this.fixedTimeStep;
             substepsPerformed++;
         }
 
-        if (this.shouldRun) {
+        if (this.isRunning) {
             new UpdatePhysicsStateCommand(System.nanoTime()).execute(this);
         }
     }
 
     private void initializePhysicsSystem() {
-        tempAllocator = new TempAllocatorImpl(10 * 1024 * 1024);
-        int numThreads = Math.max(1, Runtime.getRuntime().availableProcessors() - 2);
-        jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
 
-        physicsSystem = new PhysicsSystem();
+        this.tempAllocator = new TempAllocatorMalloc();
+
+        int numThreads = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
+        this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
+
+        this.physicsSystem = new PhysicsSystem();
+
+        BroadPhaseLayerInterface bpli = NativeJoltInitializer.getBroadPhaseLayerInterface();
+        ObjectVsBroadPhaseLayerFilter ovbpf = NativeJoltInitializer.getObjectVsBroadPhaseLayerFilter();
+        ObjectLayerPairFilter olpf = NativeJoltInitializer.getObjectLayerPairFilter();
+
         int maxBodies = ModConfig.MAX_BODIES.get();
-        int numBodyMutexes = ModConfig.MAX_BODY_MUTEXES.get();
+        int numBodyMutexes = 0;
         int maxBodyPairs = ModConfig.MAX_BODY_PAIRS.get();
         int maxContactConstraints = ModConfig.MAX_CONTACT_CONSTRAINTS.get();
+
         physicsSystem.init(maxBodies, numBodyMutexes, maxBodyPairs, maxContactConstraints,
-                NativeJoltInitializer.getBroadPhaseLayerInterface(),
-                NativeJoltInitializer.getObjectVsBroadPhaseLayerFilter(),
-                NativeJoltInitializer.getObjectLayerPairFilter());
+                bpli,
+                ovbpf,
+                olpf
+        );
 
         PhysicsSettings settings = physicsSystem.getPhysicsSettings();
         settings.setNumPositionSteps(ModConfig.NUM_ITERATIONS.get());
@@ -206,7 +205,7 @@ public class PhysicsWorld implements Runnable {
 
     public void processCommandQueue() {
         ICommand command;
-        while (physicsSystem != null && shouldRun && (command = commandQueue.poll()) != null) {
+        while (physicsSystem != null && isRunning && (command = commandQueue.poll()) != null) {
             try {
                 command.execute(this);
             } catch (Exception e) {
@@ -216,7 +215,11 @@ public class PhysicsWorld implements Runnable {
     }
 
     public void queueCommand(ICommand command) {
-        if (command == null || physicsThreadExecutor == null || !physicsThreadExecutor.isAlive() || !this.shouldRun) {
+        if (command == null || !this.isRunning) {
+
+            if (command != null) {
+                XBullet.LOGGER.warn("Attempted to queue command {} to a non-running physics world for dimension {}.", command.getClass().getSimpleName(), dimensionKey.location());
+            }
             return;
         }
         commandQueue.offer(command);
@@ -227,30 +230,40 @@ public class PhysicsWorld implements Runnable {
     }
 
     public void stop() {
-        if (isShutdown) {
+        if (!this.isRunning && (this.physicsThreadExecutor == null || !this.physicsThreadExecutor.isAlive())) {
             return;
         }
-        isShutdown = true;
 
-        this.shouldRun = false;
-        if (physicsThreadExecutor != null) {
-            physicsThreadExecutor.interrupt();
+        XBullet.LOGGER.info("Stopping physics world for dimension: {}", dimensionKey.location());
+        this.isRunning = false;
+        if (this.physicsThreadExecutor != null) {
+            this.physicsThreadExecutor.interrupt();
             try {
-                physicsThreadExecutor.join(5000);
+                this.physicsThreadExecutor.join(5000);
             } catch (InterruptedException e) {
+                XBullet.LOGGER.warn("Interrupted while waiting for physics thread {} to stop.", this.physicsThreadExecutor.getName());
                 Thread.currentThread().interrupt();
             }
         }
+        this.physicsThreadExecutor = null;
+
     }
 
     private void cleanupInternal() {
+        XBullet.LOGGER.info("Cleaning up physics resources for dimension: {}", dimensionKey.location());
         if (physicsSystem != null) {
             physicsSystem.close();
             physicsSystem = null;
         }
+        if (jobSystem != null) {
+            jobSystem.close();
+            jobSystem = null;
+        }
+        if (tempAllocator != null) {
+            tempAllocator.close();
+            tempAllocator = null;
+        }
 
-        if (jobSystem != null) jobSystem.close();
-        if (tempAllocator != null) tempAllocator.close();
         clearAllMaps();
     }
 
@@ -268,7 +281,9 @@ public class PhysicsWorld implements Runnable {
         physicsJointsMap.clear();
     }
 
-    public Map<UUID, IPhysicsObject> getPhysicsObjectsMap() { return physicsObjectsMap; }
+    public Map<UUID, IPhysicsObject> getPhysicsObjectsMap() {
+        return physicsObjectsMap;
+    }
 
     public Optional<IPhysicsObject> findPhysicsObjectByBodyId(int bodyId) {
         UUID objectId = this.bodyIdToUuidMap.get(bodyId);
@@ -278,20 +293,23 @@ public class PhysicsWorld implements Runnable {
         return Optional.empty();
     }
 
-    @Nullable public PhysicsSystem getPhysicsSystem() {
+    @Nullable
+    public PhysicsSystem getPhysicsSystem() {
         return physicsSystem;
     }
 
-    @Nullable public BodyInterface getBodyInterface() {
+    @Nullable
+    public BodyInterface getBodyInterface() {
         return physicsSystem != null ? physicsSystem.getBodyInterface() : null;
     }
 
-    @Nullable public BodyLockInterface getBodyLockInterface() {
+    @Nullable
+    public BodyLockInterface getBodyLockInterface() {
         return physicsSystem != null ? physicsSystem.getBodyLockInterface() : null;
     }
 
     public boolean isRunning() {
-        return !isShutdown && shouldRun && physicsThreadExecutor != null && physicsThreadExecutor.isAlive();
+        return this.isRunning && this.physicsThreadExecutor != null && this.physicsThreadExecutor.isAlive();
     }
 
     public boolean isPaused() {
@@ -318,7 +336,8 @@ public class PhysicsWorld implements Runnable {
         return syncedTransforms;
     }
 
-    @Nullable public PhysicsTransform getTransform(UUID id) {
+    @Nullable
+    public PhysicsTransform getTransform(UUID id) {
         return syncedTransforms.get(id);
     }
 
@@ -326,7 +345,8 @@ public class PhysicsWorld implements Runnable {
         return syncedLinearVelocities;
     }
 
-    @Nullable public Vec3 getLinearVelocity(UUID id) {
+    @Nullable
+    public Vec3 getLinearVelocity(UUID id) {
         return syncedLinearVelocities.get(id);
     }
 
@@ -334,7 +354,8 @@ public class PhysicsWorld implements Runnable {
         return syncedAngularVelocities;
     }
 
-    @Nullable public Vec3 getAngularVelocity(UUID id) {
+    @Nullable
+    public Vec3 getAngularVelocity(UUID id) {
         return syncedAngularVelocities.get(id);
     }
 
@@ -342,7 +363,8 @@ public class PhysicsWorld implements Runnable {
         return syncedActiveStates;
     }
 
-    @Nullable public Boolean isActive(UUID id) {
+    @Nullable
+    public Boolean isActive(UUID id) {
         return syncedActiveStates.get(id);
     }
 
@@ -350,7 +372,8 @@ public class PhysicsWorld implements Runnable {
         return syncedSoftBodyVertexData;
     }
 
-    @Nullable public float[] getSoftBodyVertexData(UUID id) {
+    @Nullable
+    public float[] getSoftBodyVertexData(UUID id) {
         return syncedSoftBodyVertexData.get(id);
     }
 

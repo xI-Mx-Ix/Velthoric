@@ -13,6 +13,8 @@ import net.xmx.xbullet.physics.object.global.physicsobject.client.ClientPhysicsO
 import net.xmx.xbullet.physics.object.global.physicsobject.client.renderer.PhysicsObjectRenderer;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerEvents;
 import net.xmx.xbullet.physics.physicsworld.ClientPhysicsPauseHandler;
+import net.xmx.xbullet.physics.terrain.event.TerrainBlockEvents;
+import net.xmx.xbullet.physics.terrain.event.TerrainSystemEvents;
 
 public class RegisterEvents {
 
@@ -24,6 +26,8 @@ public class RegisterEvents {
         MinecraftForge.EVENT_BUS.register(DetonationEvents.class);
         MinecraftForge.EVENT_BUS.register(FluidManagerEvents.class);
         MinecraftForge.EVENT_BUS.register(PhysicsGunServerHandler.class);
+        MinecraftForge.EVENT_BUS.register(TerrainSystemEvents.class);
+        MinecraftForge.EVENT_BUS.register(TerrainBlockEvents.class);
 
     }
 

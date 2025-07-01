@@ -128,6 +128,7 @@ public class PhysicsObjectManager {
     public void serverTick() {
         if (!isInitialized()) return;
 
+
         removeObjectsBelowLevel(-75.0f);
 
         Iterator<Map.Entry<UUID, IPhysicsObject>> iterator = managedObjects.entrySet().iterator();
@@ -283,6 +284,7 @@ public class PhysicsObjectManager {
             return;
         }
         isInitializedInternal.set(false);
+
         if (this.savedData != null) {
             for (IPhysicsObject obj : managedObjects.values()) {
                 savedData.updateObjectData(obj);

@@ -15,7 +15,6 @@ public class PhysicsWorldRegistry {
 
     private static PhysicsWorldRegistry instance;
     private final Map<ResourceKey<Level>, PhysicsWorld> physicsWorlds = new ConcurrentHashMap<>();
-
     private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 
     private PhysicsWorldRegistry() {
@@ -72,6 +71,7 @@ public class PhysicsWorldRegistry {
         physicsWorlds.clear();
         XBullet.LOGGER.debug("All PhysicsWorlds shut down.");
 
+        instance = null;
     }
 
     @Nullable

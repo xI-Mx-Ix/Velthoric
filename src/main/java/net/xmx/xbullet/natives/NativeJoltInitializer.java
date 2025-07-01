@@ -21,14 +21,12 @@ public class NativeJoltInitializer {
             if (isInitialized) {
                 return;
             }
-
             XBullet.LOGGER.debug("Performing one-time global Jolt Physics initialization...");
 
             NativeLibraryLoader.load();
             Jolt.registerDefaultAllocator();
             Jolt.installDefaultAssertCallback();
             Jolt.installDefaultTraceCallback();
-
             Jolt.setTraceAllocations(true);
 
             if (!Jolt.newFactory()) {
@@ -44,19 +42,28 @@ public class NativeJoltInitializer {
     }
 
     private static void initializeCollisionFilters() {
-        BroadPhaseLayerInterfaceTable bpliTable = new BroadPhaseLayerInterfaceTable(PhysicsWorld.Layers.NUM_LAYERS, PhysicsWorld.BroadPhaseLayers.NUM_LAYERS);
-        bpliTable.mapObjectToBroadPhaseLayer(PhysicsWorld.Layers.STATIC, PhysicsWorld.BroadPhaseLayers.STATIC);
-        bpliTable.mapObjectToBroadPhaseLayer(PhysicsWorld.Layers.DYNAMIC, PhysicsWorld.BroadPhaseLayers.DYNAMIC);
-        broadPhaseLayerInterface = bpliTable;
+        final int numObjectLayers = PhysicsWorld.Layers.NUM_LAYERS;
+        final int numBroadPhaseLayers = 1;
 
-        ObjectLayerPairFilterTable olpfTable = new ObjectLayerPairFilterTable(PhysicsWorld.Layers.NUM_LAYERS);
-        olpfTable.enableCollision(PhysicsWorld.Layers.STATIC, PhysicsWorld.Layers.DYNAMIC);
+        ObjectLayerPairFilterTable olpfTable = new ObjectLayerPairFilterTable(numObjectLayers);
+
+        olpfTable.disableCollision(PhysicsWorld.Layers.STATIC, PhysicsWorld.Layers.STATIC);
+
         olpfTable.enableCollision(PhysicsWorld.Layers.DYNAMIC, PhysicsWorld.Layers.DYNAMIC);
+
+        olpfTable.enableCollision(PhysicsWorld.Layers.STATIC, PhysicsWorld.Layers.DYNAMIC);
+
         objectLayerPairFilter = olpfTable;
 
+        BroadPhaseLayerInterfaceTable bpliTable = new BroadPhaseLayerInterfaceTable(numObjectLayers, numBroadPhaseLayers);
+        bpliTable.mapObjectToBroadPhaseLayer(PhysicsWorld.Layers.STATIC, 0);
+        bpliTable.mapObjectToBroadPhaseLayer(PhysicsWorld.Layers.DYNAMIC, 0);
+
+        broadPhaseLayerInterface = bpliTable;
+
         objectVsBroadPhaseLayerFilter = new ObjectVsBroadPhaseLayerFilterTable(
-                broadPhaseLayerInterface, PhysicsWorld.BroadPhaseLayers.NUM_LAYERS,
-                objectLayerPairFilter, PhysicsWorld.Layers.NUM_LAYERS
+                broadPhaseLayerInterface, numBroadPhaseLayers,
+                objectLayerPairFilter, numObjectLayers
         );
     }
 

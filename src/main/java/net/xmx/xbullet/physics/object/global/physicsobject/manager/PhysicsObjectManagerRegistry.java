@@ -15,7 +15,6 @@ public class PhysicsObjectManagerRegistry {
 
     private static PhysicsObjectManagerRegistry instance;
     private final Map<ResourceKey<Level>, PhysicsObjectManager> managers = new ConcurrentHashMap<>();
-
     private final AtomicBoolean isShuttingDown = new AtomicBoolean(false);
 
     private PhysicsObjectManagerRegistry() {
@@ -72,6 +71,7 @@ public class PhysicsObjectManagerRegistry {
         managers.clear();
         XBullet.LOGGER.debug("All PhysicsObjectManagers shut down.");
 
+        instance = null;
     }
 
     public Map<ResourceKey<Level>, PhysicsObjectManager> getAllManagers() {

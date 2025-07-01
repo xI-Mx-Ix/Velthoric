@@ -7,11 +7,11 @@ import net.xmx.xbullet.init.XBullet;
 
 public class ClientPhysicsPauseHandler {
 
-    private static boolean lastKnownPauseState = false;
-    private static long pauseStartTimeNanos = 0L;
+    private static boolean wasPaused = false;
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
+
         if (event.phase != TickEvent.Phase.END) {
             return;
         }
@@ -19,30 +19,26 @@ public class ClientPhysicsPauseHandler {
         Minecraft mc = Minecraft.getInstance();
 
         if (mc.level == null) {
-            if (lastKnownPauseState) {
-                lastKnownPauseState = false;
+            if (wasPaused) {
+                wasPaused = false;
             }
             return;
         }
 
-        boolean isGamePaused = mc.isPaused();
+        boolean isNowPaused = mc.isPaused();
 
-        if (isGamePaused != lastKnownPauseState) {
-            lastKnownPauseState = isGamePaused;
+        if (isNowPaused != wasPaused) {
+            if (isNowPaused) {
 
-            if (isGamePaused) {
-                XBullet.LOGGER.debug("Client is pausing. Pausing all physics worlds...");
-
-                pauseStartTimeNanos = System.nanoTime();
+                XBullet.LOGGER.debug("Client game is pausing. Sending pause command to all physics worlds...");
                 PhysicsWorldRegistry.getInstance().getAllPhysicsWorlds().values().forEach(PhysicsWorld::pause);
             } else {
-                XBullet.LOGGER.debug("Client is resuming. Resuming all physics worlds...");
 
-                if (pauseStartTimeNanos > 0) {
-                    pauseStartTimeNanos = 0L;
-                }
+                XBullet.LOGGER.debug("Client game is resuming. Sending resume command to all physics worlds...");
                 PhysicsWorldRegistry.getInstance().getAllPhysicsWorlds().values().forEach(PhysicsWorld::resume);
             }
+
+            wasPaused = isNowPaused;
         }
     }
 }

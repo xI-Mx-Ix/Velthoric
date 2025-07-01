@@ -2,9 +2,10 @@ package net.xmx.xbullet.physics.object.rigidphysicsobject.pcmd;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
 import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 
 public record AddRigidBodyCommand(RigidPhysicsObject physicsObject) implements ICommand {
@@ -20,7 +21,6 @@ public record AddRigidBodyCommand(RigidPhysicsObject physicsObject) implements I
         }
 
         try (ShapeSettings shapeSettings = physicsObject.getOrBuildShapeSettings()) {
-
             if (shapeSettings == null) {
                 XBullet.LOGGER.error("createShapeSettings() returned null for {}. Aborting add.", physicsObject.getPhysicsId());
                 physicsObject.markRemoved();
@@ -28,7 +28,6 @@ public record AddRigidBodyCommand(RigidPhysicsObject physicsObject) implements I
             }
 
             try (ShapeResult shapeResult = shapeSettings.create()) {
-
                 if (shapeResult.hasError()) {
                     XBullet.LOGGER.error("Failed to create shape for {}: {}", physicsObject.getPhysicsId(), shapeResult.getError());
                     physicsObject.markRemoved();
@@ -36,20 +35,20 @@ public record AddRigidBodyCommand(RigidPhysicsObject physicsObject) implements I
                 }
 
                 try (ShapeRefC shapeRef = shapeResult.get()) {
-
                     RVec3 position = physicsObject.getCurrentTransform().getTranslation();
                     Quat rotation = physicsObject.getCurrentTransform().getRotation();
 
-                    try (BodyCreationSettings settings = new BodyCreationSettings(
+                    try (BodyCreationSettings settings = new BodyCreationSettings()) {
+                        settings.setShape(shapeRef);
+                        settings.setPosition(position);
+                        settings.setRotation(rotation);
+                        settings.setMotionType(physicsObject.getMotionType());
 
-                            shapeRef,
-                            position,
-                            rotation,
-                            physicsObject.getMotionType(),
-                            physicsObject.getMotionType() == com.github.stephengold.joltjni.enumerate.EMotionType.Static
-                                    ? PhysicsWorld.Layers.STATIC : PhysicsWorld.Layers.DYNAMIC
-                    )) {
-
+                        if (physicsObject.getMotionType() == EMotionType.Static) {
+                            settings.setObjectLayer(PhysicsWorld.Layers.STATIC);
+                        } else {
+                            settings.setObjectLayer(PhysicsWorld.Layers.DYNAMIC);
+                        }
 
                         physicsObject.configureBodyCreationSettings(settings);
 
