@@ -11,7 +11,7 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public class PhysicsObjectManagerEvents {
 

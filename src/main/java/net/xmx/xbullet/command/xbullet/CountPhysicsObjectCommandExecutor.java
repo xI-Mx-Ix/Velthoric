@@ -11,7 +11,7 @@ import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.network.NetworkHandler;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 class CountPhysicsObjectCommandExecutor {
 

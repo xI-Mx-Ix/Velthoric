@@ -10,13 +10,14 @@ import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.network.NetworkHandler;
 import net.xmx.xbullet.physics.XBulletSavedData;
+import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.RemovePhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.SpawnPhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncPhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.registry.GlobalPhysicsObjectRegistry;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -106,17 +107,34 @@ public class PhysicsObjectManager {
     public void removeObject(UUID id, boolean isPermanent) {
         if (!isInitialized()) return;
 
+        if (isPermanent && physicsWorld != null) {
+            ConstraintManager constraintManager = physicsWorld.getConstraintManager();
+            if (constraintManager != null && constraintManager.isInitialized()) {
+                constraintManager.removeConstraintsForObject(id, true);
+            }
+        }
+
         IPhysicsObject obj = managedObjects.get(id);
         if (obj != null && !obj.isRemoved()) {
             obj.markRemoved();
+            if (!isPermanent && physicsWorld != null) {
+                ConstraintManager constraintManager = physicsWorld.getConstraintManager();
+                if (constraintManager != null && constraintManager.isInitialized()) {
+                    constraintManager.removeConstraintsForObject(id, false);
+                }
+            }
             obj.removeFromPhysics(physicsWorld);
         }
+
         objLoader.cancelLoad(id);
+
         if (isPermanent && savedData != null) {
             savedData.removeObjectData(id);
+            savedData.setDirty(); // Wichtig, um die Speicherung auszulösen
         }
         NetworkHandler.CHANNEL.send(PacketDistributor.DIMENSION.with(managedLevel::dimension), new RemovePhysicsObjectPacket(id));
     }
+
 
     public void serverTick() {
         if (!isInitialized()) return;

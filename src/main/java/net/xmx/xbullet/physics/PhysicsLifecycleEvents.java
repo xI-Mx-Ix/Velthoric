@@ -5,7 +5,7 @@ import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public class PhysicsLifecycleEvents {
 

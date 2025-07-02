@@ -84,10 +84,6 @@ public class ClothSoftBody extends SoftPhysicsObject {
             }
         }
 
-        for (int x = 0; x < numVerticesX; ++x) {
-            settings.getVertex(getIndex.apply(x, 0)).setInvMass(0f);
-        }
-
         settings.optimize();
         return settings;
     }
@@ -114,11 +110,9 @@ public class ClothSoftBody extends SoftPhysicsObject {
         this.heightSegments = tag.contains("heightSegments") ? tag.getInt("heightSegments") : 15;
         this.clothWidth = tag.contains("clothWidth") ? tag.getFloat("clothWidth") : 2.0f;
         this.clothHeight = tag.contains("clothHeight") ? tag.getFloat("clothHeight") : 2.0f;
-
         this.mass = tag.contains("mass") ? tag.getFloat("mass") : 2.0f;
         this.compliance = tag.contains("compliance") ? tag.getFloat("compliance") : 0.001f;
     }
-
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
@@ -129,42 +123,19 @@ public class ClothSoftBody extends SoftPhysicsObject {
         tag.putFloat("mass", this.mass);
         tag.putFloat("compliance", this.compliance);
     }
-
-    public static Builder builder() {
-        return new Builder();
-    }
-
+    public static Builder builder() { return new Builder(); }
     public static class Builder extends SoftPhysicsObjectBuilder {
         public Builder() {
             super();
             this.type(TYPE_IDENTIFIER);
-
             this.initialNbt.putFloat("mass", 2.0f);
             this.initialNbt.putFloat("compliance", 0.001f);
             segments(15, 15);
             size(2.0f, 2.0f);
         }
-
-        public Builder segments(int width, int height) {
-            this.initialNbt.putInt("widthSegments", width);
-            this.initialNbt.putInt("heightSegments", height);
-            return this;
-        }
-
-        public Builder size(float width, float height) {
-            this.initialNbt.putFloat("clothWidth", width);
-            this.initialNbt.putFloat("clothHeight", height);
-            return this;
-        }
-
-        public Builder mass(float mass) {
-            this.initialNbt.putFloat("mass", mass);
-            return this;
-        }
-
-        public Builder compliance(float compliance) {
-            this.initialNbt.putFloat("compliance", compliance);
-            return this;
-        }
+        public Builder segments(int width, int height) { this.initialNbt.putInt("widthSegments", width); this.initialNbt.putInt("heightSegments", height); return this; }
+        public Builder size(float width, float height) { this.initialNbt.putFloat("clothWidth", width); this.initialNbt.putFloat("clothHeight", height); return this; }
+        public Builder mass(float mass) { this.initialNbt.putFloat("mass", mass); return this; }
+        public Builder compliance(float compliance) { this.initialNbt.putFloat("compliance", compliance); return this; }
     }
 }

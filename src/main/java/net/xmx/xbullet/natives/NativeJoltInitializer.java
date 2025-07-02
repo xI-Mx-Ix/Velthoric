@@ -2,7 +2,7 @@ package net.xmx.xbullet.natives;
 
 import com.github.stephengold.joltjni.*;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public class NativeJoltInitializer {
 

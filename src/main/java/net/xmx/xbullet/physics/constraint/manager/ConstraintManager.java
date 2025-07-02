@@ -7,7 +7,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.xbullet.physics.XBulletSavedData;
 import net.xmx.xbullet.physics.constraint.IConstraint;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -61,7 +61,10 @@ public class ConstraintManager {
             CompoundTag tag = new CompoundTag();
             constraint.save(tag);
             savedData.updateJointData(constraint.getJointId(), tag);
+
+            savedData.setDirty();
         }
+
     }
 
     public void removeConstraint(UUID jointId, boolean permanent) {
@@ -69,10 +72,19 @@ public class ConstraintManager {
 
         IConstraint constraint = managedConstraints.remove(jointId);
         if (constraint != null) {
+
+            if (!permanent && savedData != null) {
+                CompoundTag tag = new CompoundTag();
+                constraint.save(tag);
+                savedData.updateJointData(constraint.getJointId(), tag);
+                savedData.setDirty();
+            }
+
             physicsWorld.getPhysicsSystem().removeConstraint(constraint.getJoltConstraint());
             constraint.release();
             if (permanent && savedData != null) {
                 savedData.removeJointData(jointId);
+                savedData.setDirty();
             }
         }
     }
@@ -81,11 +93,11 @@ public class ConstraintManager {
         if (!isInitialized()) return;
 
         List<UUID> idsToRemove = managedConstraints.values().stream()
-                .filter(c -> c.getBody1Id().equals(objectId) || c.getBody2Id().equals(objectId))
+                .filter(c -> c.getBody1Id().equals(objectId) || (c.getBody2Id() != null && c.getBody2Id().equals(objectId)))
                 .map(IConstraint::getJointId)
                 .collect(Collectors.toList());
 
-        idsToRemove.forEach(id -> removeConstraint(id, false));
+        idsToRemove.forEach(id -> removeConstraint(id, true));
     }
 
     public void loadConstraintsForChunk(ChunkPos pos) {
@@ -98,23 +110,19 @@ public class ConstraintManager {
         if (!isInitialized()) {
             return;
         }
-
         List<UUID> idsToUnload = new ArrayList<>();
 
         for (IConstraint constraint : managedConstraints.values()) {
-            boolean shouldUnload = false;
 
-            if (isObjectInChunk(constraint.getBody1Id(), pos)) {
-                shouldUnload = true;
-            }
+            boolean body1InChunk = objectManager.getObject(constraint.getBody1Id())
+                    .map(obj -> isObjectInChunk(obj.getCurrentTransform().getTranslation(), pos))
+                    .orElse(false);
 
-            if (!shouldUnload && constraint.getBody2Id() != null) {
-                if (isObjectInChunk(constraint.getBody2Id(), pos)) {
-                    shouldUnload = true;
-                }
-            }
+            boolean body2InChunk = (constraint.getBody2Id() != null) && objectManager.getObject(constraint.getBody2Id())
+                    .map(obj -> isObjectInChunk(obj.getCurrentTransform().getTranslation(), pos))
+                    .orElse(false);
 
-            if (shouldUnload) {
+            if (body1InChunk || body2InChunk) {
                 idsToUnload.add(constraint.getJointId());
             }
         }
@@ -122,19 +130,10 @@ public class ConstraintManager {
         idsToUnload.forEach(id -> removeConstraint(id, false));
     }
 
-    private boolean isObjectInChunk(UUID objectId, ChunkPos chunkPos) {
-        if (objectId == null) {
-            return false;
-        }
-
-        return objectManager.getObject(objectId)
-                .map(obj -> {
-                    RVec3 pos = obj.getCurrentTransform().getTranslation();
-                    int cx = (int) Math.floor(pos.xx() / 16.0);
-                    int cz = (int) Math.floor(pos.zz() / 16.0);
-                    return cx == chunkPos.x && cz == chunkPos.z;
-                })
-                .orElse(false);
+    private boolean isObjectInChunk(RVec3 position, ChunkPos chunkPos) {
+        int cx = (int) Math.floor(position.xx() / 16.0);
+        int cz = (int) Math.floor(position.zz() / 16.0);
+        return cx == chunkPos.x && cz == chunkPos.z;
     }
 
     public CompletableFuture<IConstraint> getOrLoadConstraint(UUID jointId) {
@@ -176,6 +175,22 @@ public class ConstraintManager {
         this.physicsWorld = null;
         this.managedLevel = null;
         this.savedData = null;
+    }
+
+    public void removeConstraintsForObject(UUID objectId, boolean permanent) {
+        if (!isInitialized()) return;
+
+        List<UUID> idsToRemove = managedConstraints.values().stream()
+                .filter(c -> {
+
+                    boolean isBody1 = c.getBody1Id().equals(objectId);
+                    boolean isBody2 = c.getBody2Id() != null && c.getBody2Id().equals(objectId);
+                    return isBody1 || isBody2;
+                })
+                .map(IConstraint::getJointId)
+                .collect(Collectors.toList());
+
+        idsToRemove.forEach(id -> removeConstraint(id, permanent));
     }
 
     public PhysicsObjectManager getObjectManager() { return objectManager; }

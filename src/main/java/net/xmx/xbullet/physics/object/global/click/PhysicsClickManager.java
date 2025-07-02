@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.object.global.PhysicsRaytracing;
 
 import java.util.Optional;

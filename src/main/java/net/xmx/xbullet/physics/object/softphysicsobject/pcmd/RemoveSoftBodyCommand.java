@@ -3,8 +3,8 @@ package net.xmx.xbullet.physics.object.softphysicsobject.pcmd;
 import com.github.stephengold.joltjni.BodyInterface;
 import com.github.stephengold.joltjni.Jolt;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.pcmd.ICommand;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 import java.util.UUID;
 
 public record RemoveSoftBodyCommand(UUID objectId, int bodyId) implements ICommand {

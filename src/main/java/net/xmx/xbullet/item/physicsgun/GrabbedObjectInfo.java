@@ -5,7 +5,7 @@ import com.github.stephengold.joltjni.operator.Op;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.UUID;
 

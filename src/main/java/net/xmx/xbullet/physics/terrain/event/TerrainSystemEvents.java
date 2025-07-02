@@ -5,7 +5,7 @@ import net.minecraft.world.level.Level;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.terrain.manager.TerrainSystem;
 
 public class TerrainSystemEvents {

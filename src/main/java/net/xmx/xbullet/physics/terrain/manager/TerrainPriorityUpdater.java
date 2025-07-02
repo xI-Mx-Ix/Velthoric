@@ -5,7 +5,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.terrain.chunk.TerrainSection;
 import net.xmx.xbullet.physics.terrain.pcmd.active.ActivateTerrainSectionCommand;
 import net.xmx.xbullet.physics.terrain.pcmd.active.DeactivateTerrainSectionCommand;

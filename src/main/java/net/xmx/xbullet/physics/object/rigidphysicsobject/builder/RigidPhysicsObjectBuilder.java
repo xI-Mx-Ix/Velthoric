@@ -10,7 +10,7 @@ import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.UUID;
 

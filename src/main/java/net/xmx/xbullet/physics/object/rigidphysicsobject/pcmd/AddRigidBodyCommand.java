@@ -5,8 +5,8 @@ import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
-import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
+import net.xmx.xbullet.physics.world.pcmd.ICommand;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 
 public record AddRigidBodyCommand(RigidPhysicsObject physicsObject) implements ICommand {

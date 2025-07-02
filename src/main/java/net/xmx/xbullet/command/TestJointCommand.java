@@ -11,7 +11,6 @@ import net.minecraft.commands.Commands;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-
 import net.xmx.xbullet.builtin.box.BoxRigidPhysicsObject;
 import net.xmx.xbullet.physics.constraint.ManagedConstraint;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
@@ -19,10 +18,9 @@ import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.builder.RigidPhysicsObjectBuilder;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 public class TestJointCommand {
 
@@ -34,31 +32,30 @@ public class TestJointCommand {
 
     private static int run(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         ServerPlayer player = context.getSource().getPlayerOrException();
+        PhysicsWorld physicsWorld = PhysicsWorld.get(player.serverLevel().dimension());
 
-        net.minecraft.world.phys.Vec3 playerMcPos = player.position();
-
-        PhysicsObjectManager objectManager = PhysicsWorld.getObjectManager(player.serverLevel().dimension());
-        ConstraintManager constraintManager = PhysicsWorld.getConstraintManager(player.serverLevel().dimension());
-
-        if (!objectManager.isInitialized() || !constraintManager.isInitialized()) {
+        if (physicsWorld == null || !physicsWorld.isRunning()) {
             player.sendSystemMessage(Component.literal("Physics system not initialized for this dimension."));
             return 0;
         }
 
+        PhysicsObjectManager objectManager = physicsWorld.getObjectManager();
+
+        // Schritt 1: Objekte erstellen und ihre Physik-Erstellung in die Warteschlange stellen.
         CompoundTag props1 = new CompoundTag();
         props1.putString("motionType", EMotionType.Kinematic.name());
 
         RigidPhysicsObject box1 = new RigidPhysicsObjectBuilder()
                 .level(player.level())
                 .type(BoxRigidPhysicsObject.TYPE_IDENTIFIER)
-                .position(playerMcPos.x(), playerMcPos.y() + 1, playerMcPos.z())
+                .position(player.getX(), player.getY() + 1, player.getZ())
                 .customNBTData(props1)
                 .spawn(objectManager);
 
         RigidPhysicsObject box2 = new RigidPhysicsObjectBuilder()
                 .level(player.level())
                 .type(BoxRigidPhysicsObject.TYPE_IDENTIFIER)
-                .position(playerMcPos.x() + 2.0, playerMcPos.y() + 1, playerMcPos.z())
+                .position(player.getX() + 2.0, player.getY() + 1, player.getZ())
                 .spawn(objectManager);
 
         if (box1 == null || box2 == null) {
@@ -66,52 +63,63 @@ public class TestJointCommand {
             return 0;
         }
 
-        player.sendSystemMessage(Component.literal("Spawned two boxes: "
-                + box1.getPhysicsId().toString().substring(0, 8) + " (anchor) and "
-                + box2.getPhysicsId().toString().substring(0, 8)));
+        player.sendSystemMessage(Component.literal("Queued creation for two boxes."));
 
-        UUID jointId = UUID.randomUUID();
-        String constraintType = "xbullet:hinge";
+        final UUID box1Id = box1.getPhysicsId();
+        final UUID box2Id = box2.getPhysicsId();
+        final net.minecraft.world.phys.Vec3 playerMcPos = player.position();
 
-        CompletableFuture<IPhysicsObject> futureBox1 = objectManager.getOrLoadObject(box1.getPhysicsId());
-        CompletableFuture<IPhysicsObject> futureBox2 = objectManager.getOrLoadObject(box2.getPhysicsId());
+        // Schritt 2: Den Befehl zur Erstellung des Joints in die Warteschlange des Physik-Threads legen.
+        physicsWorld.execute(() -> {
+            // ALLES AB HIER PASSIERT SICHER IM PHYSIK-THREAD.
 
-        CompletableFuture.allOf(futureBox1, futureBox2).thenAcceptAsync(v -> {
-            IPhysicsObject physBox1 = futureBox1.join();
-            IPhysicsObject physBox2 = futureBox2.join();
+            IPhysicsObject physBox1 = objectManager.getObject(box1Id).orElse(null);
+            IPhysicsObject physBox2 = objectManager.getObject(box2Id).orElse(null);
 
             if (physBox1 == null || physBox2 == null || physBox1.getBodyId() == 0 || physBox2.getBodyId() == 0) {
-                player.sendSystemMessage(Component.literal("Failed to get physics bodies for constraints."));
+                player.getServer().execute(() -> player.sendSystemMessage(Component.literal("CRITICAL: Failed to get physics bodies when creating joint.")));
                 return;
             }
 
-            Body b1 = new Body(physBox1.getBodyId());
-            Body b2 = new Body(physBox2.getBodyId());
+            int b1Id = physBox1.getBodyId();
+            int b2Id = physBox2.getBodyId();
 
+            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+            if (bodyInterface == null) {
+                player.getServer().execute(() -> player.sendSystemMessage(Component.literal("CRITICAL: BodyInterface is null in physics thread.")));
+                return;
+            }
+
+            ConstraintManager constraintManager = physicsWorld.getConstraintManager();
+            UUID jointId = UUID.randomUUID();
+            String constraintType = "xbullet:hinge";
+
+            // Erstelle das Settings-Objekt hier, direkt vor der Verwendung, und entsorge es sicher.
             try (HingeConstraintSettings settings = new HingeConstraintSettings()) {
                 settings.setSpace(EConstraintSpace.WorldSpace);
 
-                RVec3 pivotPoint = new RVec3(playerMcPos.x() + 1.0, playerMcPos.y() + 1, playerMcPos.z());
-
-                Vec3 hingeAxis = new Vec3(0, 0, 1);
+                RVec3 pivotPoint = new RVec3(playerMcPos.x + 1.0, playerMcPos.y + 1, playerMcPos.z);
+                Vec3 hingeAxis = new Vec3(0, 1, 0);
 
                 settings.setPoint1(pivotPoint);
                 settings.setPoint2(pivotPoint);
-
                 settings.setHingeAxis1(hingeAxis);
                 settings.setHingeAxis2(hingeAxis);
 
-                TwoBodyConstraint joltConstraint = settings.create(b1, b2);
+                // ***** DIE FINALE, API-KONFORME KORREKTUR *****
+                // Verwende die Methode des BodyInterface, um den Constraint zu erstellen.
+                // NICHT settings.create(body1, body2)!
+                TwoBodyConstraint joltConstraint = bodyInterface.createConstraint(settings, b1Id, b2Id);
 
                 if (joltConstraint != null) {
-                    ManagedConstraint managedConstraint = new ManagedConstraint(jointId, physBox1.getPhysicsId(), physBox2.getPhysicsId(), joltConstraint, constraintType);
+                    ManagedConstraint managedConstraint = new ManagedConstraint(jointId, box1Id, box2Id, joltConstraint, constraintType);
                     constraintManager.addManagedConstraint(managedConstraint);
-                    player.sendSystemMessage(Component.literal("Successfully created hinge joint: " + jointId.toString().substring(0, 8)));
+                    player.getServer().execute(() -> player.sendSystemMessage(Component.literal("Successfully created hinge joint: " + jointId.toString().substring(0, 8))));
                 } else {
-                    player.sendSystemMessage(Component.literal("Failed to create hinge joint. Check server logs."));
+                    player.getServer().execute(() -> player.sendSystemMessage(Component.literal("Failed to create Jolt constraint object via BodyInterface.")));
                 }
             }
-        }, player.getServer());
+        });
 
         return 1;
     }

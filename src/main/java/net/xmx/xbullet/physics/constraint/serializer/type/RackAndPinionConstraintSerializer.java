@@ -1,16 +1,18 @@
 package net.xmx.xbullet.physics.constraint.serializer.type;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.RackAndPinionConstraint;
+import com.github.stephengold.joltjni.RackAndPinionConstraintSettings;
+import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import net.minecraft.nbt.CompoundTag;
 import net.xmx.xbullet.physics.constraint.IConstraint;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.util.NbtUtil;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
+import javax.annotation.Nullable;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -28,44 +30,41 @@ public class RackAndPinionConstraintSerializer implements IConstraintSerializer<
 
     @Override
     public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
-        UUID[] bodyIds = loadBodyIds(tag);
         UUID[] dependentConstraintIds = loadDependentConstraintIds(tag);
-        if (bodyIds == null || dependentConstraintIds == null) return CompletableFuture.completedFuture(null);
+        if (dependentConstraintIds == null) {
+            return CompletableFuture.completedFuture(null);
+        }
 
-        CompletableFuture<IPhysicsObject> futureBody1 = objectManager.getOrLoadObject(bodyIds[0]);
-        CompletableFuture<IPhysicsObject> futureBody2 = objectManager.getOrLoadObject(bodyIds[1]);
         CompletableFuture<IConstraint> futureHinge = constraintManager.getOrLoadConstraint(dependentConstraintIds[0]);
         CompletableFuture<IConstraint> futureSlider = constraintManager.getOrLoadConstraint(dependentConstraintIds[1]);
         PhysicsWorld physicsWorld = objectManager.getPhysicsWorld();
+        if (physicsWorld == null) {
+            return CompletableFuture.failedFuture(new IllegalStateException("PhysicsWorld is not available"));
+        }
 
-        return CompletableFuture.allOf(futureBody1, futureBody2, futureHinge, futureSlider).thenApplyAsync(v -> {
-            IPhysicsObject obj1 = futureBody1.join();
-            IPhysicsObject obj2 = futureBody2.join();
+        return CompletableFuture.allOf(futureHinge, futureSlider).thenApplyAsync(v -> {
             IConstraint depHinge = futureHinge.join();
             IConstraint depSlider = futureSlider.join();
-            if (obj1 == null || obj2 == null || depHinge == null || depSlider == null || physicsWorld == null) return null;
-
-            Body b1 = new Body(obj1.getBodyId());
-            Body b2 = new Body(obj2.getBodyId());
+            if (depHinge == null || depSlider == null) {
+                return null;
+            }
 
             try (RackAndPinionConstraintSettings settings = new RackAndPinionConstraintSettings()) {
                 settings.setSpace(EConstraintSpace.valueOf(tag.getString("space")));
                 settings.setHingeAxis(NbtUtil.getVec3(tag, "hingeAxis"));
                 settings.setSliderAxis(NbtUtil.getVec3(tag, "sliderAxis"));
-
-                float ratio = tag.getFloat("ratio");
-                float rackLengthPerTooth = Math.abs(ratio);
+                float rackLengthPerTooth = Math.abs(tag.getFloat("ratio"));
                 settings.setRatio(1, rackLengthPerTooth, 1);
-
-                RackAndPinionConstraint constraint = (RackAndPinionConstraint) settings.create(b1, b2);
+                RackAndPinionConstraint constraint = (RackAndPinionConstraint) settings.create(depHinge.getJoltConstraint().getBody1(), depSlider.getJoltConstraint().getBody1());
                 if (constraint != null) {
                     constraint.setConstraints(depHinge.getJoltConstraint(), depSlider.getJoltConstraint());
                 }
                 return constraint;
             }
-        });
+        }, physicsWorld);
     }
 
+    @Nullable
     public UUID[] loadDependentConstraintIds(CompoundTag tag) {
         if (tag.hasUUID("hingeConstraintId") && tag.hasUUID("sliderConstraintId")) {
             return new UUID[]{tag.getUUID("hingeConstraintId"), tag.getUUID("sliderConstraintId")};

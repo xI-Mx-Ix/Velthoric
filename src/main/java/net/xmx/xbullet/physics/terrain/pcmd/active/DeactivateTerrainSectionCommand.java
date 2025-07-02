@@ -1,8 +1,8 @@
 package net.xmx.xbullet.physics.terrain.pcmd.active;
 
 import com.github.stephengold.joltjni.BodyInterface;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
-import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
+import net.xmx.xbullet.physics.world.pcmd.ICommand;
 import net.xmx.xbullet.physics.terrain.chunk.TerrainSection;
 
 public record DeactivateTerrainSectionCommand(TerrainSection section) implements ICommand {

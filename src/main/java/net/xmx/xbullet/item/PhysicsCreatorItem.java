@@ -22,7 +22,7 @@ import net.xmx.xbullet.builtin.block.BlockRigidPhysicsObject;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.builder.RigidPhysicsObjectBuilder;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public class PhysicsCreatorItem extends Item {
 

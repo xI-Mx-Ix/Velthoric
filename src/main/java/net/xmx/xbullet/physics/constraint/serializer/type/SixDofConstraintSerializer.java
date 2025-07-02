@@ -1,16 +1,16 @@
 package net.xmx.xbullet.physics.constraint.serializer.type;
 
 import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.enumerate.*;
+import com.github.stephengold.joltjni.enumerate.EAxis;
+import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
+import com.github.stephengold.joltjni.enumerate.EMotorState;
+import com.github.stephengold.joltjni.enumerate.ESwingType;
 import net.minecraft.nbt.CompoundTag;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.util.NbtUtil;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class SixDofConstraintSerializer implements IConstraintSerializer<SixDofConstraint> {
@@ -50,38 +50,18 @@ public class SixDofConstraintSerializer implements IConstraintSerializer<SixDofC
 
     @Override
     public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
-        UUID[] bodyIds = loadBodyIds(tag);
-        if (bodyIds == null) return CompletableFuture.completedFuture(null);
-
-        CompletableFuture<IPhysicsObject> future1 = objectManager.getOrLoadObject(bodyIds[0]);
-        CompletableFuture<IPhysicsObject> future2 = objectManager.getOrLoadObject(bodyIds[1]);
-        PhysicsWorld physicsWorld = objectManager.getPhysicsWorld();
-
-        return CompletableFuture.allOf(future1, future2).thenApplyAsync(v -> {
-            IPhysicsObject obj1 = future1.join();
-            IPhysicsObject obj2 = future2.join();
-            if (obj1 == null || obj2 == null || physicsWorld == null) return null;
-
-            int bodyId1 = obj1.getBodyId();
-            int bodyId2 = obj2.getBodyId();
-
-            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-            if (bodyInterface == null) return null;
-
-            Body b1 = new Body(bodyId1);
-            Body b2 = (bodyInterface.getMotionType(bodyId2) == EMotionType.Static) ? Body.sFixedToWorld() : new Body(bodyId2);
-
+        return createFromLoadedBodies(tag, objectManager, (b1, b2, t) -> {
             try (SixDofConstraintSettings settings = new SixDofConstraintSettings()) {
-                settings.setSpace(EConstraintSpace.valueOf(tag.getString("space")));
-                settings.setSwingType(ESwingType.valueOf(tag.getString("swingType")));
-                settings.setPosition1(NbtUtil.getRVec3(tag, "position1"));
-                settings.setPosition2(NbtUtil.getRVec3(tag, "position2"));
-                settings.setAxisX1(NbtUtil.getVec3(tag, "axisX1"));
-                settings.setAxisY1(NbtUtil.getVec3(tag, "axisY1"));
-                settings.setAxisX2(NbtUtil.getVec3(tag, "axisX2"));
-                settings.setAxisY2(NbtUtil.getVec3(tag, "axisY2"));
+                settings.setSpace(EConstraintSpace.valueOf(t.getString("space")));
+                settings.setSwingType(ESwingType.valueOf(t.getString("swingType")));
+                settings.setPosition1(NbtUtil.getRVec3(t, "position1"));
+                settings.setPosition2(NbtUtil.getRVec3(t, "position2"));
+                settings.setAxisX1(NbtUtil.getVec3(t, "axisX1"));
+                settings.setAxisY1(NbtUtil.getVec3(t, "axisY1"));
+                settings.setAxisX2(NbtUtil.getVec3(t, "axisX2"));
+                settings.setAxisY2(NbtUtil.getVec3(t, "axisY2"));
 
-                CompoundTag axesTag = tag.getCompound("axes");
+                CompoundTag axesTag = t.getCompound("axes");
                 for (EAxis axis : EAxis.values()) {
                     CompoundTag axisTag = axesTag.getCompound(axis.name());
                     if (axisTag.getBoolean("isFixed")) {
@@ -95,17 +75,16 @@ public class SixDofConstraintSerializer implements IConstraintSerializer<SixDofC
                 }
 
                 SixDofConstraint constraint = (SixDofConstraint) settings.create(b1, b2);
-
                 if (constraint != null) {
-                    CompoundTag axesTagRuntime = tag.getCompound("axes");
+                    CompoundTag axesTagRuntime = t.getCompound("axes");
                     for (EAxis axis : EAxis.values()) {
                         CompoundTag axisTag = axesTagRuntime.getCompound(axis.name());
                         constraint.setMotorState(axis, EMotorState.valueOf(axisTag.getString("motorState")));
                     }
-                    constraint.setTargetPositionCs(NbtUtil.getVec3(tag, "targetPositionCs"));
-                    constraint.setTargetOrientationCs(NbtUtil.getQuat(tag, "targetOrientationCs"));
-                    constraint.setTargetVelocityCs(NbtUtil.getVec3(tag, "targetVelocityCs"));
-                    constraint.setTargetAngularVelocityCs(NbtUtil.getVec3(tag, "targetAngularVelocityCs"));
+                    constraint.setTargetPositionCs(NbtUtil.getVec3(t, "targetPositionCs"));
+                    constraint.setTargetOrientationCs(NbtUtil.getQuat(t, "targetOrientationCs"));
+                    constraint.setTargetVelocityCs(NbtUtil.getVec3(t, "targetVelocityCs"));
+                    constraint.setTargetAngularVelocityCs(NbtUtil.getVec3(t, "targetAngularVelocityCs"));
                 }
                 return constraint;
             }

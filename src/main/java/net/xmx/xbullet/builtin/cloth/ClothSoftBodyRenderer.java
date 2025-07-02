@@ -33,7 +33,8 @@ public class ClothSoftBodyRenderer extends SoftPhysicsObject.Renderer {
         if (widthSegments <= 0 || heightSegments <= 0) return;
 
         int numVerticesX = widthSegments + 1;
-        VertexConsumer buffer = bufferSource.getBuffer(RenderType.solid());
+
+        VertexConsumer buffer = bufferSource.getBuffer(RenderType.translucent());
         TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(BLUE_WOOL_TEXTURE);
 
         BiFunction<Integer, Integer, Vector3f> getVertexWorldPos = (x, y) -> {
@@ -64,6 +65,12 @@ public class ClothSoftBodyRenderer extends SoftPhysicsObject.Renderer {
                 addVertex(buffer, poseStack, v2, u2, v1Coord, normal, packedLight);
                 addVertex(buffer, poseStack, v3, u2, v2Coord, normal, packedLight);
                 addVertex(buffer, poseStack, v4, u1, v2Coord, normal, packedLight);
+
+                Vector3f backNormal = new Vector3f(normal).mul(-1.0f);
+                addVertex(buffer, poseStack, v1, u1, v1Coord, backNormal, packedLight);
+                addVertex(buffer, poseStack, v4, u1, v2Coord, backNormal, packedLight);
+                addVertex(buffer, poseStack, v3, u2, v2Coord, backNormal, packedLight);
+                addVertex(buffer, poseStack, v2, u2, v1Coord, backNormal, packedLight);
             }
         }
     }

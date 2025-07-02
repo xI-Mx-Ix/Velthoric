@@ -13,7 +13,7 @@ import net.xmx.xbullet.physics.object.global.click.ClientSendClick;
 import net.xmx.xbullet.physics.object.global.physicsobject.client.ClientPhysicsObjectManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.client.renderer.PhysicsObjectRenderer;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerEvents;
-import net.xmx.xbullet.physics.physicsworld.ClientPhysicsPauseHandler;
+import net.xmx.xbullet.physics.world.ClientPhysicsPauseHandler;
 import net.xmx.xbullet.physics.terrain.event.TerrainBlockEvents;
 import net.xmx.xbullet.physics.terrain.event.TerrainSystemEvents;
 

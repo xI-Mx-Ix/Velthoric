@@ -9,7 +9,7 @@ import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.terrain.cache.TerrainShapeCache;
 import net.xmx.xbullet.physics.terrain.chunk.TerrainSection;
 import net.xmx.xbullet.physics.terrain.manager.TerrainChunkManager;

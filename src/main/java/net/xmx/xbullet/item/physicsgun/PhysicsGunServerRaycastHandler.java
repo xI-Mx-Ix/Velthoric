@@ -5,7 +5,7 @@ import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.xbullet.physics.object.global.PhysicsRaytracing;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.Optional;
 

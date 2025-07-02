@@ -1,7 +1,6 @@
 package net.xmx.xbullet.physics.constraint.serializer.type;
 
 import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EMotorState;
 import com.github.stephengold.joltjni.enumerate.EPathRotationConstraintType;
 import com.github.stephengold.joltjni.std.StringStream;
@@ -9,12 +8,9 @@ import net.minecraft.nbt.CompoundTag;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.util.NbtUtil;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public class PathConstraintSerializer implements IConstraintSerializer<PathConstraint> {
@@ -30,7 +26,6 @@ public class PathConstraintSerializer implements IConstraintSerializer<PathConst
                     tag.putByteArray("pathData", stringStream.str().getBytes(StandardCharsets.ISO_8859_1));
                 }
             }
-
             NbtUtil.putVec3(tag, "pathPosition", settings.getPathPosition());
             NbtUtil.putQuat(tag, "pathRotation", settings.getPathRotation());
             tag.putFloat("pathFraction", settings.getPathFraction());
@@ -45,30 +40,10 @@ public class PathConstraintSerializer implements IConstraintSerializer<PathConst
 
     @Override
     public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
-        UUID[] bodyIds = loadBodyIds(tag);
-        if (bodyIds == null) return CompletableFuture.completedFuture(null);
-
-        CompletableFuture<IPhysicsObject> future1 = objectManager.getOrLoadObject(bodyIds[0]);
-        CompletableFuture<IPhysicsObject> future2 = objectManager.getOrLoadObject(bodyIds[1]);
-        PhysicsWorld physicsWorld = objectManager.getPhysicsWorld();
-
-        return CompletableFuture.allOf(future1, future2).thenApplyAsync(v -> {
-            IPhysicsObject obj1 = future1.join();
-            IPhysicsObject obj2 = future2.join();
-            if (obj1 == null || obj2 == null || physicsWorld == null) return null;
-
-            int bodyId1 = obj1.getBodyId();
-            int bodyId2 = obj2.getBodyId();
-
-            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-            if (bodyInterface == null) return null;
-
-            Body b1 = new Body(bodyId1);
-            Body b2 = (bodyInterface.getMotionType(bodyId2) == EMotionType.Static) ? Body.sFixedToWorld() : new Body(bodyId2);
-
+        return createFromLoadedBodies(tag, objectManager, (b1, b2, t) -> {
             try (PathConstraintSettings settings = new PathConstraintSettings()) {
-                if (tag.contains("pathData")) {
-                    byte[] pathData = tag.getByteArray("pathData");
+                if (t.contains("pathData")) {
+                    byte[] pathData = t.getByteArray("pathData");
                     String pathString = new String(pathData, StandardCharsets.ISO_8859_1);
                     try (StringStream stringStream = new StringStream(pathString);
                          StreamInWrapper streamIn = new StreamInWrapper(stringStream);
@@ -78,20 +53,17 @@ public class PathConstraintSerializer implements IConstraintSerializer<PathConst
                         }
                     }
                 }
-
-                settings.setPathPosition(NbtUtil.getVec3(tag, "pathPosition"));
-                settings.setPathRotation(NbtUtil.getQuat(tag, "pathRotation"));
-                settings.setPathFraction(tag.getFloat("pathFraction"));
-                settings.setRotationConstraintType(EPathRotationConstraintType.valueOf(tag.getString("rotationConstraintType")));
-                settings.setMaxFrictionForce(tag.getFloat("maxFrictionForce"));
-                NbtUtil.loadMotorSettings(tag, "positionMotorSettings", settings.getPositionMotorSettings());
-
+                settings.setPathPosition(NbtUtil.getVec3(t, "pathPosition"));
+                settings.setPathRotation(NbtUtil.getQuat(t, "pathRotation"));
+                settings.setPathFraction(t.getFloat("pathFraction"));
+                settings.setRotationConstraintType(EPathRotationConstraintType.valueOf(t.getString("rotationConstraintType")));
+                settings.setMaxFrictionForce(t.getFloat("maxFrictionForce"));
+                NbtUtil.loadMotorSettings(t, "positionMotorSettings", settings.getPositionMotorSettings());
                 PathConstraint constraint = (PathConstraint) settings.create(b1, b2);
-
                 if (constraint != null) {
-                    constraint.setTargetPathFraction(tag.getFloat("targetPathFraction"));
-                    constraint.setTargetVelocity(tag.getFloat("targetVelocity"));
-                    constraint.setPositionMotorState(EMotorState.valueOf(tag.getString("positionMotorState")));
+                    constraint.setTargetPathFraction(t.getFloat("targetPathFraction"));
+                    constraint.setTargetVelocity(t.getFloat("targetVelocity"));
+                    constraint.setPositionMotorState(EMotorState.valueOf(t.getString("positionMotorState")));
                 }
                 return constraint;
             }

@@ -5,7 +5,7 @@ import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 @Mod.EventBusSubscriber(modid = XBullet.MODID)
 public class ConstraintManagerEvents {

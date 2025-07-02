@@ -17,7 +17,7 @@ import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObject
 import net.xmx.xbullet.physics.object.global.physicsobject.registry.GlobalPhysicsObjectRegistry;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.builder.RigidPhysicsObjectBuilder;
 import net.xmx.xbullet.physics.object.softphysicsobject.builder.SoftPhysicsObjectBuilder;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public class SpawnObjectCommandExecutor {
 

@@ -14,7 +14,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.item.PhysicsRemoverItem;
 import net.xmx.xbullet.math.PhysicsTransform;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.object.global.physicsobject.AbstractPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;

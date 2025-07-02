@@ -6,8 +6,8 @@ import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
-import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
+import net.xmx.xbullet.physics.world.pcmd.ICommand;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 
 public record AddSoftBodyCommand(SoftPhysicsObject physicsObject) implements ICommand {

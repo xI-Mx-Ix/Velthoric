@@ -3,7 +3,7 @@ package net.xmx.xbullet.physics.terrain.event;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.terrain.manager.TerrainSystem;
 
 public class TerrainBlockEvents {

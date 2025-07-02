@@ -17,7 +17,7 @@ import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.Optional;
 import java.util.UUID;
