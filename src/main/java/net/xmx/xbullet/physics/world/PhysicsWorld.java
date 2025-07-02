@@ -1,4 +1,4 @@
-package net.xmx.xbullet.physics.physicsworld;
+package net.xmx.xbullet.physics.world;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
@@ -11,17 +11,18 @@ import net.xmx.xbullet.natives.NativeJoltInitializer;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
-import net.xmx.xbullet.physics.physicsworld.pcmd.RunTaskCommand;
-import net.xmx.xbullet.physics.physicsworld.pcmd.UpdatePhysicsStateCommand;
+import net.xmx.xbullet.physics.world.pcmd.ICommand;
+import net.xmx.xbullet.physics.world.pcmd.RunTaskCommand;
+import net.xmx.xbullet.physics.world.pcmd.UpdatePhysicsStateCommand;
 import net.xmx.xbullet.physics.terrain.manager.TerrainSystem;
 
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executor;
 
-public final class PhysicsWorld implements Runnable {
+public final class PhysicsWorld implements Runnable, Executor {
 
     // --- Static Registry & Factory ---
 

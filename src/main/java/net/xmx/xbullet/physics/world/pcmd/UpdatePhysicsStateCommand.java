@@ -1,11 +1,11 @@
-package net.xmx.xbullet.physics.physicsworld.pcmd;
+package net.xmx.xbullet.physics.world.pcmd;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodySharedSettings;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public record UpdatePhysicsStateCommand(long timestampNanos) implements ICommand {
 

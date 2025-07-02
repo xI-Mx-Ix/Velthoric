@@ -1,4 +1,4 @@
-package net.xmx.xbullet.physics.physicsworld;
+package net.xmx.xbullet.physics.world;
 
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.event.TickEvent;

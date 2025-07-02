@@ -1,7 +1,7 @@
-package net.xmx.xbullet.physics.physicsworld.pcmd;
+package net.xmx.xbullet.physics.world.pcmd;
 
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public record RunTaskCommand(Runnable task) implements ICommand {
 
