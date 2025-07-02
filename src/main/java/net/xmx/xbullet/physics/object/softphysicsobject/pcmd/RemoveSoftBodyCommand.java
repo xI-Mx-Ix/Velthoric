@@ -25,10 +25,6 @@ public record RemoveSoftBodyCommand(UUID objectId, int bodyId) implements IComma
         }
 
         world.getPhysicsObjectsMap().remove(objectId);
-        world.getBodyIds().remove(objectId);
         world.getBodyIdToUuidMap().remove(bodyId);
-        world.getSyncedSoftBodyVertexData().remove(objectId);
-        world.getSyncedActiveStates().remove(objectId);
-        world.getSyncedStateTimestampsNanos().remove(objectId);
     }
 }

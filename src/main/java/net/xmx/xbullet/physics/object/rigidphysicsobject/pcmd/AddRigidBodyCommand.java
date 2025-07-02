@@ -56,10 +56,8 @@ public record AddRigidBodyCommand(RigidPhysicsObject physicsObject) implements I
 
                         if (bodyId != 0 && bodyId != Jolt.cInvalidBodyId) {
                             physicsObject.setBodyId(bodyId);
-                            world.getBodyIds().put(physicsObject.getPhysicsId(), bodyId);
                             world.getBodyIdToUuidMap().put(bodyId, physicsObject.getPhysicsId());
                             world.getPhysicsObjectsMap().put(physicsObject.getPhysicsId(), physicsObject);
-                            world.getSyncedActiveStates().put(physicsObject.getPhysicsId(), true);
                         } else {
                             XBullet.LOGGER.error("Jolt failed to create body for object {}", physicsObject.getPhysicsId());
                             physicsObject.markRemoved();

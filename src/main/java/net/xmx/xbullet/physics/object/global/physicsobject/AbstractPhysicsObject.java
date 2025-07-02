@@ -1,4 +1,3 @@
-
 package net.xmx.xbullet.physics.object.global.physicsobject;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
@@ -7,8 +6,11 @@ import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.FloatTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.xmx.xbullet.item.PhysicsRemoverItem;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.global.physicsobject.properties.IPhysicsObjectProperties;
 
@@ -20,11 +22,14 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     protected final UUID physicsId;
     protected final Level level;
     protected final String objectTypeIdentifier;
-    protected PhysicsTransform currentTransform;
+    protected final PhysicsTransform currentTransform;
     protected final IPhysicsObjectProperties properties;
 
-    protected Vec3 lastSyncedLinearVel = new Vec3();
-    protected Vec3 lastSyncedAngularVel = new Vec3();
+    protected final Vec3 lastSyncedLinearVel = new Vec3();
+    protected final Vec3 lastSyncedAngularVel = new Vec3();
+
+    protected volatile boolean isActive = false;
+    protected volatile long lastUpdateTimestampNanos = 0L;
 
     protected int bodyId = 0;
     protected boolean isRemoved = false;
@@ -46,21 +51,23 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     @Override public Level getLevel() { return this.level; }
     @Override public boolean isRemoved() { return this.isRemoved; }
     @Override public void markRemoved() { if (!this.isRemoved) this.isRemoved = true; }
-    @Override public PhysicsTransform getCurrentTransform() { return this.currentTransform.copy(); }
+    @Override public synchronized PhysicsTransform getCurrentTransform() { return this.currentTransform.copy(); }
     @Override public int getBodyId() { return this.bodyId; }
     @Override public void setBodyId(int bodyId) { this.bodyId = bodyId; }
     @Override public boolean isPhysicsInitialized() { return this.physicsInitialized; }
     @Override public void confirmPhysicsInitialized() { if (!this.physicsInitialized) this.physicsInitialized = true; }
-
-    @Override public Vec3 getLastSyncedLinearVel() { return this.lastSyncedLinearVel; }
-    @Override public Vec3 getLastSyncedAngularVel() { return this.lastSyncedAngularVel; }
+    @Override public synchronized Vec3 getLastSyncedLinearVel() { return new Vec3(this.lastSyncedLinearVel); }
+    @Override public synchronized Vec3 getLastSyncedAngularVel() { return new Vec3(this.lastSyncedAngularVel); }
+    @Override public boolean isPhysicsActive() { return this.isActive; }
+    @Override public long getLastUpdateTimestampNanos() { return this.lastUpdateTimestampNanos; }
+    @Override @Nullable public float[] getLastSyncedVertexData() { return null; }
 
     @Override
     public final CompoundTag saveToNbt(CompoundTag tag) {
         tag.putUUID("physicsId", this.physicsId);
         tag.putString("objectTypeIdentifier", this.objectTypeIdentifier);
         CompoundTag transformTag = new CompoundTag();
-        currentTransform.toNbt(transformTag);
+        getCurrentTransform().toNbt(transformTag);
         tag.put("transform", transformTag);
         addAdditionalSaveData(tag);
         return tag;
@@ -86,11 +93,14 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     protected abstract void addAdditionalSaveData(CompoundTag tag);
     protected abstract void readAdditionalSaveData(CompoundTag tag);
 
-    @Override
-    public void onLeftClick(Player player, Vec3 hitPoint, Vec3 hitNormal) {
-    }
+    @Override public void onLeftClick(Player player, Vec3 hitPoint, Vec3 hitNormal) {}
+    @Override public void onRightClick(Player player, Vec3 hitPoint, Vec3 hitNormal) {}
 
     @Override
-    public void onRightClick(Player player, Vec3 hitPoint, Vec3 hitNormal) {
+    public void onRightClickWithTool(Player player) {
+        if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem()
+                instanceof PhysicsRemoverItem) {
+            this.markRemoved();
+        }
     }
 }

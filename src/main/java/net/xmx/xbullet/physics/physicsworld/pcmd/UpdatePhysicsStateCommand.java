@@ -31,26 +31,27 @@ public record UpdatePhysicsStateCommand(long timestampNanos) implements ICommand
             }
 
             boolean isActive = bodyInterface.isActive(bodyId);
-
-            world.getSyncedActiveStates().put(obj.getPhysicsId(), isActive);
-            world.getSyncedStateTimestampsNanos().put(obj.getPhysicsId(), this.timestampNanos);
+            PhysicsTransform transform = null;
+            Vec3 linVel = null;
+            Vec3 angVel = null;
+            float[] vertexData = null;
 
             if (isActive) {
                 bodyInterface.getPositionAndRotation(bodyId, tempTransform.getTranslation(), tempTransform.getRotation());
-                tempLinVel.set(bodyInterface.getLinearVelocity(bodyId));
-                tempAngVel.set(bodyInterface.getAngularVelocity(bodyId));
+                transform = tempTransform;
 
-                float[] vertexData = null;
+                tempLinVel.set(bodyInterface.getLinearVelocity(bodyId));
+                linVel = tempLinVel;
+
+                tempAngVel.set(bodyInterface.getAngularVelocity(bodyId));
+                angVel = tempAngVel;
+
                 if (obj.getPhysicsObjectType() == EObjectType.SOFT_BODY) {
                     vertexData = getSoftBodyVertices(lockInterface, bodyId);
                 }
-
-                obj.updateStateFromPhysicsThread(tempTransform, tempLinVel, tempAngVel, vertexData, true);
-
-            } else {
-
-                obj.updateStateFromPhysicsThread(null, null, null, null, false);
             }
+
+            obj.updateStateFromPhysicsThread(this.timestampNanos, transform, linVel, angVel, vertexData, isActive);
         }
     }
 

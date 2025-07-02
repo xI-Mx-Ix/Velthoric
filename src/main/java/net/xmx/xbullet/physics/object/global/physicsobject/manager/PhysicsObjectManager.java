@@ -128,7 +128,6 @@ public class PhysicsObjectManager {
     public void serverTick() {
         if (!isInitialized()) return;
 
-
         removeObjectsBelowLevel(-75.0f);
 
         Iterator<Map.Entry<UUID, IPhysicsObject>> iterator = managedObjects.entrySet().iterator();
@@ -156,27 +155,20 @@ public class PhysicsObjectManager {
                 continue;
             }
 
-            syncStateFromPhysics(obj);
             obj.serverTick(this.physicsWorld);
 
-            Boolean currentIsActive = physicsWorld.isActive(objectId);
-            if (currentIsActive == null) {
-
-                iterator.remove();
-                removeObject(objectId, true);
-                continue;
-            }
-
+            boolean currentIsActive = obj.isPhysicsActive();
             Boolean wasActive = lastActiveState.getOrDefault(objectId, false);
             boolean shouldSync = currentIsActive || wasActive;
 
             if (tickCounter % syncInterval == 0 && shouldSync) {
-                long timestamp = physicsWorld.getSyncedStateTimestampsNanos().getOrDefault(objectId, System.nanoTime());
-
-                RVec3 pos = obj.getCurrentTransform().getTranslation();
-                ChunkPos chunkPos = new ChunkPos((int)Math.floor(pos.xx() / 16.0), (int)Math.floor(pos.zz() / 16.0));
-                NetworkHandler.CHANNEL.send(PacketDistributor.TRACKING_CHUNK.with(() -> managedLevel.getChunk(chunkPos.x, chunkPos.z)),
-                        new SyncPhysicsObjectPacket(obj, timestamp, currentIsActive));
+                long timestamp = obj.getLastUpdateTimestampNanos();
+                if (timestamp > 0) {
+                    RVec3 pos = obj.getCurrentTransform().getTranslation();
+                    ChunkPos chunkPos = new ChunkPos((int) Math.floor(pos.xx() / 16.0), (int) Math.floor(pos.zz() / 16.0));
+                    NetworkHandler.CHANNEL.send(PacketDistributor.TRACKING_CHUNK.with(() -> managedLevel.getChunk(chunkPos.x, chunkPos.z)),
+                            new SyncPhysicsObjectPacket(obj, timestamp, currentIsActive));
+                }
             }
             lastActiveState.put(objectId, currentIsActive);
         }
@@ -235,18 +227,6 @@ public class PhysicsObjectManager {
         return true;
     }
 
-    private void syncStateFromPhysics(IPhysicsObject obj) {
-        UUID objectId = obj.getPhysicsId();
-        PhysicsTransform transform = physicsWorld.getTransform(objectId);
-        Vec3 linearVel = physicsWorld.getLinearVelocity(objectId);
-        Vec3 angularVel = physicsWorld.getAngularVelocity(objectId);
-        float[] softVertices = physicsWorld.getSoftBodyVertexData(objectId);
-        Boolean isActive = physicsWorld.isActive(objectId);
-        if (isActive != null) {
-            obj.updateStateFromPhysicsThread(transform, linearVel, angularVel, softVertices, isActive);
-        }
-    }
-
     private void removeObjectsBelowLevel(float yLevel) {
         List<UUID> toRemove = new ArrayList<>();
         for (IPhysicsObject obj : managedObjects.values()) {
@@ -255,7 +235,8 @@ public class PhysicsObjectManager {
                     toRemove.add(obj.getPhysicsId());
                 }
             } else if (obj.getPhysicsObjectType() == EObjectType.SOFT_BODY) {
-                float[] vertices = physicsWorld.getSoftBodyVertexData(obj.getPhysicsId());
+
+                float[] vertices = obj.getLastSyncedVertexData();
                 if (vertices != null && vertices.length > 0) {
                     float avgY = 0;
                     int count = 0;

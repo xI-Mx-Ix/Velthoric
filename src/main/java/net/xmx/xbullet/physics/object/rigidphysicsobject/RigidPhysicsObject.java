@@ -111,11 +111,20 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     }
 
     @Override
-    public void updateStateFromPhysicsThread(PhysicsTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
+    public synchronized void updateStateFromPhysicsThread(long timestampNanos, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
         if (this.isRemoved || level.isClientSide()) return;
-        if (transform != null) this.currentTransform.set(transform);
-        if (linearVelocity != null) this.lastSyncedLinearVel.set(linearVelocity);
-        if (angularVelocity != null) this.lastSyncedAngularVel.set(angularVelocity);
+
+        this.lastUpdateTimestampNanos = timestampNanos;
+        this.isActive = isActive;
+
+        if (isActive) {
+            if (transform != null) this.currentTransform.set(transform);
+            if (linearVelocity != null) this.lastSyncedLinearVel.set(linearVelocity);
+            if (angularVelocity != null) this.lastSyncedAngularVel.set(angularVelocity);
+        } else {
+            this.lastSyncedLinearVel.loadZero();
+            this.lastSyncedAngularVel.loadZero();
+        }
     }
 
     @Override

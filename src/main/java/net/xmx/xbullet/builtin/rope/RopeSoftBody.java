@@ -1,9 +1,6 @@
 package net.xmx.xbullet.builtin.rope;
 
-import com.github.stephengold.joltjni.Edge;
-import com.github.stephengold.joltjni.SoftBodySharedSettings;
-import com.github.stephengold.joltjni.Vec3;
-import com.github.stephengold.joltjni.Vertex;
+import com.github.stephengold.joltjni.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
@@ -29,11 +26,15 @@ public class RopeSoftBody extends SoftPhysicsObject {
     }
 
     @Override
+    protected void configureAdditionalSoftBodyCreationSettings(SoftBodyCreationSettings settings) {
+        settings.setVertexRadius(this.ropeRadius);
+    }
+
+    @Override
     protected SoftBodySharedSettings buildSharedSettings() {
         int numNodes = this.numSegments + 1;
 
         SoftBodySharedSettings settings = new SoftBodySharedSettings();
-        settings.setVertexRadius(this.ropeRadius);
 
         float segmentLength = ropeLength / (float)this.numSegments;
         float invMassPerNode = (this.mass > 0) ? numNodes / this.mass : 0f;

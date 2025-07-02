@@ -95,6 +95,11 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
         settings.setGravityFactor(softProperties.getGravityFactor());
         settings.setPressure(softProperties.getPressure());
         settings.setNumIterations(softProperties.getNumIterations());
+
+        configureAdditionalSoftBodyCreationSettings(settings);
+    }
+
+    protected void configureAdditionalSoftBodyCreationSettings(SoftBodyCreationSettings settings) {
     }
 
     @Override
@@ -123,22 +128,23 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     public void serverTick(PhysicsWorld physicsWorld) { }
 
     @Override
-    public void updateStateFromPhysicsThread(PhysicsTransform transform, Vec3 linearVelocity, Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
+    public synchronized void updateStateFromPhysicsThread(long timestampNanos, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
         if (this.isRemoved || this.level.isClientSide()) return;
 
-        if (transform != null) {
-            this.currentTransform = transform;
-        }
-        if (linearVelocity != null) {
-            this.lastSyncedLinearVel = linearVelocity;
-        }
-        if (angularVelocity != null) {
-            this.lastSyncedAngularVel = angularVelocity;
-        }
-        if (softBodyVertices != null) {
-            this.lastSyncedVertexData = softBodyVertices;
+        this.lastUpdateTimestampNanos = timestampNanos;
+        this.isActive = isActive;
+
+        if (isActive) {
+            if (transform != null) this.currentTransform.set(transform);
+            if (linearVelocity != null) this.lastSyncedLinearVel.set(linearVelocity);
+            if (angularVelocity != null) this.lastSyncedAngularVel.set(angularVelocity);
+            if (softBodyVertices != null) this.lastSyncedVertexData = softBodyVertices;
+        } else {
+            this.lastSyncedLinearVel.loadZero();
+            this.lastSyncedAngularVel.loadZero();
         }
     }
+
     @Override
     public void onRightClickWithTool(Player player) {
         if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem && player.level() instanceof ServerLevel sl) {

@@ -136,94 +136,107 @@ public class PhysicsGunServerHandler {
     }
 
     private static void applyForceToRigidBody(ServerPlayer player, GrabbedObjectInfo info, PhysicsWorld physicsWorld) {
-        Integer bodyId = physicsWorld.getBodyIds().get(info.objectId);
-        if (bodyId == null) {
+
+        int bodyId = info.physicsObject.getBodyId();
+        if (bodyId == 0) {
             player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
             return;
         }
 
-        try (BodyLockWrite lock = new BodyLockWrite(physicsWorld.getBodyLockInterface(), bodyId);
-             MotionProperties mp = lock.succeeded() ? lock.getBody().getMotionProperties() : null) {
-
-            if (mp == null || mp.getInverseMass() == 0f) {
+        try (BodyLockWrite lock = new BodyLockWrite(physicsWorld.getBodyLockInterface(), bodyId)) {
+            if (!lock.succeededAndIsInBroadPhase()) {
                 player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
                 return;
             }
 
-            Body body = lock.getBody();
-            if (body.isKinematic()) {
-                player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
-                return;
-            }
-
-            RVec3 targetGrabPoint = calculateTargetPoint(player, info.targetDistance);
-            Quat bodyRotation = body.getRotation();
-            com.github.stephengold.joltjni.Vec3 worldGrabOffset = Op.star(bodyRotation, info.localGrabOffset);
-            RVec3 targetBodyCenter = Op.minus(targetGrabPoint, worldGrabOffset.toRVec3());
-
-            RVec3 currentPos = body.getCenterOfMassPosition();
-            com.github.stephengold.joltjni.Vec3 posError = Op.minus(targetBodyCenter, currentPos).toVec3();
-
-            if (posError.lengthSq() > 400) { // 20 blocks
-                player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
-                return;
-            }
-
-            com.github.stephengold.joltjni.Vec3 force = Op.star(posError, FORCE_STRENGTH);
-            com.github.stephengold.joltjni.Vec3 dampingForce = Op.star(body.getLinearVelocity(), -DAMPING_FACTOR);
-            body.addForce(Op.plus(force, dampingForce));
-
-            Quat playerRot = getPlayerLookRotation(player);
-            Quat targetRotation = Op.star(playerRot, info.localRotationOffset);
-            Quat rotError = Op.star(targetRotation, body.getRotation().conjugated());
-            if (rotError.getW() < 0) {
-                rotError.set(-rotError.getX(), -rotError.getY(), -rotError.getZ(), -rotError.getW());
-            }
-
-            com.github.stephengold.joltjni.Vec3 torqueAxis = new com.github.stephengold.joltjni.Vec3(rotError.getX(), rotError.getY(), rotError.getZ());
-            com.github.stephengold.joltjni.Vec3 torque = Op.star(torqueAxis, TORQUE_STRENGTH);
-            com.github.stephengold.joltjni.Vec3 dampingTorque = Op.star(body.getAngularVelocity(), -TORQUE_DAMPING);
-            body.addTorque(Op.plus(torque, dampingTorque));
-        }
-    }
-
-    private static void applyForceToSoftBodyNode(ServerPlayer player, GrabbedObjectInfo info, PhysicsWorld physicsWorld) {
-        Integer bodyId = physicsWorld.getBodyIds().get(info.objectId);
-        if (bodyId == null) {
-            player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
-            return;
-        }
-
-        try (BodyLockWrite lock = new BodyLockWrite(physicsWorld.getBodyLockInterface(), bodyId);
-             MotionProperties baseMp = lock.succeeded() ? lock.getBody().getMotionProperties() : null) {
-
-            if (baseMp == null || !lock.getBody().isSoftBody()) {
-                player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
-                return;
-            }
-            SoftBodyMotionProperties mp = (SoftBodyMotionProperties) baseMp;
-
-            if (info.nodeId >= mp.getVertices().length) {
-                player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
-                return;
-            }
-
-            try (SoftBodyVertex vertex = mp.getVertex(info.nodeId)) {
-                if (vertex.getInvMass() == 0f) {
+            try (MotionProperties mp = lock.getBody().getMotionProperties()) {
+                if (mp == null || mp.getInverseMass() == 0f) {
                     player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
                     return;
                 }
 
-                RVec3 targetNodePosR = calculateTargetPoint(player, info.targetDistance);
-                com.github.stephengold.joltjni.Vec3 targetNodePos = targetNodePosR.toVec3();
-                com.github.stephengold.joltjni.Vec3 posError = Op.minus(targetNodePos, vertex.getPosition());
+                Body body = lock.getBody();
+                if (body.isKinematic()) {
+                    player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
+                    return;
+                }
 
-                com.github.stephengold.joltjni.Vec3 force = Op.star(posError, FORCE_STRENGTH * 0.1f);
-                com.github.stephengold.joltjni.Vec3 dampingForce = Op.star(vertex.getVelocity(), -DAMPING_FACTOR * 0.5f);
-                com.github.stephengold.joltjni.Vec3 totalForce = Op.plus(force, dampingForce);
+                RVec3 targetGrabPoint = calculateTargetPoint(player, info.targetDistance);
+                Quat bodyRotation = body.getRotation();
+                Vec3 worldGrabOffset = Op.star(bodyRotation, info.localGrabOffset);
+                RVec3 targetBodyCenter = Op.minus(targetGrabPoint, worldGrabOffset.toRVec3());
 
-                com.github.stephengold.joltjni.Vec3 deltaV = Op.star(totalForce, vertex.getInvMass() * physicsWorld.getFixedTimeStep());
-                vertex.setVelocity(Op.plus(vertex.getVelocity(), deltaV));
+                RVec3 currentPos = body.getCenterOfMassPosition();
+                Vec3 posError = Op.minus(targetBodyCenter, currentPos).toVec3();
+
+                if (posError.lengthSq() > 400) {
+                    player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
+                    return;
+                }
+
+                Vec3 force = Op.star(posError, FORCE_STRENGTH);
+                Vec3 dampingForce = Op.star(body.getLinearVelocity(), -DAMPING_FACTOR);
+                body.addForce(Op.plus(force, dampingForce));
+
+                Quat playerRot = getPlayerLookRotation(player);
+                Quat targetRotation = Op.star(playerRot, info.localRotationOffset);
+                Quat rotError = Op.star(targetRotation, body.getRotation().conjugated());
+                if (rotError.getW() < 0) {
+                    rotError.set(-rotError.getX(), -rotError.getY(), -rotError.getZ(), -rotError.getW());
+                }
+
+                Vec3 torqueAxis = new Vec3(rotError.getX(), rotError.getY(), rotError.getZ());
+                Vec3 torque = Op.star(torqueAxis, TORQUE_STRENGTH);
+                Vec3 dampingTorque = Op.star(body.getAngularVelocity(), -TORQUE_DAMPING);
+                body.addTorque(Op.plus(torque, dampingTorque));
+            }
+        }
+    }
+
+    private static void applyForceToSoftBodyNode(ServerPlayer player, GrabbedObjectInfo info, PhysicsWorld physicsWorld) {
+
+        int bodyId = info.physicsObject.getBodyId();
+        if (bodyId == 0) {
+            player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
+            return;
+        }
+
+        try (BodyLockWrite lock = new BodyLockWrite(physicsWorld.getBodyLockInterface(), bodyId)) {
+            if (!lock.succeededAndIsInBroadPhase()) {
+                player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
+                return;
+            }
+
+            try (MotionProperties baseMp = lock.getBody().getMotionProperties()) {
+                if (baseMp == null || !lock.getBody().isSoftBody()) {
+                    player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
+                    return;
+                }
+                SoftBodyMotionProperties mp = (SoftBodyMotionProperties) baseMp;
+
+                int numVertices = mp.getSettings().countVertices();
+                if (info.nodeId >= numVertices) {
+                    player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
+                    return;
+                }
+
+                try (SoftBodyVertex vertex = mp.getVertex(info.nodeId)) {
+                    if (vertex == null || vertex.getInvMass() == 0f) {
+                        player.getServer().execute(() -> HELD_OBJECTS.remove(player.getUUID()));
+                        return;
+                    }
+
+                    RVec3 targetNodePosR = calculateTargetPoint(player, info.targetDistance);
+                    Vec3 targetNodePos = targetNodePosR.toVec3();
+                    Vec3 posError = Op.minus(targetNodePos, vertex.getPosition());
+
+                    Vec3 force = Op.star(posError, FORCE_STRENGTH * 0.1f);
+                    Vec3 dampingForce = Op.star(vertex.getVelocity(), -DAMPING_FACTOR * 0.5f);
+                    Vec3 totalForce = Op.plus(force, dampingForce);
+
+                    Vec3 deltaV = Op.star(totalForce, vertex.getInvMass() * physicsWorld.getFixedTimeStep());
+                    vertex.setVelocity(Op.plus(vertex.getVelocity(), deltaV));
+                }
             }
         }
     }

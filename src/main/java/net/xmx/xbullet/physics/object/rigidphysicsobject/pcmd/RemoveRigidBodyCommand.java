@@ -25,12 +25,6 @@ public record RemoveRigidBodyCommand(UUID objectId, int bodyId) implements IComm
         }
 
         world.getPhysicsObjectsMap().remove(objectId);
-        world.getBodyIds().remove(objectId);
         world.getBodyIdToUuidMap().remove(bodyId);
-        world.getSyncedTransforms().remove(objectId);
-        world.getSyncedLinearVelocities().remove(objectId);
-        world.getSyncedAngularVelocities().remove(objectId);
-        world.getSyncedActiveStates().remove(objectId);
-        world.getSyncedStateTimestampsNanos().remove(objectId);
     }
 }

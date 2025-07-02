@@ -1,9 +1,6 @@
 package net.xmx.xbullet.builtin.cloth;
 
-import com.github.stephengold.joltjni.Edge;
-import com.github.stephengold.joltjni.SoftBodySharedSettings;
-import com.github.stephengold.joltjni.Vec3;
-import com.github.stephengold.joltjni.Vertex;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.minecraft.nbt.CompoundTag;
@@ -33,13 +30,17 @@ public class ClothSoftBody extends SoftPhysicsObject {
     }
 
     @Override
+    protected void configureAdditionalSoftBodyCreationSettings(SoftBodyCreationSettings settings) {
+        settings.setVertexRadius(0.02f);
+    }
+
+    @Override
     protected SoftBodySharedSettings buildSharedSettings() {
         int numVerticesX = this.widthSegments + 1;
         int numVerticesY = this.heightSegments + 1;
         int totalVertices = numVerticesX * numVerticesY;
 
         SoftBodySharedSettings settings = new SoftBodySharedSettings();
-        settings.setVertexRadius(0.02f);
 
         float segmentWidth = clothWidth / this.widthSegments;
         float segmentHeight = clothHeight / this.heightSegments;

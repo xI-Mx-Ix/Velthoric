@@ -6,7 +6,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.init.ModConfig;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.natives.NativeJoltInitializer;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
@@ -45,16 +44,8 @@ public class PhysicsWorld implements Runnable {
     private float timeAccumulator = 0.0f;
 
     private final Map<UUID, IPhysicsObject> physicsObjectsMap = new ConcurrentHashMap<>();
-    private final Map<UUID, Integer> bodyIds = new ConcurrentHashMap<>();
     private final Map<Integer, UUID> bodyIdToUuidMap = new ConcurrentHashMap<>();
     private final Map<UUID, Constraint> physicsJointsMap = new ConcurrentHashMap<>();
-
-    private final Map<UUID, PhysicsTransform> syncedTransforms = new ConcurrentHashMap<>();
-    private final Map<UUID, Vec3> syncedLinearVelocities = new ConcurrentHashMap<>();
-    private final Map<UUID, Vec3> syncedAngularVelocities = new ConcurrentHashMap<>();
-    private final Map<UUID, Boolean> syncedActiveStates = new ConcurrentHashMap<>();
-    private final Map<UUID, float[]> syncedSoftBodyVertexData = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> syncedStateTimestampsNanos = new ConcurrentHashMap<>();
 
     private final Queue<ICommand> commandQueue = new ConcurrentLinkedQueue<>();
     private volatile Thread physicsThreadExecutor;
@@ -125,12 +116,10 @@ public class PhysicsWorld implements Runnable {
     }
 
     public void update(float deltaTime) {
-
         processCommandQueue();
 
         if (this.isPaused || !this.isRunning || physicsSystem == null) {
             if (isPaused && pauseStartTimeNanos == 0L) {
-
                 pauseStartTimeNanos = System.nanoTime();
             }
             return;
@@ -168,19 +157,16 @@ public class PhysicsWorld implements Runnable {
         }
 
         if (this.isRunning) {
-            new UpdatePhysicsStateCommand(System.nanoTime()).execute(this);
+            queueCommand(new UpdatePhysicsStateCommand(System.nanoTime()));
         }
     }
 
     private void initializePhysicsSystem() {
-
         this.tempAllocator = new TempAllocatorMalloc();
-
         int numThreads = Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
         this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
 
         this.physicsSystem = new PhysicsSystem();
-
         BroadPhaseLayerInterface bpli = NativeJoltInitializer.getBroadPhaseLayerInterface();
         ObjectVsBroadPhaseLayerFilter ovbpf = NativeJoltInitializer.getObjectVsBroadPhaseLayerFilter();
         ObjectLayerPairFilter olpf = NativeJoltInitializer.getObjectLayerPairFilter();
@@ -190,11 +176,7 @@ public class PhysicsWorld implements Runnable {
         int maxBodyPairs = ModConfig.MAX_BODY_PAIRS.get();
         int maxContactConstraints = ModConfig.MAX_CONTACT_CONSTRAINTS.get();
 
-        physicsSystem.init(maxBodies, numBodyMutexes, maxBodyPairs, maxContactConstraints,
-                bpli,
-                ovbpf,
-                olpf
-        );
+        physicsSystem.init(maxBodies, numBodyMutexes, maxBodyPairs, maxContactConstraints, bpli, ovbpf, olpf);
 
         PhysicsSettings settings = physicsSystem.getPhysicsSettings();
         settings.setNumPositionSteps(ModConfig.NUM_ITERATIONS.get());
@@ -217,7 +199,6 @@ public class PhysicsWorld implements Runnable {
 
     public void queueCommand(ICommand command) {
         if (command == null || !this.isRunning) {
-
             if (command != null) {
                 XBullet.LOGGER.warn("Attempted to queue command {} to a non-running physics world for dimension {}.", command.getClass().getSimpleName(), dimensionKey.location());
             }
@@ -247,7 +228,6 @@ public class PhysicsWorld implements Runnable {
             }
         }
         this.physicsThreadExecutor = null;
-
     }
 
     private void cleanupInternal() {
@@ -264,20 +244,12 @@ public class PhysicsWorld implements Runnable {
             tempAllocator.close();
             tempAllocator = null;
         }
-
         clearAllMaps();
     }
 
     private void clearAllMaps() {
-        bodyIds.clear();
         bodyIdToUuidMap.clear();
         physicsObjectsMap.clear();
-        syncedTransforms.clear();
-        syncedLinearVelocities.clear();
-        syncedAngularVelocities.clear();
-        syncedActiveStates.clear();
-        syncedSoftBodyVertexData.clear();
-        syncedStateTimestampsNanos.clear();
         commandQueue.clear();
         physicsJointsMap.clear();
     }
@@ -292,6 +264,10 @@ public class PhysicsWorld implements Runnable {
             return Optional.ofNullable(this.physicsObjectsMap.get(objectId));
         }
         return Optional.empty();
+    }
+
+    public float getFixedTimeStep() {
+        return this.fixedTimeStep;
     }
 
     @Nullable
@@ -327,63 +303,6 @@ public class PhysicsWorld implements Runnable {
 
     public ResourceKey<Level> getDimensionKey() {
         return dimensionKey;
-    }
-
-    public float getFixedTimeStep() {
-        return this.fixedTimeStep;
-    }
-
-    public Map<UUID, PhysicsTransform> getSyncedTransforms() {
-        return syncedTransforms;
-    }
-
-    @Nullable
-    public PhysicsTransform getTransform(UUID id) {
-        return syncedTransforms.get(id);
-    }
-
-    public Map<UUID, Vec3> getSyncedLinearVelocities() {
-        return syncedLinearVelocities;
-    }
-
-    @Nullable
-    public Vec3 getLinearVelocity(UUID id) {
-        return syncedLinearVelocities.get(id);
-    }
-
-    public Map<UUID, Vec3> getSyncedAngularVelocities() {
-        return syncedAngularVelocities;
-    }
-
-    @Nullable
-    public Vec3 getAngularVelocity(UUID id) {
-        return syncedAngularVelocities.get(id);
-    }
-
-    public Map<UUID, Boolean> getSyncedActiveStates() {
-        return syncedActiveStates;
-    }
-
-    @Nullable
-    public Boolean isActive(UUID id) {
-        return syncedActiveStates.get(id);
-    }
-
-    public Map<UUID, float[]> getSyncedSoftBodyVertexData() {
-        return syncedSoftBodyVertexData;
-    }
-
-    @Nullable
-    public float[] getSoftBodyVertexData(UUID id) {
-        return syncedSoftBodyVertexData.get(id);
-    }
-
-    public Map<UUID, Long> getSyncedStateTimestampsNanos() {
-        return syncedStateTimestampsNanos;
-    }
-
-    public Map<UUID, Integer> getBodyIds() {
-        return bodyIds;
     }
 
     public Map<Integer, UUID> getBodyIdToUuidMap() {

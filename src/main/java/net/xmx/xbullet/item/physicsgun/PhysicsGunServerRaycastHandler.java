@@ -15,30 +15,35 @@ public class PhysicsGunServerRaycastHandler {
 
     public static Optional<HitResult> performRaycast(ServerPlayer player) {
         PhysicsWorld world = PhysicsWorldRegistry.getInstance().getPhysicsWorld(player.serverLevel().dimension());
-        if (world == null || !world.isRunning()) return Optional.empty();
+        if (world == null || !world.isRunning()) {
+            return Optional.empty();
+        }
 
-        Optional<PhysicsRaytracing.RayHitInfo> hitInfoOpt = PhysicsRaytracing.rayCastPhysics(
-                player.serverLevel(), getPlayerEyePos(player), getPlayerLookVec(player), MAX_GRAB_RANGE);
+        RVec3 eyePos = getPlayerEyePos(player);
+        Vec3 lookVec = getPlayerLookVec(player);
 
-        if (hitInfoOpt.isPresent()) {
-            PhysicsRaytracing.RayHitInfo physicsHit = hitInfoOpt.get();
-            RVec3 hitPoint = physicsHit.calculateHitPoint(getPlayerEyePos(player), getPlayerLookVec(player));
+        Optional<PhysicsRaytracing.CombinedHitResult> combinedHit = PhysicsRaytracing.rayCast(
+                player.serverLevel(), eyePos, lookVec, MAX_GRAB_RANGE
+        );
 
-            if (PhysicsRaytracing.isBlockInTheWay(player.serverLevel(), getPlayerEyePos(player), hitPoint)) {
-                return Optional.empty();
-            }
+        if (combinedHit.isPresent() && combinedHit.get().isPhysicsHit()) {
+            PhysicsRaytracing.PhysicsHitInfo physicsHit = combinedHit.get().getPhysicsHit().get();
 
             Optional<IPhysicsObject> pcoOpt = world.findPhysicsObjectByBodyId(physicsHit.getBodyId());
             if (pcoOpt.isPresent()) {
-                return Optional.of(new HitResult(pcoOpt.get(), hitPoint.toVec3()));
+                RVec3 hitPointRVec = physicsHit.calculateHitPoint(eyePos, lookVec, MAX_GRAB_RANGE);
+                return Optional.of(new HitResult(pcoOpt.get(), hitPointRVec.toVec3()));
             }
         }
+
         return Optional.empty();
     }
 
-    public static int findClosestNode(Body softBody, com.github.stephengold.joltjni.Vec3 hitPoint) {
-        // Diese Methode wird innerhalb eines Locks aufgerufen, daher ist der Zugriff auf softBody sicher.
-        // MotionProperties muss jedoch korrekt verwaltet werden.
+    public static int findClosestNode(Body softBody, Vec3 hitPoint) {
+        if (!softBody.isSoftBody()) {
+            return -1;
+        }
+
         try (SoftBodyMotionProperties mp = (SoftBodyMotionProperties) softBody.getMotionProperties()) {
             if (mp == null) {
                 return -1;
@@ -46,13 +51,17 @@ public class PhysicsGunServerRaycastHandler {
 
             int bestNode = -1;
             float minDistSq = Float.MAX_VALUE;
-            SoftBodyVertex[] vertices = mp.getVertices();
 
-            for (int i = 0; i < vertices.length; i++) {
-                // Jedes Vertex-Objekt ist AutoCloseable und muss in einem try-Block verwendet werden.
-                try (SoftBodyVertex vertex = vertices[i]) {
-                    com.github.stephengold.joltjni.Vec3 nodePos = vertex.getPosition();
+            int numVertices = mp.getSettings().countVertices();
+
+            for (int i = 0; i < numVertices; i++) {
+
+                try (SoftBodyVertex vertex = mp.getVertex(i)) {
+                    if (vertex == null) continue;
+
+                    Vec3 nodePos = vertex.getPosition();
                     float distSq = Op.minus(nodePos, hitPoint).lengthSq();
+
                     if (distSq < minDistSq) {
                         minDistSq = distSq;
                         bestNode = i;
@@ -68,10 +77,10 @@ public class PhysicsGunServerRaycastHandler {
         return new RVec3(eyePos.x, eyePos.y, eyePos.z);
     }
 
-    private static com.github.stephengold.joltjni.Vec3 getPlayerLookVec(ServerPlayer player) {
+    private static Vec3 getPlayerLookVec(ServerPlayer player) {
         net.minecraft.world.phys.Vec3 lookVec = player.getViewVector(1.0f);
-        return new com.github.stephengold.joltjni.Vec3((float)lookVec.x, (float)lookVec.y, (float)lookVec.z);
+        return new Vec3((float)lookVec.x, (float)lookVec.y, (float)lookVec.z);
     }
 
-    public record HitResult(IPhysicsObject physicsObject, com.github.stephengold.joltjni.Vec3 hitPoint) {}
+    public record HitResult(IPhysicsObject physicsObject, Vec3 hitPoint) {}
 }

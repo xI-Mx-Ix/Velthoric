@@ -33,19 +33,15 @@ public record AddSoftBodyCommand(SoftPhysicsObject physicsObject) implements ICo
                 settings.setSettings(sharedSettings);
                 settings.setPosition(physicsObject.getCurrentTransform().getTranslation());
                 settings.setRotation(physicsObject.getCurrentTransform().getRotation());
-
                 settings.setObjectLayer(PhysicsWorld.Layers.DYNAMIC);
-
                 physicsObject.configureSoftBodyCreationSettings(settings);
 
                 int bodyId = world.getBodyInterface().createAndAddSoftBody(settings, EActivation.Activate);
 
                 if (bodyId != 0 && bodyId != Jolt.cInvalidBodyId) {
                     physicsObject.setBodyId(bodyId);
-                    world.getBodyIds().put(physicsObject.getPhysicsId(), bodyId);
                     world.getBodyIdToUuidMap().put(bodyId, physicsObject.getPhysicsId());
                     world.getPhysicsObjectsMap().put(physicsObject.getPhysicsId(), physicsObject);
-                    world.getSyncedActiveStates().put(physicsObject.getPhysicsId(), true);
                 } else {
                     XBullet.LOGGER.error("Jolt failed to create soft body for object {}", physicsObject.getPhysicsId());
                     physicsObject.markRemoved();

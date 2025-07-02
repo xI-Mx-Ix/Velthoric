@@ -1,4 +1,3 @@
-// net/xmx/xbullet/physics/object/global/physicsobject/IPhysicsObject.java
 package net.xmx.xbullet.physics.object.global.physicsobject;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
@@ -28,17 +27,19 @@ public interface IPhysicsObject {
     void serverTick(PhysicsWorld physicsWorld);
     CompoundTag saveToNbt(CompoundTag tag);
     void loadFromNbt(CompoundTag tag);
-    void onRightClickWithTool(Player player);
-    boolean isPhysicsInitialized();
 
+    void onRightClickWithTool(Player player);
+
+    boolean isPhysicsInitialized();
     void onLeftClick(Player player, Vec3 hitPoint, Vec3 hitNormal);
     void onRightClick(Player player, Vec3 hitPoint, Vec3 hitNormal);
-
     void confirmPhysicsInitialized();
     @Nullable BodyCreationSettings createBodyCreationSettings();
     @Nullable SoftBodyCreationSettings createSoftBodyCreationSettings();
-    void updateStateFromPhysicsThread(PhysicsTransform transform, Vec3 linearVelocity, Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive);
-
+    void updateStateFromPhysicsThread(long timestampNanos, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive);
     Vec3 getLastSyncedLinearVel();
     Vec3 getLastSyncedAngularVel();
+    boolean isPhysicsActive();
+    long getLastUpdateTimestampNanos();
+    @Nullable float[] getLastSyncedVertexData();
 }

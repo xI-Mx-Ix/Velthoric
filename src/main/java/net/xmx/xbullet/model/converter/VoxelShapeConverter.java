@@ -51,9 +51,6 @@ public class VoxelShapeConverter {
                 continue;
             }
 
-            // --- KORREKTUR HIER ---
-            // Verwende try-with-resources, um sicherzustellen, dass .close() aufgerufen wird
-            // und der Cleaner für die temporären BoxShapeSettings deaktiviert wird.
             try (BoxShapeSettings boxShapeSettings = new BoxShapeSettings(halfX, halfY, halfZ)) {
                 float boxCenterX = (float) (box.minX + halfX);
                 float boxCenterY = (float) (box.minY + halfY);
@@ -63,11 +60,11 @@ public class VoxelShapeConverter {
 
                 compoundShapeSettings.addShape(childPosition, Quat.sIdentity(), boxShapeSettings);
                 hasChildren = true;
-            } // boxShapeSettings.close() wird hier automatisch aufgerufen!
+            }
         }
 
         if (!hasChildren) {
-            // Wichtig: Auch das compoundShapeSettings muss geschlossen werden, wenn es nicht verwendet wird.
+
             compoundShapeSettings.close();
             return null;
         }
