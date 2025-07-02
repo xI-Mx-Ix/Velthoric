@@ -1,7 +1,6 @@
 package net.xmx.xbullet.physics.object.global.physicsobject.manager;
 
 import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
