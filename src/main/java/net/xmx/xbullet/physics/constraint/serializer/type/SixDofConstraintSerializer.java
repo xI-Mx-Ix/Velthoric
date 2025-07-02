@@ -1,0 +1,114 @@
+package net.xmx.xbullet.physics.constraint.serializer.type;
+
+import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.*;
+import net.minecraft.nbt.CompoundTag;
+import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
+import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
+import net.xmx.xbullet.physics.constraint.util.NbtUtil;
+import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
+
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+
+public class SixDofConstraintSerializer implements IConstraintSerializer<SixDofConstraint> {
+
+    @Override
+    public void save(SixDofConstraint constraint, CompoundTag tag) {
+        try (SixDofConstraintSettings settings = (SixDofConstraintSettings) constraint.getConstraintSettings().getPtr()) {
+            tag.putString("space", settings.getSpace().name());
+            tag.putString("swingType", settings.getSwingType().name());
+            NbtUtil.putRVec3(tag, "position1", settings.getPosition1());
+            NbtUtil.putRVec3(tag, "position2", settings.getPosition2());
+            NbtUtil.putVec3(tag, "axisX1", settings.getAxisX1());
+            NbtUtil.putVec3(tag, "axisY1", settings.getAxisY1());
+            NbtUtil.putVec3(tag, "axisX2", settings.getAxisX2());
+            NbtUtil.putVec3(tag, "axisY2", settings.getAxisY2());
+
+            CompoundTag axesTag = new CompoundTag();
+            for (EAxis axis : EAxis.values()) {
+                CompoundTag axisTag = new CompoundTag();
+                axisTag.putBoolean("isFixed", settings.isFixedAxis(axis));
+                axisTag.putFloat("limitMin", settings.getLimitMin(axis));
+                axisTag.putFloat("limitMax", settings.getLimitMax(axis));
+                axisTag.putFloat("maxFriction", settings.getMaxFriction(axis));
+                NbtUtil.putMotorSettings(axisTag, "motorSettings", settings.getMotorSettings(axis));
+                NbtUtil.putSpringSettings(axisTag, "limitsSpringSettings", settings.getLimitsSpringSettings(axis));
+                axisTag.putString("motorState", constraint.getMotorState(axis).name());
+                axesTag.put(axis.name(), axisTag);
+            }
+            tag.put("axes", axesTag);
+
+            NbtUtil.putVec3(tag, "targetPositionCs", constraint.getTargetPositionCs());
+            NbtUtil.putQuat(tag, "targetOrientationCs", constraint.getTargetOrientationCs());
+            NbtUtil.putVec3(tag, "targetVelocityCs", constraint.getTargetVelocityCs());
+            NbtUtil.putVec3(tag, "targetAngularVelocityCs", constraint.getTargetAngularVelocityCs());
+        }
+    }
+
+    @Override
+    public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
+        UUID[] bodyIds = loadBodyIds(tag);
+        if (bodyIds == null) return CompletableFuture.completedFuture(null);
+
+        CompletableFuture<IPhysicsObject> future1 = objectManager.getOrLoadObject(bodyIds[0]);
+        CompletableFuture<IPhysicsObject> future2 = objectManager.getOrLoadObject(bodyIds[1]);
+        PhysicsWorld physicsWorld = objectManager.getPhysicsWorld();
+
+        return CompletableFuture.allOf(future1, future2).thenApplyAsync(v -> {
+            IPhysicsObject obj1 = future1.join();
+            IPhysicsObject obj2 = future2.join();
+            if (obj1 == null || obj2 == null || physicsWorld == null) return null;
+
+            int bodyId1 = obj1.getBodyId();
+            int bodyId2 = obj2.getBodyId();
+
+            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+            if (bodyInterface == null) return null;
+
+            Body b1 = new Body(bodyId1);
+            Body b2 = (bodyInterface.getMotionType(bodyId2) == EMotionType.Static) ? Body.sFixedToWorld() : new Body(bodyId2);
+
+            try (SixDofConstraintSettings settings = new SixDofConstraintSettings()) {
+                settings.setSpace(EConstraintSpace.valueOf(tag.getString("space")));
+                settings.setSwingType(ESwingType.valueOf(tag.getString("swingType")));
+                settings.setPosition1(NbtUtil.getRVec3(tag, "position1"));
+                settings.setPosition2(NbtUtil.getRVec3(tag, "position2"));
+                settings.setAxisX1(NbtUtil.getVec3(tag, "axisX1"));
+                settings.setAxisY1(NbtUtil.getVec3(tag, "axisY1"));
+                settings.setAxisX2(NbtUtil.getVec3(tag, "axisX2"));
+                settings.setAxisY2(NbtUtil.getVec3(tag, "axisY2"));
+
+                CompoundTag axesTag = tag.getCompound("axes");
+                for (EAxis axis : EAxis.values()) {
+                    CompoundTag axisTag = axesTag.getCompound(axis.name());
+                    if (axisTag.getBoolean("isFixed")) {
+                        settings.makeFixedAxis(axis);
+                    } else {
+                        settings.setLimitedAxis(axis, axisTag.getFloat("limitMin"), axisTag.getFloat("limitMax"));
+                    }
+                    settings.setMaxFriction(axis, axisTag.getFloat("maxFriction"));
+                    NbtUtil.loadMotorSettings(axisTag, "motorSettings", settings.getMotorSettings(axis));
+                    NbtUtil.loadSpringSettings(axisTag, "limitsSpringSettings", settings.getLimitsSpringSettings(axis));
+                }
+
+                SixDofConstraint constraint = (SixDofConstraint) settings.create(b1, b2);
+
+                if (constraint != null) {
+                    CompoundTag axesTagRuntime = tag.getCompound("axes");
+                    for (EAxis axis : EAxis.values()) {
+                        CompoundTag axisTag = axesTagRuntime.getCompound(axis.name());
+                        constraint.setMotorState(axis, EMotorState.valueOf(axisTag.getString("motorState")));
+                    }
+                    constraint.setTargetPositionCs(NbtUtil.getVec3(tag, "targetPositionCs"));
+                    constraint.setTargetOrientationCs(NbtUtil.getQuat(tag, "targetOrientationCs"));
+                    constraint.setTargetVelocityCs(NbtUtil.getVec3(tag, "targetVelocityCs"));
+                    constraint.setTargetAngularVelocityCs(NbtUtil.getVec3(tag, "targetAngularVelocityCs"));
+                }
+                return constraint;
+            }
+        });
+    }
+}
