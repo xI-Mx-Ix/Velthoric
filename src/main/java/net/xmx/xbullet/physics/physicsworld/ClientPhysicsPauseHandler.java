@@ -20,6 +20,7 @@ public class ClientPhysicsPauseHandler {
 
         if (mc.level == null) {
             if (wasPaused) {
+
                 wasPaused = false;
             }
             return;
@@ -29,15 +30,14 @@ public class ClientPhysicsPauseHandler {
 
         if (isNowPaused != wasPaused) {
             if (isNowPaused) {
-
                 XBullet.LOGGER.debug("Client game is pausing. Sending pause command to all physics worlds...");
-                PhysicsWorldRegistry.getInstance().getAllPhysicsWorlds().values().forEach(PhysicsWorld::pause);
+
+                PhysicsWorld.getAll().forEach(PhysicsWorld::pause);
             } else {
-
                 XBullet.LOGGER.debug("Client game is resuming. Sending resume command to all physics worlds...");
-                PhysicsWorldRegistry.getInstance().getAllPhysicsWorlds().values().forEach(PhysicsWorld::resume);
-            }
 
+                PhysicsWorld.getAll().forEach(PhysicsWorld::resume);
+            }
             wasPaused = isNowPaused;
         }
     }

@@ -14,22 +14,22 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerRegistry;
 import net.xmx.xbullet.physics.object.global.physicsobject.registry.GlobalPhysicsObjectRegistry;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.builder.RigidPhysicsObjectBuilder;
 import net.xmx.xbullet.physics.object.softphysicsobject.builder.SoftPhysicsObjectBuilder;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 public class SpawnObjectCommandExecutor {
 
     public static int executeRigid(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         CommandSourceStack source = context.getSource();
         ServerLevel serverLevel = source.getLevel();
-        // KORREKTUR HIER: Wert als ResourceLocation abrufen und in String umwandeln
+
         ResourceLocation objectTypeId = ResourceLocationArgument.getId(context, "objectType");
         String objectTypeIdentifier = objectTypeId.toString();
         Vec3 minecraftPos = Vec3Argument.getVec3(context, "position");
 
-        PhysicsObjectManager manager = PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(serverLevel);
+        PhysicsObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
         if (!manager.isInitialized()) {
             source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
             return 0;
@@ -72,7 +72,7 @@ public class SpawnObjectCommandExecutor {
         int segments = context.getArgument("segments", Integer.class);
         float radius = context.getArgument("radius", Float.class);
 
-        PhysicsObjectManager manager = PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(serverLevel);
+        PhysicsObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
         if (!manager.isInitialized()) {
             source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
             return 0;

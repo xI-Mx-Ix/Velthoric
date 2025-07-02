@@ -5,8 +5,8 @@ import net.minecraft.world.level.Level;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.xmx.xbullet.physics.terrain.manager.TerrainSystem;
-import net.xmx.xbullet.physics.terrain.manager.TerrainSystemRegistry;
 
 public class TerrainSystemEvents {
 
@@ -17,7 +17,7 @@ public class TerrainSystemEvents {
         }
 
         Level level = event.level;
-        TerrainSystem terrainSystem = TerrainSystemRegistry.getInstance().getExistingSystem(level.dimension());
+        TerrainSystem terrainSystem = PhysicsWorld.getTerrainSystem(level.dimension());
         if (terrainSystem != null) {
 
             terrainSystem.tick();
@@ -27,7 +27,7 @@ public class TerrainSystemEvents {
     @SubscribeEvent
     public static void onChunkLoad(ChunkEvent.Load event) {
         if (event.getLevel() instanceof ServerLevel level && !level.isClientSide()) {
-            TerrainSystem terrainSystem = TerrainSystemRegistry.getInstance().getSystemForLevel(level);
+            TerrainSystem terrainSystem = PhysicsWorld.getTerrainSystem(level.dimension());
             if (terrainSystem != null) {
                 terrainSystem.onChunkLoad(event.getChunk());
             }
@@ -37,7 +37,7 @@ public class TerrainSystemEvents {
     @SubscribeEvent
     public static void onChunkUnload(ChunkEvent.Unload event) {
         if (event.getLevel() instanceof ServerLevel level && !level.isClientSide()) {
-            TerrainSystem terrainSystem = TerrainSystemRegistry.getInstance().getExistingSystem(level.dimension());
+            TerrainSystem terrainSystem = PhysicsWorld.getTerrainSystem(level.dimension());
             if (terrainSystem != null) {
                 terrainSystem.onChunkUnload(event.getChunk());
             }

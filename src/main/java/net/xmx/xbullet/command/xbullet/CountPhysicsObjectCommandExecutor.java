@@ -11,7 +11,7 @@ import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.network.NetworkHandler;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerRegistry;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 class CountPhysicsObjectCommandExecutor {
 
@@ -26,7 +26,7 @@ class CountPhysicsObjectCommandExecutor {
                 return 0;
             }
 
-            PhysicsObjectManager manager = PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(serverLevel);
+            PhysicsObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
             if (!manager.isInitialized()) {
                 source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
                 return 0;

@@ -6,7 +6,6 @@ import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.FloatTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.server.level.ServerLevel;
@@ -19,7 +18,6 @@ import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.xmx.xbullet.physics.object.global.physicsobject.AbstractPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerRegistry;
 import net.xmx.xbullet.physics.object.global.physicsobject.properties.IPhysicsObjectProperties;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.client.ClientRigidPhysicsObjectData;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.pcmd.AddRigidBodyCommand;
@@ -173,7 +171,7 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     @Override
     public void onRightClickWithTool(Player player) {
         if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem && player.level() instanceof ServerLevel sl) {
-            PhysicsObjectManager manager = PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(sl);
+            PhysicsObjectManager manager = PhysicsWorld.getObjectManager(sl.dimension());
             manager.removeObject(this.physicsId, true);
         }
     }

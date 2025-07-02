@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.xmx.xbullet.physics.object.global.PhysicsRaytracing;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorldRegistry;
+
 import java.util.Optional;
 
 public class PhysicsGunServerRaycastHandler {
@@ -14,7 +14,7 @@ public class PhysicsGunServerRaycastHandler {
     private static final float MAX_GRAB_RANGE = 30.0f;
 
     public static Optional<HitResult> performRaycast(ServerPlayer player) {
-        PhysicsWorld world = PhysicsWorldRegistry.getInstance().getPhysicsWorld(player.serverLevel().dimension());
+        PhysicsWorld world = PhysicsWorld.get(player.serverLevel().dimension());
         if (world == null || !world.isRunning()) {
             return Optional.empty();
         }

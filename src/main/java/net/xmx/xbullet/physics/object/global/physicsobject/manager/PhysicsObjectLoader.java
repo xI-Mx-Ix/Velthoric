@@ -3,10 +3,13 @@ package net.xmx.xbullet.physics.object.global.physicsobject.manager;
 import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.ChunkPos;
+import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
@@ -19,7 +22,6 @@ import java.util.concurrent.Executors;
 public class PhysicsObjectLoader {
 
     private final PhysicsObjectManager objManager;
-
     private final Map<UUID, CompletableFuture<IPhysicsObject>> pendingLoads = new ConcurrentHashMap<>();
     private final ExecutorService loadingExecutor;
 
@@ -36,23 +38,63 @@ public class PhysicsObjectLoader {
 
         for (Map.Entry<UUID, CompoundTag> entry : objManager.getSavedData().getAllObjectEntries()) {
             UUID id = entry.getKey();
-            CompoundTag objTag = entry.getValue();
-
             if (pendingLoads.containsKey(id) || objManager.getManagedObjects().containsKey(id)) {
                 continue;
             }
 
-            if (isObjectInChunk(objTag, chunkPos)) {
-                scheduleObjectLoad(id, objTag);
+            if (isObjectInChunk(entry.getValue(), chunkPos)) {
+                scheduleObjectLoad(id);
             }
         }
+    }
+
+    public CompletableFuture<IPhysicsObject> scheduleObjectLoad(UUID objectId) {
+        return pendingLoads.computeIfAbsent(objectId, id -> {
+            Optional<CompoundTag> objTagOpt = objManager.getSavedData().getObjectData(id);
+            if (objTagOpt.isEmpty()) {
+                return CompletableFuture.failedFuture(new IllegalStateException("No saved data for object " + id));
+            }
+
+            CompoundTag objTag = objTagOpt.get();
+            String typeId = objTag.getString("objectTypeIdentifier");
+            if (typeId.isEmpty() || !objManager.getRegisteredObjectFactories().containsKey(typeId)) {
+                return CompletableFuture.failedFuture(new IllegalArgumentException("No factory for type " + typeId));
+            }
+
+            CompletableFuture<IPhysicsObject> future = CompletableFuture.supplyAsync(() -> {
+                PhysicsTransform transform = new PhysicsTransform();
+                if (objTag.contains("transform", 10)) {
+                    transform.fromNbt(objTag.getCompound("transform"));
+                }
+                return objManager.createPhysicsObject(typeId, id, objManager.managedLevel, transform, objTag);
+            }, loadingExecutor).thenApplyAsync(obj -> {
+                if (obj != null) {
+                    objManager.manageLoadedObject(obj);
+                }
+                return obj;
+            }, objManager.managedLevel.getServer());
+
+            future.whenComplete((res, ex) -> {
+                if (ex != null) {
+                    XBullet.LOGGER.error("Failed to load physics object {}", id, ex);
+                }
+                pendingLoads.remove(id);
+            });
+
+            return future;
+        });
+    }
+
+    @Nullable
+    public CompletableFuture<IPhysicsObject> getPendingLoad(UUID id) {
+        return pendingLoads.get(id);
     }
 
     private boolean isObjectInChunk(CompoundTag objTag, ChunkPos chunkPos) {
         if (objTag.contains("transform", 10)) {
             CompoundTag transformTag = objTag.getCompound("transform");
             if (transformTag.contains("pos", 9)) {
-                ListTag posList = transformTag.getList("pos", 6);
+                ListTag posList = transformTag.getList("pos", Tag.TAG_DOUBLE);
                 if (posList.size() == 3) {
                     double x = posList.getDouble(0);
                     double z = posList.getDouble(2);
@@ -62,30 +104,6 @@ public class PhysicsObjectLoader {
             }
         }
         return false;
-    }
-
-    private void scheduleObjectLoad(UUID objectId, CompoundTag objTag) {
-        String typeId = objTag.getString("objectTypeIdentifier");
-        if (typeId.isEmpty() || !objManager.getRegisteredObjectFactories().containsKey(typeId)) {
-            return;
-        }
-
-        CompletableFuture<IPhysicsObject> future = CompletableFuture.supplyAsync(() -> {
-            PhysicsTransform transform = new PhysicsTransform();
-            if (objTag.contains("transform", 10)) {
-                transform.fromNbt(objTag.getCompound("transform"));
-            }
-            return objManager.createPhysicsObject(typeId, objectId, objManager.managedLevel, transform, objTag);
-        }, loadingExecutor).thenApplyAsync(obj -> {
-            if (obj != null) {
-
-                objManager.manageLoadedObject(obj);
-            }
-            return obj;
-        }, objManager.managedLevel.getServer());
-
-        pendingLoads.put(objectId, future);
-        future.whenComplete((obj, ex) -> pendingLoads.remove(objectId));
     }
 
     public void unloadObjectsInChunk(ChunkPos chunkPos) {

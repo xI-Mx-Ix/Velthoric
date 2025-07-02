@@ -2,6 +2,7 @@ package net.xmx.xbullet.physics.object.rigidphysicsobject.pcmd;
 
 import com.github.stephengold.joltjni.BodyInterface;
 import com.github.stephengold.joltjni.Jolt;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager; // Import
 import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
 import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import java.util.UUID;
@@ -14,6 +15,7 @@ public record RemoveRigidBodyCommand(UUID objectId, int bodyId) implements IComm
 
     @Override
     public void execute(PhysicsWorld world) {
+        PhysicsObjectManager objectManager = world.getObjectManager();
         if (world.getPhysicsSystem() == null || bodyId == 0 || bodyId == Jolt.cInvalidBodyId) {
             return;
         }
@@ -24,7 +26,6 @@ public record RemoveRigidBodyCommand(UUID objectId, int bodyId) implements IComm
             bodyInterface.destroyBody(bodyId);
         }
 
-        world.getPhysicsObjectsMap().remove(objectId);
-        world.getBodyIdToUuidMap().remove(bodyId);
+        objectManager.unlinkBodyId(bodyId);
     }
 }

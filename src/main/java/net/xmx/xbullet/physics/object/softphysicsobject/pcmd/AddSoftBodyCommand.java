@@ -5,6 +5,7 @@ import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.xmx.xbullet.init.XBullet;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
 import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
@@ -17,11 +18,13 @@ public record AddSoftBodyCommand(SoftPhysicsObject physicsObject) implements ICo
 
     @Override
     public void execute(PhysicsWorld world) {
-        if (world.getPhysicsSystem() == null || world.getBodyInterface() == null || physicsObject.isRemoved() || physicsObject.getBodyId() != 0) {
+        PhysicsObjectManager objectManager = world.getObjectManager();
+        if (world.getPhysicsSystem() == null || world.getBodyInterface() == null || objectManager == null || physicsObject.isRemoved() || physicsObject.getBodyId() != 0) {
             return;
         }
 
         try {
+
             SoftBodySharedSettings sharedSettings = physicsObject.getOrBuildSharedSettings();
             if (sharedSettings == null) {
                 XBullet.LOGGER.error("Failed to create SoftBodySharedSettings for {}. Aborting add.", physicsObject.getPhysicsId());
@@ -40,8 +43,8 @@ public record AddSoftBodyCommand(SoftPhysicsObject physicsObject) implements ICo
 
                 if (bodyId != 0 && bodyId != Jolt.cInvalidBodyId) {
                     physicsObject.setBodyId(bodyId);
-                    world.getBodyIdToUuidMap().put(bodyId, physicsObject.getPhysicsId());
-                    world.getPhysicsObjectsMap().put(physicsObject.getPhysicsId(), physicsObject);
+
+                    objectManager.linkBodyId(bodyId, physicsObject.getPhysicsId());
                 } else {
                     XBullet.LOGGER.error("Jolt failed to create soft body for object {}", physicsObject.getPhysicsId());
                     physicsObject.markRemoved();

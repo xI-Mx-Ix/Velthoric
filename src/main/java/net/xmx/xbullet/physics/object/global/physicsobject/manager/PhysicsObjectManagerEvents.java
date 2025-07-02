@@ -11,33 +11,45 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 public class PhysicsObjectManagerEvents {
 
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            PhysicsObjectManagerRegistry.getInstance().getAllManagers().forEach((dim, manager) -> {
-                if (manager.isInitialized()) {
-                    try {
-                        manager.serverTick();
-                    } catch (Exception e) {
-                        XBullet.LOGGER.error("Error during PhysicsObjectManager tick for {}", dim.location(), e);
-                    }
-                }
-            });
+        if (event.phase != TickEvent.Phase.END) {
+            return;
         }
+
+        PhysicsWorld.getAll().forEach(world -> {
+
+            if (!world.isRunning()) {
+                return;
+            }
+
+            try {
+
+                world.getObjectManager().serverTick();
+            } catch (Exception e) {
+
+                XBullet.LOGGER.error("Error during PhysicsObjectManager tick for {}", world.getDimensionKey().location(), e);
+            }
+        });
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLevelSave(LevelEvent.Save event) {
         if (event.getLevel() instanceof ServerLevel level) {
-            PhysicsObjectManager manager = PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(level);
-            if (manager != null && manager.isInitialized()) {
-                for (IPhysicsObject obj : manager.managedObjects.values()) {
-                    manager.savedData.updateObjectData(obj);
+
+            PhysicsWorld world = PhysicsWorld.get(level.dimension());
+
+            if (world != null && world.isRunning()) {
+                PhysicsObjectManager manager = world.getObjectManager();
+
+                for (IPhysicsObject obj : manager.getManagedObjects().values()) {
+                    manager.getSavedData().updateObjectData(obj);
                 }
-                manager.savedData.setDirty();
+                manager.getSavedData().setDirty();
             }
         }
     }
@@ -45,10 +57,13 @@ public class PhysicsObjectManagerEvents {
     @SubscribeEvent
     public static void onChunkLoad(ChunkEvent.Load event) {
         if (event.getLevel() instanceof ServerLevel level) {
-            ChunkPos chunkPos = event.getChunk().getPos();
-            PhysicsObjectManager manager = PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(level);
-            if (manager != null) {
-                manager.loadPhysicsObjectsForChunk(chunkPos);
+
+            PhysicsWorld world = PhysicsWorld.get(level.dimension());
+
+            if (world != null && world.isRunning()) {
+                ChunkPos chunkPos = event.getChunk().getPos();
+
+                world.getObjectManager().loadPhysicsObjectsForChunk(chunkPos);
             }
         }
     }
@@ -57,7 +72,7 @@ public class PhysicsObjectManagerEvents {
     public static void onChunkUnload(ChunkEvent.Unload event) {
         if (event.getLevel() instanceof ServerLevel level) {
             ChunkPos chunkPos = event.getChunk().getPos();
-            PhysicsObjectManager manager = PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(level);
+            PhysicsObjectManager manager = PhysicsWorld.getObjectManager(level.dimension());
             if (manager != null) {
                 manager.unloadPhysicsObjectsForChunk(chunkPos);
             }
@@ -70,9 +85,9 @@ public class PhysicsObjectManagerEvents {
         ServerLevel level = event.getLevel();
         ChunkPos chunkPos = event.getPos();
 
-        PhysicsObjectManager manager = PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(level);
+        PhysicsObjectManager manager = PhysicsWorld.getObjectManager(level.dimension());
         if (manager != null) {
-            manager.sendObjectsInChunkToPlayer(chunkPos, player);
+            PhysicsObjectClientSynchronizer.sendObjectsInChunkToPlayer(manager, chunkPos, player);
         }
     }
 
@@ -82,9 +97,9 @@ public class PhysicsObjectManagerEvents {
         ServerLevel level = event.getLevel();
         ChunkPos chunkPos = event.getPos();
 
-        PhysicsObjectManager manager = PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(level);
+        PhysicsObjectManager manager = PhysicsWorld.getObjectManager(level.dimension());
         if (manager != null) {
-            manager.removeObjectsInChunkFromPlayer(chunkPos, player);
+            PhysicsObjectClientSynchronizer.removeObjectsInChunkFromPlayer(manager, chunkPos, player);
         }
     }
 }

@@ -2,15 +2,11 @@ package net.xmx.xbullet.physics.object.global.click;
 
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.NetworkEvent;
-import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorldRegistry;
 import net.xmx.xbullet.physics.object.global.PhysicsRaytracing;
 
 import java.util.Optional;
@@ -30,7 +26,7 @@ public final class PhysicsClickManager {
             RVec3 rayOrigin = new RVec3(msg.rayOriginX(), msg.rayOriginY(), msg.rayOriginZ());
             Vec3 rayDirection = new Vec3(msg.rayDirectionX(), msg.rayDirectionY(), msg.rayDirectionZ());
 
-            PhysicsWorld physicsWorld = PhysicsWorldRegistry.getInstance().getPhysicsWorld(level.dimension());
+            PhysicsWorld physicsWorld = PhysicsWorld.get(level.dimension());
             if (physicsWorld == null || !physicsWorld.isRunning()) {
                 return;
             }

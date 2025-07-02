@@ -1,7 +1,6 @@
 package net.xmx.xbullet.physics.object.global.physicsobject.pcmd;
 
 import com.github.stephengold.joltjni.BodyInterface;
-import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.xmx.xbullet.physics.physicsworld.pcmd.ICommand;
 

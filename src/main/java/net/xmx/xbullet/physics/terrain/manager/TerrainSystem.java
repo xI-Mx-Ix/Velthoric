@@ -8,7 +8,6 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerRegistry;
 import net.xmx.xbullet.physics.object.global.physicsobject.pcmd.ActivateBodyCommand;
 import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.xmx.xbullet.physics.terrain.chunk.TerrainSection;
@@ -71,13 +70,11 @@ public class TerrainSystem implements Runnable {
             } catch (InterruptedException e) {
                 this.isRunning = false;
                 Thread.currentThread().interrupt();
-                XBullet.LOGGER.info("TerrainSystem thread for {} was interrupted.", level.dimension().location());
             } catch (Exception e) {
                 XBullet.LOGGER.error("An error occurred in the TerrainSystem thread for {}.", level.dimension().location(), e);
                 try { Thread.sleep(5000); } catch (InterruptedException ie) { this.isRunning = false; }
             }
         }
-        XBullet.LOGGER.info("TerrainSystem thread for {} has shut down.", level.dimension().location());
     }
 
     public void tick() {
@@ -115,7 +112,7 @@ public class TerrainSystem implements Runnable {
         final double blockCenterY = pos.getY() + 0.5;
         final double blockCenterZ = pos.getZ() + 0.5;
 
-        for (IPhysicsObject obj : PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(level).getManagedObjects().values()) {
+        for (IPhysicsObject obj : this.physicsWorld.getObjectManager().getManagedObjects().values()) {
             if (obj.getBodyId() == 0) continue;
 
             RVec3 objPos = obj.getCurrentTransform().getTranslation();
@@ -168,5 +165,9 @@ public class TerrainSystem implements Runnable {
 
     public boolean isShutdown() {
         return isShutdown.get();
+    }
+
+    public ServerLevel getLevel() {
+        return level;
     }
 }

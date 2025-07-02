@@ -2,56 +2,34 @@ package net.xmx.xbullet.physics;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.event.level.LevelEvent;
-import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.xmx.xbullet.init.ModConfig;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerRegistry;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorldRegistry;
-import net.xmx.xbullet.physics.terrain.manager.TerrainSystemRegistry;
+import net.xmx.xbullet.init.XBullet;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 public class PhysicsLifecycleEvents {
 
     @SubscribeEvent
-    public static void onServerStarted(ServerStartedEvent event) {
-        PhysicsWorldRegistry.getInstance();
-        PhysicsObjectManagerRegistry.getInstance();
-        TerrainSystemRegistry.getInstance();
+    public static void onServerStopping(ServerStoppingEvent event) {
+        XBullet.LOGGER.debug("Server is stopping. Shutting down all PhysicsWorld instances.");
+        PhysicsWorld.shutdownAll();
     }
 
     @SubscribeEvent
-    public static void onServerStopping(ServerStoppingEvent event) {
-        TerrainSystemRegistry.getInstance().shutdownAll();
-        PhysicsObjectManagerRegistry.getInstance().shutdownAll();
-        PhysicsWorldRegistry.getInstance().shutdownAll();
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLevelLoad(LevelEvent.Load event) {
-        if (event.getLevel().isClientSide() || !(event.getLevel() instanceof ServerLevel serverLevel)) {
-            return;
-        }
-        if (ModConfig.DISABLED_PHYSICS_DIMENSIONS.get().contains(serverLevel.dimension().location().toString())) {
-            return;
-        }
 
-        PhysicsWorldRegistry.getInstance().initializeForDimension(serverLevel);
-        PhysicsObjectManagerRegistry.getInstance().getManagerForLevel(serverLevel);
-        TerrainSystemRegistry.getInstance().getSystemForLevel(serverLevel);
+        if (event.getLevel() instanceof ServerLevel level && !level.isClientSide()) {
+            XBullet.LOGGER.debug("ServerLevel [{}] loaded. Creating and initializing PhysicsWorld.", level.dimension().location());
+            PhysicsWorld.getOrCreate(level);
+        }
     }
 
     @SubscribeEvent
     public static void onLevelUnload(LevelEvent.Unload event) {
-        if (event.getLevel().isClientSide() || !(event.getLevel() instanceof ServerLevel serverLevel)) {
-            return;
-        }
-        if (ModConfig.DISABLED_PHYSICS_DIMENSIONS.get().contains(serverLevel.dimension().location().toString())) {
-            return;
-        }
 
-        TerrainSystemRegistry.getInstance().removeSystem(serverLevel.dimension());
-        PhysicsObjectManagerRegistry.getInstance().removeManager(serverLevel.dimension());
-        PhysicsWorldRegistry.getInstance().shutdownForDimension(serverLevel.dimension());
+        if (event.getLevel() instanceof ServerLevel level && !level.isClientSide()) {
+            XBullet.LOGGER.debug("ServerLevel [{}] unloaded. Shutting down PhysicsWorld.", level.dimension().location());
+            PhysicsWorld.shutdown(level.dimension());
+        }
     }
 }

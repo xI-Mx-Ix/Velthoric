@@ -8,7 +8,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorldRegistry;
 
 import java.util.Optional;
 
@@ -41,7 +40,7 @@ public class PhysicsRaytracing {
     }
 
     public static Optional<PhysicsHitInfo> rayCastPhysics(Level level, RVec3 rayOrigin, Vec3 rayDirection, float maxDistance) {
-        PhysicsWorld physicsWorld = PhysicsWorldRegistry.getInstance().getPhysicsWorld(level.dimension());
+        PhysicsWorld physicsWorld = PhysicsWorld.get(level.dimension());
         if (physicsWorld == null || !physicsWorld.isRunning() || physicsWorld.getPhysicsSystem() == null) {
             return Optional.empty();
         }

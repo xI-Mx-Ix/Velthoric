@@ -21,9 +21,8 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.xmx.xbullet.builtin.block.BlockRigidPhysicsObject;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerRegistry;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.builder.RigidPhysicsObjectBuilder;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 public class PhysicsCreatorItem extends Item {
 
@@ -55,7 +54,7 @@ public class PhysicsCreatorItem extends Item {
 
                 Quat spawnRotation = extractRotationFromBlockState(clickedState);
 
-                PhysicsObjectManager manager = PhysicsObjectManagerRegistry.getInstance().getExistingManager(serverLevel.dimension());
+                PhysicsObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
                 if (manager == null || !manager.isInitialized()) {
                     XBullet.LOGGER.error("PhysicsObjectManager not initialized when trying to use PhysicsCreatorItem.");
                     serverLevel.setBlock(blockPos, clickedState, 3);

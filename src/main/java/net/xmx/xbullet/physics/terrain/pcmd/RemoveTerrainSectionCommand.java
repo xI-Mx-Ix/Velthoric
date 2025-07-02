@@ -16,7 +16,11 @@ public record RemoveTerrainSectionCommand(TerrainSection section, TerrainSystem 
             return;
         }
 
+        var objectManager = world.getObjectManager();
+        if (objectManager == null) return;
+
         BodyInterface bodyInterface = world.getBodyInterface();
+        if (bodyInterface == null) return;
 
         if (bodyInterface.isAdded(bodyId)) {
             bodyInterface.removeBody(bodyId);
@@ -24,7 +28,7 @@ public record RemoveTerrainSectionCommand(TerrainSection section, TerrainSystem 
 
         bodyInterface.destroyBody(bodyId);
 
-        world.getBodyIdToUuidMap().remove(bodyId);
+        objectManager.unlinkBodyId(bodyId);
 
         ShapeRefC oldShapeRef = section.getCurrentShapeRef();
         if (oldShapeRef != null) {

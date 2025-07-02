@@ -1,8 +1,9 @@
 package net.xmx.xbullet.physics.object.fluid;
 
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerRegistry;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 import net.minecraftforge.event.TickEvent;
@@ -10,6 +11,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 public final class FluidManagerEvents {
 
@@ -23,22 +25,19 @@ public final class FluidManagerEvents {
             return;
         }
 
-        PhysicsObjectManagerRegistry.getInstance().getAllManagers().forEach((dimensionKey, manager) -> {
-            if (!manager.isInitialized()) return;
-
-            ServerLevel level = manager.getManagedLevel();
-            PhysicsWorld physicsWorld = manager.getPhysicsWorld();
-
-            if (level != null && physicsWorld != null && physicsWorld.isRunning()) {
-                Collection<IPhysicsObject> allPhysObjects = manager.getManagedObjects().values();
-                Collection<RigidPhysicsObject> rigidObjects = new ArrayList<>();
-                for (IPhysicsObject pObj : allPhysObjects) {
-                    if (pObj instanceof RigidPhysicsObject rpo) {
-                        rigidObjects.add(rpo);
-                    }
-                }
-                fluidManager.tickForDimension(level, physicsWorld, rigidObjects);
+        PhysicsWorld.getAll().forEach(world -> {
+            if (!world.isRunning()) {
+                return;
             }
+
+            var manager = world.getObjectManager();
+
+            List<RigidPhysicsObject> rigidObjects = manager.getManagedObjects().values().stream()
+                    .filter(RigidPhysicsObject.class::isInstance)
+                    .map(RigidPhysicsObject.class::cast)
+                    .toList();
+
+            fluidManager.tickForDimension(world.getLevel(), world, rigidObjects);
         });
     }
 }

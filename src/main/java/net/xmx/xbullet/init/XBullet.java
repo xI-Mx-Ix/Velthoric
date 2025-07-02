@@ -14,6 +14,7 @@ import net.xmx.xbullet.init.registry.ModRegistries;
 import net.xmx.xbullet.network.NetworkHandler;
 import net.xmx.xbullet.builtin.BuiltInPhysicsRegistry;
 import net.xmx.xbullet.natives.NativeJoltInitializer;
+import net.xmx.xbullet.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -21,6 +22,8 @@ import org.apache.logging.log4j.Logger;
 public class XBullet {
     public static final String MODID = "xbullet";
     public static final Logger LOGGER = LogManager.getLogger();
+
+    public static final IEventBus eventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
     private static volatile XBullet instance;
 
@@ -31,25 +34,24 @@ public class XBullet {
         }
         instance = this;
 
-        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
-
         ModConfig.init();
         ModLoadingContext.get().registerConfig(net.minecraftforge.fml.config.ModConfig.Type.COMMON, ModConfig.COMMON_SPEC);
 
-        ModRegistries.register(modEventBus);
-        RegisterEvents.register(modEventBus);
+        ModRegistries.register(eventBus);
+        RegisterEvents.register(eventBus);
 
         MinecraftForge.EVENT_BUS.addListener(this::onRegisterCommands);
         MinecraftForge.EVENT_BUS.addListener(this::onRegisterClientCommands);
-        modEventBus.addListener(this::commonSetup);
-        modEventBus.addListener(this::clientSetup);
+        eventBus.addListener(this::commonSetup);
+        eventBus.addListener(this::clientSetup);
 
     }
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
-            RegisterEvents.register(FMLJavaModLoadingContext.get().getModEventBus());
+            RegisterEvents.register(eventBus);
             BuiltInPhysicsRegistry.register();
+            ConstraintSerializerRegistry.registerDefaults();
             NetworkHandler.register();
 
             try {

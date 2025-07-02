@@ -6,6 +6,7 @@ import net.xmx.xbullet.debug.ClientDebugEvents;
 import net.xmx.xbullet.item.physicsgun.client.PhysicsGunClientHandler;
 import net.xmx.xbullet.item.physicsgun.server.PhysicsGunServerHandler;
 import net.xmx.xbullet.physics.PhysicsLifecycleEvents;
+import net.xmx.xbullet.physics.constraint.manager.ConstraintManagerEvents;
 import net.xmx.xbullet.physics.object.fluid.FluidManagerEvents;
 import net.xmx.xbullet.physics.object.global.DetonationEvents;
 import net.xmx.xbullet.physics.object.global.click.ClientSendClick;
@@ -28,6 +29,7 @@ public class RegisterEvents {
         MinecraftForge.EVENT_BUS.register(PhysicsGunServerHandler.class);
         MinecraftForge.EVENT_BUS.register(TerrainSystemEvents.class);
         MinecraftForge.EVENT_BUS.register(TerrainBlockEvents.class);
+        MinecraftForge.EVENT_BUS.register(ConstraintManagerEvents.class);
 
     }
 

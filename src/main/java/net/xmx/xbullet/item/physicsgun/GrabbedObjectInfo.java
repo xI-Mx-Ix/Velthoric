@@ -5,7 +5,7 @@ import com.github.stephengold.joltjni.operator.Op;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
-import net.xmx.xbullet.physics.physicsworld.PhysicsWorldRegistry;
+import net.xmx.xbullet.physics.physicsworld.PhysicsWorld;
 
 import java.util.UUID;
 
@@ -25,7 +25,7 @@ public class GrabbedObjectInfo {
         this.targetDistance = initialDistance;
         this.physicsObject = rpo;
 
-        try (BodyLockRead lock = new BodyLockRead(PhysicsWorldRegistry.getInstance().getPhysicsWorld(rpo.getLevel().dimension()).getBodyLockInterface(), rpo.getBodyId())) {
+        try (BodyLockRead lock = new BodyLockRead(PhysicsWorld.get(rpo.getLevel().dimension()).getBodyLockInterface(), rpo.getBodyId())) {
             Body body = lock.getBody();
             if (lock.succeeded() && body != null) {
                 RVec3 bodyPosition = body.getCenterOfMassPosition();
