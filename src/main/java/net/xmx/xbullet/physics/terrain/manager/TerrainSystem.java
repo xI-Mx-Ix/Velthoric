@@ -13,7 +13,9 @@ import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.terrain.chunk.TerrainSection;
 import net.xmx.xbullet.physics.terrain.mesh.TerrainMesher;
 
+import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TerrainSystem implements Runnable {
@@ -21,8 +23,12 @@ public class TerrainSystem implements Runnable {
     private final PhysicsWorld physicsWorld;
     private final ServerLevel level;
 
+    private final Map<Integer, Boolean> terrainBodyCache = new ConcurrentHashMap<>();
+
     private static final double WAKE_UP_RADIUS = 10.0;
     private static final double WAKE_UP_RADIUS_SQ = WAKE_UP_RADIUS * WAKE_UP_RADIUS;
+
+    public static final long TERRAIN_USER_DATA_FLAG = 1L << 63;
 
     private TerrainChunkManager chunkManager;
     private TerrainPriorityUpdater priorityUpdater;
@@ -127,6 +133,14 @@ public class TerrainSystem implements Runnable {
         }
     }
 
+    public void registerTerrainBody(int bodyId) {
+        terrainBodyCache.put(bodyId, true);
+    }
+
+    public void unregisterTerrainBody(int bodyId) {
+        terrainBodyCache.remove(bodyId);
+    }
+
     private void invalidateSectionAt(BlockPos pos) {
 
         if (pos.getY() < level.getMinBuildHeight() || pos.getY() >= level.getMaxBuildHeight()) return;
@@ -178,5 +192,9 @@ public class TerrainSystem implements Runnable {
 
     public ServerLevel getLevel() {
         return level;
+    }
+
+    public boolean isTerrainBody(int bodyId) {
+        return terrainBodyCache.containsKey(bodyId);
     }
 }

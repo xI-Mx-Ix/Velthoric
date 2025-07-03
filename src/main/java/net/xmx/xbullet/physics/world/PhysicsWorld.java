@@ -2,9 +2,11 @@ package net.xmx.xbullet.physics.world;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
+
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+
 import net.xmx.xbullet.init.ModConfig;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.natives.NativeJoltInitializer;

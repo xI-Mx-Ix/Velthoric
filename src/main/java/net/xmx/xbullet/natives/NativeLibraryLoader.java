@@ -6,6 +6,7 @@ import electrostatic4j.snaploader.NativeBinaryLoader;
 import electrostatic4j.snaploader.filesystem.DirectoryPath;
 import electrostatic4j.snaploader.platform.NativeDynamicLibrary;
 import electrostatic4j.snaploader.platform.util.PlatformPredicate;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.loading.FMLPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +61,7 @@ public class NativeLibraryLoader {
 
             } catch (Exception e) {
                 LOGGER.error("Snaploader failed to find or load native library from classpath", e);
+                MinecraftForge.EVENT_BUS.register(NativeFailureHandler.class);
                 throw new RuntimeException("Snaploader could not load the native Jolt library from JAR.", e);
             }
         }

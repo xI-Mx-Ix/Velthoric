@@ -34,8 +34,10 @@ public record AddTerrainSectionCommand(TerrainSection section, TerrainSystem ter
 
                 try (Body body = bodyInterface.createBody(settings)) {
                     int newBodyId = body.getId();
-                    body.setUserData(section.getId().getMostSignificantBits() ^ section.getId().getLeastSignificantBits());
+                    long terrainIdentifier = section.getId().getMostSignificantBits() ^ section.getId().getLeastSignificantBits();
+                    body.setUserData(terrainIdentifier | TerrainSystem.TERRAIN_USER_DATA_FLAG);
 
+                    terrainSystem.registerTerrainBody(newBodyId);
                     bodyInterface.addBody(newBodyId, EActivation.DontActivate);
 
                     section.setBodyId(newBodyId);

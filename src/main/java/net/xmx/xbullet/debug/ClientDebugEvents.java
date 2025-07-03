@@ -14,5 +14,4 @@ public class ClientDebugEvents {
     public static void onEvent(CustomizeGuiOverlayEvent.DebugText event) {
         DebugScreen.onDebugText(event);
     }
-
 }

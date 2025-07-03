@@ -50,6 +50,7 @@ public class NetworkHandler {
                 SyncPhysicsObjectPacket::handle
         );
 
+
         registerPacket(
                 PhysicsGunActionPacket.class,
                 PhysicsGunActionPacket::encode,

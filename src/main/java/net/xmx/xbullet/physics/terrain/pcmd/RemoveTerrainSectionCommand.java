@@ -26,9 +26,10 @@ public record RemoveTerrainSectionCommand(TerrainSection section, TerrainSystem 
             bodyInterface.removeBody(bodyId);
         }
 
-        bodyInterface.destroyBody(bodyId);
-
+        terrainSystem.unregisterTerrainBody(bodyId);
         objectManager.unlinkBodyId(bodyId);
+
+        bodyInterface.destroyBody(bodyId);
 
         ShapeRefC oldShapeRef = section.getCurrentShapeRef();
         if (oldShapeRef != null) {
