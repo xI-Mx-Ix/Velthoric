@@ -3,9 +3,8 @@ package net.xmx.xbullet.physics.constraint;
 import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.TwoBodyConstraintRef;
 import net.minecraft.nbt.CompoundTag;
-import net.xmx.xbullet.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
 import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
-
+import net.xmx.xbullet.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
 import java.util.UUID;
 
 public class ManagedConstraint implements IConstraint {
@@ -17,21 +16,39 @@ public class ManagedConstraint implements IConstraint {
     private final TwoBodyConstraint joltConstraint;
     private final String constraintType;
 
-    public ManagedConstraint(UUID jointId, UUID body1Id, UUID body2Id, TwoBodyConstraint joltConstraint, String constraintType) {
+    public ManagedConstraint(UUID jointId, UUID body1Id, UUID body2Id, TwoBodyConstraintRef constraintRef, String constraintType) {
         this.jointId = jointId;
         this.body1Id = body1Id;
         this.body2Id = body2Id;
-        this.joltConstraint = joltConstraint;
-        this.constraintRef = joltConstraint.toRef();
+        this.constraintRef = constraintRef;
+        this.joltConstraint = constraintRef.getPtr();
         this.constraintType = constraintType;
     }
 
-    @Override public UUID getJointId() { return jointId; }
-    @Override public UUID getBody1Id() { return body1Id; }
-    @Override public UUID getBody2Id() { return body2Id; }
-    @Override public TwoBodyConstraint getJoltConstraint() { return joltConstraint; }
+    @Override
+    public UUID getJointId() {
+        return jointId;
+    }
 
-    @Override public TwoBodyConstraintRef getConstraintRef() { return this.constraintRef; }
+    @Override
+    public UUID getBody1Id() {
+        return body1Id;
+    }
+
+    @Override
+    public UUID getBody2Id() {
+        return body2Id;
+    }
+
+    @Override
+    public TwoBodyConstraint getJoltConstraint() {
+        return joltConstraint;
+    }
+
+    @Override
+    public TwoBodyConstraintRef getConstraintRef() {
+        return this.constraintRef;
+    }
 
     @SuppressWarnings("unchecked")
     @Override

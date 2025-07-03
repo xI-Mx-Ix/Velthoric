@@ -52,52 +52,47 @@ public class ConstraintManager {
     }
 
     public void addManagedConstraint(IConstraint constraint) {
+
         if (!isInitialized() || constraint == null || physicsWorld == null || savedData == null) {
             return;
         }
 
         if (managedConstraints.putIfAbsent(constraint.getJointId(), constraint) == null) {
+
             physicsWorld.getPhysicsSystem().addConstraint(constraint.getJoltConstraint());
+
             CompoundTag tag = new CompoundTag();
             constraint.save(tag);
-            savedData.updateJointData(constraint.getJointId(), tag);
 
-            savedData.setDirty();
+            managedLevel.getServer().execute(() -> {
+                savedData.updateJointData(constraint.getJointId(), tag);
+                savedData.setDirty();
+            });
         }
-
     }
 
     public void removeConstraint(UUID jointId, boolean permanent) {
+
         if (!isInitialized() || physicsWorld == null) return;
 
         IConstraint constraint = managedConstraints.remove(jointId);
         if (constraint != null) {
 
-            if (!permanent && savedData != null) {
-                CompoundTag tag = new CompoundTag();
-                constraint.save(tag);
-                savedData.updateJointData(constraint.getJointId(), tag);
-                savedData.setDirty();
-            }
-
             physicsWorld.getPhysicsSystem().removeConstraint(constraint.getJoltConstraint());
             constraint.release();
-            if (permanent && savedData != null) {
-                savedData.removeJointData(jointId);
-                savedData.setDirty();
-            }
+
+            managedLevel.getServer().execute(() -> {
+                if (!permanent && savedData != null) {
+                    CompoundTag tag = new CompoundTag();
+                    constraint.save(tag);
+                    savedData.updateJointData(constraint.getJointId(), tag);
+                    savedData.setDirty();
+                } else if (permanent && savedData != null) {
+                    savedData.removeJointData(jointId);
+                    savedData.setDirty();
+                }
+            });
         }
-    }
-
-    public void removeConstraintsForObject(UUID objectId) {
-        if (!isInitialized()) return;
-
-        List<UUID> idsToRemove = managedConstraints.values().stream()
-                .filter(c -> c.getBody1Id().equals(objectId) || (c.getBody2Id() != null && c.getBody2Id().equals(objectId)))
-                .map(IConstraint::getJointId)
-                .collect(Collectors.toList());
-
-        idsToRemove.forEach(id -> removeConstraint(id, true));
     }
 
     public void loadConstraintsForChunk(ChunkPos pos) {
@@ -113,7 +108,6 @@ public class ConstraintManager {
         List<UUID> idsToUnload = new ArrayList<>();
 
         for (IConstraint constraint : managedConstraints.values()) {
-
             boolean body1InChunk = objectManager.getObject(constraint.getBody1Id())
                     .map(obj -> isObjectInChunk(obj.getCurrentTransform().getTranslation(), pos))
                     .orElse(false);

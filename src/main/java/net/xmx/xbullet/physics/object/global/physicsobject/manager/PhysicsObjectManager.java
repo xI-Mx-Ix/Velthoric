@@ -130,9 +130,13 @@ public class PhysicsObjectManager {
 
         if (isPermanent && savedData != null) {
             savedData.removeObjectData(id);
-            savedData.setDirty(); // Wichtig, um die Speicherung auszulösen
+            savedData.setDirty();
         }
         NetworkHandler.CHANNEL.send(PacketDistributor.DIMENSION.with(managedLevel::dimension), new RemovePhysicsObjectPacket(id));
+    }
+
+    public PhysicsObjectLoader getObjectLoader() {
+        return this.objLoader;
     }
 
 

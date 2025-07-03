@@ -23,8 +23,7 @@ public interface IConstraintSerializer<T extends TwoBodyConstraint> {
 
     @FunctionalInterface
     interface ConstraintCreator<U extends TwoBodyConstraint> {
-
-        U create(Body body1, @Nullable Body body2, CompoundTag tag);
+        U create(BodyInterface bodyInterface, int bodyId1, int bodyId2, CompoundTag tag);
     }
 
     default CompletableFuture<TwoBodyConstraint> createFromLoadedBodies(
@@ -38,7 +37,6 @@ public interface IConstraintSerializer<T extends TwoBodyConstraint> {
         }
 
         CompletableFuture<IPhysicsObject> future1 = objectManager.getOrLoadObject(bodyIds[0]);
-
         CompletableFuture<IPhysicsObject> future2 = (bodyIds[1] != null)
                 ? objectManager.getOrLoadObject(bodyIds[1])
                 : CompletableFuture.completedFuture(null);
@@ -50,7 +48,16 @@ public interface IConstraintSerializer<T extends TwoBodyConstraint> {
 
         return CompletableFuture.allOf(future1, future2).thenApplyAsync(v -> {
             IPhysicsObject obj1 = future1.join();
+            IPhysicsObject obj2 = future2.join();
+
             if (obj1 == null) {
+                return null;
+            }
+
+            int b1Id = obj1.getBodyId();
+            int b2Id = (obj2 != null) ? obj2.getBodyId() : Body.sFixedToWorld().getId();
+
+            if (b1Id == 0) {
                 return null;
             }
 
@@ -59,19 +66,7 @@ public interface IConstraintSerializer<T extends TwoBodyConstraint> {
                 return null;
             }
 
-            Body b1 = new Body(obj1.getBodyId());
-            Body b2 = null;
-
-            IPhysicsObject obj2 = future2.join();
-            if (obj2 != null) {
-                b2 = new Body(obj2.getBodyId());
-            }
-
-            if (b2 == null) {
-                b2 = Body.sFixedToWorld();
-            }
-
-            return creator.create(b1, b2, tag);
+            return creator.create(bodyInterface, b1Id, b2Id, tag);
         }, physicsWorld);
     }
 

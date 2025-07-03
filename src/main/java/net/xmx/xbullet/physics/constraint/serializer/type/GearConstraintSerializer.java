@@ -1,8 +1,6 @@
 package net.xmx.xbullet.physics.constraint.serializer.type;
 
-import com.github.stephengold.joltjni.GearConstraint;
-import com.github.stephengold.joltjni.GearConstraintSettings;
-import com.github.stephengold.joltjni.TwoBodyConstraint;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import net.minecraft.nbt.CompoundTag;
 import net.xmx.xbullet.physics.constraint.IConstraint;
@@ -49,16 +47,28 @@ public class GearConstraintSerializer implements IConstraintSerializer<GearConst
                 return null;
             }
 
-            try (GearConstraintSettings settings = new GearConstraintSettings()) {
+            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+            if (bodyInterface == null) {
+                return null;
+            }
+
+            GearConstraintSettings settings = new GearConstraintSettings();
+            try {
                 settings.setSpace(EConstraintSpace.valueOf(tag.getString("space")));
                 settings.setHingeAxis1(NbtUtil.getVec3(tag, "hingeAxis1"));
                 settings.setHingeAxis2(NbtUtil.getVec3(tag, "hingeAxis2"));
                 settings.setRatio(tag.getFloat("ratio"));
-                GearConstraint constraint = (GearConstraint) settings.create(dep1.getJoltConstraint().getBody1(), dep1.getJoltConstraint().getBody2());
+
+                int bodyId1 = dep1.getJoltConstraint().getBody1().getId();
+                int bodyId2 = dep1.getJoltConstraint().getBody2().getId();
+
+                GearConstraint constraint = (GearConstraint) bodyInterface.createConstraint(settings, bodyId1, bodyId2);
                 if (constraint != null) {
                     constraint.setConstraints(dep1.getJoltConstraint(), dep2.getJoltConstraint());
                 }
                 return constraint;
+            } finally {
+                settings.close();
             }
         }, physicsWorld);
     }

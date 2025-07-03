@@ -1,6 +1,7 @@
 package net.xmx.xbullet.physics.constraint.manager;
 
 import com.github.stephengold.joltjni.TwoBodyConstraint;
+import com.github.stephengold.joltjni.TwoBodyConstraintRef;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -8,10 +9,10 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.constraint.IConstraint;
 import net.xmx.xbullet.physics.constraint.ManagedConstraint;
-import net.xmx.xbullet.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
 import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
+import net.xmx.xbullet.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.Optional;
@@ -52,6 +53,7 @@ public class ConstraintLoader {
         return pendingJointLoads.computeIfAbsent(jointId, id -> {
             Optional<CompoundTag> jointTagOpt = constraintManager.getSavedData().getJointData(id);
             if (jointTagOpt.isEmpty()) {
+                pendingJointLoads.remove(id);
                 return CompletableFuture.failedFuture(new IllegalStateException("No saved data for joint " + id));
             }
 
@@ -60,6 +62,7 @@ public class ConstraintLoader {
             Optional<IConstraintSerializer<?>> serializerOpt = ConstraintSerializerRegistry.getSerializer(typeId);
 
             if (serializerOpt.isEmpty()) {
+                pendingJointLoads.remove(id);
                 return CompletableFuture.failedFuture(new IllegalArgumentException("No serializer for type " + typeId));
             }
 
@@ -71,20 +74,28 @@ public class ConstraintLoader {
                             XBullet.LOGGER.warn("Serializer for {} returned null constraint for joint {}", typeId, id);
                             return null;
                         }
-                        UUID[] bodyIds = serializer.loadBodyIds(jointTag);
-                        if (bodyIds == null) {
-                            XBullet.LOGGER.error("Could not load body IDs for a successfully created joint {}", id);
-                            return null;
+
+                        TwoBodyConstraintRef constraintRef = joltConstraint.toRef();
+                        try {
+                            UUID[] bodyIds = serializer.loadBodyIds(jointTag);
+                            if (bodyIds == null) {
+                                throw new IllegalStateException("Could not load body IDs for a successfully created joint " + id);
+                            }
+
+                            ManagedConstraint managedConstraint = new ManagedConstraint(id, bodyIds[0], bodyIds[1], constraintRef, typeId);
+                            constraintManager.addManagedConstraint(managedConstraint);
+                            return (IConstraint) managedConstraint;
+                        } catch (Exception e) {
+                            constraintRef.close();
+                            throw new RuntimeException(e);
                         }
-                        ManagedConstraint managedConstraint = new ManagedConstraint(id, bodyIds[0], bodyIds[1], joltConstraint, typeId);
-                        constraintManager.addManagedConstraint(managedConstraint);
-
-                        return (IConstraint) managedConstraint;
-
-                    }, constraintManager.getManagedLevel().getServer())
+                    }, PhysicsWorld.get(constraintManager.getManagedLevel().dimension()))
                     .whenComplete((res, ex) -> {
                         if (ex != null) {
-                            XBullet.LOGGER.error("Failed to load joint {}", id, ex);
+                            XBullet.LOGGER.error("Failed to load joint {}", id, ex.getCause() != null ? ex.getCause() : ex);
+                        }
+                        if (res == null && ex == null) {
+                            XBullet.LOGGER.warn("Joint {} loading resulted in null but no exception.", id);
                         }
                         pendingJointLoads.remove(id);
                     });

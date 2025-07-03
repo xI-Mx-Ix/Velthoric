@@ -5,14 +5,14 @@ import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.world.pcmd.ICommand;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 
-public record AddRigidBodyCommand(RigidPhysicsObject physicsObject) implements ICommand {
+public record AddRigidBodyCommand(RigidPhysicsObject physicsObject, boolean activate) implements ICommand {
 
-    public static void queue(PhysicsWorld physicsWorld, RigidPhysicsObject object) {
-        physicsWorld.queueCommand(new AddRigidBodyCommand(object));
+    public static void queue(PhysicsWorld physicsWorld, RigidPhysicsObject object, boolean activate) {
+        physicsWorld.queueCommand(new AddRigidBodyCommand(object, activate));
     }
 
     @Override
@@ -54,11 +54,11 @@ public record AddRigidBodyCommand(RigidPhysicsObject physicsObject) implements I
 
                         physicsObject.configureBodyCreationSettings(settings);
 
-                        int bodyId = world.getBodyInterface().createAndAddBody(settings, EActivation.Activate);
+                        EActivation activationState = activate ? EActivation.Activate : EActivation.DontActivate;
+                        int bodyId = world.getBodyInterface().createAndAddBody(settings, activationState);
 
                         if (bodyId != 0 && bodyId != Jolt.cInvalidBodyId) {
                             physicsObject.setBodyId(bodyId);
-
                             objectManager.linkBodyId(bodyId, physicsObject.getPhysicsId());
                         } else {
                             XBullet.LOGGER.error("Jolt failed to create body for object {}", physicsObject.getPhysicsId());

@@ -109,7 +109,7 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     @Override
     public void initializePhysics(PhysicsWorld physicsWorld) {
         if (physicsInitialized || isRemoved || level.isClientSide() || physicsWorld == null || !physicsWorld.isRunning()) return;
-        AddSoftBodyCommand.queue(physicsWorld, this);
+        AddSoftBodyCommand.queue(physicsWorld, this, true);
     }
 
     @Override

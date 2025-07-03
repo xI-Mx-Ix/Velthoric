@@ -41,7 +41,6 @@ public class TestJointCommand {
 
         PhysicsObjectManager objectManager = physicsWorld.getObjectManager();
 
-        // Schritt 1: Objekte erstellen und ihre Physik-Erstellung in die Warteschlange stellen.
         CompoundTag props1 = new CompoundTag();
         props1.putString("motionType", EMotionType.Kinematic.name());
 
@@ -55,7 +54,7 @@ public class TestJointCommand {
         RigidPhysicsObject box2 = new RigidPhysicsObjectBuilder()
                 .level(player.level())
                 .type(BoxRigidPhysicsObject.TYPE_IDENTIFIER)
-                .position(player.getX() + 2.0, player.getY() + 1, player.getZ())
+                .position(player.getX() + 1.0, player.getY() + 1, player.getZ())
                 .spawn(objectManager);
 
         if (box1 == null || box2 == null) {
@@ -67,12 +66,8 @@ public class TestJointCommand {
 
         final UUID box1Id = box1.getPhysicsId();
         final UUID box2Id = box2.getPhysicsId();
-        final net.minecraft.world.phys.Vec3 playerMcPos = player.position();
 
-        // Schritt 2: Den Befehl zur Erstellung des Joints in die Warteschlange des Physik-Threads legen.
         physicsWorld.execute(() -> {
-            // ALLES AB HIER PASSIERT SICHER IM PHYSIK-THREAD.
-
             IPhysicsObject physBox1 = objectManager.getObject(box1Id).orElse(null);
             IPhysicsObject physBox2 = objectManager.getObject(box2Id).orElse(null);
 
@@ -94,25 +89,27 @@ public class TestJointCommand {
             UUID jointId = UUID.randomUUID();
             String constraintType = "xbullet:hinge";
 
-            // Erstelle das Settings-Objekt hier, direkt vor der Verwendung, und entsorge es sicher.
             try (HingeConstraintSettings settings = new HingeConstraintSettings()) {
-                settings.setSpace(EConstraintSpace.WorldSpace);
 
-                RVec3 pivotPoint = new RVec3(playerMcPos.x + 1.0, playerMcPos.y + 1, playerMcPos.z);
+                settings.setSpace(EConstraintSpace.LocalToBodyCOM);
+
+                settings.setPoint1(new RVec3(0.5, 0.0, 0.0));
+
+                settings.setPoint2(new RVec3(-0.5, 0.0, 0.0));
+
                 Vec3 hingeAxis = new Vec3(0, 1, 0);
-
-                settings.setPoint1(pivotPoint);
-                settings.setPoint2(pivotPoint);
                 settings.setHingeAxis1(hingeAxis);
                 settings.setHingeAxis2(hingeAxis);
 
-                // ***** DIE FINALE, API-KONFORME KORREKTUR *****
-                // Verwende die Methode des BodyInterface, um den Constraint zu erstellen.
-                // NICHT settings.create(body1, body2)!
                 TwoBodyConstraint joltConstraint = bodyInterface.createConstraint(settings, b1Id, b2Id);
 
                 if (joltConstraint != null) {
-                    ManagedConstraint managedConstraint = new ManagedConstraint(jointId, box1Id, box2Id, joltConstraint, constraintType);
+                    // 1. Erstelle SOFORT die sichere Referenz.
+                    TwoBodyConstraintRef constraintRef = joltConstraint.toRef();
+
+                    // 2. Übergib die sichere Referenz an den neuen, korrekten Konstruktor.
+                    ManagedConstraint managedConstraint = new ManagedConstraint(jointId, box1Id, box2Id, constraintRef, constraintType);
+
                     constraintManager.addManagedConstraint(managedConstraint);
                     player.getServer().execute(() -> player.sendSystemMessage(Component.literal("Successfully created hinge joint: " + jointId.toString().substring(0, 8))));
                 } else {

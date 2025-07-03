@@ -28,8 +28,9 @@ public class FixedConstraintSerializer implements IConstraintSerializer<FixedCon
 
     @Override
     public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
-        return createFromLoadedBodies(tag, objectManager, (b1, b2, t) -> {
-            try (FixedConstraintSettings settings = new FixedConstraintSettings()) {
+        return createFromLoadedBodies(tag, objectManager, (bodyInterface, b1Id, b2Id, t) -> {
+            FixedConstraintSettings settings = new FixedConstraintSettings();
+            try {
                 settings.setSpace(EConstraintSpace.valueOf(t.getString("space")));
                 settings.setAutoDetectPoint(t.getBoolean("autoDetectPoint"));
                 settings.setPoint1(NbtUtil.getRVec3(t, "point1"));
@@ -38,7 +39,9 @@ public class FixedConstraintSerializer implements IConstraintSerializer<FixedCon
                 settings.setAxisY1(NbtUtil.getVec3(t, "axisY1"));
                 settings.setAxisX2(NbtUtil.getVec3(t, "axisX2"));
                 settings.setAxisY2(NbtUtil.getVec3(t, "axisY2"));
-                return (FixedConstraint) settings.create(b1, b2);
+                return (FixedConstraint) bodyInterface.createConstraint(settings, b1Id, b2Id);
+            } finally {
+                settings.close();
             }
         });
     }

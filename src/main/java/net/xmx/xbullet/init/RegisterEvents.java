@@ -12,6 +12,7 @@ import net.xmx.xbullet.physics.object.global.DetonationEvents;
 import net.xmx.xbullet.physics.object.global.click.ClientSendClick;
 import net.xmx.xbullet.physics.object.global.physicsobject.client.ClientPhysicsObjectManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.client.renderer.PhysicsObjectRenderer;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsChunkLoader;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerEvents;
 import net.xmx.xbullet.physics.world.ClientPhysicsPauseHandler;
 import net.xmx.xbullet.physics.terrain.event.TerrainBlockEvents;
@@ -23,6 +24,8 @@ public class RegisterEvents {
 
         MinecraftForge.EVENT_BUS.register(PhysicsLifecycleEvents.class);
         MinecraftForge.EVENT_BUS.register(PhysicsObjectManagerEvents.class);
+
+        MinecraftForge.EVENT_BUS.register(PhysicsChunkLoader.class);
 
         MinecraftForge.EVENT_BUS.register(DetonationEvents.class);
         MinecraftForge.EVENT_BUS.register(FluidManagerEvents.class);

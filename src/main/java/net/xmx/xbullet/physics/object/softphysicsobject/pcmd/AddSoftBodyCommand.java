@@ -6,14 +6,14 @@ import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.world.pcmd.ICommand;
-import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 
-public record AddSoftBodyCommand(SoftPhysicsObject physicsObject) implements ICommand {
+public record AddSoftBodyCommand(SoftPhysicsObject physicsObject, boolean activate) implements ICommand {
 
-    public static void queue(PhysicsWorld physicsWorld, SoftPhysicsObject object) {
-        physicsWorld.queueCommand(new AddSoftBodyCommand(object));
+    public static void queue(PhysicsWorld physicsWorld, SoftPhysicsObject object, boolean activate) {
+        physicsWorld.queueCommand(new AddSoftBodyCommand(object, activate));
     }
 
     @Override
@@ -24,7 +24,6 @@ public record AddSoftBodyCommand(SoftPhysicsObject physicsObject) implements ICo
         }
 
         try {
-
             SoftBodySharedSettings sharedSettings = physicsObject.getOrBuildSharedSettings();
             if (sharedSettings == null) {
                 XBullet.LOGGER.error("Failed to create SoftBodySharedSettings for {}. Aborting add.", physicsObject.getPhysicsId());
@@ -39,11 +38,11 @@ public record AddSoftBodyCommand(SoftPhysicsObject physicsObject) implements ICo
                 settings.setObjectLayer(PhysicsWorld.Layers.DYNAMIC);
                 physicsObject.configureSoftBodyCreationSettings(settings);
 
-                int bodyId = world.getBodyInterface().createAndAddSoftBody(settings, EActivation.Activate);
+                EActivation activationState = activate ? EActivation.Activate : EActivation.DontActivate;
+                int bodyId = world.getBodyInterface().createAndAddSoftBody(settings, activationState);
 
                 if (bodyId != 0 && bodyId != Jolt.cInvalidBodyId) {
                     physicsObject.setBodyId(bodyId);
-
                     objectManager.linkBodyId(bodyId, physicsObject.getPhysicsId());
                 } else {
                     XBullet.LOGGER.error("Jolt failed to create soft body for object {}", physicsObject.getPhysicsId());

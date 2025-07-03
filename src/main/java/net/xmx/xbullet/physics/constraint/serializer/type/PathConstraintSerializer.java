@@ -40,8 +40,9 @@ public class PathConstraintSerializer implements IConstraintSerializer<PathConst
 
     @Override
     public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
-        return createFromLoadedBodies(tag, objectManager, (b1, b2, t) -> {
-            try (PathConstraintSettings settings = new PathConstraintSettings()) {
+        return createFromLoadedBodies(tag, objectManager, (bodyInterface, b1Id, b2Id, t) -> {
+            PathConstraintSettings settings = new PathConstraintSettings();
+            try {
                 if (t.contains("pathData")) {
                     byte[] pathData = t.getByteArray("pathData");
                     String pathString = new String(pathData, StandardCharsets.ISO_8859_1);
@@ -59,13 +60,15 @@ public class PathConstraintSerializer implements IConstraintSerializer<PathConst
                 settings.setRotationConstraintType(EPathRotationConstraintType.valueOf(t.getString("rotationConstraintType")));
                 settings.setMaxFrictionForce(t.getFloat("maxFrictionForce"));
                 NbtUtil.loadMotorSettings(t, "positionMotorSettings", settings.getPositionMotorSettings());
-                PathConstraint constraint = (PathConstraint) settings.create(b1, b2);
+                PathConstraint constraint = (PathConstraint) bodyInterface.createConstraint(settings, b1Id, b2Id);
                 if (constraint != null) {
                     constraint.setTargetPathFraction(t.getFloat("targetPathFraction"));
                     constraint.setTargetVelocity(t.getFloat("targetVelocity"));
                     constraint.setPositionMotorState(EMotorState.valueOf(t.getString("positionMotorState")));
                 }
                 return constraint;
+            } finally {
+                settings.close();
             }
         });
     }

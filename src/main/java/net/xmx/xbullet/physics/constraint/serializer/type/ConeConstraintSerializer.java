@@ -26,15 +26,18 @@ public class ConeConstraintSerializer implements IConstraintSerializer<ConeConst
 
     @Override
     public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
-        return createFromLoadedBodies(tag, objectManager, (b1, b2, t) -> {
-            try (ConeConstraintSettings settings = new ConeConstraintSettings()) {
+        return createFromLoadedBodies(tag, objectManager, (bodyInterface, b1Id, b2Id, t) -> {
+            ConeConstraintSettings settings = new ConeConstraintSettings();
+            try {
                 settings.setSpace(EConstraintSpace.valueOf(t.getString("space")));
                 settings.setPoint1(NbtUtil.getRVec3(t, "point1"));
                 settings.setPoint2(NbtUtil.getRVec3(t, "point2"));
                 settings.setTwistAxis1(NbtUtil.getVec3(t, "twistAxis1"));
                 settings.setTwistAxis2(NbtUtil.getVec3(t, "twistAxis2"));
                 settings.setHalfConeAngle(t.getFloat("halfConeAngle"));
-                return (ConeConstraint) settings.create(b1, b2);
+                return (ConeConstraint) bodyInterface.createConstraint(settings, b1Id, b2Id);
+            } finally {
+                settings.close();
             }
         });
     }

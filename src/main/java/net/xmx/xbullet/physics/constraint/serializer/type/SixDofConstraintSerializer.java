@@ -50,8 +50,9 @@ public class SixDofConstraintSerializer implements IConstraintSerializer<SixDofC
 
     @Override
     public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
-        return createFromLoadedBodies(tag, objectManager, (b1, b2, t) -> {
-            try (SixDofConstraintSettings settings = new SixDofConstraintSettings()) {
+        return createFromLoadedBodies(tag, objectManager, (bodyInterface, b1Id, b2Id, t) -> {
+            SixDofConstraintSettings settings = new SixDofConstraintSettings();
+            try {
                 settings.setSpace(EConstraintSpace.valueOf(t.getString("space")));
                 settings.setSwingType(ESwingType.valueOf(t.getString("swingType")));
                 settings.setPosition1(NbtUtil.getRVec3(t, "position1"));
@@ -74,7 +75,7 @@ public class SixDofConstraintSerializer implements IConstraintSerializer<SixDofC
                     NbtUtil.loadSpringSettings(axisTag, "limitsSpringSettings", settings.getLimitsSpringSettings(axis));
                 }
 
-                SixDofConstraint constraint = (SixDofConstraint) settings.create(b1, b2);
+                SixDofConstraint constraint = (SixDofConstraint) bodyInterface.createConstraint(settings, b1Id, b2Id);
                 if (constraint != null) {
                     CompoundTag axesTagRuntime = t.getCompound("axes");
                     for (EAxis axis : EAxis.values()) {
@@ -87,6 +88,8 @@ public class SixDofConstraintSerializer implements IConstraintSerializer<SixDofC
                     constraint.setTargetAngularVelocityCs(NbtUtil.getVec3(t, "targetAngularVelocityCs"));
                 }
                 return constraint;
+            } finally {
+                settings.close();
             }
         });
     }

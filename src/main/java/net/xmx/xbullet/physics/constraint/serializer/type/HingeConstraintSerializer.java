@@ -1,8 +1,6 @@
 package net.xmx.xbullet.physics.constraint.serializer.type;
 
-import com.github.stephengold.joltjni.HingeConstraint;
-import com.github.stephengold.joltjni.HingeConstraintSettings;
-import com.github.stephengold.joltjni.TwoBodyConstraint;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.enumerate.EMotorState;
 import net.minecraft.nbt.CompoundTag;
@@ -38,8 +36,9 @@ public class HingeConstraintSerializer implements IConstraintSerializer<HingeCon
 
     @Override
     public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
-        return createFromLoadedBodies(tag, objectManager, (b1, b2, t) -> {
-            try (HingeConstraintSettings settings = new HingeConstraintSettings()) {
+        return createFromLoadedBodies(tag, objectManager, (bodyInterface, b1Id, b2Id, t) -> {
+            HingeConstraintSettings settings = new HingeConstraintSettings();
+            try {
                 settings.setSpace(EConstraintSpace.valueOf(t.getString("space")));
                 settings.setPoint1(NbtUtil.getRVec3(t, "point1"));
                 settings.setPoint2(NbtUtil.getRVec3(t, "point2"));
@@ -52,13 +51,15 @@ public class HingeConstraintSerializer implements IConstraintSerializer<HingeCon
                 settings.setMaxFrictionTorque(t.getFloat("maxFrictionTorque"));
                 NbtUtil.loadMotorSettings(t, "motorSettings", settings.getMotorSettings());
                 NbtUtil.loadSpringSettings(t, "limitsSpringSettings", settings.getLimitsSpringSettings());
-                HingeConstraint constraint = (HingeConstraint) settings.create(b1, b2);
+                HingeConstraint constraint = (HingeConstraint) bodyInterface.createConstraint(settings, b1Id, b2Id);
                 if (constraint != null) {
                     constraint.setTargetAngle(t.getFloat("targetAngle"));
                     constraint.setTargetAngularVelocity(t.getFloat("targetAngularVelocity"));
                     constraint.setMotorState(EMotorState.valueOf(t.getString("motorState")));
                 }
                 return constraint;
+            } finally {
+                settings.close();
             }
         });
     }

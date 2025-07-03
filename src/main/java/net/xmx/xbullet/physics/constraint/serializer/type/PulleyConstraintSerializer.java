@@ -1,8 +1,6 @@
 package net.xmx.xbullet.physics.constraint.serializer.type;
 
-import com.github.stephengold.joltjni.PulleyConstraint;
-import com.github.stephengold.joltjni.PulleyConstraintSettings;
-import com.github.stephengold.joltjni.TwoBodyConstraint;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import net.minecraft.nbt.CompoundTag;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
@@ -30,8 +28,9 @@ public class PulleyConstraintSerializer implements IConstraintSerializer<PulleyC
 
     @Override
     public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
-        return createFromLoadedBodies(tag, objectManager, (b1, b2, t) -> {
-            try (PulleyConstraintSettings settings = new PulleyConstraintSettings()) {
+        return createFromLoadedBodies(tag, objectManager, (bodyInterface, b1Id, b2Id, t) -> {
+            PulleyConstraintSettings settings = new PulleyConstraintSettings();
+            try {
                 settings.setSpace(EConstraintSpace.valueOf(t.getString("space")));
                 settings.setBodyPoint1(NbtUtil.getRVec3(t, "bodyPoint1"));
                 settings.setBodyPoint2(NbtUtil.getRVec3(t, "bodyPoint2"));
@@ -40,7 +39,9 @@ public class PulleyConstraintSerializer implements IConstraintSerializer<PulleyC
                 settings.setRatio(t.getFloat("ratio"));
                 settings.setMinLength(t.getFloat("minLength"));
                 settings.setMaxLength(t.getFloat("maxLength"));
-                return (PulleyConstraint) settings.create(b1, b2);
+                return (PulleyConstraint) bodyInterface.createConstraint(settings, b1Id, b2Id);
+            } finally {
+                settings.close();
             }
         });
     }

@@ -8,6 +8,10 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
+import net.xmx.xbullet.physics.object.rigidphysicsobject.pcmd.AddRigidBodyCommand;
+import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
+import net.xmx.xbullet.physics.object.softphysicsobject.pcmd.AddSoftBodyCommand;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -48,7 +52,7 @@ public class PhysicsObjectLoader {
         }
     }
 
-    public CompletableFuture<IPhysicsObject> scheduleObjectLoad(UUID objectId) {
+    public CompletableFuture<IPhysicsObject> scheduleObjectLoad(UUID objectId, boolean initiallyActive) {
         return pendingLoads.computeIfAbsent(objectId, id -> {
             Optional<CompoundTag> objTagOpt = objManager.getSavedData().getObjectData(id);
             if (objTagOpt.isEmpty()) {
@@ -69,6 +73,11 @@ public class PhysicsObjectLoader {
                 return objManager.createPhysicsObject(typeId, id, objManager.managedLevel, transform, objTag);
             }, loadingExecutor).thenApplyAsync(obj -> {
                 if (obj != null) {
+                    if (obj instanceof RigidPhysicsObject rpo) {
+                        AddRigidBodyCommand.queue(objManager.getPhysicsWorld(), rpo, initiallyActive);
+                    } else if (obj instanceof SoftPhysicsObject spo) {
+                        AddSoftBodyCommand.queue(objManager.getPhysicsWorld(), spo, initiallyActive);
+                    }
                     objManager.manageLoadedObject(obj);
                 }
                 return obj;
@@ -83,6 +92,10 @@ public class PhysicsObjectLoader {
 
             return future;
         });
+    }
+
+    public CompletableFuture<IPhysicsObject> scheduleObjectLoad(UUID objectId) {
+        return this.scheduleObjectLoad(objectId, true);
     }
 
     @Nullable

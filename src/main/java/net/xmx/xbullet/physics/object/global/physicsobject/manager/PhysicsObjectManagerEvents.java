@@ -55,31 +55,6 @@ public class PhysicsObjectManagerEvents {
     }
 
     @SubscribeEvent
-    public static void onChunkLoad(ChunkEvent.Load event) {
-        if (event.getLevel() instanceof ServerLevel level) {
-
-            PhysicsWorld world = PhysicsWorld.get(level.dimension());
-
-            if (world != null && world.isRunning()) {
-                ChunkPos chunkPos = event.getChunk().getPos();
-
-                world.getObjectManager().loadPhysicsObjectsForChunk(chunkPos);
-            }
-        }
-    }
-
-    @SubscribeEvent
-    public static void onChunkUnload(ChunkEvent.Unload event) {
-        if (event.getLevel() instanceof ServerLevel level) {
-            ChunkPos chunkPos = event.getChunk().getPos();
-            PhysicsObjectManager manager = PhysicsWorld.getObjectManager(level.dimension());
-            if (manager != null) {
-                manager.unloadPhysicsObjectsForChunk(chunkPos);
-            }
-        }
-    }
-
-    @SubscribeEvent
     public static void onChunkWatch(ChunkWatchEvent.Watch event) {
         ServerPlayer player = event.getPlayer();
         ServerLevel level = event.getLevel();

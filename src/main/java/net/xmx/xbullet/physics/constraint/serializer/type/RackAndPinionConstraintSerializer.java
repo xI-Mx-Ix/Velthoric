@@ -1,8 +1,6 @@
 package net.xmx.xbullet.physics.constraint.serializer.type;
 
-import com.github.stephengold.joltjni.RackAndPinionConstraint;
-import com.github.stephengold.joltjni.RackAndPinionConstraintSettings;
-import com.github.stephengold.joltjni.TwoBodyConstraint;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import net.minecraft.nbt.CompoundTag;
 import net.xmx.xbullet.physics.constraint.IConstraint;
@@ -49,17 +47,29 @@ public class RackAndPinionConstraintSerializer implements IConstraintSerializer<
                 return null;
             }
 
-            try (RackAndPinionConstraintSettings settings = new RackAndPinionConstraintSettings()) {
+            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+            if(bodyInterface == null) {
+                return null;
+            }
+
+            RackAndPinionConstraintSettings settings = new RackAndPinionConstraintSettings();
+            try {
                 settings.setSpace(EConstraintSpace.valueOf(tag.getString("space")));
                 settings.setHingeAxis(NbtUtil.getVec3(tag, "hingeAxis"));
                 settings.setSliderAxis(NbtUtil.getVec3(tag, "sliderAxis"));
                 float rackLengthPerTooth = Math.abs(tag.getFloat("ratio"));
                 settings.setRatio(1, rackLengthPerTooth, 1);
-                RackAndPinionConstraint constraint = (RackAndPinionConstraint) settings.create(depHinge.getJoltConstraint().getBody1(), depSlider.getJoltConstraint().getBody1());
+
+                int bodyIdHinge = depHinge.getJoltConstraint().getBody1().getId();
+                int bodyIdSlider = depSlider.getJoltConstraint().getBody1().getId();
+
+                RackAndPinionConstraint constraint = (RackAndPinionConstraint) bodyInterface.createConstraint(settings, bodyIdHinge, bodyIdSlider);
                 if (constraint != null) {
                     constraint.setConstraints(depHinge.getJoltConstraint(), depSlider.getJoltConstraint());
                 }
                 return constraint;
+            } finally {
+                settings.close();
             }
         }, physicsWorld);
     }

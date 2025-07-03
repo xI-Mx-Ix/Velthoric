@@ -91,7 +91,7 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     @Override
     public void initializePhysics(PhysicsWorld physicsWorld) {
         if (physicsInitialized || isRemoved || level.isClientSide() || physicsWorld == null || !physicsWorld.isRunning()) return;
-        AddRigidBodyCommand.queue(physicsWorld, this);
+        AddRigidBodyCommand.queue(physicsWorld, this, true);
     }
 
     @Override

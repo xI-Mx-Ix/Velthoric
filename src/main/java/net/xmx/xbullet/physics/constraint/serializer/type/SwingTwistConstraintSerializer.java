@@ -1,8 +1,6 @@
 package net.xmx.xbullet.physics.constraint.serializer.type;
 
-import com.github.stephengold.joltjni.SwingTwistConstraint;
-import com.github.stephengold.joltjni.SwingTwistConstraintSettings;
-import com.github.stephengold.joltjni.TwoBodyConstraint;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.enumerate.ESwingType;
 import net.minecraft.nbt.CompoundTag;
@@ -38,8 +36,9 @@ public class SwingTwistConstraintSerializer implements IConstraintSerializer<Swi
 
     @Override
     public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
-        return createFromLoadedBodies(tag, objectManager, (b1, b2, t) -> {
-            try (SwingTwistConstraintSettings settings = new SwingTwistConstraintSettings()) {
+        return createFromLoadedBodies(tag, objectManager, (bodyInterface, b1Id, b2Id, t) -> {
+            SwingTwistConstraintSettings settings = new SwingTwistConstraintSettings();
+            try {
                 settings.setSpace(EConstraintSpace.valueOf(t.getString("space")));
                 settings.setSwingType(ESwingType.valueOf(t.getString("swingType")));
                 settings.setPosition1(NbtUtil.getRVec3(t, "position1"));
@@ -55,7 +54,9 @@ public class SwingTwistConstraintSerializer implements IConstraintSerializer<Swi
                 settings.setMaxFrictionTorque(t.getFloat("maxFrictionTorque"));
                 NbtUtil.loadMotorSettings(t, "swingMotor", settings.getSwingMotorSettings());
                 NbtUtil.loadMotorSettings(t, "twistMotor", settings.getTwistMotorSettings());
-                return (SwingTwistConstraint) settings.create(b1, b2);
+                return (SwingTwistConstraint) bodyInterface.createConstraint(settings, b1Id, b2Id);
+            } finally {
+                settings.close();
             }
         });
     }

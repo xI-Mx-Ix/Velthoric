@@ -1,8 +1,6 @@
 package net.xmx.xbullet.physics.constraint.serializer.type;
 
-import com.github.stephengold.joltjni.SliderConstraint;
-import com.github.stephengold.joltjni.SliderConstraintSettings;
-import com.github.stephengold.joltjni.TwoBodyConstraint;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.enumerate.EMotorState;
 import net.minecraft.nbt.CompoundTag;
@@ -38,8 +36,9 @@ public class SliderConstraintSerializer implements IConstraintSerializer<SliderC
 
     @Override
     public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
-        return createFromLoadedBodies(tag, objectManager, (b1, b2, t) -> {
-            try (SliderConstraintSettings settings = new SliderConstraintSettings()) {
+        return createFromLoadedBodies(tag, objectManager, (bodyInterface, b1Id, b2Id, t) -> {
+            SliderConstraintSettings settings = new SliderConstraintSettings();
+            try {
                 settings.setSpace(EConstraintSpace.valueOf(t.getString("space")));
                 settings.setPoint1(NbtUtil.getRVec3(t, "point1"));
                 settings.setPoint2(NbtUtil.getRVec3(t, "point2"));
@@ -52,13 +51,15 @@ public class SliderConstraintSerializer implements IConstraintSerializer<SliderC
                 settings.setMaxFrictionForce(t.getFloat("maxFrictionForce"));
                 NbtUtil.loadMotorSettings(t, "motorSettings", settings.getMotorSettings());
                 NbtUtil.loadSpringSettings(t, "limitsSpringSettings", settings.getLimitsSpringSettings());
-                SliderConstraint constraint = (SliderConstraint) settings.create(b1, b2);
+                SliderConstraint constraint = (SliderConstraint) bodyInterface.createConstraint(settings, b1Id, b2Id);
                 if (constraint != null) {
                     constraint.setTargetPosition(t.getFloat("targetPosition"));
                     constraint.setTargetVelocity(t.getFloat("targetVelocity"));
                     constraint.setMotorState(EMotorState.valueOf(t.getString("motorState")));
                 }
                 return constraint;
+            } finally {
+                settings.close();
             }
         });
     }
