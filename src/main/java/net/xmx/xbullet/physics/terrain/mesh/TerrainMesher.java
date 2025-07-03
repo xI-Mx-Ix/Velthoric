@@ -131,7 +131,7 @@ public class TerrainMesher {
             section.setState(TerrainSection.State.MESHING);
 
             CompletableFuture<ShapeRefC> future = CompletableFuture.supplyAsync(() -> {
-                try (MutableCompoundShapeSettings settings = new GreedyMeshingTask(voxelShapes, MESHING_RESOLUTION).get()) {
+                try (MutableCompoundShapeSettings settings = new DirectMeshingTask(voxelShapes).get()) {
                     try (ShapeResult result = settings.create()) {
                         if (result.isValid()) {
                             ShapeRefC newShapeRef = result.get();
