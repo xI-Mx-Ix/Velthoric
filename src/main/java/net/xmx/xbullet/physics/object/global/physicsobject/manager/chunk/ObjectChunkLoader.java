@@ -114,12 +114,10 @@ public class ObjectChunkLoader {
 
                 if (specificPlayer != null) {
 
-                    XBullet.LOGGER.info("SERVER: Sending SpawnPacket for object {} to specific player {}", obj.getPhysicsId(), specificPlayer.getName().getString());
                     NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> specificPlayer), packet);
                 } else {
 
                     chunkMap.getPlayers(chunkPos, false).forEach(player -> {
-                        XBullet.LOGGER.info("SERVER: Sending SpawnPacket for object {} to watching player {}", obj.getPhysicsId(), player.getName().getString());
                         NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
                     });
                 }
