@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "xbullet.refmap.json",
   "mixins": [
+    "entity.EntityCollisionsMixin"
   ],
   "client": [
   ],
