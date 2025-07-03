@@ -5,7 +5,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
@@ -31,11 +31,11 @@ public class SoftPhysicsObjectBuilder {
             XBullet.LOGGER.error("Builder: Level is not a ServerLevel or null.");
             return null;
         }
-        PhysicsObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
+        ObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
         return spawn(manager);
     }
 
-    public SoftPhysicsObject spawn(PhysicsObjectManager manager) {
+    public SoftPhysicsObject spawn(ObjectManager manager) {
         if (manager == null) return null;
         if (id == null) id = UUID.randomUUID();
         if (typeIdentifier == null) {

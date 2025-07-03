@@ -1,14 +1,14 @@
 package net.xmx.xbullet.physics.terrain.manager;
 
 import com.github.stephengold.joltjni.RVec3;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
-import net.xmx.xbullet.physics.world.PhysicsWorld;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.terrain.chunk.TerrainSection;
 import net.xmx.xbullet.physics.terrain.pcmd.active.ActivateTerrainSectionCommand;
 import net.xmx.xbullet.physics.terrain.pcmd.active.DeactivateTerrainSectionCommand;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -18,25 +18,22 @@ import java.util.PriorityQueue;
 public class TerrainPriorityUpdater {
 
     private final ServerLevel level;
-    private final PhysicsObjectManager physicsObjectManager;
+    private final ObjectManager physicsObjectManager;
     private final PhysicsWorld physicsWorld;
 
-    private static final double ACTIVATION_RADIUS = 64.0;
-    private static final double MESHING_RADIUS = 96.0;
-
+    private static final double ACTIVATION_RADIUS = 48.0;
+    private static final double MESHING_RADIUS = 128.0;
     private static final double PHYSICS_OBJECT_WEIGHT = 4.0;
-
     private static final double ACTIVATION_RADIUS_SQ = ACTIVATION_RADIUS * ACTIVATION_RADIUS;
     private static final double MESHING_RADIUS_SQ = MESHING_RADIUS * MESHING_RADIUS;
 
-    public TerrainPriorityUpdater(ServerLevel level, PhysicsObjectManager physicsObjectManager, PhysicsWorld physicsWorld) {
+    public TerrainPriorityUpdater(ServerLevel level, ObjectManager physicsObjectManager, PhysicsWorld physicsWorld) {
         this.level = level;
         this.physicsObjectManager = physicsObjectManager;
         this.physicsWorld = physicsWorld;
     }
 
     public PriorityQueue<TerrainSection> updateAndCreateQueue(TerrainChunkManager chunkManager) {
-
         List<RVec3> playerPOIs = gatherPlayerPOIs();
         List<RVec3> physicsObjectPOIs = gatherPhysicsObjectPOIs();
 
@@ -72,22 +69,17 @@ public class TerrainPriorityUpdater {
     }
 
     private void handleMeshingPriority(TerrainSection section, double weightedMinDistanceSq, PriorityQueue<TerrainSection> queue) {
-
         if (section.getState() != TerrainSection.State.PLACEHOLDER) {
             return;
         }
 
         if (weightedMinDistanceSq > MESHING_RADIUS_SQ) {
-
             if (section.getPriority() != Double.MAX_VALUE) {
-
                 return;
             }
-
         }
 
         if (section.getPriority() != Double.MAX_VALUE) {
-
             section.setPriority(1.0 / (1.0 + Math.sqrt(weightedMinDistanceSq)));
         }
 
@@ -134,7 +126,6 @@ public class TerrainPriorityUpdater {
 
     private List<RVec3> gatherPhysicsObjectPOIs() {
         List<RVec3> points = new ArrayList<>();
-
         if (this.physicsObjectManager == null || !this.physicsObjectManager.isInitialized()) {
             return points;
         }
@@ -144,7 +135,6 @@ public class TerrainPriorityUpdater {
                 points.add(physicsObject.getCurrentTransform().getTranslation());
             }
         }
-
         return points;
     }
 }

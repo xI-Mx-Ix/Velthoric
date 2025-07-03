@@ -5,7 +5,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 class PauseResumePhysicsCommandExecutor {
@@ -50,7 +50,7 @@ class PauseResumePhysicsCommandExecutor {
     }
 
     private static PhysicsWorld getPhysicsWorld(CommandSourceStack source, ServerLevel level) {
-        PhysicsObjectManager manager = PhysicsWorld.getObjectManager(level.dimension());
+        ObjectManager manager = PhysicsWorld.getObjectManager(level.dimension());
         if (manager == null || !manager.isInitialized()) {
             source.sendFailure(Component.literal("Physics system for this dimension is not running."));
             XBullet.LOGGER.warn("Attempted to pause/resume in dimension {} but PhysicsObjectManager is not initialized.", level.dimension().location());

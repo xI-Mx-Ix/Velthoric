@@ -4,7 +4,7 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.world.pcmd.ICommand;
@@ -17,7 +17,7 @@ public record AddRigidBodyCommand(RigidPhysicsObject physicsObject, boolean acti
 
     @Override
     public void execute(PhysicsWorld world) {
-        PhysicsObjectManager objectManager = world.getObjectManager();
+        ObjectManager objectManager = world.getObjectManager();
         if (world.getPhysicsSystem() == null || objectManager == null || physicsObject.isRemoved() || physicsObject.getBodyId() != 0) {
             return;
         }

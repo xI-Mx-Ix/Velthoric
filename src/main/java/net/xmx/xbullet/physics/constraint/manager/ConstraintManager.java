@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.xbullet.physics.XBulletSavedData;
 import net.xmx.xbullet.physics.constraint.IConstraint;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
@@ -26,12 +26,12 @@ public class ConstraintManager {
     @Nullable private ServerLevel managedLevel;
     @Nullable private XBulletSavedData savedData;
     private final ConstraintLoader constraintLoader;
-    private final PhysicsObjectManager objectManager;
+    private final ObjectManager objectManager;
 
     private final AtomicBoolean isInitialized = new AtomicBoolean(false);
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
-    public ConstraintManager(PhysicsObjectManager objectManager) {
+    public ConstraintManager(ObjectManager objectManager) {
         this.objectManager = objectManager;
         this.constraintLoader = new ConstraintLoader(this, objectManager);
     }
@@ -52,14 +52,17 @@ public class ConstraintManager {
     }
 
     public void addManagedConstraint(IConstraint constraint) {
-
         if (!isInitialized() || constraint == null || physicsWorld == null || savedData == null) {
             return;
         }
 
         if (managedConstraints.putIfAbsent(constraint.getJointId(), constraint) == null) {
 
-            physicsWorld.getPhysicsSystem().addConstraint(constraint.getJoltConstraint());
+            physicsWorld.execute(() -> {
+                if (physicsWorld.getPhysicsSystem() != null) {
+                    physicsWorld.getPhysicsSystem().addConstraint(constraint.getJoltConstraint());
+                }
+            });
 
             CompoundTag tag = new CompoundTag();
             constraint.save(tag);
@@ -72,14 +75,16 @@ public class ConstraintManager {
     }
 
     public void removeConstraint(UUID jointId, boolean permanent) {
-
         if (!isInitialized() || physicsWorld == null) return;
 
         IConstraint constraint = managedConstraints.remove(jointId);
+
         if (constraint != null) {
 
-            physicsWorld.getPhysicsSystem().removeConstraint(constraint.getJoltConstraint());
-            constraint.release();
+            physicsWorld.execute(() -> {
+                physicsWorld.getPhysicsSystem().removeConstraint(constraint.getJoltConstraint());
+                constraint.release();
+            });
 
             managedLevel.getServer().execute(() -> {
                 if (!permanent && savedData != null) {
@@ -158,13 +163,21 @@ public class ConstraintManager {
 
         constraintLoader.shutdown();
 
-        managedConstraints.values().forEach(c -> {
-            if (physicsWorld != null) {
-                physicsWorld.getPhysicsSystem().removeConstraint(c.getJoltConstraint());
-            }
-            c.release();
-        });
+        List<IConstraint> constraintsToShutdown = new ArrayList<>(managedConstraints.values());
+
         managedConstraints.clear();
+
+        if (physicsWorld != null) {
+
+            physicsWorld.execute(() -> {
+                for (IConstraint c : constraintsToShutdown) {
+                    if (physicsWorld.getPhysicsSystem() != null) {
+                        physicsWorld.getPhysicsSystem().removeConstraint(c.getJoltConstraint());
+                    }
+                    c.release();
+                }
+            });
+        }
 
         this.physicsWorld = null;
         this.managedLevel = null;
@@ -187,7 +200,7 @@ public class ConstraintManager {
         idsToRemove.forEach(id -> removeConstraint(id, permanent));
     }
 
-    public PhysicsObjectManager getObjectManager() { return objectManager; }
+    public ObjectManager getObjectManager() { return objectManager; }
     public boolean isInitialized() { return isInitialized.get(); }
     public ServerLevel getManagedLevel() { return managedLevel; }
     public XBulletSavedData getSavedData() { return savedData; }

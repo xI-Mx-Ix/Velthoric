@@ -10,7 +10,7 @@ import net.xmx.xbullet.command.xbullet.packet.RequestClientPhysicsObjectCountPac
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.network.NetworkHandler;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 class CountPhysicsObjectCommandExecutor {
@@ -26,7 +26,7 @@ class CountPhysicsObjectCommandExecutor {
                 return 0;
             }
 
-            PhysicsObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
+            ObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
             if (!manager.isInitialized()) {
                 source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
                 return 0;
@@ -35,7 +35,7 @@ class CountPhysicsObjectCommandExecutor {
             long rigidCount = manager.getManagedObjects().values().stream().filter(o -> o.getPhysicsObjectType() == EObjectType.RIGID_BODY).count();
             long softCount = manager.getManagedObjects().values().stream().filter(o -> o.getPhysicsObjectType() == EObjectType.SOFT_BODY).count();
 
-            int pendingCount = manager.getPendingLoadCount();
+            int pendingCount = manager.getDataSystem().getPendingLoadCount();
 
             String message = String.format("Server in dimension %s has:\n- %d Rigid Bodies\n- %d Soft Bodies\n-> Total: %d managed objects.\n%s",
                     serverLevel.dimension().location(),

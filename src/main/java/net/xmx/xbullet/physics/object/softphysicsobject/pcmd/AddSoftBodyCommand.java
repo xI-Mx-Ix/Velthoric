@@ -5,7 +5,7 @@ import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.world.pcmd.ICommand;
@@ -18,7 +18,7 @@ public record AddSoftBodyCommand(SoftPhysicsObject physicsObject, boolean activa
 
     @Override
     public void execute(PhysicsWorld world) {
-        PhysicsObjectManager objectManager = world.getObjectManager();
+        ObjectManager objectManager = world.getObjectManager();
         if (world.getPhysicsSystem() == null || world.getBodyInterface() == null || objectManager == null || physicsObject.isRemoved() || physicsObject.getBodyId() != 0) {
             return;
         }

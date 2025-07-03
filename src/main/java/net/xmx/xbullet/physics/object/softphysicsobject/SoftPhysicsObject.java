@@ -13,10 +13,10 @@ import net.minecraft.world.level.Level;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.item.PhysicsRemoverItem;
 import net.xmx.xbullet.math.PhysicsTransform;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.object.global.physicsobject.AbstractPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.properties.IPhysicsObjectProperties;
 import net.xmx.xbullet.physics.object.softphysicsobject.client.ClientSoftPhysicsObjectData;
 import net.xmx.xbullet.physics.object.softphysicsobject.pcmd.AddSoftBodyCommand;
@@ -146,7 +146,7 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     @Override
     public void onRightClickWithTool(Player player) {
         if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem && player.level() instanceof ServerLevel sl) {
-            PhysicsObjectManager manager = PhysicsWorld.getObjectManager(sl.dimension());
+            ObjectManager manager = PhysicsWorld.getObjectManager(sl.dimension());
             manager.removeObject(this.physicsId, true);
         }
     }

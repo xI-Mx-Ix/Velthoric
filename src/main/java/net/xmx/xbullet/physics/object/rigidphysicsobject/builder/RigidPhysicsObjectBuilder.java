@@ -8,7 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
@@ -52,11 +52,11 @@ public class RigidPhysicsObjectBuilder {
             XBullet.LOGGER.error("Builder: Level is not a ServerLevel or null.");
             return null;
         }
-        PhysicsObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
+        ObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
         return spawn(manager);
     }
 
-    public RigidPhysicsObject spawn(PhysicsObjectManager manager) {
+    public RigidPhysicsObject spawn(ObjectManager manager) {
         if (manager == null) {
             XBullet.LOGGER.error("Builder: PhysicsObjectManager is null.");
             return null;

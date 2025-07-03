@@ -10,7 +10,7 @@ import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.natives.NativeJoltInitializer;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.pcmd.ICommand;
 import net.xmx.xbullet.physics.world.pcmd.RunTaskCommand;
 import net.xmx.xbullet.physics.world.pcmd.UpdatePhysicsStateCommand;
@@ -71,7 +71,7 @@ public final class PhysicsWorld implements Runnable, Executor {
 
     private final ServerLevel level;
     private final ResourceKey<Level> dimensionKey;
-    private final PhysicsObjectManager physicsObjectManager;
+    private final ObjectManager objectManager;
     private final ConstraintManager constraintManager;
     private final TerrainSystem terrainSystem;
 
@@ -100,15 +100,15 @@ public final class PhysicsWorld implements Runnable, Executor {
         this.level = level;
         this.dimensionKey = level.dimension();
         this.fixedTimeStep = 1.0f / DEFAULT_SIMULATION_HZ;
-        this.physicsObjectManager = new PhysicsObjectManager();
-        this.constraintManager = new ConstraintManager(this.physicsObjectManager);
+        this.objectManager = new ObjectManager();
+        this.constraintManager = new ConstraintManager(this.objectManager);
         this.terrainSystem = new TerrainSystem(this, this.level);
     }
 
     private void initializeAndStart() {
-        this.physicsObjectManager.initialize(this);
+        this.objectManager.initialize(this);
         this.constraintManager.initialize(this);
-        this.terrainSystem.initialize(this.physicsObjectManager);
+        this.terrainSystem.initialize(this.objectManager);
 
         if (this.physicsThreadExecutor != null && this.physicsThreadExecutor.isAlive()) {
             return;
@@ -132,8 +132,8 @@ public final class PhysicsWorld implements Runnable, Executor {
         if (this.constraintManager != null) {
             this.constraintManager.shutdown();
         }
-        if (this.physicsObjectManager != null) {
-            this.physicsObjectManager.shutdown();
+        if (this.objectManager != null) {
+            this.objectManager.shutdown();
         }
 
         if (this.physicsThreadExecutor != null) {
@@ -285,8 +285,8 @@ public final class PhysicsWorld implements Runnable, Executor {
         queueCommand(new RunTaskCommand(task));
     }
 
-    public PhysicsObjectManager getObjectManager() {
-        return physicsObjectManager;
+    public ObjectManager getObjectManager() {
+        return objectManager;
     }
 
     public ConstraintManager getConstraintManager() {
@@ -306,11 +306,11 @@ public final class PhysicsWorld implements Runnable, Executor {
     }
 
     public Map<UUID, IPhysicsObject> getPhysicsObjectsMap() {
-        return physicsObjectManager.getManagedObjects();
+        return objectManager.getManagedObjects();
     }
 
     public Optional<IPhysicsObject> findPhysicsObjectByBodyId(int bodyId) {
-        return physicsObjectManager.getObjectByBodyId(bodyId);
+        return objectManager.getObjectByBodyId(bodyId);
     }
 
     public float getFixedTimeStep() {
@@ -349,7 +349,7 @@ public final class PhysicsWorld implements Runnable, Executor {
     }
 
     @Nullable
-    public static PhysicsObjectManager getObjectManager(ResourceKey<Level> dimensionKey) {
+    public static ObjectManager getObjectManager(ResourceKey<Level> dimensionKey) {
         PhysicsWorld world = get(dimensionKey);
         return world != null ? world.getObjectManager() : null;
     }

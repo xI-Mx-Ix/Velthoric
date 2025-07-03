@@ -7,7 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.pcmd.ActivateBodyCommand;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.terrain.chunk.TerrainSection;
@@ -37,7 +37,7 @@ public class TerrainSystem implements Runnable {
         this.level = level;
     }
 
-    public void initialize(PhysicsObjectManager manager) {
+    public void initialize(ObjectManager manager) {
         if (isRunning || isShutdown.get()) return;
         this.chunkManager = new TerrainChunkManager(this, physicsWorld, level);
         this.priorityUpdater = new TerrainPriorityUpdater(level, manager, this.physicsWorld);
@@ -138,6 +138,15 @@ public class TerrainSystem implements Runnable {
             section.setState(TerrainSection.State.PLACEHOLDER);
             section.setPriority(Double.MAX_VALUE);
         }
+    }
+
+    public boolean isSectionReady(SectionPos pos) {
+        if (chunkManager == null) return false;
+        TerrainSection section = chunkManager.getSection(pos);
+        if (section == null) return false;
+
+        TerrainSection.State state = section.getState();
+        return state == TerrainSection.State.READY_INACTIVE || state == TerrainSection.State.READY_ACTIVE;
     }
 
     public void onChunkUnload(ChunkAccess chunk) {

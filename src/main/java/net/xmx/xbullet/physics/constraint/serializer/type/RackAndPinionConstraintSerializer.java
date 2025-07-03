@@ -7,7 +7,7 @@ import net.xmx.xbullet.physics.constraint.IConstraint;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.util.NbtUtil;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
@@ -27,7 +27,7 @@ public class RackAndPinionConstraintSerializer implements IConstraintSerializer<
     }
 
     @Override
-    public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
+    public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, ObjectManager objectManager) {
         UUID[] dependentConstraintIds = loadDependentConstraintIds(tag);
         if (dependentConstraintIds == null) {
             return CompletableFuture.completedFuture(null);

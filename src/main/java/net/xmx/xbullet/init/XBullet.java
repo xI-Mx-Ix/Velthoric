@@ -24,6 +24,7 @@ public class XBullet {
     public static final Logger LOGGER = LogManager.getLogger();
 
     public static final IEventBus eventBus = FMLJavaModLoadingContext.get().getModEventBus();
+    public static final IEventBus forgeEventBus = MinecraftForge.EVENT_BUS;
 
     private static volatile XBullet instance;
 
@@ -38,7 +39,7 @@ public class XBullet {
         ModLoadingContext.get().registerConfig(net.minecraftforge.fml.config.ModConfig.Type.COMMON, ModConfig.COMMON_SPEC);
 
         ModRegistries.register(eventBus);
-        RegisterEvents.register(eventBus);
+        RegisterEvents.register(eventBus, forgeEventBus);
 
         MinecraftForge.EVENT_BUS.addListener(this::onRegisterCommands);
         MinecraftForge.EVENT_BUS.addListener(this::onRegisterClientCommands);
@@ -49,7 +50,6 @@ public class XBullet {
 
     private void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
-            RegisterEvents.register(eventBus);
             BuiltInPhysicsRegistry.register();
             ConstraintSerializerRegistry.registerDefaults();
             NetworkHandler.register();
@@ -66,7 +66,7 @@ public class XBullet {
     private void clientSetup(final FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
 
-            RegisterEvents.registerClient(FMLJavaModLoadingContext.get().getModEventBus());
+            RegisterEvents.registerClient(forgeEventBus, MinecraftForge.EVENT_BUS);
             BuiltInPhysicsRegistry.registerClientRenderers();
         });
     }

@@ -6,7 +6,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.util.NbtUtil;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -25,7 +25,7 @@ public class ConeConstraintSerializer implements IConstraintSerializer<ConeConst
     }
 
     @Override
-    public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
+    public CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, ObjectManager objectManager) {
         return createFromLoadedBodies(tag, objectManager, (bodyInterface, b1Id, b2Id, t) -> {
             ConeConstraintSettings settings = new ConeConstraintSettings();
             try {

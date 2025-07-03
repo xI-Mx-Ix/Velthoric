@@ -11,7 +11,7 @@ import net.xmx.xbullet.physics.constraint.IConstraint;
 import net.xmx.xbullet.physics.constraint.ManagedConstraint;
 import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import javax.annotation.Nullable;
 import java.util.Map;
@@ -23,10 +23,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ConstraintLoader {
 
     private final ConstraintManager constraintManager;
-    private final PhysicsObjectManager objectManager;
+    private final ObjectManager objectManager;
     private final Map<UUID, CompletableFuture<IConstraint>> pendingJointLoads = new ConcurrentHashMap<>();
 
-    public ConstraintLoader(ConstraintManager constraintManager, PhysicsObjectManager objectManager) {
+    public ConstraintLoader(ConstraintManager constraintManager, ObjectManager objectManager) {
         this.constraintManager = constraintManager;
         this.objectManager = objectManager;
     }
@@ -109,8 +109,8 @@ public class ConstraintLoader {
 
         if (bodyIds == null) return false;
 
-        return objectManager.getSavedData().getObjectData(bodyIds[0]).map(tag -> isObjectInChunk(tag, chunkPos)).orElse(false) ||
-                objectManager.getSavedData().getObjectData(bodyIds[1]).map(tag -> isObjectInChunk(tag, chunkPos)).orElse(false);
+        return objectManager.getDataSystem().getSavedData().getObjectData(bodyIds[0]).map(tag -> isObjectInChunk(tag, chunkPos)).orElse(false) ||
+                objectManager.getDataSystem().getSavedData().getObjectData(bodyIds[1]).map(tag -> isObjectInChunk(tag, chunkPos)).orElse(false);
     }
 
     private boolean isObjectInChunk(CompoundTag objTag, ChunkPos chunkPos) {

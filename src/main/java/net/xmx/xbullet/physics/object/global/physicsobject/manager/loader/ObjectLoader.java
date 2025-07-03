@@ -1,4 +1,4 @@
-package net.xmx.xbullet.physics.object.global.physicsobject.manager;
+package net.xmx.xbullet.physics.object.global.physicsobject.manager.loader;
 
 import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.nbt.CompoundTag;
@@ -7,61 +7,62 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
+import net.xmx.xbullet.physics.XBulletSavedData;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.pcmd.AddRigidBodyCommand;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 import net.xmx.xbullet.physics.object.softphysicsobject.pcmd.AddSoftBodyCommand;
 
-import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class PhysicsObjectLoader {
+class ObjectLoader {
 
-    private final PhysicsObjectManager objManager;
+    private final ObjectManager objectManager;
+    private final ObjectDataSystem dataSystem;
     private final Map<UUID, CompletableFuture<IPhysicsObject>> pendingLoads = new ConcurrentHashMap<>();
-    private final ExecutorService loadingExecutor;
+    private ExecutorService loadingExecutor;
 
-    public PhysicsObjectLoader(PhysicsObjectManager manager) {
-        this.objManager = manager;
+    ObjectLoader(ObjectManager manager, ObjectDataSystem dataSystem) {
+        this.objectManager = manager;
+        this.dataSystem = dataSystem;
+    }
+
+    void initialize() {
+        if (this.loadingExecutor != null) {
+            this.loadingExecutor.shutdownNow();
+        }
         int threadCount = Math.max(1, Runtime.getRuntime().availableProcessors() / 4);
         this.loadingExecutor = Executors.newFixedThreadPool(threadCount, r -> new Thread(r, "XBullet-ObjectLoader-Pool"));
     }
 
-    public void loadObjectsInChunk(ChunkPos chunkPos) {
-        if (!objManager.isInitialized() || objManager.getSavedData() == null) {
-            return;
-        }
-
-        for (Map.Entry<UUID, CompoundTag> entry : objManager.getSavedData().getAllObjectEntries()) {
+    void loadObjectsInChunk(ChunkPos chunkPos, XBulletSavedData savedData) {
+        for (Map.Entry<UUID, CompoundTag> entry : savedData.getAllObjectEntries()) {
             UUID id = entry.getKey();
-            if (pendingLoads.containsKey(id) || objManager.getManagedObjects().containsKey(id)) {
+            if (pendingLoads.containsKey(id) || objectManager.getManagedObjects().containsKey(id)) {
                 continue;
             }
-
             if (isObjectInChunk(entry.getValue(), chunkPos)) {
-                scheduleObjectLoad(id);
+                scheduleObjectLoad(id, false, savedData);
             }
         }
     }
 
-    public CompletableFuture<IPhysicsObject> scheduleObjectLoad(UUID objectId, boolean initiallyActive) {
+    CompletableFuture<IPhysicsObject> scheduleObjectLoad(UUID objectId, boolean initiallyActive, XBulletSavedData savedData) {
         return pendingLoads.computeIfAbsent(objectId, id -> {
-            Optional<CompoundTag> objTagOpt = objManager.getSavedData().getObjectData(id);
+            Optional<CompoundTag> objTagOpt = savedData.getObjectData(id);
             if (objTagOpt.isEmpty()) {
                 return CompletableFuture.failedFuture(new IllegalStateException("No saved data for object " + id));
             }
 
             CompoundTag objTag = objTagOpt.get();
             String typeId = objTag.getString("objectTypeIdentifier");
-            if (typeId.isEmpty() || !objManager.getRegisteredObjectFactories().containsKey(typeId)) {
+            if (typeId.isEmpty() || !objectManager.getRegisteredObjectFactories().containsKey(typeId)) {
                 return CompletableFuture.failedFuture(new IllegalArgumentException("No factory for type " + typeId));
             }
 
@@ -70,18 +71,18 @@ public class PhysicsObjectLoader {
                 if (objTag.contains("transform", 10)) {
                     transform.fromNbt(objTag.getCompound("transform"));
                 }
-                return objManager.createPhysicsObject(typeId, id, objManager.managedLevel, transform, objTag);
+                return objectManager.createPhysicsObject(typeId, id, objectManager.getManagedLevel(), transform, objTag);
             }, loadingExecutor).thenApplyAsync(obj -> {
                 if (obj != null) {
                     if (obj instanceof RigidPhysicsObject rpo) {
-                        AddRigidBodyCommand.queue(objManager.getPhysicsWorld(), rpo, initiallyActive);
+                        AddRigidBodyCommand.queue(objectManager.getPhysicsWorld(), rpo, initiallyActive);
                     } else if (obj instanceof SoftPhysicsObject spo) {
-                        AddSoftBodyCommand.queue(objManager.getPhysicsWorld(), spo, initiallyActive);
+                        AddSoftBodyCommand.queue(objectManager.getPhysicsWorld(), spo, initiallyActive);
                     }
-                    objManager.manageLoadedObject(obj);
+                    objectManager.manageNewObject(obj, false);
                 }
                 return obj;
-            }, objManager.managedLevel.getServer());
+            }, objectManager.getManagedLevel().getServer());
 
             future.whenComplete((res, ex) -> {
                 if (ex != null) {
@@ -93,16 +94,29 @@ public class PhysicsObjectLoader {
             return future;
         });
     }
-
-    public CompletableFuture<IPhysicsObject> scheduleObjectLoad(UUID objectId) {
-        return this.scheduleObjectLoad(objectId, true);
+    
+    void unloadObjectsInChunk(ChunkPos chunkPos) {
+        new ArrayList<>(objectManager.getManagedObjects().values()).forEach(obj -> {
+            RVec3 pos = obj.getCurrentTransform().getTranslation();
+            if (pos.xx() >= chunkPos.getMinBlockX() && pos.xx() < chunkPos.getMaxBlockX() &&
+                pos.zz() >= chunkPos.getMinBlockZ() && pos.zz() < chunkPos.getMaxBlockZ()) {
+                objectManager.removeObject(obj.getPhysicsId(), false);
+            }
+        });
     }
 
-    @Nullable
-    public CompletableFuture<IPhysicsObject> getPendingLoad(UUID id) {
-        return pendingLoads.get(id);
+    void cancelLoad(UUID id) {
+        Optional.ofNullable(pendingLoads.remove(id)).ifPresent(f -> f.cancel(true));
     }
-
+    
+    void shutdown() {
+        if (loadingExecutor != null) {
+            loadingExecutor.shutdownNow();
+        }
+        pendingLoads.values().forEach(f -> f.cancel(true));
+        pendingLoads.clear();
+    }
+    
     private boolean isObjectInChunk(CompoundTag objTag, ChunkPos chunkPos) {
         if (objTag.contains("transform", 10)) {
             CompoundTag transformTag = objTag.getCompound("transform");
@@ -119,49 +133,7 @@ public class PhysicsObjectLoader {
         return false;
     }
 
-    public void unloadObjectsInChunk(ChunkPos chunkPos) {
-        if (!objManager.isInitialized()) {
-            return;
-        }
-
-        new ArrayList<>(objManager.getManagedObjects().values()).forEach(obj -> {
-            RVec3 pos = obj.getCurrentTransform().getTranslation();
-            int cx = (int) Math.floor(pos.xx() / 16.0);
-            int cz = (int) Math.floor(pos.zz() / 16.0);
-            if (cx == chunkPos.x && cz == chunkPos.z) {
-                objManager.removeObject(obj.getPhysicsId(), false);
-            }
-        });
-
-        pendingLoads.forEach((id, future) -> {
-            future.thenAccept(obj -> {
-                if (obj != null) {
-                    RVec3 pos = obj.getCurrentTransform().getTranslation();
-                    int cx = (int) Math.floor(pos.xx() / 16.0);
-                    int cz = (int) Math.floor(pos.zz() / 16.0);
-                    if (cx == chunkPos.x && cz == chunkPos.z) {
-                        future.cancel(true);
-                    }
-                }
-            });
-        });
-    }
-
-    public void cancelLoad(UUID id) {
-        Optional.ofNullable(pendingLoads.remove(id)).ifPresent(f -> f.cancel(true));
-    }
-
-    public void reset() {
-        pendingLoads.values().forEach(f -> f.cancel(true));
-        pendingLoads.clear();
-    }
-
     public int getPendingLoadCount() {
         return pendingLoads.size();
-    }
-
-    public void shutdown() {
-        loadingExecutor.shutdownNow();
-        reset();
     }
 }

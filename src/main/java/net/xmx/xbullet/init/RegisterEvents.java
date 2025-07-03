@@ -1,6 +1,5 @@
 package net.xmx.xbullet.init;
 
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.xmx.xbullet.debug.ClientDebugEvents;
 import net.xmx.xbullet.item.physicsgun.client.PhysicsGunClientHandler;
@@ -12,39 +11,39 @@ import net.xmx.xbullet.physics.object.global.DetonationEvents;
 import net.xmx.xbullet.physics.object.global.click.ClientSendClick;
 import net.xmx.xbullet.physics.object.global.physicsobject.client.ClientPhysicsObjectManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.client.renderer.PhysicsObjectRenderer;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsChunkLoader;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManagerEvents;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.event.ObjectLifecycleEvents;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.chunk.ObjectChunkLoader;
 import net.xmx.xbullet.physics.world.ClientPhysicsPauseHandler;
 import net.xmx.xbullet.physics.terrain.event.TerrainBlockEvents;
 import net.xmx.xbullet.physics.terrain.event.TerrainSystemEvents;
 
 public class RegisterEvents {
 
-    public static void register(IEventBus modEventBus) {
+    public static void register(IEventBus modEventBus, IEventBus forgeEventBus) {
 
-        MinecraftForge.EVENT_BUS.register(PhysicsLifecycleEvents.class);
-        MinecraftForge.EVENT_BUS.register(PhysicsObjectManagerEvents.class);
+        forgeEventBus.register(PhysicsLifecycleEvents.class);
 
-        MinecraftForge.EVENT_BUS.register(PhysicsChunkLoader.class);
+        forgeEventBus.register(ObjectChunkLoader.class);
+        forgeEventBus.register(ObjectLifecycleEvents.class);
 
-        MinecraftForge.EVENT_BUS.register(DetonationEvents.class);
-        MinecraftForge.EVENT_BUS.register(FluidManagerEvents.class);
-        MinecraftForge.EVENT_BUS.register(PhysicsGunServerHandler.class);
-        MinecraftForge.EVENT_BUS.register(TerrainSystemEvents.class);
-        MinecraftForge.EVENT_BUS.register(TerrainBlockEvents.class);
-        MinecraftForge.EVENT_BUS.register(ConstraintManagerEvents.class);
+        forgeEventBus.register(DetonationEvents.class);
+        forgeEventBus.register(FluidManagerEvents.class);
+        forgeEventBus.register(PhysicsGunServerHandler.class);
+        forgeEventBus.register(TerrainSystemEvents.class);
+        forgeEventBus.register(TerrainBlockEvents.class);
+        forgeEventBus.register(ConstraintManagerEvents.class);
 
     }
 
-    public static void registerClient(IEventBus modEventBus) {
+    public static void registerClient(IEventBus modEventBus, IEventBus forgeEventBus) {
 
-        MinecraftForge.EVENT_BUS.register(ClientPhysicsObjectManager.class);
-        MinecraftForge.EVENT_BUS.register(PhysicsObjectRenderer.class);
-        MinecraftForge.EVENT_BUS.register(ClientPhysicsPauseHandler.class);
+        forgeEventBus.register(ClientPhysicsObjectManager.class);
+        forgeEventBus.register(PhysicsObjectRenderer.class);
+        forgeEventBus.register(ClientPhysicsPauseHandler.class);
 
-        MinecraftForge.EVENT_BUS.register(ClientSendClick.class);
-        MinecraftForge.EVENT_BUS.register(PhysicsGunClientHandler.class);
+        forgeEventBus.register(ClientSendClick.class);
+        forgeEventBus.register(PhysicsGunClientHandler.class);
 
-        MinecraftForge.EVENT_BUS.register(ClientDebugEvents.class);
+        forgeEventBus.register(ClientDebugEvents.class);
     }
 }

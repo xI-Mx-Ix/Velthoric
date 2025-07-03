@@ -15,7 +15,7 @@ import net.xmx.xbullet.builtin.box.BoxRigidPhysicsObject;
 import net.xmx.xbullet.physics.constraint.ManagedConstraint;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.builder.RigidPhysicsObjectBuilder;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
@@ -39,7 +39,7 @@ public class TestJointCommand {
             return 0;
         }
 
-        PhysicsObjectManager objectManager = physicsWorld.getObjectManager();
+        ObjectManager objectManager = physicsWorld.getObjectManager();
 
         CompoundTag props1 = new CompoundTag();
         props1.putString("motionType", EMotionType.Kinematic.name());

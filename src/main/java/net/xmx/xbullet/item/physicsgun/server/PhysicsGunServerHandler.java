@@ -14,7 +14,7 @@ import net.xmx.xbullet.item.physicsgun.PhysicsGunServerRaycastHandler;
 import net.xmx.xbullet.item.physicsgun.packet.S2CConfirmGrabPacket;
 import net.xmx.xbullet.network.NetworkHandler;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
@@ -47,7 +47,7 @@ public class PhysicsGunServerHandler {
         IPhysicsObject pco = hitResult.physicsObject();
         com.github.stephengold.joltjni.Vec3 hitPoint = hitResult.hitPoint();
 
-        PhysicsObjectManager manager = PhysicsWorld.getObjectManager(player.serverLevel().dimension());
+        ObjectManager manager = PhysicsWorld.getObjectManager(player.serverLevel().dimension());
         manager.getPhysicsWorld().execute(() -> {
             net.minecraft.world.phys.Vec3 mcEyePos = player.getEyePosition();
             net.minecraft.world.phys.Vec3 mcHitPoint = new net.minecraft.world.phys.Vec3(hitPoint.getX(), hitPoint.getY(), hitPoint.getZ());
@@ -123,7 +123,7 @@ public class PhysicsGunServerHandler {
                 return;
             }
 
-            PhysicsObjectManager manager = PhysicsWorld.getObjectManager(player.serverLevel().dimension());
+            ObjectManager manager = PhysicsWorld.getObjectManager(player.serverLevel().dimension());
             manager.getPhysicsWorld().execute(() -> {
                 if (info.isRigid) {
                     applyForceToRigidBody(player, info, manager.getPhysicsWorld());

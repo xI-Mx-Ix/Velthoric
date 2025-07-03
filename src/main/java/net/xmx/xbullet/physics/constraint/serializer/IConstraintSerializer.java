@@ -6,7 +6,7 @@ import com.github.stephengold.joltjni.TwoBodyConstraint;
 import net.minecraft.nbt.CompoundTag;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.PhysicsObjectManager;
+import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
@@ -19,7 +19,7 @@ public interface IConstraintSerializer<T extends TwoBodyConstraint> {
 
     void save(T constraint, CompoundTag tag);
 
-    CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, PhysicsObjectManager objectManager);
+    CompletableFuture<TwoBodyConstraint> createAndLink(CompoundTag tag, ConstraintManager constraintManager, ObjectManager objectManager);
 
     @FunctionalInterface
     interface ConstraintCreator<U extends TwoBodyConstraint> {
@@ -28,7 +28,7 @@ public interface IConstraintSerializer<T extends TwoBodyConstraint> {
 
     default CompletableFuture<TwoBodyConstraint> createFromLoadedBodies(
             CompoundTag tag,
-            PhysicsObjectManager objectManager,
+            ObjectManager objectManager,
             ConstraintCreator<T> creator) {
 
         UUID[] bodyIds = loadBodyIds(tag);

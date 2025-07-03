@@ -14,7 +14,6 @@ public record ActivateBodyCommand(int bodyId) implements ICommand {
 
         BodyInterface bodyInterface = world.getBodyInterface();
         if (bodyInterface != null && bodyInterface.isAdded(bodyId)) {
-
             bodyInterface.activateBody(bodyId);
         }
     }
