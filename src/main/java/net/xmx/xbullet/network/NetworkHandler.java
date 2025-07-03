@@ -11,7 +11,6 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraftforge.network.NetworkEvent;
 import net.xmx.xbullet.command.xbullet.packet.ClientPhysicsObjectCountResponsePacket;
 import net.xmx.xbullet.command.xbullet.packet.RequestClientPhysicsObjectCountPacket;
-import net.xmx.xbullet.item.physicsgun.packet.*;
 import net.xmx.xbullet.physics.object.global.click.PhysicsClickPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.RemovePhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.SpawnPhysicsObjectPacket;
@@ -43,38 +42,11 @@ public class NetworkHandler {
 
     public static void register() {
 
-
-        registerPacket(
-                C2SPhysicsGunScrollPacket.class,
-                C2SPhysicsGunScrollPacket::encode,
-                C2SPhysicsGunScrollPacket::decode,
-                C2SPhysicsGunScrollPacket::handle
-        );
-
-        registerPacket(
-                C2SRequestPhysicsGunActionPacket.class,
-                C2SRequestPhysicsGunActionPacket::encode,
-                C2SRequestPhysicsGunActionPacket::decode,
-                C2SRequestPhysicsGunActionPacket::handle
-        );
-
         registerPacket(
                 SyncPhysicsObjectPacket.class,
                 SyncPhysicsObjectPacket::encode,
                 SyncPhysicsObjectPacket::new,
                 SyncPhysicsObjectPacket::handle
-        );
-
-        registerPacket(S2CConfirmGrabPacket.class,
-                S2CConfirmGrabPacket::encode,
-                S2CConfirmGrabPacket::decode,
-                S2CConfirmGrabPacket::handle);
-
-        registerPacket(
-                C2SRequestPhysicsGunActionPacket.class,
-                C2SRequestPhysicsGunActionPacket::encode,
-                C2SRequestPhysicsGunActionPacket::decode,
-                C2SRequestPhysicsGunActionPacket::handle
         );
 
         registerPacket(
