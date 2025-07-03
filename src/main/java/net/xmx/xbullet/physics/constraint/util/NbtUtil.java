@@ -5,8 +5,6 @@ import com.github.stephengold.joltjni.enumerate.ESpringMode;
 import net.minecraft.nbt.*;
 import net.xmx.xbullet.init.XBullet;
 
-import java.nio.FloatBuffer;
-
 public class NbtUtil {
 
     public static void putVec3(CompoundTag parent, String key, Vec3 vec) {
