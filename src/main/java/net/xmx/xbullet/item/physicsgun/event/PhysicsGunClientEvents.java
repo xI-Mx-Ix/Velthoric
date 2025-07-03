@@ -39,8 +39,11 @@ public class PhysicsGunClientEvents {
             }
         }
 
-        if (mc.screen == null && event.getAction() != GLFW.GLFW_MOUSE_BUTTON_MIDDLE)
-        event.setCanceled(true);
+        if (mc.screen == null && event.getButton() != GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
+            if (isHoldingGun) {
+                event.setCanceled(true);
+            }
+        }
     }
 
     @SubscribeEvent

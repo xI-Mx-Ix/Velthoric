@@ -91,6 +91,7 @@ public final class PhysicsWorld implements Runnable, Executor {
     private long accumulatedPauseTimeNanos = 0L;
     private long pauseStartTimeNanos = 0L;
     private final float fixedTimeStep;
+
     private float timeAccumulator = 0.0f;
 
     private static final int DEFAULT_SIMULATION_HZ = 60;
@@ -348,6 +349,11 @@ public final class PhysicsWorld implements Runnable, Executor {
     @Nullable
     public BodyLockInterface getBodyLockInterface() {
         return physicsSystem != null ? physicsSystem.getBodyLockInterface() : null;
+    }
+
+    @Nullable
+    public NarrowPhaseQuery getNarrowPhaseQuery() {
+        return physicsSystem != null ? physicsSystem.getNarrowPhaseQuery() : null;
     }
 
     @Nullable

@@ -94,13 +94,13 @@ class ObjectLoader {
             return future;
         });
     }
-    
+
     void unloadObjectsInChunk(ChunkPos chunkPos) {
         new ArrayList<>(objectManager.getManagedObjects().values()).forEach(obj -> {
             RVec3 pos = obj.getCurrentTransform().getTranslation();
             if (pos.xx() >= chunkPos.getMinBlockX() && pos.xx() < chunkPos.getMaxBlockX() &&
-                pos.zz() >= chunkPos.getMinBlockZ() && pos.zz() < chunkPos.getMaxBlockZ()) {
-                objectManager.removeObject(obj.getPhysicsId(), false);
+                    pos.zz() >= chunkPos.getMinBlockZ() && pos.zz() < chunkPos.getMaxBlockZ()) {
+                objectManager.unloadObject(obj.getPhysicsId());
             }
         });
     }
@@ -108,7 +108,7 @@ class ObjectLoader {
     void cancelLoad(UUID id) {
         Optional.ofNullable(pendingLoads.remove(id)).ifPresent(f -> f.cancel(true));
     }
-    
+
     void shutdown() {
         if (loadingExecutor != null) {
             loadingExecutor.shutdownNow();
@@ -116,7 +116,7 @@ class ObjectLoader {
         pendingLoads.values().forEach(f -> f.cancel(true));
         pendingLoads.clear();
     }
-    
+
     private boolean isObjectInChunk(CompoundTag objTag, ChunkPos chunkPos) {
         if (objTag.contains("transform", 10)) {
             CompoundTag transformTag = objTag.getCompound("transform");

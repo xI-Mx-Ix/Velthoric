@@ -12,7 +12,6 @@ import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.level.ChunkWatchEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.network.PacketDistributor;
-import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.network.NetworkHandler;
 import net.xmx.xbullet.physics.XBulletSavedData;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
@@ -54,7 +53,6 @@ public class ObjectChunkLoader {
 
         PhysicsWorld world = PhysicsWorld.get(level.dimension());
         if (world != null && world.isRunning()) {
-
             loadAndSendObjectsInChunk(level, world, chunkPos, player);
         }
     }
@@ -67,7 +65,6 @@ public class ObjectChunkLoader {
 
         ObjectManager manager = PhysicsWorld.getObjectManager(level.dimension());
         if (manager != null && manager.isInitialized()) {
-
             for (IPhysicsObject obj : manager.getManagedObjects().values()) {
                 RVec3 pos = obj.getCurrentTransform().getTranslation();
                 if (pos.xx() >= chunkPos.getMinBlockX() && pos.xx() < chunkPos.getMaxBlockX() &&
@@ -108,15 +105,11 @@ public class ObjectChunkLoader {
                 IPhysicsObject obj = future.getNow(null);
                 if (obj == null) continue;
 
-                objectManager.activateObjectWhenReady(obj);
-
                 SpawnPhysicsObjectPacket packet = new SpawnPhysicsObjectPacket(obj, timestamp);
 
                 if (specificPlayer != null) {
-
                     NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> specificPlayer), packet);
                 } else {
-
                     chunkMap.getPlayers(chunkPos, false).forEach(player -> {
                         NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
                     });
@@ -129,8 +122,7 @@ public class ObjectChunkLoader {
     public static void onChunkUnload(ChunkEvent.Unload event) {
         if (event.getLevel() instanceof ServerLevel level && !level.isClientSide()) {
             ObjectManager manager = PhysicsWorld.getObjectManager(level.dimension());
-            if (manager != null) {
-
+            if (manager != null && manager.isInitialized()) {
                 manager.getDataSystem().unloadObjectsInChunk(event.getChunk().getPos());
             }
         }

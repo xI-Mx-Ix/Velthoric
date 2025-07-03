@@ -29,6 +29,10 @@ public record AddTerrainSectionCommand(TerrainSection section, TerrainSystem ter
                     EMotionType.Static,
                     PhysicsWorld.Layers.STATIC
             )) {
+
+                settings.setFriction(0.7f);
+                settings.setRestitution(0.3f);
+
                 BodyInterface bodyInterface = world.getBodyInterface();
                 if (bodyInterface == null) return;
 

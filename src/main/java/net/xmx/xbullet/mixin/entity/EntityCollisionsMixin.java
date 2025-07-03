@@ -117,7 +117,6 @@ public abstract class EntityCollisionsMixin {
 
                 if (narrowPhaseCollector.hadHit()) {
                     int closestHitBodyId = narrowPhaseCollector.getHit().getBodyId2();
-                    XBullet.LOGGER.info("[DEBUG] EntityCollisionsMixin: Closest Jolt body is {}. Adding to potential colliders.", closestHitBodyId);
                     builder.add(new PhysicsVoxelShape(level, closestHitBodyId));
                 }
             }

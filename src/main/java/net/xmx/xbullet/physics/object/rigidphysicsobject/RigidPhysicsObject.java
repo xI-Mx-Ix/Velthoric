@@ -172,7 +172,7 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     public void onRightClickWithTool(Player player) {
         if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem && player.level() instanceof ServerLevel sl) {
             ObjectManager manager = PhysicsWorld.getObjectManager(sl.dimension());
-            manager.removeObject(this.physicsId, true);
+            manager.deleteObject(this.physicsId);
         }
     }
 

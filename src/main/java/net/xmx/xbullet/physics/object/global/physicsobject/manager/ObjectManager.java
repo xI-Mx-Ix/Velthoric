@@ -1,12 +1,14 @@
 package net.xmx.xbullet.physics.object.global.physicsobject.manager;
 
 import com.github.stephengold.joltjni.RVec3;
+
 import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.network.PacketDistributor;
+
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.network.NetworkHandler;
@@ -95,14 +97,14 @@ public class ObjectManager {
 
         return newObject;
     }
-    
+
     public void manageNewObject(IPhysicsObject obj, boolean sendSpawnPacket) {
         if (!isInitialized() || obj == null || managedObjects.containsKey(obj.getPhysicsId())) {
             return;
         }
         managedObjects.put(obj.getPhysicsId(), obj);
         obj.initializePhysics(physicsWorld);
-        
+
         if (sendSpawnPacket) {
             RVec3 pos = obj.getCurrentTransform().getTranslation();
             ChunkPos chunkPos = new ChunkPos((int) Math.floor(pos.xx() / 16.0), (int) Math.floor(pos.zz() / 16.0));
@@ -111,10 +113,29 @@ public class ObjectManager {
         }
     }
 
-    public void removeObject(UUID id, boolean isPermanent) {
+    public void unloadObject(UUID id) {
         if (!isInitialized()) return;
 
-        if (isPermanent && physicsWorld != null) {
+        IPhysicsObject obj = managedObjects.get(id);
+        if (obj != null) {
+            dataSystem.saveObject(obj);
+            obj.markRemoved();
+            obj.removeFromPhysics(physicsWorld);
+            if (physicsWorld != null) {
+                ConstraintManager constraintManager = physicsWorld.getConstraintManager();
+                if (constraintManager != null && constraintManager.isInitialized()) {
+                    constraintManager.removeConstraintsForObject(id, false);
+                }
+            }
+            managedObjects.remove(id);
+        }
+        dataSystem.cancelLoad(id);
+    }
+
+    public void deleteObject(UUID id) {
+        if (!isInitialized()) return;
+
+        if (physicsWorld != null) {
             ConstraintManager constraintManager = physicsWorld.getConstraintManager();
             if (constraintManager != null && constraintManager.isInitialized()) {
                 constraintManager.removeConstraintsForObject(id, true);
@@ -124,20 +145,11 @@ public class ObjectManager {
         IPhysicsObject obj = managedObjects.remove(id);
         if (obj != null && !obj.isRemoved()) {
             obj.markRemoved();
-            if (!isPermanent && physicsWorld != null) {
-                ConstraintManager constraintManager = physicsWorld.getConstraintManager();
-                if (constraintManager != null && constraintManager.isInitialized()) {
-                    constraintManager.removeConstraintsForObject(id, false);
-                }
-            }
             obj.removeFromPhysics(physicsWorld);
         }
 
         dataSystem.cancelLoad(id);
-
-        if (isPermanent) {
-            dataSystem.removeObject(id);
-        }
+        dataSystem.removeObject(id);
         NetworkHandler.CHANNEL.send(PacketDistributor.DIMENSION.with(managedLevel::dimension), new RemovePhysicsObjectPacket(id));
     }
 
@@ -156,6 +168,7 @@ public class ObjectManager {
             }
             if (!obj.isPhysicsInitialized() && obj.getBodyId() != 0) {
                 obj.confirmPhysicsInitialized();
+                this.activateObjectWhenReady(obj);
             }
             if (obj.getBodyId() == 0 && obj.isPhysicsInitialized()) {
                 obj.markRemoved();
@@ -220,7 +233,7 @@ public class ObjectManager {
                 }
             }
         }
-        toRemove.forEach(id -> removeObject(id, true));
+        toRemove.forEach(this::deleteObject);
     }
 
     public Optional<IPhysicsObject> getObject(UUID id) {
@@ -258,7 +271,7 @@ public class ObjectManager {
         }
         return dataSystem.getOrLoadObject(objectId, false);
     }
-    
+
     public Map<UUID, IPhysicsObject> getManagedObjects() {
         return Collections.unmodifiableMap(managedObjects);
     }
@@ -266,7 +279,7 @@ public class ObjectManager {
     public ObjectDataSystem getDataSystem() {
         return dataSystem;
     }
-    
+
     @Nullable public ServerLevel getManagedLevel() { return managedLevel; }
     @Nullable public PhysicsWorld getPhysicsWorld() { return physicsWorld; }
     public Map<String, GlobalPhysicsObjectRegistry.RegistrationData> getRegisteredObjectFactories() { return Collections.unmodifiableMap(registeredObjectFactories); }
@@ -274,8 +287,10 @@ public class ObjectManager {
     public void shutdown() {
         if (isShutdown.getAndSet(true)) return;
         isInitializedInternal.set(false);
-        dataSystem.saveAll(managedObjects.values());
-        dataSystem.shutdown();
+        if (dataSystem != null) {
+            dataSystem.saveAll(managedObjects.values());
+            dataSystem.shutdown();
+        }
         managedObjects.values().forEach(obj -> {
             if (physicsWorld != null) {
                 obj.removeFromPhysics(physicsWorld);

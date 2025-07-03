@@ -34,6 +34,13 @@ public class PhysicsGunEvents {
             }
         }
     }
+    @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        Player player = event.getEntity();
+        if (player instanceof ServerPlayer) {
+            PhysicsGunManager.getInstance().stopGrab((ServerPlayer) player);
+        }
+    }
 
     private boolean isHoldingPhysicsGun(Player player) {
         return player.getMainHandItem().getItem() instanceof PhysicsGunItem || player.getOffhandItem().getItem() instanceof PhysicsGunItem;

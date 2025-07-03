@@ -5,7 +5,6 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
@@ -33,7 +32,7 @@ public class ObjectLifecycleEvents {
             PhysicsWorld world = PhysicsWorld.get(level.dimension());
             if (world != null && world.isRunning()) {
                 ObjectManager manager = world.getObjectManager();
-                if (manager != null) {
+                if (manager != null && manager.isInitialized()) {
                     manager.getDataSystem().saveAll(manager.getManagedObjects().values());
                 }
             }

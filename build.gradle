@@ -151,7 +151,7 @@ dependencies {
     implementation fg.deobf("curse.maven:oculus-581495:6020952")
     implementation fg.deobf("curse.maven:ferritecore-429235:4810975")
 
-    minecraftLibrary("com.github.stephengold:jolt-jni-Windows64:2.0.1")
+    minecraftLibrary("com.github.stephengold:jolt-jni-Linux64:2.0.1")
     minecraftLibrary("com.github.stephengold:jolt-jni-Windows64:2.0.1:DebugDp")
     minecraftLibrary("com.github.stephengold:jolt-jni-Linux64:2.0.1:DebugDp")
     minecraftLibrary("com.github.stephengold:jolt-jni-Linux_ARM64:2.0.1:DebugDp")
@@ -160,11 +160,11 @@ dependencies {
     minecraftLibrary("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
     shadow("com.github.stephengold:jolt-jni-Windows64:2.0.1")
-    shadow("com.github.stephengold:jolt-jni-Windows64:2.0.1:DebugDp")
-    shadow("com.github.stephengold:jolt-jni-Linux64:2.0.1:DebugDp")
-    shadow("com.github.stephengold:jolt-jni-Linux_ARM64:2.0.1:DebugDp")
-    shadow("com.github.stephengold:jolt-jni-MacOSX64:2.0.1:DebugDp")
-    shadow("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.0.1:DebugDp")
+    shadow("com.github.stephengold:jolt-jni-Windows64:2.0.1:ReleaseDp")
+    shadow("com.github.stephengold:jolt-jni-Linux64:2.0.1:ReleaseDp")
+    shadow("com.github.stephengold:jolt-jni-Linux_ARM64:2.0.1:ReleaseDp")
+    shadow("com.github.stephengold:jolt-jni-MacOSX64:2.0.1:ReleaseDp")
+    shadow("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.0.1:ReleaseDp")
     shadow("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
 }
