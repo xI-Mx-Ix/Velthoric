@@ -2,8 +2,8 @@ package net.xmx.xbullet.init;
 
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.xmx.xbullet.debug.ClientDebugEvents;
-import net.xmx.xbullet.item.physicsgun.client.PhysicsGunClientHandler;
-import net.xmx.xbullet.item.physicsgun.server.PhysicsGunServerHandler;
+import net.xmx.xbullet.item.physicsgun.event.PhysicsGunClientEvents;
+import net.xmx.xbullet.item.physicsgun.event.PhysicsGunEvents;
 import net.xmx.xbullet.physics.PhysicsLifecycleEvents;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManagerEvents;
 import net.xmx.xbullet.physics.object.fluid.FluidManagerEvents;
@@ -28,7 +28,7 @@ public class RegisterEvents {
 
         forgeEventBus.register(DetonationEvents.class);
         forgeEventBus.register(FluidManagerEvents.class);
-        forgeEventBus.register(PhysicsGunServerHandler.class);
+        forgeEventBus.register(PhysicsGunEvents.class);
         forgeEventBus.register(TerrainSystemEvents.class);
         forgeEventBus.register(TerrainBlockEvents.class);
         forgeEventBus.register(ConstraintManagerEvents.class);
@@ -42,7 +42,7 @@ public class RegisterEvents {
         forgeEventBus.register(ClientPhysicsPauseHandler.class);
 
         forgeEventBus.register(ClientSendClick.class);
-        forgeEventBus.register(PhysicsGunClientHandler.class);
+        forgeEventBus.register(PhysicsGunClientEvents.class);
 
         forgeEventBus.register(ClientDebugEvents.class);
     }
