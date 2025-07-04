@@ -2,6 +2,7 @@ package net.xmx.xbullet.math;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.readonly.RVec3Arg;
 import net.minecraft.util.Mth;
 
@@ -54,5 +55,25 @@ public class PhysicsOperations {
         double z = Mth.lerp(alpha, v1.zz(), v2.zz());
         store.set(x, y, z);
         return store;
+    }
+
+    public static Vec3 quatToEulerAngles(Quat q) {
+        Vec3 angles = new Vec3();
+
+        double sinp = 2.0 * (q.getW() * q.getX() + q.getY() * q.getZ());
+        double cosp = 1.0 - 2.0 * (q.getX() * q.getX() + q.getY() * q.getY());
+        angles.setX((float) Math.atan2(sinp, cosp));
+
+        double siny_cosp = 2.0 * (q.getW() * q.getY() - q.getZ() * q.getX());
+        if (Math.abs(siny_cosp) >= 1)
+            angles.setY((float) Math.copySign(Math.PI / 2, siny_cosp));
+        else
+            angles.setY((float) Math.asin(siny_cosp));
+
+        double sinr_cosp = 2.0 * (q.getW() * q.getZ() + q.getX() * q.getY());
+        double cosr_cosp = 1.0 - 2.0 * (q.getY() * q.getY() + q.getZ() * q.getZ());
+        angles.setZ((float) Math.atan2(sinr_cosp, cosr_cosp));
+
+        return angles;
     }
 }
