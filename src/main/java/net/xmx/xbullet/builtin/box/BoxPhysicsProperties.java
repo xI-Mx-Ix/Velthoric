@@ -5,7 +5,7 @@ import net.xmx.xbullet.physics.object.rigidphysicsobject.properties.RigidPhysics
 public class BoxPhysicsProperties {
 
     public static RigidPhysicsObjectProperties boxProperties = RigidPhysicsObjectProperties.builder()
-            .mass(40.0f)
+            .mass(400.0f)
             .friction(0.5f)
             .restitution(0.4f)
             .linearDamping(0.1f)

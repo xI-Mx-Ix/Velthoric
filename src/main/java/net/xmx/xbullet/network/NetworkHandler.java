@@ -15,7 +15,10 @@ import net.xmx.xbullet.item.physicsgun.packet.PhysicsGunActionPacket;
 import net.xmx.xbullet.physics.object.global.click.PhysicsClickPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.RemovePhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.SpawnPhysicsObjectPacket;
+import net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncPhysicsObjectNbtPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncPhysicsObjectPacket;
+import net.xmx.xbullet.physics.object.riding.packet.DismountRequestPacket;
+import net.xmx.xbullet.physics.object.riding.packet.MountPhysicsObjectPacket;
 
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -42,6 +45,28 @@ public class NetworkHandler {
     }
 
     public static void register() {
+
+
+        registerPacket(
+                MountPhysicsObjectPacket.class,
+                MountPhysicsObjectPacket::encode,
+                MountPhysicsObjectPacket::decode,
+                MountPhysicsObjectPacket::handle
+        );
+
+        registerPacket(
+                SyncPhysicsObjectNbtPacket.class,
+                SyncPhysicsObjectNbtPacket::encode,
+                SyncPhysicsObjectNbtPacket::new,
+                SyncPhysicsObjectNbtPacket::handle
+        );
+
+        registerPacket(
+                DismountRequestPacket.class,
+                DismountRequestPacket::encode,
+                DismountRequestPacket::decode,
+                DismountRequestPacket::handle
+        );
 
         registerPacket(
                 SyncPhysicsObjectPacket.class,

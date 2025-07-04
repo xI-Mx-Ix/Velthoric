@@ -18,6 +18,7 @@ import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.loader.ObjectDataSystem;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.RemovePhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.SpawnPhysicsObjectPacket;
+import net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncPhysicsObjectNbtPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncPhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.pcmd.ActivateBodyCommand;
 import net.xmx.xbullet.physics.object.global.physicsobject.registry.GlobalPhysicsObjectRegistry;
@@ -154,44 +155,73 @@ public class ObjectManager {
     }
 
     public void serverTick() {
-        if (!isInitialized()) return;
+        if (!isInitialized()) {
+            return;
+        }
+
         removeObjectsBelowLevel(-100.0f);
+
         Iterator<Map.Entry<UUID, IPhysicsObject>> iterator = managedObjects.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<UUID, IPhysicsObject> entry = iterator.next();
             IPhysicsObject obj = entry.getValue();
             UUID objectId = entry.getKey();
+
             if (obj.isRemoved()) {
                 iterator.remove();
                 lastActiveState.remove(objectId);
                 continue;
             }
+
             if (!obj.isPhysicsInitialized() && obj.getBodyId() != 0) {
                 obj.confirmPhysicsInitialized();
+
                 this.activateObjectWhenReady(obj);
             }
+
             if (obj.getBodyId() == 0 && obj.isPhysicsInitialized()) {
                 obj.markRemoved();
                 continue;
             }
+
             if (!obj.isPhysicsInitialized()) {
                 continue;
             }
+
             obj.serverTick(this.physicsWorld);
+
             boolean currentIsActive = obj.isPhysicsActive();
             Boolean wasActive = lastActiveState.getOrDefault(objectId, false);
-            boolean shouldSync = currentIsActive || wasActive;
-            if (tickCounter % syncInterval == 0 && shouldSync) {
+
+            boolean shouldSyncTransform = currentIsActive || wasActive;
+
+            if (tickCounter % syncInterval == 0 && shouldSyncTransform) {
                 long timestamp = obj.getLastUpdateTimestampNanos();
                 if (timestamp > 0) {
                     RVec3 pos = obj.getCurrentTransform().getTranslation();
                     ChunkPos chunkPos = new ChunkPos((int) Math.floor(pos.xx() / 16.0), (int) Math.floor(pos.zz() / 16.0));
-                    NetworkHandler.CHANNEL.send(PacketDistributor.TRACKING_CHUNK.with(() -> managedLevel.getChunk(chunkPos.x, chunkPos.z)),
-                            new SyncPhysicsObjectPacket(obj, timestamp, currentIsActive));
+
+                    NetworkHandler.CHANNEL.send(
+                            PacketDistributor.TRACKING_CHUNK.with(() -> managedLevel.getChunk(chunkPos.x, chunkPos.z)),
+                            new SyncPhysicsObjectPacket(obj, timestamp, currentIsActive)
+                    );
                 }
             }
             lastActiveState.put(objectId, currentIsActive);
+
+            if (obj.isNbtDirty()) {
+                RVec3 pos = obj.getCurrentTransform().getTranslation();
+                ChunkPos chunkPos = new ChunkPos((int) Math.floor(pos.xx() / 16.0), (int) Math.floor(pos.zz() / 16.0));
+
+                NetworkHandler.CHANNEL.send(
+                        PacketDistributor.TRACKING_CHUNK.with(() -> managedLevel.getChunk(chunkPos.x, chunkPos.z)),
+                        new SyncPhysicsObjectNbtPacket(obj)
+                );
+
+                obj.clearNbtDirty();
+            }
         }
+
         tickCounter++;
     }
 

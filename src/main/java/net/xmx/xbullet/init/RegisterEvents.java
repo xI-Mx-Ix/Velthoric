@@ -13,6 +13,8 @@ import net.xmx.xbullet.physics.object.global.physicsobject.client.ClientPhysicsO
 import net.xmx.xbullet.physics.object.global.physicsobject.client.renderer.PhysicsObjectRenderer;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.event.ObjectLifecycleEvents;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.chunk.ObjectChunkLoader;
+import net.xmx.xbullet.physics.object.riding.event.ClientRidingEvents;
+import net.xmx.xbullet.physics.object.riding.event.ServerRidingEvents;
 import net.xmx.xbullet.physics.world.ClientPhysicsPauseHandler;
 import net.xmx.xbullet.physics.terrain.event.TerrainBlockEvents;
 import net.xmx.xbullet.physics.terrain.event.TerrainSystemEvents;
@@ -33,6 +35,8 @@ public class RegisterEvents {
         forgeEventBus.register(TerrainBlockEvents.class);
         forgeEventBus.register(ConstraintManagerEvents.class);
 
+        forgeEventBus.register(ServerRidingEvents.class);
+
     }
 
     public static void registerClient(IEventBus modEventBus, IEventBus forgeEventBus) {
@@ -45,5 +49,7 @@ public class RegisterEvents {
         forgeEventBus.register(PhysicsGunClientEvents.class);
 
         forgeEventBus.register(ClientDebugEvents.class);
+
+        forgeEventBus.register(ClientRidingEvents.class);
     }
 }

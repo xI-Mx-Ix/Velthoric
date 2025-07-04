@@ -1,8 +1,6 @@
 package net.xmx.xbullet.builtin.box;
 
-import com.github.stephengold.joltjni.BoxShapeSettings;
-import com.github.stephengold.joltjni.ShapeSettings;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.*;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
@@ -20,6 +18,7 @@ public class BoxRigidPhysicsObject extends RigidPhysicsObject {
 
     public BoxRigidPhysicsObject(UUID physicsId, Level level, String objectTypeIdentifier, PhysicsTransform initialTransform, IPhysicsObjectProperties properties, @Nullable CompoundTag initialNbt) {
         super(physicsId, level, objectTypeIdentifier, initialTransform, properties, initialNbt);
+
         if (this.halfExtents == null) {
             this.halfExtents = new Vec3(0.5f, 0.5f, 0.5f);
         }
@@ -50,11 +49,9 @@ public class BoxRigidPhysicsObject extends RigidPhysicsObject {
                     extentsTag.getFloat("y"),
                     extentsTag.getFloat("z")
             );
-        } else {
-            this.halfExtents = new Vec3(0.5f, 0.5f, 0.5f);
         }
     }
-
+    
     public Vec3 getHalfExtents() {
         return halfExtents;
     }

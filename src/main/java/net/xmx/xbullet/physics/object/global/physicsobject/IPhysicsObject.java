@@ -7,12 +7,13 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
+import net.xmx.xbullet.physics.object.riding.IRideable;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
 
-public interface IPhysicsObject {
+public interface IPhysicsObject extends IRideable {
     UUID getPhysicsId();
     String getObjectTypeIdentifier();
     EObjectType getPhysicsObjectType();
@@ -42,4 +43,8 @@ public interface IPhysicsObject {
     boolean isPhysicsActive();
     long getLastUpdateTimestampNanos();
     @Nullable float[] getLastSyncedVertexData();
+
+    void markNbtDirty();
+    boolean isNbtDirty();
+    void clearNbtDirty();
 }

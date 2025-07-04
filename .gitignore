@@ -16,3 +16,6 @@ run/
 .idea/
 *.iml
 out/
+
+# Resources with "All Rights Reserved" license
+src/main/resources/assets/xbullet/obj/
