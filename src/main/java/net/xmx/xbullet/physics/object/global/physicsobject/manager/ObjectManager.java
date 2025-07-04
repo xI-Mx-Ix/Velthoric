@@ -16,10 +16,10 @@ import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.loader.ObjectDataSystem;
+import net.xmx.xbullet.physics.object.global.physicsobject.PhysicsObjectState;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.RemovePhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.SpawnPhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncPhysicsObjectNbtPacket;
-import net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncPhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.pcmd.ActivateBodyCommand;
 import net.xmx.xbullet.physics.object.global.physicsobject.registry.GlobalPhysicsObjectRegistry;
 import net.xmx.xbullet.physics.terrain.manager.TerrainSystem;
@@ -40,7 +40,8 @@ public class ObjectManager {
     @Nullable private PhysicsWorld physicsWorld;
     @Nullable ServerLevel managedLevel;
     private int tickCounter = 0;
-    private final int syncInterval = 1;
+
+    private static final int MAX_PACKET_PAYLOAD_SIZE = 100 * 1024;
 
     final ObjectDataSystem dataSystem;
     private final AtomicBoolean isInitializedInternal = new AtomicBoolean(false);
@@ -161,6 +162,9 @@ public class ObjectManager {
 
         removeObjectsBelowLevel(-100.0f);
 
+        List<PhysicsObjectState> currentBatch = new ArrayList<>();
+        int currentBatchSizeBytes = 0;
+
         Iterator<Map.Entry<UUID, IPhysicsObject>> iterator = managedObjects.entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<UUID, IPhysicsObject> entry = iterator.next();
@@ -172,18 +176,14 @@ public class ObjectManager {
                 lastActiveState.remove(objectId);
                 continue;
             }
-
             if (!obj.isPhysicsInitialized() && obj.getBodyId() != 0) {
                 obj.confirmPhysicsInitialized();
-
                 this.activateObjectWhenReady(obj);
             }
-
             if (obj.getBodyId() == 0 && obj.isPhysicsInitialized()) {
                 obj.markRemoved();
                 continue;
             }
-
             if (!obj.isPhysicsInitialized()) {
                 continue;
             }
@@ -192,19 +192,28 @@ public class ObjectManager {
 
             boolean currentIsActive = obj.isPhysicsActive();
             Boolean wasActive = lastActiveState.getOrDefault(objectId, false);
-
             boolean shouldSyncTransform = currentIsActive || wasActive;
 
-            if (tickCounter % syncInterval == 0 && shouldSyncTransform) {
+            if (shouldSyncTransform) {
                 long timestamp = obj.getLastUpdateTimestampNanos();
                 if (timestamp > 0) {
-                    RVec3 pos = obj.getCurrentTransform().getTranslation();
-                    ChunkPos chunkPos = new ChunkPos((int) Math.floor(pos.xx() / 16.0), (int) Math.floor(pos.zz() / 16.0));
 
-                    NetworkHandler.CHANNEL.send(
-                            PacketDistributor.TRACKING_CHUNK.with(() -> managedLevel.getChunk(chunkPos.x, chunkPos.z)),
-                            new SyncPhysicsObjectPacket(obj, timestamp, currentIsActive)
-                    );
+                    var state = PhysicsObjectState.from(obj, timestamp, currentIsActive);
+                    int stateSize = state.estimateEncodedSize();
+
+                    if (!currentBatch.isEmpty() && currentBatchSizeBytes + stateSize > MAX_PACKET_PAYLOAD_SIZE) {
+
+                        NetworkHandler.CHANNEL.send(
+                                PacketDistributor.DIMENSION.with(managedLevel::dimension),
+                                new net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncAllPhysicsObjectsPacket(currentBatch)
+                        );
+
+                        currentBatch = new ArrayList<>();
+                        currentBatchSizeBytes = 0;
+                    }
+
+                    currentBatch.add(state);
+                    currentBatchSizeBytes += stateSize;
                 }
             }
             lastActiveState.put(objectId, currentIsActive);
@@ -212,14 +221,19 @@ public class ObjectManager {
             if (obj.isNbtDirty()) {
                 RVec3 pos = obj.getCurrentTransform().getTranslation();
                 ChunkPos chunkPos = new ChunkPos((int) Math.floor(pos.xx() / 16.0), (int) Math.floor(pos.zz() / 16.0));
-
                 NetworkHandler.CHANNEL.send(
                         PacketDistributor.TRACKING_CHUNK.with(() -> managedLevel.getChunk(chunkPos.x, chunkPos.z)),
                         new SyncPhysicsObjectNbtPacket(obj)
                 );
-
                 obj.clearNbtDirty();
             }
+        }
+
+        if (!currentBatch.isEmpty()) {
+            NetworkHandler.CHANNEL.send(
+                    PacketDistributor.DIMENSION.with(managedLevel::dimension),
+                    new net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncAllPhysicsObjectsPacket(currentBatch)
+            );
         }
 
         tickCounter++;

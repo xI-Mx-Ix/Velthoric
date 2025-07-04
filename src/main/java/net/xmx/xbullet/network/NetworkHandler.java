@@ -13,10 +13,7 @@ import net.xmx.xbullet.command.xbullet.packet.ClientPhysicsObjectCountResponsePa
 import net.xmx.xbullet.command.xbullet.packet.RequestClientPhysicsObjectCountPacket;
 import net.xmx.xbullet.item.physicsgun.packet.PhysicsGunActionPacket;
 import net.xmx.xbullet.physics.object.global.click.PhysicsClickPacket;
-import net.xmx.xbullet.physics.object.global.physicsobject.packet.RemovePhysicsObjectPacket;
-import net.xmx.xbullet.physics.object.global.physicsobject.packet.SpawnPhysicsObjectPacket;
-import net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncPhysicsObjectNbtPacket;
-import net.xmx.xbullet.physics.object.global.physicsobject.packet.SyncPhysicsObjectPacket;
+import net.xmx.xbullet.physics.object.global.physicsobject.packet.*;
 import net.xmx.xbullet.physics.object.riding.packet.DismountRequestPacket;
 import net.xmx.xbullet.physics.object.riding.packet.MountPhysicsObjectPacket;
 
@@ -69,12 +66,11 @@ public class NetworkHandler {
         );
 
         registerPacket(
-                SyncPhysicsObjectPacket.class,
-                SyncPhysicsObjectPacket::encode,
-                SyncPhysicsObjectPacket::new,
-                SyncPhysicsObjectPacket::handle
+                SyncAllPhysicsObjectsPacket.class,
+                SyncAllPhysicsObjectsPacket::encode,
+                SyncAllPhysicsObjectsPacket::new,
+                SyncAllPhysicsObjectsPacket::handle
         );
-
 
         registerPacket(
                 PhysicsGunActionPacket.class,
