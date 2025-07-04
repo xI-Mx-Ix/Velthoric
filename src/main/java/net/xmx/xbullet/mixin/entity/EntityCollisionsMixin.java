@@ -2,10 +2,8 @@ package net.xmx.xbullet.mixin.entity;
 
 import com.google.common.collect.ImmutableList;
 import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.readonly.RVec3Arg;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.xbullet.init.XBullet;
@@ -20,7 +18,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(Entity.class)
@@ -38,9 +35,7 @@ public abstract class EntityCollisionsMixin {
             Level pLevel,
             List<VoxelShape> pPotentialHits,
             CallbackInfoReturnable<net.minecraft.world.phys.Vec3> cir,
-            ImmutableList.Builder<VoxelShape> builder,
-            WorldBorder worldborder,
-            boolean flag) {
+            ImmutableList.Builder<VoxelShape> builder) {
 
         jolt$addPhysicsCollisions(pLevel, pCollisionBox, pVec, builder);
     }
@@ -78,50 +73,15 @@ public abstract class EntityCollisionsMixin {
                 return;
             }
 
-            List<Integer> candidateBodyIds = new ArrayList<>();
             for (int bodyId : broadPhaseCollector.getHits()) {
+
                 if (!terrainSystem.isTerrainBody(bodyId)) {
-                    candidateBodyIds.add(bodyId);
+                    builder.add(new PhysicsVoxelShape(level, bodyId));
                 }
             }
 
-            if (candidateBodyIds.isEmpty()) {
-                return;
-            }
-
-            NarrowPhaseQuery narrowPhaseQuery = physicsWorld.getPhysicsSystem().getNarrowPhaseQuery();
-
-            float xSize = (float) collisionBox.getXsize() / 2f;
-            float ySize = (float) collisionBox.getYsize() / 2f;
-            float zSize = (float) collisionBox.getZsize() / 2f;
-            net.minecraft.world.phys.Vec3 center = collisionBox.getCenter();
-
-            try (BoxShape entityShape = new BoxShape(xSize, ySize, zSize);
-                 ClosestHitCastShapeCollector narrowPhaseCollector = new ClosestHitCastShapeCollector();
-                 ShapeCastSettings shapeCastSettings = new ShapeCastSettings();
-                 ShapeFilter shapeFilter = new ShapeFilter();
-                 BodyFilter candidateFilter = new BodyFilter() {
-                     @Override
-                     public boolean shouldCollide(int bodyId) {
-                         return candidateBodyIds.contains(bodyId);
-                     }
-                 }) {
-
-                RVec3Arg startPos = new Vec3(center.x, center.y, center.z).toRVec3();
-                RMat44 startTransform = RMat44.sRotationTranslation(Quat.sIdentity(), startPos);
-                Vec3 motion = new Vec3((float) movement.x, (float) movement.y, (float) movement.z);
-                RShapeCast shapeCast = RShapeCast.sFromWorldTransform(entityShape, new Vec3(1, 1, 1), startTransform, motion);
-
-                narrowPhaseQuery.castShape(shapeCast, shapeCastSettings, startPos, narrowPhaseCollector,
-                        bplFilter, olFilter, candidateFilter, shapeFilter);
-
-                if (narrowPhaseCollector.hadHit()) {
-                    int closestHitBodyId = narrowPhaseCollector.getHit().getBodyId2();
-                    builder.add(new PhysicsVoxelShape(level, closestHitBodyId));
-                }
-            }
         } catch (Exception e) {
-            XBullet.LOGGER.error("Error during Jolt broad-phase/narrow-phase query for entity collisions", e);
+            XBullet.LOGGER.error("Error during Jolt broad-phase query for entity collisions", e);
         }
     }
 }

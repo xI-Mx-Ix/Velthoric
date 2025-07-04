@@ -1,12 +1,15 @@
 package net.xmx.xbullet.item.physicsgun;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.Body;
+import com.github.stephengold.joltjni.BodyLockWrite;
+import com.github.stephengold.joltjni.MotionProperties;
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.xbullet.physics.object.global.PhysicsRaytracing;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
 import java.util.UUID;
@@ -14,18 +17,23 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class PhysicsGunManager {
 
-    private static final Logger LOGGER = LogManager.getLogger();
     private static final PhysicsGunManager INSTANCE = new PhysicsGunManager();
     private final Map<UUID, GrabbedObjectInfo> grabbedObjects = new ConcurrentHashMap<>();
 
-    private static final float POSITIONAL_SPRING_CONSTANT = 400000.0f;
-    private static final float POSITIONAL_DAMPING_FACTOR = 40000.0f;
-    private static final float ROTATIONAL_SPRING_CONSTANT = 20000.0f;
-    private static final float ROTATIONAL_DAMPING_FACTOR = 2000.0f;
-    private static final float MAX_LINEAR_FORCE = 1000000.0f;
-    private static final float MAX_ANGULAR_TORQUE = 10000.0f;
-    private static final float MIN_DISTANCE = 1.5f;
-    private static final float MAX_DISTANCE = 25.0f;
+
+    private static final float POSITIONAL_SPRING_CONSTANT = 100_000f;
+
+    private static final float POSITIONAL_DAMPING_FACTOR = 15_000f;
+
+    private static final float ROTATIONAL_SPRING_CONSTANT = 8_000f;
+    private static final float ROTATIONAL_DAMPING_FACTOR = 4_000f;
+
+    private static final float MAX_LINEAR_FORCE = 750_000f;
+    private static final float MAX_ANGULAR_TORQUE = 1_500_000f;
+
+    private static final float MIN_DISTANCE = 2.0f;
+    private static final float MAX_DISTANCE = 450.0f;
+
 
     private PhysicsGunManager() {}
 
@@ -39,8 +47,9 @@ public class PhysicsGunManager {
             float currentDistance,
             float originalGravityFactor,
             float originalAngularDamping,
-            Vec3 originalAngularVelocity,
-            Quat lastPlayerLookRotation
+
+            Quat initialBodyRotation,
+            Quat initialPlayerRotation
     ) {}
 
     public void startGrab(ServerPlayer player) {
@@ -73,11 +82,12 @@ public class PhysicsGunManager {
                             try (var invBodyTransform = body.getInverseCenterOfMassTransform()) {
                                 float originalGravity = motionProperties.getGravityFactor();
                                 float originalDamping = motionProperties.getAngularDamping();
-                                Vec3 originalVelocity = body.getAngularVelocity();
 
-                                var hitPointLocal = Op.star(invBodyTransform, hitPointWorld).toVec3();
-                                var grabDistance = (float) Op.minus(rayOrigin, hitPointWorld).length();
-                                var playerLookRotation = Quat.sFromTo(new Vec3(0, 0, -1), rayDirection);
+                                Vec3 hitPointLocal = Op.star(invBodyTransform, hitPointWorld).toVec3();
+                                float grabDistance = (float) Op.minus(rayOrigin, hitPointWorld).length();
+
+                                Quat initialPlayerRot = Quat.sFromTo(new Vec3(0, 0, -1), rayDirection.normalized());
+                                Quat initialBodyRot = body.getRotation();
 
                                 var info = new GrabbedObjectInfo(
                                         physicsHit.getBodyId(),
@@ -85,21 +95,20 @@ public class PhysicsGunManager {
                                         grabDistance,
                                         originalGravity,
                                         originalDamping,
-                                        originalVelocity,
-                                        playerLookRotation
+                                        initialBodyRot,
+                                        initialPlayerRot
                                 );
 
                                 grabbedObjects.put(player.getUUID(), info);
                                 grabSuccessful = true;
 
                                 motionProperties.setGravityFactor(0f);
-                                motionProperties.setAngularDamping(1.0f);
+                                motionProperties.setAngularDamping(2.0f);
                                 body.setAngularVelocity(new Vec3(0, 0, 0));
                             }
                         }
                     }
                 }
-
                 if (grabSuccessful) {
                     bodyInterface.activateBody(physicsHit.getBodyId());
                 }
@@ -114,17 +123,15 @@ public class PhysicsGunManager {
             if (physicsWorld != null) {
                 physicsWorld.execute(() -> {
                     var bodyInterface = physicsWorld.getBodyInterface();
-                    if (bodyInterface != null) {
-                        var bodyLockInterface = physicsWorld.getBodyLockInterface();
+                    var bodyLockInterface = physicsWorld.getBodyLockInterface();
+                    if (bodyInterface != null && bodyLockInterface != null) {
                         try (var lock = new BodyLockWrite(bodyLockInterface, info.bodyId())) {
                             if (lock.succeededAndIsInBroadPhase()) {
-                                Body body = lock.getBody();
-                                MotionProperties motionProperties = body.getMotionProperties();
+                                MotionProperties motionProperties = lock.getBody().getMotionProperties();
                                 if (motionProperties != null) {
                                     motionProperties.setGravityFactor(info.originalGravityFactor());
                                     motionProperties.setAngularDamping(info.originalAngularDamping());
                                 }
-                                body.setAngularVelocity(info.originalAngularVelocity());
                             }
                         }
                         bodyInterface.activateBody(info.bodyId());
@@ -136,16 +143,14 @@ public class PhysicsGunManager {
 
     public void updateScroll(ServerPlayer player, float scrollDelta) {
         grabbedObjects.computeIfPresent(player.getUUID(), (uuid, info) -> {
-            float newDistance = info.currentDistance() + scrollDelta * 0.75f;
+
+            float newDistance = info.currentDistance() + scrollDelta;
             newDistance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, newDistance));
+
             return new GrabbedObjectInfo(
-                    info.bodyId(),
-                    info.grabPointLocal(),
-                    newDistance,
-                    info.originalGravityFactor(),
-                    info.originalAngularDamping(),
-                    info.originalAngularVelocity(),
-                    info.lastPlayerLookRotation()
+                    info.bodyId(), info.grabPointLocal(), newDistance,
+                    info.originalGravityFactor(), info.originalAngularDamping(),
+                    info.initialBodyRotation(), info.initialPlayerRotation()
             );
         });
     }
@@ -172,27 +177,17 @@ public class PhysicsGunManager {
                     grabbedObjects.remove(player.getUUID());
                     return;
                 }
-
                 Body body = lock.getBody();
 
                 try (var comTransform = body.getCenterOfMassTransform()) {
-                    var targetPointWorld = new RVec3(
-                            eyePos.x + lookVec.x * info.currentDistance(),
-                            eyePos.y + lookVec.y * info.currentDistance(),
-                            eyePos.z + lookVec.z * info.currentDistance()
-                    );
+                    var targetPointWorld = new RVec3(eyePos.x + lookVec.x * info.currentDistance(), eyePos.y + lookVec.y * info.currentDistance(), eyePos.z + lookVec.z * info.currentDistance());
                     var currentGrabPointWorld = Op.star(comTransform, info.grabPointLocal());
                     var positionError = Op.minus(targetPointWorld, currentGrabPointWorld);
-                    var linearVelocity = body.getLinearVelocity();
-                    var angularVelocity = body.getAngularVelocity();
-                    var comPos = body.getCenterOfMassPosition();
-                    var r = Op.minus(currentGrabPointWorld, comPos);
-                    var angularComponent = r.toVec3().cross(angularVelocity);
-                    var pointVelocity = Op.plus(linearVelocity, angularComponent);
-                    var force = Op.minus(
-                            Op.star(positionError.toVec3(), POSITIONAL_SPRING_CONSTANT),
-                            Op.star(pointVelocity, POSITIONAL_DAMPING_FACTOR)
-                    );
+                    var r = Op.minus(currentGrabPointWorld, body.getCenterOfMassPosition());
+                    var pointVelocity = Op.plus(body.getLinearVelocity(), r.toVec3().cross(body.getAngularVelocity()));
+                    var springForce = Op.star(positionError.toVec3(), POSITIONAL_SPRING_CONSTANT);
+                    var dampingForce = Op.star(pointVelocity, POSITIONAL_DAMPING_FACTOR);
+                    var force = Op.minus(springForce, dampingForce);
                     if (force.lengthSq() > MAX_LINEAR_FORCE * MAX_LINEAR_FORCE) {
                         force.normalizeInPlace();
                         force.scaleInPlace(MAX_LINEAR_FORCE);
@@ -200,36 +195,24 @@ public class PhysicsGunManager {
                     body.addForce(force);
                 }
 
-                var joltLookVec = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z);
-                var currentPlayerLookRotation = Quat.sFromTo(new Vec3(0, 0, -1), joltLookVec);
-                var rotationDelta = Op.star(currentPlayerLookRotation, info.lastPlayerLookRotation().conjugated());
+                var joltLookVec = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z).normalized();
+                var currentPlayerRot = Quat.sFromTo(new Vec3(0, 0, -1), joltLookVec);
+
+                var playerRotationDelta = Op.star(currentPlayerRot, info.initialPlayerRotation().conjugated());
+
+                var targetBodyRotation = Op.star(playerRotationDelta, info.initialBodyRotation());
+
                 var currentBodyRotation = body.getRotation();
-                var targetBodyRotation = Op.star(rotationDelta, currentBodyRotation);
                 var errorQuat = Op.star(targetBodyRotation, currentBodyRotation.conjugated());
-                var rotationAxis = new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ());
-                float angle = rotationAxis.length();
-                if (angle > 0) {
-                    rotationAxis.scaleInPlace(1.0f / angle);
-                }
-                float timeStep = 1.0f / 20.0f;
-                var desiredAngularVelocity = Op.star(rotationAxis, angle / timeStep);
-                var currentAngularVelocity = body.getAngularVelocity();
-                var angularVelocityError = Op.minus(desiredAngularVelocity, currentAngularVelocity);
-                var torque = Op.star(angularVelocityError, ROTATIONAL_SPRING_CONSTANT);
+                var springTorque = Op.star(new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ()), 2.0f * ROTATIONAL_SPRING_CONSTANT);
+                var dampingTorque = Op.star(body.getAngularVelocity(), ROTATIONAL_DAMPING_FACTOR);
+                var torque = Op.minus(springTorque, dampingTorque);
+
                 if (torque.lengthSq() > MAX_ANGULAR_TORQUE * MAX_ANGULAR_TORQUE) {
                     torque.normalizeInPlace();
                     torque.scaleInPlace(MAX_ANGULAR_TORQUE);
                 }
                 body.addTorque(torque);
-
-                grabbedObjects.computeIfPresent(player.getUUID(), (uuid, oldInfo) ->
-                        new GrabbedObjectInfo(
-                                oldInfo.bodyId(), oldInfo.grabPointLocal(), oldInfo.currentDistance(),
-                                oldInfo.originalGravityFactor(), oldInfo.originalAngularDamping(),
-                                oldInfo.originalAngularVelocity(),
-                                currentPlayerLookRotation
-                        )
-                );
             }
         });
     }

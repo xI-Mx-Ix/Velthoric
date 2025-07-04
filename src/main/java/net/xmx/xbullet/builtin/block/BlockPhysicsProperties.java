@@ -7,7 +7,7 @@ public class BlockPhysicsProperties {
     public static RigidPhysicsObjectProperties blockProperties = RigidPhysicsObjectProperties.builder()
             .mass(40.0f)
             .friction(0.38f)
-            .restitution(0.6f)
+            .restitution(0.3f)
             .linearDamping(0.1f)
             .angularDamping(0.35f)
             .gravityFactor(1.0f)
