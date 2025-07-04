@@ -149,21 +149,14 @@ public class OBJLoader {
         return materials;
     }
 
-    public static class ParsedObjModel {
-        public final List<Vector3f> vertices;
-        public final List<Vector2f> texCoords;
-        public final List<Vector3f> normals;
-        public final Map<String, List<int[]>> facesByMaterial;
-        public final Map<String, Material> materials;
+    public record ParsedObjModel(
+            List<Vector3f> vertices,
+            List<Vector2f> texCoords,
+            List<Vector3f> normals,
+            Map<String, List<int[]>> facesByMaterial,
+            Map<String, Material> materials
+    ) {}
 
-        ParsedObjModel(List<Vector3f> vertices, List<Vector2f> texCoords, List<Vector3f> normals, Map<String, List<int[]>> facesByMaterial, Map<String, Material> materials) {
-            this.vertices = vertices;
-            this.texCoords = texCoords;
-            this.normals = normals;
-            this.facesByMaterial = facesByMaterial;
-            this.materials = materials;
-        }
-    }
 
     public static class Material {
         public Vector4f diffuseColor = new Vector4f(1, 1, 1, 1);
