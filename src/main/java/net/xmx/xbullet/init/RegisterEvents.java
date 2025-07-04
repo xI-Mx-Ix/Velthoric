@@ -15,7 +15,7 @@ import net.xmx.xbullet.physics.object.global.physicsobject.manager.event.ObjectL
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.chunk.ObjectChunkLoader;
 import net.xmx.xbullet.physics.object.riding.event.ClientRidingEvents;
 import net.xmx.xbullet.physics.object.riding.event.ServerRidingEvents;
-import net.xmx.xbullet.physics.world.ClientPhysicsPauseHandler;
+import net.xmx.xbullet.physics.world.time.ClientPhysicsPauseHandler;
 import net.xmx.xbullet.physics.terrain.event.TerrainBlockEvents;
 import net.xmx.xbullet.physics.terrain.event.TerrainSystemEvents;
 

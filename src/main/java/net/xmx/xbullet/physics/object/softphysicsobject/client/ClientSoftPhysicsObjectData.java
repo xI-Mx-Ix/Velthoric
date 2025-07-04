@@ -7,6 +7,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
+import net.xmx.xbullet.physics.world.time.ClientClock;
 
 import javax.annotation.Nullable;
 import java.util.ArrayDeque;
@@ -46,7 +47,7 @@ public class ClientSoftPhysicsObjectData {
     public void updateDataFromServer(@Nullable PhysicsTransform transform, @Nullable Vec3 linearVel, @Nullable Vec3 angularVel, @Nullable float[] newVertexData, long serverTimestamp, boolean isActive) {
         if (serverTimestamp <= 0) return;
 
-        long clientReceiptTime = System.nanoTime();
+        long clientReceiptTime = ClientClock.getInstance().getGameTimeNanos();
         if (!isClockOffsetInitialized) {
             clockOffsetNanos = serverTimestamp - clientReceiptTime;
             isClockOffsetInitialized = true;
@@ -78,7 +79,7 @@ public class ClientSoftPhysicsObjectData {
             return latestSyncedVertexData;
         }
 
-        long renderTimestamp = System.nanoTime() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
+        long renderTimestamp = ClientClock.getInstance().getGameTimeNanos() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
         TimestampedState latest = vertexStateBuffer.peekLast();
         if (latest != null && !latest.isActive) return latest.vertexData;
 
@@ -107,7 +108,7 @@ public class ClientSoftPhysicsObjectData {
             return latestSyncedTransform;
         }
 
-        long renderTimestamp = System.nanoTime() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
+        long renderTimestamp = ClientClock.getInstance().getGameTimeNanos() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
         TimestampedTransform latest = transformStateBuffer.peekLast();
         if (latest != null && !latest.isActive) return latest.transform;
 
@@ -137,7 +138,6 @@ public class ClientSoftPhysicsObjectData {
 
         float qx, qy, qz, qw;
         if (dot < 0.0f) {
-
             qx = Mth.lerp(alpha, beforeRot.getX(), -afterRot.getX());
             qy = Mth.lerp(alpha, beforeRot.getY(), -afterRot.getY());
             qz = Mth.lerp(alpha, beforeRot.getZ(), -afterRot.getZ());
@@ -158,7 +158,7 @@ public class ClientSoftPhysicsObjectData {
 
     public void cleanupBuffer() {
         if (!isClockOffsetInitialized) return;
-        long timeHorizonNanos = System.nanoTime() + clockOffsetNanos - (MAX_BUFFER_TIME_MS * 1_000_000L);
+        long timeHorizonNanos = ClientClock.getInstance().getGameTimeNanos() + clockOffsetNanos - (MAX_BUFFER_TIME_MS * 1_000_000L);
 
         while (vertexStateBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION && vertexStateBuffer.peekFirst().timestampNanos < timeHorizonNanos) vertexStateBuffer.removeFirst();
         while (vertexStateBuffer.size() > MAX_BUFFER_SIZE) vertexStateBuffer.removeFirst();

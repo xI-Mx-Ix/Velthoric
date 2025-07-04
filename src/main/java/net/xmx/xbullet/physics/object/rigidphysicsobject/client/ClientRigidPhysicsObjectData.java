@@ -9,6 +9,7 @@ import net.minecraft.util.Mth;
 import net.xmx.xbullet.math.PhysicsOperations;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
+import net.xmx.xbullet.physics.world.time.ClientClock;
 
 import javax.annotation.Nullable;
 import java.util.ArrayDeque;
@@ -69,7 +70,7 @@ public class ClientRigidPhysicsObjectData {
     public void updateTransformFromServer(PhysicsTransform newTransform, @Nullable Vec3 linVel, @Nullable Vec3 angVel, long serverTimestamp, boolean isActive) {
         if (newTransform == null || serverTimestamp <= 0) return;
 
-        long clientReceiptTimeNanos = System.nanoTime();
+        long clientReceiptTimeNanos = ClientClock.getInstance().getGameTimeNanos();
         if (!isClockOffsetInitialized) {
             this.clockOffsetNanos = serverTimestamp - clientReceiptTimeNanos;
             this.isClockOffsetInitialized = true;
@@ -97,7 +98,7 @@ public class ClientRigidPhysicsObjectData {
     public void cleanupBuffer() {
         if (transformBuffer.isEmpty() || !isClockOffsetInitialized) return;
 
-        long estimatedServerTimeNow = System.nanoTime() + this.clockOffsetNanos;
+        long estimatedServerTimeNow = ClientClock.getInstance().getGameTimeNanos() + this.clockOffsetNanos;
         long timeHorizonNanos = estimatedServerTimeNow - (MAX_BUFFER_TIME_MS * 1_000_000L);
 
         while (transformBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION) {
@@ -118,7 +119,7 @@ public class ClientRigidPhysicsObjectData {
             return lastValidSnapshot;
         }
 
-        long nowNanosClient = System.nanoTime();
+        long nowNanosClient = ClientClock.getInstance().getGameTimeNanos();
         long estimatedServerTimeNow = nowNanosClient + this.clockOffsetNanos;
         long renderTimestamp = estimatedServerTimeNow - (INTERPOLATION_DELAY_MS * 1_000_000L);
 

@@ -1,0 +1,49 @@
+package net.xmx.xbullet.physics.world.time;
+
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+
+@OnlyIn(Dist.CLIENT)
+public class ClientClock {
+
+    private static final ClientClock INSTANCE = new ClientClock();
+
+    private volatile boolean isPaused = false;
+    private long pauseStartTimeNanos = 0L;
+    private long totalAccumulatedPauseTimeNanos = 0L;
+
+    private ClientClock() {}
+
+    public static ClientClock getInstance() {
+        return INSTANCE;
+    }
+
+    public long getGameTimeNanos() {
+        if (isPaused) {
+
+            return pauseStartTimeNanos - totalAccumulatedPauseTimeNanos;
+        }
+        return System.nanoTime() - totalAccumulatedPauseTimeNanos;
+    }
+
+    public synchronized void pause() {
+        if (!isPaused) {
+            isPaused = true;
+            pauseStartTimeNanos = System.nanoTime();
+        }
+    }
+
+    public synchronized void resume() {
+        if (isPaused) {
+            long pauseDuration = System.nanoTime() - pauseStartTimeNanos;
+            totalAccumulatedPauseTimeNanos += pauseDuration;
+            isPaused = false;
+        }
+    }
+
+    public synchronized void reset() {
+        isPaused = false;
+        pauseStartTimeNanos = 0L;
+        totalAccumulatedPauseTimeNanos = 0L;
+    }
+}
