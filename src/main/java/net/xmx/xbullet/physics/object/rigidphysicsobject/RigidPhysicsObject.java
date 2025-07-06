@@ -105,7 +105,11 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     }
 
     @Override
-    public void serverTick(PhysicsWorld physicsWorld) {
+    public void gameTick(ServerLevel serverLevel) {
+    }
+
+    @Override
+    public void physicsTick(PhysicsWorld physicsWorld ) {
     }
 
     @Override

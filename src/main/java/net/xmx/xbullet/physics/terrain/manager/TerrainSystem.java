@@ -9,6 +9,7 @@ import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.object.global.physicsobject.pcmd.ActivateBodyCommand;
+import net.xmx.xbullet.physics.terrain.pcmd.WakeUpBodiesNearCommand;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.terrain.chunk.TerrainSection;
 import net.xmx.xbullet.physics.terrain.mesh.TerrainMesher;
@@ -110,27 +111,7 @@ public class TerrainSystem implements Runnable {
         if (localZ == 0) invalidateSectionAt(pos.north());
         if (localZ == 15) invalidateSectionAt(pos.south());
 
-        wakeUpBodiesNear(pos);
-    }
-
-    private void wakeUpBodiesNear(BlockPos pos) {
-        final double blockCenterX = pos.getX() + 0.5;
-        final double blockCenterY = pos.getY() + 0.5;
-        final double blockCenterZ = pos.getZ() + 0.5;
-
-        for (IPhysicsObject obj : this.physicsWorld.getObjectManager().getManagedObjects().values()) {
-            if (obj.getBodyId() == 0) continue;
-
-            RVec3 objPos = obj.getCurrentTransform().getTranslation();
-            double dx = objPos.xx() - blockCenterX;
-            double dy = objPos.yy() - blockCenterY;
-            double dz = objPos.zz() - blockCenterZ;
-            double distanceSq = dx * dx + dy * dy + dz * dz;
-
-            if (distanceSq <= WAKE_UP_RADIUS_SQ) {
-                physicsWorld.queueCommand(new ActivateBodyCommand(obj.getBodyId()));
-            }
-        }
+        physicsWorld.queueCommand(new WakeUpBodiesNearCommand(pos));
     }
 
     public void registerTerrainBody(int bodyId) {

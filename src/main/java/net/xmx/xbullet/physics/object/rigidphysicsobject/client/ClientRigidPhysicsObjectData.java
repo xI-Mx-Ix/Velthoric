@@ -3,7 +3,6 @@ package net.xmx.xbullet.physics.object.rigidphysicsobject.client;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
-import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.xmx.xbullet.math.PhysicsOperations;
@@ -26,7 +25,6 @@ public class ClientRigidPhysicsObjectData {
     private static final int MIN_BUFFER_FOR_INTERPOLATION = 2;
     private static final long EXTRAPOLATION_MAX_TIME_MS = 500;
 
-    private boolean lastKnownIsActive = false;
     private final Vec3 lastKnownLinearVelocity = new Vec3();
     private final Vec3 lastKnownAngularVelocity = new Vec3();
 
@@ -38,13 +36,7 @@ public class ClientRigidPhysicsObjectData {
     private final PhysicsTransform lastValidSnapshot = new PhysicsTransform();
     private CompoundTag syncedNbtData = new CompoundTag();
 
-    private float mass;
-    private float friction;
-    private float restitution;
-    private float linearDamping;
-    private float angularDamping;
-
-    private final PhysicsTransform tempRenderTransform = new PhysicsTransform();
+    private final PhysicsTransform renderTransform = new PhysicsTransform();
     private long lastServerTimestamp = 0;
 
     public ClientRigidPhysicsObjectData(UUID id, PhysicsTransform initialTransform,
@@ -54,17 +46,14 @@ public class ClientRigidPhysicsObjectData {
         this.id = id;
         this.renderer = renderer;
 
-        if (initialTransform != null) this.lastValidSnapshot.set(initialTransform);
-        else this.lastValidSnapshot.loadIdentity();
+        if (initialTransform != null) {
+            this.lastValidSnapshot.set(initialTransform);
+        } else {
+            this.lastValidSnapshot.loadIdentity();
+        }
 
         this.transformBuffer.addLast(new TimestampedTransform(initialServerTimestampNanos, lastValidSnapshot, new Vec3(), new Vec3(), true));
         this.lastServerTimestamp = initialServerTimestampNanos;
-
-        this.mass = mass;
-        this.friction = friction;
-        this.restitution = restitution;
-        this.linearDamping = linearDamping;
-        this.angularDamping = angularDamping;
     }
 
     public void updateTransformFromServer(PhysicsTransform newTransform, @Nullable Vec3 linVel, @Nullable Vec3 angVel, long serverTimestamp, boolean isActive) {
@@ -83,11 +72,17 @@ public class ClientRigidPhysicsObjectData {
             transformBuffer.addLast(new TimestampedTransform(serverTimestamp, newTransform, linVel, angVel, isActive));
             lastServerTimestamp = serverTimestamp;
             lastValidSnapshot.set(newTransform);
-            this.lastKnownIsActive = isActive;
-            if (linVel != null) this.lastKnownLinearVelocity.set(linVel);
-            else this.lastKnownLinearVelocity.loadZero();
-            if (angVel != null) this.lastKnownAngularVelocity.set(angVel);
-            else this.lastKnownAngularVelocity.loadZero();
+
+            if (linVel != null) {
+                this.lastKnownLinearVelocity.set(linVel);
+            } else {
+                this.lastKnownLinearVelocity.loadZero();
+            }
+            if (angVel != null) {
+                this.lastKnownAngularVelocity.set(angVel);
+            } else {
+                this.lastKnownAngularVelocity.loadZero();
+            }
         }
     }
 
@@ -124,13 +119,19 @@ public class ClientRigidPhysicsObjectData {
         long renderTimestamp = estimatedServerTimeNow - (INTERPOLATION_DELAY_MS * 1_000_000L);
 
         TimestampedTransform latest = transformBuffer.peekLast();
-        if (latest != null && !latest.isActive) return latest.transform;
+        if (latest != null && !latest.isActive) {
+            return latest.transform;
+        }
 
         TimestampedTransform before = null;
         TimestampedTransform after = null;
         for (TimestampedTransform current : transformBuffer) {
-            if (current.timestamp <= renderTimestamp) before = current;
-            else { after = current; break; }
+            if (current.timestamp <= renderTimestamp) {
+                before = current;
+            } else {
+                after = current;
+                break;
+            }
         }
 
         if (before == null) {
@@ -144,10 +145,10 @@ public class ClientRigidPhysicsObjectData {
         float alpha = (timeDiff <= 0) ? 1.0f : (float)(renderTimestamp - before.timestamp) / timeDiff;
         alpha = Mth.clamp(alpha, 0.0f, 1.0f);
 
-        PhysicsOperations.lerp(before.transform.getTranslation(), after.transform.getTranslation(), alpha, tempRenderTransform.getTranslation());
-        PhysicsOperations.slerp(before.transform.getRotation(), after.transform.getRotation(), alpha, tempRenderTransform.getRotation());
+        PhysicsOperations.lerp(before.transform.getTranslation(), after.transform.getTranslation(), alpha, renderTransform.getTranslation());
+        PhysicsOperations.slerp(before.transform.getRotation(), after.transform.getRotation(), alpha, renderTransform.getRotation());
 
-        return tempRenderTransform;
+        return renderTransform;
     }
 
     private PhysicsTransform calculateExtrapolatedTransform(TimestampedTransform latest, long renderTimestamp) {
@@ -160,22 +161,17 @@ public class ClientRigidPhysicsObjectData {
 
         RVec3 startPos = latest.transform.getTranslation();
         Vec3 linVel = latest.linearVelocity;
-        RVec3 finalPos = new RVec3(startPos.xx() + linVel.getX() * dt, startPos.yy() + linVel.getY() * dt, startPos.zz() + linVel.getZ() * dt);
+        renderTransform.getTranslation().set(
+                startPos.xx() + linVel.getX() * dt,
+                startPos.yy() + linVel.getY() * dt,
+                startPos.zz() + linVel.getZ() * dt
+        );
 
         Quat startRot = latest.transform.getRotation();
         Vec3 angVel = latest.angularVelocity;
-        float angle = angVel.length() * dt;
-        if (angle > 1e-6) {
-            Vec3 axis = angVel.normalized();
-            Quat deltaRot = new Quat(axis, angle);
-            Quat finalRot = Op.star(deltaRot, startRot).normalized();
-            tempRenderTransform.getTranslation().set(finalPos);
-            tempRenderTransform.getRotation().set(finalRot);
-        } else {
-            tempRenderTransform.set(latest.transform);
-        }
+        PhysicsOperations.extrapolateRotation(startRot, angVel, dt, renderTransform.getRotation());
 
-        return tempRenderTransform;
+        return renderTransform;
     }
 
     public UUID getId() { return id; }

@@ -123,7 +123,18 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     }
 
     @Override
-    public void serverTick(PhysicsWorld physicsWorld) { }
+    @Nullable
+    public float[] getLastSyncedVertexData() {
+        return this.lastSyncedVertexData;
+    }
+
+    @Override
+    public void gameTick(ServerLevel serverLevel) {
+    }
+
+    @Override
+    public void physicsTick(PhysicsWorld physicsWorld) {
+    }
 
     @Override
     public synchronized void updateStateFromPhysicsThread(long timestampNanos, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {

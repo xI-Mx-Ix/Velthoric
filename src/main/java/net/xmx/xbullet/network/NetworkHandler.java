@@ -11,7 +11,9 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraftforge.network.NetworkEvent;
 import net.xmx.xbullet.command.xbullet.packet.ClientPhysicsObjectCountResponsePacket;
 import net.xmx.xbullet.command.xbullet.packet.RequestClientPhysicsObjectCountPacket;
+import net.xmx.xbullet.debug.drawer.packet.DebugRenderDataPacket;
 import net.xmx.xbullet.item.physicsgun.packet.PhysicsGunActionPacket;
+import net.xmx.xbullet.item.rope.packet.PacketCreateRope;
 import net.xmx.xbullet.physics.object.global.click.PhysicsClickPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.*;
 import net.xmx.xbullet.physics.object.riding.packet.DismountRequestPacket;
@@ -43,6 +45,20 @@ public class NetworkHandler {
 
     public static void register() {
 
+
+        registerPacket(
+                PacketCreateRope.class,
+                PacketCreateRope::encode,
+                PacketCreateRope::decode,
+                PacketCreateRope::handle
+        );
+
+        registerPacket(
+                DebugRenderDataPacket.class,
+                DebugRenderDataPacket::encode,
+                DebugRenderDataPacket::decode,
+                DebugRenderDataPacket::handle
+        );
 
         registerPacket(
                 MountPhysicsObjectPacket.class,

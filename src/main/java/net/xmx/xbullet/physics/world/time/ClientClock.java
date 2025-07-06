@@ -18,24 +18,28 @@ public class ClientClock {
         return INSTANCE;
     }
 
-    public long getGameTimeNanos() {
+    public synchronized long getGameTimeNanos() {
         if (isPaused) {
 
             return pauseStartTimeNanos - totalAccumulatedPauseTimeNanos;
         }
+
         return System.nanoTime() - totalAccumulatedPauseTimeNanos;
     }
 
     public synchronized void pause() {
         if (!isPaused) {
             isPaused = true;
+
             pauseStartTimeNanos = System.nanoTime();
         }
     }
 
     public synchronized void resume() {
         if (isPaused) {
+
             long pauseDuration = System.nanoTime() - pauseStartTimeNanos;
+
             totalAccumulatedPauseTimeNanos += pauseDuration;
             isPaused = false;
         }

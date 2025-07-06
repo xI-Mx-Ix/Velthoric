@@ -2,8 +2,12 @@ package net.xmx.xbullet.init;
 
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.xmx.xbullet.debug.ClientDebugEvents;
+import net.xmx.xbullet.debug.drawer.ClientDebugRenderer;
+import net.xmx.xbullet.debug.drawer.DebugGlobalRenderer;
 import net.xmx.xbullet.item.physicsgun.event.PhysicsGunClientEvents;
 import net.xmx.xbullet.item.physicsgun.event.PhysicsGunEvents;
+import net.xmx.xbullet.item.rope.events.ClientRopeEvents;
+import net.xmx.xbullet.item.rope.events.ServerRopeEvents;
 import net.xmx.xbullet.physics.PhysicsLifecycleEvents;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManagerEvents;
 import net.xmx.xbullet.physics.object.fluid.FluidManagerEvents;
@@ -35,7 +39,12 @@ public class RegisterEvents {
         forgeEventBus.register(TerrainBlockEvents.class);
         forgeEventBus.register(ConstraintManagerEvents.class);
 
+        forgeEventBus.register(DebugGlobalRenderer.class);
+
         forgeEventBus.register(ServerRidingEvents.class);
+
+
+        forgeEventBus.register(ServerRopeEvents.class);
 
     }
 
@@ -51,5 +60,8 @@ public class RegisterEvents {
         forgeEventBus.register(ClientDebugEvents.class);
 
         forgeEventBus.register(ClientRidingEvents.class);
+        forgeEventBus.register(ClientRopeEvents.class);
+
+        forgeEventBus.register(ClientDebugRenderer.class);
     }
 }

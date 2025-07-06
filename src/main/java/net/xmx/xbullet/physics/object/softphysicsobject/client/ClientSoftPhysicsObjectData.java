@@ -5,6 +5,7 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
+import net.xmx.xbullet.math.PhysicsOperations;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 import net.xmx.xbullet.physics.world.time.ClientClock;
@@ -81,17 +82,29 @@ public class ClientSoftPhysicsObjectData {
 
         long renderTimestamp = ClientClock.getInstance().getGameTimeNanos() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
         TimestampedState latest = vertexStateBuffer.peekLast();
-        if (latest != null && !latest.isActive) return latest.vertexData;
+        if (latest != null && !latest.isActive) {
+            return latest.vertexData;
+        }
 
         TimestampedState before = null, after = null;
         for (TimestampedState current : vertexStateBuffer) {
-            if (current.timestampNanos <= renderTimestamp) before = current;
-            else { after = current; break; }
+            if (current.timestampNanos <= renderTimestamp) {
+                before = current;
+            } else {
+                after = current;
+                break;
+            }
         }
 
-        if (before == null) return vertexStateBuffer.isEmpty() ? latestSyncedVertexData : vertexStateBuffer.peekFirst().vertexData;
-        if (after == null) return latestSyncedVertexData;
-        if (renderVertexBuffer == null || renderVertexBuffer.length != before.vertexData.length) renderVertexBuffer = new float[before.vertexData.length];
+        if (before == null) {
+            return vertexStateBuffer.isEmpty() ? latestSyncedVertexData : vertexStateBuffer.peekFirst().vertexData;
+        }
+        if (after == null) {
+            return latestSyncedVertexData;
+        }
+        if (renderVertexBuffer == null || renderVertexBuffer.length != before.vertexData.length) {
+            renderVertexBuffer = new float[before.vertexData.length];
+        }
 
         long timeDiff = after.timestampNanos - before.timestampNanos;
         float alpha = (timeDiff <= 0) ? 1.0f : Mth.clamp((float)(renderTimestamp - before.timestampNanos) / timeDiff, 0.0f, 1.0f);
@@ -110,48 +123,32 @@ public class ClientSoftPhysicsObjectData {
 
         long renderTimestamp = ClientClock.getInstance().getGameTimeNanos() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
         TimestampedTransform latest = transformStateBuffer.peekLast();
-        if (latest != null && !latest.isActive) return latest.transform;
+        if (latest != null && !latest.isActive) {
+            return latest.transform;
+        }
 
         TimestampedTransform before = null, after = null;
         for (TimestampedTransform current : transformStateBuffer) {
-            if (current.timestampNanos <= renderTimestamp) before = current;
-            else { after = current; break; }
+            if (current.timestampNanos <= renderTimestamp) {
+                before = current;
+            } else {
+                after = current;
+                break;
+            }
         }
 
-        if (before == null) return transformStateBuffer.isEmpty() ? latestSyncedTransform : transformStateBuffer.peekFirst().transform;
-        if (after == null) return latestSyncedTransform;
+        if (before == null) {
+            return transformStateBuffer.isEmpty() ? latestSyncedTransform : transformStateBuffer.peekFirst().transform;
+        }
+        if (after == null) {
+            return latestSyncedTransform;
+        }
 
         long timeDiff = after.timestampNanos - before.timestampNanos;
         float alpha = (timeDiff <= 0) ? 1.0f : Mth.clamp((float)(renderTimestamp - before.timestampNanos) / timeDiff, 0.0f, 1.0f);
 
-        RVec3 beforePos = before.transform.getTranslation();
-        RVec3 afterPos = after.transform.getTranslation();
-        double ix = Mth.lerp(alpha, beforePos.xx(), afterPos.xx());
-        double iy = Mth.lerp(alpha, beforePos.yy(), afterPos.yy());
-        double iz = Mth.lerp(alpha, beforePos.zz(), afterPos.zz());
-        renderTransform.getTranslation().set(ix, iy, iz);
-
-        Quat beforeRot = before.transform.getRotation();
-        Quat afterRot = after.transform.getRotation();
-
-        float dot = beforeRot.getX() * afterRot.getX() + beforeRot.getY() * afterRot.getY() + beforeRot.getZ() * afterRot.getZ() + beforeRot.getW() * afterRot.getW();
-
-        float qx, qy, qz, qw;
-        if (dot < 0.0f) {
-            qx = Mth.lerp(alpha, beforeRot.getX(), -afterRot.getX());
-            qy = Mth.lerp(alpha, beforeRot.getY(), -afterRot.getY());
-            qz = Mth.lerp(alpha, beforeRot.getZ(), -afterRot.getZ());
-            qw = Mth.lerp(alpha, beforeRot.getW(), -afterRot.getW());
-        } else {
-            qx = Mth.lerp(alpha, beforeRot.getX(), afterRot.getX());
-            qy = Mth.lerp(alpha, beforeRot.getY(), afterRot.getY());
-            qz = Mth.lerp(alpha, beforeRot.getZ(), afterRot.getZ());
-            qw = Mth.lerp(alpha, beforeRot.getW(), afterRot.getW());
-        }
-
-        Quat tempRot = new Quat(qx, qy, qz, qw);
-        Quat normalized = tempRot.normalized();
-        renderTransform.getRotation().set(normalized.getX(), normalized.getY(), normalized.getZ(), normalized.getW());
+        PhysicsOperations.lerp(before.transform.getTranslation(), after.transform.getTranslation(), alpha, renderTransform.getTranslation());
+        PhysicsOperations.slerp(before.transform.getRotation(), after.transform.getRotation(), alpha, renderTransform.getRotation());
 
         return renderTransform;
     }
@@ -160,11 +157,19 @@ public class ClientSoftPhysicsObjectData {
         if (!isClockOffsetInitialized) return;
         long timeHorizonNanos = ClientClock.getInstance().getGameTimeNanos() + clockOffsetNanos - (MAX_BUFFER_TIME_MS * 1_000_000L);
 
-        while (vertexStateBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION && vertexStateBuffer.peekFirst().timestampNanos < timeHorizonNanos) vertexStateBuffer.removeFirst();
-        while (vertexStateBuffer.size() > MAX_BUFFER_SIZE) vertexStateBuffer.removeFirst();
+        while (vertexStateBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION && vertexStateBuffer.peekFirst().timestampNanos < timeHorizonNanos) {
+            vertexStateBuffer.removeFirst();
+        }
+        while (vertexStateBuffer.size() > MAX_BUFFER_SIZE) {
+            vertexStateBuffer.removeFirst();
+        }
 
-        while (transformStateBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION && transformStateBuffer.peekFirst().timestampNanos < timeHorizonNanos) transformStateBuffer.removeFirst();
-        while (transformStateBuffer.size() > MAX_BUFFER_SIZE) transformStateBuffer.removeFirst();
+        while (transformStateBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION && transformStateBuffer.peekFirst().timestampNanos < timeHorizonNanos) {
+            transformStateBuffer.removeFirst();
+        }
+        while (transformStateBuffer.size() > MAX_BUFFER_SIZE) {
+            transformStateBuffer.removeFirst();
+        }
     }
 
     public UUID getId() { return id; }

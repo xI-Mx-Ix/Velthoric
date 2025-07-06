@@ -58,11 +58,9 @@ public class ConstraintManager {
 
         if (managedConstraints.putIfAbsent(constraint.getJointId(), constraint) == null) {
 
-            physicsWorld.execute(() -> {
-                if (physicsWorld.getPhysicsSystem() != null) {
-                    physicsWorld.getPhysicsSystem().addConstraint(constraint.getJoltConstraint());
-                }
-            });
+            if (physicsWorld.getPhysicsSystem() != null) {
+                physicsWorld.getPhysicsSystem().addConstraint(constraint.getJoltConstraint());
+            }
 
             CompoundTag tag = new CompoundTag();
             constraint.save(tag);

@@ -32,15 +32,18 @@ public class RopeSoftBody extends SoftPhysicsObject {
 
     @Override
     protected SoftBodySharedSettings buildSharedSettings() {
-        int numNodes = this.numSegments + 1;
 
+        int safeNumSegments = Math.max(1, this.numSegments);
+        float safeMass = Math.max(0.001f, this.mass);
+        float safeRopeLength = Math.max(0.1f, this.ropeLength);
+
+        int numNodes = safeNumSegments + 1;
         SoftBodySharedSettings settings = new SoftBodySharedSettings();
 
-        float segmentLength = ropeLength / (float)this.numSegments;
-        float invMassPerNode = (this.mass > 0) ? numNodes / this.mass : 0f;
+        float segmentLength = safeRopeLength / (float) safeNumSegments;
+        float invMassPerNode = numNodes / safeMass;
 
         for (int i = 0; i < numNodes; i++) {
-
             Vec3 localPos = new Vec3(0, -i * segmentLength, 0);
 
             Vertex v = new Vertex();
@@ -50,17 +53,14 @@ public class RopeSoftBody extends SoftPhysicsObject {
         }
 
         for (int i = 0; i < numNodes - 1; i++) {
-            Edge edge = new Edge();
-            edge.setVertex(0, i);
-            edge.setVertex(1, i + 1);
-            edge.setCompliance(this.compliance);
-
-            edge.setRestLength(segmentLength);
-
-            settings.addEdgeConstraint(edge);
+            try (Edge edge = new Edge()) {
+                edge.setVertex(0, i);
+                edge.setVertex(1, i + 1);
+                edge.setCompliance(this.compliance);
+                edge.setRestLength(segmentLength);
+                settings.addEdgeConstraint(edge);
+            }
         }
-
-        settings.getVertex(0).setInvMass(0f);
 
         settings.optimize();
         return settings;

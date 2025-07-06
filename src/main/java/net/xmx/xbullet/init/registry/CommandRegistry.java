@@ -6,6 +6,7 @@ import net.xmx.xbullet.command.SpawnClothCommand;
 import net.xmx.xbullet.command.SpawnRopeCommand;
 import net.xmx.xbullet.command.TestJointCommand;
 import net.xmx.xbullet.command.xbullet.XBulletCommand;
+import net.xmx.xbullet.debug.drawer.command.DebugRendererCommand;
 
 public class CommandRegistry {
 
@@ -14,6 +15,7 @@ public class CommandRegistry {
         SpawnClothCommand.register(dispatcher);
         SpawnRopeCommand.register(dispatcher);
         TestJointCommand.register(dispatcher);
+        DebugRendererCommand.register(dispatcher);
     }
 
     public static void registerClient(CommandDispatcher<CommandSourceStack> dispatcher) {

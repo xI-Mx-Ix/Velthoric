@@ -3,7 +3,8 @@ package net.xmx.xbullet.physics.object.global.physicsobject.packet;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkEvent;
 import net.xmx.xbullet.physics.object.global.physicsobject.client.ClientPhysicsObjectManager;
-import net.xmx.xbullet.physics.object.global.physicsobject.PhysicsObjectState;
+import net.xmx.xbullet.physics.object.global.physicsobject.state.PhysicsObjectState;
+import net.xmx.xbullet.physics.object.global.physicsobject.state.PhysicsObjectStatePool;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +21,10 @@ public class SyncAllPhysicsObjectsPacket {
         int size = buf.readVarInt();
         this.objectStates = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
-            this.objectStates.add(PhysicsObjectState.decode(buf));
+
+            PhysicsObjectState state = PhysicsObjectStatePool.acquire();
+            state.decode(buf);
+            this.objectStates.add(state);
         }
     }
 
@@ -32,22 +36,9 @@ public class SyncAllPhysicsObjectsPacket {
     }
 
     public static void handle(SyncAllPhysicsObjectsPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            ClientPhysicsObjectManager manager = ClientPhysicsObjectManager.getInstance();
 
-            for (PhysicsObjectState state : msg.objectStates) {
-                manager.updateObject(
-                    state.id(),
-                    state.objectType(),
-                    state.transform(),
-                    state.linearVelocity(),
-                    state.angularVelocity(),
-                    state.softBodyVertices(),
-                    null, 
-                    state.timestamp(),
-                    state.isActive()
-                );
-            }
+        ctx.get().enqueueWork(() -> {
+            ClientPhysicsObjectManager.getInstance().scheduleStatesForUpdate(msg.objectStates);
         });
         ctx.get().setPacketHandled(true);
     }

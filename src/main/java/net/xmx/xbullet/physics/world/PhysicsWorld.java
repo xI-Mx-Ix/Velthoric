@@ -88,13 +88,12 @@ public final class PhysicsWorld implements Runnable, Executor {
     private volatile boolean isRunning = false;
     private volatile boolean isPaused = false;
 
-    private long accumulatedPauseTimeNanos = 0L;
     private long pauseStartTimeNanos = 0L;
     private final float fixedTimeStep;
 
     private float timeAccumulator = 0.0f;
 
-    private static final int DEFAULT_SIMULATION_HZ = 60;
+    private static final int DEFAULT_SIMULATION_HZ = 50;
     private static final float MAX_ACCUMULATED_TIME = 0.2f;
 
     // --- Constructor & Lifecycle ---
@@ -200,7 +199,6 @@ public final class PhysicsWorld implements Runnable, Executor {
         }
 
         if (pauseStartTimeNanos != 0L) {
-            accumulatedPauseTimeNanos += System.nanoTime() - pauseStartTimeNanos;
             pauseStartTimeNanos = 0L;
         }
 

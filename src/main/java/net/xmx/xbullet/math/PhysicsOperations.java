@@ -3,6 +3,7 @@ package net.xmx.xbullet.math;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.QuatArg;
 import com.github.stephengold.joltjni.readonly.RVec3Arg;
 import net.minecraft.util.Mth;
@@ -98,5 +99,20 @@ public class PhysicsOperations {
         angles.setZ((float) Math.atan2(siny_cosp, cosy_cosp));
 
         return angles;
+    }
+
+    public static void extrapolateRotation(Quat startRot, Vec3 angVel, float dt, Quat out) {
+        float angle = angVel.length() * dt;
+        if (angle > 1e-6) {
+            Vec3 axis = angVel.normalized();
+            Quat deltaRot = new Quat(axis, angle);
+            Quat finalRot = Op.star(deltaRot, startRot);
+
+            Quat normalizedFinal = finalRot.normalized();
+            out.set(normalizedFinal);
+
+        } else {
+            out.set(startRot.getX(), startRot.getY(), startRot.getZ(), startRot.getW());
+        }
     }
 }

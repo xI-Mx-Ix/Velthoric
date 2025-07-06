@@ -11,21 +11,6 @@ import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public class ObjectLifecycleEvents {
 
-    @SubscribeEvent
-    public static void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
-
-        PhysicsWorld.getAll().forEach(world -> {
-            if (world.isRunning()) {
-                try {
-                    world.getObjectManager().serverTick();
-                } catch (Exception e) {
-                    XBullet.LOGGER.error("Error during ObjectManager tick for {}", world.getDimensionKey().location(), e);
-                }
-            }
-        });
-    }
-
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLevelSave(LevelEvent.Save event) {
         if (event.getLevel() instanceof ServerLevel level) {
@@ -37,5 +22,25 @@ public class ObjectLifecycleEvents {
                 }
             }
         }
+    }
+
+    @SubscribeEvent
+    public static void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+
+        PhysicsWorld.getAll().forEach(world -> {
+            if (world.isRunning() && world.getObjectManager() != null) {
+                ServerLevel level = world.getLevel();
+                try {
+                    world.getObjectManager().getManagedObjects().values().forEach(obj -> {
+                        if (!obj.isRemoved()) {
+                            obj.gameTick(level);
+                        }
+                    });
+                } catch (Exception e) {
+                    XBullet.LOGGER.error("Error during object gameTick for world {}", world.getDimensionKey().location(), e);
+                }
+            }
+        });
     }
 }

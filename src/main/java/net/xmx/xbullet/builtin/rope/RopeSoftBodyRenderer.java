@@ -1,7 +1,6 @@
 package net.xmx.xbullet.builtin.rope;
 
 import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.operator.Op;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -14,11 +13,8 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
 import net.xmx.xbullet.physics.object.softphysicsobject.client.ClientSoftPhysicsObjectData;
-
-import javax.annotation.Nullable;
 
 @OnlyIn(Dist.CLIENT)
 public class RopeSoftBodyRenderer extends SoftPhysicsObject.Renderer {

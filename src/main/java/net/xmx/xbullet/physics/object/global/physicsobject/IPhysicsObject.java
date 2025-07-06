@@ -1,9 +1,11 @@
+
 package net.xmx.xbullet.physics.object.global.physicsobject;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
@@ -25,7 +27,6 @@ public interface IPhysicsObject extends IRideable {
     void setBodyId(int bodyId);
     void initializePhysics(PhysicsWorld physicsWorld);
     void removeFromPhysics(PhysicsWorld physicsWorld);
-    void serverTick(PhysicsWorld physicsWorld);
     CompoundTag saveToNbt(CompoundTag tag);
     void loadFromNbt(CompoundTag tag);
 
@@ -47,4 +48,8 @@ public interface IPhysicsObject extends IRideable {
     void markNbtDirty();
     boolean isNbtDirty();
     void clearNbtDirty();
+
+    void gameTick(ServerLevel level);
+    void physicsTick(PhysicsWorld physicsWorld);
+
 }

@@ -5,11 +5,11 @@ import net.xmx.xbullet.physics.object.rigidphysicsobject.properties.RigidPhysics
 public class BoxPhysicsProperties {
 
     public static RigidPhysicsObjectProperties boxProperties = RigidPhysicsObjectProperties.builder()
-            .mass(400.0f)
-            .friction(0.5f)
-            .restitution(0.4f)
-            .linearDamping(0.1f)
-            .angularDamping(0.1f)
+            .mass(4000.0f)
+            .friction(0.7f)
+            .restitution(0.3f)
+            .linearDamping(0.3f)
+            .angularDamping(0.3f)
             .gravityFactor(1.0f)
             .buoyancyFactor(1.6f)
             .build();

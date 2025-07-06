@@ -7,6 +7,7 @@ import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.FloatTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
@@ -126,6 +127,10 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
                 return;
             }
         }
+    }
+
+    @Override
+    public void gameTick(ServerLevel level) {
     }
 
     @Override

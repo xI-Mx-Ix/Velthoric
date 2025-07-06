@@ -32,11 +32,14 @@ public interface IConstraintSerializer<T extends TwoBodyConstraint> {
             ConstraintCreator<T> creator) {
 
         UUID[] bodyIds = loadBodyIds(tag);
-        if (bodyIds == null || bodyIds[0] == null) {
+        if (bodyIds == null) {
             return CompletableFuture.completedFuture(null);
         }
 
-        CompletableFuture<IPhysicsObject> future1 = objectManager.getOrLoadObject(bodyIds[0]);
+        CompletableFuture<IPhysicsObject> future1 = (bodyIds[0] != null)
+                ? objectManager.getOrLoadObject(bodyIds[0])
+                : CompletableFuture.completedFuture(null);
+
         CompletableFuture<IPhysicsObject> future2 = (bodyIds[1] != null)
                 ? objectManager.getOrLoadObject(bodyIds[1])
                 : CompletableFuture.completedFuture(null);
@@ -50,14 +53,14 @@ public interface IConstraintSerializer<T extends TwoBodyConstraint> {
             IPhysicsObject obj1 = future1.join();
             IPhysicsObject obj2 = future2.join();
 
-            if (obj1 == null) {
+            if (obj1 == null && obj2 == null) {
                 return null;
             }
 
-            int b1Id = obj1.getBodyId();
+            int b1Id = (obj1 != null) ? obj1.getBodyId() : Body.sFixedToWorld().getId();
             int b2Id = (obj2 != null) ? obj2.getBodyId() : Body.sFixedToWorld().getId();
 
-            if (b1Id == 0) {
+            if ((obj1 != null && b1Id == 0) || (obj2 != null && b2Id == 0)) {
                 return null;
             }
 
@@ -70,22 +73,23 @@ public interface IConstraintSerializer<T extends TwoBodyConstraint> {
         }, physicsWorld);
     }
 
-    default void saveBodyIds(UUID bodyId1, @Nullable UUID bodyId2, CompoundTag tag) {
-        tag.putUUID("bodyId1", bodyId1);
+    default void saveBodyIds(@Nullable UUID bodyId1, @Nullable UUID bodyId2, CompoundTag tag) {
+        tag.putUUID("bodyId1", bodyId1 != null ? bodyId1 : WORLD_BODY_ID);
         tag.putUUID("bodyId2", bodyId2 != null ? bodyId2 : WORLD_BODY_ID);
     }
 
     @Nullable
     default UUID[] loadBodyIds(CompoundTag tag) {
-        if (!tag.hasUUID("bodyId1")) {
+        if (!tag.hasUUID("bodyId1") || !tag.hasUUID("bodyId2")) {
             return null;
         }
-        UUID bodyId1 = tag.getUUID("bodyId1");
-        UUID bodyId2 = tag.hasUUID("bodyId2") ? tag.getUUID("bodyId2") : null;
 
-        if (bodyId2 != null && WORLD_BODY_ID.equals(bodyId2)) {
-            bodyId2 = null;
-        }
+        UUID id1 = tag.getUUID("bodyId1");
+        UUID id2 = tag.getUUID("bodyId2");
+
+        UUID bodyId1 = WORLD_BODY_ID.equals(id1) ? null : id1;
+        UUID bodyId2 = WORLD_BODY_ID.equals(id2) ? null : id2;
+
         return new UUID[]{bodyId1, bodyId2};
     }
 }
