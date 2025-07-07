@@ -11,7 +11,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraftforge.network.NetworkEvent;
 import net.xmx.xbullet.command.xbullet.packet.ClientPhysicsObjectCountResponsePacket;
 import net.xmx.xbullet.command.xbullet.packet.RequestClientPhysicsObjectCountPacket;
-import net.xmx.xbullet.debug.drawer.packet.DebugRenderDataPacket;
+import net.xmx.xbullet.item.magnetizer.packet.MagnetizerActionPacket;
 import net.xmx.xbullet.item.physicsgun.packet.PhysicsGunActionPacket;
 import net.xmx.xbullet.physics.object.global.click.PhysicsClickPacket;
 import net.xmx.xbullet.physics.object.global.physicsobject.packet.*;
@@ -45,13 +45,6 @@ public class NetworkHandler {
     public static void register() {
 
         registerPacket(
-                DebugRenderDataPacket.class,
-                DebugRenderDataPacket::encode,
-                DebugRenderDataPacket::decode,
-                DebugRenderDataPacket::handle
-        );
-
-        registerPacket(
                 MountPhysicsObjectPacket.class,
                 MountPhysicsObjectPacket::encode,
                 MountPhysicsObjectPacket::decode,
@@ -77,6 +70,13 @@ public class NetworkHandler {
                 SyncAllPhysicsObjectsPacket::encode,
                 SyncAllPhysicsObjectsPacket::new,
                 SyncAllPhysicsObjectsPacket::handle
+        );
+
+        registerPacket(
+                MagnetizerActionPacket.class,
+                MagnetizerActionPacket::encode,
+                MagnetizerActionPacket::decode,
+                MagnetizerActionPacket::handle
         );
 
         registerPacket(

@@ -6,6 +6,7 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.RegistryObject;
 import net.xmx.xbullet.item.PhysicsCreatorItem;
 import net.xmx.xbullet.item.PhysicsRemoverItem;
+import net.xmx.xbullet.item.magnetizer.MagnetizerItem;
 import net.xmx.xbullet.item.physicsgun.PhysicsGunItem;
 
 public class ItemRegistry {
@@ -15,6 +16,7 @@ public class ItemRegistry {
 
     public static final RegistryObject<Item> PHYSICS_GUN = ModRegistries.ITEMS.register("physics_gun", PhysicsGunItem::new);
 
+    public static final RegistryObject<Item> MAGNETIZER = ModRegistries.ITEMS.register("magnetizer", MagnetizerItem::new);
 
     public static void register(IEventBus eventBus) {
         ModRegistries.ITEMS.register(eventBus);
