@@ -20,20 +20,14 @@ public class PhysicsGunManager {
     private static final PhysicsGunManager INSTANCE = new PhysicsGunManager();
     private final Map<UUID, GrabbedObjectInfo> grabbedObjects = new ConcurrentHashMap<>();
 
-
     private static final float POSITIONAL_SPRING_CONSTANT = 100_000f;
-
     private static final float POSITIONAL_DAMPING_FACTOR = 15_000f;
-
     private static final float ROTATIONAL_SPRING_CONSTANT = 8_000f;
     private static final float ROTATIONAL_DAMPING_FACTOR = 4_000f;
-
     private static final float MAX_LINEAR_FORCE = 750_000f;
     private static final float MAX_ANGULAR_TORQUE = 1_500_000f;
-
     private static final float MIN_DISTANCE = 2.0f;
     private static final float MAX_DISTANCE = 450.0f;
-
 
     private PhysicsGunManager() {}
 
@@ -47,10 +41,16 @@ public class PhysicsGunManager {
             float currentDistance,
             float originalGravityFactor,
             float originalAngularDamping,
-
             Quat initialBodyRotation,
             Quat initialPlayerRotation
     ) {}
+
+    private static Quat playerRotToQuat(float pitch, float yaw) {
+        Quat qPitch = Quat.sRotation(new Vec3(1, 0, 0), (float) Math.toRadians(pitch));
+        // KORREKTUR: Invertiere den Yaw-Winkel für die korrekte Drehrichtung.
+        Quat qYaw = Quat.sRotation(new Vec3(0, 1, 0), (float) Math.toRadians(-yaw));
+        return Op.star(qYaw, qPitch);
+    }
 
     public void startGrab(ServerPlayer player) {
         if (grabbedObjects.containsKey(player.getUUID())) return;
@@ -86,7 +86,7 @@ public class PhysicsGunManager {
                                 Vec3 hitPointLocal = Op.star(invBodyTransform, hitPointWorld).toVec3();
                                 float grabDistance = (float) Op.minus(rayOrigin, hitPointWorld).length();
 
-                                Quat initialPlayerRot = Quat.sFromTo(new Vec3(0, 0, -1), rayDirection.normalized());
+                                Quat initialPlayerRot = playerRotToQuat(player.getXRot(), player.getYRot());
                                 Quat initialBodyRot = body.getRotation();
 
                                 var info = new GrabbedObjectInfo(
@@ -143,10 +143,8 @@ public class PhysicsGunManager {
 
     public void updateScroll(ServerPlayer player, float scrollDelta) {
         grabbedObjects.computeIfPresent(player.getUUID(), (uuid, info) -> {
-
             float newDistance = info.currentDistance() + scrollDelta;
             newDistance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, newDistance));
-
             return new GrabbedObjectInfo(
                     info.bodyId(), info.grabPointLocal(), newDistance,
                     info.originalGravityFactor(), info.originalAngularDamping(),
@@ -179,6 +177,7 @@ public class PhysicsGunManager {
                 }
                 Body body = lock.getBody();
 
+                // Position Logic (Spring-Damper)
                 try (var comTransform = body.getCenterOfMassTransform()) {
                     var targetPointWorld = new RVec3(eyePos.x + lookVec.x * info.currentDistance(), eyePos.y + lookVec.y * info.currentDistance(), eyePos.z + lookVec.z * info.currentDistance());
                     var currentGrabPointWorld = Op.star(comTransform, info.grabPointLocal());
@@ -195,15 +194,18 @@ public class PhysicsGunManager {
                     body.addForce(force);
                 }
 
-                var joltLookVec = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z).normalized();
-                var currentPlayerRot = Quat.sFromTo(new Vec3(0, 0, -1), joltLookVec);
-
-                var playerRotationDelta = Op.star(currentPlayerRot, info.initialPlayerRotation().conjugated());
-
-                var targetBodyRotation = Op.star(playerRotationDelta, info.initialBodyRotation());
+                // GMod-style Rotation Logic
+                Quat currentPlayerRotation = playerRotToQuat(player.getXRot(), player.getYRot());
+                Quat playerRotationDelta = Op.star(currentPlayerRotation, info.initialPlayerRotation().conjugated());
+                Quat targetBodyRotation = Op.star(playerRotationDelta, info.initialBodyRotation());
 
                 var currentBodyRotation = body.getRotation();
                 var errorQuat = Op.star(targetBodyRotation, currentBodyRotation.conjugated());
+
+                if (errorQuat.getW() < 0.0f) {
+                    errorQuat.set(-errorQuat.getX(), -errorQuat.getY(), -errorQuat.getZ(), -errorQuat.getW());
+                }
+
                 var springTorque = Op.star(new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ()), 2.0f * ROTATIONAL_SPRING_CONSTANT);
                 var dampingTorque = Op.star(body.getAngularVelocity(), ROTATIONAL_DAMPING_FACTOR);
                 var torque = Op.minus(springTorque, dampingTorque);
