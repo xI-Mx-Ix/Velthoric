@@ -27,7 +27,7 @@ import net.xmx.xbullet.physics.world.PhysicsWorld;
 public class PhysicsCreatorItem extends Item {
 
     public PhysicsCreatorItem() {
-        super(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
+        super(new Properties().stacksTo(1).rarity(Rarity.EPIC));
     }
 
     @Override

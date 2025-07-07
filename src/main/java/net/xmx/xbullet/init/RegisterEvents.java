@@ -2,8 +2,8 @@ package net.xmx.xbullet.init;
 
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.xmx.xbullet.debug.ClientDebugEvents;
-import net.xmx.xbullet.debug.drawer.ClientDebugRenderer;
-import net.xmx.xbullet.debug.drawer.DebugGlobalRenderer;
+import net.xmx.xbullet.item.magnetizer.event.MagnetizerClientEvents;
+import net.xmx.xbullet.item.magnetizer.event.MagnetizerEvents;
 import net.xmx.xbullet.item.physicsgun.event.PhysicsGunClientEvents;
 import net.xmx.xbullet.item.physicsgun.event.PhysicsGunEvents;
 import net.xmx.xbullet.physics.PhysicsLifecycleEvents;
@@ -37,7 +37,7 @@ public class RegisterEvents {
         forgeEventBus.register(TerrainBlockEvents.class);
         forgeEventBus.register(ConstraintManagerEvents.class);
 
-        forgeEventBus.register(DebugGlobalRenderer.class);
+        forgeEventBus.register(MagnetizerEvents.class);
 
         forgeEventBus.register(ServerRidingEvents.class);
 
@@ -54,8 +54,9 @@ public class RegisterEvents {
 
         forgeEventBus.register(ClientDebugEvents.class);
 
+        forgeEventBus.register(MagnetizerClientEvents.class);
+
         forgeEventBus.register(ClientRidingEvents.class);
 
-        forgeEventBus.register(ClientDebugRenderer.class);
     }
 }

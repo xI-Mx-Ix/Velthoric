@@ -1,7 +1,5 @@
 package net.xmx.xbullet.physics.object.softphysicsobject.client;
 
-import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;

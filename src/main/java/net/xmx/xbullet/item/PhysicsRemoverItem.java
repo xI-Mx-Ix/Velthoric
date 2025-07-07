@@ -11,7 +11,7 @@ import net.minecraft.world.level.Level;
 public class PhysicsRemoverItem extends Item {
 
     public PhysicsRemoverItem() {
-        super(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
+        super(new Properties().stacksTo(1).rarity(Rarity.EPIC));
     }
 
     @Override
