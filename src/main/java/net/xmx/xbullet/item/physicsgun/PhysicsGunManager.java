@@ -9,6 +9,7 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.xbullet.physics.object.global.PhysicsRaytracing;
+import net.xmx.xbullet.physics.object.global.physicsobject.pcmd.DeactivateBodyCommand;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.Map;
@@ -47,7 +48,6 @@ public class PhysicsGunManager {
 
     private static Quat playerRotToQuat(float pitch, float yaw) {
         Quat qPitch = Quat.sRotation(new Vec3(1, 0, 0), (float) Math.toRadians(pitch));
-        // KORREKTUR: Invertiere den Yaw-Winkel für die korrekte Drehrichtung.
         Quat qYaw = Quat.sRotation(new Vec3(0, 1, 0), (float) Math.toRadians(-yaw));
         return Op.star(qYaw, qPitch);
     }
@@ -68,8 +68,12 @@ public class PhysicsGunManager {
 
             PhysicsRaytracing.rayCastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHit -> {
                 var bodyInterface = physicsWorld.getBodyInterface();
+                if (bodyInterface == null) return;
+
+                bodyInterface.activateBody(physicsHit.getBodyId());
+
                 var bodyLockInterface = physicsWorld.getBodyLockInterface();
-                if (bodyInterface == null || bodyLockInterface == null) return;
+                if (bodyLockInterface == null) return;
 
                 boolean grabSuccessful = false;
                 try (var lock = new BodyLockWrite(bodyLockInterface, physicsHit.getBodyId())) {
@@ -109,9 +113,30 @@ public class PhysicsGunManager {
                         }
                     }
                 }
-                if (grabSuccessful) {
-                    bodyInterface.activateBody(physicsHit.getBodyId());
-                }
+
+            });
+        });
+    }
+
+    public void freezeObject(ServerPlayer player) {
+
+        stopGrab(player);
+
+        var physicsWorld = PhysicsWorld.get(player.level().dimension());
+        if (physicsWorld == null) return;
+
+        final var eyePos = player.getEyePosition();
+        final var lookVec = player.getLookAngle();
+        final var level = player.level();
+
+        physicsWorld.execute(() -> {
+            var rayOrigin = new RVec3(eyePos.x, eyePos.y, eyePos.z);
+            var rayDirection = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z);
+
+            PhysicsRaytracing.rayCastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHit -> {
+                var bodyId = physicsHit.getBodyId();
+
+                new DeactivateBodyCommand(bodyId).execute(physicsWorld);
             });
         });
     }
@@ -177,7 +202,6 @@ public class PhysicsGunManager {
                 }
                 Body body = lock.getBody();
 
-                // Position Logic (Spring-Damper)
                 try (var comTransform = body.getCenterOfMassTransform()) {
                     var targetPointWorld = new RVec3(eyePos.x + lookVec.x * info.currentDistance(), eyePos.y + lookVec.y * info.currentDistance(), eyePos.z + lookVec.z * info.currentDistance());
                     var currentGrabPointWorld = Op.star(comTransform, info.grabPointLocal());
@@ -194,7 +218,6 @@ public class PhysicsGunManager {
                     body.addForce(force);
                 }
 
-                // GMod-style Rotation Logic
                 Quat currentPlayerRotation = playerRotToQuat(player.getXRot(), player.getYRot());
                 Quat playerRotationDelta = Op.star(currentPlayerRotation, info.initialPlayerRotation().conjugated());
                 Quat targetBodyRotation = Op.star(playerRotationDelta, info.initialBodyRotation());

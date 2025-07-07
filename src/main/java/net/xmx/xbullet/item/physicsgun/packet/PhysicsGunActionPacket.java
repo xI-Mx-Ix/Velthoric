@@ -15,7 +15,8 @@ public class PhysicsGunActionPacket {
     public enum ActionType {
         START_GRAB,
         STOP_GRAB,
-        UPDATE_SCROLL
+        UPDATE_SCROLL,
+        FREEZE_OBJECT,
     }
 
     public PhysicsGunActionPacket(ActionType actionType) {
@@ -54,6 +55,7 @@ public class PhysicsGunActionPacket {
                 case START_GRAB -> manager.startGrab(player);
                 case STOP_GRAB -> manager.stopGrab(player);
                 case UPDATE_SCROLL -> manager.updateScroll(player, msg.scrollDelta);
+                case FREEZE_OBJECT -> manager.freezeObject(player);
             }
         });
         ctx.get().setPacketHandled(true);

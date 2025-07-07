@@ -19,7 +19,7 @@ public class PhysicsGunClientEvents {
         if (player == null) return;
 
         boolean isHoldingGun = player.getMainHandItem().is(ItemRegistry.PHYSICS_GUN.get())
-                            || player.getOffhandItem().is(ItemRegistry.PHYSICS_GUN.get());
+                || player.getOffhandItem().is(ItemRegistry.PHYSICS_GUN.get());
 
         if (!isHoldingGun) {
             if (wasGrabbing) {
@@ -29,6 +29,7 @@ public class PhysicsGunClientEvents {
             return;
         }
 
+        // Linksklick zum Greifen/Loslassen
         if (event.getButton() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             if (event.getAction() == GLFW.GLFW_PRESS && !wasGrabbing) {
                 NetworkHandler.CHANNEL.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.START_GRAB));
@@ -36,6 +37,16 @@ public class PhysicsGunClientEvents {
             } else if (event.getAction() == GLFW.GLFW_RELEASE && wasGrabbing) {
                 NetworkHandler.CHANNEL.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_GRAB));
                 wasGrabbing = false;
+            }
+        }
+
+        if (event.getButton() == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+            if (event.getAction() == GLFW.GLFW_PRESS) {
+                if (wasGrabbing) {
+                    NetworkHandler.CHANNEL.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_GRAB));
+                    wasGrabbing = false;
+                }
+                NetworkHandler.CHANNEL.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.FREEZE_OBJECT));
             }
         }
 
@@ -53,7 +64,7 @@ public class PhysicsGunClientEvents {
         if (player == null) return;
 
         boolean isHoldingGun = player.getMainHandItem().is(ItemRegistry.PHYSICS_GUN.get())
-                            || player.getOffhandItem().is(ItemRegistry.PHYSICS_GUN.get());
+                || player.getOffhandItem().is(ItemRegistry.PHYSICS_GUN.get());
 
         if (isHoldingGun && wasGrabbing) {
             NetworkHandler.CHANNEL.sendToServer(new PhysicsGunActionPacket((float) event.getScrollDelta()));
