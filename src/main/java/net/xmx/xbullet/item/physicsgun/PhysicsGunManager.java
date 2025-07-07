@@ -8,11 +8,13 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.xmx.xbullet.physics.object.global.PhysicsRaytracing;
 import net.xmx.xbullet.physics.object.global.physicsobject.pcmd.DeactivateBodyCommand;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,13 +22,17 @@ public class PhysicsGunManager {
 
     private static final PhysicsGunManager INSTANCE = new PhysicsGunManager();
     private final Map<UUID, GrabbedObjectInfo> grabbedObjects = new ConcurrentHashMap<>();
+    private final Set<UUID> playersTryingToGrab = ConcurrentHashMap.newKeySet();
 
     private static final float POSITIONAL_SPRING_CONSTANT = 100_000f;
     private static final float POSITIONAL_DAMPING_FACTOR = 15_000f;
-    private static final float ROTATIONAL_SPRING_CONSTANT = 8_000f;
-    private static final float ROTATIONAL_DAMPING_FACTOR = 4_000f;
+
+    private static final float ROTATIONAL_SPRING_CONSTANT = 25_000f;
+    private static final float ROTATIONAL_DAMPING_FACTOR = 5_000f;
+
     private static final float MAX_LINEAR_FORCE = 750_000f;
     private static final float MAX_ANGULAR_TORQUE = 1_500_000f;
+
     private static final float MIN_DISTANCE = 2.0f;
     private static final float MAX_DISTANCE = 450.0f;
 
@@ -52,9 +58,24 @@ public class PhysicsGunManager {
         return Op.star(qYaw, qPitch);
     }
 
-    public void startGrab(ServerPlayer player) {
-        if (grabbedObjects.containsKey(player.getUUID())) return;
+    public void startGrabAttempt(ServerPlayer player) {
+        playersTryingToGrab.add(player.getUUID());
+    }
 
+    public void stopGrabAttempt(ServerPlayer player) {
+        playersTryingToGrab.remove(player.getUUID());
+        stopGrab(player);
+    }
+
+    public boolean isGrabbing(Player player) {
+        return grabbedObjects.containsKey(player.getUUID());
+    }
+
+    public boolean isTryingToGrab(Player player) {
+        return playersTryingToGrab.contains(player.getUUID());
+    }
+
+    public void startGrab(ServerPlayer player) {
         var physicsWorld = PhysicsWorld.get(player.level().dimension());
         if (physicsWorld == null) return;
 
@@ -75,7 +96,6 @@ public class PhysicsGunManager {
                 var bodyLockInterface = physicsWorld.getBodyLockInterface();
                 if (bodyLockInterface == null) return;
 
-                boolean grabSuccessful = false;
                 try (var lock = new BodyLockWrite(bodyLockInterface, physicsHit.getBodyId())) {
                     if (lock.succeededAndIsInBroadPhase() && lock.getBody().isDynamic()) {
                         Body body = lock.getBody();
@@ -104,7 +124,6 @@ public class PhysicsGunManager {
                                 );
 
                                 grabbedObjects.put(player.getUUID(), info);
-                                grabSuccessful = true;
 
                                 motionProperties.setGravityFactor(0f);
                                 motionProperties.setAngularDamping(2.0f);
@@ -113,13 +132,11 @@ public class PhysicsGunManager {
                         }
                     }
                 }
-
             });
         });
     }
 
     public void freezeObject(ServerPlayer player) {
-
         stopGrab(player);
 
         var physicsWorld = PhysicsWorld.get(player.level().dimension());
@@ -135,13 +152,13 @@ public class PhysicsGunManager {
 
             PhysicsRaytracing.rayCastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHit -> {
                 var bodyId = physicsHit.getBodyId();
-
                 new DeactivateBodyCommand(bodyId).execute(physicsWorld);
             });
         });
     }
 
     public void stopGrab(ServerPlayer player) {
+        playersTryingToGrab.remove(player.getUUID());
         GrabbedObjectInfo info = grabbedObjects.remove(player.getUUID());
         if (info != null) {
             var physicsWorld = PhysicsWorld.get(player.level().dimension());

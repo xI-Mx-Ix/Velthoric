@@ -55,6 +55,8 @@ public class ObjectManager {
     private final Map<String, GlobalPhysicsObjectRegistry.RegistrationData> registeredObjectFactories = new ConcurrentHashMap<>();
     private final ThreadLocal<List<UUID>> removalListPool = ThreadLocal.withInitial(ObjectArrayList::new);
 
+    private final ThreadLocal<PhysicsTransform> tempTransform = ThreadLocal.withInitial(PhysicsTransform::new);
+
     public ObjectManager() {
         this.dataSystem = new ObjectDataSystem(this);
     }
@@ -182,28 +184,36 @@ public class ObjectManager {
             obj.physicsTick(this.physicsWorld);
 
             boolean isActive = bodyInterface.isActive(obj.getBodyId());
-            PhysicsTransform transform = null;
-            Vec3 linVel = null;
-            Vec3 angVel = null;
-            float[] vertexData = null;
+            Boolean wasActive = lastActiveState.put(obj.getPhysicsId(), isActive);
+            boolean stateChanged = wasActive != null && wasActive != isActive;
 
             if (isActive) {
-                PhysicsTransform t = new PhysicsTransform();
-                bodyInterface.getPositionAndRotation(obj.getBodyId(), t.getTranslation(), t.getRotation());
-                transform = t;
-                linVel = bodyInterface.getLinearVelocity(obj.getBodyId());
-                angVel = bodyInterface.getAngularVelocity(obj.getBodyId());
+                // Use pooled object for transform
+                PhysicsTransform transform = tempTransform.get();
+                bodyInterface.getPositionAndRotation(obj.getBodyId(), transform.getTranslation(), transform.getRotation());
 
+                // KORREKTUR: Verwende die Rückgabewerte der Methoden
+                Vec3 linVel = bodyInterface.getLinearVelocity(obj.getBodyId());
+                Vec3 angVel = bodyInterface.getAngularVelocity(obj.getBodyId());
+
+                float[] vertexData = null;
                 if (obj.getPhysicsObjectType() == EObjectType.SOFT_BODY) {
                     vertexData = getSoftBodyVertices(lockInterface, obj.getBodyId());
                 }
+
+                obj.updateStateFromPhysicsThread(timestampNanos, transform, linVel, angVel, vertexData, isActive);
+
+            } else {
+                if (stateChanged) {
+                    PhysicsTransform transform = tempTransform.get();
+                    bodyInterface.getPositionAndRotation(obj.getBodyId(), transform.getTranslation(), transform.getRotation());
+                    obj.updateStateFromPhysicsThread(timestampNanos, transform, null, null, null, isActive);
+                } else {
+                    obj.updateStateFromPhysicsThread(timestampNanos, null, null, null, null, isActive);
+                }
             }
 
-            obj.updateStateFromPhysicsThread(timestampNanos, transform, linVel, angVel, vertexData, isActive);
-
-            Boolean wasActiveWrapper = lastActiveState.put(obj.getPhysicsId(), isActive);
-            boolean wasActive = wasActiveWrapper != null && wasActiveWrapper;
-            if (isActive || wasActive || obj.isNbtDirty()) {
+            if (isActive || stateChanged || obj.isNbtDirty()) {
                 objectsToProcess.add(obj);
             }
         });
@@ -213,7 +223,11 @@ public class ObjectManager {
         }
 
         Map<Long, List<PhysicsObjectState>> statesByChunk = objectsToProcess.parallelStream()
-                .filter(obj -> obj.isPhysicsActive() || lastActiveState.getOrDefault(obj.getPhysicsId(), false))
+                .filter(obj -> {
+                    Boolean wasActiveWrapper = lastActiveState.get(obj.getPhysicsId());
+                    boolean wasActive = wasActiveWrapper != null && wasActiveWrapper;
+                    return obj.isPhysicsActive() || wasActive;
+                })
                 .map(obj -> {
                     long ts = obj.getLastUpdateTimestampNanos();
                     if (ts > 0) {

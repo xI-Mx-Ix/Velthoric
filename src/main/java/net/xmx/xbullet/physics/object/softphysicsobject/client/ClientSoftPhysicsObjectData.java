@@ -81,10 +81,6 @@ public class ClientSoftPhysicsObjectData {
         }
 
         long renderTimestamp = ClientClock.getInstance().getGameTimeNanos() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
-        TimestampedState latest = vertexStateBuffer.peekLast();
-        if (latest != null && !latest.isActive) {
-            return latest.vertexData;
-        }
 
         TimestampedState before = null, after = null;
         for (TimestampedState current : vertexStateBuffer) {
@@ -99,9 +95,12 @@ public class ClientSoftPhysicsObjectData {
         if (before == null) {
             return vertexStateBuffer.isEmpty() ? latestSyncedVertexData : vertexStateBuffer.peekFirst().vertexData;
         }
+
         if (after == null) {
-            return latestSyncedVertexData;
+
+            return before.vertexData;
         }
+
         if (renderVertexBuffer == null || renderVertexBuffer.length != before.vertexData.length) {
             renderVertexBuffer = new float[before.vertexData.length];
         }
@@ -122,10 +121,6 @@ public class ClientSoftPhysicsObjectData {
         }
 
         long renderTimestamp = ClientClock.getInstance().getGameTimeNanos() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
-        TimestampedTransform latest = transformStateBuffer.peekLast();
-        if (latest != null && !latest.isActive) {
-            return latest.transform;
-        }
 
         TimestampedTransform before = null, after = null;
         for (TimestampedTransform current : transformStateBuffer) {
@@ -140,8 +135,10 @@ public class ClientSoftPhysicsObjectData {
         if (before == null) {
             return transformStateBuffer.isEmpty() ? latestSyncedTransform : transformStateBuffer.peekFirst().transform;
         }
+
         if (after == null) {
-            return latestSyncedTransform;
+
+            return before.transform;
         }
 
         long timeDiff = after.timestampNanos - before.timestampNanos;

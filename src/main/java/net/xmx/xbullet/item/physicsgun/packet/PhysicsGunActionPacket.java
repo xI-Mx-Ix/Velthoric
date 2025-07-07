@@ -12,9 +12,10 @@ public class PhysicsGunActionPacket {
     private final ActionType actionType;
     private final float scrollDelta;
 
+    // GEÄNDERT: Enum-Namen zur Verdeutlichung der Absicht
     public enum ActionType {
-        START_GRAB,
-        STOP_GRAB,
+        START_GRAB_ATTEMPT, // Spieler beginnt zu versuchen zu greifen
+        STOP_GRAB_ATTEMPT,  // Spieler hört auf zu versuchen (und lässt los)
         UPDATE_SCROLL,
         FREEZE_OBJECT,
     }
@@ -51,9 +52,10 @@ public class PhysicsGunActionPacket {
             if (player == null) return;
 
             var manager = PhysicsGunManager.getInstance();
+            // GEÄNDERT: Neue Manager-Methoden aufrufen
             switch (msg.actionType) {
-                case START_GRAB -> manager.startGrab(player);
-                case STOP_GRAB -> manager.stopGrab(player);
+                case START_GRAB_ATTEMPT -> manager.startGrabAttempt(player);
+                case STOP_GRAB_ATTEMPT -> manager.stopGrabAttempt(player);
                 case UPDATE_SCROLL -> manager.updateScroll(player, msg.scrollDelta);
                 case FREEZE_OBJECT -> manager.freezeObject(player);
             }

@@ -23,14 +23,6 @@ public class ClientRigidPhysicsObjectData {
     private static final int MAX_BUFFER_SIZE = 250;
     private static final long MAX_BUFFER_TIME_MS = 2000;
     private static final int MIN_BUFFER_FOR_INTERPOLATION = 2;
-    private static final long EXTRAPOLATION_MAX_TIME_MS = 500;
-
-    private final Vec3 lastKnownLinearVelocity = new Vec3();
-    private final Vec3 lastKnownAngularVelocity = new Vec3();
-
-    private long clockOffsetNanos = 0L;
-    private boolean isClockOffsetInitialized = false;
-    private static final double OFFSET_SMOOTHING_FACTOR = 0.05;
 
     private final Deque<TimestampedTransform> transformBuffer = new ArrayDeque<>();
     private final PhysicsTransform lastValidSnapshot = new PhysicsTransform();
@@ -38,6 +30,10 @@ public class ClientRigidPhysicsObjectData {
 
     private final PhysicsTransform renderTransform = new PhysicsTransform();
     private long lastServerTimestamp = 0;
+
+    private long clockOffsetNanos = 0L;
+    private boolean isClockOffsetInitialized = false;
+    private static final double OFFSET_SMOOTHING_FACTOR = 0.05;
 
     public ClientRigidPhysicsObjectData(UUID id, PhysicsTransform initialTransform,
                                         float mass, float friction, float restitution,
@@ -56,8 +52,10 @@ public class ClientRigidPhysicsObjectData {
         this.lastServerTimestamp = initialServerTimestampNanos;
     }
 
-    public void updateTransformFromServer(PhysicsTransform newTransform, @Nullable Vec3 linVel, @Nullable Vec3 angVel, long serverTimestamp, boolean isActive) {
-        if (newTransform == null || serverTimestamp <= 0) return;
+    public void updateTransformFromServer(@Nullable PhysicsTransform newTransform, @Nullable Vec3 linVel, @Nullable Vec3 angVel, long serverTimestamp, boolean isActive) {
+        PhysicsTransform transformToBuffer = newTransform != null ? newTransform : lastValidSnapshot;
+
+        if (transformToBuffer == null || serverTimestamp <= 0) return;
 
         long clientReceiptTimeNanos = ClientClock.getInstance().getGameTimeNanos();
         if (!isClockOffsetInitialized) {
@@ -69,19 +67,11 @@ public class ClientRigidPhysicsObjectData {
         }
 
         if (serverTimestamp > lastServerTimestamp) {
-            transformBuffer.addLast(new TimestampedTransform(serverTimestamp, newTransform, linVel, angVel, isActive));
+            transformBuffer.addLast(new TimestampedTransform(serverTimestamp, transformToBuffer, linVel, angVel, isActive));
             lastServerTimestamp = serverTimestamp;
-            lastValidSnapshot.set(newTransform);
 
-            if (linVel != null) {
-                this.lastKnownLinearVelocity.set(linVel);
-            } else {
-                this.lastKnownLinearVelocity.loadZero();
-            }
-            if (angVel != null) {
-                this.lastKnownAngularVelocity.set(angVel);
-            } else {
-                this.lastKnownAngularVelocity.loadZero();
+            if (newTransform != null) {
+                lastValidSnapshot.set(newTransform);
             }
         }
     }
@@ -110,18 +100,17 @@ public class ClientRigidPhysicsObjectData {
     }
 
     public PhysicsTransform getRenderTransform(float partialTicks) {
-        if (transformBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
+        if (transformBuffer.isEmpty() || !isClockOffsetInitialized) {
             return lastValidSnapshot;
+        }
+
+        if (transformBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION) {
+            return transformBuffer.peekFirst().transform;
         }
 
         long nowNanosClient = ClientClock.getInstance().getGameTimeNanos();
         long estimatedServerTimeNow = nowNanosClient + this.clockOffsetNanos;
         long renderTimestamp = estimatedServerTimeNow - (INTERPOLATION_DELAY_MS * 1_000_000L);
-
-        TimestampedTransform latest = transformBuffer.peekLast();
-        if (latest != null && !latest.isActive) {
-            return latest.transform;
-        }
 
         TimestampedTransform before = null;
         TimestampedTransform after = null;
@@ -135,10 +124,11 @@ public class ClientRigidPhysicsObjectData {
         }
 
         if (before == null) {
-            return transformBuffer.isEmpty() ? lastValidSnapshot : transformBuffer.peekFirst().transform;
+            return transformBuffer.peekFirst().transform;
         }
+
         if (after == null) {
-            return calculateExtrapolatedTransform(before, renderTimestamp);
+            return before.transform;
         }
 
         long timeDiff = after.timestamp - before.timestamp;
@@ -151,29 +141,6 @@ public class ClientRigidPhysicsObjectData {
         return renderTransform;
     }
 
-    private PhysicsTransform calculateExtrapolatedTransform(TimestampedTransform latest, long renderTimestamp) {
-        long extrapTimeNanos = renderTimestamp - latest.timestamp;
-        if (!latest.isActive || extrapTimeNanos <= 0 || extrapTimeNanos > EXTRAPOLATION_MAX_TIME_MS * 1_000_000L) {
-            return latest.transform;
-        }
-
-        float dt = (float)extrapTimeNanos / 1_000_000_000.0f;
-
-        RVec3 startPos = latest.transform.getTranslation();
-        Vec3 linVel = latest.linearVelocity;
-        renderTransform.getTranslation().set(
-                startPos.xx() + linVel.getX() * dt,
-                startPos.yy() + linVel.getY() * dt,
-                startPos.zz() + linVel.getZ() * dt
-        );
-
-        Quat startRot = latest.transform.getRotation();
-        Vec3 angVel = latest.angularVelocity;
-        PhysicsOperations.extrapolateRotation(startRot, angVel, dt, renderTransform.getRotation());
-
-        return renderTransform;
-    }
-
     public UUID getId() { return id; }
     public CompoundTag getSyncedNbtData() { return syncedNbtData.copy(); }
     @Nullable public RigidPhysicsObject.Renderer getRenderer() { return renderer; }
@@ -181,11 +148,12 @@ public class ClientRigidPhysicsObjectData {
     private static class TimestampedTransform {
         final long timestamp;
         final PhysicsTransform transform;
+
         final Vec3 linearVelocity;
         final Vec3 angularVelocity;
         final boolean isActive;
 
-        TimestampedTransform(long timestamp, PhysicsTransform source, Vec3 linVel, Vec3 angVel, boolean isActive) {
+        TimestampedTransform(long timestamp, PhysicsTransform source, @Nullable Vec3 linVel, @Nullable Vec3 angVel, boolean isActive) {
             this.timestamp = timestamp;
             this.transform = source.copy();
             this.linearVelocity = linVel != null ? new Vec3(linVel) : new Vec3();

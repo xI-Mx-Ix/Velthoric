@@ -1,15 +1,10 @@
 package net.xmx.xbullet.item.physicsgun.event;
 
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.init.registry.ItemRegistry;
 import net.xmx.xbullet.item.physicsgun.PhysicsGunItem;
 import net.xmx.xbullet.item.physicsgun.PhysicsGunManager;
@@ -27,18 +22,28 @@ public class PhysicsGunEvents {
                         || player.getOffhandItem().is(ItemRegistry.PHYSICS_GUN.get());
 
                 if (isHoldingGun) {
-                    manager.serverTick(player);
+
+                    if (manager.isGrabbing(player)) {
+
+                        manager.serverTick(player);
+                    } else if (manager.isTryingToGrab(player)) {
+
+                        manager.startGrab(player);
+                    }
                 } else {
-                    manager.stopGrab(player);
+
+                    manager.stopGrabAttempt(player);
                 }
             }
         }
     }
+
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         Player player = event.getEntity();
         if (player instanceof ServerPlayer) {
-            PhysicsGunManager.getInstance().stopGrab((ServerPlayer) player);
+
+            PhysicsGunManager.getInstance().stopGrabAttempt((ServerPlayer) player);
         }
     }
 
