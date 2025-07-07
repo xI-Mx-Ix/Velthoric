@@ -20,7 +20,7 @@ public class ClientRigidPhysicsObjectData {
     @Nullable private final RigidPhysicsObject.Renderer renderer;
 
     private static final long INTERPOLATION_DELAY_MS = 100;
-    private static final int MAX_BUFFER_SIZE = 250;
+    private static final int MAX_BUFFER_SIZE = 20;
     private static final long MAX_BUFFER_TIME_MS = 2000;
     private static final int MIN_BUFFER_FOR_INTERPOLATION = 2;
 

@@ -1,15 +1,20 @@
 package net.xmx.xbullet.builtin.sphere;
 
+import com.github.stephengold.joltjni.RVec3;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.rigidphysicsobject.client.ClientRigidPhysicsObjectData;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.Quat;
 
 public class SphereRenderer extends RigidPhysicsObject.Renderer {
 
@@ -30,12 +35,8 @@ public class SphereRenderer extends RigidPhysicsObject.Renderer {
             radius = 0.5f;
         }
 
-        poseStack.pushPose();
-
         PoseStack.Pose lastPose = poseStack.last();
-
         Matrix4f poseMatrix = lastPose.pose();
-
         Matrix3f normalMatrix = lastPose.normal();
 
         VertexConsumer consumer = bufferSource.getBuffer(RenderType.solid());
@@ -67,8 +68,6 @@ public class SphereRenderer extends RigidPhysicsObject.Renderer {
                 addVertex(consumer, poseMatrix, normalMatrix, v4, r, g, b, a, packedLight);
             }
         }
-
-        poseStack.popPose();
     }
 
     private Vector3f getSphereVertex(float radius, float phi, float theta) {
@@ -79,6 +78,7 @@ public class SphereRenderer extends RigidPhysicsObject.Renderer {
     }
 
     private void addVertex(VertexConsumer consumer, Matrix4f poseMatrix, Matrix3f normalMatrix, Vector3f pos, int r, int g, int b, int a, int packedLight) {
+
         Vector3f normal = new Vector3f(pos).normalize();
 
         consumer.vertex(poseMatrix, pos.x, pos.y, pos.z)
@@ -86,7 +86,6 @@ public class SphereRenderer extends RigidPhysicsObject.Renderer {
                 .uv(0, 0)
                 .overlayCoords(OverlayTexture.NO_OVERLAY)
                 .uv2(packedLight)
-
                 .normal(normalMatrix, normal.x, normal.y, normal.z)
                 .endVertex();
     }
