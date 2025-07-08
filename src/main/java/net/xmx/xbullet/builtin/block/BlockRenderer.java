@@ -17,8 +17,8 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.model.data.ModelData;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.client.ClientRigidPhysicsObjectData;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.client.ClientRigidPhysicsObjectData;
 
 @OnlyIn(Dist.CLIENT)
 public class BlockRenderer extends RigidPhysicsObject.Renderer {

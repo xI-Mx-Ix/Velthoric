@@ -1,6 +1,6 @@
 package net.xmx.xbullet.physics.object.fluid;
 
-import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;

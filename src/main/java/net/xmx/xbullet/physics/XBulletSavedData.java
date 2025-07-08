@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

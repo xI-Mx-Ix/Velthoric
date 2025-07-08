@@ -5,8 +5,8 @@ import com.github.stephengold.joltjni.SphereShapeSettings;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
-import net.xmx.xbullet.physics.object.global.physicsobject.properties.IPhysicsObjectProperties;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
 
 import javax.annotation.Nullable;
 import java.util.UUID;

@@ -5,7 +5,7 @@ import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.material.FluidState;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.*;

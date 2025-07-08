@@ -10,7 +10,7 @@ import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.xmx.xbullet.physics.object.global.PhysicsRaytracing;
-import net.xmx.xbullet.physics.object.global.physicsobject.pcmd.DeactivateBodyCommand;
+import net.xmx.xbullet.physics.object.physicsobject.pcmd.DeactivateBodyCommand;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.Map;

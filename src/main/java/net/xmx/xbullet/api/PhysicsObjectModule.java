@@ -2,15 +2,15 @@ package net.xmx.xbullet.api;
 
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.client.ClientPhysicsObjectManager;
-import net.xmx.xbullet.physics.object.global.physicsobject.properties.IPhysicsObjectProperties;
-import net.xmx.xbullet.physics.object.global.physicsobject.registry.GlobalPhysicsObjectRegistry;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.builder.RigidPhysicsObjectBuilder;
-import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
-import net.xmx.xbullet.physics.object.softphysicsobject.builder.SoftPhysicsObjectBuilder;
+import net.xmx.xbullet.physics.object.physicsobject.EObjectType;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
+import net.xmx.xbullet.physics.object.physicsobject.registry.GlobalPhysicsObjectRegistry;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.builder.RigidPhysicsObjectBuilder;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.SoftPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.builder.SoftPhysicsObjectBuilder;
 
 import java.util.function.Supplier;
 

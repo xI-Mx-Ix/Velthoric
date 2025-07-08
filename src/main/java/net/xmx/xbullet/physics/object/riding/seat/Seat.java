@@ -5,7 +5,7 @@ import com.github.stephengold.joltjni.Mat44;
 import com.github.stephengold.joltjni.RMat44;
 import com.github.stephengold.joltjni.Vec3;
 import net.xmx.xbullet.math.PhysicsTransform;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
 
 import javax.annotation.Nullable;
 import java.util.UUID;

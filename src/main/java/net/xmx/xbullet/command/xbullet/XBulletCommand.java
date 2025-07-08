@@ -16,8 +16,8 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
-import net.xmx.xbullet.physics.object.global.physicsobject.registry.GlobalPhysicsObjectRegistry;
+import net.xmx.xbullet.physics.object.physicsobject.EObjectType;
+import net.xmx.xbullet.physics.object.physicsobject.registry.GlobalPhysicsObjectRegistry;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;

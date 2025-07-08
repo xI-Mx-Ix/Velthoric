@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.xbullet.physics.XBulletSavedData;
 import net.xmx.xbullet.physics.constraint.IConstraint;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;

@@ -11,12 +11,12 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
-import net.xmx.xbullet.physics.object.global.physicsobject.registry.GlobalPhysicsObjectRegistry;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.builder.RigidPhysicsObjectBuilder;
-import net.xmx.xbullet.physics.object.softphysicsobject.builder.SoftPhysicsObjectBuilder;
+import net.xmx.xbullet.physics.object.physicsobject.EObjectType;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.registry.GlobalPhysicsObjectRegistry;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.builder.RigidPhysicsObjectBuilder;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.builder.SoftPhysicsObjectBuilder;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public class SpawnObjectCommandExecutor {

@@ -6,7 +6,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.xbullet.physics.object.global.PhysicsRaytracing;
-import net.xmx.xbullet.physics.object.global.physicsobject.pcmd.ActivateBodyCommand;
+import net.xmx.xbullet.physics.object.physicsobject.pcmd.ActivateBodyCommand;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.Map;

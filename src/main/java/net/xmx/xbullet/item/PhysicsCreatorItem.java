@@ -20,8 +20,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.xmx.xbullet.builtin.block.BlockRigidPhysicsObject;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.builder.RigidPhysicsObjectBuilder;
+import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.builder.RigidPhysicsObjectBuilder;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public class PhysicsCreatorItem extends Item {

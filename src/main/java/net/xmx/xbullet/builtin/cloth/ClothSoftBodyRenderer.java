@@ -10,8 +10,8 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
-import net.xmx.xbullet.physics.object.softphysicsobject.client.ClientSoftPhysicsObjectData;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.SoftPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.client.ClientSoftPhysicsObjectData;
 import org.joml.Vector3f;
 
 import java.util.function.BiFunction;

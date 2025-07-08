@@ -7,8 +7,8 @@ import net.minecraftforge.fml.ModContainer;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.forgespi.language.IModInfo;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
-import net.xmx.xbullet.physics.object.global.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.EObjectType;
+import net.xmx.xbullet.physics.object.physicsobject.client.ClientPhysicsObjectManager;
 
 import java.util.Optional;
 

@@ -1,6 +1,6 @@
 package net.xmx.xbullet.builtin.cloth;
 
-import net.xmx.xbullet.physics.object.softphysicsobject.properties.SoftPhysicsObjectProperties;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.properties.SoftPhysicsObjectProperties;
 
 public class ClothPhysicsProperties {
 

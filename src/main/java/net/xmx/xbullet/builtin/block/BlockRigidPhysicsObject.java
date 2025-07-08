@@ -13,8 +13,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.model.converter.VoxelShapeConverter;
-import net.xmx.xbullet.physics.object.global.physicsobject.properties.IPhysicsObjectProperties;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
 
 import javax.annotation.Nullable;
 import java.util.UUID;

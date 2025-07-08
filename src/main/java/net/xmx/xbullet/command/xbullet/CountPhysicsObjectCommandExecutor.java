@@ -9,8 +9,8 @@ import net.minecraftforge.network.PacketDistributor;
 import net.xmx.xbullet.command.xbullet.packet.RequestClientPhysicsObjectCountPacket;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.network.NetworkHandler;
-import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.EObjectType;
+import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 class CountPhysicsObjectCommandExecutor {

@@ -18,7 +18,7 @@ import net.xmx.xbullet.builtin.rope.RopeSoftBodyRenderer;
 import net.xmx.xbullet.builtin.sphere.SpherePhysicsProperties;
 import net.xmx.xbullet.builtin.sphere.SphereRenderer;
 import net.xmx.xbullet.builtin.sphere.SphereRigidPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
+import net.xmx.xbullet.physics.object.physicsobject.EObjectType;
 
 public class BuiltInPhysicsRegistry {
 

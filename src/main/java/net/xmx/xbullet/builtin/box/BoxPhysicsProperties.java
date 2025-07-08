@@ -1,6 +1,6 @@
 package net.xmx.xbullet.builtin.box;
 
-import net.xmx.xbullet.physics.object.rigidphysicsobject.properties.RigidPhysicsObjectProperties;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.properties.RigidPhysicsObjectProperties;
 
 public class BoxPhysicsProperties {
 

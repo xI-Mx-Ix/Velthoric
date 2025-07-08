@@ -5,9 +5,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.level.block.Blocks;
-import net.xmx.xbullet.builtin.sphere.SphereRigidPhysicsObject;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.client.ClientRigidPhysicsObjectData;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.client.ClientRigidPhysicsObjectData;
 
 public class BoxRenderer extends RigidPhysicsObject.Renderer {
 

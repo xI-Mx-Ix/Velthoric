@@ -6,7 +6,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraftforge.event.level.ExplosionEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.SoftPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public class DetonationEvents {
@@ -45,9 +47,9 @@ public class DetonationEvents {
                         continue;
                     }
 
-                    if (pco instanceof net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject) {
+                    if (pco instanceof RigidPhysicsObject) {
                         applyImpulseToRigidBody(body, explosionCenter, explosionRadius, explosionRadiusSq, rigidBodyImpulseMagnitude);
-                    } else if (pco instanceof net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject) {
+                    } else if (pco instanceof SoftPhysicsObject) {
                         applyImpulseToSoftBody(body, explosionCenter, explosionRadius, explosionRadiusSq, softBodyNodeImpulseMagnitude);
                     }
                 } catch (Exception e) {

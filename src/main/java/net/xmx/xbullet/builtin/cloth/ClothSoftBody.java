@@ -6,9 +6,9 @@ import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
-import net.xmx.xbullet.physics.object.global.physicsobject.properties.IPhysicsObjectProperties;
-import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
-import net.xmx.xbullet.physics.object.softphysicsobject.builder.SoftPhysicsObjectBuilder;
+import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.SoftPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.builder.SoftPhysicsObjectBuilder;
 
 import javax.annotation.Nullable;
 import java.util.UUID;

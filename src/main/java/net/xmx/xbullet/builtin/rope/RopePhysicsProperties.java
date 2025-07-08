@@ -1,6 +1,6 @@
 package net.xmx.xbullet.builtin.rope;
 
-import net.xmx.xbullet.physics.object.softphysicsobject.properties.SoftPhysicsObjectProperties;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.properties.SoftPhysicsObjectProperties;
 
 public class RopePhysicsProperties {
 

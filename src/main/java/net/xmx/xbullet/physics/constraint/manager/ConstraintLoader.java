@@ -11,7 +11,7 @@ import net.xmx.xbullet.physics.constraint.IConstraint;
 import net.xmx.xbullet.physics.constraint.ManagedConstraint;
 import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import javax.annotation.Nullable;
 import java.util.Map;

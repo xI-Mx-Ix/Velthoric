@@ -14,10 +14,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.xmx.xbullet.builtin.box.BoxRigidPhysicsObject;
 import net.xmx.xbullet.physics.constraint.ManagedConstraint;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.RigidPhysicsObject;
-import net.xmx.xbullet.physics.object.rigidphysicsobject.builder.RigidPhysicsObjectBuilder;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.rigid.builder.RigidPhysicsObjectBuilder;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.UUID;

@@ -21,6 +21,7 @@ public class TabRegistry {
 				tabData.accept(ItemRegistry.PHYSICS_CREATOR_STICK.get());
 				tabData.accept(ItemRegistry.PHYSICS_REMOVER_STICK.get());
 				tabData.accept(ItemRegistry.PHYSICS_GUN.get());
+				tabData.accept(ItemRegistry.MAGNETIZER.get());
 
 			})
 					.withSearchBar()

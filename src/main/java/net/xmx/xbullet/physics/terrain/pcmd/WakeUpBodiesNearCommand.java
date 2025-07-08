@@ -2,8 +2,8 @@ package net.xmx.xbullet.physics.terrain.pcmd;
 
 import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.core.BlockPos;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.pcmd.ActivateBodyCommand;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.pcmd.ActivateBodyCommand;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.world.pcmd.ICommand;
 

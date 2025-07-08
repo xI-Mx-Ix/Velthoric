@@ -4,7 +4,6 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.Vec3Argument;
@@ -12,7 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.xbullet.builtin.rope.RopeSoftBody;
-import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.SoftPhysicsObject;
 
 public class SpawnRopeCommand {
 

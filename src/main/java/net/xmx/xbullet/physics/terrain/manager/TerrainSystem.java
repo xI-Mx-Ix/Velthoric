@@ -1,14 +1,11 @@
 package net.xmx.xbullet.physics.terrain.manager;
 
-import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
-import net.xmx.xbullet.physics.object.global.physicsobject.pcmd.ActivateBodyCommand;
+import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.terrain.pcmd.WakeUpBodiesNearCommand;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.terrain.chunk.TerrainSection;

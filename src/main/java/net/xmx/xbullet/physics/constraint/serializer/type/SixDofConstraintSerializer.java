@@ -9,7 +9,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.util.NbtUtil;
-import net.xmx.xbullet.physics.object.global.physicsobject.manager.ObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
 
 import java.util.concurrent.CompletableFuture;
 

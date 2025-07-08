@@ -4,8 +4,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkEvent;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.network.NetworkHandler;
-import net.xmx.xbullet.physics.object.global.physicsobject.EObjectType;
-import net.xmx.xbullet.physics.object.global.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.EObjectType;
+import net.xmx.xbullet.physics.object.physicsobject.client.ClientPhysicsObjectManager;
 
 import java.util.function.Supplier;
 

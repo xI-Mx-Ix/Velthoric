@@ -12,7 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.xbullet.builtin.cloth.ClothSoftBody;
-import net.xmx.xbullet.physics.object.softphysicsobject.SoftPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.type.soft.SoftPhysicsObject;
 
 public class SpawnClothCommand {
 

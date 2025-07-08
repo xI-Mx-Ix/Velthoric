@@ -8,7 +8,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
 import net.xmx.xbullet.network.NetworkHandler;
-import net.xmx.xbullet.physics.object.global.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.riding.packet.MountPhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.riding.seat.Seat;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
