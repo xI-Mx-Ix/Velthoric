@@ -50,7 +50,6 @@ public final class PhysicsClickManager {
                             Vec3 hitNormal = physicsHit.getHitNormal();
 
                             if (msg.isRightClick()) {
-                                finalTargetObject.tryStartRiding(sender, hitPoint.toVec3(), hitNormal);
                                 finalTargetObject.onRightClick(sender, hitPoint.toVec3(), hitNormal);
                                 finalTargetObject.onRightClickWithTool(sender);
                             } else {

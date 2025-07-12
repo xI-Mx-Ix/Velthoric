@@ -5,24 +5,22 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.item.PhysicsRemoverItem;
 import net.xmx.xbullet.math.PhysicsTransform;
-import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
-import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.object.physicsobject.AbstractPhysicsObject;
 import net.xmx.xbullet.physics.object.physicsobject.EObjectType;
+import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.client.ClientRigidPhysicsObjectData;
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.pcmd.AddRigidBodyCommand;
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.pcmd.RemoveRigidBodyCommand;
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.properties.RigidPhysicsObjectProperties;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -30,7 +28,6 @@ import java.util.UUID;
 public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
 
     protected ShapeSettingsRef shapeSettingsRef;
-
     protected float mass;
     protected float friction;
     protected float restitution;
@@ -40,8 +37,8 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     protected float gravityFactor;
     protected EMotionType motionType;
 
-    protected RigidPhysicsObject(UUID physicsId, Level level, String objectTypeIdentifier, PhysicsTransform initialTransform, IPhysicsObjectProperties properties, @Nullable CompoundTag initialNbt) {
-        super(physicsId, level, objectTypeIdentifier, initialTransform, properties, initialNbt);
+    protected RigidPhysicsObject(UUID physicsId, Level level, String objectTypeIdentifier, PhysicsTransform initialTransform, IPhysicsObjectProperties properties) {
+        super(physicsId, level, objectTypeIdentifier, initialTransform, properties);
 
         RigidPhysicsObjectProperties defaultProps = (RigidPhysicsObjectProperties) properties;
         this.mass = defaultProps.getMass();
@@ -53,6 +50,50 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
         this.gravityFactor = defaultProps.getGravityFactor();
         this.motionType = defaultProps.getMotionType();
     }
+
+    @Override
+    protected final void addBodySpecificData(FriendlyByteBuf buf) {
+        buf.writeFloat(this.mass);
+        buf.writeFloat(this.friction);
+        buf.writeFloat(this.restitution);
+        buf.writeFloat(this.linearDamping);
+        buf.writeFloat(this.angularDamping);
+        buf.writeFloat(this.buoyancyFactor);
+        buf.writeFloat(this.gravityFactor);
+        buf.writeUtf(this.motionType.toString());
+        buf.writeFloat(this.lastSyncedLinearVel.getX());
+        buf.writeFloat(this.lastSyncedLinearVel.getY());
+        buf.writeFloat(this.lastSyncedLinearVel.getZ());
+        buf.writeFloat(this.lastSyncedAngularVel.getX());
+        buf.writeFloat(this.lastSyncedAngularVel.getY());
+        buf.writeFloat(this.lastSyncedAngularVel.getZ());
+
+        addAdditionalData(buf);
+    }
+
+    @Override
+    protected final void readBodySpecificData(FriendlyByteBuf buf) {
+        this.mass = buf.readFloat();
+        this.friction = buf.readFloat();
+        this.restitution = buf.readFloat();
+        this.linearDamping = buf.readFloat();
+        this.angularDamping = buf.readFloat();
+        this.buoyancyFactor = buf.readFloat();
+        this.gravityFactor = buf.readFloat();
+        try {
+            this.motionType = EMotionType.valueOf(buf.readUtf());
+        } catch (IllegalArgumentException e) {
+            this.motionType = EMotionType.Dynamic;
+        }
+        this.lastSyncedLinearVel.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
+        this.lastSyncedAngularVel.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
+
+        readAdditionalData(buf);
+    }
+
+    protected void addAdditionalData(FriendlyByteBuf buf) {}
+
+    protected void readAdditionalData(FriendlyByteBuf buf) {}
 
     @Override
     public EObjectType getPhysicsObjectType() {
@@ -71,7 +112,7 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
         return (this.shapeSettingsRef != null) ? this.shapeSettingsRef.getPtr() : null;
     }
 
-    public void configureBodyCreationSettings(BodyCreationSettings settings) {
+    public final void configureBodyCreationSettings(BodyCreationSettings settings) {
         settings.setFriction(this.friction);
         settings.setRestitution(this.restitution);
         settings.setLinearDamping(this.linearDamping);
@@ -79,24 +120,31 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
         settings.setGravityFactor(this.gravityFactor);
         settings.setLinearVelocity(this.lastSyncedLinearVel);
         settings.setAngularVelocity(this.lastSyncedAngularVel);
-
         if (this.motionType != EMotionType.Static) {
             settings.setOverrideMassProperties(EOverrideMassProperties.CalculateMassAndInertia);
             MassProperties massProps = settings.getMassProperties();
             massProps.scaleToMass(this.mass);
             settings.setMassPropertiesOverride(massProps);
         }
+        configureAdditionalRigidBodyCreationSettings(settings);
+    }
+
+    protected void configureAdditionalRigidBodyCreationSettings(BodyCreationSettings settings) {
     }
 
     @Override
     public void initializePhysics(PhysicsWorld physicsWorld) {
-        if (physicsInitialized || isRemoved || level.isClientSide() || physicsWorld == null || !physicsWorld.isRunning()) return;
-        AddRigidBodyCommand.queue(physicsWorld, this, true);
+        if (physicsInitialized || isRemoved || level.isClientSide() || physicsWorld == null || !physicsWorld.isRunning()) {
+            return;
+        }
+        physicsWorld.queueCommand(new AddRigidBodyCommand(this.physicsId, true));
     }
 
     @Override
     public void removeFromPhysics(PhysicsWorld physicsWorld) {
-        if (bodyId == 0 || physicsWorld == null || !physicsWorld.isRunning()) return;
+        if (bodyId == 0 || physicsWorld == null || !physicsWorld.isRunning()) {
+            return;
+        }
         RemoveRigidBodyCommand.queue(physicsWorld, this.physicsId, this.bodyId);
         if (this.shapeSettingsRef != null) {
             this.shapeSettingsRef.close();
@@ -109,20 +157,26 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     }
 
     @Override
-    public void physicsTick(PhysicsWorld physicsWorld ) {
+    public void physicsTick(PhysicsWorld physicsWorld) {
     }
 
     @Override
     public synchronized void updateStateFromPhysicsThread(long timestampNanos, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
-        if (this.isRemoved || level.isClientSide()) return;
-
+        if (this.isRemoved || level.isClientSide()) {
+            return;
+        }
         this.lastUpdateTimestampNanos = timestampNanos;
         this.isActive = isActive;
-
         if (isActive) {
-            if (transform != null) this.currentTransform.set(transform);
-            if (linearVelocity != null) this.lastSyncedLinearVel.set(linearVelocity);
-            if (angularVelocity != null) this.lastSyncedAngularVel.set(angularVelocity);
+            if (transform != null) {
+                this.currentTransform.set(transform);
+            }
+            if (linearVelocity != null) {
+                this.lastSyncedLinearVel.set(linearVelocity);
+            }
+            if (angularVelocity != null) {
+                this.lastSyncedAngularVel.set(angularVelocity);
+            }
         } else {
             this.lastSyncedLinearVel.loadZero();
             this.lastSyncedAngularVel.loadZero();
@@ -130,66 +184,17 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     }
 
     @Override
-    protected void addAdditionalSaveData(CompoundTag tag) {
-        tag.putFloat("mass", this.mass);
-        tag.putFloat("friction", this.friction);
-        tag.putFloat("restitution", this.restitution);
-        tag.putFloat("linearDamping", this.linearDamping);
-        tag.putFloat("angularDamping", this.angularDamping);
-        tag.putFloat("buoyancyFactor", this.buoyancyFactor);
-        tag.putFloat("gravityFactor", this.gravityFactor);
-        tag.putString("motionType", this.motionType.toString());
-
-        tag.put("linVel", newFloatList(this.lastSyncedLinearVel.getX(), this.lastSyncedLinearVel.getY(), this.lastSyncedLinearVel.getZ()));
-        tag.put("angVel", newFloatList(this.lastSyncedAngularVel.getX(), this.lastSyncedAngularVel.getY(), this.lastSyncedAngularVel.getZ()));
-    }
-
-    @Override
-    protected void readAdditionalSaveData(CompoundTag tag) {
-        this.mass = tag.contains("mass") ? tag.getFloat("mass") : this.mass;
-        this.friction = tag.contains("friction") ? tag.getFloat("friction") : this.friction;
-        this.restitution = tag.contains("restitution") ? tag.getFloat("restitution") : this.restitution;
-        this.linearDamping = tag.contains("linearDamping") ? tag.getFloat("linearDamping") : this.linearDamping;
-        this.angularDamping = tag.contains("angularDamping") ? tag.getFloat("angularDamping") : this.angularDamping;
-        this.buoyancyFactor = tag.contains("buoyancyFactor") ? tag.getFloat("buoyancyFactor") : this.buoyancyFactor;
-        this.gravityFactor = tag.contains("gravityFactor") ? tag.getFloat("gravityFactor") : this.gravityFactor;
-
-        if (tag.contains("motionType", StringTag.TAG_STRING)) {
-            try {
-                this.motionType = EMotionType.valueOf(tag.getString("motionType"));
-            } catch (IllegalArgumentException e) {
-                this.motionType = EMotionType.Dynamic;
-            }
-        }
-
-        if (tag.contains("linVel", 9)) {
-            ListTag list = tag.getList("linVel", 5);
-            if (list.size() == 3) this.lastSyncedLinearVel.set(list.getFloat(0), list.getFloat(1), list.getFloat(2));
-        }
-        if (tag.contains("angVel", 9)) {
-            ListTag list = tag.getList("angVel", 5);
-            if (list.size() == 3) this.lastSyncedAngularVel.set(list.getFloat(0), list.getFloat(1), list.getFloat(2));
-        }
-    }
-
-    @Override
     public void onRightClickWithTool(Player player) {
         if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem && player.level() instanceof ServerLevel sl) {
             ObjectManager manager = PhysicsWorld.getObjectManager(sl.dimension());
-            manager.deleteObject(this.physicsId);
+            if (manager != null) {
+                manager.deleteObject(this.physicsId);
+            }
         }
     }
 
     public abstract static class Renderer {
         public abstract void render(ClientRigidPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight);
-    }
-
-    public EMotionType getMotionType() {
-        return motionType;
-    }
-
-    public float getMass() {
-        return mass;
     }
 
     public float getFriction() {
@@ -215,4 +220,9 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     public float getGravityFactor() {
         return gravityFactor;
     }
+
+    public EMotionType getMotionType() {
+        return motionType;
+    }
+
 }

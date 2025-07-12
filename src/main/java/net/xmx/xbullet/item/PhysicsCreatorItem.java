@@ -5,8 +5,6 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -20,9 +18,13 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.xmx.xbullet.builtin.block.BlockRigidPhysicsObject;
 import net.xmx.xbullet.init.XBullet;
+import net.xmx.xbullet.math.PhysicsTransform;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
-import net.xmx.xbullet.physics.object.physicsobject.type.rigid.builder.RigidPhysicsObjectBuilder;
+import net.xmx.xbullet.physics.object.physicsobject.registry.GlobalPhysicsObjectRegistry;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
+
+import java.util.UUID;
 
 public class PhysicsCreatorItem extends Item {
 
@@ -36,60 +38,66 @@ public class PhysicsCreatorItem extends Item {
         BlockPos blockPos = context.getClickedPos();
         BlockState clickedState = level.getBlockState(blockPos);
 
-        if (!level.isClientSide()) {
-            ServerLevel serverLevel = (ServerLevel) level;
-
-            if (clickedState.isAir()) {
-                return InteractionResult.PASS;
-            }
-
-            boolean removed = serverLevel.removeBlock(blockPos, false);
-
-            if (removed) {
-                RVec3 spawnPosition = new RVec3(
-                        blockPos.getX() + 0.5,
-                        blockPos.getY() + 0.5,
-                        blockPos.getZ() + 0.5
-                );
-
-                Quat spawnRotation = extractRotationFromBlockState(clickedState);
-
-                ObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
-                if (manager == null || !manager.isInitialized()) {
-                    XBullet.LOGGER.error("PhysicsObjectManager not initialized when trying to use PhysicsCreatorItem.");
-                    serverLevel.setBlock(blockPos, clickedState, 3);
-                    return InteractionResult.FAIL;
-                }
-
-                CompoundTag blockStateData = NbtUtils.writeBlockState(clickedState);
-                CompoundTag customNbtData = new CompoundTag();
-                customNbtData.put("blockState", blockStateData);
-
-                var createdObject = new RigidPhysicsObjectBuilder()
-                        .level(serverLevel)
-                        .position(spawnPosition)
-                        .rotation(spawnRotation)
-                        .type(BlockRigidPhysicsObject.TYPE_IDENTIFIER)
-                        .customNBTData(customNbtData)
-                        .spawn();
-
-                if (createdObject != null) {
-                    serverLevel.playSound(null, blockPos, SoundEvents.STONE_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
-                    if (context.getPlayer() != null && !context.getPlayer().getAbilities().instabuild) {
-                        context.getItemInHand().shrink(1);
-                    }
-                    return InteractionResult.SUCCESS;
-                } else {
-                    XBullet.LOGGER.warn("Failed to create and register BlockPhysicsObject for state {} at {}. This might be due to an unregistered type or issues with the constructor.", clickedState, spawnPosition);
-                    serverLevel.setBlock(blockPos, clickedState, 3);
-                    return InteractionResult.FAIL;
-                }
-            } else {
-                XBullet.LOGGER.warn("Failed to remove block at {} using PhysicsCreatorItem.", blockPos);
-                return InteractionResult.FAIL;
-            }
+        if (level.isClientSide()) {
+            return InteractionResult.sidedSuccess(true);
         }
-        return InteractionResult.sidedSuccess(level.isClientSide());
+
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return InteractionResult.PASS;
+        }
+
+        if (clickedState.isAir()) {
+            return InteractionResult.PASS;
+        }
+
+        boolean removed = serverLevel.removeBlock(blockPos, false);
+        if (!removed) {
+            XBullet.LOGGER.warn("Failed to remove block at {} using PhysicsCreatorItem.", blockPos);
+            return InteractionResult.FAIL;
+        }
+
+        ObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
+        if (manager == null || !manager.isInitialized()) {
+            XBullet.LOGGER.error("PhysicsObjectManager not initialized when trying to use PhysicsCreatorItem.");
+
+            serverLevel.setBlock(blockPos, clickedState, 3);
+            return InteractionResult.FAIL;
+        }
+
+        RVec3 spawnPosition = new RVec3(blockPos.getX() + 0.5, blockPos.getY() + 0.5, blockPos.getZ() + 0.5);
+        Quat spawnRotation = extractRotationFromBlockState(clickedState);
+        PhysicsTransform transform = new PhysicsTransform(spawnPosition, spawnRotation);
+
+        GlobalPhysicsObjectRegistry.RegistrationData regData = GlobalPhysicsObjectRegistry.getRegistrationData(BlockRigidPhysicsObject.TYPE_IDENTIFIER);
+        if (regData == null) {
+            XBullet.LOGGER.error("No factory registered for PhysicsObject type: {}", BlockRigidPhysicsObject.TYPE_IDENTIFIER);
+            serverLevel.setBlock(blockPos, clickedState, 3);
+            return InteractionResult.FAIL;
+        }
+
+        IPhysicsObject physicsObject = new BlockRigidPhysicsObject(
+                UUID.randomUUID(),
+                serverLevel,
+                transform,
+                regData.properties(),
+                clickedState
+        );
+
+        IPhysicsObject registeredObject = manager.spawnObject(physicsObject);
+
+        if (registeredObject != null) {
+
+            serverLevel.playSound(null, blockPos, SoundEvents.STONE_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
+            if (context.getPlayer() != null && !context.getPlayer().getAbilities().instabuild) {
+                context.getItemInHand().shrink(1);
+            }
+            return InteractionResult.SUCCESS;
+        } else {
+
+            XBullet.LOGGER.warn("Failed to register BlockPhysicsObject for state {}. Restoring block.", clickedState);
+            serverLevel.setBlock(blockPos, clickedState, 3);
+            return InteractionResult.FAIL;
+        }
     }
 
     private Quat extractRotationFromBlockState(BlockState blockState) {

@@ -1,7 +1,8 @@
 package net.xmx.xbullet.physics.object.physicsobject.client;
 
 import com.github.stephengold.joltjni.Vec3;
-import net.minecraft.nbt.CompoundTag;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -69,7 +70,6 @@ public class ClientPhysicsObjectManager {
                         state.linearVelocity(),
                         state.angularVelocity(),
                         state.softBodyVertices(),
-                        null,
                         state.timestamp(),
                         state.isActive()
                 );
@@ -78,28 +78,21 @@ public class ClientPhysicsObjectManager {
         }
     }
 
-    public void spawnObject(UUID id, String typeIdentifier, EObjectType objectType, PhysicsTransform transform, @Nullable float[] vertices, CompoundTag nbt, long serverTimestamp) {
+    public void spawnObject(UUID id, String typeIdentifier, EObjectType objectType, FriendlyByteBuf data, long serverTimestamp) {
         if (allObjects.containsKey(id)) {
-            updateObject(id, objectType, transform, null, null, vertices, nbt, serverTimestamp, true);
             return;
         }
 
-        ClientPhysicsObjectData data = new ClientPhysicsObjectData(id, typeIdentifier, objectType);
+        ClientPhysicsObjectData clientData = new ClientPhysicsObjectData(id, typeIdentifier, objectType);
 
         if (objectType == EObjectType.RIGID_BODY) {
             Supplier<RigidPhysicsObject.Renderer> factory = rigidRendererFactories.get(typeIdentifier);
             RigidPhysicsObject.Renderer renderer = (factory != null) ? factory.get() : null;
             if (renderer == null) XBullet.LOGGER.warn("Client: No renderer found for rigid body type '{}'.", typeIdentifier);
 
-            float mass = nbt.getFloat("mass");
-            float friction = nbt.getFloat("friction");
-            float restitution = nbt.getFloat("restitution");
-            float linDamp = nbt.getFloat("linearDamping");
-            float angDamp = nbt.getFloat("angularDamping");
-
-            ClientRigidPhysicsObjectData rigidData = new ClientRigidPhysicsObjectData(id, transform, mass, friction, restitution, linDamp, angDamp, renderer, serverTimestamp);
-
-            data.setRigidData(rigidData);
+            ClientRigidPhysicsObjectData rigidData = new ClientRigidPhysicsObjectData(id, renderer, serverTimestamp);
+            rigidData.readData(data); // Reads initial state
+            clientData.setRigidData(rigidData);
 
         } else if (objectType == EObjectType.SOFT_BODY) {
             Supplier<SoftPhysicsObject.Renderer> factory = softRendererFactories.get(typeIdentifier);
@@ -107,29 +100,28 @@ public class ClientPhysicsObjectManager {
             if (renderer == null) XBullet.LOGGER.warn("Client: No renderer found for soft body type '{}'.", typeIdentifier);
 
             ClientSoftPhysicsObjectData softData = new ClientSoftPhysicsObjectData(id, renderer, serverTimestamp);
-
-            if (vertices != null) {
-                softData.updateDataFromServer(transform, null, null, vertices, serverTimestamp, true);
-            }
-
-            data.setSoftData(softData);
+            softData.readData(data); // Reads initial state
+            clientData.setSoftData(softData);
         }
 
-        data.updateNbt(nbt);
-
-        allObjects.put(id, data);
+        allObjects.put(id, clientData);
     }
 
-    public void updateObject(UUID id, EObjectType objectType, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVel, @Nullable Vec3 angVel, @Nullable float[] vertices, @Nullable CompoundTag nbt, long serverTimestamp, boolean isActive) {
+    public void updateObject(UUID id, EObjectType objectType, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVel, @Nullable Vec3 angVel, @Nullable float[] vertices, long serverTimestamp, boolean isActive) {
         ClientPhysicsObjectData data = allObjects.get(id);
         if (data == null) return;
 
         if (objectType == EObjectType.RIGID_BODY && data.getRigidData() != null) {
             data.getRigidData().updateTransformFromServer(transform, linearVel, angVel, serverTimestamp, isActive);
-            if (nbt != null) data.getRigidData().updateNbt(nbt);
         } else if (objectType == EObjectType.SOFT_BODY && data.getSoftData() != null) {
             data.getSoftData().updateDataFromServer(transform, linearVel, angVel, vertices, serverTimestamp, isActive);
-            if (nbt != null) data.getSoftData().updateNbt(nbt);
+        }
+    }
+
+    public void updateObjectData(UUID id, ByteBuf data) {
+        ClientPhysicsObjectData clientData = allObjects.get(id);
+        if (clientData != null) {
+            clientData.updateData(data);
         }
     }
 
@@ -157,13 +149,10 @@ public class ClientPhysicsObjectManager {
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
-
         if (instance != null) {
             if (event.phase == TickEvent.Phase.START) {
-
                 instance.processStateUpdates();
             } else if (event.phase == TickEvent.Phase.END) {
-
                 instance.allObjects.values().forEach(ClientPhysicsObjectData::updateInterpolation);
             }
         }

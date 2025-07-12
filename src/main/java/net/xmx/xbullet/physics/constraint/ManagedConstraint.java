@@ -2,67 +2,51 @@ package net.xmx.xbullet.physics.constraint;
 
 import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.TwoBodyConstraintRef;
-import net.minecraft.nbt.CompoundTag;
-import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
-import net.xmx.xbullet.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
+import net.minecraft.network.FriendlyByteBuf;
+import javax.annotation.Nullable;
 import java.util.UUID;
 
 public class ManagedConstraint implements IConstraint {
-
-    private final UUID jointId;
+    private final UUID id;
     private final UUID body1Id;
     private final UUID body2Id;
+    private final UUID dependencyId1;
+    private final UUID dependencyId2;
     private final TwoBodyConstraintRef constraintRef;
-    private final TwoBodyConstraint joltConstraint;
     private final String constraintType;
+    private final byte[] serializedData;
 
-    public ManagedConstraint(UUID jointId, UUID body1Id, UUID body2Id, TwoBodyConstraintRef constraintRef, String constraintType) {
-        this.jointId = jointId;
-        this.body1Id = body1Id;
-        this.body2Id = body2Id;
-        this.constraintRef = constraintRef;
-        this.joltConstraint = constraintRef.getPtr();
-        this.constraintType = constraintType;
+    public ManagedConstraint(UUID id, @Nullable UUID b1, @Nullable UUID b2, @Nullable UUID d1, @Nullable UUID d2, TwoBodyConstraintRef ref, String type, byte[] data) {
+        this.id = id;
+        this.body1Id = b1;
+        this.body2Id = b2;
+        this.dependencyId1 = d1;
+        this.dependencyId2 = d2;
+        this.constraintRef = ref;
+        this.constraintType = type;
+        this.serializedData = data;
     }
 
-    @Override
-    public UUID getJointId() {
-        return jointId;
+    @Override public UUID getId() { return id; }
+    @Override public @Nullable UUID getBody1Id() { return body1Id; }
+    @Override public @Nullable UUID getBody2Id() { return body2Id; }
+    @Override public @Nullable UUID getDependency(int index) {
+        if (index == 0) return dependencyId1;
+        if (index == 1) return dependencyId2;
+        return null;
     }
 
-    @Override
-    public UUID getBody1Id() {
-        return body1Id;
+    @Override public String getConstraintType() { return constraintType; }
+
+    @Override public @Nullable TwoBodyConstraint getJoltConstraint() {
+        return (constraintRef != null && constraintRef.hasAssignedNativeObject()) ? constraintRef.getPtr() : null;
     }
 
-    @Override
-    public UUID getBody2Id() {
-        return body2Id;
+    @Override public void save(FriendlyByteBuf buf) {
+        buf.writeBytes(serializedData);
     }
 
-    @Override
-    public TwoBodyConstraint getJoltConstraint() {
-        return joltConstraint;
-    }
-
-    @Override
-    public TwoBodyConstraintRef getConstraintRef() {
-        return this.constraintRef;
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public void save(CompoundTag tag) {
-        ConstraintSerializerRegistry.getSerializer(constraintType).ifPresent(serializer -> {
-            ((IConstraintSerializer<TwoBodyConstraint>) serializer).save(joltConstraint, tag);
-            serializer.saveBodyIds(body1Id, body2Id, tag);
-        });
-        tag.putString("constraintType", this.constraintType);
-        tag.putUUID("jointDataId", this.jointId);
-    }
-
-    @Override
-    public void release() {
+    @Override public void release() {
         if (constraintRef != null && constraintRef.hasAssignedNativeObject()) {
             constraintRef.close();
         }

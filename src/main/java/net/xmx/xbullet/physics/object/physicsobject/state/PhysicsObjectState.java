@@ -1,7 +1,6 @@
 package net.xmx.xbullet.physics.object.physicsobject.state;
 
 import com.github.stephengold.joltjni.Vec3;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.physicsobject.EObjectType;
@@ -20,8 +19,6 @@ public final class PhysicsObjectState {
     private float[] softBodyVertices;
     private long timestamp;
     private boolean isActive;
-
-    private static final ThreadLocal<CompoundTag> TEMP_NBT_TAG = ThreadLocal.withInitial(CompoundTag::new);
 
     public PhysicsObjectState() {
         this.transform = new PhysicsTransform();
@@ -50,10 +47,7 @@ public final class PhysicsObjectState {
         this.id = buf.readUUID();
         this.objectType = buf.readEnum(EObjectType.class);
 
-        CompoundTag transformNbt = buf.readNbt();
-        if (transformNbt != null) {
-            this.transform.fromNbt(transformNbt);
-        }
+        this.transform.fromBuffer(buf);
 
         if (buf.readBoolean()) {
             this.linearVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
@@ -85,13 +79,7 @@ public final class PhysicsObjectState {
         buf.writeUUID(this.id);
         buf.writeEnum(this.objectType);
 
-        CompoundTag tempTag = TEMP_NBT_TAG.get();
-
-        tempTag.getAllKeys().clear();
-
-        this.transform.toNbt(tempTag);
-
-        buf.writeNbt(tempTag);
+        this.transform.toBuffer(buf);
 
         boolean hasLinVel = !this.linearVelocity.isNearZero(1e-4f);
         buf.writeBoolean(hasLinVel);
@@ -123,13 +111,20 @@ public final class PhysicsObjectState {
     }
 
     public int estimateEncodedSize() {
-        int size = 36;
+
+        int size = 16 + 1 + 40 + 8 + 1;
+
         size += 1;
         if (!this.linearVelocity.isNearZero(1e-4f)) size += 12;
+
         size += 1;
         if (!this.angularVelocity.isNearZero(1e-4f)) size += 12;
+
         size += 1;
-        if (this.softBodyVertices != null) size += 4 + this.softBodyVertices.length * 4;
+        if (this.softBodyVertices != null && this.softBodyVertices.length > 0) {
+            size += 5;
+            size += this.softBodyVertices.length * 4;
+        }
 
         return size;
     }
@@ -138,6 +133,9 @@ public final class PhysicsObjectState {
         this.id = null;
         this.objectType = null;
         this.softBodyVertices = null;
+        this.linearVelocity.loadZero();
+        this.angularVelocity.loadZero();
+        this.transform.loadIdentity();
     }
 
     public UUID id() {

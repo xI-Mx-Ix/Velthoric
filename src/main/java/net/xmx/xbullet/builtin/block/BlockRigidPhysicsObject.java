@@ -3,10 +3,9 @@ package net.xmx.xbullet.builtin.block;
 import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.ShapeSettings;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -24,11 +23,14 @@ public class BlockRigidPhysicsObject extends RigidPhysicsObject {
 
     private BlockState representedBlockState;
 
-    public BlockRigidPhysicsObject(UUID physicsId, Level level, String objectTypeIdentifier, PhysicsTransform initialTransform, IPhysicsObjectProperties properties, @Nullable CompoundTag initialNbt) {
-        super(physicsId, level, objectTypeIdentifier, initialTransform, properties, initialNbt);
-        if (this.representedBlockState == null) {
-            this.representedBlockState = Blocks.STONE.defaultBlockState();
-        }
+    public BlockRigidPhysicsObject(UUID physicsId, Level level, PhysicsTransform initialTransform, IPhysicsObjectProperties properties, BlockState blockState) {
+        super(physicsId, level, TYPE_IDENTIFIER, initialTransform, properties);
+        this.representedBlockState = (blockState != null && !blockState.isAir()) ? blockState : Blocks.STONE.defaultBlockState();
+    }
+
+    public BlockRigidPhysicsObject(UUID physicsId, Level level, String typeId, PhysicsTransform initialTransform, IPhysicsObjectProperties properties, @Nullable FriendlyByteBuf initialData) {
+        super(physicsId, level, typeId, initialTransform, properties);
+        this.representedBlockState = Blocks.STONE.defaultBlockState();
     }
 
     protected BlockPos getPositionAsBlockPos() {
@@ -52,25 +54,18 @@ public class BlockRigidPhysicsObject extends RigidPhysicsObject {
     }
 
     @Override
-    protected void addAdditionalSaveData(CompoundTag tag) {
-        super.addAdditionalSaveData(tag);
-        if (this.representedBlockState != null) {
-            tag.put("blockState", NbtUtils.writeBlockState(this.representedBlockState));
-        }
+    protected void addAdditionalData(FriendlyByteBuf buf) {
+        super.addAdditionalData(buf);
+
+        buf.writeVarInt(Block.getId(this.representedBlockState));
     }
 
     @Override
-    protected void readAdditionalSaveData(CompoundTag tag) {
-        super.readAdditionalSaveData(tag);
-        if (tag.contains("blockState", CompoundTag.TAG_COMPOUND)) {
-            // Holder-Lookup ist auf dem Server immer verfügbar, wenn das Level da ist
-            this.representedBlockState = NbtUtils.readBlockState(
-                    this.level.holderLookup(Registries.BLOCK), tag.getCompound("blockState")
-            );
-            if (this.representedBlockState.isAir()) {
-                this.representedBlockState = Blocks.STONE.defaultBlockState();
-            }
-        } else {
+    protected void readAdditionalData(FriendlyByteBuf buf) {
+        super.readAdditionalData(buf);
+        int blockStateId = buf.readVarInt();
+        this.representedBlockState = Block.stateById(blockStateId);
+        if (this.representedBlockState.isAir()) {
             this.representedBlockState = Blocks.STONE.defaultBlockState();
         }
     }

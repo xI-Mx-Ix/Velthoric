@@ -2,9 +2,11 @@ package net.xmx.xbullet.builtin.sphere;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import io.netty.buffer.Unpooled;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.client.ClientRigidPhysicsObjectData;
 import org.joml.Matrix3f;
@@ -18,16 +20,16 @@ public class SphereRenderer extends RigidPhysicsObject.Renderer {
 
     @Override
     public void render(ClientRigidPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
-        var nbt = data.getSyncedNbtData();
-        String typeIdentifier = nbt.getString("objectTypeIdentifier");
+        float radius = 0.5f;
+        byte[] customData = data.getCustomData();
 
-        if (!SphereRigidPhysicsObject.TYPE_IDENTIFIER.equals(typeIdentifier)) {
-            return;
-        }
+        if (customData != null && customData.length > 0) {
+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(customData));
+            try {
+                radius = buf.readFloat();
+            } catch (Exception e) {
 
-        float radius = data.getSyncedNbtData().getFloat(SphereRigidPhysicsObject.NBT_RADIUS_KEY);
-        if (radius <= 0) {
-            radius = 0.5f;
+            }
         }
 
         PoseStack.Pose lastPose = poseStack.last();
@@ -36,10 +38,7 @@ public class SphereRenderer extends RigidPhysicsObject.Renderer {
 
         VertexConsumer consumer = bufferSource.getBuffer(RenderType.solid());
 
-        int r = 200;
-        int g = 50;
-        int b = 50;
-        int a = 255;
+        int r = 200, g = 50, b = 50, a = 255;
 
         for (int i = 0; i < STACKS; ++i) {
             float phi1 = (float) (i * Math.PI / STACKS);
@@ -73,9 +72,7 @@ public class SphereRenderer extends RigidPhysicsObject.Renderer {
     }
 
     private void addVertex(VertexConsumer consumer, Matrix4f poseMatrix, Matrix3f normalMatrix, Vector3f pos, int r, int g, int b, int a, int packedLight) {
-
         Vector3f normal = new Vector3f(pos).normalize();
-
         consumer.vertex(poseMatrix, pos.x, pos.y, pos.z)
                 .color(r, g, b, a)
                 .uv(0, 0)

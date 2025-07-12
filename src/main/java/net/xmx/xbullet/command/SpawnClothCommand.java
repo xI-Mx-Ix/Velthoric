@@ -1,5 +1,7 @@
 package net.xmx.xbullet.command;
 
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -12,24 +14,24 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.xbullet.builtin.cloth.ClothSoftBody;
-import net.xmx.xbullet.physics.object.physicsobject.type.soft.SoftPhysicsObject;
+import net.xmx.xbullet.math.PhysicsTransform;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.registry.GlobalPhysicsObjectRegistry;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
+
+import java.util.UUID;
 
 public class SpawnClothCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("spawncloth")
-
                 .requires(source -> source.hasPermission(2))
                 .then(Commands.argument("pos", Vec3Argument.vec3(true))
-
                         .then(Commands.argument("width", FloatArgumentType.floatArg(0.1f))
-
                                 .then(Commands.argument("height", FloatArgumentType.floatArg(0.1f))
-
                                         .then(Commands.argument("mass", FloatArgumentType.floatArg(0.1f))
-
                                                 .then(Commands.argument("segmentsWidth", IntegerArgumentType.integer(2, 50))
-
                                                         .then(Commands.argument("segmentsHeight", IntegerArgumentType.integer(2, 50))
                                                                 .executes(SpawnClothCommand::execute)
                                                         )
@@ -51,25 +53,40 @@ public class SpawnClothCommand {
         int segmentsWidth = IntegerArgumentType.getInteger(context, "segmentsWidth");
         int segmentsHeight = IntegerArgumentType.getInteger(context, "segmentsHeight");
 
-        ClothSoftBody.Builder builder = ClothSoftBody.builder();
-        SoftPhysicsObject cloth = builder
-                .size(width, height)
-                .segments(segmentsWidth, segmentsHeight)
-                .mass(mass)
-                .level(level)
-                .position(pos.x(), pos.y(), pos.z())
-                .spawn();
+        float compliance = 0.001f;
 
-        if (cloth != null) {
+        ObjectManager manager = PhysicsWorld.getObjectManager(level.dimension());
+        if (manager == null || !manager.isInitialized()) {
+            source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
+            return 0;
+        }
 
-            source.sendSuccess(() -> Component.literal(
-                    String.format("Tuch mit ID %s bei %.2f, %.2f, %.2f gespawnt.",
-                            cloth.getPhysicsId().toString().substring(0, 8),
-                            pos.x(), pos.y(), pos.z())), true);
+        GlobalPhysicsObjectRegistry.RegistrationData regData = GlobalPhysicsObjectRegistry.getRegistrationData(ClothSoftBody.TYPE_IDENTIFIER);
+        if (regData == null) {
+            source.sendFailure(Component.literal("Cloth object type '" + ClothSoftBody.TYPE_IDENTIFIER + "' is not registered."));
+            return 0;
+        }
+
+        PhysicsTransform transform = new PhysicsTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
+
+        IPhysicsObject cloth = new ClothSoftBody(
+                UUID.randomUUID(),
+                level,
+                transform,
+                regData.properties(),
+                segmentsWidth,
+                segmentsHeight,
+                width,
+                height,
+                mass,
+                compliance
+        );
+
+        IPhysicsObject registeredCloth = manager.spawnObject(cloth);
+        if (registeredCloth != null) {
             return 1;
         } else {
-
-            source.sendFailure(Component.literal("Fehler beim Spawnen des Tuchs. Überprüfe die Server-Logs."));
+            source.sendFailure(Component.literal("Failed to register the cloth. Check server logs."));
             return 0;
         }
     }

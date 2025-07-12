@@ -1,7 +1,6 @@
-// net/xmx/xbullet/physics/object/global/registry/GlobalPhysicsObjectRegistry.java
 package net.xmx.xbullet.physics.object.physicsobject.registry;
 
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.math.PhysicsTransform;
@@ -20,7 +19,11 @@ public class GlobalPhysicsObjectRegistry {
 
     @FunctionalInterface
     public interface PhysicsObjectFactory {
-        IPhysicsObject create(UUID id, Level level, String typeId, PhysicsTransform transform, IPhysicsObjectProperties properties, @Nullable CompoundTag nbt);
+        /**
+         * Creates an instance of a physics object.
+         * The initialData buffer is used to load saved state. It can be null if the object is new.
+         */
+        IPhysicsObject create(UUID id, Level level, String typeId, PhysicsTransform transform, IPhysicsObjectProperties properties, @Nullable FriendlyByteBuf initialData);
     }
 
     public record RegistrationData(
@@ -34,6 +37,15 @@ public class GlobalPhysicsObjectRegistry {
 
     private GlobalPhysicsObjectRegistry() {}
 
+    /**
+     * Registers a new type of physics object.
+     * The provided class MUST have a specific constructor that matches the parameters of the factory.
+     *
+     * @param typeId The unique identifier for this object type.
+     * @param objectType The general type (RIGID_BODY or SOFT_BODY).
+     * @param properties The default physical properties for this object type.
+     * @param clazz The implementation class for this object.
+     */
     public static void register(String typeId, EObjectType objectType, IPhysicsObjectProperties properties, Class<? extends IPhysicsObject> clazz) {
         if (REGISTERED_TYPES.containsKey(typeId)) {
             XBullet.LOGGER.warn("Attempted to re-register PhysicsObject type '{}'. Skipping.", typeId);
@@ -41,10 +53,13 @@ public class GlobalPhysicsObjectRegistry {
         }
 
         try {
-            Constructor<? extends IPhysicsObject> ctor = clazz.getDeclaredConstructor(UUID.class, Level.class, String.class, PhysicsTransform.class, IPhysicsObjectProperties.class, CompoundTag.class);
-            PhysicsObjectFactory factory = (id, level, type, transform, props, nbt) -> {
+            // The constructor signature is now updated to use FriendlyByteBuf.
+            Constructor<? extends IPhysicsObject> ctor = clazz.getDeclaredConstructor(UUID.class, Level.class, String.class, PhysicsTransform.class, IPhysicsObjectProperties.class, FriendlyByteBuf.class);
+
+            // The factory lambda now passes the FriendlyByteBuf to the constructor.
+            PhysicsObjectFactory factory = (id, level, type, transform, props, initialData) -> {
                 try {
-                    return ctor.newInstance(id, level, type, transform, props, nbt);
+                    return ctor.newInstance(id, level, type, transform, props, initialData);
                 } catch (Exception e) {
                     XBullet.LOGGER.error("Failed to instantiate physics object of type {}", type, e);
                     return null;
@@ -53,7 +68,8 @@ public class GlobalPhysicsObjectRegistry {
             REGISTERED_TYPES.put(typeId, new RegistrationData(objectType, properties, clazz, factory));
             XBullet.LOGGER.debug("Globally registered PhysicsObject type: {} -> {}", typeId, clazz.getName());
         } catch (NoSuchMethodException e) {
-            throw new IllegalArgumentException("Class " + clazz.getName() + " must have a constructor: (UUID, Level, String, PhysicsTransform, IPhysicsObjectProperties, @Nullable CompoundTag)", e);
+            // The error message is updated to inform developers of the correct, new constructor signature.
+            throw new IllegalArgumentException("Class " + clazz.getName() + " must have a constructor: (UUID, Level, String, PhysicsTransform, IPhysicsObjectProperties, @Nullable FriendlyByteBuf)", e);
         }
     }
 

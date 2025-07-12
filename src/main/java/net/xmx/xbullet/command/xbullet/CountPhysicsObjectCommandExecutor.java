@@ -27,26 +27,25 @@ class CountPhysicsObjectCommandExecutor {
             }
 
             ObjectManager manager = PhysicsWorld.getObjectManager(serverLevel.dimension());
-            if (!manager.isInitialized()) {
+            if (manager == null || !manager.isInitialized()) {
                 source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
                 return 0;
             }
 
-            long rigidCount = manager.getManagedObjects().values().stream().filter(o -> o.getPhysicsObjectType() == EObjectType.RIGID_BODY).count();
-            long softCount = manager.getManagedObjects().values().stream().filter(o -> o.getPhysicsObjectType() == EObjectType.SOFT_BODY).count();
+            long rigidCount = manager.getManagedObjects().values().stream()
+                    .filter(o -> o.getPhysicsObjectType() == EObjectType.RIGID_BODY).count();
+            long softCount = manager.getManagedObjects().values().stream()
+                    .filter(o -> o.getPhysicsObjectType() == EObjectType.SOFT_BODY).count();
 
-            int pendingCount = manager.getDataSystem().getPendingLoadCount();
-
-            String message = String.format("Server in dimension %s has:\n- %d Rigid Bodies\n- %d Soft Bodies\n-> Total: %d managed objects.\n%s",
+            String message = String.format("Server in dimension %s has:\n- %d Rigid Bodies\n- %d Soft Bodies\n-> Total: %d currently managed objects.",
                     serverLevel.dimension().location(),
                     rigidCount,
                     softCount,
-                    rigidCount + softCount,
-                    pendingCount > 0 ? String.format("Additionally, %d objects are currently being loaded.", pendingCount) : ""
+                    rigidCount + softCount
             );
 
             source.sendSuccess(() -> Component.literal(message), true);
-            return (int) (rigidCount + softCount + pendingCount);
+            return (int) (rigidCount + softCount);
 
         } else if ("client".equals(side)) {
             if (!(source.getEntity() instanceof ServerPlayer player)) {

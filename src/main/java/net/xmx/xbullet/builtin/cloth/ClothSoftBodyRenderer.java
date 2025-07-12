@@ -2,11 +2,13 @@ package net.xmx.xbullet.builtin.cloth;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import io.netty.buffer.Unpooled;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -28,24 +30,38 @@ public class ClothSoftBodyRenderer extends SoftPhysicsObject.Renderer {
             return;
         }
 
-        int widthSegments = data.getSyncedNbtData().getInt("widthSegments");
-        int heightSegments = data.getSyncedNbtData().getInt("heightSegments");
-        if (widthSegments <= 0 || heightSegments <= 0) return;
+        int widthSegments = 15;
+        int heightSegments = 15;
+        byte[] customData = data.getCustomData();
+
+        if (customData != null && customData.length > 0) {
+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(customData));
+            try {
+                widthSegments = buf.readInt();
+                heightSegments = buf.readInt();
+            } catch (Exception e) {
+
+            }
+        }
+
+        if (widthSegments <= 0 || heightSegments <= 0) {
+            return;
+        }
 
         int numVerticesX = widthSegments + 1;
-
         VertexConsumer buffer = bufferSource.getBuffer(RenderType.translucent());
         TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(BLUE_WOOL_TEXTURE);
 
         BiFunction<Integer, Integer, Vector3f> getVertexWorldPos = (x, y) -> {
             int index = (y * numVerticesX + x) * 3;
-            if (index + 2 >= renderVertexData.length) return new Vector3f();
+            if (index + 2 >= renderVertexData.length) {
+                return new Vector3f();
+            }
             return new Vector3f(renderVertexData[index], renderVertexData[index + 1], renderVertexData[index + 2]);
         };
 
         for (int y = 0; y < heightSegments; ++y) {
             for (int x = 0; x < widthSegments; ++x) {
-
                 Vector3f v1 = getVertexWorldPos.apply(x, y);
                 Vector3f v2 = getVertexWorldPos.apply(x + 1, y);
                 Vector3f v3 = getVertexWorldPos.apply(x + 1, y + 1);
@@ -59,7 +75,9 @@ public class ClothSoftBodyRenderer extends SoftPhysicsObject.Renderer {
                 Vector3f edge1 = new Vector3f(v2).sub(v1);
                 Vector3f edge2 = new Vector3f(v4).sub(v1);
                 Vector3f normal = edge1.cross(edge2).normalize();
-                if (Float.isNaN(normal.x())) normal.set(0, 1, 0);
+                if (Float.isNaN(normal.x())) {
+                    normal.set(0, 1, 0);
+                }
 
                 addVertex(buffer, poseStack, v1, u1, v1Coord, normal, packedLight);
                 addVertex(buffer, poseStack, v2, u2, v1Coord, normal, packedLight);

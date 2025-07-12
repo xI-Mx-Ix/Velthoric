@@ -93,7 +93,7 @@ public final class PhysicsWorld implements Runnable, Executor {
 
     private float timeAccumulator = 0.0f;
 
-    private static final int DEFAULT_SIMULATION_HZ = 50;
+    private static final int DEFAULT_SIMULATION_HZ = 30;
     private static final float MAX_ACCUMULATED_TIME = 0.2f;
 
     // --- Constructor & Lifecycle ---
@@ -254,6 +254,9 @@ public final class PhysicsWorld implements Runnable, Executor {
         settings.setNumPositionSteps(ModConfig.NUM_ITERATIONS.get());
         settings.setNumVelocitySteps(ModConfig.NUM_ITERATIONS.get());
         settings.setBaumgarte(ModConfig.ERP.get().floatValue());
+
+        settings.setPenetrationSlop(ModConfig.PENETRATION_SLOP.get().floatValue());
+
         physicsSystem.setGravity(0f, -9.81f, 0f);
         physicsSystem.optimizeBroadPhase();
     }

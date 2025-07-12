@@ -1,21 +1,24 @@
 package net.xmx.xbullet.physics.constraint;
 
 import com.github.stephengold.joltjni.TwoBodyConstraint;
-import com.github.stephengold.joltjni.TwoBodyConstraintRef;
-import net.minecraft.nbt.CompoundTag;
-
+import net.minecraft.network.FriendlyByteBuf;
+import javax.annotation.Nullable;
 import java.util.UUID;
 
 public interface IConstraint {
-    UUID getJointId();
-    UUID getBody1Id();
-    UUID getBody2Id();
+    UUID getId();
+    @Nullable UUID getBody1Id();
+    @Nullable UUID getBody2Id();
+    String getConstraintType();
 
-    TwoBodyConstraint getJoltConstraint();
+    /**
+     * Retrieves the dependency constraints' UUIDs.
+     * @param index 0 or 1 for the first or second dependency.
+     * @return The UUID of the dependency, or null if not applicable or not present.
+     */
+    @Nullable UUID getDependency(int index);
 
-    TwoBodyConstraintRef getConstraintRef();
-
-    void save(CompoundTag tag);
-
+    @Nullable TwoBodyConstraint getJoltConstraint();
+    void save(FriendlyByteBuf buf);
     void release();
 }

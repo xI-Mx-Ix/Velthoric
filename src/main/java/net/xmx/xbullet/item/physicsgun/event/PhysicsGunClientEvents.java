@@ -59,9 +59,16 @@ public class PhysicsGunClientEvents {
         boolean isHoldingGun = player.getMainHandItem().is(ItemRegistry.PHYSICS_GUN.get())
                 || player.getOffhandItem().is(ItemRegistry.PHYSICS_GUN.get());
 
-        if (isHoldingGun) {
+        if (!isHoldingGun) {
+            return;
+        }
+
+        boolean isTryingToGrab = GLFW.glfwGetMouseButton(mc.getWindow().getWindow(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+
+        if (isTryingToGrab) {
             NetworkHandler.CHANNEL.sendToServer(new PhysicsGunActionPacket((float) event.getScrollDelta()));
             event.setCanceled(true);
         }
+
     }
 }

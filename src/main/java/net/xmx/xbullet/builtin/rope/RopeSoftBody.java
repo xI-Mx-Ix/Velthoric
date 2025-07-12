@@ -1,12 +1,11 @@
 package net.xmx.xbullet.builtin.rope;
 
 import com.github.stephengold.joltjni.*;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
 import net.xmx.xbullet.physics.object.physicsobject.type.soft.SoftPhysicsObject;
-import net.xmx.xbullet.physics.object.physicsobject.type.soft.builder.SoftPhysicsObjectBuilder;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -21,8 +20,43 @@ public class RopeSoftBody extends SoftPhysicsObject {
     private float mass;
     private float compliance;
 
-    public RopeSoftBody(UUID physicsId, Level level, String objectTypeIdentifier, PhysicsTransform initialTransform, IPhysicsObjectProperties properties, @Nullable CompoundTag initialNbt) {
-        super(physicsId, level, objectTypeIdentifier, initialTransform, properties, initialNbt);
+    public RopeSoftBody(UUID physicsId, Level level, PhysicsTransform initialTransform, IPhysicsObjectProperties properties,
+                        float ropeLength, int numSegments, float ropeRadius, float mass, float compliance) {
+        super(physicsId, level, TYPE_IDENTIFIER, initialTransform, properties);
+        this.ropeLength = ropeLength;
+        this.numSegments = numSegments;
+        this.ropeRadius = ropeRadius;
+        this.mass = mass;
+        this.compliance = compliance;
+    }
+
+    public RopeSoftBody(UUID physicsId, Level level, String typeId, PhysicsTransform initialTransform, IPhysicsObjectProperties properties, @Nullable FriendlyByteBuf initialData) {
+        super(physicsId, level, typeId, initialTransform, properties);
+        this.ropeLength = 10.0f;
+        this.numSegments = 20;
+        this.ropeRadius = 0.1f;
+        this.mass = 5.0f;
+        this.compliance = 0.001f;
+    }
+
+    @Override
+    protected void addAdditionalData(FriendlyByteBuf buf) {
+        super.addAdditionalData(buf);
+        buf.writeFloat(this.ropeLength);
+        buf.writeInt(this.numSegments);
+        buf.writeFloat(this.ropeRadius);
+        buf.writeFloat(this.mass);
+        buf.writeFloat(this.compliance);
+    }
+
+    @Override
+    protected void readAdditionalData(FriendlyByteBuf buf) {
+        super.readAdditionalData(buf);
+        this.ropeLength = buf.readFloat();
+        this.numSegments = buf.readInt();
+        this.ropeRadius = buf.readFloat();
+        this.mass = buf.readFloat();
+        this.compliance = buf.readFloat();
     }
 
     @Override
@@ -32,20 +66,16 @@ public class RopeSoftBody extends SoftPhysicsObject {
 
     @Override
     protected SoftBodySharedSettings buildSharedSettings() {
-
         int safeNumSegments = Math.max(1, this.numSegments);
         float safeMass = Math.max(0.001f, this.mass);
         float safeRopeLength = Math.max(0.1f, this.ropeLength);
-
         int numNodes = safeNumSegments + 1;
         SoftBodySharedSettings settings = new SoftBodySharedSettings();
-
         float segmentLength = safeRopeLength / (float) safeNumSegments;
-        float invMassPerNode = numNodes / safeMass;
+        float invMassPerNode = (safeMass > 0) ? numNodes / safeMass : 0f;
 
         for (int i = 0; i < numNodes; i++) {
             Vec3 localPos = new Vec3(0, -i * segmentLength, 0);
-
             Vertex v = new Vertex();
             v.setPosition(localPos);
             v.setInvMass(invMassPerNode);
@@ -64,68 +94,5 @@ public class RopeSoftBody extends SoftPhysicsObject {
 
         settings.optimize();
         return settings;
-    }
-
-    @Override
-    protected void readAdditionalSaveData(CompoundTag tag) {
-        super.readAdditionalSaveData(tag);
-        this.ropeLength = tag.contains("ropeLength") ? tag.getFloat("ropeLength") : 10.0f;
-        this.numSegments = tag.contains("numSegments") ? tag.getInt("numSegments") : 20;
-        this.ropeRadius = tag.contains("ropeRadius") ? tag.getFloat("ropeRadius") : 0.1f;
-
-        this.mass = tag.contains("mass") ? tag.getFloat("mass") : 5.0f;
-        this.compliance = tag.contains("compliance") ? tag.getFloat("compliance") : 0.001f;
-    }
-
-    @Override
-    protected void addAdditionalSaveData(CompoundTag tag) {
-        super.addAdditionalSaveData(tag);
-        tag.putFloat("ropeLength", this.ropeLength);
-        tag.putInt("numSegments", this.numSegments);
-        tag.putFloat("ropeRadius", this.ropeRadius);
-        tag.putFloat("mass", this.mass);
-        tag.putFloat("compliance", this.compliance);
-    }
-
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    public static class Builder extends SoftPhysicsObjectBuilder {
-        public Builder() {
-            super();
-            this.type(TYPE_IDENTIFIER);
-
-            this.initialNbt.putFloat("mass", 5.0f);
-            this.initialNbt.putFloat("compliance", 0.001f);
-            ropeLength(10.0f);
-            numSegments(20);
-            ropeRadius(0.1f);
-        }
-
-        public Builder ropeLength(float length) {
-            this.initialNbt.putFloat("ropeLength", length);
-            return this;
-        }
-
-        public Builder numSegments(int segments) {
-            this.initialNbt.putInt("numSegments", segments);
-            return this;
-        }
-
-        public Builder ropeRadius(float radius) {
-            this.initialNbt.putFloat("ropeRadius", radius);
-            return this;
-        }
-
-        public Builder mass(float mass) {
-            this.initialNbt.putFloat("mass", mass);
-            return this;
-        }
-
-        public Builder compliance(float compliance) {
-            this.initialNbt.putFloat("compliance", compliance);
-            return this;
-        }
     }
 }

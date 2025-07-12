@@ -8,9 +8,7 @@ import net.xmx.xbullet.physics.object.physicsobject.client.ClientPhysicsObjectMa
 import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
 import net.xmx.xbullet.physics.object.physicsobject.registry.GlobalPhysicsObjectRegistry;
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
-import net.xmx.xbullet.physics.object.physicsobject.type.rigid.builder.RigidPhysicsObjectBuilder;
 import net.xmx.xbullet.physics.object.physicsobject.type.soft.SoftPhysicsObject;
-import net.xmx.xbullet.physics.object.physicsobject.type.soft.builder.SoftPhysicsObjectBuilder;
 
 import java.util.function.Supplier;
 
@@ -55,13 +53,5 @@ public class PhysicsObjectModule {
         }
 
         ClientPhysicsObjectManager.getInstance().registerSoftRendererFactory(typeIdentifier, factory);
-    }
-
-    public RigidPhysicsObjectBuilder createRigidObjectBuilder() {
-        return new RigidPhysicsObjectBuilder();
-    }
-
-    public SoftPhysicsObjectBuilder createSoftObjectBuilder() {
-        return new SoftPhysicsObjectBuilder();
     }
 }

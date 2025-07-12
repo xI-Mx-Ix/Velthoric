@@ -3,57 +3,59 @@ package net.xmx.xbullet.physics.object.physicsobject.type.soft.pcmd;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.xmx.xbullet.init.XBullet;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.object.physicsobject.type.soft.SoftPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import net.xmx.xbullet.physics.world.pcmd.ICommand;
 
-public record AddSoftBodyCommand(SoftPhysicsObject physicsObject, boolean shouldBeInitiallyActive) implements ICommand {
+import java.util.UUID;
 
-    public static void queue(PhysicsWorld physicsWorld, SoftPhysicsObject object, boolean activate) {
-        physicsWorld.queueCommand(new AddSoftBodyCommand(object, activate));
-    }
+public record AddSoftBodyCommand(UUID objectId, boolean shouldBeInitiallyActive) implements ICommand {
 
     @Override
     public void execute(PhysicsWorld world) {
         ObjectManager objectManager = world.getObjectManager();
         BodyInterface bodyInterface = world.getBodyInterface();
-        if (world.getPhysicsSystem() == null || bodyInterface == null || objectManager == null || physicsObject.isRemoved() || physicsObject.getBodyId() != 0) {
+        if (world.getPhysicsSystem() == null || bodyInterface == null || objectManager == null) {
+            return;
+        }
+
+        IPhysicsObject physicsObject = objectManager.getObject(objectId).orElse(null);
+        if (physicsObject == null || !(physicsObject instanceof SoftPhysicsObject softObject) || softObject.isRemoved() || softObject.getBodyId() != 0) {
+            XBullet.LOGGER.error("AddSoftBodyCommand: Could not find manageable object with ID {} or object is in invalid state for physics initialization.", objectId);
             return;
         }
 
         try {
-            SoftBodySharedSettings sharedSettings = physicsObject.getOrBuildSharedSettings();
+            SoftBodySharedSettings sharedSettings = softObject.getOrBuildSharedSettings();
             if (sharedSettings == null) {
-                XBullet.LOGGER.error("Failed to create SoftBodySharedSettings for {}. Aborting add.", physicsObject.getPhysicsId());
-                physicsObject.markRemoved();
+                XBullet.LOGGER.error("Failed to create SoftBodySharedSettings for {}. Aborting add.", softObject.getPhysicsId());
+                softObject.markRemoved();
                 return;
             }
 
             try (SoftBodyCreationSettings settings = new SoftBodyCreationSettings()) {
                 settings.setSettings(sharedSettings);
-                settings.setPosition(physicsObject.getCurrentTransform().getTranslation());
-                settings.setRotation(physicsObject.getCurrentTransform().getRotation());
+                settings.setPosition(softObject.getCurrentTransform().getTranslation());
+                settings.setRotation(softObject.getCurrentTransform().getRotation());
                 settings.setObjectLayer(PhysicsWorld.Layers.DYNAMIC);
-                physicsObject.configureSoftBodyCreationSettings(settings);
+                softObject.configureSoftBodyCreationSettings(settings);
 
-                int bodyId = bodyInterface.createAndAddSoftBody(settings, EActivation.Activate);
+                int bodyId = bodyInterface.createAndAddSoftBody(settings, shouldBeInitiallyActive ? EActivation.Activate : EActivation.DontActivate);
 
-                if (bodyId != 0 && bodyId != Jolt.cInvalidBodyId) {
-                    physicsObject.setBodyId(bodyId);
-                    objectManager.linkBodyId(bodyId, physicsObject.getPhysicsId());
-
-                    if (!shouldBeInitiallyActive) {
-                        bodyInterface.deactivateBody(bodyId);
-                    }
+                if (bodyId != Jolt.cInvalidBodyId) {
+                    softObject.setBodyId(bodyId);
+                    softObject.confirmPhysicsInitialized();
+                    objectManager.linkBodyId(bodyId, softObject.getPhysicsId());
                 } else {
-                    XBullet.LOGGER.error("Jolt failed to create soft body for object {}", physicsObject.getPhysicsId());
-                    physicsObject.markRemoved();
+                    XBullet.LOGGER.error("Jolt failed to create soft body for object {}", softObject.getPhysicsId());
+                    softObject.markRemoved();
                 }
             }
         } catch (Exception e) {
-            XBullet.LOGGER.error("Exception during SoftBody creation for {}. Aborting add.", physicsObject.getPhysicsId(), e);
-            physicsObject.markRemoved();
+            XBullet.LOGGER.error("Exception during SoftBody creation for {}. Aborting add.", softObject.getPhysicsId(), e);
+            softObject.markRemoved();
         }
     }
 }

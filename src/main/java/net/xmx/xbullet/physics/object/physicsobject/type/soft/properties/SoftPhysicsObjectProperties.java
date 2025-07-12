@@ -1,6 +1,6 @@
 package net.xmx.xbullet.physics.object.physicsobject.type.soft.properties;
 
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
 
 import javax.annotation.concurrent.Immutable;
@@ -38,29 +38,25 @@ public class SoftPhysicsObjectProperties implements IPhysicsObjectProperties {
         return new Builder();
     }
 
-    public CompoundTag toNbt(CompoundTag nbt) {
-        nbt.putFloat("friction", this.friction);
-        nbt.putFloat("restitution", this.restitution);
-        nbt.putFloat("linearDamping", this.linearDamping);
-        nbt.putFloat("gravityFactor", this.gravityFactor);
-        nbt.putFloat("buoyancyFactor", this.buoyancyFactor);
-        nbt.putFloat("pressure", this.pressure);
-        nbt.putInt("numIterations", this.numIterations);
-        return nbt;
+    public void toBuffer(FriendlyByteBuf buf) {
+        buf.writeFloat(this.friction);
+        buf.writeFloat(this.restitution);
+        buf.writeFloat(this.linearDamping);
+        buf.writeFloat(this.gravityFactor);
+        buf.writeFloat(this.buoyancyFactor);
+        buf.writeFloat(this.pressure);
+        buf.writeInt(this.numIterations);
     }
 
-    public static SoftPhysicsObjectProperties fromNbt(CompoundTag nbt) {
-        Builder builder = new Builder();
-
-        if (nbt.contains("friction")) builder.friction(nbt.getFloat("friction"));
-        if (nbt.contains("restitution")) builder.restitution(nbt.getFloat("restitution"));
-        if (nbt.contains("linearDamping")) builder.linearDamping(nbt.getFloat("linearDamping"));
-        if (nbt.contains("gravityFactor")) builder.gravityFactor(nbt.getFloat("gravityFactor"));
-        if (nbt.contains("buoyancyFactor")) builder.buoyancyFactor(nbt.getFloat("buoyancyFactor"));
-        if (nbt.contains("pressure")) builder.pressure(nbt.getFloat("pressure"));
-        if (nbt.contains("numIterations")) builder.numIterations(nbt.getInt("numIterations"));
-
-        return builder.build();
+    public static SoftPhysicsObjectProperties fromBuffer(FriendlyByteBuf buf) {
+        float friction = buf.readFloat();
+        float restitution = buf.readFloat();
+        float linearDamping = buf.readFloat();
+        float gravityFactor = buf.readFloat();
+        float buoyancyFactor = buf.readFloat();
+        float pressure = buf.readFloat();
+        int numIterations = buf.readInt();
+        return new SoftPhysicsObjectProperties(friction, restitution, linearDamping, gravityFactor, buoyancyFactor, pressure, numIterations);
     }
 
     public static class Builder {

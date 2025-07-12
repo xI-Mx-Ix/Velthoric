@@ -4,11 +4,7 @@ import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.readonly.QuatArg;
 import com.github.stephengold.joltjni.readonly.RVec3Arg;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.DoubleTag;
-import net.minecraft.nbt.FloatTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.network.FriendlyByteBuf;
 
 public class PhysicsTransform {
     private final RVec3 translation = new RVec3();
@@ -45,43 +41,36 @@ public class PhysicsTransform {
         this.rotation.loadIdentity();
     }
 
-    public void toNbt(CompoundTag tag) {
-        ListTag posList = new ListTag();
-        posList.add(DoubleTag.valueOf(translation.xx()));
-        posList.add(DoubleTag.valueOf(translation.yy()));
-        posList.add(DoubleTag.valueOf(translation.zz()));
-        tag.put("pos", posList);
+    public void toBuffer(FriendlyByteBuf buf) {
+        buf.writeDouble(translation.xx());
+        buf.writeDouble(translation.yy());
+        buf.writeDouble(translation.zz());
 
-        ListTag rotList = new ListTag();
-        rotList.add(FloatTag.valueOf(rotation.getX()));
-        rotList.add(FloatTag.valueOf(rotation.getY()));
-        rotList.add(FloatTag.valueOf(rotation.getZ()));
-        rotList.add(FloatTag.valueOf(rotation.getW()));
-        tag.put("rot", rotList);
+        buf.writeFloat(rotation.getX());
+        buf.writeFloat(rotation.getY());
+        buf.writeFloat(rotation.getZ());
+        buf.writeFloat(rotation.getW());
     }
 
-    public void fromNbt(CompoundTag tag) {
-        if (tag.contains("pos", Tag.TAG_LIST)) {
-            ListTag posList = tag.getList("pos", Tag.TAG_DOUBLE);
-            if (posList.size() == 3) {
-                this.translation.set(posList.getDouble(0), posList.getDouble(1), posList.getDouble(2));
-            }
-        }
-        if (tag.contains("rot", Tag.TAG_LIST)) {
-            ListTag rotList = tag.getList("rot", Tag.TAG_FLOAT);
-            if (rotList.size() == 4) {
-                this.rotation.set(rotList.getFloat(0), rotList.getFloat(1), rotList.getFloat(2), rotList.getFloat(3));
-                this.rotation.set(this.rotation.normalized());
-            }
-        }
+    public void fromBuffer(FriendlyByteBuf buf) {
+        double x = buf.readDouble();
+        double y = buf.readDouble();
+        double z = buf.readDouble();
+        this.translation.set(x, y, z);
+
+        float qx = buf.readFloat();
+        float qy = buf.readFloat();
+        float qz = buf.readFloat();
+        float qw = buf.readFloat();
+        this.rotation.set(qx, qy, qz, qw);
+        this.rotation.set(this.rotation.normalized());
     }
 
-    public static PhysicsTransform createFromNbt(CompoundTag tag) {
+    public static PhysicsTransform createFromBuffer(FriendlyByteBuf buf) {
         PhysicsTransform t = new PhysicsTransform();
-        t.fromNbt(tag);
+        t.fromBuffer(buf);
         return t;
     }
-
 
     @Override
     public String toString() {

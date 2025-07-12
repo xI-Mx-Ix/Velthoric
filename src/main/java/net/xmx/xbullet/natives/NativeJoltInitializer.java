@@ -78,7 +78,7 @@ public class NativeJoltInitializer {
             if (!isInitialized) {
                 return;
             }
-            XBullet.LOGGER.info("Performing one-time global Jolt shutdown...");
+            XBullet.LOGGER.debug("Performing one-time global Jolt shutdown...");
 
             if (objectVsBroadPhaseLayerFilter != null) objectVsBroadPhaseLayerFilter.close();
             if (objectLayerPairFilter != null) objectLayerPairFilter.close();
@@ -86,7 +86,7 @@ public class NativeJoltInitializer {
 
             Jolt.destroyFactory();
             isInitialized = false;
-            XBullet.LOGGER.info("Global Jolt shutdown complete.");
+            XBullet.LOGGER.debug("Global Jolt shutdown complete.");
         }
     }
 

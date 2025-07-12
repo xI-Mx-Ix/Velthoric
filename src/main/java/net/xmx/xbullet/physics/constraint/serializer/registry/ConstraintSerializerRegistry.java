@@ -1,7 +1,7 @@
 package net.xmx.xbullet.physics.constraint.serializer.registry;
 
-import net.xmx.xbullet.physics.constraint.serializer.IConstraintSerializer;
-import net.xmx.xbullet.physics.constraint.serializer.type.*;
+import net.xmx.xbullet.physics.constraint.serializer.*;
+import net.xmx.xbullet.physics.constraint.serializer.base.ConstraintSerializer;
 
 import java.util.Map;
 import java.util.Optional;
@@ -9,28 +9,33 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ConstraintSerializerRegistry {
 
-    private static final Map<String, IConstraintSerializer<?>> SERIALIZERS = new ConcurrentHashMap<>();
+    private static final Map<String, ConstraintSerializer<?, ?, ?>> SERIALIZERS = new ConcurrentHashMap<>();
+    private static boolean defaultsRegistered = false;
 
     public static void registerDefaults() {
-        register("xbullet:fixed", new FixedConstraintSerializer());
-        register("xbullet:point", new PointConstraintSerializer());
-        register("xbullet:hinge", new HingeConstraintSerializer());
-        register("xbullet:slider", new SliderConstraintSerializer());
-        register("xbullet:distance", new DistanceConstraintSerializer());
-        register("xbullet:cone", new ConeConstraintSerializer());
-        register("xbullet:six_dof", new SixDofConstraintSerializer());
-        register("xbullet:swing_twist", new SwingTwistConstraintSerializer());
-        register("xbullet:gear", new GearConstraintSerializer());
-        register("xbullet:rack_and_pinion", new RackAndPinionConstraintSerializer());
-        register("xbullet:pulley", new PulleyConstraintSerializer());
-        register("xbullet:path", new PathConstraintSerializer());
+        if (defaultsRegistered) return;
+        register(new ConeConstraintSerializer());
+        register(new DistanceConstraintSerializer());
+        register(new FixedConstraintSerializer());
+        register(new GearConstraintSerializer());
+        register(new HingeConstraintSerializer());
+        register(new PathConstraintSerializer());
+        register(new PointConstraintSerializer());
+        register(new PulleyConstraintSerializer());
+        register(new RackAndPinionConstraintSerializer());
+        register(new SixDofConstraintSerializer());
+        register(new SliderConstraintSerializer());
+        register(new SwingTwistConstraintSerializer());
+        defaultsRegistered = true;
     }
 
-    public static void register(String typeId, IConstraintSerializer<?> serializer) {
-        SERIALIZERS.put(typeId, serializer);
+    public static void register(ConstraintSerializer<?, ?, ?> serializer) {
+        if (SERIALIZERS.containsKey(serializer.getTypeId())) {
+        }
+        SERIALIZERS.put(serializer.getTypeId(), serializer);
     }
 
-    public static Optional<IConstraintSerializer<?>> getSerializer(String typeId) {
+    public static Optional<ConstraintSerializer<?, ?, ?>> getSerializer(String typeId) {
         return Optional.ofNullable(SERIALIZERS.get(typeId));
     }
 }

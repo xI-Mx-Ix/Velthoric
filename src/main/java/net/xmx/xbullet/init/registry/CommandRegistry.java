@@ -2,9 +2,7 @@ package net.xmx.xbullet.init.registry;
 
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
-import net.xmx.xbullet.command.SpawnClothCommand;
-import net.xmx.xbullet.command.SpawnRopeCommand;
-import net.xmx.xbullet.command.TestJointCommand;
+import net.xmx.xbullet.command.*;
 import net.xmx.xbullet.command.xbullet.XBulletCommand;
 
 public class CommandRegistry {
@@ -14,6 +12,8 @@ public class CommandRegistry {
         SpawnClothCommand.register(dispatcher);
         SpawnRopeCommand.register(dispatcher);
         TestJointCommand.register(dispatcher);
+        SpawnBoxCommand.register(dispatcher);
+        SpawnHingePairCommand.register(dispatcher);
     }
 
     public static void registerClient(CommandDispatcher<CommandSourceStack> dispatcher) {

@@ -1,6 +1,6 @@
 package net.xmx.xbullet.physics.object.physicsobject.client;
 
-import net.minecraft.nbt.CompoundTag;
+import io.netty.buffer.ByteBuf;
 import net.xmx.xbullet.physics.object.physicsobject.EObjectType;
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.client.ClientRigidPhysicsObjectData;
 import net.xmx.xbullet.physics.object.physicsobject.type.soft.client.ClientSoftPhysicsObjectData;
@@ -12,7 +12,6 @@ public class ClientPhysicsObjectData {
     private final UUID id;
     private final String typeIdentifier;
     private final EObjectType objectType;
-    private CompoundTag syncedNbtData = new CompoundTag();
 
     @Nullable private ClientRigidPhysicsObjectData rigidData;
     @Nullable private ClientSoftPhysicsObjectData softData;
@@ -23,42 +22,21 @@ public class ClientPhysicsObjectData {
         this.objectType = objectType;
     }
 
-    /**
-     * Speichert die NBT-Daten und leitet sie sofort an das bereits vorhandene
-     * Kind-Objekt (rigid oder soft) weiter.
-     */
-    public void updateNbt(CompoundTag nbt) {
-        this.syncedNbtData = nbt.copy();
+    public void updateData(ByteBuf buf) {
         if (rigidData != null) {
-            rigidData.updateNbt(this.syncedNbtData);
+            rigidData.readData(buf);
         }
         if (softData != null) {
-            softData.updateNbt(this.syncedNbtData);
+            softData.readData(buf);
         }
     }
 
-    /**
-     * Setzt die RigidBody-Daten.
-     * WICHTIG: Wenn für diesen Container bereits NBT-Daten gespeichert wurden,
-     * werden sie sofort an das neue rigidData-Objekt übergeben.
-     * Das macht die Initialisierungsreihenfolge flexibler.
-     */
     public void setRigidData(ClientRigidPhysicsObjectData rigidData) {
         this.rigidData = rigidData;
-        if (this.rigidData != null && !this.syncedNbtData.isEmpty()) {
-            this.rigidData.updateNbt(this.syncedNbtData);
-        }
     }
 
-    /**
-     * Setzt die SoftBody-Daten.
-     * WICHTIG: Übergibt ebenfalls bereits vorhandene NBT-Daten sofort weiter.
-     */
     public void setSoftData(ClientSoftPhysicsObjectData softData) {
         this.softData = softData;
-        if (this.softData != null && !this.syncedNbtData.isEmpty()) {
-            this.softData.updateNbt(this.syncedNbtData);
-        }
     }
 
     public void updateInterpolation() {
@@ -74,7 +52,6 @@ public class ClientPhysicsObjectData {
     public UUID getId() { return id; }
     public String getTypeIdentifier() { return typeIdentifier; }
     public EObjectType getObjectType() { return objectType; }
-    public CompoundTag getSyncedNbtData() { return syncedNbtData.copy(); }
     @Nullable public ClientRigidPhysicsObjectData getRigidData() { return rigidData; }
     @Nullable public ClientSoftPhysicsObjectData getSoftData() { return softData; }
 }
