@@ -1,5 +1,6 @@
 package net.xmx.xbullet.init.registry;
 
+import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.client.event.EntityRenderersEvent;
@@ -7,6 +8,7 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.RegistryObject;
+import net.xmx.xbullet.physics.object.riding.RidingProxyEntity;
 import net.xmx.xbullet.test.ExampleCarEntity;
 import net.xmx.xbullet.test.ExampleCarRenderer;
 
@@ -21,9 +23,20 @@ public class EntityRegistry {
                             .build("example_car")
             );
 
+    public static final RegistryObject<EntityType<RidingProxyEntity>> RIDING_PROXY =
+            ModRegistries.ENTITY_TYPES.register(
+                    "riding_proxy",
+                    () -> EntityType.Builder.<RidingProxyEntity>of(RidingProxyEntity::new, MobCategory.MISC)
+                            .sized(0.5F, 0.5F)
+                            .noSummon()
+                            .fireImmune()
+                            .build("riding_proxy")
+            );
+
     @SubscribeEvent
     public static void registerEntityTypes(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(EXAMPLE_CAR.get(), ExampleCarRenderer::new);
+        event.registerEntityRenderer(RIDING_PROXY.get(), NoopRenderer::new);
     }
 
     public static void register(IEventBus eventBus) {

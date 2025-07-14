@@ -13,7 +13,7 @@ import net.xmx.xbullet.command.xbullet.packet.ClientPhysicsObjectCountResponsePa
 import net.xmx.xbullet.command.xbullet.packet.RequestClientPhysicsObjectCountPacket;
 import net.xmx.xbullet.item.magnetizer.packet.MagnetizerActionPacket;
 import net.xmx.xbullet.item.physicsgun.packet.PhysicsGunActionPacket;
-import net.xmx.xbullet.physics.object.global.click.PhysicsClickPacket;
+import net.xmx.xbullet.physics.object.raycast.packet.PhysicsClickPacket;
 import net.xmx.xbullet.physics.object.physicsobject.packet.RemovePhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.physicsobject.packet.SpawnPhysicsObjectPacket;
 import net.xmx.xbullet.physics.object.physicsobject.packet.SyncAllPhysicsObjectsPacket;

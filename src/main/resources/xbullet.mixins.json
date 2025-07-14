@@ -7,6 +7,9 @@
   "mixins": [
   ],
   "client": [
+    "riding.LivingEntityRendererMixin",
+    "riding.MouseHandlerMixin",
+    "riding.CameraMixin"
   ],
   "injectors": {
     "defaultRequire": 1

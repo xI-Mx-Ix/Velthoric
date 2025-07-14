@@ -1,0 +1,184 @@
+package net.xmx.xbullet.physics.object.riding;
+
+import com.github.stephengold.joltjni.RVec3;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.xmx.xbullet.init.registry.EntityRegistry;
+import net.xmx.xbullet.math.PhysicsTransform;
+import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.xbullet.physics.object.physicsobject.client.ClientPhysicsObjectData;
+import net.xmx.xbullet.physics.object.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Optional;
+import java.util.UUID;
+
+public class RidingProxyEntity extends Entity {
+
+    private static final EntityDataAccessor<Optional<UUID>> PHYSICS_OBJECT_ID =
+            SynchedEntityData.defineId(RidingProxyEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+
+    @OnlyIn(Dist.CLIENT)
+    private PhysicsTransform lastInterpolatedTransform;
+
+    public RidingProxyEntity(EntityType<?> entityType, Level level) {
+        super(entityType, level);
+        this.noPhysics = true;
+        this.blocksBuilding = false;
+    }
+
+    public RidingProxyEntity(Level level, IPhysicsObject physicsObject) {
+        this(EntityRegistry.RIDING_PROXY.get(), level);
+        this.setPhysicsObject(physicsObject);
+        RVec3 pos = physicsObject.getCurrentTransform().getTranslation();
+        this.setPos(pos.xx(), pos.yy(), pos.zz());
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        this.entityData.define(PHYSICS_OBJECT_ID, Optional.empty());
+    }
+
+    public void setPhysicsObject(IPhysicsObject physicsObject) {
+        this.entityData.set(PHYSICS_OBJECT_ID, Optional.of(physicsObject.getPhysicsId()));
+    }
+
+    public Optional<UUID> getPhysicsObjectId() {
+        return this.entityData.get(PHYSICS_OBJECT_ID);
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+
+        Optional<UUID> physicsIdOpt = getPhysicsObjectId();
+        if (physicsIdOpt.isEmpty()) {
+            if (!level().isClientSide) {
+                this.kill();
+            }
+            return;
+        }
+
+        UUID physicsId = physicsIdOpt.get();
+
+        if (level().isClientSide()) {
+            clientTick(physicsId);
+        } else {
+            serverTick(physicsId);
+        }
+    }
+
+    private void serverTick(UUID physicsId) {
+        if (!hasPassenger(this)) {
+            this.kill();
+            return;
+        }
+
+        PhysicsWorld world = PhysicsWorld.get(level().dimension());
+        if (world == null || !world.isRunning()) {
+            this.kill();
+            return;
+        }
+
+        ObjectManager objectManager = world.getObjectManager();
+        Optional<IPhysicsObject> physicsObjectOpt = objectManager.getObject(physicsId);
+
+        if (physicsObjectOpt.isEmpty() || physicsObjectOpt.get().isRemoved()) {
+            this.remove(RemovalReason.DISCARDED);
+            return;
+        }
+
+        PhysicsTransform transform = physicsObjectOpt.get().getCurrentTransform();
+        RVec3 pos = transform.getTranslation();
+        this.setPos(pos.xx(), pos.yy(), pos.zz());
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    private void clientTick(UUID physicsId) {
+        ClientPhysicsObjectManager clientManager = ClientPhysicsObjectManager.getInstance();
+        ClientPhysicsObjectData data = clientManager.getObjectData(physicsId);
+
+        if (data == null || data.getRigidData() == null) {
+            this.kill();
+            return;
+        }
+
+        this.lastInterpolatedTransform = data.getRigidData().getRenderTransform(0.0f);
+        RVec3 pos = this.lastInterpolatedTransform.getTranslation();
+        this.setPos(pos.xx(), pos.yy(), pos.zz());
+    }
+
+    @OnlyIn(Dist.CLIENT)
+    public Optional<PhysicsTransform> getInterpolatedTransform() {
+        return Optional.ofNullable(lastInterpolatedTransform);
+    }
+
+    @Override
+    protected void positionRider(@NotNull Entity passenger, @NotNull MoveFunction pCallback) {
+        if (this.hasPassenger(passenger)) {
+
+            double passengerY = this.getY() + passenger.getMyRidingOffset();
+            pCallback.accept(passenger, this.getX(), passengerY, this.getZ());
+        }
+    }
+
+    @Override
+    public double getPassengersRidingOffset() {
+        return 0.0D;
+    }
+
+    @Override
+    public Vec3 getDismountLocationForPassenger(@NotNull LivingEntity livingEntity) {
+        if (level() instanceof ServerLevel serverLevel) {
+            PhysicsWorld world = PhysicsWorld.get(serverLevel.dimension());
+            if (world != null) {
+                return getPhysicsObjectId()
+                        .flatMap(world.getObjectManager()::getObject)
+                        .map(obj -> {
+                            RVec3 pos = obj.getCurrentTransform().getTranslation();
+                            return new Vec3(pos.xx(), pos.yy() + 1.5, pos.zz());
+                        })
+                        .orElse(super.getDismountLocationForPassenger(livingEntity));
+            }
+        }
+        return super.getDismountLocationForPassenger(livingEntity);
+    }
+
+    @Override
+    public void remove(@NotNull RemovalReason reason) {
+        this.ejectPassengers();
+        super.remove(reason);
+    }
+
+    @Override
+    protected void readAdditionalSaveData(@NotNull CompoundTag compound) {
+        if (compound.hasUUID("PhysicsObjectUUID")) {
+            this.entityData.set(PHYSICS_OBJECT_ID, Optional.of(compound.getUUID("PhysicsObjectUUID")));
+        }
+    }
+
+    @Override
+    protected void addAdditionalSaveData(@NotNull CompoundTag compound) {
+        getPhysicsObjectId().ifPresent(uuid -> compound.putUUID("PhysicsObjectUUID", uuid));
+    }
+
+    @Override
+    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket() {
+        return new ClientboundAddEntityPacket(this);
+    }
+}
