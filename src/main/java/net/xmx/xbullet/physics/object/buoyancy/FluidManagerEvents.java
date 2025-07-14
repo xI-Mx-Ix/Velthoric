@@ -1,4 +1,4 @@
-package net.xmx.xbullet.physics.object.fluid;
+package net.xmx.xbullet.physics.object.buoyancy;
 
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
