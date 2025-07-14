@@ -1,6 +1,7 @@
 package net.xmx.xbullet.math;
 
 import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RMat44;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.readonly.QuatArg;
 import com.github.stephengold.joltjni.readonly.RVec3Arg;
@@ -25,6 +26,10 @@ public class PhysicsTransform {
 
     public Quat getRotation() {
         return rotation;
+    }
+
+    public RMat44 toRMat44() {
+        return RMat44.sRotationTranslation(this.rotation, this.translation);
     }
 
     public void set(PhysicsTransform other) {
