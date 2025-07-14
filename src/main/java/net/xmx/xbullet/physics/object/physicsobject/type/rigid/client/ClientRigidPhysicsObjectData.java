@@ -69,14 +69,17 @@ public class ClientRigidPhysicsObjectData {
         if (transformToBuffer == null || serverTimestamp <= 0) {
             return;
         }
+
         long clientReceiptTimeNanos = ClientClock.getInstance().getGameTimeNanos();
         if (!isClockOffsetInitialized) {
             this.clockOffsetNanos = serverTimestamp - clientReceiptTimeNanos;
             this.isClockOffsetInitialized = true;
         } else {
             long newOffset = serverTimestamp - clientReceiptTimeNanos;
+
             this.clockOffsetNanos = (long) (this.clockOffsetNanos * (1.0 - OFFSET_SMOOTHING_FACTOR) + newOffset * OFFSET_SMOOTHING_FACTOR);
         }
+
         if (serverTimestamp > lastServerTimestamp) {
             transformBuffer.addLast(TimestampedTransformPool.acquire().set(serverTimestamp, transformToBuffer, isActive));
             lastServerTimestamp = serverTimestamp;
@@ -90,8 +93,10 @@ public class ClientRigidPhysicsObjectData {
         if (transformBuffer.isEmpty() || !isClockOffsetInitialized) {
             return;
         }
+
         long estimatedServerTimeNow = ClientClock.getInstance().getGameTimeNanos() + this.clockOffsetNanos;
         long timeHorizonNanos = estimatedServerTimeNow - (MAX_BUFFER_TIME_MS * 1_000_000L);
+
         while (transformBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION) {
             TimestampedTransform first = transformBuffer.peekFirst();
             if (first != null && first.timestamp < timeHorizonNanos) {
@@ -110,14 +115,18 @@ public class ClientRigidPhysicsObjectData {
             return lastValidSnapshot;
         }
         TimestampedTransform latest = transformBuffer.peekLast();
+
         if (!latest.isActive || transformBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
             return latest.transform;
         }
+
         long nowNanosClient = ClientClock.getInstance().getGameTimeNanos();
         long estimatedServerTimeNow = nowNanosClient + this.clockOffsetNanos;
         long renderTimestamp = estimatedServerTimeNow - (INTERPOLATION_DELAY_MS * 1_000_000L);
+
         TimestampedTransform before = null;
         TimestampedTransform after = null;
+
         for (TimestampedTransform current : transformBuffer) {
             if (current.timestamp <= renderTimestamp) {
                 before = current;
@@ -126,19 +135,24 @@ public class ClientRigidPhysicsObjectData {
                 break;
             }
         }
+
         if (before == null) {
             return transformBuffer.peekFirst().transform;
         }
         if (after == null) {
             return before.transform;
         }
+
         if (!before.isActive && after.isActive) {
             return before.transform;
         }
+
         long timeDiff = after.timestamp - before.timestamp;
         float alpha = (timeDiff <= 0) ? 1.0f : Mth.clamp((float) (renderTimestamp - before.timestamp) / timeDiff, 0.0f, 1.0f);
+
         PhysicsOperations.lerp(before.transform.getTranslation(), after.transform.getTranslation(), alpha, renderTransform.getTranslation());
         PhysicsOperations.slerp(before.transform.getRotation(), after.transform.getRotation(), alpha, renderTransform.getRotation());
+
         return renderTransform;
     }
 

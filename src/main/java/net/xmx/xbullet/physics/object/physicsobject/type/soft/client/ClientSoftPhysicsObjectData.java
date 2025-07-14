@@ -27,6 +27,7 @@ public class ClientSoftPhysicsObjectData {
     private byte[] customData;
     @Nullable private float[] latestSyncedVertexData = null;
     @Nullable private PhysicsTransform latestSyncedTransform = null;
+
     private static final long INTERPOLATION_DELAY_MS = 150;
     private static final int MAX_BUFFER_SIZE = 20;
     private static final long MAX_BUFFER_TIME_MS = 2000;
@@ -85,14 +86,17 @@ public class ClientSoftPhysicsObjectData {
         if (serverTimestamp <= 0) {
             return;
         }
+
         long clientReceiptTime = ClientClock.getInstance().getGameTimeNanos();
         if (!isClockOffsetInitialized) {
             clockOffsetNanos = serverTimestamp - clientReceiptTime;
             isClockOffsetInitialized = true;
         } else {
             long newOffset = serverTimestamp - clientReceiptTime;
+
             clockOffsetNanos = (long) (clockOffsetNanos * (1.0 - OFFSET_SMOOTHING_FACTOR) + newOffset * OFFSET_SMOOTHING_FACTOR);
         }
+
         if (serverTimestamp > this.lastServerTimestamp) {
             if (newVertexData != null && newVertexData.length > 0) {
                 vertexStateBuffer.addLast(TimestampedStatePool.acquire().set(serverTimestamp, newVertexData, isActive));
@@ -112,9 +116,11 @@ public class ClientSoftPhysicsObjectData {
             return latestSyncedVertexData;
         }
         TimestampedState latest = vertexStateBuffer.peekLast();
+
         if (!latest.isActive || vertexStateBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
             return latest.vertexData;
         }
+
         long renderTimestamp = ClientClock.getInstance().getGameTimeNanos() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
         TimestampedState before = null, after = null;
         for (TimestampedState current : vertexStateBuffer) {
@@ -125,6 +131,7 @@ public class ClientSoftPhysicsObjectData {
                 break;
             }
         }
+
         if (before == null) {
             return vertexStateBuffer.isEmpty() ? latestSyncedVertexData : vertexStateBuffer.peekFirst().vertexData;
         }
@@ -137,8 +144,10 @@ public class ClientSoftPhysicsObjectData {
         if (renderVertexBuffer == null || renderVertexBuffer.length != before.vertexData.length) {
             renderVertexBuffer = new float[before.vertexData.length];
         }
+
         long timeDiff = after.timestampNanos - before.timestampNanos;
         float alpha = (timeDiff <= 0) ? 1.0f : Mth.clamp((float) (renderTimestamp - before.timestampNanos) / timeDiff, 0.0f, 1.0f);
+
         for (int i = 0; i < before.vertexData.length; i++) {
             renderVertexBuffer[i] = Mth.lerp(alpha, before.vertexData[i], after.vertexData[i]);
         }
@@ -154,6 +163,7 @@ public class ClientSoftPhysicsObjectData {
         if (!latest.isActive || transformStateBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
             return latest.transform;
         }
+
         long renderTimestamp = ClientClock.getInstance().getGameTimeNanos() + clockOffsetNanos - (INTERPOLATION_DELAY_MS * 1_000_000L);
         TimestampedTransform before = null, after = null;
         for (TimestampedTransform current : transformStateBuffer) {
@@ -164,6 +174,7 @@ public class ClientSoftPhysicsObjectData {
                 break;
             }
         }
+
         if (before == null) {
             return transformStateBuffer.isEmpty() ? latestSyncedTransform : transformStateBuffer.peekFirst().transform;
         }
@@ -173,8 +184,10 @@ public class ClientSoftPhysicsObjectData {
         if (!before.isActive && after.isActive) {
             return before.transform;
         }
+
         long timeDiff = after.timestampNanos - before.timestampNanos;
         float alpha = (timeDiff <= 0) ? 1.0f : Mth.clamp((float) (renderTimestamp - before.timestampNanos) / timeDiff, 0.0f, 1.0f);
+
         PhysicsOperations.lerp(before.transform.getTranslation(), after.transform.getTranslation(), alpha, renderTransform.getTranslation());
         PhysicsOperations.slerp(before.transform.getRotation(), after.transform.getRotation(), alpha, renderTransform.getRotation());
         return renderTransform;
@@ -184,13 +197,16 @@ public class ClientSoftPhysicsObjectData {
         if (!isClockOffsetInitialized) {
             return;
         }
+
         long timeHorizonNanos = ClientClock.getInstance().getGameTimeNanos() + clockOffsetNanos - (MAX_BUFFER_TIME_MS * 1_000_000L);
+
         while (vertexStateBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION && vertexStateBuffer.peekFirst().timestampNanos < timeHorizonNanos) {
             TimestampedStatePool.release(vertexStateBuffer.removeFirst());
         }
         while (vertexStateBuffer.size() > MAX_BUFFER_SIZE) {
             TimestampedStatePool.release(vertexStateBuffer.removeFirst());
         }
+
         while (transformStateBuffer.size() > MIN_BUFFER_FOR_INTERPOLATION && transformStateBuffer.peekFirst().timestampNanos < timeHorizonNanos) {
             TimestampedTransformPool.release(transformStateBuffer.removeFirst());
         }
@@ -206,14 +222,10 @@ public class ClientSoftPhysicsObjectData {
         transformStateBuffer.clear();
     }
 
-    public UUID getId() {
-        return id;
-    }
+    public UUID getId() { return id; }
 
     @Nullable
-    public SoftPhysicsObject.Renderer getRenderer() {
-        return renderer;
-    }
+    public SoftPhysicsObject.Renderer getRenderer() { return renderer; }
 
     private static class TimestampedState {
         long timestampNanos;
@@ -262,7 +274,6 @@ public class ClientSoftPhysicsObjectData {
             this.isActive = isActive;
             return this;
         }
-
         public void reset() {
             this.timestampNanos = 0;
             this.isActive = false;
