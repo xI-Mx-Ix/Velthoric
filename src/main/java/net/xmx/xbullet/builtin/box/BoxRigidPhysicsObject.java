@@ -4,10 +4,13 @@ import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
+import net.xmx.xbullet.physics.object.riding.PlayerRidingSystem;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -53,5 +56,10 @@ public class BoxRigidPhysicsObject extends RigidPhysicsObject {
 
     public Vec3 getHalfExtents() {
         return halfExtents;
+    }
+
+    @Override
+    public void onRightClick(ServerPlayer player, Vec3 hitPoint, Vec3 hitNormal) {
+        PlayerRidingSystem.startRiding(player, this);
     }
 }

@@ -2,6 +2,7 @@ package net.xmx.xbullet.physics.object.physicsobject;
 
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -147,15 +148,15 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     }
 
     @Override
-    public void onLeftClick(Player player, Vec3 hitPoint, Vec3 hitNormal) {
+    public void onLeftClick(ServerPlayer player, Vec3 hitPoint, Vec3 hitNormal) {
     }
 
     @Override
-    public void onRightClick(Player player, Vec3 hitPoint, Vec3 hitNormal) {
+    public void onRightClick(ServerPlayer player, Vec3 hitPoint, Vec3 hitNormal) {
     }
 
     @Override
-    public void onRightClickWithTool(Player player) {
+    public void onRightClickWithTool(ServerPlayer player) {
         if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem) {
             this.markRemoved();
         }

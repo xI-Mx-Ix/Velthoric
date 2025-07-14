@@ -1,5 +1,6 @@
 pluginManagement {
-    repositories {maven { url = 'https://maven.parchmentmc.org' }
+    repositories {
+        maven { url = 'https://maven.parchmentmc.org' }
         gradlePluginPortal()
         maven {
             name = 'MinecraftForge'
@@ -16,4 +17,3 @@ plugins {
 
 rootProject.name = 'XBullet'
 include 'XBulletEditor'
-
