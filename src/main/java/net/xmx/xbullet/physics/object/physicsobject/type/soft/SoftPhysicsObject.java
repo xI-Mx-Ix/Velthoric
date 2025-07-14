@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -185,7 +186,7 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     }
 
     @Override
-    public void onRightClickWithTool(Player player) {
+    public void onRightClickWithTool(ServerPlayer player) {
         if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem && player.level() instanceof ServerLevel sl) {
             ObjectManager manager = PhysicsWorld.getObjectManager(sl.dimension());
             if (manager != null) {

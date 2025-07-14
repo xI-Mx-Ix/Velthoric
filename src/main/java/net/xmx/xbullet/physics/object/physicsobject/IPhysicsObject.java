@@ -3,6 +3,7 @@ package net.xmx.xbullet.physics.object.physicsobject;
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
@@ -24,11 +25,11 @@ public interface IPhysicsObject {
     void initializePhysics(PhysicsWorld physicsWorld);
     void removeFromPhysics(PhysicsWorld physicsWorld);
 
-    void onRightClickWithTool(Player player);
+    void onRightClickWithTool(ServerPlayer player);
 
     boolean isPhysicsInitialized();
-    void onLeftClick(Player player, Vec3 hitPoint, Vec3 hitNormal);
-    void onRightClick(Player player, Vec3 hitPoint, Vec3 hitNormal);
+    void onLeftClick(ServerPlayer player, Vec3 hitPoint, Vec3 hitNormal);
+    void onRightClick(ServerPlayer player, Vec3 hitPoint, Vec3 hitNormal);
     void confirmPhysicsInitialized();
     void updateStateFromPhysicsThread(long timestampNanos, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive);
     Vec3 getLastSyncedLinearVel();
