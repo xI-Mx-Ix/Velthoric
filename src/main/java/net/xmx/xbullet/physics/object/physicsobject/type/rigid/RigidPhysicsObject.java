@@ -226,4 +226,18 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
         return motionType;
     }
 
+    @Override
+    public final void fixedGameTick(ServerLevel level) {
+        if (this.ridingProxy == null) {
+            return;
+        }
+
+        if (this.ridingProxy.isRemoved()) {
+            this.ridingProxy = null;
+        }
+    }
+
+    @Override
+    public final void fixedPhysicsTick(PhysicsWorld physicsWorld) {
+    }
 }

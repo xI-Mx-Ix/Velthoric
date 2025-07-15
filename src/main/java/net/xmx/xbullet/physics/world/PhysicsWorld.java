@@ -309,10 +309,6 @@ public final class PhysicsWorld implements Runnable, Executor {
         return dimensionKey;
     }
 
-    public Map<UUID, IPhysicsObject> getPhysicsObjectsMap() {
-        return objectManager.getManagedObjects();
-    }
-
     public Optional<IPhysicsObject> findPhysicsObjectByBodyId(int bodyId) {
         return objectManager.getObjectByBodyId(bodyId);
     }

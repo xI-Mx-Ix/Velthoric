@@ -198,4 +198,18 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     public abstract static class Renderer {
         public abstract void render(ClientSoftPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight);
     }
+
+
+    @Override
+    public final void fixedGameTick(ServerLevel level) {
+        if (ridingProxy != null) {
+            XBullet.LOGGER.warn("Soft Bodies cannot be ridden.");
+            ridingProxy.kill();
+            ridingProxy = null;
+        }
+    }
+
+    @Override
+    public final void fixedPhysicsTick(PhysicsWorld physicsWorld) {
+    }
 }

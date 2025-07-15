@@ -17,6 +17,7 @@ import java.util.Optional;
 public class ClientPlayerRidingSystem {
 
     private static boolean isRidingPhysicsObject = false;
+
     private static final Quat localLookRotation = new Quat();
     @Nullable
     private static RidingProxyEntity currentProxy = null;
@@ -39,6 +40,7 @@ public class ClientPlayerRidingSystem {
                 startRiding(player, proxy);
             }
             currentProxy = proxy;
+
         } else {
             if (isRidingPhysicsObject) {
                 stopRiding();
@@ -67,42 +69,34 @@ public class ClientPlayerRidingSystem {
         currentProxy = null;
     }
 
-    public static void updateLocalLook(double dx, double dy) {
-        if (!isRidingPhysicsObject) return;
-
-        float rotX = (float) (dy * 0.003);
-        float rotY = (float) (dx * 0.003);
-
-        Quat yawQuat = new Quat(new Vec3(0, 1, 0), -rotY);
-        localLookRotation.set(Op.star(localLookRotation, yawQuat));
-
-        Quat pitchQuat = new Quat(new Vec3(1, 0, 0), -rotX);
-        localLookRotation.set(Op.star(pitchQuat, localLookRotation));
-
-        localLookRotation.set(localLookRotation.normalized());
-    }
-
     public static boolean isRiding() {
         return isRidingPhysicsObject;
     }
 
-    public static Optional<Quat> getTargetWorldRotation() {
-        if (!isRiding() || currentProxy == null) {
-            return Optional.empty();
-        }
+    public static Optional<Quat> getTargetWorldRotation(LocalPlayer player, RidingProxyEntity proxy) {
+        return proxy.getInterpolatedTransform().map(transform -> {
 
-        return currentProxy.getInterpolatedTransform().map(transform ->
-                Op.star(transform.getRotation(), localLookRotation)
-        );
+            Quat playerWorldRotation = Quat.sEulerAngles(
+                    (float) Math.toRadians(player.getXRot()),
+                    (float) Math.toRadians(player.getYRot()),
+                    0
+            );
+
+            return playerWorldRotation;
+        });
     }
 
     public static Optional<Vec3> getPhysicsObjectUpVector() {
         if (!isRiding() || currentProxy == null) {
             return Optional.empty();
         }
-
         return currentProxy.getInterpolatedTransform().map(transform ->
                 transform.getRotation().rotateAxisY()
         );
+    }
+
+    @Nullable
+    public static RidingProxyEntity getCurrentProxy() {
+        return currentProxy;
     }
 }

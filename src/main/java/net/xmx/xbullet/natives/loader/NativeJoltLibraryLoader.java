@@ -1,4 +1,4 @@
-package net.xmx.xbullet.natives;
+package net.xmx.xbullet.natives.loader;
 
 import electrostatic4j.snaploader.LibraryInfo;
 import electrostatic4j.snaploader.LoadingCriterion;
@@ -8,15 +8,16 @@ import electrostatic4j.snaploader.platform.NativeDynamicLibrary;
 import electrostatic4j.snaploader.platform.util.PlatformPredicate;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.xmx.xbullet.natives.NativeFailureHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class NativeLibraryLoader {
+public class NativeJoltLibraryLoader {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(NativeLibraryLoader.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(NativeJoltLibraryLoader.class);
     private static volatile boolean loaded = false;
     private static final Object lock = new Object();
 

@@ -64,6 +64,7 @@ public class ObjectLifecycleManager {
 
             objectManager.getManagedObjects().values().forEach(obj -> {
                 if (!obj.isRemoved()) {
+                    obj.fixedGameTick(level);
                     obj.gameTick(level);
                 }
             });

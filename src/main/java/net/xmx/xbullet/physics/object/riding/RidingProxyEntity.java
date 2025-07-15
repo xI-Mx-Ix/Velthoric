@@ -9,6 +9,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -24,6 +25,7 @@ import net.xmx.xbullet.physics.object.physicsobject.client.ClientPhysicsObjectMa
 import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -35,6 +37,9 @@ public class RidingProxyEntity extends Entity {
 
     @OnlyIn(Dist.CLIENT)
     private PhysicsTransform lastInterpolatedTransform;
+
+    @Nullable
+    private transient UUID intendedPassengerUUID;
 
     public RidingProxyEntity(EntityType<?> entityType, Level level) {
         super(entityType, level);
@@ -62,15 +67,25 @@ public class RidingProxyEntity extends Entity {
         return this.entityData.get(PHYSICS_OBJECT_ID);
     }
 
+    public void setIntendedPassenger(ServerPlayer player) {
+        this.intendedPassengerUUID = player.getUUID();
+    }
+
+    @Nullable
+    public UUID getIntendedPassengerUUID() {
+        return this.intendedPassengerUUID;
+    }
+
     @Override
     public void tick() {
         super.tick();
 
+        if (this.isRemoved()) {
+            return;
+        }
+
         Optional<UUID> physicsIdOpt = getPhysicsObjectId();
         if (physicsIdOpt.isEmpty()) {
-            if (!level().isClientSide) {
-                this.kill();
-            }
             return;
         }
 
@@ -84,11 +99,6 @@ public class RidingProxyEntity extends Entity {
     }
 
     private void serverTick(UUID physicsId) {
-        if (!hasPassenger(this)) {
-            this.kill();
-            return;
-        }
-
         PhysicsWorld world = PhysicsWorld.get(level().dimension());
         if (world == null || !world.isRunning()) {
             this.kill();
@@ -103,9 +113,29 @@ public class RidingProxyEntity extends Entity {
             return;
         }
 
-        PhysicsTransform transform = physicsObjectOpt.get().getCurrentTransform();
+        IPhysicsObject physicsObject = physicsObjectOpt.get();
+        PhysicsTransform transform = physicsObject.getCurrentTransform();
         RVec3 pos = transform.getTranslation();
         this.setPos(pos.xx(), pos.yy(), pos.zz());
+
+        if (physicsObject.getRidingProxy() != this) {
+            this.remove(RemovalReason.DISCARDED);
+            return;
+        }
+
+        if (this.intendedPassengerUUID != null) {
+            ServerPlayer player = ((ServerLevel)this.level()).getServer().getPlayerList().getPlayer(this.intendedPassengerUUID);
+
+            if (player == null || player.getVehicle() != this) {
+                if (this.tickCount > 2) {
+                    this.remove(RemovalReason.DISCARDED);
+                }
+            }
+        } else {
+            if (this.tickCount > 20 && !this.hasControllingPassenger()) {
+                this.remove(RemovalReason.DISCARDED);
+            }
+        }
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -114,7 +144,6 @@ public class RidingProxyEntity extends Entity {
         ClientPhysicsObjectData data = clientManager.getObjectData(physicsId);
 
         if (data == null || data.getRigidData() == null) {
-            this.kill();
             return;
         }
 
@@ -131,8 +160,7 @@ public class RidingProxyEntity extends Entity {
     @Override
     protected void positionRider(@NotNull Entity passenger, @NotNull MoveFunction pCallback) {
         if (this.hasPassenger(passenger)) {
-
-            double passengerY = this.getY() + passenger.getMyRidingOffset();
+            double passengerY = this.getY() + this.getPassengersRidingOffset() + passenger.getMyRidingOffset();
             pCallback.accept(passenger, this.getX(), passengerY, this.getZ());
         }
     }
@@ -151,7 +179,7 @@ public class RidingProxyEntity extends Entity {
                         .flatMap(world.getObjectManager()::getObject)
                         .map(obj -> {
                             RVec3 pos = obj.getCurrentTransform().getTranslation();
-                            return new Vec3(pos.xx(), pos.yy() + 1.5, pos.zz());
+                            return new Vec3(pos.xx(), pos.yy() + 1.0, pos.zz());
                         })
                         .orElse(super.getDismountLocationForPassenger(livingEntity));
             }

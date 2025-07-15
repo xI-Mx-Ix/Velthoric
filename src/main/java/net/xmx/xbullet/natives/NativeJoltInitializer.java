@@ -2,6 +2,7 @@ package net.xmx.xbullet.natives;
 
 import com.github.stephengold.joltjni.*;
 import net.xmx.xbullet.init.XBullet;
+import net.xmx.xbullet.natives.loader.NativeJoltLibraryLoader;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public class NativeJoltInitializer {
@@ -23,7 +24,8 @@ public class NativeJoltInitializer {
             }
             XBullet.LOGGER.debug("Performing one-time global Jolt Physics initialization...");
 
-            NativeLibraryLoader.load();
+            NativeJoltLibraryLoader.load();
+
             Jolt.registerDefaultAllocator();
             Jolt.installDefaultAssertCallback();
             Jolt.installDefaultTraceCallback();

@@ -33,6 +33,7 @@ public class ClientRigidPhysicsObjectData {
     private static final long MAX_BUFFER_TIME_MS = 2000;
     private static final int MIN_BUFFER_FOR_INTERPOLATION = 2;
     private static final double OFFSET_SMOOTHING_FACTOR = 0.05;
+    private static final float MAX_EXTRAPOLATION_SECONDS = 0.2f; // Max 200ms in die Zukunft extrapolieren
 
     public ClientRigidPhysicsObjectData(UUID id, @Nullable RigidPhysicsObject.Renderer renderer, long initialServerTimestampNanos) {
         this.id = id;
@@ -57,7 +58,7 @@ public class ClientRigidPhysicsObjectData {
             this.customData = new byte[0];
         }
         buf.skipBytes(buf.readableBytes());
-        transformBuffer.addLast(TimestampedTransformPool.acquire().set(lastServerTimestamp, lastValidSnapshot.copy(), true));
+        transformBuffer.addLast(TimestampedTransformPool.acquire().set(lastServerTimestamp, lastValidSnapshot.copy(), null, null, true));
     }
 
     public byte[] getCustomData() {
@@ -76,12 +77,11 @@ public class ClientRigidPhysicsObjectData {
             this.isClockOffsetInitialized = true;
         } else {
             long newOffset = serverTimestamp - clientReceiptTimeNanos;
-
             this.clockOffsetNanos = (long) (this.clockOffsetNanos * (1.0 - OFFSET_SMOOTHING_FACTOR) + newOffset * OFFSET_SMOOTHING_FACTOR);
         }
 
         if (serverTimestamp > lastServerTimestamp) {
-            transformBuffer.addLast(TimestampedTransformPool.acquire().set(serverTimestamp, transformToBuffer, isActive));
+            transformBuffer.addLast(TimestampedTransformPool.acquire().set(serverTimestamp, transformToBuffer, linVel, angVel, isActive));
             lastServerTimestamp = serverTimestamp;
             if (newTransform != null) {
                 lastValidSnapshot.set(newTransform);
@@ -114,9 +114,13 @@ public class ClientRigidPhysicsObjectData {
         if (transformBuffer.isEmpty()) {
             return lastValidSnapshot;
         }
-        TimestampedTransform latest = transformBuffer.peekLast();
 
-        if (!latest.isActive || transformBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
+        TimestampedTransform latest = transformBuffer.peekLast();
+        if (latest == null) {
+            return lastValidSnapshot;
+        }
+
+        if (transformBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
             return latest.transform;
         }
 
@@ -139,19 +143,45 @@ public class ClientRigidPhysicsObjectData {
         if (before == null) {
             return transformBuffer.peekFirst().transform;
         }
+
+        // --- HIER IST DIE NEUE LOGIK ---
         if (after == null) {
+            // Wir sind über das letzte bekannte Paket hinaus -> Extrapolieren
+            if (before.isActive) {
+                long timeSinceLastUpdateNanos = renderTimestamp - before.timestamp;
+                float dt = timeSinceLastUpdateNanos / 1_000_000_000.0f;
+
+                if (dt > 0 && dt < MAX_EXTRAPOLATION_SECONDS) {
+                    PhysicsOperations.extrapolatePosition(before.transform.getTranslation(), before.linearVelocity, dt, renderTransform.getTranslation());
+                    PhysicsOperations.extrapolateRotation(before.transform.getRotation(), before.angularVelocity, dt, renderTransform.getRotation());
+                    return renderTransform;
+                }
+            }
+            // Wenn inaktiv oder zu weit in der Zukunft, einfach an der letzten Position bleiben.
             return before.transform;
         }
 
-        if (!before.isActive && after.isActive) {
-            return before.transform;
+        // Interpolieren wie gewohnt
+        long timeDiffNanos = after.timestamp - before.timestamp;
+        if (timeDiffNanos <= 0) {
+            return after.transform;
         }
 
-        long timeDiff = after.timestamp - before.timestamp;
-        float alpha = (timeDiff <= 0) ? 1.0f : Mth.clamp((float) (renderTimestamp - before.timestamp) / timeDiff, 0.0f, 1.0f);
+        float dtSeconds = timeDiffNanos / 1_000_000_000f;
+        float alpha = Mth.clamp((float) (renderTimestamp - before.timestamp) / timeDiffNanos, 0.0f, 1.0f);
 
-        PhysicsOperations.lerp(before.transform.getTranslation(), after.transform.getTranslation(), alpha, renderTransform.getTranslation());
-        PhysicsOperations.slerp(before.transform.getRotation(), after.transform.getRotation(), alpha, renderTransform.getRotation());
+        // Auch wenn das Objekt aufwacht (!before.isActive && after.isActive), wird hier sanft interpoliert.
+        // Die Hermite/Cubic Interpolation sorgt für einen sanften Start, da sie die Geschwindigkeiten nutzt.
+        PhysicsOperations.cubicHermite(
+                before.transform.getTranslation(), before.linearVelocity,
+                after.transform.getTranslation(), after.linearVelocity,
+                alpha, dtSeconds, renderTransform.getTranslation()
+        );
+        PhysicsOperations.interpolateCubic(
+                before.transform.getRotation(), before.angularVelocity,
+                after.transform.getRotation(), after.angularVelocity,
+                dtSeconds, alpha, renderTransform.getRotation()
+        );
 
         return renderTransform;
     }
@@ -173,11 +203,15 @@ public class ClientRigidPhysicsObjectData {
     private static class TimestampedTransform {
         long timestamp;
         final PhysicsTransform transform = new PhysicsTransform();
+        final Vec3 linearVelocity = new Vec3();
+        final Vec3 angularVelocity = new Vec3();
         boolean isActive;
 
-        public TimestampedTransform set(long timestamp, PhysicsTransform source, boolean isActive) {
+        public TimestampedTransform set(long timestamp, PhysicsTransform source, @Nullable Vec3 linVel, @Nullable Vec3 angVel, boolean isActive) {
             this.timestamp = timestamp;
             this.transform.set(source);
+            if (linVel != null) { this.linearVelocity.set(linVel); } else { this.linearVelocity.loadZero(); }
+            if (angVel != null) { this.angularVelocity.set(angVel); } else { this.angularVelocity.loadZero(); }
             this.isActive = isActive;
             return this;
         }
@@ -186,6 +220,8 @@ public class ClientRigidPhysicsObjectData {
             this.timestamp = 0;
             this.isActive = false;
             this.transform.loadIdentity();
+            this.linearVelocity.loadZero();
+            this.angularVelocity.loadZero();
         }
     }
 

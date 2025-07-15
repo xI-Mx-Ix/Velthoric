@@ -1,6 +1,7 @@
 package net.xmx.xbullet.item.physicsgun;
 
 import com.github.stephengold.joltjni.Body;
+import com.github.stephengold.joltjni.BodyInterface;
 import com.github.stephengold.joltjni.BodyLockWrite;
 import com.github.stephengold.joltjni.MotionProperties;
 import com.github.stephengold.joltjni.Quat;
@@ -9,8 +10,8 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-import net.xmx.xbullet.physics.object.raycast.PhysicsRaytracing;
 import net.xmx.xbullet.physics.object.physicsobject.pcmd.DeactivateBodyCommand;
+import net.xmx.xbullet.physics.object.raycast.PhysicsRaytracing;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.Map;
@@ -36,7 +37,8 @@ public class PhysicsGunManager {
     private static final float MIN_DISTANCE = 2.0f;
     private static final float MAX_DISTANCE = 450.0f;
 
-    private PhysicsGunManager() {}
+    private PhysicsGunManager() {
+    }
 
     public static PhysicsGunManager getInstance() {
         return INSTANCE;
@@ -46,11 +48,11 @@ public class PhysicsGunManager {
             int bodyId,
             Vec3 grabPointLocal,
             float currentDistance,
-            float originalGravityFactor,
             float originalAngularDamping,
             Quat initialBodyRotation,
             Quat initialPlayerRotation
-    ) {}
+    ) {
+    }
 
     private static Quat playerRotToQuat(float pitch, float yaw) {
         Quat qPitch = Quat.sRotation(new Vec3(1, 0, 0), (float) Math.toRadians(pitch));
@@ -77,7 +79,9 @@ public class PhysicsGunManager {
 
     public void startGrab(ServerPlayer player) {
         var physicsWorld = PhysicsWorld.get(player.level().dimension());
-        if (physicsWorld == null) return;
+        if (physicsWorld == null) {
+            return;
+        }
 
         final var eyePos = player.getEyePosition();
         final var lookVec = player.getLookAngle();
@@ -89,22 +93,26 @@ public class PhysicsGunManager {
 
             PhysicsRaytracing.rayCastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHit -> {
                 var bodyInterface = physicsWorld.getBodyInterface();
-                if (bodyInterface == null) return;
+                if (bodyInterface == null) {
+                    return;
+                }
 
                 bodyInterface.activateBody(physicsHit.getBodyId());
 
                 var bodyLockInterface = physicsWorld.getBodyLockInterface();
-                if (bodyLockInterface == null) return;
+                if (bodyLockInterface == null) {
+                    return;
+                }
 
                 try (var lock = new BodyLockWrite(bodyLockInterface, physicsHit.getBodyId())) {
                     if (lock.succeededAndIsInBroadPhase() && lock.getBody().isDynamic()) {
                         Body body = lock.getBody();
                         MotionProperties motionProperties = body.getMotionProperties();
+
                         if (motionProperties != null) {
                             RVec3 hitPointWorld = physicsHit.calculateHitPoint(rayOrigin, rayDirection, MAX_DISTANCE);
 
                             try (var invBodyTransform = body.getInverseCenterOfMassTransform()) {
-                                float originalGravity = motionProperties.getGravityFactor();
                                 float originalDamping = motionProperties.getAngularDamping();
 
                                 Vec3 hitPointLocal = Op.star(invBodyTransform, hitPointWorld).toVec3();
@@ -117,15 +125,12 @@ public class PhysicsGunManager {
                                         physicsHit.getBodyId(),
                                         hitPointLocal,
                                         grabDistance,
-                                        originalGravity,
                                         originalDamping,
                                         initialBodyRot,
                                         initialPlayerRot
                                 );
 
                                 grabbedObjects.put(player.getUUID(), info);
-
-                                motionProperties.setGravityFactor(0f);
                                 motionProperties.setAngularDamping(2.0f);
                                 body.setAngularVelocity(new Vec3(0, 0, 0));
                             }
@@ -140,7 +145,9 @@ public class PhysicsGunManager {
         stopGrab(player);
 
         var physicsWorld = PhysicsWorld.get(player.level().dimension());
-        if (physicsWorld == null) return;
+        if (physicsWorld == null) {
+            return;
+        }
 
         final var eyePos = player.getEyePosition();
         final var lookVec = player.getLookAngle();
@@ -160,18 +167,19 @@ public class PhysicsGunManager {
     public void stopGrab(ServerPlayer player) {
         playersTryingToGrab.remove(player.getUUID());
         GrabbedObjectInfo info = grabbedObjects.remove(player.getUUID());
+
         if (info != null) {
             var physicsWorld = PhysicsWorld.get(player.level().dimension());
             if (physicsWorld != null) {
                 physicsWorld.execute(() -> {
                     var bodyInterface = physicsWorld.getBodyInterface();
                     var bodyLockInterface = physicsWorld.getBodyLockInterface();
+
                     if (bodyInterface != null && bodyLockInterface != null) {
                         try (var lock = new BodyLockWrite(bodyLockInterface, info.bodyId())) {
                             if (lock.succeededAndIsInBroadPhase()) {
                                 MotionProperties motionProperties = lock.getBody().getMotionProperties();
                                 if (motionProperties != null) {
-                                    motionProperties.setGravityFactor(info.originalGravityFactor());
                                     motionProperties.setAngularDamping(info.originalAngularDamping());
                                 }
                             }
@@ -188,16 +196,21 @@ public class PhysicsGunManager {
             float newDistance = info.currentDistance() + scrollDelta;
             newDistance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, newDistance));
             return new GrabbedObjectInfo(
-                    info.bodyId(), info.grabPointLocal(), newDistance,
-                    info.originalGravityFactor(), info.originalAngularDamping(),
-                    info.initialBodyRotation(), info.initialPlayerRotation()
+                    info.bodyId(),
+                    info.grabPointLocal(),
+                    newDistance,
+                    info.originalAngularDamping(),
+                    info.initialBodyRotation(),
+                    info.initialPlayerRotation()
             );
         });
     }
 
     public void serverTick(ServerPlayer player) {
         var info = grabbedObjects.get(player.getUUID());
-        if (info == null) return;
+        if (info == null) {
+            return;
+        }
 
         var physicsWorld = PhysicsWorld.get(player.level().dimension());
         if (physicsWorld == null) {
@@ -209,18 +222,35 @@ public class PhysicsGunManager {
         final var lookVec = player.getLookAngle();
 
         physicsWorld.execute(() -> {
+            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+            if (bodyInterface == null) {
+                return;
+            }
+
+            // Sicherstellen, dass das Objekt wach ist, bevor wir es manipulieren
+            if (bodyInterface.isAdded(info.bodyId())) {
+                bodyInterface.activateBody(info.bodyId());
+            }
+
             var bodyLockInterface = physicsWorld.getBodyLockInterface();
-            if (bodyLockInterface == null) return;
+            if (bodyLockInterface == null) {
+                return;
+            }
 
             try (var lock = new BodyLockWrite(bodyLockInterface, info.bodyId())) {
                 if (!lock.succeededAndIsInBroadPhase()) {
                     grabbedObjects.remove(player.getUUID());
                     return;
                 }
+
                 Body body = lock.getBody();
 
                 try (var comTransform = body.getCenterOfMassTransform()) {
-                    var targetPointWorld = new RVec3(eyePos.x + lookVec.x * info.currentDistance(), eyePos.y + lookVec.y * info.currentDistance(), eyePos.z + lookVec.z * info.currentDistance());
+                    var targetPointWorld = new RVec3(
+                            eyePos.x + lookVec.x * info.currentDistance(),
+                            eyePos.y + lookVec.y * info.currentDistance(),
+                            eyePos.z + lookVec.z * info.currentDistance()
+                    );
                     var currentGrabPointWorld = Op.star(comTransform, info.grabPointLocal());
                     var positionError = Op.minus(targetPointWorld, currentGrabPointWorld);
                     var r = Op.minus(currentGrabPointWorld, body.getCenterOfMassPosition());

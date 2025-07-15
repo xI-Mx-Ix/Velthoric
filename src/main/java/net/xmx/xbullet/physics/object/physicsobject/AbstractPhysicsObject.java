@@ -2,13 +2,15 @@ package net.xmx.xbullet.physics.object.physicsobject;
 
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.item.PhysicsRemoverItem;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
+import net.xmx.xbullet.physics.object.riding.RidingProxyEntity;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -29,6 +31,9 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     protected boolean isRemoved = false;
     protected boolean physicsInitialized = false;
 
+    @Nullable
+    protected transient RidingProxyEntity ridingProxy = null;
+
     protected AbstractPhysicsObject(UUID physicsId, Level level, String objectTypeIdentifier, PhysicsTransform initialTransform, IPhysicsObjectProperties properties) {
         this.physicsId = physicsId;
         this.level = level;
@@ -39,7 +44,7 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
 
     @Override
     public final void writeData(FriendlyByteBuf buf) {
-        buf.writeUtf(this.getObjectTypeIdentifier()); // Mit Typ-ID
+        buf.writeUtf(this.getObjectTypeIdentifier());
         this.currentTransform.toBuffer(buf);
         addBodySpecificData(buf);
     }
@@ -175,5 +180,22 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     @Override
     public void clearDataDirty() {
         this.dataDirty = false;
+    }
+
+    @Override
+    public void setRidingProxy(@Nullable RidingProxyEntity proxy) {
+        this.ridingProxy = proxy;
+    }
+
+    @Override
+    public abstract void fixedGameTick(ServerLevel level);
+
+    @Override
+    public abstract void fixedPhysicsTick(PhysicsWorld physicsWorld);
+
+    @Override
+    @Nullable
+    public RidingProxyEntity getRidingProxy() {
+        return this.ridingProxy;
     }
 }

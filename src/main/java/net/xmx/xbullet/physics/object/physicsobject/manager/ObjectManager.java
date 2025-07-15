@@ -200,6 +200,7 @@ public class ObjectManager {
                 this.activateObjectWhenReady(obj);
             }
 
+            obj.fixedPhysicsTick(this.physicsWorld);
             obj.physicsTick(this.physicsWorld);
 
             boolean isActive = bodyInterfaceNoLock.isActive(obj.getBodyId());

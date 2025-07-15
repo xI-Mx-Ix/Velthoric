@@ -12,7 +12,6 @@ import net.xmx.xbullet.physics.world.time.ClientClock;
 
 import javax.annotation.Nullable;
 import java.util.ArrayDeque;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -35,6 +34,8 @@ public class ClientSoftPhysicsObjectData {
     private long clockOffsetNanos = 0L;
     private boolean isClockOffsetInitialized = false;
     private static final double OFFSET_SMOOTHING_FACTOR = 0.05;
+    private static final float MAX_EXTRAPOLATION_SECONDS = 0.2f;
+
     private float[] renderVertexBuffer = null;
     private final PhysicsTransform renderTransform = new PhysicsTransform();
 
@@ -66,7 +67,7 @@ public class ClientSoftPhysicsObjectData {
         }
         buf.skipBytes(buf.readableBytes());
         if (latestSyncedTransform != null) {
-            transformStateBuffer.addLast(TimestampedTransformPool.acquire().set(lastServerTimestamp, latestSyncedTransform.copy(), true));
+            transformStateBuffer.addLast(TimestampedTransformPool.acquire().set(lastServerTimestamp, latestSyncedTransform.copy(), null, null, true));
         }
         if (latestSyncedVertexData != null) {
             vertexStateBuffer.addLast(TimestampedStatePool.acquire().set(lastServerTimestamp, latestSyncedVertexData, true));
@@ -93,7 +94,6 @@ public class ClientSoftPhysicsObjectData {
             isClockOffsetInitialized = true;
         } else {
             long newOffset = serverTimestamp - clientReceiptTime;
-
             clockOffsetNanos = (long) (clockOffsetNanos * (1.0 - OFFSET_SMOOTHING_FACTOR) + newOffset * OFFSET_SMOOTHING_FACTOR);
         }
 
@@ -103,7 +103,7 @@ public class ClientSoftPhysicsObjectData {
                 this.latestSyncedVertexData = newVertexData;
             }
             if (transform != null) {
-                transformStateBuffer.addLast(TimestampedTransformPool.acquire().set(serverTimestamp, transform, isActive));
+                transformStateBuffer.addLast(TimestampedTransformPool.acquire().set(serverTimestamp, transform, linearVel, angularVel, isActive));
                 this.latestSyncedTransform = transform.copy();
             }
             this.lastServerTimestamp = serverTimestamp;
@@ -116,8 +116,11 @@ public class ClientSoftPhysicsObjectData {
             return latestSyncedVertexData;
         }
         TimestampedState latest = vertexStateBuffer.peekLast();
+        if (latest == null) {
+            return latestSyncedVertexData;
+        }
 
-        if (!latest.isActive || vertexStateBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
+        if (vertexStateBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
             return latest.vertexData;
         }
 
@@ -136,11 +139,11 @@ public class ClientSoftPhysicsObjectData {
             return vertexStateBuffer.isEmpty() ? latestSyncedVertexData : vertexStateBuffer.peekFirst().vertexData;
         }
         if (after == null) {
+            // Für Vertex-Daten extrapolieren wir nicht, wir halten die letzte Position.
+            // Die Hauptbewegung kommt von der Extrapolation der Gesamt-Transformation.
             return before.vertexData;
         }
-        if (!before.isActive && after.isActive) {
-            return before.vertexData;
-        }
+
         if (renderVertexBuffer == null || renderVertexBuffer.length != before.vertexData.length) {
             renderVertexBuffer = new float[before.vertexData.length];
         }
@@ -160,7 +163,11 @@ public class ClientSoftPhysicsObjectData {
             return latestSyncedTransform;
         }
         TimestampedTransform latest = transformStateBuffer.peekLast();
-        if (!latest.isActive || transformStateBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
+        if (latest == null) {
+            return latestSyncedTransform;
+        }
+
+        if (transformStateBuffer.size() < MIN_BUFFER_FOR_INTERPOLATION || !isClockOffsetInitialized) {
             return latest.transform;
         }
 
@@ -178,18 +185,42 @@ public class ClientSoftPhysicsObjectData {
         if (before == null) {
             return transformStateBuffer.isEmpty() ? latestSyncedTransform : transformStateBuffer.peekFirst().transform;
         }
+
         if (after == null) {
-            return before.transform;
-        }
-        if (!before.isActive && after.isActive) {
+            // Extrapolation
+            if (before.isActive) {
+                long timeSinceLastUpdateNanos = renderTimestamp - before.timestampNanos;
+                float dt = timeSinceLastUpdateNanos / 1_000_000_000.0f;
+
+                if (dt > 0 && dt < MAX_EXTRAPOLATION_SECONDS) {
+                    PhysicsOperations.extrapolatePosition(before.transform.getTranslation(), before.linearVelocity, dt, renderTransform.getTranslation());
+                    PhysicsOperations.extrapolateRotation(before.transform.getRotation(), before.angularVelocity, dt, renderTransform.getRotation());
+                    return renderTransform;
+                }
+            }
             return before.transform;
         }
 
-        long timeDiff = after.timestampNanos - before.timestampNanos;
-        float alpha = (timeDiff <= 0) ? 1.0f : Mth.clamp((float) (renderTimestamp - before.timestampNanos) / timeDiff, 0.0f, 1.0f);
+        // Interpolation
+        long timeDiffNanos = after.timestampNanos - before.timestampNanos;
+        if (timeDiffNanos <= 0) {
+            return after.transform;
+        }
 
-        PhysicsOperations.lerp(before.transform.getTranslation(), after.transform.getTranslation(), alpha, renderTransform.getTranslation());
-        PhysicsOperations.slerp(before.transform.getRotation(), after.transform.getRotation(), alpha, renderTransform.getRotation());
+        float dtSeconds = timeDiffNanos / 1_000_000_000f;
+        float alpha = Mth.clamp((float) (renderTimestamp - before.timestampNanos) / timeDiffNanos, 0.0f, 1.0f);
+
+        PhysicsOperations.cubicHermite(
+                before.transform.getTranslation(), before.linearVelocity,
+                after.transform.getTranslation(), after.linearVelocity,
+                alpha, dtSeconds, renderTransform.getTranslation()
+        );
+        PhysicsOperations.interpolateCubic(
+                before.transform.getRotation(), before.angularVelocity,
+                after.transform.getRotation(), after.angularVelocity,
+                dtSeconds, alpha, renderTransform.getRotation()
+        );
+
         return renderTransform;
     }
 
@@ -266,11 +297,15 @@ public class ClientSoftPhysicsObjectData {
     private static class TimestampedTransform {
         long timestampNanos;
         final PhysicsTransform transform = new PhysicsTransform();
+        final Vec3 linearVelocity = new Vec3();
+        final Vec3 angularVelocity = new Vec3();
         boolean isActive;
 
-        public TimestampedTransform set(long timestamp, PhysicsTransform source, boolean isActive) {
+        public TimestampedTransform set(long timestamp, PhysicsTransform source, @Nullable Vec3 linVel, @Nullable Vec3 angVel, boolean isActive) {
             this.timestampNanos = timestamp;
             this.transform.set(source);
+            if (linVel != null) { this.linearVelocity.set(linVel); } else { this.linearVelocity.loadZero(); }
+            if (angVel != null) { this.angularVelocity.set(angVel); } else { this.angularVelocity.loadZero(); }
             this.isActive = isActive;
             return this;
         }
@@ -278,6 +313,8 @@ public class ClientSoftPhysicsObjectData {
             this.timestampNanos = 0;
             this.isActive = false;
             this.transform.loadIdentity();
+            this.linearVelocity.loadZero();
+            this.angularVelocity.loadZero();
         }
     }
 

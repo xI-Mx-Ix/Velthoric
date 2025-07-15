@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
+import net.xmx.xbullet.physics.object.riding.RidingProxyEntity;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
@@ -45,9 +46,17 @@ public interface IPhysicsObject {
     void gameTick(ServerLevel level);
     void physicsTick(PhysicsWorld physicsWorld);
 
-    void writeData(FriendlyByteBuf buf); // Fürs Speichern
-    void readData(FriendlyByteBuf buf);  // Fürs Laden
+    void fixedGameTick(ServerLevel level);
+    void fixedPhysicsTick(PhysicsWorld physicsWorld);
 
-    void writeSyncData(FriendlyByteBuf buf); // NEU: Fürs Netzwerk
-    void readSyncData(FriendlyByteBuf buf);  // NEU: Fürs Netzwerk
+    void writeData(FriendlyByteBuf buf);
+    void readData(FriendlyByteBuf buf);
+
+    void writeSyncData(FriendlyByteBuf buf);
+    void readSyncData(FriendlyByteBuf buf);
+
+    void setRidingProxy(@Nullable RidingProxyEntity proxy);
+
+    @Nullable
+    RidingProxyEntity getRidingProxy();
 }
