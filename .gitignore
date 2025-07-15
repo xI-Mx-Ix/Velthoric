@@ -11,6 +11,7 @@ random_names.txt
 build/
 .gradle/
 run/
+run-server/
 
 # IntelliJ specific (optional, if you want to keep GitHub clean)
 .idea/
