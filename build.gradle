@@ -345,3 +345,12 @@ reobf {
 tasks.named('build') {
     dependsOn tasks.named('shadowJar')
 }
+
+task generateNativeHeaders(type: JavaCompile) {
+    source = fileTree('src/main/java') {
+        include 'net/xmx/nativexbullet/Gravity.java'
+    }
+    classpath = sourceSets.main.compileClasspath
+    destinationDir = file('build/classes/native')
+    options.compilerArgs = ['-h', file('include').absolutePath]
+}

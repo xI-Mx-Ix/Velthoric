@@ -2,7 +2,7 @@ package net.xmx.xbullet.natives;
 
 import com.github.stephengold.joltjni.*;
 import net.xmx.xbullet.init.XBullet;
-import net.xmx.xbullet.natives.loader.NativeJoltLibraryLoader;
+import net.xmx.xbullet.natives.loader.*;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 public class NativeJoltInitializer {
@@ -29,7 +29,7 @@ public class NativeJoltInitializer {
             Jolt.registerDefaultAllocator();
             Jolt.installDefaultAssertCallback();
             Jolt.installDefaultTraceCallback();
-            //Jolt.setTraceAllocations(true);
+            Jolt.setTraceAllocations(true);
 
             if (!Jolt.newFactory()) {
                 throw new IllegalStateException("Global Jolt Factory could not be created.");
