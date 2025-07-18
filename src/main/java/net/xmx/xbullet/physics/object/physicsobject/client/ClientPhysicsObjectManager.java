@@ -19,6 +19,7 @@ import net.xmx.xbullet.physics.object.physicsobject.type.soft.SoftPhysicsObject;
 import net.xmx.xbullet.physics.object.physicsobject.type.soft.client.ClientSoftPhysicsObjectData;
 
 import javax.annotation.Nullable;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -32,6 +33,9 @@ public class ClientPhysicsObjectManager {
     private final Map<String, Supplier<RigidPhysicsObject.Renderer>> rigidRendererFactories = new ConcurrentHashMap<>();
     private final Map<String, Supplier<SoftPhysicsObject.Renderer>> softRendererFactories = new ConcurrentHashMap<>();
     private final Queue<List<PhysicsObjectState>> stateUpdateQueue = new ConcurrentLinkedQueue<>();
+
+    private final ByteBuffer offHeapBuffer = ByteBuffer.allocateDirect(8);
+    private long lastSecondTime = System.currentTimeMillis();
 
     private ClientPhysicsObjectManager() {}
 
@@ -56,7 +60,19 @@ public class ClientPhysicsObjectManager {
 
     public void scheduleStatesForUpdate(List<PhysicsObjectState> states) {
         this.stateUpdateQueue.offer(states);
+
+        int current = offHeapBuffer.getInt(0);
+        offHeapBuffer.putInt(0, current + 1);
+
+        long now = System.currentTimeMillis();
+        if (now - lastSecondTime >= 1000) {
+            int count = offHeapBuffer.getInt(0);
+            offHeapBuffer.putInt(4, count);
+            offHeapBuffer.putInt(0, 0);
+            lastSecondTime = now;
+        }
     }
+
 
     private void processStateUpdates() {
         List<PhysicsObjectState> states;
@@ -183,4 +199,9 @@ public class ClientPhysicsObjectManager {
                 })
                 .sum();
     }
+
+    public int getStateUpdatesPerSecond() {
+        return offHeapBuffer.getInt(4);
+    }
+
 }

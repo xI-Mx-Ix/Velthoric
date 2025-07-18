@@ -12,7 +12,6 @@ import net.xmx.xbullet.physics.world.time.ClientClock;
 
 import javax.annotation.Nullable;
 import java.util.ArrayDeque;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -28,6 +27,7 @@ public class ClientSoftPhysicsObjectData {
     @Nullable private PhysicsTransform latestSyncedTransform = new PhysicsTransform();
     private long clockOffsetNanos = 0L;
     private boolean isClockOffsetInitialized = false;
+    private boolean lastReceivedActiveState = false;
     private float[] renderVertexBuffer = null;
     private final PhysicsTransform renderTransform = new PhysicsTransform();
 
@@ -74,11 +74,25 @@ public class ClientSoftPhysicsObjectData {
         }
     }
 
-    public byte[] getCustomData() { return customData; }
-    @Nullable public float[] getLatestVertexData() { return latestSyncedVertexData; }
+    public byte[] getCustomData() {
+        return customData;
+    }
+
+    @Nullable
+    public float[] getLatestVertexData() {
+        return latestSyncedVertexData;
+    }
 
     public void updateDataFromServer(@Nullable PhysicsTransform transform, @Nullable Vec3 linearVel, @Nullable Vec3 angularVel, @Nullable float[] newVertexData, long serverTimestampNanos, boolean isActive) {
-        if (serverTimestampNanos <= 0) return;
+        if (serverTimestampNanos <= 0) {
+            return;
+        }
+
+        if (!this.lastReceivedActiveState && isActive) {
+            this.releaseAll();
+        }
+        this.lastReceivedActiveState = isActive;
+
         long clientReceiptTime = ClientClock.getInstance().getGameTimeNanos();
         if (!isClockOffsetInitialized) {
             clockOffsetNanos = serverTimestampNanos - clientReceiptTime;
@@ -87,6 +101,7 @@ public class ClientSoftPhysicsObjectData {
             long newOffset = serverTimestampNanos - clientReceiptTime;
             clockOffsetNanos = (long) (clockOffsetNanos * (1.0 - OFFSET_SMOOTHING_FACTOR) + newOffset * OFFSET_SMOOTHING_FACTOR);
         }
+
         if (serverTimestampNanos > this.lastServerTimestampNanos) {
             if (!transformStateBuffer.isEmpty() && (serverTimestampNanos - lastServerTimestampNanos > SNAP_THRESHOLD_NANOS)) {
                 releaseAll();
@@ -208,8 +223,14 @@ public class ClientSoftPhysicsObjectData {
         transformStateBuffer.clear();
     }
 
-    public UUID getId() { return id; }
-    @Nullable public SoftPhysicsObject.Renderer getRenderer() { return renderer; }
+    public UUID getId() {
+        return id;
+    }
+
+    @Nullable
+    public SoftPhysicsObject.Renderer getRenderer() {
+        return renderer;
+    }
 
     private static class TimestampedState {
         long timestampNanos;
@@ -235,10 +256,12 @@ public class ClientSoftPhysicsObjectData {
 
     private static class TimestampedStatePool {
         private static final ConcurrentLinkedQueue<TimestampedState> POOL = new ConcurrentLinkedQueue<>();
+
         static TimestampedState acquire() {
             TimestampedState obj = POOL.poll();
             return (obj != null) ? obj : new TimestampedState();
         }
+
         static void release(TimestampedState obj) {
             if (obj != null) {
                 obj.reset();
@@ -257,8 +280,16 @@ public class ClientSoftPhysicsObjectData {
         public TimestampedTransform set(long timestamp, PhysicsTransform source, @Nullable Vec3 linVel, @Nullable Vec3 angVel, boolean isActive) {
             this.timestampNanos = timestamp;
             this.transform.set(source);
-            if (linVel != null) { this.linearVelocity.set(linVel); } else { this.linearVelocity.loadZero(); }
-            if (angVel != null) { this.angularVelocity.set(angVel); } else { this.angularVelocity.loadZero(); }
+            if (linVel != null) {
+                this.linearVelocity.set(linVel);
+            } else {
+                this.linearVelocity.loadZero();
+            }
+            if (angVel != null) {
+                this.angularVelocity.set(angVel);
+            } else {
+                this.angularVelocity.loadZero();
+            }
             this.isActive = isActive;
             return this;
         }
@@ -274,10 +305,12 @@ public class ClientSoftPhysicsObjectData {
 
     private static class TimestampedTransformPool {
         private static final ConcurrentLinkedQueue<TimestampedTransform> POOL = new ConcurrentLinkedQueue<>();
+
         static TimestampedTransform acquire() {
             TimestampedTransform obj = POOL.poll();
             return (obj != null) ? obj : new TimestampedTransform();
         }
+
         static void release(TimestampedTransform obj) {
             if (obj != null) {
                 obj.reset();

@@ -25,6 +25,7 @@ public class ClientRigidPhysicsObjectData {
     private long clockOffsetNanos = 0L;
     private boolean isClockOffsetInitialized = false;
     private byte[] customData;
+    private boolean lastReceivedActiveState = false;
 
     private static final long INTERPOLATION_DELAY_MS = 100;
     private static final int MAX_BUFFER_SIZE = 20;
@@ -71,6 +72,12 @@ public class ClientRigidPhysicsObjectData {
         if (newTransform == null || serverTimestampNanos <= 0) {
             return;
         }
+
+        if (!this.lastReceivedActiveState && isActive) {
+            this.releaseAll();
+        }
+        this.lastReceivedActiveState = isActive;
+
         long clientReceiptTimeNanos = ClientClock.getInstance().getGameTimeNanos();
         if (!isClockOffsetInitialized) {
             this.clockOffsetNanos = serverTimestampNanos - clientReceiptTimeNanos;
@@ -79,6 +86,7 @@ public class ClientRigidPhysicsObjectData {
             long newOffset = serverTimestampNanos - clientReceiptTimeNanos;
             this.clockOffsetNanos = (long) (this.clockOffsetNanos * (1.0 - OFFSET_SMOOTHING_FACTOR) + newOffset * OFFSET_SMOOTHING_FACTOR);
         }
+
         if (serverTimestampNanos > lastServerTimestampNanos) {
             if (!transformBuffer.isEmpty() && (serverTimestampNanos - lastServerTimestampNanos > SNAP_THRESHOLD_NANOS)) {
                 releaseAll();
@@ -171,8 +179,14 @@ public class ClientRigidPhysicsObjectData {
         transformBuffer.clear();
     }
 
-    public UUID getId() { return id; }
-    @Nullable public RigidPhysicsObject.Renderer getRenderer() { return renderer; }
+    public UUID getId() {
+        return id;
+    }
+
+    @Nullable
+    public RigidPhysicsObject.Renderer getRenderer() {
+        return renderer;
+    }
 
     private static class TimestampedTransform {
         long timestampNanos;
@@ -184,8 +198,16 @@ public class ClientRigidPhysicsObjectData {
         public TimestampedTransform set(long timestampNanos, PhysicsTransform source, @Nullable Vec3 linVel, @Nullable Vec3 angVel, boolean isActive) {
             this.timestampNanos = timestampNanos;
             this.transform.set(source);
-            if (linVel != null) { this.linearVelocity.set(linVel); } else { this.linearVelocity.loadZero(); }
-            if (angVel != null) { this.angularVelocity.set(angVel); } else { this.angularVelocity.loadZero(); }
+            if (linVel != null) {
+                this.linearVelocity.set(linVel);
+            } else {
+                this.linearVelocity.loadZero();
+            }
+            if (angVel != null) {
+                this.angularVelocity.set(angVel);
+            } else {
+                this.angularVelocity.loadZero();
+            }
             this.isActive = isActive;
             return this;
         }
@@ -201,10 +223,12 @@ public class ClientRigidPhysicsObjectData {
 
     private static class TimestampedTransformPool {
         private static final ConcurrentLinkedQueue<TimestampedTransform> POOL = new ConcurrentLinkedQueue<>();
+
         static TimestampedTransform acquire() {
             TimestampedTransform obj = POOL.poll();
             return (obj != null) ? obj : new TimestampedTransform();
         }
+
         static void release(TimestampedTransform obj) {
             if (obj != null) {
                 obj.reset();

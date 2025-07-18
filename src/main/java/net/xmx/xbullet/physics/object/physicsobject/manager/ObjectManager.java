@@ -36,7 +36,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.StampedLock;
-import java.util.stream.Collectors;
 
 public class ObjectManager {
 
@@ -54,7 +53,7 @@ public class ObjectManager {
     private static final int MAX_SOFT_BODY_VERTICES = 4096;
 
     private long physicsTickCounter = 0;
-    private static final int INACTIVE_OBJECT_UPDATE_INTERVAL_TICKS = 60;
+    private static final int INACTIVE_OBJECT_UPDATE_INTERVAL_TICKS = 3;
 
     final ObjectDataSystem dataSystem;
     private final AtomicBoolean isInitializedInternal = new AtomicBoolean(false);
@@ -198,18 +197,19 @@ public class ObjectManager {
         List<IPhysicsObject> objectsToUpdate = managedObjects.values().parallelStream()
                 .filter(obj -> obj != null && !obj.isRemoved() && obj.getBodyId() != 0 && bodyInterfaceNoLock.isAdded(obj.getBodyId()))
                 .peek(obj -> {
-
                     obj.fixedPhysicsTick(this.physicsWorld);
                     obj.physicsTick(this.physicsWorld);
                 })
                 .filter(obj -> {
-
                     boolean isActive = bodyInterfaceNoLock.isActive(obj.getBodyId());
-                    Boolean wasActive = lastActiveState.put(obj.getPhysicsId(), isActive);
+                    Boolean wasActive = lastActiveState.get(obj.getPhysicsId());
 
-                    boolean stateChanged = wasActive != null && wasActive != isActive;
+                    if (wasActive == null || wasActive != isActive) {
+                        lastActiveState.put(obj.getPhysicsId(), isActive);
+                        return true;
+                    }
 
-                    return isActive || stateChanged || obj.isDataDirty() || (!isActive && isPeriodicUpdateTick);
+                    return isActive || obj.isDataDirty() || (!isActive && isPeriodicUpdateTick);
                 })
                 .toList();
 
@@ -257,7 +257,10 @@ public class ObjectManager {
         Long2ObjectMap<List<PhysicsObjectState>> statesByChunk = new Long2ObjectOpenHashMap<>();
         for (PhysicsObjectState state : states) {
             IPhysicsObject obj = managedObjects.get(state.getId());
-            if (obj == null) continue;
+            if (obj == null) {
+                PhysicsObjectStatePool.release(state);
+                continue;
+            }
 
             RVec3 pos = obj.getCurrentTransform().getTranslation();
             long chunkKey = ChunkPos.asLong((int) Math.floor(pos.xx() / 16.0), (int) Math.floor(pos.zz() / 16.0));
@@ -287,7 +290,10 @@ public class ObjectManager {
             int chunkX = ChunkPos.getX(chunkKey);
             int chunkZ = ChunkPos.getZ(chunkKey);
             var chunk = managedLevel.getChunkSource().getChunk(chunkX, chunkZ, false);
-            if (chunk == null) return;
+            if (chunk == null) {
+                statesInChunk.forEach(PhysicsObjectStatePool::release);
+                return;
+            }
 
             ObjectArrayList<PhysicsObjectState> currentBatch = new ObjectArrayList<>();
             int currentBatchSizeBytes = 0;
@@ -311,7 +317,6 @@ public class ObjectManager {
     }
 
     private void cleanupRemovedObjects() {
-
         List<UUID> toRemove = removalListPool.get();
         toRemove.clear();
         for (var entry : managedObjects.entrySet()) {
@@ -352,6 +357,7 @@ public class ObjectManager {
             this.bodyIdToUuidMap.remove(bodyId);
         }
     }
+
     @Nullable
     private float[] getSoftBodyVertices(BodyLockInterface lockInterface, int bodyId) {
         try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {
@@ -381,19 +387,6 @@ public class ObjectManager {
             }
         }
         return null;
-    }
-
-    private void removeObjectsBelowLevel(float yLevel) {
-        List<UUID> toRemove = this.removalListPool.get();
-        toRemove.clear();
-        for (IPhysicsObject obj : managedObjects.values()) {
-            if (obj.getCurrentTransform().getTranslation().yy() < yLevel) {
-                toRemove.add(obj.getPhysicsId());
-            }
-        }
-        if (!toRemove.isEmpty()) {
-            toRemove.forEach(this::deleteObject);
-        }
     }
 
     public Optional<IPhysicsObject> getObject(UUID id) {
