@@ -31,7 +31,6 @@ import net.xmx.xbullet.physics.terrain.manager.TerrainSystem;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
-import java.nio.FloatBuffer;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -61,8 +60,6 @@ public class ObjectManager {
     private final Map<String, GlobalPhysicsObjectRegistry.RegistrationData> registeredObjectFactories = new ConcurrentHashMap<>();
 
     private final ThreadLocal<PhysicsTransform> tempTransform = ThreadLocal.withInitial(PhysicsTransform::new);
-    private final ThreadLocal<List<IPhysicsObject>> objectsToUpdatePool = ThreadLocal.withInitial(ObjectArrayList::new);
-    private final ThreadLocal<FloatBuffer> softBodyVertexBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(MAX_SOFT_BODY_VERTICES * 3));
     private final ThreadLocal<List<UUID>> removalListPool = ThreadLocal.withInitial(ObjectArrayList::new);
 
     public ObjectManager() {
@@ -72,11 +69,6 @@ public class ObjectManager {
     public void initialize(PhysicsWorld physicsWorld) {
         this.physicsWorld = physicsWorld;
         ServerLevel level = physicsWorld.getLevel();
-
-        if (this.physicsWorld == null || level == null) {
-            XBullet.LOGGER.debug("PhysicsWorld or Level is null. Manager will not initialize.");
-            return;
-        }
 
         this.isShutdown.set(false);
         this.lifecycleManager = new ObjectLifecycleManager(this);
@@ -209,7 +201,7 @@ public class ObjectManager {
                         return true;
                     }
 
-                    return isActive || obj.isDataDirty() || (!isActive && isPeriodicUpdateTick);
+                    return isActive || obj.isDataDirty() || isPeriodicUpdateTick;
                 })
                 .toList();
 
