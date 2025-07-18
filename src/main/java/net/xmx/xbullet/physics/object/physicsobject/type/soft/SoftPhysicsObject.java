@@ -160,28 +160,12 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     }
 
     @Override
-    public synchronized void updateStateFromPhysicsThread(long timestampNanos, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
-        if (this.isRemoved || this.level.isClientSide()) {
-            return;
-        }
-        this.lastUpdateTimestampNanos = timestampNanos;
-        this.isActive = isActive;
+    public void updateStateFromPhysicsThread(long timestampNanos, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
+        super.updateStateFromPhysicsThread(timestampNanos, transform, linearVelocity, angularVelocity, softBodyVertices, isActive);
         if (isActive) {
-            if (transform != null) {
-                this.currentTransform.set(transform);
-            }
-            if (linearVelocity != null) {
-                this.lastSyncedLinearVel.set(linearVelocity);
-            }
-            if (angularVelocity != null) {
-                this.lastSyncedAngularVel.set(angularVelocity);
-            }
             if (softBodyVertices != null) {
                 this.lastSyncedVertexData = softBodyVertices;
             }
-        } else {
-            this.lastSyncedLinearVel.loadZero();
-            this.lastSyncedAngularVel.loadZero();
         }
     }
 

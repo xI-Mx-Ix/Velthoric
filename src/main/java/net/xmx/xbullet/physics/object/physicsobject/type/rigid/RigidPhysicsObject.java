@@ -162,29 +162,6 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     }
 
     @Override
-    public synchronized void updateStateFromPhysicsThread(long timestampNanos, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
-        if (this.isRemoved || level.isClientSide()) {
-            return;
-        }
-        this.lastUpdateTimestampNanos = timestampNanos;
-        this.isActive = isActive;
-        if (isActive) {
-            if (transform != null) {
-                this.currentTransform.set(transform);
-            }
-            if (linearVelocity != null) {
-                this.lastSyncedLinearVel.set(linearVelocity);
-            }
-            if (angularVelocity != null) {
-                this.lastSyncedAngularVel.set(angularVelocity);
-            }
-        } else {
-            this.lastSyncedLinearVel.loadZero();
-            this.lastSyncedAngularVel.loadZero();
-        }
-    }
-
-    @Override
     public void onRightClickWithTool(ServerPlayer player) {
         if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem && player.level() instanceof ServerLevel sl) {
             ObjectManager manager = PhysicsWorld.getObjectManager(sl.dimension());

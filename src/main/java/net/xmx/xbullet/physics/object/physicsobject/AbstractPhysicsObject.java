@@ -14,6 +14,7 @@ import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
+import java.util.concurrent.locks.StampedLock;
 
 public abstract class AbstractPhysicsObject implements IPhysicsObject {
 
@@ -30,6 +31,7 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     protected int bodyId = 0;
     protected boolean isRemoved = false;
     protected boolean physicsInitialized = false;
+    protected final StampedLock transformLock = new StampedLock();
 
     @Nullable
     protected transient RidingProxyEntity ridingProxy = null;
@@ -100,8 +102,23 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     }
 
     @Override
-    public synchronized PhysicsTransform getCurrentTransform() {
-        return this.currentTransform.copy();
+    public PhysicsTransform getCurrentTransform() {
+        long stamp = transformLock.tryOptimisticRead();
+        PhysicsTransform transformCopy = this.currentTransform.copy();
+        if (!transformLock.validate(stamp)) {
+            stamp = transformLock.readLock();
+            try {
+                transformCopy.set(this.currentTransform);
+            } finally {
+                transformLock.unlockRead(stamp);
+            }
+        }
+        return transformCopy;
+    }
+
+    @Override
+    public StampedLock getTransformLock() {
+        return this.transformLock;
     }
 
     @Override
@@ -123,6 +140,30 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     public void confirmPhysicsInitialized() {
         if (!this.physicsInitialized) {
             this.physicsInitialized = true;
+        }
+    }
+
+    @Override
+    public void updateStateFromPhysicsThread(long timestampNanos, @Nullable PhysicsTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
+        if (this.isRemoved || level.isClientSide()) {
+            return;
+        }
+        this.lastUpdateTimestampNanos = timestampNanos;
+        this.isActive = isActive;
+
+        if (isActive) {
+            if (transform != null) {
+                this.currentTransform.set(transform);
+            }
+            if (linearVelocity != null) {
+                this.lastSyncedLinearVel.set(linearVelocity);
+            }
+            if (angularVelocity != null) {
+                this.lastSyncedAngularVel.set(angularVelocity);
+            }
+        } else {
+            this.lastSyncedLinearVel.loadZero();
+            this.lastSyncedAngularVel.loadZero();
         }
     }
 

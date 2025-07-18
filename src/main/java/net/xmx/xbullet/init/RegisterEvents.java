@@ -8,7 +8,9 @@ import net.xmx.xbullet.item.physicsgun.event.PhysicsGunClientEvents;
 import net.xmx.xbullet.item.physicsgun.event.PhysicsGunEvents;
 import net.xmx.xbullet.physics.PhysicsLifecycleEvents;
 import net.xmx.xbullet.physics.constraint.manager.events.ConstraintLifecycleEvents;
-import net.xmx.xbullet.physics.object.buoyancy.FluidManagerEvents;
+
+
+
 import net.xmx.xbullet.physics.object.raycast.NotifyClientClick;
 import net.xmx.xbullet.physics.object.physicsobject.client.ClientPhysicsObjectManager;
 import net.xmx.xbullet.physics.object.physicsobject.client.renderer.PhysicsObjectRenderer;
@@ -26,7 +28,6 @@ public class RegisterEvents {
 
         forgeEventBus.register(ObjectLifecycleEvents.class);
 
-        forgeEventBus.register(FluidManagerEvents.class);
         forgeEventBus.register(PhysicsGunEvents.class);
         forgeEventBus.register(TerrainSystemEvents.class);
         forgeEventBus.register(TerrainBlockEvents.class);

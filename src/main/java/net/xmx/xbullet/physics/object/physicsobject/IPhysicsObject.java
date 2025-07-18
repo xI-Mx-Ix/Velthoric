@@ -4,7 +4,6 @@ import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.riding.RidingProxyEntity;
@@ -12,6 +11,7 @@ import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
+import java.util.concurrent.locks.StampedLock;
 
 public interface IPhysicsObject {
     UUID getPhysicsId();
@@ -21,6 +21,7 @@ public interface IPhysicsObject {
     boolean isRemoved();
     void markRemoved();
     PhysicsTransform getCurrentTransform();
+    StampedLock getTransformLock();
     int getBodyId();
     void setBodyId(int bodyId);
     void initializePhysics(PhysicsWorld physicsWorld);

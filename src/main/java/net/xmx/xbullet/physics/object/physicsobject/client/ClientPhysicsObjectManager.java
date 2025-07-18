@@ -31,7 +31,6 @@ public class ClientPhysicsObjectManager {
     private final Map<UUID, ClientPhysicsObjectData> allObjects = new ConcurrentHashMap<>();
     private final Map<String, Supplier<RigidPhysicsObject.Renderer>> rigidRendererFactories = new ConcurrentHashMap<>();
     private final Map<String, Supplier<SoftPhysicsObject.Renderer>> softRendererFactories = new ConcurrentHashMap<>();
-
     private final Queue<List<PhysicsObjectState>> stateUpdateQueue = new ConcurrentLinkedQueue<>();
 
     private ClientPhysicsObjectManager() {}
@@ -64,13 +63,13 @@ public class ClientPhysicsObjectManager {
         while ((states = stateUpdateQueue.poll()) != null) {
             for (PhysicsObjectState state : states) {
                 updateObject(
-                        state.id(),
-                        state.objectType(),
-                        state.transform(),
-                        state.linearVelocity(),
-                        state.angularVelocity(),
-                        state.softBodyVertices(),
-                        state.timestamp(),
+                        state.getId(),
+                        state.getObjectType(),
+                        state.getTransform(),
+                        state.getLinearVelocity(),
+                        state.getAngularVelocity(),
+                        state.getSoftBodyVertices(),
+                        state.getTimestamp(),
                         state.isActive()
                 );
                 PhysicsObjectStatePool.release(state);
@@ -91,7 +90,7 @@ public class ClientPhysicsObjectManager {
             if (renderer == null) XBullet.LOGGER.warn("Client: No renderer found for rigid body type '{}'.", typeIdentifier);
 
             ClientRigidPhysicsObjectData rigidData = new ClientRigidPhysicsObjectData(id, renderer, serverTimestamp);
-            rigidData.readData(data); // Reads initial state
+            rigidData.readData(data);
             clientData.setRigidData(rigidData);
 
         } else if (objectType == EObjectType.SOFT_BODY) {
@@ -100,7 +99,7 @@ public class ClientPhysicsObjectManager {
             if (renderer == null) XBullet.LOGGER.warn("Client: No renderer found for soft body type '{}'.", typeIdentifier);
 
             ClientSoftPhysicsObjectData softData = new ClientSoftPhysicsObjectData(id, renderer, serverTimestamp);
-            softData.readData(data); // Reads initial state
+            softData.readData(data);
             clientData.setSoftData(softData);
         }
 
@@ -153,7 +152,7 @@ public class ClientPhysicsObjectManager {
             if (event.phase == TickEvent.Phase.START) {
                 instance.processStateUpdates();
             } else if (event.phase == TickEvent.Phase.END) {
-                instance.allObjects.values().forEach(ClientPhysicsObjectData::updateInterpolation);
+                instance.allObjects.values().forEach(ClientPhysicsObjectData::cleanupBuffers);
             }
         }
     }
