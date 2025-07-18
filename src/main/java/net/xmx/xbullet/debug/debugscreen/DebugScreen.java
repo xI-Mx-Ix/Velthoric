@@ -21,8 +21,8 @@ public class DebugScreen {
         }
 
         event.getLeft().add("");
-        event.getLeft().add("XBullet Version: " + getModVersion());
-        event.getLeft().add("Jolt Physics Version:" + " " + Jolt.versionString());
+        event.getLeft().add("XBullet v" + getModVersion());
+        event.getLeft().add("Jolt JNI v" + Jolt.versionString());
 
         addClientInfo(event);
     }
@@ -35,17 +35,16 @@ public class DebugScreen {
         long clientRigidCount = allClientObjects.stream().filter(d -> d.getObjectType() == EObjectType.RIGID_BODY).count();
         long clientSoftCount = allClientObjects.stream().filter(d -> d.getObjectType() == EObjectType.SOFT_BODY).count();
 
-        event.getLeft().add("Client Soft Objects:" + " " + clientSoftCount);
-        event.getLeft().add("Client Rigid Objects:" + " " + clientRigidCount);
+        event.getLeft().add("RB: " + clientRigidCount + " | SB: " + clientSoftCount);
 
         int rigidRenderers = clientManager.getRegisteredRigidRendererFactoryCount();
         int softRenderers = clientManager.getRegisteredSoftRendererFactoryCount();
 
-        event.getLeft().add("Client Soft Renderers:" + " " + softRenderers);
-        event.getLeft().add("Client Rigid Renderers:" + " " + rigidRenderers);
+        event.getLeft().add("RB Renderers: " + rigidRenderers + " | SB Renderers: " + softRenderers);
 
+        int updatesPerSecond = ClientPhysicsObjectManager.getInstance().getStateUpdatesPerSecond();
         int totalNodeCount = clientManager.getTotalNodeCount();
-        event.getLeft().add(String.format("Total Node Count: %d", totalNodeCount));
+        event.getLeft().add(String.format("Vertices: %d", totalNodeCount) + " | State Updates/s: " + updatesPerSecond);
     }
 
     private static String getModVersion() {
