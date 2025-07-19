@@ -16,16 +16,16 @@ public class PulleyConstraintSerializer implements ConstraintSerializer<PulleyCo
     }
 
     @Override
-    public void serialize(PulleyConstraintBuilder builder, FriendlyByteBuf buf) {
-        serializeBodies(builder, buf);
-        buf.writeEnum(builder.space);
-        BufferUtil.putRVec3(buf, builder.bodyPoint1);
-        BufferUtil.putRVec3(buf, builder.bodyPoint2);
-        BufferUtil.putRVec3(buf, builder.fixedPoint1);
-        BufferUtil.putRVec3(buf, builder.fixedPoint2);
-        buf.writeFloat(builder.ratio);
-        buf.writeFloat(builder.minLength);
-        buf.writeFloat(builder.maxLength);
+    public void serializeSettings(PulleyConstraintBuilder builder, FriendlyByteBuf buf) {
+        PulleyConstraintSettings settings = builder.getSettings();
+        buf.writeEnum(settings.getSpace());
+        BufferUtil.putRVec3(buf, settings.getBodyPoint1());
+        BufferUtil.putRVec3(buf, settings.getBodyPoint2());
+        BufferUtil.putRVec3(buf, settings.getFixedPoint1());
+        BufferUtil.putRVec3(buf, settings.getFixedPoint2());
+        buf.writeFloat(settings.getRatio());
+        buf.writeFloat(settings.getMinLength());
+        buf.writeFloat(settings.getMaxLength());
     }
 
     @Override
@@ -40,10 +40,5 @@ public class PulleyConstraintSerializer implements ConstraintSerializer<PulleyCo
         s.setMinLength(buf.readFloat());
         s.setMaxLength(buf.readFloat());
         return s;
-    }
-
-    @Override
-    public void applyLiveState(PulleyConstraint constraint, FriendlyByteBuf buf) {
-        // PulleyConstraint has no live state to apply after creation based on JoltJNI.
     }
 }

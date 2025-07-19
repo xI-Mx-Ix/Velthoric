@@ -3,6 +3,9 @@ package net.xmx.xbullet.physics.constraint;
 import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.TwoBodyConstraintRef;
 import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.xbullet.physics.constraint.serializer.base.ConstraintSerializer;
+import net.xmx.xbullet.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
+
 import javax.annotation.Nullable;
 import java.util.UUID;
 
@@ -14,9 +17,9 @@ public class ManagedConstraint implements IConstraint {
     private final UUID dependencyId2;
     private final TwoBodyConstraintRef constraintRef;
     private final String constraintType;
-    private final byte[] serializedData;
+    private final byte[] fullSerializedData;
 
-    public ManagedConstraint(UUID id, @Nullable UUID b1, @Nullable UUID b2, @Nullable UUID d1, @Nullable UUID d2, TwoBodyConstraintRef ref, String type, byte[] data) {
+    public ManagedConstraint(UUID id, @Nullable UUID b1, @Nullable UUID b2, @Nullable UUID d1, @Nullable UUID d2, TwoBodyConstraintRef ref, String type, byte[] fullSerializedData) {
         this.id = id;
         this.body1Id = b1;
         this.body2Id = b2;
@@ -24,7 +27,7 @@ public class ManagedConstraint implements IConstraint {
         this.dependencyId2 = d2;
         this.constraintRef = ref;
         this.constraintType = type;
-        this.serializedData = data;
+        this.fullSerializedData = fullSerializedData;
     }
 
     @Override public UUID getId() { return id; }
@@ -35,15 +38,15 @@ public class ManagedConstraint implements IConstraint {
         if (index == 1) return dependencyId2;
         return null;
     }
-
     @Override public String getConstraintType() { return constraintType; }
 
     @Override public @Nullable TwoBodyConstraint getJoltConstraint() {
         return (constraintRef != null && constraintRef.hasAssignedNativeObject()) ? constraintRef.getPtr() : null;
     }
 
-    @Override public void save(FriendlyByteBuf buf) {
-        buf.writeBytes(serializedData);
+    @Override
+    public void save(FriendlyByteBuf buf) {
+        buf.writeBytes(this.fullSerializedData);
     }
 
     @Override public void release() {

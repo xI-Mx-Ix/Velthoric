@@ -2,6 +2,8 @@ package net.xmx.xbullet.physics.constraint.serializer;
 
 import com.github.stephengold.joltjni.DistanceConstraint;
 import com.github.stephengold.joltjni.DistanceConstraintSettings;
+import com.github.stephengold.joltjni.SpringSettings;
+import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.xbullet.physics.constraint.builder.DistanceConstraintBuilder;
@@ -9,21 +11,23 @@ import net.xmx.xbullet.physics.constraint.serializer.base.ConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.util.BufferUtil;
 
 public class DistanceConstraintSerializer implements ConstraintSerializer<DistanceConstraintBuilder, DistanceConstraint, DistanceConstraintSettings> {
-    
+
     @Override
     public String getTypeId() {
         return "xbullet:distance";
     }
 
     @Override
-    public void serialize(DistanceConstraintBuilder builder, FriendlyByteBuf buf) {
-        serializeBodies(builder, buf);
-        buf.writeEnum(builder.space);
-        BufferUtil.putRVec3(buf, builder.point1);
-        BufferUtil.putRVec3(buf, builder.point2);
-        buf.writeFloat(builder.minDistance);
-        buf.writeFloat(builder.maxDistance);
-        BufferUtil.putSpringSettings(buf, builder.limitsSpringSettings);
+    public void serializeSettings(DistanceConstraintBuilder builder, FriendlyByteBuf buf) {
+        DistanceConstraintSettings settings = builder.getSettings();
+        buf.writeEnum(settings.getSpace());
+        BufferUtil.putRVec3(buf, settings.getPoint1());
+        BufferUtil.putRVec3(buf, settings.getPoint2());
+        buf.writeFloat(settings.getMinDistance());
+        buf.writeFloat(settings.getMaxDistance());
+        try (SpringSettings spring = settings.getLimitsSpringSettings()) {
+            BufferUtil.putSpringSettings(buf, spring);
+        }
     }
 
     @Override
@@ -34,12 +38,27 @@ public class DistanceConstraintSerializer implements ConstraintSerializer<Distan
         s.setPoint2(BufferUtil.getRVec3(buf));
         s.setMinDistance(buf.readFloat());
         s.setMaxDistance(buf.readFloat());
-        BufferUtil.loadSpringSettings(buf, s.getLimitsSpringSettings());
+        try (SpringSettings spring = s.getLimitsSpringSettings()) {
+            BufferUtil.loadSpringSettings(buf, spring);
+        }
         return s;
     }
 
     @Override
-    public void applyLiveState(DistanceConstraint constraint, FriendlyByteBuf buf) {
-        // DistanceConstraint has no live state to apply after creation based on JoltJNI.
+    public void serializeLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+        if (constraint instanceof DistanceConstraint distance) {
+            try (SpringSettings spring = distance.getLimitsSpringSettings()) {
+                BufferUtil.putSpringSettings(buf, spring);
+            }
+        }
+    }
+
+    @Override
+    public void applyLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+        if (constraint instanceof DistanceConstraint distance) {
+            try (SpringSettings spring = distance.getLimitsSpringSettings()) {
+                BufferUtil.loadSpringSettings(buf, spring);
+            }
+        }
     }
 }

@@ -4,6 +4,7 @@ import com.github.stephengold.joltjni.MotorSettings;
 import com.github.stephengold.joltjni.SixDofConstraint;
 import com.github.stephengold.joltjni.SixDofConstraintSettings;
 import com.github.stephengold.joltjni.SpringSettings;
+import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.enumerate.EAxis;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.enumerate.EMotorState;
@@ -15,36 +16,41 @@ import net.xmx.xbullet.physics.constraint.util.BufferUtil;
 
 public class SixDofConstraintSerializer implements ConstraintSerializer<SixDofConstraintBuilder, SixDofConstraint, SixDofConstraintSettings> {
 
-    @Override public String getTypeId() { return "xbullet:six_dof"; }
+    @Override
+    public String getTypeId() {
+        return "xbullet:six_dof";
+    }
 
     @Override
-    public void serialize(SixDofConstraintBuilder builder, FriendlyByteBuf buf) {
-        serializeBodies(builder, buf);
-        buf.writeEnum(builder.space);
-        BufferUtil.putRVec3(buf, builder.position1);
-        BufferUtil.putRVec3(buf, builder.position2);
-        BufferUtil.putVec3(buf, builder.axisX1);
-        BufferUtil.putVec3(buf, builder.axisY1);
-        BufferUtil.putVec3(buf, builder.axisX2);
-        BufferUtil.putVec3(buf, builder.axisY2);
-        buf.writeEnum(builder.swingType);
+    public void serializeSettings(SixDofConstraintBuilder builder, FriendlyByteBuf buf) {
+        SixDofConstraintSettings settings = builder.getSettings();
+        buf.writeEnum(settings.getSpace());
+        BufferUtil.putRVec3(buf, settings.getPosition1());
+        BufferUtil.putRVec3(buf, settings.getPosition2());
+        BufferUtil.putVec3(buf, settings.getAxisX1());
+        BufferUtil.putVec3(buf, settings.getAxisY1());
+        BufferUtil.putVec3(buf, settings.getAxisX2());
+        BufferUtil.putVec3(buf, settings.getAxisY2());
+        buf.writeEnum(settings.getSwingType());
 
         for (EAxis axis : EAxis.values()) {
-            buf.writeEnum(builder.axisStates.get(axis));
-            buf.writeFloat(builder.limitsMin.get(axis));
-            buf.writeFloat(builder.limitsMax.get(axis));
-            buf.writeFloat(builder.maxFriction.get(axis));
-            BufferUtil.putMotorSettings(buf, builder.motorSettings.get(axis));
-            BufferUtil.putSpringSettings(buf, builder.limitsSpringSettings.get(axis));
+            if (settings.isFixedAxis(axis)) {
+                buf.writeEnum(SixDofConstraintBuilder.AxisState.FIXED);
+            } else if (settings.isFreeAxis(axis)) {
+                buf.writeEnum(SixDofConstraintBuilder.AxisState.FREE);
+            } else {
+                buf.writeEnum(SixDofConstraintBuilder.AxisState.LIMITED);
+            }
+            buf.writeFloat(settings.getLimitMin(axis));
+            buf.writeFloat(settings.getLimitMax(axis));
+            buf.writeFloat(settings.getMaxFriction(axis));
+            try (MotorSettings ms = settings.getMotorSettings(axis)) {
+                BufferUtil.putMotorSettings(buf, ms);
+            }
+            try (SpringSettings ss = settings.getLimitsSpringSettings(axis)) {
+                BufferUtil.putSpringSettings(buf, ss);
+            }
         }
-
-        for (EAxis axis : EAxis.values()) {
-            buf.writeEnum(EMotorState.Off);
-        }
-        BufferUtil.putVec3(buf, null);
-        BufferUtil.putQuat(buf, null);
-        BufferUtil.putVec3(buf, null);
-        BufferUtil.putVec3(buf, null);
     }
 
     @Override
@@ -64,32 +70,50 @@ public class SixDofConstraintSerializer implements ConstraintSerializer<SixDofCo
             float min = buf.readFloat();
             float max = buf.readFloat();
             float friction = buf.readFloat();
-            
+
             switch (state) {
                 case FREE -> s.makeFreeAxis(axis);
                 case LIMITED -> s.setLimitedAxis(axis, min, max);
                 case FIXED -> s.makeFixedAxis(axis);
             }
             s.setMaxFriction(axis, friction);
-            
             try (MotorSettings ms = s.getMotorSettings(axis)) {
                 BufferUtil.loadMotorSettings(buf, ms);
             }
-            try(SpringSettings ss = s.getLimitsSpringSettings(axis)) {
-                 BufferUtil.loadSpringSettings(buf, ss);
+            try (SpringSettings ss = s.getLimitsSpringSettings(axis)) {
+                BufferUtil.loadSpringSettings(buf, ss);
             }
         }
         return s;
     }
 
     @Override
-    public void applyLiveState(SixDofConstraint constraint, FriendlyByteBuf buf) {
-        for (EAxis axis : EAxis.values()) {
-            constraint.setMotorState(axis, buf.readEnum(EMotorState.class));
+    public void serializeLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+        if (constraint instanceof SixDofConstraint sixDof) {
+            for (EAxis axis : EAxis.values()) {
+                buf.writeEnum(sixDof.getMotorState(axis));
+                try (MotorSettings motor = sixDof.getMotorSettings(axis)) {
+                    BufferUtil.putMotorSettings(buf, motor);
+                }
+                try (SpringSettings spring = sixDof.getLimitsSpringSettings(axis)) {
+                    BufferUtil.putSpringSettings(buf, spring);
+                }
+            }
         }
-        constraint.setTargetPositionCs(BufferUtil.getVec3(buf));
-        constraint.setTargetOrientationCs(BufferUtil.getQuat(buf));
-        constraint.setTargetVelocityCs(BufferUtil.getVec3(buf));
-        constraint.setTargetAngularVelocityCs(BufferUtil.getVec3(buf));
+    }
+
+    @Override
+    public void applyLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+        if (constraint instanceof SixDofConstraint sixDof) {
+            for (EAxis axis : EAxis.values()) {
+                sixDof.setMotorState(axis, buf.readEnum(EMotorState.class));
+                try (MotorSettings motor = sixDof.getMotorSettings(axis)) {
+                    BufferUtil.loadMotorSettings(buf, motor);
+                }
+                try (SpringSettings spring = sixDof.getLimitsSpringSettings(axis)) {
+                    BufferUtil.loadSpringSettings(buf, spring);
+                }
+            }
+        }
     }
 }

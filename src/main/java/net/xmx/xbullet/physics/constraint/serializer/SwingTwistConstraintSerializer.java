@@ -1,9 +1,9 @@
 package net.xmx.xbullet.physics.constraint.serializer;
 
-import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.MotorSettings;
 import com.github.stephengold.joltjni.SwingTwistConstraint;
 import com.github.stephengold.joltjni.SwingTwistConstraintSettings;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.enumerate.EMotorState;
 import com.github.stephengold.joltjni.enumerate.ESwingType;
@@ -20,29 +20,27 @@ public class SwingTwistConstraintSerializer implements ConstraintSerializer<Swin
     }
 
     @Override
-    public void serialize(SwingTwistConstraintBuilder builder, FriendlyByteBuf buf) {
-        serializeBodies(builder, buf);
-        buf.writeEnum(builder.space);
-        buf.writeEnum(builder.swingType);
-        BufferUtil.putRVec3(buf, builder.position1);
-        BufferUtil.putRVec3(buf, builder.position2);
-        BufferUtil.putVec3(buf, builder.twistAxis1);
-        BufferUtil.putVec3(buf, builder.twistAxis2);
-        BufferUtil.putVec3(buf, builder.planeAxis1);
-        BufferUtil.putVec3(buf, builder.planeAxis2);
-        buf.writeFloat(builder.normalHalfConeAngle);
-        buf.writeFloat(builder.planeHalfConeAngle);
-        buf.writeFloat(builder.twistMinAngle);
-        buf.writeFloat(builder.twistMaxAngle);
-        buf.writeFloat(builder.maxFrictionTorque);
-        BufferUtil.putMotorSettings(buf, builder.swingMotorSettings);
-        BufferUtil.putMotorSettings(buf, builder.twistMotorSettings);
-
-        // Live state placeholders
-        buf.writeEnum(EMotorState.Off); // Swing Motor
-        buf.writeEnum(EMotorState.Off); // Twist Motor
-        BufferUtil.putQuat(buf, new Quat()); // Target Orientation
-        BufferUtil.putVec3(buf, new Vec3()); // Target Angular Velocity
+    public void serializeSettings(SwingTwistConstraintBuilder builder, FriendlyByteBuf buf) {
+        SwingTwistConstraintSettings settings = builder.getSettings();
+        buf.writeEnum(settings.getSpace());
+        buf.writeEnum(settings.getSwingType());
+        BufferUtil.putRVec3(buf, settings.getPosition1());
+        BufferUtil.putRVec3(buf, settings.getPosition2());
+        BufferUtil.putVec3(buf, settings.getTwistAxis1());
+        BufferUtil.putVec3(buf, settings.getTwistAxis2());
+        BufferUtil.putVec3(buf, settings.getPlaneAxis1());
+        BufferUtil.putVec3(buf, settings.getPlaneAxis2());
+        buf.writeFloat(settings.getNormalHalfConeAngle());
+        buf.writeFloat(settings.getPlaneHalfConeAngle());
+        buf.writeFloat(settings.getTwistMinAngle());
+        buf.writeFloat(settings.getTwistMaxAngle());
+        buf.writeFloat(settings.getMaxFrictionTorque());
+        try (MotorSettings motor = settings.getSwingMotorSettings()) {
+            BufferUtil.putMotorSettings(buf, motor);
+        }
+        try (MotorSettings motor = settings.getTwistMotorSettings()) {
+            BufferUtil.putMotorSettings(buf, motor);
+        }
     }
 
     @Override
@@ -61,16 +59,43 @@ public class SwingTwistConstraintSerializer implements ConstraintSerializer<Swin
         s.setTwistMinAngle(buf.readFloat());
         s.setTwistMaxAngle(buf.readFloat());
         s.setMaxFrictionTorque(buf.readFloat());
-        BufferUtil.loadMotorSettings(buf, s.getSwingMotorSettings());
-        BufferUtil.loadMotorSettings(buf, s.getTwistMotorSettings());
+        try (MotorSettings motor = s.getSwingMotorSettings()) {
+            BufferUtil.loadMotorSettings(buf, motor);
+        }
+        try (MotorSettings motor = s.getTwistMotorSettings()) {
+            BufferUtil.loadMotorSettings(buf, motor);
+        }
         return s;
     }
 
     @Override
-    public void applyLiveState(SwingTwistConstraint constraint, FriendlyByteBuf buf) {
-        constraint.setSwingMotorState(buf.readEnum(EMotorState.class));
-        constraint.setTwistMotorState(buf.readEnum(EMotorState.class));
-        constraint.setTargetOrientationCs(BufferUtil.getQuat(buf));
-        constraint.setTargetAngularVelocityCs(BufferUtil.getVec3(buf));
+    public void serializeLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+        if (constraint instanceof SwingTwistConstraint st) {
+
+            buf.writeEnum(EMotorState.Off);
+            buf.writeEnum(EMotorState.Off);
+
+            try (MotorSettings swingMotor = st.getSwingMotorSettings()) {
+                BufferUtil.putMotorSettings(buf, swingMotor);
+            }
+            try (MotorSettings twistMotor = st.getTwistMotorSettings()) {
+                BufferUtil.putMotorSettings(buf, twistMotor);
+            }
+        }
+    }
+
+    @Override
+    public void applyLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+        if (constraint instanceof SwingTwistConstraint st) {
+            st.setSwingMotorState(buf.readEnum(EMotorState.class));
+            st.setTwistMotorState(buf.readEnum(EMotorState.class));
+
+            try (MotorSettings swingMotor = st.getSwingMotorSettings()) {
+                BufferUtil.loadMotorSettings(buf, swingMotor);
+            }
+            try (MotorSettings twistMotor = st.getTwistMotorSettings()) {
+                BufferUtil.loadMotorSettings(buf, twistMotor);
+            }
+        }
     }
 }

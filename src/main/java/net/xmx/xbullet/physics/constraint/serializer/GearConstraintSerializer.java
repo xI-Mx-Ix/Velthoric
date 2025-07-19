@@ -16,31 +16,21 @@ public class GearConstraintSerializer implements ConstraintSerializer<GearConstr
     }
 
     @Override
-    public void serialize(GearConstraintBuilder builder, FriendlyByteBuf buf) {
-        buf.writeUUID(builder.getDependencyConstraintId1() != null ? builder.getDependencyConstraintId1() : WORLD_BODY_ID);
-        buf.writeUUID(builder.getDependencyConstraintId2() != null ? builder.getDependencyConstraintId2() : WORLD_BODY_ID);
-        buf.writeEnum(builder.space);
-        BufferUtil.putVec3(buf, builder.hingeAxis1);
-        BufferUtil.putVec3(buf, builder.hingeAxis2);
-        buf.writeFloat(builder.ratio);
+    public void serializeSettings(GearConstraintBuilder builder, FriendlyByteBuf buf) {
+        GearConstraintSettings settings = builder.getSettings();
+        buf.writeEnum(settings.getSpace());
+        BufferUtil.putVec3(buf, settings.getHingeAxis1());
+        BufferUtil.putVec3(buf, settings.getHingeAxis2());
+        buf.writeFloat(settings.getRatio());
     }
 
     @Override
     public GearConstraintSettings createSettings(FriendlyByteBuf buf) {
-        // Dependencies are handled by the manager, just read past them here.
-        buf.readUUID(); // dep1
-        buf.readUUID(); // dep2
-
         GearConstraintSettings s = new GearConstraintSettings();
         s.setSpace(buf.readEnum(EConstraintSpace.class));
         s.setHingeAxis1(BufferUtil.getVec3(buf));
         s.setHingeAxis2(BufferUtil.getVec3(buf));
         s.setRatio(buf.readFloat());
         return s;
-    }
-
-    @Override
-    public void applyLiveState(GearConstraint constraint, FriendlyByteBuf buf) {
-        // GearConstraint's primary setup is done via setConstraints, which is handled in the manager.
     }
 }

@@ -1,7 +1,10 @@
 package net.xmx.xbullet.physics.constraint.serializer;
 
+import com.github.stephengold.joltjni.MotorSettings;
 import com.github.stephengold.joltjni.SliderConstraint;
 import com.github.stephengold.joltjni.SliderConstraintSettings;
+import com.github.stephengold.joltjni.SpringSettings;
+import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.enumerate.EMotorState;
 import net.minecraft.network.FriendlyByteBuf;
@@ -17,25 +20,24 @@ public class SliderConstraintSerializer implements ConstraintSerializer<SliderCo
     }
 
     @Override
-    public void serialize(SliderConstraintBuilder builder, FriendlyByteBuf buf) {
-        serializeBodies(builder, buf);
-        buf.writeEnum(builder.space);
-        BufferUtil.putRVec3(buf, builder.point1);
-        BufferUtil.putRVec3(buf, builder.point2);
-        BufferUtil.putVec3(buf, builder.sliderAxis1);
-        BufferUtil.putVec3(buf, builder.sliderAxis2);
-        BufferUtil.putVec3(buf, builder.normalAxis1);
-        BufferUtil.putVec3(buf, builder.normalAxis2);
-        buf.writeFloat(builder.limitsMin);
-        buf.writeFloat(builder.limitsMax);
-        buf.writeFloat(builder.maxFrictionForce);
-        BufferUtil.putMotorSettings(buf, builder.motorSettings);
-        BufferUtil.putSpringSettings(buf, builder.limitsSpringSettings);
-
-        // Live state placeholders
-        buf.writeFloat(0f); // Target Position
-        buf.writeFloat(0f); // Target Velocity
-        buf.writeEnum(EMotorState.Off); // Motor State
+    public void serializeSettings(SliderConstraintBuilder builder, FriendlyByteBuf buf) {
+        SliderConstraintSettings settings = builder.getSettings();
+        buf.writeEnum(settings.getSpace());
+        BufferUtil.putRVec3(buf, settings.getPoint1());
+        BufferUtil.putRVec3(buf, settings.getPoint2());
+        BufferUtil.putVec3(buf, settings.getSliderAxis1());
+        BufferUtil.putVec3(buf, settings.getSliderAxis2());
+        BufferUtil.putVec3(buf, settings.getNormalAxis1());
+        BufferUtil.putVec3(buf, settings.getNormalAxis2());
+        buf.writeFloat(settings.getLimitsMin());
+        buf.writeFloat(settings.getLimitsMax());
+        buf.writeFloat(settings.getMaxFrictionForce());
+        try (MotorSettings motor = settings.getMotorSettings()) {
+            BufferUtil.putMotorSettings(buf, motor);
+        }
+        try (SpringSettings spring = settings.getLimitsSpringSettings()) {
+            BufferUtil.putSpringSettings(buf, spring);
+        }
     }
 
     @Override
@@ -48,22 +50,45 @@ public class SliderConstraintSerializer implements ConstraintSerializer<SliderCo
         s.setSliderAxis2(BufferUtil.getVec3(buf));
         s.setNormalAxis1(BufferUtil.getVec3(buf));
         s.setNormalAxis2(BufferUtil.getVec3(buf));
-        float min = buf.readFloat();
-        float max = buf.readFloat();
-        if (min <= max) {
-            s.setLimitsMin(min);
-            s.setLimitsMax(max);
-        }
+        s.setLimitsMin(buf.readFloat());
+        s.setLimitsMax(buf.readFloat());
         s.setMaxFrictionForce(buf.readFloat());
-        BufferUtil.loadMotorSettings(buf, s.getMotorSettings());
-        BufferUtil.loadSpringSettings(buf, s.getLimitsSpringSettings());
+        try (MotorSettings motor = s.getMotorSettings()) {
+            BufferUtil.loadMotorSettings(buf, motor);
+        }
+        try (SpringSettings spring = s.getLimitsSpringSettings()) {
+            BufferUtil.loadSpringSettings(buf, spring);
+        }
         return s;
     }
 
     @Override
-    public void applyLiveState(SliderConstraint constraint, FriendlyByteBuf buf) {
-        constraint.setTargetPosition(buf.readFloat());
-        constraint.setTargetVelocity(buf.readFloat());
-        constraint.setMotorState(buf.readEnum(EMotorState.class));
+    public void serializeLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+        if (constraint instanceof SliderConstraint slider) {
+            buf.writeFloat(slider.getTargetPosition());
+            buf.writeFloat(slider.getTargetVelocity());
+            buf.writeEnum(slider.getMotorState());
+            try (MotorSettings motor = slider.getMotorSettings()) {
+                BufferUtil.putMotorSettings(buf, motor);
+            }
+            try (SpringSettings spring = slider.getLimitsSpringSettings()) {
+                BufferUtil.putSpringSettings(buf, spring);
+            }
+        }
+    }
+
+    @Override
+    public void applyLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+        if (constraint instanceof SliderConstraint slider) {
+            slider.setTargetPosition(buf.readFloat());
+            slider.setTargetVelocity(buf.readFloat());
+            slider.setMotorState(buf.readEnum(EMotorState.class));
+            try (MotorSettings motor = slider.getMotorSettings()) {
+                BufferUtil.loadMotorSettings(buf, motor);
+            }
+            try (SpringSettings spring = slider.getLimitsSpringSettings()) {
+                BufferUtil.loadSpringSettings(buf, spring);
+            }
+        }
     }
 }

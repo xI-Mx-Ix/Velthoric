@@ -2,6 +2,7 @@ package net.xmx.xbullet.physics.constraint.serializer;
 
 import com.github.stephengold.joltjni.FixedConstraint;
 import com.github.stephengold.joltjni.FixedConstraintSettings;
+import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.xbullet.physics.constraint.builder.FixedConstraintBuilder;
@@ -16,16 +17,16 @@ public class FixedConstraintSerializer implements ConstraintSerializer<FixedCons
     }
 
     @Override
-    public void serialize(FixedConstraintBuilder builder, FriendlyByteBuf buf) {
-        serializeBodies(builder, buf);
-        buf.writeEnum(builder.space);
-        buf.writeBoolean(builder.autoDetectPoint);
-        BufferUtil.putRVec3(buf, builder.point1);
-        BufferUtil.putRVec3(buf, builder.point2);
-        BufferUtil.putVec3(buf, builder.axisX1);
-        BufferUtil.putVec3(buf, builder.axisY1);
-        BufferUtil.putVec3(buf, builder.axisX2);
-        BufferUtil.putVec3(buf, builder.axisY2);
+    public void serializeSettings(FixedConstraintBuilder builder, FriendlyByteBuf buf) {
+        FixedConstraintSettings settings = builder.getSettings();
+        buf.writeEnum(settings.getSpace());
+        buf.writeBoolean(settings.getAutoDetectPoint());
+        BufferUtil.putRVec3(buf, settings.getPoint1());
+        BufferUtil.putRVec3(buf, settings.getPoint2());
+        BufferUtil.putVec3(buf, settings.getAxisX1());
+        BufferUtil.putVec3(buf, settings.getAxisY1());
+        BufferUtil.putVec3(buf, settings.getAxisX2());
+        BufferUtil.putVec3(buf, settings.getAxisY2());
     }
 
     @Override
@@ -40,10 +41,5 @@ public class FixedConstraintSerializer implements ConstraintSerializer<FixedCons
         s.setAxisX2(BufferUtil.getVec3(buf));
         s.setAxisY2(BufferUtil.getVec3(buf));
         return s;
-    }
-
-    @Override
-    public void applyLiveState(FixedConstraint constraint, FriendlyByteBuf buf) {
-        // FixedConstraint has no live state to apply after creation based on JoltJNI.
     }
 }

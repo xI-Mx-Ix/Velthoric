@@ -2,6 +2,7 @@ package net.xmx.xbullet.physics.constraint.serializer;
 
 import com.github.stephengold.joltjni.RackAndPinionConstraint;
 import com.github.stephengold.joltjni.RackAndPinionConstraintSettings;
+import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.xbullet.physics.constraint.builder.RackAndPinionConstraintBuilder;
@@ -16,35 +17,21 @@ public class RackAndPinionConstraintSerializer implements ConstraintSerializer<R
     }
 
     @Override
-    public void serialize(RackAndPinionConstraintBuilder builder, FriendlyByteBuf buf) {
-        buf.writeUUID(builder.getDependencyConstraintId1() != null ? builder.getDependencyConstraintId1() : WORLD_BODY_ID);
-        buf.writeUUID(builder.getDependencyConstraintId2() != null ? builder.getDependencyConstraintId2() : WORLD_BODY_ID);
-        buf.writeEnum(builder.space);
-        BufferUtil.putVec3(buf, builder.hingeAxis);
-        BufferUtil.putVec3(buf, builder.sliderAxis);
-        buf.writeFloat(builder.ratio);
+    public void serializeSettings(RackAndPinionConstraintBuilder builder, FriendlyByteBuf buf) {
+        RackAndPinionConstraintSettings settings = builder.getSettings();
+        buf.writeEnum(settings.getSpace());
+        BufferUtil.putVec3(buf, settings.getHingeAxis());
+        BufferUtil.putVec3(buf, settings.getSliderAxis());
+        buf.writeFloat(settings.getRatio());
     }
 
     @Override
     public RackAndPinionConstraintSettings createSettings(FriendlyByteBuf buf) {
-        // Dependencies are handled by the manager.
-        buf.readUUID(); // dep1
-        buf.readUUID(); // dep2
-
         RackAndPinionConstraintSettings s = new RackAndPinionConstraintSettings();
         s.setSpace(buf.readEnum(EConstraintSpace.class));
         s.setHingeAxis(BufferUtil.getVec3(buf));
         s.setSliderAxis(BufferUtil.getVec3(buf));
-
-        // This specific setting doesn't exist on the settings object, it's calculated internally
-        // by Jolt based on the linked hinge/slider constraints. We read it to advance the buffer.
-        buf.readFloat();
-
+        s.setRatio(1, 1.0f, 1);
         return s;
-    }
-
-    @Override
-    public void applyLiveState(RackAndPinionConstraint constraint, FriendlyByteBuf buf) {
-        // RackAndPinionConstraint's primary setup is done via setConstraints, which is handled in the manager.
     }
 }

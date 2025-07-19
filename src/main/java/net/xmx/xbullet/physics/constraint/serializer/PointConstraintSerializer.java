@@ -16,11 +16,11 @@ public class PointConstraintSerializer implements ConstraintSerializer<PointCons
     }
 
     @Override
-    public void serialize(PointConstraintBuilder builder, FriendlyByteBuf buf) {
-        serializeBodies(builder, buf);
-        buf.writeEnum(builder.space);
-        BufferUtil.putRVec3(buf, builder.point1);
-        BufferUtil.putRVec3(buf, builder.point2);
+    public void serializeSettings(PointConstraintBuilder builder, FriendlyByteBuf buf) {
+        PointConstraintSettings settings = builder.getSettings();
+        buf.writeEnum(settings.getSpace());
+        BufferUtil.putRVec3(buf, settings.getPoint1());
+        BufferUtil.putRVec3(buf, settings.getPoint2());
     }
 
     @Override
@@ -30,10 +30,5 @@ public class PointConstraintSerializer implements ConstraintSerializer<PointCons
         s.setPoint1(BufferUtil.getRVec3(buf));
         s.setPoint2(BufferUtil.getRVec3(buf));
         return s;
-    }
-
-    @Override
-    public void applyLiveState(PointConstraint constraint, FriendlyByteBuf buf) {
-        // PointConstraint has no live state to apply after creation based on JoltJNI.
     }
 }

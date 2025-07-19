@@ -9,152 +9,155 @@ import net.xmx.xbullet.physics.constraint.IConstraint;
 import net.xmx.xbullet.physics.constraint.persistence.ConstraintStorage;
 import net.xmx.xbullet.physics.constraint.serializer.base.ConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
-import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ConstraintDataSystem {
 
     private final ConstraintManager constraintManager;
     private final ObjectManager objectManager;
+    private PhysicsWorld physicsWorld;
     private ConstraintStorage storage;
-    private ExecutorService loadingExecutor;
     private final AtomicBoolean isInitialized = new AtomicBoolean(false);
-    private final PhysicsWorld physicsWorld;
+
+    private final Map<UUID, List<UUID>> dependencyToConstraintsMap = new ConcurrentHashMap<>();
+    private final Map<UUID, Set<UUID>> constraintToDependenciesMap = new ConcurrentHashMap<>();
 
     public ConstraintDataSystem(ConstraintManager manager) {
         this.constraintManager = manager;
         this.objectManager = manager.getObjectManager();
-        this.physicsWorld = objectManager.getPhysicsWorld();
     }
 
-    public void initialize(ServerLevel level) {
+    public void initialize(PhysicsWorld world) {
         if (isInitialized.getAndSet(true)) return;
-
-        int threadCount = Math.max(1, Runtime.getRuntime().availableProcessors() / 4);
-        this.loadingExecutor = Executors.newFixedThreadPool(threadCount, r -> new Thread(r, "XBullet-ConstraintLoader-Pool"));
-        this.storage = new ConstraintStorage(level);
+        this.physicsWorld = world;
+        this.storage = new ConstraintStorage(world.getLevel());
         this.storage.loadFromFile();
+        buildDependencyMaps();
     }
 
-    public void checkForConstraintsForObject(UUID loadedObjectId) {
-        if (!isInitialized.get() || loadedObjectId == null || physicsWorld == null) return;
+    private void buildDependencyMaps() {
+        Map<UUID, byte[]> unloadedData = storage.getUnloadedConstraintsData();
 
-        Map<UUID, byte[]> dataToCheck = storage.getUnloadedConstraintsData();
-        if (dataToCheck.isEmpty()) {
-            return;
-        }
-
-        List<UUID> constraintsToAttemptLoading = new ArrayList<>();
-        for (Map.Entry<UUID, byte[]> entry : new HashMap<>(dataToCheck).entrySet()) {
+        for (Map.Entry<UUID, byte[]> entry : unloadedData.entrySet()) {
             UUID constraintId = entry.getKey();
-            byte[] data = entry.getValue();
-            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
-
+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(entry.getValue()));
             try {
-                buf.markReaderIndex();
                 String typeId = buf.readUtf();
-                Optional<ConstraintSerializer<?, ?, ?>> serializerOpt = ConstraintSerializerRegistry.getSerializer(typeId);
-                if (serializerOpt.isEmpty()) continue;
-                ConstraintSerializer<?, ?, ?> serializer = serializerOpt.get();
+                ConstraintSerializer<?, ?, ?> serializer = ConstraintSerializerRegistry.getSerializer(typeId)
+                        .orElseThrow(() -> new IllegalStateException("Missing serializer for " + typeId));
 
-                if ("xbullet:rack_and_pinion".equals(typeId) || "xbullet:gear".equals(typeId)) continue;
+                List<UUID> dependencies = new ArrayList<>();
+                if ("xbullet:rack_and_pinion".equals(typeId) || "xbullet:gear".equals(typeId)) {
+                    dependencies.add(buf.readUUID());
+                    dependencies.add(buf.readUUID());
+                } else {
+                    UUID[] bodyIds = serializer.deserializeBodies(buf);
+                    if (bodyIds[0] != null) dependencies.add(bodyIds[0]);
+                    if (bodyIds[1] != null) dependencies.add(bodyIds[1]);
+                }
 
-                UUID[] bodyIds = serializer.deserializeBodies(buf);
-                UUID body1Id = bodyIds[0];
-                UUID body2Id = bodyIds[1];
-
-                boolean isRelevant = loadedObjectId.equals(body1Id) || loadedObjectId.equals(body2Id);
-                if (isRelevant) {
-                    UUID otherBodyId = loadedObjectId.equals(body1Id) ? body2Id : body1Id;
-
-                    boolean otherBodyIsReady = (otherBodyId == null)
-                            || objectManager.getObject(otherBodyId).map(obj -> obj.getBodyId() != 0).orElse(false);
-
-                    if (otherBodyIsReady) {
-                        constraintsToAttemptLoading.add(constraintId);
+                if (!dependencies.isEmpty()) {
+                    Set<UUID> dependencySet = new HashSet<>(dependencies);
+                    constraintToDependenciesMap.put(constraintId, dependencySet);
+                    for (UUID depId : dependencySet) {
+                        dependencyToConstraintsMap.computeIfAbsent(depId, k -> new ArrayList<>()).add(constraintId);
                     }
                 }
             } catch (Exception e) {
-                XBullet.LOGGER.error("Failed to peek into constraint data for relevance check, ID: {}", constraintId, e);
+                XBullet.LOGGER.error("Failed to parse dependencies for unloaded constraint {}, skipping.", constraintId, e);
             } finally {
                 buf.release();
             }
         }
+    }
 
-        for (UUID constraintId : constraintsToAttemptLoading) {
-            byte[] data = storage.takeConstraintData(constraintId);
-            if (data != null) {
-                FriendlyByteBuf finalBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
-                UUID finalB1Id = null, finalB2Id = null, finalD1Id = null, finalD2Id = null;
-                try {
-                    String typeId = finalBuf.readUtf();
-                    ConstraintSerializer<?, ?, ?> s = ConstraintSerializerRegistry.getSerializer(typeId).orElseThrow();
-                    if ("xbullet:rack_and_pinion".equals(typeId) || "xbullet:gear".equals(typeId)) {
-                        finalD1Id = finalBuf.readUUID();
-                        finalD2Id = finalBuf.readUUID();
-                    } else {
-                        UUID[] ids = s.deserializeBodies(finalBuf);
-                        finalB1Id = ids[0];
-                        finalB2Id = ids[1];
-                    }
-                } catch(Exception e) {
-                    XBullet.LOGGER.error("Could not read body IDs for final constraint creation call for {}", constraintId, e);
-                } finally {
-                    finalBuf.release();
+    public void onDependencyLoaded(UUID loadedDependencyId) {
+        if (!isInitialized.get() || loadedDependencyId == null || this.physicsWorld == null) return;
+
+        List<UUID> potentialConstraints = dependencyToConstraintsMap.get(loadedDependencyId);
+        if (potentialConstraints == null || potentialConstraints.isEmpty()) {
+            return;
+        }
+
+        List<UUID> constraintsToCheck = new ArrayList<>(potentialConstraints);
+
+        for (UUID constraintId : constraintsToCheck) {
+            Set<UUID> remainingDependencies = constraintToDependenciesMap.get(constraintId);
+            if (remainingDependencies == null) {
+                continue;
+            }
+
+            remainingDependencies.remove(loadedDependencyId);
+
+            if (remainingDependencies.isEmpty()) {
+                constraintToDependenciesMap.remove(constraintId);
+                byte[] data = storage.takeConstraintData(constraintId);
+                if (data != null) {
+                    physicsWorld.execute(() -> constraintManager.createAndFinalizeConstraintFromData(constraintId, data));
                 }
-
-                final UUID b1 = finalB1Id;
-                final UUID b2 = finalB2Id;
-                final UUID d1 = finalD1Id;
-                final UUID d2 = finalD2Id;
-
-                physicsWorld.execute(() -> {
-                    constraintManager.createAndFinalizeConstraint(constraintId, data, b1, b2, d1, d2);
-                });
             }
         }
     }
 
-
     public void unloadConstraintsInChunk(ChunkPos chunkPos) {
-        if (!isInitialized.get()) return;
+        if (!isInitialized.get() || physicsWorld == null) return;
 
-        List<UUID> toUnload = new ArrayList<>();
+        Set<UUID> toUnload = new HashSet<>();
         for (IConstraint constraint : constraintManager.getManagedConstraints()) {
-            boolean shouldUnload = true;
+            boolean isAffected = false;
 
             UUID body1Id = constraint.getBody1Id();
-            if (body1Id != null && objectManager.isObjectInLoadedChunk(body1Id)) {
-                shouldUnload = false;
+            if (body1Id != null && objectManager.isObjectInChunk(body1Id, chunkPos)) {
+                isAffected = true;
             }
-
             UUID body2Id = constraint.getBody2Id();
-            if (body2Id != null && objectManager.isObjectInLoadedChunk(body2Id)) {
-                shouldUnload = false;
+            if (body2Id != null && objectManager.isObjectInChunk(body2Id, chunkPos)) {
+                isAffected = true;
             }
 
-            if (constraint.getConstraintType().equals("xbullet:gear") || constraint.getConstraintType().equals("xbullet:rack_and_pinion")) {
-                UUID dep1Id = constraint.getDependency(0);
-                UUID dep2Id = constraint.getDependency(1);
-                if ((dep1Id != null && constraintManager.isJointLoaded(dep1Id)) || (dep2Id != null && constraintManager.isJointLoaded(dep2Id))) {
+            if (isAffected) {
+                boolean shouldUnload = true;
+                if (body1Id != null && objectManager.isObjectInLoadedChunk(body1Id) && !objectManager.isObjectInChunk(body1Id, chunkPos)) {
                     shouldUnload = false;
                 }
-            }
+                if (body2Id != null && objectManager.isObjectInLoadedChunk(body2Id) && !objectManager.isObjectInChunk(body2Id, chunkPos)) {
+                    shouldUnload = false;
+                }
 
-            if (shouldUnload) {
-                toUnload.add(constraint.getId());
+                if (constraint.getConstraintType().equals("xbullet:gear") || constraint.getConstraintType().equals("xbullet:rack_and_pinion")) {
+                    UUID dep1Id = constraint.getDependency(0);
+                    UUID dep2Id = constraint.getDependency(1);
+                    if ((dep1Id != null && constraintManager.isJointLoaded(dep1Id)) || (dep2Id != null && constraintManager.isJointLoaded(dep2Id))) {
+                        IConstraint dep1 = constraintManager.getConstraint(dep1Id);
+                        IConstraint dep2 = constraintManager.getConstraint(dep2Id);
+                        if ((dep1 != null && !isConstraintBodyInChunk(dep1, chunkPos)) || (dep2 != null && !isConstraintBodyInChunk(dep2, chunkPos))) {
+                            shouldUnload = false;
+                        }
+                    }
+                }
+
+                if (shouldUnload) {
+                    toUnload.add(constraint.getId());
+                }
             }
         }
 
-        if (!toUnload.isEmpty() && physicsWorld != null) {
-            physicsWorld.execute(() -> toUnload.forEach(constraintManager::unloadConstraint));
+        if (!toUnload.isEmpty()) {
+            physicsWorld.execute(() -> toUnload.forEach(id -> constraintManager.unloadConstraint(id, false)));
         }
+    }
+
+    private boolean isConstraintBodyInChunk(IConstraint c, ChunkPos pos) {
+        return (c.getBody1Id() != null && objectManager.isObjectInChunk(c.getBody1Id(), pos)) ||
+                (c.getBody2Id() != null && objectManager.isObjectInChunk(c.getBody2Id(), pos));
+    }
+
+    public void onConstraintUnloaded(UUID constraintId) {
     }
 
     public void saveAll(Collection<IConstraint> activeConstraints) {
@@ -169,16 +172,16 @@ public class ConstraintDataSystem {
         if (storage != null) storage.removeConstraintData(id);
     }
 
-    public ConstraintStorage getStorage() {
-        return storage;
-    }
-
     public void shutdown() {
         if (!isInitialized.getAndSet(false)) return;
         saveAll(constraintManager.getManagedConstraints());
-        if (loadingExecutor != null) {
-            loadingExecutor.shutdown();
+
+        dependencyToConstraintsMap.clear();
+        constraintToDependenciesMap.clear();
+
+        if (storage != null) {
+            storage.clearData();
         }
-        storage.clearData();
+        this.physicsWorld = null;
     }
 }

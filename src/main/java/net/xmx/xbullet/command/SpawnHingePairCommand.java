@@ -108,6 +108,7 @@ public final class SpawnHingePairCommand {
 
                 .atPoints(hingePoint, hingePoint)
 
+
                 .withHingeAxes(hingeAxis, hingeAxis);
 
         constraintManager.queueCreation(hingeBuilder);

@@ -9,15 +9,18 @@ import java.util.UUID;
 public interface ConstraintSerializer<B extends ConstraintBuilder<B, C>, C extends TwoBodyConstraint, S extends TwoBodyConstraintSettings> {
     UUID WORLD_BODY_ID = new UUID(0L, 0L);
     String getTypeId();
-    void serialize(B builder, FriendlyByteBuf buf);
+    void serializeSettings(B builder, FriendlyByteBuf buf);
     S createSettings(FriendlyByteBuf buf);
-    void applyLiveState(C constraint, FriendlyByteBuf buf);
+
+    default void serializeLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+    }
+
+    default void applyLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+    }
 
     default void serializeBodies(B builder, FriendlyByteBuf buf) {
-
         UUID body1Id = builder.getBody1Id();
         UUID body2Id = builder.getBody2Id();
-
         buf.writeUUID(body1Id != null ? body1Id : WORLD_BODY_ID);
         buf.writeUUID(body2Id != null ? body2Id : WORLD_BODY_ID);
     }

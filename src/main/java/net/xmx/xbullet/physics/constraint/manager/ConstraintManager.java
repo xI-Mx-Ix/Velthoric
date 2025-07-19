@@ -1,28 +1,53 @@
 package net.xmx.xbullet.physics.constraint.manager;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.Body;
+import com.github.stephengold.joltjni.BodyInterface;
+import com.github.stephengold.joltjni.GearConstraint;
+import com.github.stephengold.joltjni.HingeConstraint;
+import com.github.stephengold.joltjni.MotorSettings;
+import com.github.stephengold.joltjni.RackAndPinionConstraint;
+import com.github.stephengold.joltjni.SpringSettings;
+import com.github.stephengold.joltjni.TwoBodyConstraint;
+import com.github.stephengold.joltjni.TwoBodyConstraintSettings;
+import com.github.stephengold.joltjni.enumerate.EMotorState;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.ChunkPos;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.physics.constraint.IConstraint;
 import net.xmx.xbullet.physics.constraint.ManagedConstraint;
-import net.xmx.xbullet.physics.constraint.builder.*;
+import net.xmx.xbullet.physics.constraint.builder.ConeConstraintBuilder;
+import net.xmx.xbullet.physics.constraint.builder.DistanceConstraintBuilder;
+import net.xmx.xbullet.physics.constraint.builder.FixedConstraintBuilder;
+import net.xmx.xbullet.physics.constraint.builder.GearConstraintBuilder;
+import net.xmx.xbullet.physics.constraint.builder.HingeConstraintBuilder;
+import net.xmx.xbullet.physics.constraint.builder.PathConstraintBuilder;
+import net.xmx.xbullet.physics.constraint.builder.PointConstraintBuilder;
+import net.xmx.xbullet.physics.constraint.builder.PulleyConstraintBuilder;
+import net.xmx.xbullet.physics.constraint.builder.RackAndPinionConstraintBuilder;
+import net.xmx.xbullet.physics.constraint.builder.SixDofConstraintBuilder;
+import net.xmx.xbullet.physics.constraint.builder.SliderConstraintBuilder;
+import net.xmx.xbullet.physics.constraint.builder.SwingTwistConstraintBuilder;
 import net.xmx.xbullet.physics.constraint.builder.base.ConstraintBuilder;
 import net.xmx.xbullet.physics.constraint.serializer.base.ConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
 import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
-
 import javax.annotation.Nullable;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 public class ConstraintManager {
 
@@ -44,14 +69,13 @@ public class ConstraintManager {
     public void initialize(PhysicsWorld world) {
         if (isInitialized.getAndSet(true)) return;
         this.physicsWorld = world;
-        this.dataSystem.initialize(world.getLevel());
+        this.dataSystem.initialize(world);
         ConstraintSerializerRegistry.registerDefaults();
     }
 
     public void shutdown() {
         if (!isInitialized.getAndSet(false)) return;
         if (dataSystem != null) dataSystem.shutdown();
-
         managedConstraints.values().forEach(IConstraint::release);
         managedConstraints.clear();
         this.physicsWorld = null;
@@ -88,212 +112,128 @@ public class ConstraintManager {
 
     public <B extends ConstraintBuilder<B, C>, C extends TwoBodyConstraint> void queueCreation(B builder) {
         if (physicsWorld == null) {
-            XBullet.LOGGER.error("Cannot queue constraint creation, PhysicsWorld is not initialized.");
             releaseBuilder(builder);
             return;
         }
 
+        byte[] fullData = serializeNewConstraint(builder);
+
         physicsWorld.execute(() -> {
             try {
-                createAndFinalizeConstraintFromBuilder(UUID.randomUUID(), builder);
+                createAndFinalizeConstraint(UUID.randomUUID(), fullData);
             } finally {
                 releaseBuilder(builder);
             }
         });
     }
 
-    @SuppressWarnings("unchecked")
-    private <B extends ConstraintBuilder<B, C>, C extends TwoBodyConstraint> void createAndFinalizeConstraintFromBuilder(UUID id, B builder) {
-        if (physicsWorld == null || !physicsWorld.isRunning()) {
-            return;
-        }
-
-        UUID b1Id = builder.getBody1Id();
-        UUID b2Id = builder.getBody2Id();
-        UUID d1Id = builder.getDependencyConstraintId1();
-        UUID d2Id = builder.getDependencyConstraintId2();
-
-        IPhysicsObject b1 = (b1Id != null) ? objectManager.getObject(b1Id).orElse(null) : null;
-        IPhysicsObject b2 = (b2Id != null) ? objectManager.getObject(b2Id).orElse(null) : null;
-        IConstraint d1 = (d1Id != null) ? getConstraint(d1Id) : null;
-        IConstraint d2 = (d2Id != null) ? getConstraint(d2Id) : null;
-
-        String typeId = builder.getTypeId();
-
-        if (("xbullet:rack_and_pinion".equals(typeId) || "xbullet:gear".equals(typeId))) {
-            if (d1 == null || d2 == null || d1.getJoltConstraint() == null || d2.getJoltConstraint() == null) {
-                return;
-            }
-        } else {
-            if ((b1Id != null && (b1 == null || b1.getBodyId() == 0)) || (b2Id != null && (b2 == null || b2.getBodyId() == 0))) {
-                return;
-            }
-        }
-
-        int bodyId1, bodyId2;
-        UUID finalB1Id, finalB2Id;
-
-        if ("xbullet:rack_and_pinion".equals(typeId) || "xbullet:gear".equals(typeId)) {
-            bodyId1 = d1.getJoltConstraint().getBody1().getId();
-            bodyId2 = d2.getJoltConstraint().getBody1().getId();
-            finalB1Id = d1.getBody1Id();
-            finalB2Id = d2.getBody1Id();
-        } else {
-            bodyId1 = (b1 != null) ? b1.getBodyId() : Body.sFixedToWorld().getId();
-            bodyId2 = (b2 != null) ? b2.getBodyId() : Body.sFixedToWorld().getId();
-            finalB1Id = b1Id;
-            finalB2Id = b2Id;
-        }
-
-        if (bodyId1 == bodyId2) {
-            return;
-        }
-
-        byte[] serializedData = serializeBuilder(builder);
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(serializedData));
-
-        try {
-            ConstraintSerializer<B, C, ?> serializer = (ConstraintSerializer<B, C, ?>) ConstraintSerializerRegistry.getSerializer(typeId)
-                    .orElseThrow(() -> new IllegalStateException("No serializer found for type " + typeId));
-
-            buf.readUtf();
-            if ("xbullet:rack_and_pinion".equals(typeId) || "xbullet:gear".equals(typeId)) {
-                buf.readUUID(); buf.readUUID();
-            } else {
-                serializer.deserializeBodies(buf);
-            }
-
-            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-            try (TwoBodyConstraintSettings settings = serializer.createSettings(buf)) {
-                C joltConstraint = (C) bodyInterface.createConstraint(settings, bodyId1, bodyId2);
-                if (joltConstraint == null) {
-                    return;
-                }
-
-                if (joltConstraint instanceof RackAndPinionConstraint rp) rp.setConstraints(d1.getJoltConstraint(), d2.getJoltConstraint());
-                else if (joltConstraint instanceof GearConstraint gc) gc.setConstraints(d1.getJoltConstraint(), d2.getJoltConstraint());
-
-                physicsWorld.getPhysicsSystem().addConstraint(joltConstraint);
-                ManagedConstraint managed = new ManagedConstraint(id, finalB1Id, finalB2Id, d1Id, d2Id, joltConstraint.toRef(), typeId, serializedData);
-
-                managedConstraints.put(id, managed);
-                dataSystem.storeConstraint(managed);
-            }
-        } catch (Exception e) {
-            XBullet.LOGGER.error("Failed to create and finalize constraint {} from builder", id, e);
-        } finally {
-            buf.release();
-        }
-    }
-
-    public void createAndFinalizeConstraint(UUID id, byte[] data, @Nullable UUID b1Id, @Nullable UUID b2Id, @Nullable UUID d1Id, @Nullable UUID d2Id) {
-        if (physicsWorld == null || !physicsWorld.isRunning()) {
-            return;
-        }
-
-        IPhysicsObject b1 = (b1Id != null) ? objectManager.getObject(b1Id).orElse(null) : null;
-        IPhysicsObject b2 = (b2Id != null) ? objectManager.getObject(b2Id).orElse(null) : null;
-
-        IConstraint d1 = (d1Id != null) ? this.getConstraint(d1Id) : null;
-        IConstraint d2 = (d2Id != null) ? this.getConstraint(d2Id) : null;
-
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
-        try {
-            String typeId = buf.readUtf();
-            buf.readerIndex(0);
-
-            XBullet.LOGGER.info("[CONSTRAINT FINALIZE] Finalizing constraint '{}' of type '{}'.", id, typeId);
-
-            if (("xbullet:rack_and_pinion".equals(typeId) || "xbullet:gear".equals(typeId))) {
-                if (d1 == null || d2 == null || d1.getJoltConstraint() == null || d2.getJoltConstraint() == null) {
-                    XBullet.LOGGER.error("  > ABORT: A required dependency constraint for {} is not loaded or not initialized.", id);
-                    return;
-                }
-            } else {
-                if ((b1Id != null && (b1 == null || b1.getBodyId() == 0)) || (b2Id != null && (b2 == null || b2.getBodyId() == 0))) {
-                    XBullet.LOGGER.error("  > ABORT: A required body for constraint {} does not have a valid bodyId. Body1 present/valid: {}/{}, Body2 present/valid: {}/{}.",
-                            id, b1 != null, b1 != null && b1.getBodyId() != 0, b2 != null, b2 != null && b2.getBodyId() != 0);
-                    return;
-                }
-            }
-
-            int bodyId1, bodyId2;
-            UUID finalB1Id, finalB2Id;
-
-            if ("xbullet:rack_and_pinion".equals(typeId) || "xbullet:gear".equals(typeId)) {
-                bodyId1 = d1.getJoltConstraint().getBody1().getId();
-                bodyId2 = d2.getJoltConstraint().getBody1().getId();
-                finalB1Id = d1.getBody1Id();
-                finalB2Id = d2.getBody1Id();
-            } else {
-                bodyId1 = (b1 != null) ? b1.getBodyId() : Body.sFixedToWorld().getId();
-                bodyId2 = (b2 != null) ? b2.getBodyId() : Body.sFixedToWorld().getId();
-                finalB1Id = b1Id;
-                finalB2Id = b2Id;
-            }
-
-            XBullet.LOGGER.info("  > Using native Body ID 1: {} (from UUID: {})", bodyId1, b1Id);
-            XBullet.LOGGER.info("  > Using native Body ID 2: {} (from UUID: {})", bodyId2, b2Id);
-
-            if (bodyId1 == bodyId2) {
-                if (bodyId1 != Body.sFixedToWorld().getId()) {
-                    XBullet.LOGGER.error("  > FATAL ABORT: Attempted to create a constraint between a body and itself (dynamic body ID: {}).", bodyId1);
-                } else {
-                    XBullet.LOGGER.warn("  > ABORT: Attempted to create a constraint between world and world. This is likely due to a race condition where bodies unloaded.");
-                }
-                return;
-            }
-
-            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-            ConstraintSerializer<?, ?, ?> serializer = ConstraintSerializerRegistry.getSerializer(typeId)
-                    .orElseThrow(() -> new IllegalStateException("No serializer found for type " + typeId));
-
-            buf.readUtf();
-            if ("xbullet:rack_and_pinion".equals(typeId) || "xbullet:gear".equals(typeId)) {
-                buf.readUUID(); buf.readUUID();
-            } else {
-                serializer.deserializeBodies(buf);
-            }
-
-            try (TwoBodyConstraintSettings settings = serializer.createSettings(buf)) {
-                @SuppressWarnings("unchecked")
-                TwoBodyConstraint joltConstraint = (TwoBodyConstraint) bodyInterface.createConstraint(settings, bodyId1, bodyId2);
-                if (joltConstraint == null) {
-                    XBullet.LOGGER.error("  > FAILED: Jolt's bodyInterface.createConstraint returned null for {}.", id);
-                    return;
-                }
-
-                if (joltConstraint instanceof RackAndPinionConstraint rp) rp.setConstraints(d1.getJoltConstraint(), d2.getJoltConstraint());
-                else if (joltConstraint instanceof GearConstraint gc) gc.setConstraints(d1.getJoltConstraint(), d2.getJoltConstraint());
-
-                physicsWorld.getPhysicsSystem().addConstraint(joltConstraint);
-                ManagedConstraint managed = new ManagedConstraint(id, finalB1Id, finalB2Id, d1Id, d2Id, joltConstraint.toRef(), typeId, data);
-
-                managedConstraints.put(id, managed);
-                dataSystem.storeConstraint(managed);
-
-                XBullet.LOGGER.info("[CONSTRAINT SUCCESS] Successfully created and added native Jolt constraint '{}'.", id);
-            }
-        } catch (Exception e) {
-            XBullet.LOGGER.error("[CONSTRAINT FAILED] An unexpected exception occurred while creating and finalizing constraint {}", id, e);
-        } finally {
-            buf.release();
-        }
-    }
-
-    private <B extends ConstraintBuilder<B, C>, C extends TwoBodyConstraint> byte[] serializeBuilder(B builder) {
+    private <B extends ConstraintBuilder<B, C>, C extends TwoBodyConstraint> byte[] serializeNewConstraint(B builder) {
         ByteBuf buffer = Unpooled.buffer();
         try {
             FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(buffer);
-            friendlyBuf.writeUtf(builder.getTypeId());
             @SuppressWarnings("unchecked")
             ConstraintSerializer<B, C, ?> serializer = (ConstraintSerializer<B, C, ?>) ConstraintSerializerRegistry.getSerializer(builder.getTypeId()).orElseThrow();
-            serializer.serialize(builder, friendlyBuf);
-            byte[] data = new byte[buffer.readableBytes()];
-            buffer.readBytes(data);
+
+            friendlyBuf.writeUtf(builder.getTypeId());
+            if ("xbullet:rack_and_pinion".equals(builder.getTypeId()) || "xbullet:gear".equals(builder.getTypeId())) {
+                friendlyBuf.writeUUID(builder.getDependencyConstraintId1());
+                friendlyBuf.writeUUID(builder.getDependencyConstraintId2());
+            } else {
+                serializer.serializeBodies(builder, friendlyBuf);
+            }
+
+            serializer.serializeSettings(builder, friendlyBuf);
+
+            if (builder instanceof HingeConstraintBuilder hingeBuilder) {
+                friendlyBuf.writeFloat(0f);
+                friendlyBuf.writeFloat(0f);
+                friendlyBuf.writeEnum(EMotorState.Off);
+                try (MotorSettings motor = hingeBuilder.getSettings().getMotorSettings()) {
+                    net.xmx.xbullet.physics.constraint.util.BufferUtil.putMotorSettings(friendlyBuf, motor);
+                }
+                try (SpringSettings spring = hingeBuilder.getSettings().getLimitsSpringSettings()) {
+                    net.xmx.xbullet.physics.constraint.util.BufferUtil.putSpringSettings(friendlyBuf, spring);
+                }
+            }
+
+            byte[] data = new byte[friendlyBuf.readableBytes()];
+            friendlyBuf.readBytes(data);
             return data;
         } finally {
             ReferenceCountUtil.release(buffer);
+        }
+    }
+
+    public void createAndFinalizeConstraintFromData(UUID id, byte[] fullData) {
+        if (physicsWorld == null || !physicsWorld.isRunning() || fullData == null) {
+            return;
+        }
+        createAndFinalizeConstraint(id, fullData);
+    }
+
+    private void createAndFinalizeConstraint(UUID id, byte[] fullConstraintData) {
+        if (physicsWorld == null || !physicsWorld.isRunning()) {
+            return;
+        }
+
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(fullConstraintData));
+
+        try {
+            String typeId = buf.readUtf();
+            ConstraintSerializer<?, ?, ?> serializer = ConstraintSerializerRegistry.getSerializer(typeId)
+                    .orElseThrow(() -> new IllegalStateException("No serializer found for type " + typeId));
+
+            UUID b1Id = null, b2Id = null, d1Id = null, d2Id = null;
+            if ("xbullet:rack_and_pinion".equals(typeId) || "xbullet:gear".equals(typeId)) {
+                d1Id = buf.readUUID();
+                d2Id = buf.readUUID();
+            } else {
+                UUID[] ids = serializer.deserializeBodies(buf);
+                b1Id = ids[0];
+                b2Id = ids[1];
+            }
+
+            IPhysicsObject b1 = (b1Id != null) ? objectManager.getObject(b1Id).orElse(null) : null;
+            IPhysicsObject b2 = (b2Id != null) ? objectManager.getObject(b2Id).orElse(null) : null;
+            IConstraint d1 = (d1Id != null) ? getConstraint(d1Id) : null;
+            IConstraint d2 = (d2Id != null) ? getConstraint(d2Id) : null;
+
+            if (("xbullet:rack_and_pinion".equals(typeId) || "xbullet:gear".equals(typeId))) {
+                if (d1 == null || d2 == null || d1.getJoltConstraint() == null || d2.getJoltConstraint() == null) return;
+            } else {
+                if ((b1Id != null && (b1 == null || b1.getBodyId() == 0)) || (b2Id != null && (b2 == null || b2.getBodyId() == 0))) return;
+            }
+
+            int bodyId1 = (b1 != null) ? b1.getBodyId() : Body.sFixedToWorld().getId();
+            int bodyId2 = (b2 != null) ? b2.getBodyId() : Body.sFixedToWorld().getId();
+            if (bodyId1 == bodyId2 && b1Id != null && b2Id != null) return;
+
+            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+            TwoBodyConstraintSettings settings = serializer.createSettings(buf);
+
+            try (settings) {
+                TwoBodyConstraint joltConstraint = (TwoBodyConstraint) bodyInterface.createConstraint(settings, bodyId1, bodyId2);
+                if (joltConstraint == null) return;
+
+                if (joltConstraint instanceof RackAndPinionConstraint rp) rp.setConstraints(d1.getJoltConstraint(), d2.getJoltConstraint());
+                else if (joltConstraint instanceof GearConstraint gc) gc.setConstraints(d1.getJoltConstraint(), d2.getJoltConstraint());
+
+                physicsWorld.getPhysicsSystem().addConstraint(joltConstraint);
+
+                if (buf.isReadable()) {
+                    serializer.applyLiveState(joltConstraint, buf);
+                }
+
+                ManagedConstraint managed = new ManagedConstraint(id, b1Id, b2Id, d1Id, d2Id, joltConstraint.toRef(), typeId, fullConstraintData);
+
+                managedConstraints.put(id, managed);
+                dataSystem.storeConstraint(managed);
+                dataSystem.onDependencyLoaded(id);
+            }
+        } catch (Exception e) {
+            XBullet.LOGGER.error("[CONSTRAINT FAILED] An unexpected exception occurred while creating native constraint {} from data", id, e);
+        } finally {
+            buf.release();
         }
     }
 
@@ -313,12 +253,14 @@ public class ConstraintManager {
                 dataSystem.removePermanent(jointId);
             } else {
                 dataSystem.storeConstraint(constraint);
+                dataSystem.onConstraintUnloaded(jointId);
             }
         }
     }
 
     public void removeConstraintsForObject(UUID objectId, boolean permanent) {
-        if (!isInitialized.get()) return;
+        if (!isInitialized() || objectId == null) return;
+
         List<UUID> idsToRemove = new ArrayList<>();
         for (IConstraint c : managedConstraints.values()) {
             if (objectId.equals(c.getBody1Id()) || objectId.equals(c.getBody2Id())) {
@@ -328,29 +270,17 @@ public class ConstraintManager {
         idsToRemove.forEach(id -> removeConstraint(id, permanent));
     }
 
-    public void unloadConstraint(UUID id) {
-        this.removeConstraint(id, false);
+    public void unloadConstraint(UUID id, boolean permanent) {
+        this.removeConstraint(id, permanent);
     }
 
     @Nullable
     public IConstraint getConstraint(@Nullable UUID id) {
-        if (id == null) {
-            return null;
-        }
-        return managedConstraints.get(id);
+        return id == null ? null : managedConstraints.get(id);
     }
 
     public boolean isJointLoaded(UUID id) {
         return managedConstraints.containsKey(id);
-    }
-
-    public boolean isConstraintInChunk(UUID id, ChunkPos pos) {
-        if (id == null) return false;
-        return Optional.ofNullable(getConstraint(id)).map(c -> {
-            boolean b1In = objectManager.isObjectInChunk(c.getBody1Id(), pos);
-            boolean b2In = objectManager.isObjectInChunk(c.getBody2Id(), pos);
-            return b1In || b2In;
-        }).orElse(false);
     }
 
     public ConstraintDataSystem getDataSystem() {

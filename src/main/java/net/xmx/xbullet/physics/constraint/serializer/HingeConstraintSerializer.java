@@ -2,6 +2,9 @@ package net.xmx.xbullet.physics.constraint.serializer;
 
 import com.github.stephengold.joltjni.HingeConstraint;
 import com.github.stephengold.joltjni.HingeConstraintSettings;
+import com.github.stephengold.joltjni.MotorSettings;
+import com.github.stephengold.joltjni.SpringSettings;
+import com.github.stephengold.joltjni.TwoBodyConstraint;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.enumerate.EMotorState;
 import net.minecraft.network.FriendlyByteBuf;
@@ -10,26 +13,31 @@ import net.xmx.xbullet.physics.constraint.serializer.base.ConstraintSerializer;
 import net.xmx.xbullet.physics.constraint.util.BufferUtil;
 
 public class HingeConstraintSerializer implements ConstraintSerializer<HingeConstraintBuilder, HingeConstraint, HingeConstraintSettings> {
-    @Override public String getTypeId() { return "xbullet:hinge"; }
 
     @Override
-    public void serialize(HingeConstraintBuilder builder, FriendlyByteBuf buf) {
-        serializeBodies(builder, buf);
-        buf.writeEnum(builder.space);
-        BufferUtil.putRVec3(buf, builder.point1);
-        BufferUtil.putRVec3(buf, builder.point2);
-        BufferUtil.putVec3(buf, builder.hingeAxis1);
-        BufferUtil.putVec3(buf, builder.hingeAxis2);
-        BufferUtil.putVec3(buf, builder.normalAxis1);
-        BufferUtil.putVec3(buf, builder.normalAxis2);
-        buf.writeFloat(builder.limitsMin);
-        buf.writeFloat(builder.limitsMax);
-        buf.writeFloat(builder.maxFrictionTorque);
-        BufferUtil.putMotorSettings(buf, builder.motorSettings);
-        BufferUtil.putSpringSettings(buf, builder.limitsSpringSettings);
-        buf.writeFloat(0f);
-        buf.writeFloat(0f);
-        buf.writeEnum(EMotorState.Off);
+    public String getTypeId() {
+        return "xbullet:hinge";
+    }
+
+    @Override
+    public void serializeSettings(HingeConstraintBuilder builder, FriendlyByteBuf buf) {
+        HingeConstraintSettings settings = builder.getSettings();
+        buf.writeEnum(settings.getSpace());
+        BufferUtil.putRVec3(buf, settings.getPoint1());
+        BufferUtil.putRVec3(buf, settings.getPoint2());
+        BufferUtil.putVec3(buf, settings.getHingeAxis1());
+        BufferUtil.putVec3(buf, settings.getHingeAxis2());
+        BufferUtil.putVec3(buf, settings.getNormalAxis1());
+        BufferUtil.putVec3(buf, settings.getNormalAxis2());
+        buf.writeFloat(settings.getLimitsMin());
+        buf.writeFloat(settings.getLimitsMax());
+        buf.writeFloat(settings.getMaxFrictionTorque());
+        try (MotorSettings motor = settings.getMotorSettings()) {
+            BufferUtil.putMotorSettings(buf, motor);
+        }
+        try (SpringSettings spring = settings.getLimitsSpringSettings()) {
+            BufferUtil.putSpringSettings(buf, spring);
+        }
     }
 
     @Override
@@ -42,22 +50,45 @@ public class HingeConstraintSerializer implements ConstraintSerializer<HingeCons
         s.setHingeAxis2(BufferUtil.getVec3(buf));
         s.setNormalAxis1(BufferUtil.getVec3(buf));
         s.setNormalAxis2(BufferUtil.getVec3(buf));
-        float min = buf.readFloat();
-        float max = buf.readFloat();
-        if (min <= max) {
-            s.setLimitsMin(min);
-            s.setLimitsMax(max);
-        }
+        s.setLimitsMin(buf.readFloat());
+        s.setLimitsMax(buf.readFloat());
         s.setMaxFrictionTorque(buf.readFloat());
-        BufferUtil.loadMotorSettings(buf, s.getMotorSettings());
-        BufferUtil.loadSpringSettings(buf, s.getLimitsSpringSettings());
+        try (MotorSettings motor = s.getMotorSettings()) {
+            BufferUtil.loadMotorSettings(buf, motor);
+        }
+        try (SpringSettings spring = s.getLimitsSpringSettings()) {
+            BufferUtil.loadSpringSettings(buf, spring);
+        }
         return s;
     }
 
     @Override
-    public void applyLiveState(HingeConstraint constraint, FriendlyByteBuf buf) {
-        constraint.setTargetAngle(buf.readFloat());
-        constraint.setTargetAngularVelocity(buf.readFloat());
-        constraint.setMotorState(buf.readEnum(EMotorState.class));
+    public void serializeLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+        if (constraint instanceof HingeConstraint hinge) {
+            buf.writeFloat(hinge.getTargetAngle());
+            buf.writeFloat(hinge.getTargetAngularVelocity());
+            buf.writeEnum(hinge.getMotorState());
+            try (MotorSettings motor = hinge.getMotorSettings()) {
+                BufferUtil.putMotorSettings(buf, motor);
+            }
+            try (SpringSettings spring = hinge.getLimitsSpringSettings()) {
+                BufferUtil.putSpringSettings(buf, spring);
+            }
+        }
+    }
+
+    @Override
+    public void applyLiveState(TwoBodyConstraint constraint, FriendlyByteBuf buf) {
+        if (constraint instanceof HingeConstraint hinge) {
+            hinge.setTargetAngle(buf.readFloat());
+            hinge.setTargetAngularVelocity(buf.readFloat());
+            hinge.setMotorState(buf.readEnum(EMotorState.class));
+            try (MotorSettings motor = hinge.getMotorSettings()) {
+                BufferUtil.loadMotorSettings(buf, motor);
+            }
+            try (SpringSettings spring = hinge.getLimitsSpringSettings()) {
+                BufferUtil.loadSpringSettings(buf, spring);
+            }
+        }
     }
 }

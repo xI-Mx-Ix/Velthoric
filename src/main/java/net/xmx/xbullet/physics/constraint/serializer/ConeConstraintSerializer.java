@@ -10,17 +10,20 @@ import net.xmx.xbullet.physics.constraint.util.BufferUtil;
 
 public class ConeConstraintSerializer implements ConstraintSerializer<ConeConstraintBuilder, ConeConstraint, ConeConstraintSettings> {
 
-    @Override public String getTypeId() { return "xbullet:cone"; }
+    @Override
+    public String getTypeId() {
+        return "xbullet:cone";
+    }
 
     @Override
-    public void serialize(ConeConstraintBuilder builder, FriendlyByteBuf buf) {
-        serializeBodies(builder, buf);
-        buf.writeEnum(builder.space);
-        BufferUtil.putRVec3(buf, builder.point1);
-        BufferUtil.putRVec3(buf, builder.point2);
-        BufferUtil.putVec3(buf, builder.twistAxis1);
-        BufferUtil.putVec3(buf, builder.twistAxis2);
-        buf.writeFloat(builder.halfConeAngle);
+    public void serializeSettings(ConeConstraintBuilder builder, FriendlyByteBuf buf) {
+        ConeConstraintSettings settings = builder.getSettings();
+        buf.writeEnum(settings.getSpace());
+        BufferUtil.putRVec3(buf, settings.getPoint1());
+        BufferUtil.putRVec3(buf, settings.getPoint2());
+        BufferUtil.putVec3(buf, settings.getTwistAxis1());
+        BufferUtil.putVec3(buf, settings.getTwistAxis2());
+        buf.writeFloat(settings.getHalfConeAngle());
     }
 
     @Override
@@ -33,10 +36,5 @@ public class ConeConstraintSerializer implements ConstraintSerializer<ConeConstr
         s.setTwistAxis2(BufferUtil.getVec3(buf));
         s.setHalfConeAngle(buf.readFloat());
         return s;
-    }
-
-    @Override
-    public void applyLiveState(ConeConstraint constraint, FriendlyByteBuf buf) {
-        // ConeConstraint has no live state to apply after creation based on JoltJNI.
     }
 }
