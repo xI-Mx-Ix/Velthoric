@@ -16,7 +16,7 @@ import net.xmx.xbullet.physics.object.physicsobject.client.ClientPhysicsObjectMa
 import net.xmx.xbullet.physics.object.physicsobject.client.renderer.PhysicsObjectRenderer;
 import net.xmx.xbullet.physics.object.physicsobject.manager.event.ObjectLifecycleEvents;
 import net.xmx.xbullet.physics.object.riding.ClientPlayerRidingSystem;
-import net.xmx.xbullet.physics.world.time.ClientPhysicsPauseHandler;
+import net.xmx.xbullet.physics.object.physicsobject.client.time.ClientPhysicsPauseHandler;
 import net.xmx.xbullet.physics.terrain.event.TerrainBlockEvents;
 import net.xmx.xbullet.physics.terrain.event.TerrainSystemEvents;
 

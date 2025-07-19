@@ -1,4 +1,4 @@
-package net.xmx.xbullet.physics.world.time;
+package net.xmx.xbullet.physics.object.physicsobject.client.time;
 
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;

@@ -4,7 +4,7 @@ import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.util.Mth;
 import net.xmx.xbullet.math.PhysicsOperations;
 import net.xmx.xbullet.math.PhysicsTransform;
-import net.xmx.xbullet.physics.world.time.ClientClock;
+import net.xmx.xbullet.physics.object.physicsobject.client.time.ClientClock;
 
 import javax.annotation.Nullable;
 import java.util.ArrayDeque;

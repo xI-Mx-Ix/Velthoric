@@ -1,4 +1,4 @@
-package net.xmx.xbullet.physics.world.time;
+package net.xmx.xbullet.physics.object.physicsobject.client.time;
 
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;

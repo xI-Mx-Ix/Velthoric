@@ -47,13 +47,13 @@ public class ModConfig {
                 .comment("Error Reduction Parameter (Baumgarte stabilization) for the physics simulation.",
                         "Controls how quickly penetration errors are corrected. A high value can cause jitter.",
                         "Jolt's default is 0.2, which is very stable. Values up to 0.4 are common for stiffer responses.")
-                .defineInRange("erp", 0.2, 0.01, 1.0);
+                .defineInRange("erp", 0.12, 0.01, 1.0);
 
         PENETRATION_SLOP = builder
                 .comment("Allowed penetration depth for collisions in meters.",
                         "This value is crucial for stability. A very small value requires many solver iterations and can cause jitter.",
                         "Jolt default is 0.02. A value around 0.02 to 0.03 is recommended for stable stacking.")
-                .defineInRange("penetrationSlop", 0.02, 0.001, 0.1);
+                .defineInRange("penetrationSlop", 0.003, 0.001, 0.1);
 
 
         MAX_BODIES = builder
