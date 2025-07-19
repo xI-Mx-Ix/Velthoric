@@ -18,9 +18,4 @@ public class PhysicsGunItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level pLevel, Player pPlayer, InteractionHand pUsedHand) {
         return InteractionResultHolder.pass(pPlayer.getItemInHand(pUsedHand));
     }
-
-    @Override
-    public boolean isFoil(ItemStack pStack) {
-        return true;
-    }
 }
