@@ -29,7 +29,7 @@ public class NativeJoltInitializer {
             Jolt.registerDefaultAllocator();
             Jolt.installDefaultAssertCallback();
             Jolt.installDefaultTraceCallback();
-            Jolt.setTraceAllocations(true);
+            //Jolt.setTraceAllocations(true);
 
             if (!Jolt.newFactory()) {
                 throw new IllegalStateException("Global Jolt Factory could not be created.");

@@ -167,8 +167,6 @@ public class ClientPhysicsObjectManager {
         if (instance != null) {
             if (event.phase == TickEvent.Phase.START) {
                 instance.processStateUpdates();
-            } else if (event.phase == TickEvent.Phase.END) {
-                instance.allObjects.values().forEach(ClientPhysicsObjectData::cleanupBuffers);
             }
         }
     }

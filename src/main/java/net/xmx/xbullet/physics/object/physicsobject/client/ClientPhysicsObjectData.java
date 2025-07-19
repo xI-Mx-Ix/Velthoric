@@ -53,15 +53,6 @@ public class ClientPhysicsObjectData {
         }
     }
 
-    public void cleanupBuffers() {
-        if (rigidData != null) {
-            rigidData.cleanupBuffer();
-        }
-        if (softData != null) {
-            softData.cleanupBuffer();
-        }
-    }
-
     public UUID getId() {
         return id;
     }

@@ -49,7 +49,6 @@ public class ObjectManager {
     private ObjectLifecycleManager lifecycleManager;
 
     private static final int MAX_PACKET_PAYLOAD_SIZE = 128 * 1024;
-    private static final int MAX_SOFT_BODY_VERTICES = 4096;
 
     private long physicsTickCounter = 0;
     private static final int INACTIVE_OBJECT_UPDATE_INTERVAL_TICKS = 3;
@@ -123,9 +122,10 @@ public class ObjectManager {
         if (this.physicsWorld != null) {
             ConstraintManager cm = this.physicsWorld.getConstraintManager();
             if (cm.isInitialized()) {
-                cm.getDataSystem().checkForConstraintsForObject(obj.getPhysicsId());
+                cm.getDataSystem().onDependencyLoaded(obj.getPhysicsId());
             }
         }
+
 
         if (managedLevel != null) {
             RVec3 pos = obj.getCurrentTransform().getTranslation();
