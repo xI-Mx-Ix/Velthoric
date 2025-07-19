@@ -1,5 +1,6 @@
 package net.xmx.xbullet.builtin.box;
 
+import com.github.stephengold.joltjni.BodyInterface;
 import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.Vec3;
@@ -10,6 +11,7 @@ import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.riding.PlayerRidingSystem;
+import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
