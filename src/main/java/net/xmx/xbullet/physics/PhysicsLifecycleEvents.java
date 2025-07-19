@@ -6,7 +6,7 @@ import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.xmx.xbullet.physics.world.PhysicsWorld;
 
-public class PhysicsLifecycleEvents {
+public final class PhysicsLifecycleEvents {
 
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {

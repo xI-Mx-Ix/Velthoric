@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class GlobalPhysicsObjectRegistry {
+public final class GlobalPhysicsObjectRegistry {
 
     @FunctionalInterface
     public interface PhysicsObjectFactory {
