@@ -12,10 +12,9 @@ public class PhysicsGunActionPacket {
     private final ActionType actionType;
     private final float scrollDelta;
 
-    // GEÄNDERT: Enum-Namen zur Verdeutlichung der Absicht
     public enum ActionType {
-        START_GRAB_ATTEMPT, // Spieler beginnt zu versuchen zu greifen
-        STOP_GRAB_ATTEMPT,  // Spieler hört auf zu versuchen (und lässt los)
+        START_GRAB_ATTEMPT,
+        STOP_GRAB_ATTEMPT,
         UPDATE_SCROLL,
         FREEZE_OBJECT,
     }

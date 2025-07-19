@@ -25,15 +25,6 @@ public class PhysicsGunManager {
     private final Map<UUID, GrabbedObjectInfo> grabbedObjects = new ConcurrentHashMap<>();
     private final Set<UUID> playersTryingToGrab = ConcurrentHashMap.newKeySet();
 
-    private static final float POSITIONAL_SPRING_CONSTANT = 100_000f;
-    private static final float POSITIONAL_DAMPING_FACTOR = 15_000f;
-
-    private static final float ROTATIONAL_SPRING_CONSTANT = 25_000f;
-    private static final float ROTATIONAL_DAMPING_FACTOR = 5_000f;
-
-    private static final float MAX_LINEAR_FORCE = 750_000f;
-    private static final float MAX_ANGULAR_TORQUE = 1_500_000f;
-
     private static final float MIN_DISTANCE = 2.0f;
     private static final float MAX_DISTANCE = 450.0f;
 
@@ -227,7 +218,6 @@ public class PhysicsGunManager {
                 return;
             }
 
-            // Sicherstellen, dass das Objekt wach ist, bevor wir es manipulieren
             if (bodyInterface.isAdded(info.bodyId())) {
                 bodyInterface.activateBody(info.bodyId());
             }
@@ -253,16 +243,17 @@ public class PhysicsGunManager {
                     );
                     var currentGrabPointWorld = Op.star(comTransform, info.grabPointLocal());
                     var positionError = Op.minus(targetPointWorld, currentGrabPointWorld);
-                    var r = Op.minus(currentGrabPointWorld, body.getCenterOfMassPosition());
-                    var pointVelocity = Op.plus(body.getLinearVelocity(), r.toVec3().cross(body.getAngularVelocity()));
-                    var springForce = Op.star(positionError.toVec3(), POSITIONAL_SPRING_CONSTANT);
-                    var dampingForce = Op.star(pointVelocity, POSITIONAL_DAMPING_FACTOR);
-                    var force = Op.minus(springForce, dampingForce);
-                    if (force.lengthSq() > MAX_LINEAR_FORCE * MAX_LINEAR_FORCE) {
-                        force.normalizeInPlace();
-                        force.scaleInPlace(MAX_LINEAR_FORCE);
+
+                    float velocityScale = 5.0f;
+                    var desiredVelocity = Op.star(positionError.toVec3(), velocityScale);
+
+                    float maxVel = 150.0f;
+                    if (desiredVelocity.lengthSq() > maxVel * maxVel) {
+                        desiredVelocity.normalizeInPlace();
+                        desiredVelocity.scaleInPlace(maxVel);
                     }
-                    body.addForce(force);
+
+                    body.setLinearVelocity(desiredVelocity);
                 }
 
                 Quat currentPlayerRotation = playerRotToQuat(player.getXRot(), player.getYRot());
@@ -276,15 +267,16 @@ public class PhysicsGunManager {
                     errorQuat.set(-errorQuat.getX(), -errorQuat.getY(), -errorQuat.getZ(), -errorQuat.getW());
                 }
 
-                var springTorque = Op.star(new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ()), 2.0f * ROTATIONAL_SPRING_CONSTANT);
-                var dampingTorque = Op.star(body.getAngularVelocity(), ROTATIONAL_DAMPING_FACTOR);
-                var torque = Op.minus(springTorque, dampingTorque);
+                float angularVelocityScale = 3.0f;
+                var desiredAngularVelocity = Op.star(new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ()), angularVelocityScale);
 
-                if (torque.lengthSq() > MAX_ANGULAR_TORQUE * MAX_ANGULAR_TORQUE) {
-                    torque.normalizeInPlace();
-                    torque.scaleInPlace(MAX_ANGULAR_TORQUE);
+                float maxAngularVel = 25.0f;
+                if (desiredAngularVelocity.lengthSq() > maxAngularVel * maxAngularVel) {
+                    desiredAngularVelocity.normalizeInPlace();
+                    desiredAngularVelocity.scaleInPlace(maxAngularVel);
                 }
-                body.addTorque(torque);
+
+                body.setAngularVelocity(desiredAngularVelocity);
             }
         });
     }
