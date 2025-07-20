@@ -126,7 +126,6 @@ public class ObjectManager {
             }
         }
 
-
         if (managedLevel != null) {
             RVec3 pos = obj.getCurrentTransform().getTranslation();
             ChunkPos chunkPos = new ChunkPos((int) Math.floor(pos.xx() / 16.0), (int) Math.floor(pos.zz() / 16.0));
@@ -217,6 +216,7 @@ public class ObjectManager {
                 final StampedLock transformLock = obj.getTransformLock();
                 long stamp = transformLock.writeLock();
                 try {
+
                     bodyInterfaceNoLock.getPositionAndRotation(obj.getBodyId(), transform.getTranslation(), transform.getRotation());
 
                     if (isActive) {
@@ -237,14 +237,20 @@ public class ObjectManager {
                 statesToSend.add(state);
             }
 
-            processAndSendUpdates(statesToSend);
+            if (!statesToSend.isEmpty()) {
+                managedLevel.getServer().execute(() -> dispatchUpdatesOnMainThread(statesToSend));
+            }
         }
 
         cleanupRemovedObjects();
     }
 
-    private void processAndSendUpdates(List<PhysicsObjectState> states) {
-        if (managedLevel == null) return;
+    private void dispatchUpdatesOnMainThread(List<PhysicsObjectState> states) {
+        if (managedLevel == null) {
+
+            states.forEach(PhysicsObjectStatePool::release);
+            return;
+        }
 
         Long2ObjectMap<List<PhysicsObjectState>> statesByChunk = new Long2ObjectOpenHashMap<>();
         for (PhysicsObjectState state : states) {
@@ -268,10 +274,10 @@ public class ObjectManager {
             }
         }
 
-        sendChunkBatches(statesByChunk);
+        sendUpdatesBatchedByChunk(statesByChunk);
     }
 
-    private void sendChunkBatches(Long2ObjectMap<List<PhysicsObjectState>> statesByChunk) {
+    private void sendUpdatesBatchedByChunk(Long2ObjectMap<List<PhysicsObjectState>> statesByChunk) {
         if (managedLevel == null) return;
 
         statesByChunk.forEach((chunkKey, statesInChunk) -> {
@@ -281,6 +287,7 @@ public class ObjectManager {
 
             int chunkX = ChunkPos.getX(chunkKey);
             int chunkZ = ChunkPos.getZ(chunkKey);
+
             var chunk = managedLevel.getChunkSource().getChunk(chunkX, chunkZ, false);
             if (chunk == null) {
                 statesInChunk.forEach(PhysicsObjectStatePool::release);
@@ -293,6 +300,7 @@ public class ObjectManager {
             for (PhysicsObjectState state : statesInChunk) {
                 int stateSize = state.estimateEncodedSize();
                 if (!currentBatch.isEmpty() && currentBatchSizeBytes + stateSize > MAX_PACKET_PAYLOAD_SIZE) {
+
                     NetworkHandler.CHANNEL.send(PacketDistributor.TRACKING_CHUNK.with(() -> chunk), new SyncAllPhysicsObjectsPacket(currentBatch));
 
                     currentBatch = new ObjectArrayList<>();
@@ -303,6 +311,7 @@ public class ObjectManager {
             }
 
             if (!currentBatch.isEmpty()) {
+
                 NetworkHandler.CHANNEL.send(PacketDistributor.TRACKING_CHUNK.with(() -> chunk), new SyncAllPhysicsObjectsPacket(currentBatch));
             }
         });
