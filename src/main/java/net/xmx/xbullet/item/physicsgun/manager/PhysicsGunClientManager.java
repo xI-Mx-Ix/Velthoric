@@ -1,9 +1,9 @@
 package net.xmx.xbullet.item.physicsgun.manager;
 
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.Vec3; // NEU
+import net.minecraft.world.phys.Vec3;
 
-import javax.annotation.Nullable; // NEU
+import javax.annotation.Nullable;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -18,6 +18,8 @@ public class PhysicsGunClientManager {
     private final Map<UUID, ClientGrabData> activeGrabs = new ConcurrentHashMap<>();
     private final Set<UUID> playersTryingToGrab = ConcurrentHashMap.newKeySet();
 
+    private boolean rotationMode = false;
+
     private PhysicsGunClientManager() {}
 
     public static PhysicsGunClientManager getInstance() {
@@ -30,6 +32,7 @@ public class PhysicsGunClientManager {
 
     public void stopGrabAttempt(Player player) {
         playersTryingToGrab.remove(player.getUUID());
+        this.setRotationMode(false);
     }
 
     public boolean isTryingToGrab(Player player) {
@@ -59,5 +62,13 @@ public class PhysicsGunClientManager {
 
     public Map<UUID, ClientGrabData> getActiveGrabs() {
         return activeGrabs;
+    }
+
+    public boolean isRotationMode() {
+        return this.rotationMode;
+    }
+
+    public void setRotationMode(boolean active) {
+        this.rotationMode = active;
     }
 }

@@ -1,12 +1,6 @@
 package net.xmx.xbullet.item.physicsgun.manager;
 
-import com.github.stephengold.joltjni.Body;
-import com.github.stephengold.joltjni.BodyInterface;
-import com.github.stephengold.joltjni.BodyLockWrite;
-import com.github.stephengold.joltjni.MotionProperties;
-import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -35,7 +29,8 @@ public class PhysicsGunServerManager {
     private static final float MIN_DISTANCE = 2.0f;
     private static final float MAX_DISTANCE = 450.0f;
 
-    private PhysicsGunServerManager() {}
+    private PhysicsGunServerManager() {
+    }
 
     public static PhysicsGunServerManager getInstance() {
         return INSTANCE;
@@ -66,6 +61,32 @@ public class PhysicsGunServerManager {
 
     public boolean isTryingToGrab(Player player) {
         return playersTryingToGrab.contains(player.getUUID());
+    }
+
+    public void startRotationMode(ServerPlayer player) {
+        grabbedObjects.computeIfPresent(player.getUUID(), (uuid, info) -> {
+            Quat currentPlayerRotation = playerRotToQuat(player.getXRot(), player.getYRot());
+            Quat playerRotationDelta = Op.star(currentPlayerRotation, info.initialPlayerRotation().conjugated());
+            Quat syncedBodyRotation = Op.star(playerRotationDelta, info.initialBodyRotation());
+
+            return new GrabbedObjectInfo(
+                    info.objectId(), info.bodyId(), info.grabPointLocal(),
+                    info.currentDistance(), info.originalAngularDamping(),
+                    syncedBodyRotation,
+                    currentPlayerRotation,
+                    true
+            );
+        });
+    }
+
+    public void stopRotationMode(ServerPlayer player) {
+        grabbedObjects.computeIfPresent(player.getUUID(), (uuid, info) -> new GrabbedObjectInfo(
+                info.objectId(), info.bodyId(), info.grabPointLocal(),
+                info.currentDistance(), info.originalAngularDamping(),
+                info.initialBodyRotation(),
+                playerRotToQuat(player.getXRot(), player.getYRot()),
+                false
+        ));
     }
 
     public void startGrab(ServerPlayer player) {
@@ -117,7 +138,8 @@ public class PhysicsGunServerManager {
                                     grabDistance,
                                     originalDamping,
                                     initialBodyRot,
-                                    initialPlayerRot
+                                    initialPlayerRot,
+                                    false
                             );
 
                             grabbedObjects.put(player.getUUID(), info);
@@ -198,7 +220,38 @@ public class PhysicsGunServerManager {
                     newDistance,
                     info.originalAngularDamping(),
                     info.initialBodyRotation(),
-                    info.initialPlayerRotation()
+                    info.initialPlayerRotation(),
+                    info.inRotationMode()
+            );
+        });
+    }
+
+    public void updateRotation(ServerPlayer player, float deltaX, float deltaY) {
+        grabbedObjects.computeIfPresent(player.getUUID(), (uuid, info) -> {
+            final float SENSITIVITY = 0.003f;
+            net.minecraft.world.phys.Vec3 look = player.getLookAngle();
+            net.minecraft.world.phys.Vec3 worldUp = new net.minecraft.world.phys.Vec3(0, 1, 0);
+            net.minecraft.world.phys.Vec3 right = look.cross(worldUp).normalize();
+            if (right.lengthSqr() < 1.0E-7) {
+                float yawRad = (float) Math.toRadians(player.getYRot());
+                right = new net.minecraft.world.phys.Vec3(-Math.sin(yawRad), 0, Math.cos(yawRad));
+            }
+
+            Vec3 joltUp = new Vec3(0, 1, 0);
+            Vec3 joltRight = new Vec3((float) right.x, (float) right.y, (float) right.z);
+
+            Quat rotYaw = Quat.sRotation(joltUp, deltaX * SENSITIVITY);
+            Quat rotPitch = Quat.sRotation(joltRight, deltaY * SENSITIVITY);
+
+            Quat manualRot = Op.star(rotYaw, rotPitch);
+            Quat newInitialBodyRotation = Op.star(manualRot, info.initialBodyRotation());
+
+            return new GrabbedObjectInfo(
+                    info.objectId(), info.bodyId(), info.grabPointLocal(),
+                    info.currentDistance(), info.originalAngularDamping(),
+                    newInitialBodyRotation,
+                    info.initialPlayerRotation(),
+                    info.inRotationMode()
             );
         });
     }
@@ -252,23 +305,46 @@ public class PhysicsGunServerManager {
                     body.setLinearVelocity(desiredVelocity);
                 }
 
-                Quat currentPlayerRotation = playerRotToQuat(player.getXRot(), player.getYRot());
-                Quat playerRotationDelta = Op.star(currentPlayerRotation, info.initialPlayerRotation().conjugated());
-                Quat targetBodyRotation = Op.star(playerRotationDelta, info.initialBodyRotation());
-                var currentBodyRotation = body.getRotation();
-                var errorQuat = Op.star(targetBodyRotation, currentBodyRotation.conjugated());
-                if (errorQuat.getW() < 0.0f) {
-                    errorQuat.set(-errorQuat.getX(), -errorQuat.getY(), -errorQuat.getZ(), -errorQuat.getW());
-                }
+                if (info.inRotationMode()) {
 
-                float angularVelocityScale = 3.0f;
-                var desiredAngularVelocity = Op.star(new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ()), angularVelocityScale);
-                float maxAngularVel = 150.0f;
-                if (desiredAngularVelocity.lengthSq() > maxAngularVel * maxAngularVel) {
-                    desiredAngularVelocity.normalizeInPlace();
-                    desiredAngularVelocity.scaleInPlace(maxAngularVel);
+                    Quat targetBodyRotation = info.initialBodyRotation();
+                    var currentBodyRotation = body.getRotation();
+
+                    var errorQuat = Op.star(targetBodyRotation, currentBodyRotation.conjugated());
+                    if (errorQuat.getW() < 0.0f) {
+                        errorQuat.set(-errorQuat.getX(), -errorQuat.getY(), -errorQuat.getZ(), -errorQuat.getW());
+                    }
+
+                    float angularVelocityScale = 25.0f;
+                    var desiredAngularVelocity = Op.star(new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ()), angularVelocityScale);
+
+                    float maxAngularVel = 150.0f;
+                    if (desiredAngularVelocity.lengthSq() > maxAngularVel * maxAngularVel) {
+                        desiredAngularVelocity.normalizeInPlace();
+                        desiredAngularVelocity.scaleInPlace(maxAngularVel);
+                    }
+                    body.setAngularVelocity(desiredAngularVelocity);
+
+                } else {
+
+                    Quat currentPlayerRotation = playerRotToQuat(player.getXRot(), player.getYRot());
+                    Quat playerRotationDelta = Op.star(currentPlayerRotation, info.initialPlayerRotation().conjugated());
+                    Quat targetBodyRotation = Op.star(playerRotationDelta, info.initialBodyRotation());
+                    var currentBodyRotation = body.getRotation();
+                    var errorQuat = Op.star(targetBodyRotation, currentBodyRotation.conjugated());
+                    if (errorQuat.getW() < 0.0f) {
+                        errorQuat.set(-errorQuat.getX(), -errorQuat.getY(), -errorQuat.getZ(), -errorQuat.getW());
+                    }
+
+                    float angularVelocityScale = 10.0f;
+                    var desiredAngularVelocity = Op.star(new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ()), angularVelocityScale);
+                    float maxAngularVel = 150.0f;
+                    if (desiredAngularVelocity.lengthSq() > maxAngularVel * maxAngularVel) {
+                        desiredAngularVelocity.normalizeInPlace();
+                        desiredAngularVelocity.scaleInPlace(maxAngularVel);
+                    }
+                    body.setAngularVelocity(desiredAngularVelocity);
                 }
-                body.setAngularVelocity(desiredAngularVelocity);
             }
         });
     }

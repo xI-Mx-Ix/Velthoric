@@ -7,8 +7,10 @@
   "mixins": [
   ],
   "client": [
-    "riding.LivingEntityRendererMixin",
-    "physicsgun.PhysicsGunArmPose_PlayerRendererMixin"
+    "physicsgun.PhysicsGunRotateObject_KeyboardHandlerMixin",
+    "physicsgun.PhysicsGunRotateObject_MouseHandlerMixin",
+    "physicsgun.PhysicsGunArmPose_PlayerRendererMixin",
+    "riding.LivingEntityRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
