@@ -131,7 +131,7 @@ public class PhysicsGunBeamRenderer {
         float r = 0.2f;
         float g = 0.8f;
         float b = 1.0f;
-        float baseAlpha = 0.7f;
+        float baseAlpha = 0.83f;
 
         double distance = start.distanceTo(end);
 
@@ -157,7 +157,7 @@ public class PhysicsGunBeamRenderer {
 
             Vec3 side = segmentDir.cross(viewDir).normalize().scale(BEAM_WIDTH / 2.0);
 
-            float alpha = baseAlpha * (1.0f - (float) Math.pow(2.0 * t - 1.0, 6.0));
+            float alpha = baseAlpha;
 
             bufferBuilder.vertex(matrix, (float) (currentPos.x + side.x), (float) (currentPos.y + side.y), (float) (currentPos.z + side.z)).color(r, g, b, alpha).endVertex();
             bufferBuilder.vertex(matrix, (float) (currentPos.x - side.x), (float) (currentPos.y - side.y), (float) (currentPos.z - side.z)).color(r, g, b, alpha).endVertex();
