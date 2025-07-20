@@ -1,6 +1,9 @@
 package net.xmx.xbullet.item.physicsgun.manager;
 
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3; // NEU
+
+import javax.annotation.Nullable; // NEU
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -9,8 +12,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PhysicsGunClientManager {
 
     private static final PhysicsGunClientManager INSTANCE = new PhysicsGunClientManager();
-    private final Map<UUID, UUID> activeGrabs = new ConcurrentHashMap<>();
-    private final Set<UUID> playersTryingToGrab = ConcurrentHashMap.newKeySet(); // NEU
+
+    public record ClientGrabData(UUID objectUuid, Vec3 localHitPoint) {}
+
+    private final Map<UUID, ClientGrabData> activeGrabs = new ConcurrentHashMap<>();
+    private final Set<UUID> playersTryingToGrab = ConcurrentHashMap.newKeySet();
 
     private PhysicsGunClientManager() {}
 
@@ -34,15 +40,15 @@ public class PhysicsGunClientManager {
         return playersTryingToGrab;
     }
 
-    public void updateGrabState(UUID playerUuid, UUID objectUuid) {
-        if (objectUuid == null) {
+    public void updateGrabState(UUID playerUuid, @Nullable UUID objectUuid, @Nullable Vec3 localHitPoint) {
+        if (objectUuid == null || localHitPoint == null) {
             activeGrabs.remove(playerUuid);
         } else {
-            activeGrabs.put(playerUuid, objectUuid);
+            activeGrabs.put(playerUuid, new ClientGrabData(objectUuid, localHitPoint));
         }
     }
 
-    public void setFullGrabState(Map<UUID, UUID> allGrabs) {
+    public void setFullGrabState(Map<UUID, ClientGrabData> allGrabs) {
         activeGrabs.clear();
         activeGrabs.putAll(allGrabs);
     }
@@ -51,7 +57,7 @@ public class PhysicsGunClientManager {
         return activeGrabs.containsKey(player.getUUID());
     }
 
-    public Map<UUID, UUID> getActiveGrabs() {
+    public Map<UUID, ClientGrabData> getActiveGrabs() {
         return activeGrabs;
     }
 }

@@ -1,11 +1,14 @@
 package net.xmx.xbullet.item.physicsgun.event;
 
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.network.PacketDistributor;
 import net.xmx.xbullet.init.registry.ItemRegistry;
+import net.xmx.xbullet.item.physicsgun.GrabbedObjectInfo;
+import net.xmx.xbullet.item.physicsgun.manager.PhysicsGunClientManager;
 import net.xmx.xbullet.item.physicsgun.manager.PhysicsGunServerManager;
 import net.xmx.xbullet.item.physicsgun.packet.SyncAllPhysicsGunGrabsPacket;
 import net.xmx.xbullet.network.NetworkHandler;
@@ -43,12 +46,24 @@ public class PhysicsGunEvents {
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer newPlayer) {
             PhysicsGunServerManager manager = PhysicsGunServerManager.getInstance();
-            Map<UUID, UUID> allGrabs = manager.getGrabbedObjects().entrySet().stream()
-                    .collect(Collectors.toConcurrentMap(Map.Entry::getKey, e -> e.getValue().objectId()));
 
-            if (!allGrabs.isEmpty()) {
+            Map<UUID, PhysicsGunClientManager.ClientGrabData> grabsForPacket = manager.getGrabbedObjects().entrySet().stream()
+                    .collect(Collectors.toConcurrentMap(
+                            Map.Entry::getKey,
+                            entry -> {
+                                GrabbedObjectInfo info = entry.getValue();
+                                Vec3 localHitPoint = new Vec3(
+                                        info.grabPointLocal().getX(),
+                                        info.grabPointLocal().getY(),
+                                        info.grabPointLocal().getZ()
+                                );
+                                return new PhysicsGunClientManager.ClientGrabData(info.objectId(), localHitPoint);
+                            }
+                    ));
+
+            if (!grabsForPacket.isEmpty()) {
                 NetworkHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> newPlayer),
-                        new SyncAllPhysicsGunGrabsPacket(allGrabs));
+                        new SyncAllPhysicsGunGrabsPacket(grabsForPacket));
             }
         }
     }

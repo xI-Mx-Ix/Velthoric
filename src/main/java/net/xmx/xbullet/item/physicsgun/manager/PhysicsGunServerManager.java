@@ -124,31 +124,16 @@ public class PhysicsGunServerManager {
                             motionProperties.setAngularDamping(2.0f);
                             body.setAngularVelocity(new Vec3(0, 0, 0));
 
-                            // Send packet to all clients that a player started grabbing an object
+                            net.minecraft.world.phys.Vec3 localHitPointForPacket = new net.minecraft.world.phys.Vec3(
+                                    info.grabPointLocal().getX(),
+                                    info.grabPointLocal().getY(),
+                                    info.grabPointLocal().getZ()
+                            );
                             NetworkHandler.CHANNEL.send(PacketDistributor.ALL.noArg(),
-                                    new PhysicsGunStatePacket(player.getUUID(), objectId));
+                                    new PhysicsGunStatePacket(player.getUUID(), objectId, localHitPointForPacket));
                         }
                     }
                 }
-            });
-        });
-    }
-
-    public void freezeObject(ServerPlayer player) {
-        stopGrab(player);
-        var physicsWorld = PhysicsWorld.get(player.level().dimension());
-        if (physicsWorld == null) return;
-
-        final var eyePos = player.getEyePosition();
-        final var lookVec = player.getLookAngle();
-        final Level level = player.level();
-
-        physicsWorld.execute(() -> {
-            var rayOrigin = new RVec3(eyePos.x, eyePos.y, eyePos.z);
-            var rayDirection = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z);
-
-            PhysicsRaytracing.rayCastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHit -> {
-                new DeactivateBodyCommand(physicsHit.getBodyId()).execute(physicsWorld);
             });
         });
     }
@@ -158,9 +143,8 @@ public class PhysicsGunServerManager {
         GrabbedObjectInfo info = grabbedObjects.remove(player.getUUID());
 
         if (info != null) {
-
             NetworkHandler.CHANNEL.send(PacketDistributor.ALL.noArg(),
-                    new PhysicsGunStatePacket(player.getUUID(), null));
+                    new PhysicsGunStatePacket(player.getUUID(), null, null));
 
             var physicsWorld = PhysicsWorld.get(player.level().dimension());
             if (physicsWorld != null) {
@@ -182,6 +166,25 @@ public class PhysicsGunServerManager {
                 });
             }
         }
+    }
+
+    public void freezeObject(ServerPlayer player) {
+        stopGrab(player);
+        var physicsWorld = PhysicsWorld.get(player.level().dimension());
+        if (physicsWorld == null) return;
+
+        final var eyePos = player.getEyePosition();
+        final var lookVec = player.getLookAngle();
+        final Level level = player.level();
+
+        physicsWorld.execute(() -> {
+            var rayOrigin = new RVec3(eyePos.x, eyePos.y, eyePos.z);
+            var rayDirection = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z);
+
+            PhysicsRaytracing.rayCastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHit -> {
+                new DeactivateBodyCommand(physicsHit.getBodyId()).execute(physicsWorld);
+            });
+        });
     }
 
     public void updateScroll(ServerPlayer player, float scrollDelta) {
@@ -260,7 +263,7 @@ public class PhysicsGunServerManager {
 
                 float angularVelocityScale = 3.0f;
                 var desiredAngularVelocity = Op.star(new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ()), angularVelocityScale);
-                float maxAngularVel = 25.0f;
+                float maxAngularVel = 150.0f;
                 if (desiredAngularVelocity.lengthSq() > maxAngularVel * maxAngularVel) {
                     desiredAngularVelocity.normalizeInPlace();
                     desiredAngularVelocity.scaleInPlace(maxAngularVel);

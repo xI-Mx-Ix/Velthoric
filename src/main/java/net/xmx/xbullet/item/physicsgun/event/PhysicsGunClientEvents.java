@@ -16,6 +16,7 @@ public class PhysicsGunClientEvents {
         var mc = Minecraft.getInstance();
         var player = mc.player;
         if (player == null) return;
+        if (mc.screen != null) return;
 
         var clientManager = PhysicsGunClientManager.getInstance();
 
@@ -59,6 +60,7 @@ public class PhysicsGunClientEvents {
         var mc = Minecraft.getInstance();
         var player = mc.player;
         if (player == null) return;
+        if (mc.screen != null) return;
 
         boolean isHoldingGun = player.getMainHandItem().is(ItemRegistry.PHYSICS_GUN.get())
                 || player.getOffhandItem().is(ItemRegistry.PHYSICS_GUN.get());

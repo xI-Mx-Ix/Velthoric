@@ -65,10 +65,11 @@ public class PhysicsGunBeamRenderer {
 
         bufferBuilder.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
 
-        Map<UUID, UUID> activeGrabs = clientManager.getActiveGrabs();
+        Map<UUID, PhysicsGunClientManager.ClientGrabData> activeGrabs = clientManager.getActiveGrabs();
         for (var entry : activeGrabs.entrySet()) {
             UUID playerUuid = entry.getKey();
-            UUID objectUuid = entry.getValue();
+            PhysicsGunClientManager.ClientGrabData grabData = entry.getValue();
+            UUID objectUuid = grabData.objectUuid();
 
             Player player = mc.level.getPlayerByUUID(playerUuid);
             ClientPhysicsObjectData objectData = ClientPhysicsObjectManager.getInstance().getObjectData(objectUuid);
@@ -78,14 +79,22 @@ public class PhysicsGunBeamRenderer {
                 if (renderTransform == null) continue;
 
                 Vec3 startPoint = getGunTipPosition(player, partialTicks);
-                Vec3 endPoint = new Vec3(
-                        renderTransform.getTranslation().xx(),
-                        renderTransform.getTranslation().yy(),
-                        renderTransform.getTranslation().zz()
+
+                com.github.stephengold.joltjni.RVec3 centerPos = renderTransform.getTranslation();
+                com.github.stephengold.joltjni.Quat rotation = renderTransform.getRotation();
+                Vec3 localHitPoint = grabData.localHitPoint();
+
+                com.github.stephengold.joltjni.Vec3 localHitJolt = new com.github.stephengold.joltjni.Vec3(
+                        (float) localHitPoint.x(),
+                        (float) localHitPoint.y(),
+                        (float) localHitPoint.z()
                 );
 
-                Vec3 playerLookVec = getPlayerLookVector(player, partialTicks);
+                com.github.stephengold.joltjni.Vec3 rotatedOffset = com.github.stephengold.joltjni.operator.Op.star(rotation, localHitJolt);
+                com.github.stephengold.joltjni.RVec3 endPointJolt = com.github.stephengold.joltjni.operator.Op.plus(centerPos, rotatedOffset);
+                Vec3 endPoint = new Vec3(endPointJolt.xx(), endPointJolt.yy(), endPointJolt.zz());
 
+                Vec3 playerLookVec = getPlayerLookVector(player, partialTicks);
                 drawThickCurvedBeam(bufferBuilder, matrix, camPos, startPoint, endPoint, playerLookVec);
             }
         }
