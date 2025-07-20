@@ -3,7 +3,7 @@ package net.xmx.xbullet.item.physicsgun.packet;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
-import net.xmx.xbullet.item.physicsgun.PhysicsGunManager;
+import net.xmx.xbullet.item.physicsgun.manager.PhysicsGunServerManager;
 
 import java.util.function.Supplier;
 
@@ -50,7 +50,7 @@ public class PhysicsGunActionPacket {
             ServerPlayer player = ctx.get().getSender();
             if (player == null) return;
 
-            var manager = PhysicsGunManager.getInstance();
+            var manager = PhysicsGunServerManager.getInstance();
             // GEÄNDERT: Neue Manager-Methoden aufrufen
             switch (msg.actionType) {
                 case START_GRAB_ATTEMPT -> manager.startGrabAttempt(player);

@@ -4,6 +4,7 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.xmx.xbullet.debug.ClientDebugEvents;
 import net.xmx.xbullet.item.magnetizer.event.MagnetizerClientEvents;
 import net.xmx.xbullet.item.magnetizer.event.MagnetizerEvents;
+import net.xmx.xbullet.item.physicsgun.beam.PhysicsGunBeamRenderer;
 import net.xmx.xbullet.item.physicsgun.event.PhysicsGunClientEvents;
 import net.xmx.xbullet.item.physicsgun.event.PhysicsGunEvents;
 import net.xmx.xbullet.physics.PhysicsLifecycleEvents;
@@ -48,6 +49,8 @@ public class RegisterEvents {
         forgeEventBus.register(PhysicsGunClientEvents.class);
 
         forgeEventBus.register(ClientDebugEvents.class);
+
+        forgeEventBus.register(PhysicsGunBeamRenderer.class);
 
         forgeEventBus.register(MagnetizerClientEvents.class);
 
