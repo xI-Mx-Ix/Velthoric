@@ -11,7 +11,6 @@ import net.xmx.xbullet.math.PhysicsTransform;
 import net.xmx.xbullet.physics.object.physicsobject.properties.IPhysicsObjectProperties;
 import net.xmx.xbullet.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
 import net.xmx.xbullet.physics.object.riding.PlayerRidingSystem;
-import net.xmx.xbullet.physics.world.PhysicsWorld;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -32,7 +31,7 @@ public class BoxRigidPhysicsObject extends RigidPhysicsObject {
     @Override
     public ShapeSettings buildShapeSettings() {
         BoxShapeSettings settings = new BoxShapeSettings(this.halfExtents);
-        settings.setConvexRadius(0.04f);
+        settings.setConvexRadius(0.05f);
         return settings;
     }
 

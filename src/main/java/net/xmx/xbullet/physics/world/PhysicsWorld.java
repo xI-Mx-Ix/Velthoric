@@ -7,7 +7,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 
-import net.xmx.xbullet.init.ModConfig;
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.natives.NativeJoltInitializer;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
@@ -25,6 +24,16 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 
 public final class PhysicsWorld implements Runnable, Executor {
+
+    private final int maxBodies;
+    private final int maxBodyPairs;
+    private final int maxContactConstraints;
+    private final int numPositionIterations;
+    private final int numVelocityIterations;
+    private final float erp;
+    private final float penetrationSlop;
+    private final float gravityY;
+    private final int maxSubsteps;
 
     // --- Static Registry & Factory ---
 
@@ -105,6 +114,18 @@ public final class PhysicsWorld implements Runnable, Executor {
         this.objectManager = new ObjectManager();
         this.constraintManager = new ConstraintManager(this.objectManager);
         this.terrainSystem = new TerrainSystem(this, this.level);
+
+        this.maxBodies = 65536;
+        this.maxBodyPairs = 65536;
+        this.maxContactConstraints = 10240;
+
+        this.numPositionIterations = 10;
+        this.numVelocityIterations = 10;
+
+        this.erp = 0.52f;
+        this.penetrationSlop = 0.009f;
+        this.gravityY = -9.81f;
+        this.maxSubsteps = 8;
     }
 
     private void initializeAndStart() {
@@ -207,10 +228,9 @@ public final class PhysicsWorld implements Runnable, Executor {
             timeAccumulator = MAX_ACCUMULATED_TIME;
         }
 
-        final int maxSubSteps = ModConfig.MAX_SUBSTEPS.get();
         int substepsPerformed = 0;
 
-        while (timeAccumulator >= this.fixedTimeStep && substepsPerformed < maxSubSteps) {
+        while (timeAccumulator >= this.fixedTimeStep && substepsPerformed < maxSubsteps) {
             int error = physicsSystem.update(this.fixedTimeStep, 1, tempAllocator, jobSystem);
             if (error != EPhysicsUpdateError.None) {
                 this.isRunning = false;
@@ -237,7 +257,7 @@ public final class PhysicsWorld implements Runnable, Executor {
     }
 
 
-    private void initializePhysicsSystem() {
+    public void initializePhysicsSystem() {
         this.tempAllocator = new TempAllocatorMalloc();
         int numThreads = Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors() / 2));
         this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
@@ -247,17 +267,18 @@ public final class PhysicsWorld implements Runnable, Executor {
         ObjectVsBroadPhaseLayerFilter ovbpf = NativeJoltInitializer.getObjectVsBroadPhaseLayerFilter();
         ObjectLayerPairFilter olpf = NativeJoltInitializer.getObjectLayerPairFilter();
 
-        physicsSystem.init(ModConfig.MAX_BODIES.get(), 0, ModConfig.MAX_BODY_PAIRS.get(),
-                ModConfig.MAX_CONTACT_CONSTRAINTS.get(), bpli, ovbpf, olpf);
+        physicsSystem.init(maxBodies, 0, maxBodyPairs, maxContactConstraints, bpli, ovbpf, olpf);
 
         PhysicsSettings settings = physicsSystem.getPhysicsSettings();
-        settings.setNumPositionSteps(ModConfig.NUM_ITERATIONS.get());
-        settings.setNumVelocitySteps(ModConfig.NUM_ITERATIONS.get());
-        settings.setBaumgarte(ModConfig.ERP.get().floatValue());
 
-        settings.setPenetrationSlop(ModConfig.PENETRATION_SLOP.get().floatValue());
+        settings.setNumPositionSteps(numPositionIterations);
+        settings.setNumVelocitySteps(numVelocityIterations);
 
-        physicsSystem.setGravity(0f, -9.81f, 0f);
+        settings.setBaumgarte(erp);
+        settings.setPenetrationSlop(penetrationSlop);
+        settings.setDeterministicSimulation(true);
+
+        physicsSystem.setGravity(0f, gravityY, 0f);
         physicsSystem.optimizeBroadPhase();
     }
 

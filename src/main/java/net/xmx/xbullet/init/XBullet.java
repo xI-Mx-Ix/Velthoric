@@ -35,9 +35,6 @@ public class XBullet {
         }
         instance = this;
 
-        ModConfig.init();
-        ModLoadingContext.get().registerConfig(net.minecraftforge.fml.config.ModConfig.Type.COMMON, ModConfig.COMMON_SPEC);
-
         ModRegistries.register(eventBus);
         RegisterEvents.register(eventBus, forgeEventBus);
 

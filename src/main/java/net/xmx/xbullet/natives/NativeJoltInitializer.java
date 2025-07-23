@@ -25,6 +25,7 @@ public class NativeJoltInitializer {
             XBullet.LOGGER.debug("Performing one-time global Jolt Physics initialization...");
 
             NativeJoltLibraryLoader.load();
+            //NativeXBulletLibraryLoader.load();
 
             Jolt.registerDefaultAllocator();
             Jolt.installDefaultAssertCallback();

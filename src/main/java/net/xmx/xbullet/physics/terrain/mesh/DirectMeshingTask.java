@@ -57,7 +57,7 @@ public class DirectMeshingTask implements Supplier<MutableCompoundShapeSettings>
                         float validHalfHeight = Math.max(boxHalfHeight, MIN_HALF_EXTENT);
                         float validHalfDepth = Math.max(boxHalfDepth, MIN_HALF_EXTENT);
 
-                        try (BoxShape boxShape = new BoxShape(validHalfWidth, validHalfHeight, validHalfDepth)) {
+                        try (BoxShape boxShape = new BoxShape(new Vec3(validHalfWidth, validHalfHeight, validHalfDepth), 0.02f)) {
 
                             float posX = blockOffsetX + (float) (minX + maxX) * 0.5f + sectionOffset;
                             float posY = blockOffsetY + (float) (minY + maxY) * 0.5f + sectionOffset;

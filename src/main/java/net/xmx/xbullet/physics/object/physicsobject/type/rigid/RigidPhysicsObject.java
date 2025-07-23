@@ -121,6 +121,9 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
         settings.setGravityFactor(this.gravityFactor);
         settings.setLinearVelocity(this.lastSyncedLinearVel);
         settings.setAngularVelocity(this.lastSyncedAngularVel);
+
+        settings.setEnhancedInternalEdgeRemoval(true);
+
         if (this.motionType != EMotionType.Static) {
             settings.setOverrideMassProperties(EOverrideMassProperties.CalculateMassAndInertia);
             MassProperties massProps = settings.getMassProperties();

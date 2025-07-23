@@ -16,7 +16,6 @@ public class InterpolationController {
 
     private static final float MAX_EXTRAPOLATION_SECONDS = 0.05f;
 
-    private static final int MIN_BUFFER_SIZE = 4;
     private static final int MAX_BUFFER_SIZE = 60;
     private static final int IDEAL_BUFFER_SIZE = 10;
 

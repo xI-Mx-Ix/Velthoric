@@ -1,92 +1,73 @@
 package net.xmx.xbullet.natives.loader;
 
+import electrostatic4j.snaploader.LibraryInfo;
+import electrostatic4j.snaploader.LoadingCriterion;
+import electrostatic4j.snaploader.NativeBinaryLoader;
+import electrostatic4j.snaploader.filesystem.DirectoryPath;
+import electrostatic4j.snaploader.platform.NativeDynamicLibrary;
+import electrostatic4j.snaploader.platform.util.PlatformPredicate;
 import net.minecraftforge.fml.loading.FMLPaths;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 
 public final class NativeXBulletLibraryLoader {
 
-    private static final Logger LOGGER = LogManager.getLogger("XBulletNativeLoader");
-    private static boolean loaded = false;
+    private static final Logger LOGGER = LoggerFactory.getLogger(NativeXBulletLibraryLoader.class);
+    private static volatile boolean loaded = false;
+    private static final Object lock = new Object();
 
     private NativeXBulletLibraryLoader() {}
 
     public static void load() {
-        if (loaded) {
-            return; 
-        }
-
-        try {
-
-            String platformIdentifier = getPlatformIdentifier();
-            String libraryFileName = getLibraryFileName();
-            LOGGER.info("Detected Platform: {}, Required Library: {}", platformIdentifier, libraryFileName);
-
-            String jarResourcePath = "/natives/" + platformIdentifier + "/" + libraryFileName;
-            Path extractionTargetDirectory = FMLPaths.GAMEDIR.get().resolve("xbullet").resolve("natives");
-            Path extractionTargetPath = extractionTargetDirectory.resolve(libraryFileName);
-
-            extractLibrary(jarResourcePath, extractionTargetPath);
-
-            System.load(extractionTargetPath.toAbsolutePath().toString());
-            LOGGER.info("Successfully loaded native library: {}", extractionTargetPath);
-
-            loaded = true;
-
-        } catch (Exception e) {
-            LOGGER.fatal("FATAL: Could not load native xbullet library!", e);
-
-            throw new RuntimeException("Failed to load XBullet natives", e);
-        }
-    }
-
-    private static void extractLibrary(String jarResourcePath, Path extractionTargetPath) throws IOException {
-        if (Files.exists(extractionTargetPath)) {
-            LOGGER.info("Native library already exists, skipping extraction: {}", extractionTargetPath);
-            return;
-        }
-
-        LOGGER.info("Native library not found. Extracting to: {}", extractionTargetPath);
-
-        Files.createDirectories(extractionTargetPath.getParent());
-
-        try (InputStream inputStream = NativeXBulletLibraryLoader.class.getResourceAsStream(jarResourcePath)) {
-            if (inputStream == null) {
-                throw new IOException("Cannot find resource in JAR: " + jarResourcePath);
+        synchronized (lock) {
+            if (loaded) {
+                return;
             }
 
-            Files.copy(inputStream, extractionTargetPath, StandardCopyOption.REPLACE_EXISTING);
+            try {
+                LOGGER.debug("Initializing Snaploader for automatic extraction of xbullet natives...");
+
+                Path extractionPath = FMLPaths.GAMEDIR.get()
+                        .resolve("xbullet")
+                        .resolve("natives");
+                Files.createDirectories(extractionPath);
+                DirectoryPath extractionDir = new DirectoryPath(extractionPath.toString());
+
+                LOGGER.debug("Native library extraction path set to: {}", extractionPath.toAbsolutePath());
+
+                LibraryInfo info = new LibraryInfo(
+                        DirectoryPath.CLASS_PATH,
+                        null,
+                        "xbullet",
+                        extractionDir
+                );
+
+                NativeBinaryLoader loader = new NativeBinaryLoader(info);
+
+                NativeDynamicLibrary[] libraries = {
+                        new NativeDynamicLibrary("natives/windows-x86_64", PlatformPredicate.WIN_X86_64),
+                        new NativeDynamicLibrary("natives/linux-x86_64", PlatformPredicate.LINUX_X86_64),
+                        new NativeDynamicLibrary("natives/linux-aarch64", PlatformPredicate.LINUX_ARM_64),
+                        new NativeDynamicLibrary("natives/macos-x86_64", PlatformPredicate.MACOS_X86_64),
+                        new NativeDynamicLibrary("natives/macos-aarch64", PlatformPredicate.MACOS_ARM_64)
+                };
+
+                loader.registerNativeLibraries(libraries)
+                        .initPlatformLibrary();
+
+                loader.loadLibrary(LoadingCriterion.CLEAN_EXTRACTION);
+
+                LOGGER.info("Successfully loaded native xbullet library via Snaploader.");
+                loaded = true;
+
+            } catch (Exception e) {
+                LOGGER.error("Snaploader failed to find or load native xbullet library from classpath", e);
+                throw new RuntimeException("Snaploader could not load the native XBullet library from JAR.", e);
+            }
         }
-    }
-
-    private static String getPlatformIdentifier() {
-        String osName = System.getProperty("os.name").toLowerCase();
-        String osArch = System.getProperty("os.arch").toLowerCase();
-
-        if (osName.contains("win")) {
-            if (osArch.contains("64")) return "windows-x86_64";
-        } else if (osName.contains("nix") || osName.contains("nux")) {
-            if (osArch.contains("aarch64")) return "linux-aarch64";
-            if (osArch.contains("64")) return "linux-x86_64";
-        } else if (osName.contains("mac")) {
-            if (osArch.contains("aarch64")) return "macos-aarch64";
-            if (osArch.contains("64")) return "macos-x86_64";
-        }
-
-        throw new UnsupportedOperationException("Unsupported OS/Architecture combination: " + osName + "/" + osArch);
-    }
-
-    private static String getLibraryFileName() {
-        String osName = System.getProperty("os.name").toLowerCase();
-        if (osName.contains("win")) return "xbullet.dll";
-        if (osName.contains("mac")) return "libxbullet.dylib";
-
-        return "libxbullet.so";
     }
 }
