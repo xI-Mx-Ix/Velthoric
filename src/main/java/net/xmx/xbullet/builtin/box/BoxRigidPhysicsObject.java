@@ -1,9 +1,7 @@
 package net.xmx.xbullet.builtin.box;
 
-import com.github.stephengold.joltjni.BodyInterface;
-import com.github.stephengold.joltjni.BoxShapeSettings;
-import com.github.stephengold.joltjni.ShapeSettings;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
@@ -33,6 +31,12 @@ public class BoxRigidPhysicsObject extends RigidPhysicsObject {
         BoxShapeSettings settings = new BoxShapeSettings(this.halfExtents);
         settings.setConvexRadius(0.05f);
         return settings;
+    }
+
+    @Override
+    protected void configureAdditionalRigidBodyCreationSettings(BodyCreationSettings settings) {
+        settings.setMotionQuality(EMotionQuality.LinearCast);
+        System.out.println(settings.getMotionQuality());
     }
 
 
