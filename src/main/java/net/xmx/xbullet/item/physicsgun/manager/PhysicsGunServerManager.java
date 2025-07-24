@@ -269,6 +269,11 @@ public class PhysicsGunServerManager {
         final var eyePos = player.getEyePosition();
         final var lookVec = player.getLookAngle();
 
+        final float P_GAIN_LINEAR = 250.0f;
+        final float D_GAIN_LINEAR = 25.0f;
+        final float P_GAIN_ANGULAR = 150.0f;
+        final float D_GAIN_ANGULAR = 15.0f;
+
         physicsWorld.execute(() -> {
             BodyInterface bodyInterface = physicsWorld.getBodyInterface();
             if (bodyInterface == null) return;
@@ -280,11 +285,17 @@ public class PhysicsGunServerManager {
             if (bodyLockInterface == null) return;
 
             try (var lock = new BodyLockWrite(bodyLockInterface, info.bodyId())) {
-                if (!lock.succeededAndIsInBroadPhase()) {
+                if (!lock.succeededAndIsInBroadPhase() || !lock.getBody().isDynamic()) {
                     grabbedObjects.remove(player.getUUID());
                     return;
                 }
                 Body body = lock.getBody();
+                MotionProperties motionProperties = body.getMotionProperties();
+                if (motionProperties == null) return;
+
+                float invMass = motionProperties.getInverseMass();
+                if (invMass == 0.0f) return;
+                float mass = 1.0f / invMass;
 
                 try (var comTransform = body.getCenterOfMassTransform()) {
                     var targetPointWorld = new RVec3(
@@ -294,57 +305,63 @@ public class PhysicsGunServerManager {
                     );
                     var currentGrabPointWorld = Op.star(comTransform, info.grabPointLocal());
                     var positionError = Op.minus(targetPointWorld, currentGrabPointWorld);
+                    Vec3 currentVelocity = body.getLinearVelocity();
 
-                    float velocityScale = 5.0f;
-                    var desiredVelocity = Op.star(positionError.toVec3(), velocityScale);
-                    float maxVel = 150.0f;
-                    if (desiredVelocity.lengthSq() > maxVel * maxVel) {
-                        desiredVelocity.normalizeInPlace();
-                        desiredVelocity.scaleInPlace(maxVel);
-                    }
-                    body.setLinearVelocity(desiredVelocity);
+                    Vec3 desiredAcceleration = Op.minus(
+                            Op.star(positionError.toVec3(), P_GAIN_LINEAR),
+                            Op.star(currentVelocity, D_GAIN_LINEAR)
+                    );
+
+                    Vec3 force = Op.star(desiredAcceleration, mass);
+                    body.addForce(force);
                 }
 
+                Quat targetBodyRotation;
                 if (info.inRotationMode()) {
-
-                    Quat targetBodyRotation = info.initialBodyRotation();
-                    var currentBodyRotation = body.getRotation();
-
-                    var errorQuat = Op.star(targetBodyRotation, currentBodyRotation.conjugated());
-                    if (errorQuat.getW() < 0.0f) {
-                        errorQuat.set(-errorQuat.getX(), -errorQuat.getY(), -errorQuat.getZ(), -errorQuat.getW());
-                    }
-
-                    float angularVelocityScale = 25.0f;
-                    var desiredAngularVelocity = Op.star(new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ()), angularVelocityScale);
-
-                    float maxAngularVel = 150.0f;
-                    if (desiredAngularVelocity.lengthSq() > maxAngularVel * maxAngularVel) {
-                        desiredAngularVelocity.normalizeInPlace();
-                        desiredAngularVelocity.scaleInPlace(maxAngularVel);
-                    }
-                    body.setAngularVelocity(desiredAngularVelocity);
-
+                    targetBodyRotation = info.initialBodyRotation();
                 } else {
-
                     Quat currentPlayerRotation = playerRotToQuat(player.getXRot(), player.getYRot());
                     Quat playerRotationDelta = Op.star(currentPlayerRotation, info.initialPlayerRotation().conjugated());
-                    Quat targetBodyRotation = Op.star(playerRotationDelta, info.initialBodyRotation());
-                    var currentBodyRotation = body.getRotation();
-                    var errorQuat = Op.star(targetBodyRotation, currentBodyRotation.conjugated());
-                    if (errorQuat.getW() < 0.0f) {
-                        errorQuat.set(-errorQuat.getX(), -errorQuat.getY(), -errorQuat.getZ(), -errorQuat.getW());
-                    }
-
-                    float angularVelocityScale = 10.0f;
-                    var desiredAngularVelocity = Op.star(new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ()), angularVelocityScale);
-                    float maxAngularVel = 150.0f;
-                    if (desiredAngularVelocity.lengthSq() > maxAngularVel * maxAngularVel) {
-                        desiredAngularVelocity.normalizeInPlace();
-                        desiredAngularVelocity.scaleInPlace(maxAngularVel);
-                    }
-                    body.setAngularVelocity(desiredAngularVelocity);
+                    targetBodyRotation = Op.star(playerRotationDelta, info.initialBodyRotation());
                 }
+
+                Quat currentBodyRotation = body.getRotation();
+
+                Quat errorQuat = Op.star(targetBodyRotation, currentBodyRotation.conjugated());
+                if (errorQuat.getW() < 0.0f) {
+                    errorQuat.set(-errorQuat.getX(), -errorQuat.getY(), -errorQuat.getZ(), -errorQuat.getW());
+                }
+
+                Vec3 rotationError = new Vec3(errorQuat.getX(), errorQuat.getY(), errorQuat.getZ());
+                Vec3 currentAngularVelocity = body.getAngularVelocity();
+
+                Vec3 desiredAngularAccel = Op.minus(
+                        Op.star(rotationError, P_GAIN_ANGULAR),
+                        Op.star(currentAngularVelocity, D_GAIN_ANGULAR)
+                );
+
+                Quat invBodyRot = currentBodyRotation.conjugated();
+                Vec3 desiredAngularAccelLocal = Op.star(invBodyRot, desiredAngularAccel);
+
+                Vec3 invInertiaDiag = motionProperties.getInverseInertiaDiagonal();
+                float ix = invInertiaDiag.getX() == 0f ? 0f : 1f / invInertiaDiag.getX();
+                float iy = invInertiaDiag.getY() == 0f ? 0f : 1f / invInertiaDiag.getY();
+                float iz = invInertiaDiag.getZ() == 0f ? 0f : 1f / invInertiaDiag.getZ();
+                Vec3 inertiaDiag = new Vec3(ix, iy, iz);
+                Quat inertiaRotation = motionProperties.getInertiaRotation();
+                Quat invInertiaRotation = inertiaRotation.conjugated();
+
+                Vec3 accelInInertiaSpace = Op.star(invInertiaRotation, desiredAngularAccelLocal);
+
+                accelInInertiaSpace.setX(accelInInertiaSpace.getX() * inertiaDiag.getX());
+                accelInInertiaSpace.setY(accelInInertiaSpace.getY() * inertiaDiag.getY());
+                accelInInertiaSpace.setZ(accelInInertiaSpace.getZ() * inertiaDiag.getZ());
+                Vec3 torqueInInertiaSpace = accelInInertiaSpace;
+
+                Vec3 torqueLocal = Op.star(inertiaRotation, torqueInInertiaSpace);
+
+                Vec3 torqueWorld = Op.star(currentBodyRotation, torqueLocal);
+                body.addTorque(torqueWorld);
             }
         });
     }
