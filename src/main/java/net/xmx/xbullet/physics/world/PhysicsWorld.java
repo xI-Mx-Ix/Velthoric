@@ -2,20 +2,18 @@ package net.xmx.xbullet.physics.world;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
-
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
-
 import net.xmx.xbullet.init.XBullet;
 import net.xmx.xbullet.natives.NativeJoltInitializer;
 import net.xmx.xbullet.physics.constraint.manager.ConstraintManager;
 import net.xmx.xbullet.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.xbullet.physics.object.physicsobject.manager.ObjectManager;
+import net.xmx.xbullet.physics.terrain.manager.TerrainSystem;
 import net.xmx.xbullet.physics.world.pcmd.ICommand;
 import net.xmx.xbullet.physics.world.pcmd.RunTaskCommand;
 import net.xmx.xbullet.physics.world.pcmd.UpdatePhysicsStateCommand;
-import net.xmx.xbullet.physics.terrain.manager.TerrainSystem;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -30,8 +28,10 @@ public final class PhysicsWorld implements Runnable, Executor {
     private final int maxContactConstraints;
     private final int numPositionIterations;
     private final int numVelocityIterations;
-    private final float erp;
+    private final float baumgarteFactor;
     private final float penetrationSlop;
+    private final float timeBeforeSleep;
+    private final float pointVelocitySleepThreshold;
     private final float gravityY;
     private final int maxSubsteps;
 
@@ -102,7 +102,7 @@ public final class PhysicsWorld implements Runnable, Executor {
 
     private float timeAccumulator = 0.0f;
 
-    private static final int DEFAULT_SIMULATION_HZ = 30;
+    private static final int DEFAULT_SIMULATION_HZ = 60;
     private static final float MAX_ACCUMULATED_TIME = 0.2f;
 
     // --- Constructor & Lifecycle ---
@@ -122,10 +122,13 @@ public final class PhysicsWorld implements Runnable, Executor {
         this.numPositionIterations = 10;
         this.numVelocityIterations = 10;
 
-        this.erp = 0.52f;
-        this.penetrationSlop = 0.009f;
+        this.baumgarteFactor = 0.2f;
+        this.penetrationSlop = 0.02f;
+        this.timeBeforeSleep = 0.5f;
+        this.pointVelocitySleepThreshold = 0.03f;
+
         this.gravityY = -9.81f;
-        this.maxSubsteps = 8;
+        this.maxSubsteps = 10;
     }
 
     private void initializeAndStart() {
@@ -178,6 +181,7 @@ public final class PhysicsWorld implements Runnable, Executor {
             NativeJoltInitializer.initialize();
             initializePhysicsSystem();
         } catch (Throwable t) {
+            XBullet.LOGGER.fatal("Failed to initialize physics system for dimension {}", dimensionKey.location(), t);
             this.isRunning = false;
             cleanupInternal();
             return;
@@ -203,6 +207,7 @@ public final class PhysicsWorld implements Runnable, Executor {
                 this.isRunning = false;
                 Thread.currentThread().interrupt();
             } catch (Throwable t) {
+                XBullet.LOGGER.error("Fatal error in physics loop for dimension {}", dimensionKey.location(), t);
                 this.isRunning = false;
             }
         }
@@ -233,6 +238,7 @@ public final class PhysicsWorld implements Runnable, Executor {
         while (timeAccumulator >= this.fixedTimeStep && substepsPerformed < maxSubsteps) {
             int error = physicsSystem.update(this.fixedTimeStep, 1, tempAllocator, jobSystem);
             if (error != EPhysicsUpdateError.None) {
+                XBullet.LOGGER.error("Jolt physics update failed with error code: {}", error);
                 this.isRunning = false;
                 return;
             }
@@ -251,11 +257,10 @@ public final class PhysicsWorld implements Runnable, Executor {
             try {
                 command.execute(this);
             } catch (Exception e) {
-                XBullet.LOGGER.error("Exception while executing command in processCommandQueue", e);
+                XBullet.LOGGER.error("Exception while executing physics command", e);
             }
         }
     }
-
 
     public void initializePhysicsSystem() {
         this.tempAllocator = new TempAllocatorMalloc();
@@ -273,9 +278,10 @@ public final class PhysicsWorld implements Runnable, Executor {
 
         settings.setNumPositionSteps(numPositionIterations);
         settings.setNumVelocitySteps(numVelocityIterations);
-
-        settings.setBaumgarte(erp);
+        settings.setBaumgarte(baumgarteFactor);
         settings.setPenetrationSlop(penetrationSlop);
+        settings.setTimeBeforeSleep(timeBeforeSleep);
+        settings.setPointVelocitySleepThreshold(pointVelocitySleepThreshold);
         settings.setDeterministicSimulation(true);
 
         physicsSystem.setGravity(0f, gravityY, 0f);
@@ -306,6 +312,7 @@ public final class PhysicsWorld implements Runnable, Executor {
         }
     }
 
+    @Override
     public void execute(Runnable task) {
         queueCommand(new RunTaskCommand(task));
     }
