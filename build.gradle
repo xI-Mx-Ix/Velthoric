@@ -255,7 +255,7 @@ task findWords {
         rootDir.eachFileRecurse { file ->
             if (file.name.endsWith(".java")) {
                 def content = file.text
-                if (content.contains(".close")) {
+                if (content.contains("XBullet")) {
                     matchingFiles << file.path
                 }
             }
@@ -276,7 +276,7 @@ task generateJoltDoc {
 
     def inputJar = file("C:/Users/milan/.gradle/caches/modules-2/files-2.1/com.github.stephengold/jolt-jni-Windows64/2.0.1/7da259022be424718fa90abde7ece845e8e5a2b0/jolt-jni-Windows64-2.0.1.jar")
 
-    def outputFile = file("$buildDir/docs/jolt-methoden-liste.txt")
+    def outputFile = file("$buildDir/docs/jolt.txt")
 
     inputs.file(inputJar)
     outputs.file(outputFile)
@@ -344,13 +344,4 @@ reobf {
 
 tasks.named('build') {
     dependsOn tasks.named('shadowJar')
-}
-
-task generateNativeHeaders(type: JavaCompile) {
-    source = fileTree('src/main/java') {
-        include 'net/xmx/nativexbullet/Gravity.java'
-    }
-    classpath = sourceSets.main.compileClasspath
-    destinationDir = file('build/classes/native')
-    options.compilerArgs = ['-h', file('include').absolutePath]
 }

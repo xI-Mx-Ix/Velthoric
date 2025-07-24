@@ -1,33 +1,32 @@
-# XBullet – Jolt Physics for Minecraft
+# Vortex Physics – Jolt Physics for Minecraft
 
 [![Documentation](https://img.shields.io/badge/view-documentation-brightgreen.svg)](https://xi-mx-ix.github.io/xbullet-documentation/)
 
-**XBullet** is a Minecraft mod that integrates the high-performance [Jolt Physics Engine](https://github.com/jrouwe/JoltPhysics) directly into the game.  
-It offers advanced physics features like rigid bodies, soft bodies, custom collision shapes, constraints, and more.
+**Vortex Physics** is a Minecraft mod that integrates the high-performance [Jolt Physics Engine](https://github.com/jrouwe/JoltPhysics) directly into the game.  
+It provides advanced physics features like rigid bodies, soft bodies, custom collision shapes, constraints, and more.
 
 ---
 
-## 🚀 Features
+## Features
 
-- 🔧 Full support for Jolt’s rigid body and soft body physics
-- 🧱 Custom shapes, forces, constraints, and interactive world integration
-- ⚙️ Built for Minecraft modders (Forge 1.20.1+)
-- 📦 Extendable API to build your own physics-powered mods
+- Full support for Jolt’s rigid body and soft body physics
+- Custom shapes, forces, constraints, and interactive world integration
+- Designed for Minecraft modders (Forge 1.20.1+)
+- Extendable API to build your own physics-powered mods
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 Explore the full API documentation here:
 
-👉 **[https://xi-mx-ix.github.io/xbullet-documentation/](https://xi-mx-ix.github.io/xbullet-documentation/)**
+[https://xi-mx-ix.github.io/xbullet-documentation/](https://xi-mx-ix.github.io/xbullet-documentation/)
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Contributions, ideas, and bug reports are always welcome!
-
+Contributions, ideas, and bug reports are always welcome.  
 Feel free to open issues or submit pull requests.
 
 ---

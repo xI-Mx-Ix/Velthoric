@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.xmx.vortex.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "xbullet.refmap.json",
+  "mixins": [
+    "terrain.ChunkMapMixin",
+    "terrain.LevelMixin",
+    "terrain.ServerLevelMixin"
+  ],
+  "client": [
+    "physicsgun.PhysicsGunRotateObject_KeyboardHandlerMixin",
+    "physicsgun.PhysicsGunRotateObject_MouseHandlerMixin",
+    "physicsgun.PhysicsGunArmPose_PlayerRendererMixin",
+    "riding.LivingEntityRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
