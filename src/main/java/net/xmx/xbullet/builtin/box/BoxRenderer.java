@@ -1,6 +1,5 @@
 package net.xmx.xbullet.builtin.box;
 
-import com.github.stephengold.joltjni.Vec3;
 import com.mojang.blaze3d.vertex.PoseStack;
 import io.netty.buffer.Unpooled;
 import net.minecraft.client.Minecraft;
