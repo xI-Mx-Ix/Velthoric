@@ -4,10 +4,14 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.vortex.physics.terrain.TerrainSystem;
+import net.xmx.vortex.physics.terrain.job.VxTaskPriority;
 import net.xmx.vortex.physics.terrain.model.VxSectionPos;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class ObjectTerrainTracker {
 
@@ -15,8 +19,8 @@ public class ObjectTerrainTracker {
     private final TerrainSystem terrainSystem;
     private final Set<VxSectionPos> currentPreloadedChunks = new HashSet<>();
 
-    private static final int ACTIVATION_RADIUS = 2;
     private static final int PRELOAD_RADIUS = 5;
+    private static final int ACTIVATION_RADIUS = 2;
     private static final float PREDICTION_SECONDS = 0.5f;
 
     public ObjectTerrainTracker(IPhysicsObject physicsObject, TerrainSystem terrainSystem) {
@@ -25,7 +29,7 @@ public class ObjectTerrainTracker {
     }
 
     public Set<VxSectionPos> update() {
-        if (physicsObject.getBody() == null) {
+        if (physicsObject.getBody() == null || !physicsObject.isPhysicsInitialized()) {
             releaseAll();
             return new HashSet<>();
         }
@@ -33,26 +37,31 @@ public class ObjectTerrainTracker {
         RVec3 pos = physicsObject.getBody().getPosition();
         Vec3 vel = physicsObject.getBody().getLinearVelocity();
 
-        Set<VxSectionPos> newPreloadChunks = calculateRequiredChunks(pos, vel, PRELOAD_RADIUS);
-        Set<VxSectionPos> newActivationChunks = calculateRequiredChunks(pos, vel, ACTIVATION_RADIUS);
+        Map<VxSectionPos, VxTaskPriority> requiredChunks = calculateAndPrioritizeChunks(pos, vel);
+        Set<VxSectionPos> newPreloadSet = requiredChunks.keySet();
 
         Set<VxSectionPos> toRelease = new HashSet<>(currentPreloadedChunks);
-        toRelease.removeAll(newPreloadChunks);
+        toRelease.removeAll(newPreloadSet);
 
-        Set<VxSectionPos> toRequest = new HashSet<>(newPreloadChunks);
+        Set<VxSectionPos> toRequest = new HashSet<>(newPreloadSet);
         toRequest.removeAll(currentPreloadedChunks);
 
         toRelease.forEach(terrainSystem::releaseChunk);
         toRequest.forEach(terrainSystem::requestChunk);
 
-        currentPreloadedChunks.clear();
-        currentPreloadedChunks.addAll(newPreloadChunks);
+        requiredChunks.forEach(terrainSystem::prioritizeChunk);
 
-        return newActivationChunks;
+        currentPreloadedChunks.clear();
+        currentPreloadedChunks.addAll(newPreloadSet);
+
+        return requiredChunks.entrySet().stream()
+                .filter(e -> e.getValue() == VxTaskPriority.CRITICAL)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
     }
 
-    private Set<VxSectionPos> calculateRequiredChunks(RVec3 position, Vec3 velocity, int radius) {
-        Set<VxSectionPos> needed = new HashSet<>();
+    private Map<VxSectionPos, VxTaskPriority> calculateAndPrioritizeChunks(RVec3 position, Vec3 velocity) {
+        Map<VxSectionPos, VxTaskPriority> needed = new HashMap<>();
 
         double currentX = position.xx();
         double currentY = position.yy();
@@ -62,20 +71,23 @@ public class ObjectTerrainTracker {
         double predictedY = currentY + velocity.getY() * PREDICTION_SECONDS;
         double predictedZ = currentZ + velocity.getZ() * PREDICTION_SECONDS;
 
-        addChunksInRadius(needed, currentX, currentY, currentZ, radius);
-        addChunksInRadius(needed, predictedX, predictedY, predictedZ, radius);
+        addChunksWithPriority(needed, currentX, currentY, currentZ, PRELOAD_RADIUS, VxTaskPriority.MEDIUM);
+        addChunksWithPriority(needed, predictedX, predictedY, predictedZ, PRELOAD_RADIUS, VxTaskPriority.MEDIUM);
+
+        addChunksWithPriority(needed, currentX, currentY, currentZ, ACTIVATION_RADIUS, VxTaskPriority.CRITICAL);
+        addChunksWithPriority(needed, predictedX, predictedY, predictedZ, ACTIVATION_RADIUS, VxTaskPriority.CRITICAL);
 
         return needed;
     }
 
-    private void addChunksInRadius(Set<VxSectionPos> needed, double centerX, double centerY, double centerZ, int radius) {
+    private void addChunksWithPriority(Map<VxSectionPos, VxTaskPriority> needed, double centerX, double centerY, double centerZ, int radius, VxTaskPriority priority) {
         VxSectionPos centerVPos = VxSectionPos.fromWorldSpace(centerX, centerY, centerZ);
         for (int y = -radius; y <= radius; ++y) {
             for (int z = -radius; z <= radius; ++z) {
                 for (int x = -radius; x <= radius; ++x) {
                     VxSectionPos pos = new VxSectionPos(centerVPos.x() + x, centerVPos.y() + y, centerVPos.z() + z);
                     if (pos.isWithinWorldHeight(terrainSystem.getLevel())) {
-                        needed.add(pos);
+                        needed.merge(pos, priority, (oldP, newP) -> newP.ordinal() > oldP.ordinal() ? newP : oldP);
                     }
                 }
             }

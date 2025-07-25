@@ -5,6 +5,8 @@ import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.vortex.init.VxMainClass;
+import net.xmx.vortex.physics.terrain.TerrainSystem;
+import net.xmx.vortex.physics.terrain.job.VxTaskPriority;
 import net.xmx.vortex.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.vortex.physics.terrain.loader.ChunkSnapshot;
 import net.xmx.vortex.physics.terrain.loader.TerrainGenerator;
@@ -19,7 +21,8 @@ public class TerrainChunk {
 
     public enum State {
         UNLOADED,
-        LOADING,
+        LOADING_SCHEDULED,
+        LOADING_SHAPE_GENERATION,
         READY_INACTIVE,
         READY_ACTIVE,
         REMOVING,
@@ -30,6 +33,7 @@ public class TerrainChunk {
     private final ServerLevel level;
     private final VxPhysicsWorld physicsWorld;
     private final TerrainGenerator terrainGenerator;
+    private final TerrainSystem terrainSystem;
 
     private volatile int bodyId = -1;
     private final AtomicReference<State> state = new AtomicReference<>(State.UNLOADED);
@@ -37,177 +41,156 @@ public class TerrainChunk {
     private volatile ShapeRefC currentShapeRef = null;
     private volatile boolean isPlaceholderShape = true;
 
-    public TerrainChunk(VxSectionPos pos, ServerLevel level, VxPhysicsWorld physicsWorld, TerrainGenerator terrainGenerator) {
+    private volatile State previousStateBeforeLoading = State.UNLOADED;
+
+    public TerrainChunk(VxSectionPos pos, ServerLevel level, VxPhysicsWorld physicsWorld, TerrainGenerator terrainGenerator, TerrainSystem terrainSystem) {
         this.pos = pos;
         this.level = level;
         this.physicsWorld = physicsWorld;
         this.terrainGenerator = terrainGenerator;
+        this.terrainSystem = terrainSystem;
     }
 
     public void scheduleInitialBuild() {
-        if (state.compareAndSet(State.UNLOADED, State.LOADING)) {
+        if (state.get() == State.UNLOADED) {
             final int version = rebuildVersion.incrementAndGet();
-
-            CompletableFuture.supplyAsync(() -> ChunkSnapshot.snapshot(level, pos), VxTerrainJobSystem.getInstance().getExecutor())
-                    .thenCompose(snapshot -> {
-                        if (version != rebuildVersion.get() || state.get() == State.REMOVING)
-                            return CompletableFuture.completedFuture(null);
-                        if (snapshot.shapes().isEmpty()) {
-                            physicsWorld.execute(() -> state.set(State.READY_INACTIVE)); // Empty but "ready"
-                            return CompletableFuture.completedFuture(null);
-                        }
-                        return CompletableFuture.supplyAsync(() -> terrainGenerator.generatePlaceholderShape(snapshot), VxTerrainJobSystem.getInstance().getExecutor());
-                    })
-                    .thenAcceptAsync(placeholderShape -> {
-                        if (version != rebuildVersion.get() || state.get() == State.REMOVING) {
-                            if (placeholderShape != null) placeholderShape.close();
-                            return;
-                        }
-
-                        if (placeholderShape != null) {
-                            try (BodyCreationSettings bcs = new BodyCreationSettings(
-                                    placeholderShape,
-                                    new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ()),
-                                    Quat.sIdentity(),
-                                    EMotionType.Static,
-                                    VxPhysicsWorld.Layers.STATIC
-                            )) {
-                                Body body = physicsWorld.getBodyInterface().createBody(bcs);
-                                if (body != null) {
-                                    this.bodyId = body.getId();
-                                    this.currentShapeRef = placeholderShape;
-                                    this.isPlaceholderShape = true;
-                                    state.set(State.READY_INACTIVE);
-                                    body.close();
-                                } else {
-                                    VxMainClass.LOGGER.error("Failed to create placeholder terrain body for chunk {}", pos);
-                                    placeholderShape.close();
-                                    state.set(State.UNLOADED);
-                                }
-                            }
-                        } else {
-                            state.set(State.READY_INACTIVE);
-                        }
-                    }, physicsWorld)
-                    .exceptionally(ex -> {
-                        VxMainClass.LOGGER.error("Failed during terrain initial build for {}", pos, ex);
-                        state.set(State.UNLOADED);
-                        return null;
-                    });
+            this.isPlaceholderShape = true;
+            this.previousStateBeforeLoading = state.getAndSet(State.LOADING_SCHEDULED);
+            terrainSystem.requestSnapshot(pos, version, true, VxTaskPriority.CRITICAL);
         }
     }
 
-    public void scheduleRebuild() {
-        scheduleDetailedBuild(true);
-    }
-
-    private void scheduleDetailedBuild(boolean isForcedRebuild) {
-        if (!isForcedRebuild && !isPlaceholderShape) {
-            return;
-        }
-
+    public void scheduleRebuild(VxTaskPriority priority) {
         State currentState = state.get();
-        if (currentState == State.REMOVING || currentState == State.REMOVED || currentState == State.LOADING) {
+
+        if (currentState == State.REMOVING || currentState == State.REMOVED || currentState == State.LOADING_SCHEDULED || currentState == State.LOADING_SHAPE_GENERATION) {
             return;
         }
 
-        if (state.compareAndSet(State.READY_ACTIVE, State.LOADING) || state.compareAndSet(State.READY_INACTIVE, State.LOADING)) {
-            final int version = rebuildVersion.incrementAndGet();
-            final boolean wasActive = (currentState == State.READY_ACTIVE);
+        final int version = rebuildVersion.incrementAndGet();
+        this.previousStateBeforeLoading = state.getAndSet(State.LOADING_SCHEDULED);
+        terrainSystem.requestSnapshot(pos, version, false, priority);
+    }
 
-            CompletableFuture.supplyAsync(() -> ChunkSnapshot.snapshot(level, pos), VxTerrainJobSystem.getInstance().getExecutor())
-                    .thenCompose(snapshot -> {
-                        if (version != rebuildVersion.get() || state.get() == State.REMOVING)
-                            return CompletableFuture.completedFuture(null);
-                        if (snapshot.shapes().isEmpty()) {
-                            return CompletableFuture.completedFuture(null);
-                        }
-                        return CompletableFuture.supplyAsync(() -> terrainGenerator.generateShape(level, snapshot), VxTerrainJobSystem.getInstance().getExecutor());
-                    })
-                    .thenAcceptAsync(detailedShape -> {
-                        if (version != rebuildVersion.get() || state.get() == State.REMOVING) {
-                            if (detailedShape != null) detailedShape.close();
-                            return;
-                        }
+    public void resetStateAfterFailedSnapshot() {
 
-                        BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-                        if (detailedShape == null) {
-                            if (this.bodyId != -1) {
-                                bodyInterface.removeBody(this.bodyId);
-                                bodyInterface.destroyBody(this.bodyId);
-                                this.bodyId = -1;
-                                if (this.currentShapeRef != null) {
-                                    this.currentShapeRef.close();
-                                    this.currentShapeRef = null;
-                                }
-                            }
-                            this.isPlaceholderShape = true;
-                            state.set(State.READY_INACTIVE);
-                            return;
+        state.compareAndSet(State.LOADING_SCHEDULED, previousStateBeforeLoading);
+    }
+
+    public void processSnapshot(ChunkSnapshot snapshot, int snapshotVersion, boolean isInitialBuild) {
+
+        if (snapshotVersion < rebuildVersion.get()) {
+            return;
+        }
+
+        State oldState = state.getAndSet(State.LOADING_SHAPE_GENERATION);
+        if (oldState != State.LOADING_SCHEDULED) {
+
+            state.set(oldState);
+            return;
+        }
+
+        final boolean wasActive = (previousStateBeforeLoading == State.READY_ACTIVE);
+
+        CompletableFuture.supplyAsync(() -> {
+
+                    if (isInitialBuild) return terrainGenerator.generatePlaceholderShape(snapshot);
+                    else return terrainGenerator.generateShape(level, snapshot);
+                }, VxTerrainJobSystem.getInstance().getExecutor())
+                .thenAcceptAsync(generatedShape -> {
+
+                    if (snapshotVersion < rebuildVersion.get() || state.get() == State.REMOVING || state.get() == State.REMOVED) {
+                        if (generatedShape != null) generatedShape.close();
+
+                        if (state.get() != State.REMOVING && state.get() != State.REMOVED) {
+                            state.set(previousStateBeforeLoading);
                         }
+                        return;
+                    }
+
+                    BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+                    if (bodyInterface == null) {
+                        if (generatedShape != null) generatedShape.close();
+                        state.set(State.REMOVED);
+                        return;
+                    }
+
+                    if (generatedShape == null) {
 
                         if (this.bodyId != -1) {
-                            final ShapeRefC oldShape = this.currentShapeRef;
-                            bodyInterface.setShape(this.bodyId, detailedShape, true, EActivation.Activate);
-                            this.currentShapeRef = detailedShape;
-                            this.isPlaceholderShape = false;
-                            if (oldShape != null && oldShape != detailedShape) {
-                                oldShape.close();
-                            }
-                        } else {
-                            try (BodyCreationSettings bcs = new BodyCreationSettings(
-                                    detailedShape,
-                                    new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ()),
-                                    Quat.sIdentity(),
-                                    EMotionType.Static,
-                                    VxPhysicsWorld.Layers.STATIC
-                            )) {
-                                Body body = bodyInterface.createBody(bcs);
-                                if (body != null) {
-                                    this.bodyId = body.getId();
-                                    this.currentShapeRef = detailedShape;
-                                    this.isPlaceholderShape = false;
-                                    body.close();
-                                } else {
-                                    VxMainClass.LOGGER.error("Failed to create detailed terrain body for chunk {}", pos);
-                                    detailedShape.close();
-                                    state.set(wasActive ? State.READY_ACTIVE : State.READY_INACTIVE);
-                                    return;
-                                }
-                            }
+                            closeBodyAndShape(bodyInterface);
                         }
 
-                        if (wasActive) {
-                            if (!bodyInterface.isAdded(bodyId)) {
-                                bodyInterface.addBody(bodyId, EActivation.Activate);
-                            }
-                            state.set(State.READY_ACTIVE);
-                        } else {
-                            state.set(State.READY_INACTIVE);
-                        }
+                        state.set(previousStateBeforeLoading);
+                        return;
+                    }
 
-                    }, physicsWorld)
-                    .exceptionally(ex -> {
-                        VxMainClass.LOGGER.error("Failed during terrain detailed build for {}", pos, ex);
-                        state.set(wasActive ? State.READY_ACTIVE : State.READY_INACTIVE);
-                        return null;
-                    });
-        }
+                    if (this.bodyId != -1) {
+                        final ShapeRefC oldShape = this.currentShapeRef;
+                        bodyInterface.setShape(this.bodyId, generatedShape, true, EActivation.Activate);
+                        this.currentShapeRef = generatedShape;
+
+                        if (oldShape != null && !oldShape.equals(generatedShape)) oldShape.close();
+                    } else {
+                        try (BodyCreationSettings bcs = new BodyCreationSettings(
+                                generatedShape,
+                                new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ()),
+                                Quat.sIdentity(),
+                                EMotionType.Static,
+                                VxPhysicsWorld.Layers.STATIC)) {
+                            Body body = bodyInterface.createBody(bcs);
+                            if (body != null) {
+                                this.bodyId = body.getId();
+                                this.currentShapeRef = generatedShape;
+                                body.close();
+                            } else {
+                                VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}", pos);
+                                generatedShape.close();
+                            }
+                        }
+                    }
+
+                    this.isPlaceholderShape = isInitialBuild;
+
+                    state.set(wasActive ? State.READY_ACTIVE : State.READY_INACTIVE);
+
+                    if (wasActive) {
+
+                        activate();
+                    }
+
+                }, physicsWorld)
+                .exceptionally(ex -> {
+
+                    VxMainClass.LOGGER.error("Exception during terrain shape generation for {}", pos, ex);
+
+                    state.set(previousStateBeforeLoading);
+                    return null;
+                });
     }
 
-
     public void activate() {
-        if (bodyId != -1 && state.compareAndSet(State.READY_INACTIVE, State.READY_ACTIVE)) {
-            physicsWorld.execute(() -> {
-                BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-                if (bodyInterface != null && bodyId != -1 && !bodyInterface.isAdded(bodyId)) {
-                    bodyInterface.addBody(bodyId, EActivation.Activate);
-                }
-            });
+        State currentState = state.get();
+
+        if ((currentState == State.READY_ACTIVE || currentState == State.READY_INACTIVE) && this.bodyId == -1) {
+            VxMainClass.LOGGER.warn("Detected stuck terrain chunk {} in ready state with no body. Forcing high-prio rebuild.", pos);
+            scheduleRebuild(VxTaskPriority.HIGH);
+            return;
+        }
+
+        if (bodyId != -1 && currentState == State.READY_INACTIVE) {
+            if (state.compareAndSet(State.READY_INACTIVE, State.READY_ACTIVE)) {
+                physicsWorld.execute(() -> {
+                    BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+                    if (bodyInterface != null && bodyId != -1 && !bodyInterface.isAdded(bodyId)) {
+                        bodyInterface.addBody(bodyId, EActivation.Activate);
+                    }
+                });
+            }
         }
 
         if (isPlaceholderShape && bodyId != -1) {
-            scheduleDetailedBuild(false);
+            scheduleRebuild(VxTaskPriority.CRITICAL);
         }
     }
 
@@ -225,30 +208,32 @@ public class TerrainChunk {
     public void scheduleRemoval() {
         State oldState = state.getAndSet(State.REMOVING);
         if (oldState == State.REMOVING || oldState == State.REMOVED) return;
+
         rebuildVersion.incrementAndGet();
+
         physicsWorld.execute(this::closeResources);
     }
 
-    private void closeResources() {
+    private void closeBodyAndShape(BodyInterface bodyInterface) {
         if (bodyId != -1) {
-            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-            if (bodyInterface != null) {
-                if (bodyInterface.isAdded(bodyId)) {
-                    bodyInterface.removeBody(bodyId);
-                }
-                bodyInterface.destroyBody(bodyId);
+            if (bodyInterface.isAdded(bodyId)) {
+                bodyInterface.removeBody(bodyId);
             }
+            bodyInterface.destroyBody(bodyId);
             bodyId = -1;
         }
         if (currentShapeRef != null) {
             currentShapeRef.close();
             currentShapeRef = null;
         }
-        state.set(State.REMOVED);
     }
 
-    public State getState() {
-        return state.get();
+    private void closeResources() {
+        BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+        if (bodyInterface != null) {
+            closeBodyAndShape(bodyInterface);
+        }
+        state.set(State.REMOVED);
     }
 
     public boolean isReady() {
@@ -256,11 +241,11 @@ public class TerrainChunk {
         return s == State.READY_ACTIVE || s == State.READY_INACTIVE;
     }
 
-    public int getBodyId() {
-        return bodyId;
+    public boolean isPlaceholder() {
+        return this.isPlaceholderShape;
     }
 
-    public VxSectionPos getPos() {
-        return pos;
+    public int getBodyId() {
+        return bodyId;
     }
 }

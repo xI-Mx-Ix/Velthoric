@@ -1,6 +1,10 @@
 package net.xmx.vortex.physics.terrain;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.AaBox;
+import com.github.stephengold.joltjni.BodyInterface;
+import com.github.stephengold.joltjni.BroadPhaseLayerFilter;
+import com.github.stephengold.joltjni.ObjectLayerFilter;
+import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
@@ -10,7 +14,9 @@ import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.vortex.physics.terrain.cache.TerrainShapeCache;
 import net.xmx.vortex.physics.terrain.chunk.TerrainChunk;
+import net.xmx.vortex.physics.terrain.job.VxTaskPriority;
 import net.xmx.vortex.physics.terrain.job.VxTerrainJobSystem;
+import net.xmx.vortex.physics.terrain.loader.ChunkSnapshot;
 import net.xmx.vortex.physics.terrain.loader.TerrainGenerator;
 import net.xmx.vortex.physics.terrain.model.VxSectionPos;
 import net.xmx.vortex.physics.terrain.tracker.ObjectTerrainTracker;
@@ -19,6 +25,7 @@ import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -34,8 +41,15 @@ public class TerrainSystem implements Runnable {
     private final Map<UUID, ObjectTerrainTracker> objectTrackers = new ConcurrentHashMap<>();
     private final Set<VxSectionPos> activationSet = ConcurrentHashMap.newKeySet();
 
+    private final ConcurrentHashMap<VxSectionPos, SnapshotRequest> pendingSnapshotRequests = new ConcurrentHashMap<>();
+    private final ConcurrentLinkedQueue<Runnable> mainThreadTasks = new ConcurrentLinkedQueue<>();
+
+    private static final int MAX_SNAPSHOTS_PER_TICK = 128;
+
     private final AtomicBoolean isInitialized = new AtomicBoolean(false);
     private Thread workerThread;
+
+    private record SnapshotRequest(int version, boolean isInitialBuild, VxTaskPriority priority) {}
 
     public TerrainSystem(VxPhysicsWorld physicsWorld, ServerLevel level) {
         this.physicsWorld = physicsWorld;
@@ -46,6 +60,8 @@ public class TerrainSystem implements Runnable {
 
     public void initialize() {
         if (isInitialized.compareAndSet(false, true)) {
+            ChunkProvider.registerTerrainSystem(level, this);
+
             this.workerThread = new Thread(this, "Vortex-Terrain-Tracker-" + level.dimension().location().getPath());
             this.workerThread.setDaemon(true);
             this.workerThread.start();
@@ -57,16 +73,22 @@ public class TerrainSystem implements Runnable {
             if (workerThread != null) {
                 workerThread.interrupt();
                 try {
-                    workerThread.join(500);
+                    workerThread.join(5000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
             }
-            managedChunks.values().forEach(TerrainChunk::scheduleRemoval);
-            managedChunks.clear();
-            chunkReferenceCounts.clear();
-            objectTrackers.clear();
-            shapeCache.clear();
+            ChunkProvider.unregisterTerrainSystem(level);
+
+            mainThreadTasks.clear();
+            physicsWorld.execute(() -> {
+                managedChunks.values().forEach(TerrainChunk::scheduleRemoval);
+                managedChunks.clear();
+                chunkReferenceCounts.clear();
+                objectTrackers.clear();
+                shapeCache.clear();
+                pendingSnapshotRequests.clear();
+            });
         }
     }
 
@@ -75,12 +97,88 @@ public class TerrainSystem implements Runnable {
         while (isInitialized.get() && !Thread.currentThread().isInterrupted()) {
             try {
                 updateTrackers();
-                Thread.sleep(100);
+                schedulePendingSnapshotsForMainThreadProcessing();
+
+                Thread.sleep(50);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                break;
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Error in TerrainSystem worker thread", e);
             }
+        }
+    }
+
+    public void requestSnapshot(VxSectionPos pos, int version, boolean isInitialBuild, VxTaskPriority priority) {
+        pendingSnapshotRequests.compute(pos, (p, existingRequest) -> {
+            if (existingRequest == null ||
+                    priority.ordinal() > existingRequest.priority().ordinal() ||
+                    (priority.ordinal() == existingRequest.priority().ordinal() && version > existingRequest.version())) {
+                return new SnapshotRequest(version, isInitialBuild, priority);
+            }
+            return existingRequest;
+        });
+    }
+
+    private void schedulePendingSnapshotsForMainThreadProcessing() {
+        if (pendingSnapshotRequests.isEmpty()) {
+            return;
+        }
+
+        List<Map.Entry<VxSectionPos, SnapshotRequest>> sortedRequests = new ArrayList<>(pendingSnapshotRequests.entrySet());
+        sortedRequests.sort(Map.Entry.<VxSectionPos, SnapshotRequest>comparingByValue(Comparator.comparing(SnapshotRequest::priority).reversed())
+                .thenComparing(Map.Entry.comparingByValue(Comparator.comparing(SnapshotRequest::version).reversed())));
+
+        int batchSize = Math.min(sortedRequests.size(), MAX_SNAPSHOTS_PER_TICK);
+        List<Map.Entry<VxSectionPos, SnapshotRequest>> batch = sortedRequests.subList(0, batchSize);
+
+        Map<VxSectionPos, SnapshotRequest> currentBatch = new LinkedHashMap<>();
+        for (Map.Entry<VxSectionPos, SnapshotRequest> entry : batch) {
+            if (pendingSnapshotRequests.remove(entry.getKey(), entry.getValue())) {
+                currentBatch.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        if (currentBatch.isEmpty()) {
+            return;
+        }
+
+        Runnable mainThreadTask = () -> {
+            Map<VxSectionPos, ChunkSnapshot> snapshots = new HashMap<>();
+            for (Map.Entry<VxSectionPos, SnapshotRequest> entry : currentBatch.entrySet()) {
+                VxSectionPos pos = entry.getKey();
+                try {
+
+                    ChunkSnapshot snapshot = ChunkSnapshot.snapshot(level, pos);
+                    snapshots.put(pos, snapshot);
+                } catch (Exception e) {
+                    VxMainClass.LOGGER.error("Failed to create snapshot for chunk {} on main thread. Skipping.", pos, e);
+
+                    Optional.ofNullable(managedChunks.get(pos)).ifPresent(TerrainChunk::resetStateAfterFailedSnapshot);
+                }
+            }
+
+            if(snapshots.isEmpty()) return;
+
+            VxTerrainJobSystem.getInstance().getExecutor().execute(() -> {
+                for (Map.Entry<VxSectionPos, ChunkSnapshot> entry : snapshots.entrySet()) {
+                    VxSectionPos pos = entry.getKey();
+                    ChunkSnapshot snapshot = entry.getValue();
+                    SnapshotRequest request = currentBatch.get(pos);
+                    if (request != null) {
+                        Optional.ofNullable(managedChunks.get(pos))
+                                .ifPresent(chunk -> chunk.processSnapshot(snapshot, request.version(), request.isInitialBuild()));
+                    }
+                }
+            });
+        };
+        mainThreadTasks.offer(mainThreadTask);
+    }
+
+    public void processPendingSnapshotsOnMainThread() {
+        Runnable task;
+        while ((task = mainThreadTasks.poll()) != null) {
+            task.run();
         }
     }
 
@@ -134,9 +232,12 @@ public class TerrainSystem implements Runnable {
     }
 
     public void releaseChunk(VxSectionPos pos) {
-        chunkReferenceCounts.compute(pos, (p, count) -> (count == null || count <= 1) ? null : count - 1);
-        if (!chunkReferenceCounts.containsKey(pos)) {
-            unloadChunkPhysics(pos);
+        Integer newCount = chunkReferenceCounts.computeIfPresent(pos, (p, count) -> count > 1 ? count - 1 : null);
+        if (newCount == null) {
+
+            if(chunkReferenceCounts.remove(pos) != null) {
+                unloadChunkPhysics(pos);
+            }
         }
     }
 
@@ -163,7 +264,8 @@ public class TerrainSystem implements Runnable {
 
         VxTerrainJobSystem.getInstance().submit(() -> {
             VxSectionPos vPos = VxSectionPos.fromBlockPos(worldPos.immutable());
-            Optional.ofNullable(managedChunks.get(vPos)).ifPresent(TerrainChunk::scheduleRebuild);
+            Optional.ofNullable(managedChunks.get(vPos))
+                    .ifPresent(chunk -> chunk.scheduleRebuild(VxTaskPriority.HIGH));
         });
 
         physicsWorld.execute(() -> {
@@ -172,24 +274,13 @@ public class TerrainSystem implements Runnable {
                 return;
             }
 
-            RVec3 min;
-            RVec3 max;
-            AaBox activationArea = null;
-            BroadPhaseLayerFilter broadPhaseFilter = null;
-            ObjectLayerFilter objectLayerFilter = null;
+            RVec3 min = new RVec3(worldPos.getX() - 2.0, worldPos.getY() - 2.0, worldPos.getZ() - 2.0);
+            RVec3 max = new RVec3(worldPos.getX() + 3.0, worldPos.getY() + 3.0, worldPos.getZ() + 3.0);
 
-            try {
-                min = new RVec3(worldPos.getX() - 2.0, worldPos.getY() - 2.0, worldPos.getZ() - 2.0);
-                max = new RVec3(worldPos.getX() + 3.0, worldPos.getY() + 3.0, worldPos.getZ() + 3.0);
-                activationArea = new AaBox(min, max);
-                broadPhaseFilter = new BroadPhaseLayerFilter();
-                objectLayerFilter = new ObjectLayerFilter();
-
+            try (AaBox activationArea = new AaBox(min, max);
+                 BroadPhaseLayerFilter broadPhaseFilter = new BroadPhaseLayerFilter();
+                 ObjectLayerFilter objectLayerFilter = new ObjectLayerFilter()) {
                 bodyInterface.activateBodiesInAaBox(activationArea, broadPhaseFilter, objectLayerFilter);
-            } finally {
-                if (activationArea != null) activationArea.close();
-                if (objectLayerFilter != null) objectLayerFilter.close();
-                if (broadPhaseFilter != null) broadPhaseFilter.close();
             }
         });
     }
@@ -199,8 +290,7 @@ public class TerrainSystem implements Runnable {
         VxTerrainJobSystem.getInstance().submit(() -> {
             for (int y = level.getMinSection(); y < level.getMaxSection(); y++) {
                 VxSectionPos vPos = new VxSectionPos(chunkPos.x, y, chunkPos.z);
-                if(chunkReferenceCounts.containsKey(vPos)) {
-                    chunkReferenceCounts.remove(vPos);
+                if (chunkReferenceCounts.remove(vPos) != null) {
                     unloadChunkPhysics(vPos);
                 }
             }
@@ -210,7 +300,7 @@ public class TerrainSystem implements Runnable {
     private void loadChunkPhysics(VxSectionPos pos) {
         if (!isInitialized.get()) return;
         managedChunks.computeIfAbsent(pos, p -> {
-            TerrainChunk newChunk = new TerrainChunk(p, level, physicsWorld, terrainGenerator);
+            TerrainChunk newChunk = new TerrainChunk(p, level, physicsWorld, terrainGenerator, this);
             newChunk.scheduleInitialBuild();
             return newChunk;
         });
@@ -221,6 +311,7 @@ public class TerrainSystem implements Runnable {
         if (chunk != null) {
             chunk.scheduleRemoval();
             activationSet.remove(pos);
+            pendingSnapshotRequests.remove(pos);
         }
     }
 
@@ -233,6 +324,7 @@ public class TerrainSystem implements Runnable {
 
     public boolean isTerrainBody(int bodyId) {
         if (bodyId < 0) return false;
+
         for (TerrainChunk chunk : managedChunks.values()) {
             if (chunk.getBodyId() == bodyId) {
                 return true;
@@ -243,5 +335,14 @@ public class TerrainSystem implements Runnable {
 
     public ServerLevel getLevel() {
         return level;
+    }
+
+    public void prioritizeChunk(VxSectionPos pos, VxTaskPriority priority) {
+        TerrainChunk chunk = managedChunks.get(pos);
+        if (chunk != null) {
+            if (chunk.isPlaceholder() || !chunk.isReady()) {
+                chunk.scheduleRebuild(priority);
+            }
+        }
     }
 }
