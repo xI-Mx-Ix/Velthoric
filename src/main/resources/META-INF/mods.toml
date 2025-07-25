@@ -8,7 +8,7 @@ version = "${mod_version}"
 displayName = "${mod_name}"
 authors = "${mod_authors}"
 description = '''${mod_description}'''
-logoFile = "../assets/vortex/xbullet.png"
+logoFile = "assets/vortex/vortex.png"
 
 [[dependencies."${mod_id}"]]
 modId = "forge"
