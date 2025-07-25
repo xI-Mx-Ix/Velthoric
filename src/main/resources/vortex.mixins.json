@@ -5,14 +5,15 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "xbullet.refmap.json",
   "mixins": [
-    "terrain.ChunkMapMixin",
+    "terrain.ChunkGetter_ChunkMapMixin",
+    "terrain.ChunkUnload_ChunkMapMixin",
     "terrain.LevelMixin",
     "terrain.ServerLevelMixin"
   ],
   "client": [
+    "physicsgun.PhysicsGunArmPose_PlayerRendererMixin",
     "physicsgun.PhysicsGunRotateObject_KeyboardHandlerMixin",
     "physicsgun.PhysicsGunRotateObject_MouseHandlerMixin",
-    "physicsgun.PhysicsGunArmPose_PlayerRendererMixin",
     "riding.LivingEntityRendererMixin"
   ],
   "injectors": {

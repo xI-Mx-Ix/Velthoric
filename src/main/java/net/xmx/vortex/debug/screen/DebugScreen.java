@@ -1,4 +1,4 @@
-package net.xmx.vortex.debug.debugscreen;
+package net.xmx.vortex.debug.screen;
 
 import com.github.stephengold.joltjni.Jolt;
 import net.minecraft.client.Minecraft;

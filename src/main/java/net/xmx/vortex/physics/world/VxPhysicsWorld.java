@@ -5,6 +5,7 @@ import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.xmx.vortex.debug.drawer.ServerShapeDrawerManager;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.natives.NativeJoltInitializer;
 import net.xmx.vortex.physics.constraint.manager.VxConstraintManager;
@@ -105,6 +106,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private static final int DEFAULT_SIMULATION_HZ = 60;
     private static final float MAX_ACCUMULATED_TIME = 0.2f;
 
+    private ServerShapeDrawerManager serverShapeDrawerManager;
+
     // --- Constructor & Lifecycle ---
 
     private VxPhysicsWorld(ServerLevel level) {
@@ -114,6 +117,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.objectManager = new VxObjectManager();
         this.constraintManager = new VxConstraintManager(this.objectManager);
         this.terrainSystem = new TerrainSystem(this, this.level);
+        this.serverShapeDrawerManager = new ServerShapeDrawerManager(this);
 
         this.maxBodies = 65536;
         this.maxBodyPairs = 65536;
@@ -406,5 +410,9 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public static Collection<VxPhysicsWorld> getAll() {
         return Collections.unmodifiableCollection(worlds.values());
+    }
+
+    public ServerShapeDrawerManager getDebugDrawerManager() {
+        return serverShapeDrawerManager;
     }
 }

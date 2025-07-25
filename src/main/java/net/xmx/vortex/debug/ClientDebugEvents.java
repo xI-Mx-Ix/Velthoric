@@ -5,7 +5,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.xmx.vortex.debug.debugscreen.DebugScreen;
+import net.xmx.vortex.debug.screen.DebugScreen;
 
 @OnlyIn(Dist.CLIENT)
 public class ClientDebugEvents {

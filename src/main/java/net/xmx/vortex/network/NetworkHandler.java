@@ -9,6 +9,7 @@ import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraftforge.network.NetworkEvent;
+import net.xmx.vortex.debug.drawer.packet.DebugShapesUpdatePacket;
 import net.xmx.vortex.item.magnetizer.packet.MagnetizerActionPacket;
 import net.xmx.vortex.item.physicsgun.packet.PhysicsGunActionPacket;
 import net.xmx.vortex.item.physicsgun.packet.PhysicsGunStatePacket;
@@ -64,6 +65,13 @@ public class NetworkHandler {
                 SyncAllPhysicsGunGrabsPacket::encode,
                 SyncAllPhysicsGunGrabsPacket::decode,
                 SyncAllPhysicsGunGrabsPacket::handle
+        );
+
+        registerPacket(
+                DebugShapesUpdatePacket.class,
+                DebugShapesUpdatePacket::encode,
+                DebugShapesUpdatePacket::new,
+                DebugShapesUpdatePacket::handle
         );
 
         registerPacket(
