@@ -20,7 +20,7 @@ It provides advanced physics features like rigid bodies, soft bodies, custom col
 
 Explore the full API documentation here:
 
-[https://xi-mx-ix.github.io/xbullet-documentation/](https://xi-mx-ix.github.io/xbullet-documentation/)
+[https://xi-mx-ix.github.io/vortex-documentation/](https://xi-mx-ix.github.io/vortex-documentation/)
 
 ---
 
