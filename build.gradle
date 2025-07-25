@@ -152,20 +152,20 @@ dependencies {
     implementation fg.deobf("curse.maven:oculus-581495:6020952")
     implementation fg.deobf("curse.maven:ferritecore-429235:4810975")
 
-    minecraftLibrary("com.github.stephengold:jolt-jni-Linux64:2.0.1")
-    minecraftLibrary("com.github.stephengold:jolt-jni-Windows64:2.0.1:DebugDp")
-    minecraftLibrary("com.github.stephengold:jolt-jni-Linux64:2.0.1:DebugDp")
-    minecraftLibrary("com.github.stephengold:jolt-jni-Linux_ARM64:2.0.1:DebugDp")
-    minecraftLibrary("com.github.stephengold:jolt-jni-MacOSX64:2.0.1:DebugDp")
-    minecraftLibrary("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.0.1:DebugDp")
+    minecraftLibrary("com.github.stephengold:jolt-jni-Linux64:2.1.0")
+    minecraftLibrary("com.github.stephengold:jolt-jni-Windows64:2.1.0:DebugDp")
+    minecraftLibrary("com.github.stephengold:jolt-jni-Linux64:2.1.0:DebugDp")
+    minecraftLibrary("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:DebugDp")
+    minecraftLibrary("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:DebugDp")
+    minecraftLibrary("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:DebugDp")
     minecraftLibrary("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
-    shadow("com.github.stephengold:jolt-jni-Windows64:2.0.1")
-    shadow("com.github.stephengold:jolt-jni-Windows64:2.0.1:ReleaseDp")
-    shadow("com.github.stephengold:jolt-jni-Linux64:2.0.1:ReleaseDp")
-    shadow("com.github.stephengold:jolt-jni-Linux_ARM64:2.0.1:ReleaseDp")
-    shadow("com.github.stephengold:jolt-jni-MacOSX64:2.0.1:ReleaseDp")
-    shadow("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.0.1:ReleaseDp")
+    shadow("com.github.stephengold:jolt-jni-Windows64:2.1.0")
+    shadow("com.github.stephengold:jolt-jni-Windows64:2.1.0:ReleaseDp")
+    shadow("com.github.stephengold:jolt-jni-Linux64:2.1.0:ReleaseDp")
+    shadow("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:ReleaseDp")
+    shadow("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:ReleaseDp")
+    shadow("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:ReleaseDp")
     shadow("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
 }
@@ -274,7 +274,7 @@ task generateJoltDoc {
     group = 'Documentation'
     description = 'Erstellt eine Dokumentation aller Methoden aus der jolt-jni.jar.'
 
-    def inputJar = file("C:/Users/milan/.gradle/caches/modules-2/files-2.1/com.github.stephengold/jolt-jni-Windows64/2.0.1/7da259022be424718fa90abde7ece845e8e5a2b0/jolt-jni-Windows64-2.0.1.jar")
+    def inputJar = file("C:/Users/milan/.gradle/caches/modules-2/files-2.1/com.github.stephengold/jolt-jni-Windows64/2.1.0/7da259022be424718fa90abde7ece845e8e5a2b0/jolt-jni-Windows64-2.1.0.jar")
 
     def outputFile = file("$buildDir/docs/jolt.txt")
 
