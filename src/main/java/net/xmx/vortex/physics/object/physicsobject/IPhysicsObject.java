@@ -7,6 +7,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.object.riding.RidingProxyEntity;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
@@ -66,24 +67,41 @@ public interface IPhysicsObject {
 
     @Nullable
     default Body getBody() {
-        if (!isPhysicsInitialized() || getBodyId() == 0 || getLevel().isClientSide()) {
+        if (!isPhysicsInitialized()) {
+            VxMainClass.LOGGER.warn("getBody returned null: physics not initialized");
             return null;
         }
+        if (getBodyId() == 0) {
+            VxMainClass.LOGGER.warn("getBody returned null: bodyId is 0");
+            return null;
+        }
+        if (getLevel().isClientSide()) {
+            VxMainClass.LOGGER.warn("getBody returned null: running on client side");
+            return null;
+        }
+
         VxPhysicsWorld world = VxPhysicsWorld.get(getLevel().dimension());
         if (world == null) {
+            VxMainClass.LOGGER.warn("getBody returned null: physics world is null for dimension " + getLevel().dimension());
             return null;
         }
+
         Optional<IPhysicsObject> found = world.getObjectManager().getObjectByBodyId(getBodyId());
         if (found.isPresent() && found.get() == this) {
             BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), getBodyId());
             try {
                 if (lock.succeededAndIsInBroadPhase()) {
                     return lock.getBody();
+                } else {
+                    VxMainClass.LOGGER.warn("getBody returned null: lock did not succeed or object not in broad phase");
                 }
             } finally {
                 lock.releaseLock();
             }
+        } else {
+            VxMainClass.LOGGER.warn("getBody returned null: object not found or does not match this");
         }
+
         return null;
     }
 }
