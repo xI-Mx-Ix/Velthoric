@@ -5,7 +5,7 @@ import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.client.model.HumanoidModel;
-import net.xmx.vortex.item.physicsgun.PhysicsGunItem; // <-- WICHTIG: Importiere deine PhysicsGunItem-Klasse
+import net.xmx.vortex.item.physicsgun.PhysicsGunItem;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
