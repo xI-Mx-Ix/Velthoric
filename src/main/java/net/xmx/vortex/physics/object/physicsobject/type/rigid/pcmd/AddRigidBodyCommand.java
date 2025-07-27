@@ -13,7 +13,7 @@ import net.xmx.vortex.physics.world.pcmd.ICommand;
 
 import java.util.UUID;
 
-public record AddRigidBodyCommand(UUID objectId, boolean shouldBeInitiallyActive) implements ICommand {
+public record AddRigidBodyCommand(UUID objectId) implements ICommand {
 
     @Override
     public void execute(VxPhysicsWorld world) {
@@ -23,7 +23,7 @@ public record AddRigidBodyCommand(UUID objectId, boolean shouldBeInitiallyActive
         }
 
         IPhysicsObject physicsObject = objectManager.getObject(objectId).orElse(null);
-        if (physicsObject == null || !(physicsObject instanceof RigidPhysicsObject rigidObject) || rigidObject.isRemoved() || rigidObject.getBodyId() != 0) {
+        if (!(physicsObject instanceof RigidPhysicsObject rigidObject) || rigidObject.isRemoved() || rigidObject.getBodyId() != 0) {
             VxMainClass.LOGGER.error("AddRigidBodyCommand: Could not find manageable object with ID {} or object is in invalid state for physics initialization.", objectId);
             return;
         }
@@ -55,7 +55,7 @@ public record AddRigidBodyCommand(UUID objectId, boolean shouldBeInitiallyActive
 
                         rigidObject.configureBodyCreationSettings(settings);
 
-                        int bodyId = bodyInterface.createAndAddBody(settings, shouldBeInitiallyActive ? EActivation.Activate : EActivation.DontActivate);
+                        int bodyId = bodyInterface.createAndAddBody(settings, EActivation.DontActivate);
 
                         if (bodyId != Jolt.cInvalidBodyId) {
                             rigidObject.setBodyId(bodyId);

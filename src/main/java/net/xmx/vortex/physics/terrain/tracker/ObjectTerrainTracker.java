@@ -1,7 +1,10 @@
 package net.xmx.vortex.physics.terrain.tracker;
 
+import com.github.stephengold.joltjni.AaBox;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.ConstAaBox;
 import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.vortex.physics.terrain.TerrainSystem;
 import net.xmx.vortex.physics.terrain.job.VxTaskPriority;
@@ -14,13 +17,12 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public class ObjectTerrainTracker {
-
     private final IPhysicsObject physicsObject;
     private final TerrainSystem terrainSystem;
     private final Set<VxSectionPos> currentPreloadedChunks = new HashSet<>();
 
-    private static final int PRELOAD_RADIUS = 5;
-    private static final int ACTIVATION_RADIUS = 2;
+    private static final int PRELOAD_RADIUS_CHUNKS = 5;
+    private static final int ACTIVATION_RADIUS_CHUNKS = 2;
     private static final float PREDICTION_SECONDS = 0.5f;
 
     public ObjectTerrainTracker(IPhysicsObject physicsObject, TerrainSystem terrainSystem) {
@@ -34,10 +36,10 @@ public class ObjectTerrainTracker {
             return new HashSet<>();
         }
 
-        RVec3 pos = physicsObject.getBody().getPosition();
+        ConstAaBox aabb = physicsObject.getBody().getWorldSpaceBounds();
         Vec3 vel = physicsObject.getBody().getLinearVelocity();
 
-        Map<VxSectionPos, VxTaskPriority> requiredChunks = calculateAndPrioritizeChunks(pos, vel);
+        Map<VxSectionPos, VxTaskPriority> requiredChunks = calculateAndPrioritizeChunks(aabb, vel);
         Set<VxSectionPos> newPreloadSet = requiredChunks.keySet();
 
         Set<VxSectionPos> toRelease = new HashSet<>(currentPreloadedChunks);
@@ -60,33 +62,39 @@ public class ObjectTerrainTracker {
                 .collect(Collectors.toSet());
     }
 
-    private Map<VxSectionPos, VxTaskPriority> calculateAndPrioritizeChunks(RVec3 position, Vec3 velocity) {
+    private Map<VxSectionPos, VxTaskPriority> calculateAndPrioritizeChunks(ConstAaBox currentAabb, Vec3 velocity) {
         Map<VxSectionPos, VxTaskPriority> needed = new HashMap<>();
 
-        double currentX = position.xx();
-        double currentY = position.yy();
-        double currentZ = position.zz();
+        addChunksForAabb(needed, currentAabb, PRELOAD_RADIUS_CHUNKS, VxTaskPriority.MEDIUM);
+        addChunksForAabb(needed, currentAabb, ACTIVATION_RADIUS_CHUNKS, VxTaskPriority.CRITICAL);
 
-        double predictedX = currentX + velocity.getX() * PREDICTION_SECONDS;
-        double predictedY = currentY + velocity.getY() * PREDICTION_SECONDS;
-        double predictedZ = currentZ + velocity.getZ() * PREDICTION_SECONDS;
+        Vec3 displacement = Op.star(velocity, PREDICTION_SECONDS);
 
-        addChunksWithPriority(needed, currentX, currentY, currentZ, PRELOAD_RADIUS, VxTaskPriority.MEDIUM);
-        addChunksWithPriority(needed, predictedX, predictedY, predictedZ, PRELOAD_RADIUS, VxTaskPriority.MEDIUM);
+        RVec3 predictedMin = Op.plus(new RVec3(currentAabb.getMin()), displacement);
+        RVec3 predictedMax = Op.plus(new RVec3(currentAabb.getMax()), displacement);
 
-        addChunksWithPriority(needed, currentX, currentY, currentZ, ACTIVATION_RADIUS, VxTaskPriority.CRITICAL);
-        addChunksWithPriority(needed, predictedX, predictedY, predictedZ, ACTIVATION_RADIUS, VxTaskPriority.CRITICAL);
+        try (AaBox predictedAabb = new AaBox(predictedMin, predictedMax)) {
+            addChunksForAabb(needed, predictedAabb, PRELOAD_RADIUS_CHUNKS, VxTaskPriority.MEDIUM);
+            addChunksForAabb(needed, predictedAabb, ACTIVATION_RADIUS_CHUNKS, VxTaskPriority.CRITICAL);
+        }
 
         return needed;
     }
 
-    private void addChunksWithPriority(Map<VxSectionPos, VxTaskPriority> needed, double centerX, double centerY, double centerZ, int radius, VxTaskPriority priority) {
-        VxSectionPos centerVPos = VxSectionPos.fromWorldSpace(centerX, centerY, centerZ);
-        for (int y = -radius; y <= radius; ++y) {
-            for (int z = -radius; z <= radius; ++z) {
-                for (int x = -radius; x <= radius; ++x) {
-                    VxSectionPos pos = new VxSectionPos(centerVPos.x() + x, centerVPos.y() + y, centerVPos.z() + z);
+    private void addChunksForAabb(Map<VxSectionPos, VxTaskPriority> needed, ConstAaBox aabb, int radiusInChunks, VxTaskPriority priority) {
+
+        RVec3 min = new RVec3(aabb.getMin());
+        RVec3 max = new RVec3(aabb.getMax());
+
+        VxSectionPos minSection = VxSectionPos.fromWorldSpace(min.xx(), min.yy(), min.zz());
+        VxSectionPos maxSection = VxSectionPos.fromWorldSpace(max.xx(), max.yy(), max.zz());
+
+        for (int y = minSection.y() - radiusInChunks; y <= maxSection.y() + radiusInChunks; ++y) {
+            for (int z = minSection.z() - radiusInChunks; z <= maxSection.z() + radiusInChunks; ++z) {
+                for (int x = minSection.x() - radiusInChunks; x <= maxSection.x() + radiusInChunks; ++x) {
+                    VxSectionPos pos = new VxSectionPos(x, y, z);
                     if (pos.isWithinWorldHeight(terrainSystem.getLevel())) {
+
                         needed.merge(pos, priority, (oldP, newP) -> newP.ordinal() > oldP.ordinal() ? newP : oldP);
                     }
                 }

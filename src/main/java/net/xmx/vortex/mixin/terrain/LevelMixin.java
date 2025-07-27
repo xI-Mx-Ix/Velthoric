@@ -21,8 +21,7 @@ public abstract class LevelMixin {
 
     @Inject(
             method = "setBlock(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;I)Z",
-            at = @At(value = "RETURN", ordinal = 0),
-            cancellable = false
+            at = @At(value = "RETURN", ordinal = 0)
     )
     private void onSetBlock(BlockPos pos, BlockState newState, int flags, CallbackInfoReturnable<Boolean> cir) {
         if (!isClientSide() && cir.getReturnValue()) {

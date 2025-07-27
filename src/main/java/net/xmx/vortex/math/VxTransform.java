@@ -79,7 +79,7 @@ public class VxTransform {
 
     @Override
     public String toString() {
-        return "PhysicsTransform{" +
+        return "VxTransform{" +
                 "translation=" + translation +
                 ", rotation=" + rotation +
                 '}';

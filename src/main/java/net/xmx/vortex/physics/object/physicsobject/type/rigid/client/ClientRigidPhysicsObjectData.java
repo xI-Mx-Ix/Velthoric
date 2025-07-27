@@ -17,7 +17,6 @@ public class ClientRigidPhysicsObjectData {
     private final InterpolationController interpolationController = new InterpolationController();
     private final long initialServerTimestamp;
     private byte[] customData;
-    private boolean firstUpdate = true;
     private final VxTransform initialTransform = new VxTransform();
 
     private final Vec3 initialLinearVelocity = new Vec3();

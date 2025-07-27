@@ -52,6 +52,10 @@ public class ServerShapeDrawerManager {
         try (TransformedShape transformedShape = body.getTransformedShape()) {
             if (transformedShape == null) return;
 
+            if (!body.isInBroadPhase()) {
+                return;
+            }
+
             int numTriangles = transformedShape.countDebugTriangles();
             if (numTriangles == 0) {
                 return;

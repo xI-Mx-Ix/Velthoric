@@ -28,6 +28,7 @@ import net.xmx.vortex.physics.object.physicsobject.registry.GlobalPhysicsObjectR
 import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectState;
 import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectStatePool;
 import net.xmx.vortex.physics.terrain.TerrainSystem;
+import net.xmx.vortex.physics.terrain.model.VxSectionPos;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
 import javax.annotation.Nullable;
@@ -39,12 +40,13 @@ import java.util.concurrent.locks.StampedLock;
 public class VxObjectManager {
 
     private final Map<UUID, IPhysicsObject> managedObjects = new ConcurrentHashMap<>(4096);
-    private final Map<SectionPos, List<UUID>> pendingActivationBySection = new ConcurrentHashMap<>();
     private final Int2ObjectMap<UUID> bodyIdToUuidMap = new Int2ObjectOpenHashMap<>();
     private final Object bodyIdToUuidMapLock = new Object();
     private final Map<UUID, Boolean> lastActiveState = new ConcurrentHashMap<>(4096);
     @Nullable private VxPhysicsWorld physicsWorld;
     @Nullable ServerLevel managedLevel;
+
+    private final Queue<IPhysicsObject> pendingActivationQueue = new ConcurrentLinkedQueue<>();
 
     private ObjectLifecycleManager lifecycleManager;
 
@@ -68,6 +70,8 @@ public class VxObjectManager {
     public void initialize(VxPhysicsWorld physicsWorld) {
         this.physicsWorld = physicsWorld;
         ServerLevel level = physicsWorld.getLevel();
+
+        this.pendingActivationQueue.clear();
 
         this.isShutdown.set(false);
         this.lifecycleManager = new ObjectLifecycleManager(this);
@@ -118,6 +122,8 @@ public class VxObjectManager {
 
         managedObjects.put(obj.getPhysicsId(), obj);
         obj.initializePhysics(physicsWorld);
+
+        this.pendingActivationQueue.add(obj);
 
         if (this.physicsWorld != null) {
             VxConstraintManager cm = this.physicsWorld.getConstraintManager();
@@ -242,6 +248,7 @@ public class VxObjectManager {
             }
         }
 
+        checkPendingActivations();
         cleanupRemovedObjects();
     }
 
@@ -394,28 +401,56 @@ public class VxObjectManager {
         return Optional.ofNullable(managedObjects.get(id));
     }
 
-    public void activateObjectWhenReady(IPhysicsObject obj) {
-        if (obj == null || obj.getBodyId() == 0 || physicsWorld == null) return;
-        RVec3 pos = obj.getCurrentTransform().getTranslation();
-        SectionPos sectionPos = SectionPos.of((int) pos.xx(), (int) pos.yy(), (int) pos.zz());
-        TerrainSystem terrainSystem = physicsWorld.getTerrainSystem();
-        if (terrainSystem != null && terrainSystem.isSectionReady(sectionPos)) {
-            physicsWorld.queueCommand(new ActivateBodyCommand(obj.getBodyId()));
-        } else {
-            pendingActivationBySection.computeIfAbsent(sectionPos, k -> new ObjectArrayList<>()).add(obj.getPhysicsId());
+    private void checkPendingActivations() {
+        if (pendingActivationQueue.isEmpty() || physicsWorld == null) {
+            return;
         }
-    }
 
-    public void onTerrainSectionReady(SectionPos sectionPos) {
-        List<UUID> objectsToActivate = pendingActivationBySection.remove(sectionPos);
-        if (objectsToActivate != null && physicsWorld != null) {
-            for (UUID objectId : objectsToActivate) {
-                getObject(objectId).ifPresent(obj -> {
-                    if (obj.getBodyId() != 0) {
-                        physicsWorld.queueCommand(new ActivateBodyCommand(obj.getBodyId()));
-                    }
-                });
+        TerrainSystem terrainSystem = physicsWorld.getTerrainSystem();
+        if (terrainSystem == null) {
+
+            IPhysicsObject obj;
+            while ((obj = pendingActivationQueue.poll()) != null) {
+                if (obj.getBodyId() != 0 && !obj.isRemoved()) {
+                    physicsWorld.queueCommand(new ActivateBodyCommand(obj.getBodyId()));
+                }
             }
+            return;
+        }
+
+        int count = pendingActivationQueue.size();
+        for (int i = 0; i < count; i++) {
+            IPhysicsObject obj = pendingActivationQueue.poll();
+            if (obj == null || obj.isRemoved()) {
+                continue;
+            }
+
+            if (obj.getBodyId() == 0) {
+
+                pendingActivationQueue.add(obj);
+                continue;
+            }
+
+            RVec3 pos = obj.getCurrentTransform().getTranslation();
+            VxSectionPos sectionPos = VxSectionPos.fromRVec3(pos);
+
+            if (terrainSystem.isKnownSection(sectionPos)) {
+
+                if (terrainSystem.isReady(sectionPos)) {
+
+                    VxMainClass.LOGGER.debug("Activating object {} in known and ready section {}.", obj.getPhysicsId(), sectionPos);
+                    physicsWorld.queueCommand(new ActivateBodyCommand(obj.getBodyId()));
+                } else {
+
+                    pendingActivationQueue.add(obj);
+                }
+
+            } else {
+
+                VxMainClass.LOGGER.debug("Activating object {} in unknown (air) section {}.", obj.getPhysicsId(), sectionPos);
+                physicsWorld.queueCommand(new ActivateBodyCommand(obj.getBodyId()));
+            }
+
         }
     }
 
@@ -451,6 +486,8 @@ public class VxObjectManager {
             return;
         }
         isInitializedInternal.set(false);
+
+        pendingActivationQueue.clear();
 
         if (dataSystem != null) {
             dataSystem.saveAll(managedObjects.values());

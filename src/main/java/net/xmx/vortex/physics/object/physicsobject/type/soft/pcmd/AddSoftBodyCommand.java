@@ -11,7 +11,7 @@ import net.xmx.vortex.physics.world.pcmd.ICommand;
 
 import java.util.UUID;
 
-public record AddSoftBodyCommand(UUID objectId, boolean shouldBeInitiallyActive) implements ICommand {
+public record AddSoftBodyCommand(UUID objectId) implements ICommand {
 
     @Override
     public void execute(VxPhysicsWorld world) {
@@ -22,7 +22,7 @@ public record AddSoftBodyCommand(UUID objectId, boolean shouldBeInitiallyActive)
         }
 
         IPhysicsObject physicsObject = objectManager.getObject(objectId).orElse(null);
-        if (physicsObject == null || !(physicsObject instanceof SoftPhysicsObject softObject) || softObject.isRemoved() || softObject.getBodyId() != 0) {
+        if (!(physicsObject instanceof SoftPhysicsObject softObject) || softObject.isRemoved() || softObject.getBodyId() != 0) {
             VxMainClass.LOGGER.error("AddSoftBodyCommand: Could not find manageable object with ID {} or object is in invalid state for physics initialization.", objectId);
             return;
         }
@@ -42,7 +42,7 @@ public record AddSoftBodyCommand(UUID objectId, boolean shouldBeInitiallyActive)
                 settings.setObjectLayer(VxPhysicsWorld.Layers.DYNAMIC);
                 softObject.configureSoftBodyCreationSettings(settings);
 
-                int bodyId = bodyInterface.createAndAddSoftBody(settings, shouldBeInitiallyActive ? EActivation.Activate : EActivation.DontActivate);
+                int bodyId = bodyInterface.createAndAddSoftBody(settings, EActivation.DontActivate);
 
                 if (bodyId != Jolt.cInvalidBodyId) {
                     softObject.setBodyId(bodyId);

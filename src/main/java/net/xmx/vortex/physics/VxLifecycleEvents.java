@@ -12,7 +12,6 @@ public final class VxLifecycleEvents {
     @SubscribeEvent
     public static void onServerStopping(ServerStoppingEvent event) {
         VxPhysicsWorld.shutdownAll();
-        VxTerrainJobSystem.getInstance().shutdown();
     }
 
     @SubscribeEvent
@@ -24,7 +23,6 @@ public final class VxLifecycleEvents {
 
     @SubscribeEvent
     public static void onLevelUnload(LevelEvent.Unload event) {
-
         if (event.getLevel() instanceof ServerLevel level && !level.isClientSide()) {
             VxPhysicsWorld.shutdown(level.dimension());
         }

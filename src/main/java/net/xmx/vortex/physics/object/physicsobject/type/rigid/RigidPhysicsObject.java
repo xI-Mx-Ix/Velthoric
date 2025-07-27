@@ -140,7 +140,7 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
         if (physicsInitialized || isRemoved || level.isClientSide() || physicsWorld == null || !physicsWorld.isRunning()) {
             return;
         }
-        physicsWorld.queueCommand(new AddRigidBodyCommand(this.physicsId, true));
+        physicsWorld.queueCommand(new AddRigidBodyCommand(this.physicsId));
     }
 
     @Override

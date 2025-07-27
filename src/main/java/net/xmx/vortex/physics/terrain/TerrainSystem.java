@@ -42,6 +42,7 @@ public class TerrainSystem implements Runnable {
     private final ServerLevel level;
     private final TerrainGenerator terrainGenerator;
     private final TerrainShapeCache shapeCache;
+    private final VxTerrainJobSystem jobSystem;
 
     private final ConcurrentHashMap<VxSectionPos, AtomicInteger> chunkStates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<VxSectionPos, Integer> chunkBodyIds = new ConcurrentHashMap<>();
@@ -67,6 +68,7 @@ public class TerrainSystem implements Runnable {
         this.level = level;
         this.shapeCache = new TerrainShapeCache(1024);
         this.terrainGenerator = new TerrainGenerator(this.shapeCache);
+        this.jobSystem = new VxTerrainJobSystem();
     }
 
     public void initialize() {
@@ -79,6 +81,9 @@ public class TerrainSystem implements Runnable {
 
     public void shutdown() {
         if (isInitialized.compareAndSet(true, false)) {
+
+            this.jobSystem.shutdown();
+
             if (workerThread != null) {
                 workerThread.interrupt();
                 try {
@@ -118,7 +123,7 @@ public class TerrainSystem implements Runnable {
     }
 
     public void onBlockUpdate(BlockPos worldPos, BlockState oldState, BlockState newState) {
-        if (!isInitialized.get() || VxTerrainJobSystem.getInstance().isShutdown()) return;
+        if (!isInitialized.get() || this.jobSystem.isShutdown()) return;
         chunksToRebuild.add(VxSectionPos.fromBlockPos(worldPos));
         physicsWorld.execute(() -> {
             BodyInterface bi = physicsWorld.getBodyInterface();
@@ -177,7 +182,7 @@ public class TerrainSystem implements Runnable {
 
         final boolean wasActive = (previousState == STATE_READY_ACTIVE);
 
-        CompletableFuture.supplyAsync(() -> isInitialBuild ? terrainGenerator.generatePlaceholderShape(snapshot) : terrainGenerator.generateShape(level, snapshot), VxTerrainJobSystem.getInstance().getExecutor())
+        CompletableFuture.supplyAsync(() -> isInitialBuild ? terrainGenerator.generatePlaceholderShape(snapshot) : terrainGenerator.generateShape(level, snapshot), this.jobSystem.getExecutor())
                 .thenAcceptAsync(generatedShape -> {
                     if (snapshotVersion < getRebuildVersion(pos).get() || getState(pos).get() == STATE_REMOVING) {
                         if (generatedShape != null) generatedShape.close();
@@ -234,14 +239,13 @@ public class TerrainSystem implements Runnable {
     }
 
     private void activateChunk(VxSectionPos pos) {
-        AtomicInteger state = getState(pos);
         if(isReady(pos) && !chunkBodyIds.containsKey(pos)) {
             VxMainClass.LOGGER.warn("Detected stuck terrain chunk {} in ready state with no body. Forcing high-prio rebuild.", pos);
             scheduleRebuild(pos, VxTaskPriority.HIGH);
             return;
         }
 
-        if (chunkBodyIds.containsKey(pos) && state.compareAndSet(STATE_READY_INACTIVE, STATE_READY_ACTIVE)) {
+        if (chunkBodyIds.containsKey(pos) && getState(pos).compareAndSet(STATE_READY_INACTIVE, STATE_READY_ACTIVE)) {
             physicsWorld.execute(() -> {
                 BodyInterface bodyInterface = physicsWorld.getBodyInterface();
                 Integer bodyId = chunkBodyIds.get(pos);
@@ -288,8 +292,8 @@ public class TerrainSystem implements Runnable {
     }
 
     public void loadChunkFromVanilla(@NotNull LevelChunk chunk) {
-        if (!isInitialized.get() || VxTerrainJobSystem.getInstance().isShutdown()) return;
-        VxTerrainJobSystem.getInstance().submit(() -> {
+        if (!isInitialized.get() || this.jobSystem.isShutdown()) return;
+        this.jobSystem.submit(() -> {
             ChunkPos chunkPos = chunk.getPos();
             for (int y = level.getMinSection(); y < level.getMaxSection(); ++y) {
                 VxSectionPos vPos = new VxSectionPos(chunkPos.x, y, chunkPos.z);
@@ -304,8 +308,8 @@ public class TerrainSystem implements Runnable {
     }
 
     public void onChunkUnloaded(@NotNull ChunkPos chunkPos) {
-        if (!isInitialized.get() || VxTerrainJobSystem.getInstance().isShutdown()) return;
-        VxTerrainJobSystem.getInstance().submit(() -> {
+        if (!isInitialized.get() || this.jobSystem.isShutdown()) return;
+        this.jobSystem.submit(() -> {
             for (int y = level.getMinSection(); y < level.getMaxSection(); y++) {
                 unloadChunkPhysics(new VxSectionPos(chunkPos.x, y, chunkPos.z));
             }
@@ -388,7 +392,7 @@ public class TerrainSystem implements Runnable {
         }
 
         List<CompletableFuture<Set<VxSectionPos>>> futures = objectTrackers.values().stream()
-                .map(tracker -> CompletableFuture.supplyAsync(tracker::update, VxTerrainJobSystem.getInstance().getExecutor()))
+                .map(tracker -> CompletableFuture.supplyAsync(tracker::update, this.jobSystem.getExecutor()))
                 .toList();
 
         Set<VxSectionPos> allRequiredActiveChunks = futures.stream()
@@ -442,7 +446,7 @@ public class TerrainSystem implements Runnable {
                 }
             }
             if (snapshots.isEmpty()) return;
-            VxTerrainJobSystem.getInstance().submit(() -> {
+            this.jobSystem.submit(() -> {
                 for (Map.Entry<VxSectionPos, ChunkSnapshot> entry : snapshots.entrySet()) {
                     SnapshotRequest request = currentBatch.get(entry.getKey());
                     if (request != null) {
@@ -480,6 +484,10 @@ public class TerrainSystem implements Runnable {
         return isReady(new VxSectionPos(sectionPos.x(), sectionPos.y(), sectionPos.z()));
     }
 
+    public boolean hasBody(VxSectionPos pos) {
+        return chunkBodyIds.containsKey(pos);
+    }
+
     public boolean isTerrainBody(int bodyId) {
         if (bodyId < 0) return false;
         return chunkBodyIds.containsValue(bodyId);
@@ -487,5 +495,9 @@ public class TerrainSystem implements Runnable {
 
     public ServerLevel getLevel() {
         return level;
+    }
+
+    public boolean isKnownSection(VxSectionPos pos) {
+        return chunkStates.containsKey(pos);
     }
 }

@@ -6,10 +6,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public final class VxTerrainJobSystem {
 
-    private static final VxTerrainJobSystem INSTANCE = new VxTerrainJobSystem();
     private final ExecutorService executorService;
 
-    private VxTerrainJobSystem() {
+    public VxTerrainJobSystem() {
         int threadCount = Math.max(3, Math.min(8, Runtime.getRuntime().availableProcessors() - 1));
         this.executorService = new ThreadPoolExecutor(
                 threadCount, threadCount,
@@ -40,10 +39,6 @@ public final class VxTerrainJobSystem {
 
     public Executor getExecutor() {
         return this.executorService;
-    }
-
-    public static VxTerrainJobSystem getInstance() {
-        return INSTANCE;
     }
 
     private static class JobThreadFactory implements ThreadFactory {

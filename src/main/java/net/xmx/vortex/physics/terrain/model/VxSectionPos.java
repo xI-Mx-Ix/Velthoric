@@ -1,6 +1,8 @@
 package net.xmx.vortex.physics.terrain.model;
 
+import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
@@ -19,6 +21,14 @@ public record VxSectionPos(int x, int y, int z) {
                 pos.getX() >> CHUNK_SIZE_SHIFT,
                 pos.getY() >> CHUNK_SIZE_SHIFT,
                 pos.getZ() >> CHUNK_SIZE_SHIFT
+        );
+    }
+
+    public static VxSectionPos fromRVec3(RVec3 pos) {
+        return new VxSectionPos(
+                SectionPos.blockToSectionCoord(pos.x()),
+                SectionPos.blockToSectionCoord(pos.y()),
+                SectionPos.blockToSectionCoord(pos.z())
         );
     }
 
