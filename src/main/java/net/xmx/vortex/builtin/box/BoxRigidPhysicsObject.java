@@ -34,13 +34,6 @@ public class BoxRigidPhysicsObject extends RigidPhysicsObject {
     }
 
     @Override
-    protected void configureAdditionalRigidBodyCreationSettings(BodyCreationSettings settings) {
-        settings.setMotionQuality(EMotionQuality.LinearCast);
-        System.out.println(settings.getMotionQuality());
-    }
-
-
-    @Override
     protected void addAdditionalData(FriendlyByteBuf buf) {
         super.addAdditionalData(buf);
         buf.writeFloat(this.halfExtents.getX());
