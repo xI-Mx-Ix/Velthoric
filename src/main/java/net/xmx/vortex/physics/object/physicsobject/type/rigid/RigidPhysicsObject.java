@@ -101,6 +101,7 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
 
     protected abstract ShapeSettings buildShapeSettings();
 
+    @SuppressWarnings("resource")
     public ShapeSettings getOrBuildShapeSettings() {
         if (this.shapeSettingsRef == null) {
             ShapeSettings settingsTarget = buildShapeSettings();
