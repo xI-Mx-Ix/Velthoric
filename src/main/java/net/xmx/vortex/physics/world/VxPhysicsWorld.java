@@ -106,7 +106,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private static final int DEFAULT_SIMULATION_HZ = 60;
     private static final float MAX_ACCUMULATED_TIME = 0.2f;
 
-    private ServerShapeDrawerManager serverShapeDrawerManager;
+    private final ServerShapeDrawerManager serverShapeDrawerManager;
 
     // --- Constructor & Lifecycle ---
 
