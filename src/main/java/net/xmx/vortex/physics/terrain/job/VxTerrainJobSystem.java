@@ -59,7 +59,7 @@ public final class VxTerrainJobSystem {
         }
     }
 
-    public boolean isShuttingDown() {
-        return executorService.isShutdown() && !executorService.isTerminated();
+    public boolean isShutdown() {
+        return executorService.isShutdown();
     }
 }
