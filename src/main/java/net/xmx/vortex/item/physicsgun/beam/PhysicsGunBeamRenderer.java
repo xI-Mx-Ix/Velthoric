@@ -126,9 +126,9 @@ public class PhysicsGunBeamRenderer {
     }
 
     private static void drawThickCurvedBeam(BufferBuilder bufferBuilder, Matrix4f matrix, Vec3 camPos, Vec3 start, Vec3 end, Vec3 playerLookVec) {
-        float r = 0.2f;
-        float g = 0.8f;
-        float b = 1.0f;
+        float r = 0.9725f;
+        float g = 0.2863f;
+        float b = 0.0117f;
         float baseAlpha = 0.83f;
 
         double distance = start.distanceTo(end);
