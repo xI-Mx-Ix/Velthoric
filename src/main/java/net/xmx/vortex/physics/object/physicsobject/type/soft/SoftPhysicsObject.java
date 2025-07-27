@@ -82,6 +82,7 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
 
     protected abstract SoftBodySharedSettings buildSharedSettings();
 
+    @SuppressWarnings("resource")
     public SoftBodySharedSettings getOrBuildSharedSettings() {
         if (this.sharedSettingsRef == null) {
             SoftBodySharedSettings settingsTarget = buildSharedSettings();
@@ -95,7 +96,7 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
                         for (int i = 0; i < vertices.length; ++i) {
                             Vertex v = vertices[i];
                             if (v != null) {
-                                RVec3 worldVertexPos = new RVec3((double) lastSyncedVertexData[i * 3], (double) lastSyncedVertexData[i * 3 + 1], (double) lastSyncedVertexData[i * 3 + 2]);
+                                RVec3 worldVertexPos = new RVec3(lastSyncedVertexData[i * 3], lastSyncedVertexData[i * 3 + 1], lastSyncedVertexData[i * 3 + 2]);
                                 RVec3 relativePos = Op.minus(worldVertexPos, bodyPosition);
                                 Vec3 localPos = Op.star(invRotation, relativePos.toVec3());
                                 v.setPosition(localPos);
