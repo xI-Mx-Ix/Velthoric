@@ -31,6 +31,14 @@ dependencies {
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
+
+    include("com.github.stephengold:jolt-jni-Linux64:2.1.0")
+    include("com.github.stephengold:jolt-jni-Windows64:2.1.0:DebugDp")
+    include("com.github.stephengold:jolt-jni-Linux64:2.1.0:DebugDp")
+    include("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:DebugDp")
+    include("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:DebugDp")
+    include("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:DebugDp")
+    include("io.github.electrostat-lab:snaploader:1.1.1-stable")
 }
 
 processResources {
