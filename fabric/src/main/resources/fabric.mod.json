@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${mod_version}",
+  "name": "${mod_name}",
+  "description": "${mod_description}",
+  "authors": [
+    "${mod_authors}"
+  ],
+  "license": "${mod_license}",
+  "icon": "assets/vortex/vortex.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "net.xmx.vortex.fabric.VortexFabric"
+    ]
+  },
+  "mixins": [
+    "vortex.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "minecraft": "${minecraft_version_range}",
+    "java": ">=17",
+    "architectury": ">=${architectury_api_version}",
+    "fabric-api": ">=${fabric_api_version}"
+  },
+  "suggests": {
+    "another-mod": "*"
+  }
+}

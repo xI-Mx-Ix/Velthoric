@@ -1,22 +1,30 @@
-# Temporary Java files
+# Build output folders for all subprojects
+build
+.gradle
+common/build
+common/.gradle
+fabric/build
+fabric/.gradle
+forge/build
+forge/.gradle
+
+# Run folders
+forge/run
+fabric/run
+
+# Temporary Java backup files created by some editors (tilde suffix)
 *.java~
 
-# Ignore ProGuard configuration
+# Ignore ProGuard configuration files (used for code obfuscation)
 proguard.pro
 
-# Ignore debug/test files
+# Debug or test related text files, not needed in version control
 random_names.txt
 
-# Ignore entire folders
-build/
-.gradle/
-run/
-run-server/
-
-# IntelliJ specific (optional, if you want to keep GitHub clean)
+# IntelliJ IDEA project files and folders to keep repo clean
 .idea/
 *.iml
 out/
 
-# Resources with "All Rights Reserved" license
-src/main/resources/assets/vortex/obj/
+# Ignore resource files that have "All Rights Reserved" license
+common/src/main/resources/assets/vortex/obj/

@@ -1,347 +1,109 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
-buildscript {
-    repositories {
-        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
-    }
-}
-
-
 plugins {
-    id 'eclipse'
-    id 'idea'
-    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
-    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    id 'dev.architectury.loom' version '1.10-SNAPSHOT' apply false
+    id 'architectury-plugin' version '3.4-SNAPSHOT'
+    id 'com.gradleup.shadow' version '8.3.6' apply false
 }
 
-apply plugin: 'org.spongepowered.mixin'
-
-version = mod_version
-group = mod_group_id
-
-base {
-    archivesName = mod_id
+architectury {
+    minecraft = project.minecraft_version
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
-
-mixin {
-    add sourceSets.main, "${mod_id}.refmap.json"
-    config "${mod_id}.mixins.json"
+allprojects {
+    group = rootProject.maven_group
+    version = rootProject.mod_version
 }
 
-println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
+subprojects {
+    apply plugin: 'dev.architectury.loom'
+    apply plugin: 'architectury-plugin'
+    apply plugin: 'maven-publish'
 
-minecraft {
+    base {
+        archivesName = "$rootProject.archives_name-$project.name"
+    }
 
+    repositories {
 
-    mappings channel: 'parchment', version: '2023.08.06-1.20.1'
-    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+        mavenCentral()
+        maven { url = 'https://maven.maxhenkel.de/repository/public'}
+        maven { url = 'https://api.modrinth.com/maven'}
+        maven { url = 'https://cursemaven.com'}
+        maven { url = 'https://maven.kosmx.dev' }
+        maven { url = 'https://maven.parchmentmc.org' }
+        maven { url = 'https://repo.essential.gg/repository/maven-public'}
+        maven { url = 'https://jitpack.io' }
+        maven { url = 'https://s01.oss.sonatype.org/content/repositories/snapshots'}
+        maven { url = 'https://downhill.ddns.net/maven'}
+        maven { url = 'https://jitpack.io'}
 
-    copyIdeResources = true
+        maven { url = 'https://maven.su5ed.dev/releases'}
 
-    runs {
+        maven { url = 'https://maven.deftu.dev/snapshots'}
+        maven { url = 'https://maven.deftu.dev/releases'}
 
-        configureEach {
-            workingDirectory project.file('run')
+        maven { url = 'https://maven.saps.dev/minecraft'}
 
+        maven { url = 'https://maven.izzel.io/releases'}
 
-            property 'forge.logging.markers', 'REGISTRIES'
-
-            property 'forge.logging.console.level', 'debug'
-
-            mods {
-                "${mod_id}" {
-                    source sourceSets.main
-                }
+        maven {
+            name = 'GeckoLib'
+            url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+            content {
+                includeGroupByRegex("software\\.bernie.*")
+                includeGroup("com.eliotlash.mclib")
             }
         }
 
-        minecraft {
-            runs {
-                client {
-                    workingDirectory project.file('run')
-                    args '--username', 'Client1'
-                    property 'forge.logging.markers', 'REGISTRIES'
-                    property 'forge.logging.console.level', 'debug'
-                    mods {
-                        xbullet {
-                            source sourceSets.main
-                        }
-                    }
-                }
+        maven {
+            name = 'ParchmentMC'
+            url = 'https://maven.parchmentmc.org'
+        }
+    }
+
+    loom {
+        silentMojangMappingsLicense()
+    }
+
+    dependencies {
+        minecraft "net.minecraft:minecraft:$rootProject.minecraft_version"
+
+        mappings loom.layered {
+            officialMojangMappings()
+
+            parchment("org.parchmentmc.data:parchment-1.20.2:2023.10.08@zip")
+        }
+
+        implementation("com.github.stephengold:jolt-jni-Linux64:2.1.0")
+        implementation("com.github.stephengold:jolt-jni-Windows64:2.1.0:DebugDp")
+        implementation("com.github.stephengold:jolt-jni-Linux64:2.1.0:DebugDp")
+        implementation("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:DebugDp")
+        implementation("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:DebugDp")
+        implementation("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:DebugDp")
+        implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
+
+    }
+
+    java {
+        withSourcesJar()
+
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        it.options.release = 17
+    }
+
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                artifactId = base.archivesName.get()
+                from components.java
             }
         }
 
-        server {
-            workingDirectory project.file('run-server')
-            property 'forge.enabledGameTestNamespaces', mod_id
-            args '--nogui'
-        }
+        repositories {
 
-        gameTestServer {
-            property 'forge.enabledGameTestNamespaces', mod_id
-        }
-
-        data {
-
-            workingDirectory project.file('run-data')
-
-            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
         }
     }
-}
-
-sourceSets {
-    main {
-        resources {
-            srcDirs 'src/generated/resources'
-        }
-    }
-}
-
-repositories {
-    mavenCentral()
-    maven { url = 'https://maven.maxhenkel.de/repository/public'}
-    maven { url = 'https://api.modrinth.com/maven'}
-    maven { url = 'https://cursemaven.com'}
-    maven { url = 'https://maven.kosmx.dev' }
-    maven { url = 'https://maven.parchmentmc.org' }
-    maven { url = 'https://repo.essential.gg/repository/maven-public'}
-    maven { url = 'https://jitpack.io' }
-    maven { url = 'https://s01.oss.sonatype.org/content/repositories/snapshots'}
-    maven { url = 'https://downhill.ddns.net/maven'}
-    maven { url = 'https://jitpack.io'}
-
-    maven { url = 'https://maven.su5ed.dev/releases'}
-
-    maven { url = 'https://maven.deftu.dev/snapshots'}
-    maven { url = 'https://maven.deftu.dev/releases'}
-
-    maven { url = 'https://maven.saps.dev/minecraft'}
-
-    maven { url = 'https://maven.izzel.io/releases'}
-
-    maven {
-        name = 'GeckoLib'
-        url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
-        content {
-            includeGroupByRegex("software\\.bernie.*")
-            includeGroup("com.eliotlash.mclib")
-        }
-    }
-}
-
-configurations {
-    shadow
-    implementation.extendsFrom shadow
-}
-
-dependencies {
-    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
-
-    annotationProcessor 'org.spongepowered:mixin:0.8.6:processor'
-    implementation fg.deobf("curse.maven:longer-chat-history-913234:4766550")
-
-    implementation fg.deobf("curse.maven:embeddium-908741:5681725")
-    implementation fg.deobf("curse.maven:oculus-581495:6020952")
-    implementation fg.deobf("curse.maven:ferritecore-429235:4810975")
-
-    minecraftLibrary("com.github.stephengold:jolt-jni-Linux64:2.1.0")
-    minecraftLibrary("com.github.stephengold:jolt-jni-Windows64:2.1.0:DebugDp")
-    minecraftLibrary("com.github.stephengold:jolt-jni-Linux64:2.1.0:DebugDp")
-    minecraftLibrary("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:DebugDp")
-    minecraftLibrary("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:DebugDp")
-    minecraftLibrary("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:DebugDp")
-    minecraftLibrary("io.github.electrostat-lab:snaploader:1.1.1-stable")
-
-    shadow("com.github.stephengold:jolt-jni-Windows64:2.1.0")
-    shadow("com.github.stephengold:jolt-jni-Windows64:2.1.0:ReleaseDp")
-    shadow("com.github.stephengold:jolt-jni-Linux64:2.1.0:ReleaseDp")
-    shadow("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:ReleaseDp")
-    shadow("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:ReleaseDp")
-    shadow("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:ReleaseDp")
-    shadow("io.github.electrostat-lab:snaploader:1.1.1-stable")
-
-}
-
-tasks.named('processResources', ProcessResources).configure {
-    var replaceProperties = [
-
-            minecraft_version: minecraft_version,
-            minecraft_version_range: minecraft_version_range,
-            forge_version: forge_version,
-            forge_version_range: forge_version_range,
-            loader_version_range: loader_version_range,
-            mod_id: mod_id,
-            mod_name: mod_name,
-            mod_license: mod_license,
-            mod_version: mod_version,
-            mod_authors: mod_authors,
-            mod_description: mod_description
-    ]
-
-    inputs.properties replaceProperties
-
-    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
-        expand replaceProperties + [project: project]
-    }
-}
-
-
-tasks.named('jar', Jar).configure {
-    archiveClassifier = 'slim'
-    manifest {
-        attributes([
-                'Specification-Title'     : mod_id,
-                'Specification-Vendor'    : mod_authors,
-                'Specification-Version'   : '1',
-                'Implementation-Title'    : project.name,
-                'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : mod_authors,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
-    }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-}
-
-tasks.withType(JavaExec) {
-    jvmArgs = [
-            '-XX:+AllowEnhancedClassRedefinition',
-            '-XX:+ClassUnloading',
-            '-ea'
-    ]
-}
-
-task countCodeLines {
-    group = 'analysis'
-    description = 'Zählt die Codezeilen im Paket net.xmx und allen Unterpaketen'
-
-    doLast {
-        def baseDir = file('src/main/java/net/xmx')
-        def totalLines = 0
-
-        if (!baseDir.exists()) {
-            println "Verzeichnis ${baseDir} existiert nicht."
-            return
-        }
-
-        baseDir.eachFileRecurse { file ->
-            if (file.name.endsWith('.java')) {
-                def lines = file.readLines().count { line ->
-                    line.trim() && !line.trim().startsWith('//')
-                }
-                println "${file.path} → $lines Zeilen"
-                totalLines += lines
-            }
-        }
-
-        println "\nGesamtanzahl der Codezeilen in net.xmx: $totalLines"
-    }
-}
-task findWords {
-    doLast {
-        def rootDir = project.projectDir
-        def matchingFiles = []
-
-        rootDir.eachFileRecurse { file ->
-            if (file.name.endsWith(".java")) {
-                def content = file.text
-                if (content.contains("XBullet")) {
-                    matchingFiles << file.path
-                }
-            }
-        }
-
-        if (matchingFiles.isEmpty()) {
-            println "Keine gefunden."
-        } else {
-            println "Gefundene .java Dateien:"
-            matchingFiles.each { println " - $it" }
-        }
-    }
-}
-
-task generateJoltDoc {
-    group = 'Documentation'
-    description = 'Erstellt eine Dokumentation aller Methoden aus der jolt-jni.jar.'
-
-    def inputJar = file("C:/Users/milan/.gradle/caches/modules-2/files-2.1/com.github.stephengold/jolt-jni-Windows64/2.1.0/7da259022be424718fa90abde7ece845e8e5a2b0/jolt-jni-Windows64-2.1.0.jar")
-
-    def outputFile = file("$buildDir/docs/jolt.txt")
-
-    inputs.file(inputJar)
-    outputs.file(outputFile)
-
-    doLast {
-
-        if (!inputJar.exists()) {
-            throw new FileNotFoundException("Input-JAR nicht gefunden: ${inputJar.absolutePath}")
-        }
-
-        outputFile.parentFile.mkdirs()
-        outputFile.text = ''
-
-        println "Analysiere JAR: ${inputJar.name}"
-        println "Schreibe Ausgabe nach: ${outputFile.absolutePath}"
-
-        def zipFile = new java.util.zip.ZipFile(inputJar)
-        def classEntries = zipFile.entries().findAll { entry ->
-            !entry.isDirectory() && entry.name.endsWith('.class')
-        }
-
-        classEntries.each { entry ->
-
-            def className = entry.name.replace('/', '.').replaceAll('\\.class$', '')
-
-            def commandOutput = new ByteArrayOutputStream()
-
-            project.exec {
-                executable = 'javap'
-                args '-p', '-classpath', inputJar.absolutePath, className
-                standardOutput = commandOutput
-                ignoreExitValue = true
-            }
-
-            outputFile.append("${className.substring(className.lastIndexOf('.') + 1)}.class:\n")
-
-            def javapResult = commandOutput.toString()
-            javapResult.lines()
-
-                    .findAll { it.contains('(') && it.contains(')') && !it.contains('{') && !it.contains('Compiled from') }
-                    .each { line ->
-
-                        String cleanedLine = line.trim()
-                                .replaceAll('public |private |protected |static |final |synchronized |native ', '')
-                        outputFile.append("  ${cleanedLine}\n")
-                    }
-
-            outputFile.append("\n")
-        }
-
-        zipFile.close()
-        println "Dokumentation erfolgreich erstellt!"
-    }
-}
-
-tasks.named('shadowJar', ShadowJar).configure {
-    archiveClassifier = ''
-    configurations = [project.configurations.shadow]
-    finalizedBy 'reobfShadowJar'
-}
-
-reobf {
-    shadowJar {}
-}
-
-tasks.named('build') {
-    dependsOn tasks.named('shadowJar')
 }

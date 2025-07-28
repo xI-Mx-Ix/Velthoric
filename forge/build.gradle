@@ -1,0 +1,77 @@
+plugins {
+    id 'com.gradleup.shadow'
+}
+
+loom {
+    forge {
+        mixinConfig "vortex.mixins.json"
+    }
+}
+
+architectury {
+    platformSetupLoomIde()
+    forge()
+}
+
+configurations {
+    common {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentForge.extendsFrom common
+
+    shadowBundle {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+}
+
+dependencies {
+    forge "net.minecraftforge:forge:$rootProject.forge_version"
+
+    modImplementation "dev.architectury:architectury-forge:$rootProject.architectury_api_version"
+
+    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux64:2.1.0")
+    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Windows64:2.1.0:DebugDp")
+    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux64:2.1.0:DebugDp")
+    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:DebugDp")
+    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:DebugDp")
+    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:DebugDp")
+    minecraftRuntimeLibraries("io.github.electrostat-lab:snaploader:1.1.1-stable")
+
+    common(project(path: ':common', configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: ':common', configuration: 'transformProductionForge')
+}
+
+processResources {
+    var replaceProperties = [
+            minecraft_version: rootProject.minecraft_version,
+            minecraft_version_range: rootProject.minecraft_version_range,
+            forge_version: rootProject.forge_version,
+            forge_version_range: rootProject.forge_version_range,
+            loader_version_range: rootProject.loader_version_range,
+            mod_id: rootProject.mod_id,
+            mod_name: rootProject.mod_name,
+            mod_license: rootProject.mod_license,
+            mod_version: rootProject.mod_version,
+            mod_authors: rootProject.mod_authors,
+            mod_description: rootProject.mod_description
+    ]
+
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+shadowJar {
+    configurations = [project.configurations.shadowBundle]
+    archiveClassifier = 'dev-shadow'
+}
+
+remapJar {
+    inputFile.set shadowJar.archiveFile
+}

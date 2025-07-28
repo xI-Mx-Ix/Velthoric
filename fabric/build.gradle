@@ -1,0 +1,69 @@
+plugins {
+    id 'com.gradleup.shadow'
+}
+
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+configurations {
+    common {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentFabric.extendsFrom common
+
+    shadowBundle {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+}
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+
+    modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
+
+    modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
+
+    common(project(path: ':common', configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
+}
+
+processResources {
+    def propertiesToExpand = [
+            minecraft_version: rootProject.minecraft_version,
+            mod_id: rootProject.mod_id,
+            mod_name: rootProject.mod_name,
+            mod_license: rootProject.mod_license,
+            mod_version: rootProject.mod_version,
+            mod_authors: rootProject.mod_authors,
+            mod_description: rootProject.mod_description,
+            minecraft_version_range: rootProject.minecraft_version_range,
+            forge_version: rootProject.forge_version,
+            forge_version_range: rootProject.forge_version_range,
+            loader_version_range: rootProject.loader_version_range,
+
+            fabric_loader_version: rootProject.fabric_loader_version,
+            fabric_api_version: rootProject.fabric_api_version,
+            architectury_api_version: rootProject.architectury_api_version
+    ]
+
+    inputs.properties propertiesToExpand
+
+    filesMatching(['fabric.mod.json', 'pack.mcmeta']) {
+        expand propertiesToExpand + [project: project]
+    }
+}
+
+shadowJar {
+    configurations = [project.configurations.shadowBundle]
+    archiveClassifier = 'dev-shadow'
+}
+
+remapJar {
+    inputFile.set shadowJar.archiveFile
+}
