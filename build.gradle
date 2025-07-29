@@ -107,3 +107,65 @@ subprojects {
         }
     }
 }
+
+task generateJoltDoc {
+    group = 'Documentation'
+    description = 'Erstellt eine Dokumentation aller Methoden aus der jolt-jni.jar.'
+
+    def inputJar = file("C:/Users/milan/.gradle/caches/modules-2/files-2.1/com.github.stephengold/jolt-jni-Windows64/2.1.0/36b0cbf834222077132d6d0d2a81f5e47c477ed4/jolt-jni-Windows64-2.1.0.jar")
+
+    def outputFile = file("$buildDir/docs/jolt.txt")
+
+    inputs.file(inputJar)
+    outputs.file(outputFile)
+
+    doLast {
+
+        if (!inputJar.exists()) {
+            throw new FileNotFoundException("Input-JAR nicht gefunden: ${inputJar.absolutePath}")
+        }
+
+        outputFile.parentFile.mkdirs()
+        outputFile.text = ''
+
+        println "Analysiere JAR: ${inputJar.name}"
+        println "Schreibe Ausgabe nach: ${outputFile.absolutePath}"
+
+        def zipFile = new java.util.zip.ZipFile(inputJar)
+        def classEntries = zipFile.entries().findAll { entry ->
+            !entry.isDirectory() && entry.name.endsWith('.class')
+        }
+
+        classEntries.each { entry ->
+
+            def className = entry.name.replace('/', '.').replaceAll('\\.class$', '')
+
+            def commandOutput = new ByteArrayOutputStream()
+
+            project.exec {
+                executable = 'javap'
+                args '-p', '-classpath', inputJar.absolutePath, className
+                standardOutput = commandOutput
+                ignoreExitValue = true
+            }
+
+            outputFile.append("${className.substring(className.lastIndexOf('.') + 1)}.class:\n")
+
+            def javapResult = commandOutput.toString()
+            javapResult.lines()
+
+                    .findAll { it.contains('(') && it.contains(')') && !it.contains('{') && !it.contains('Compiled from') }
+                    .each { line ->
+
+                        String cleanedLine = line.trim()
+                                .replaceAll('public |private |protected |static |final |synchronized |native ', '')
+                        outputFile.append("  ${cleanedLine}\n")
+                    }
+
+            outputFile.append("\n")
+        }
+
+        zipFile.close()
+        println "Dokumentation erfolgreich erstellt!"
+    }
+}
