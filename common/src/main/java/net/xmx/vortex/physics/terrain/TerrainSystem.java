@@ -37,6 +37,7 @@ public class TerrainSystem implements Runnable {
     private static final int STATE_READY_INACTIVE = 3;
     private static final int STATE_READY_ACTIVE = 4;
     private static final int STATE_REMOVING = 5;
+    private static final int STATE_AIR_CHUNK = 6;
 
     private final VxPhysicsWorld physicsWorld;
     private final ServerLevel level;
@@ -201,7 +202,8 @@ public class TerrainSystem implements Runnable {
                         if (chunkBodyIds.containsKey(pos)) {
                             removeBodyAndShape(pos, bodyInterface);
                         }
-                        state.set(previousState);
+                        chunkIsPlaceholder.put(pos, true);
+                        state.set(STATE_AIR_CHUNK);
                         return;
                     }
 
@@ -239,6 +241,10 @@ public class TerrainSystem implements Runnable {
     }
 
     private void activateChunk(VxSectionPos pos) {
+        if (getState(pos).get() == STATE_AIR_CHUNK) {
+            return;
+        }
+
         if(isReady(pos) && !chunkBodyIds.containsKey(pos)) {
             VxMainClass.LOGGER.warn("Detected stuck terrain chunk {} in ready state with no body. Forcing high-prio rebuild.", pos);
             scheduleRebuild(pos, VxTaskPriority.HIGH);
@@ -472,7 +478,7 @@ public class TerrainSystem implements Runnable {
 
     public boolean isReady(VxSectionPos pos) {
         int state = getState(pos).get();
-        return state == STATE_READY_ACTIVE || state == STATE_READY_INACTIVE;
+        return state == STATE_READY_ACTIVE || state == STATE_READY_INACTIVE || state == STATE_AIR_CHUNK;
     }
 
     public boolean isPlaceholder(VxSectionPos pos) {
@@ -482,10 +488,6 @@ public class TerrainSystem implements Runnable {
     public boolean isSectionReady(SectionPos sectionPos) {
         if (sectionPos == null) return false;
         return isReady(new VxSectionPos(sectionPos.x(), sectionPos.y(), sectionPos.z()));
-    }
-
-    public boolean hasBody(VxSectionPos pos) {
-        return chunkBodyIds.containsKey(pos);
     }
 
     public boolean isTerrainBody(int bodyId) {
