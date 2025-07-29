@@ -34,6 +34,7 @@ public class VxObjectStorage {
     private final Path dataFile;
     private final Map<UUID, byte[]> unloadedObjectsData = new ConcurrentHashMap<>();
     private final Long2ObjectMap<List<UUID>> unloadedChunkIndex = new Long2ObjectOpenHashMap<>();
+    private final Map<UUID, CompletableFuture<IPhysicsObject>> pendingLoads = new ConcurrentHashMap<>();
     private final VxObjectManager objectManager;
     private final ServerLevel level;
     private ExecutorService loaderExecutor;
@@ -128,30 +129,41 @@ public class VxObjectStorage {
     }
 
     public void loadObjectsInChunk(ChunkPos chunkPos) {
-        List<UUID> idsToLoad = unloadedChunkIndex.remove(chunkPos.toLong());
+        List<UUID> idsToLoad = unloadedChunkIndex.get(chunkPos.toLong());
         if (idsToLoad == null || idsToLoad.isEmpty()) return;
 
-        for (UUID id : idsToLoad) {
+        for (UUID id : new ObjectArrayList<>(idsToLoad)) {
             if (objectManager.getObjectContainer().hasObject(id)) continue;
             loadObject(id);
         }
     }
 
     public CompletableFuture<IPhysicsObject> loadObject(UUID id) {
-        if (!hasData(id)) return CompletableFuture.completedFuture(null);
+        if (objectManager.getObjectContainer().hasObject(id)) {
+            return CompletableFuture.completedFuture(objectManager.getObjectContainer().get(id).orElse(null));
+        }
 
-        return CompletableFuture.supplyAsync(() -> {
-            byte[] data = takeData(id);
-            if (data == null) return null;
-            return deserializeObject(id, data);
-        }, loaderExecutor).thenApply(obj -> {
-            if (obj != null) {
-                level.getServer().execute(() -> {
-                    objectManager.getObjectContainer().add(obj);
-                    objectManager.getNetworkDispatcher().dispatchSpawn(obj);
-                });
+        return pendingLoads.computeIfAbsent(id, objectId -> {
+            if (!hasData(objectId)) {
+                return CompletableFuture.completedFuture(null);
             }
-            return obj;
+
+            return CompletableFuture.supplyAsync(() -> {
+                        byte[] data = takeData(objectId);
+                        if (data == null) return null;
+                        return deserializeObject(objectId, data);
+                    }, loaderExecutor)
+                    .thenApplyAsync(obj -> {
+                        if (obj != null) {
+                            objectManager.getObjectContainer().add(obj);
+                            removeDataFromChunkIndex(obj.getPhysicsId(), VxObjectManager.getObjectChunkPos(obj));
+                            objectManager.getNetworkDispatcher().dispatchSpawn(obj);
+                        }
+                        return obj;
+                    }, level.getServer())
+                    .whenComplete((obj, ex) -> {
+                        pendingLoads.remove(id);
+                    });
         });
     }
 
@@ -208,12 +220,17 @@ public class VxObjectStorage {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
             buf.readUtf();
             long chunkKey = getChunkKeyFromBuffer(buf);
-            List<UUID> list = unloadedChunkIndex.get(chunkKey);
-            if (list != null) {
-                list.remove(id);
-                if (list.isEmpty()) {
-                    unloadedChunkIndex.remove(chunkKey);
-                }
+            removeDataFromChunkIndex(id, new ChunkPos(chunkKey));
+        }
+    }
+
+    private void removeDataFromChunkIndex(UUID id, ChunkPos chunkPos) {
+        long chunkKey = chunkPos.toLong();
+        List<UUID> list = unloadedChunkIndex.get(chunkKey);
+        if (list != null) {
+            list.remove(id);
+            if (list.isEmpty()) {
+                unloadedChunkIndex.remove(chunkKey);
             }
         }
     }
