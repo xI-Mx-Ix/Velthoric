@@ -10,18 +10,15 @@ import java.util.function.Supplier;
 
 public class DebugShapesUpdatePacket {
 
-    private final long timestampNanos;
     private final Map<Integer, BodyDrawData> drawData;
 
     public record BodyDrawData(int color, float[] vertices) {}
 
-    public DebugShapesUpdatePacket(long timestamp, Map<Integer, BodyDrawData> data) {
-        this.timestampNanos = timestamp;
+    public DebugShapesUpdatePacket(Map<Integer, BodyDrawData> data) {
         this.drawData = data;
     }
 
     public DebugShapesUpdatePacket(FriendlyByteBuf buf) {
-        this.timestampNanos = buf.readLong();
         int mapSize = buf.readVarInt();
         this.drawData = new HashMap<>(mapSize);
         for (int i = 0; i < mapSize; i++) {
@@ -37,7 +34,6 @@ public class DebugShapesUpdatePacket {
     }
 
     public void encode(FriendlyByteBuf buf) {
-        buf.writeLong(timestampNanos);
         buf.writeVarInt(drawData.size());
         for (Map.Entry<Integer, BodyDrawData> entry : drawData.entrySet()) {
             buf.writeVarInt(entry.getKey());
@@ -55,10 +51,6 @@ public class DebugShapesUpdatePacket {
         context.queue(() -> {
             ClientShapeDrawer.getInstance().onPacketReceived(msg);
         });
-    }
-
-    public long getTimestampNanos() {
-        return timestampNanos;
     }
 
     public Map<Integer, BodyDrawData> getDrawData() {

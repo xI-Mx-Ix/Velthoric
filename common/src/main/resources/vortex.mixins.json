@@ -10,7 +10,6 @@
     "event.level.VxLevelEvent_MinecraftServerMixin",
     "event.level.VxLevelEvent_ServerLevelMixin",
     "event.server.VxServerLifecylceEvent_MinecraftServerMixin",
-
     "terrain.ChunkGetter_ChunkMapMixin",
     "terrain.ChunkHolderMixin",
     "terrain.ChunkUnload_ChunkMapMixin",
@@ -18,11 +17,11 @@
     "terrain.ServerLevelMixin"
   ],
   "client": [
+    "debug.EntityRenderDispatcherMixin",
     "event.debug.VxAddDebugInfoEvent_DebugScreenOverlayMixin",
     "event.network.VxClientPlayerNetworkEvent_ClientLevelMixin",
     "event.network.VxClientPlayerNetworkEvent_ClientPacketListenerMixin",
     "event.render.VxRenderEvent_LevelRendererMixin",
-
     "magnetizer.MagnetizerInput_MouseHandlerMixin",
     "physicsgun.PhysicsGunArmPose_PlayerRendererMixin",
     "physicsgun.PhysicsGunHandling_KeyboardHandlerMixin",

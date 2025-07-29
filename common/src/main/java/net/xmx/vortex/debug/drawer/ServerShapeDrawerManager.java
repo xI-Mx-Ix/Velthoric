@@ -92,8 +92,7 @@ public class ServerShapeDrawerManager {
             return;
         }
 
-        long timestamp = System.nanoTime();
-        DebugShapesUpdatePacket packet = new DebugShapesUpdatePacket(timestamp, allBodyData);
+        DebugShapesUpdatePacket packet = new DebugShapesUpdatePacket(allBodyData);
 
         NetworkHandler.sendToDimension(packet, level.dimension());
     }
