@@ -36,15 +36,7 @@ public class ClientSoftPhysicsObjectData {
 
         initialTransform.fromBuffer(buf);
 
-        if (buf.readBoolean()) {
-            int length = buf.readVarInt();
-            this.latestSyncedVertexData = new float[length];
-            for (int i = 0; i < length; i++) {
-                this.latestSyncedVertexData[i] = buf.readFloat();
-            }
-        } else {
-            this.latestSyncedVertexData = null;
-        }
+        this.latestSyncedVertexData = null;
 
         if (buf.readableBytes() > 0) {
             this.customData = new byte[buf.readableBytes()];
@@ -52,14 +44,12 @@ public class ClientSoftPhysicsObjectData {
         } else {
             this.customData = new byte[0];
         }
-
         interpolationController.addState(this.initialServerTimestamp, initialTransform, initialLinearVelocity, initialAngularVelocity, this.latestSyncedVertexData, true);
     }
 
     public void updateDataFromServer(@Nullable VxTransform transform, @Nullable Vec3 linearVel, @Nullable Vec3 angularVel, @Nullable float[] newVertexData, long serverTimestampNanos, boolean isActive) {
         if (serverTimestampNanos <= 0 || transform == null) return;
 
-        // Remove the firstUpdate logic since we now initialize in readData()
         if (newVertexData != null) {
             this.latestSyncedVertexData = newVertexData;
         }
