@@ -31,18 +31,14 @@ public class ClientRigidPhysicsObjectData {
 
     public void readData(ByteBuf buffer) {
         FriendlyByteBuf buf = new FriendlyByteBuf(buffer);
+
         initialTransform.fromBuffer(buf);
 
-        if (buf.readableBytes() > 0) {
-            buf.skipBytes(28);
-            if (buf.readableBytes() > 0) {
-                buf.readUtf();
-            }
-            if (buf.readableBytes() > 0) {
-                this.initialLinearVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
-                this.initialAngularVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
-            }
+        if (buf.readableBytes() >= 24) {
+            this.initialLinearVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
+            this.initialAngularVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
         }
+
         if (buf.readableBytes() > 0) {
             this.customData = new byte[buf.readableBytes()];
             buf.readBytes(this.customData);

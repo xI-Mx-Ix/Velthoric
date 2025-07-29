@@ -5,16 +5,11 @@ import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.Level;
-import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.properties.IPhysicsObjectProperties;
+import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.SoftPhysicsObject;
-
-import org.jetbrains.annotations.Nullable;
-import java.util.UUID;
 import java.util.function.BiFunction;
 
 public class ClothSoftBody extends SoftPhysicsObject {
-    public static final String TYPE_IDENTIFIER = "vortex:cloth";
 
     private int widthSegments;
     private int heightSegments;
@@ -23,19 +18,8 @@ public class ClothSoftBody extends SoftPhysicsObject {
     private float mass;
     private float compliance;
 
-    public ClothSoftBody(UUID physicsId, Level level, VxTransform initialTransform, IPhysicsObjectProperties properties,
-                         int widthSegments, int heightSegments, float clothWidth, float clothHeight, float mass, float compliance) {
-        super(physicsId, level, TYPE_IDENTIFIER, initialTransform, properties);
-        this.widthSegments = widthSegments;
-        this.heightSegments = heightSegments;
-        this.clothWidth = clothWidth;
-        this.clothHeight = clothHeight;
-        this.mass = mass;
-        this.compliance = compliance;
-    }
-
-    public ClothSoftBody(UUID physicsId, Level level, String typeId, VxTransform initialTransform, IPhysicsObjectProperties properties, @Nullable FriendlyByteBuf initialData) {
-        super(physicsId, level, typeId, initialTransform, properties);
+    public ClothSoftBody(PhysicsObjectType<? extends SoftPhysicsObject> type, Level level) {
+        super(type, level);
         this.widthSegments = 15;
         this.heightSegments = 15;
         this.clothWidth = 2.0f;
@@ -44,8 +28,17 @@ public class ClothSoftBody extends SoftPhysicsObject {
         this.compliance = 0.001f;
     }
 
+    public void setConfiguration(int widthSegments, int heightSegments, float clothWidth, float clothHeight, float mass, float compliance) {
+        this.widthSegments = widthSegments;
+        this.heightSegments = heightSegments;
+        this.clothWidth = clothWidth;
+        this.clothHeight = clothHeight;
+        this.mass = mass;
+        this.compliance = compliance;
+    }
+
     @Override
-    protected void addAdditionalData(FriendlyByteBuf buf) {
+    protected void addAdditionalSpawnData(FriendlyByteBuf buf) {
         buf.writeInt(this.widthSegments);
         buf.writeInt(this.heightSegments);
         buf.writeFloat(this.clothWidth);
@@ -55,7 +48,7 @@ public class ClothSoftBody extends SoftPhysicsObject {
     }
 
     @Override
-    protected void readAdditionalData(FriendlyByteBuf buf) {
+    protected void readAdditionalSpawnData(FriendlyByteBuf buf) {
         this.widthSegments = buf.readInt();
         this.heightSegments = buf.readInt();
         this.clothWidth = buf.readFloat();

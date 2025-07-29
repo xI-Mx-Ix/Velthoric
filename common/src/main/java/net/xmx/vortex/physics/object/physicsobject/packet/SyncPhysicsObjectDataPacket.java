@@ -17,7 +17,9 @@ public class SyncPhysicsObjectDataPacket {
     public SyncPhysicsObjectDataPacket(IPhysicsObject obj) {
         this.id = obj.getPhysicsId();
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-        obj.writeSyncData(buf);
+
+        obj.writeSpawnData(buf);
+
         this.data = new byte[buf.readableBytes()];
         buf.readBytes(this.data);
     }

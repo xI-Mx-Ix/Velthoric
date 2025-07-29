@@ -1,15 +1,15 @@
 package net.xmx.vortex.physics.object.physicsobject.manager.event;
 
+import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.xmx.vortex.event.api.VxChunkEvent;
 import net.xmx.vortex.event.api.VxLevelEvent;
-import net.xmx.vortex.event.api.VxServerLifecycleEvent;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
-import net.xmx.vortex.physics.object.physicsobject.manager.ObjectLifecycleManager;
+import net.xmx.vortex.physics.object.physicsobject.manager.VxRemovalReason;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
-import dev.architectury.event.events.common.TickEvent;
 
 import java.util.Optional;
 
@@ -19,59 +19,65 @@ public class ObjectLifecycleEvents {
         VxChunkEvent.Load.EVENT.register(ObjectLifecycleEvents::onChunkLoad);
         VxChunkEvent.Unload.EVENT.register(ObjectLifecycleEvents::onChunkUnload);
         VxChunkEvent.Watch.EVENT.register(ObjectLifecycleEvents::onChunkWatch);
-        VxChunkEvent.Unwatch.EVENT.register(ObjectLifecycleEvents::onChunkUnwatch);
         VxLevelEvent.Save.EVENT.register(ObjectLifecycleEvents::onLevelSave);
         TickEvent.SERVER_POST.register(ObjectLifecycleEvents::onServerTick);
     }
 
-    private static void onChunkLoad(VxChunkEvent.Load event) {
-        Level chunkLevel = event.getLevel();
-        if (chunkLevel instanceof ServerLevel level && !level.isClientSide()) {
-            getLifecycleManager(level).ifPresent(manager -> manager.handleChunkLoad(event.getChunkPos()));
+    private static Optional<VxObjectManager> getObjectManager(Level level) {
+        if (level.isClientSide()) {
+            return Optional.empty();
         }
+        VxPhysicsWorld world = VxPhysicsWorld.get(level.dimension());
+        if (world != null && world.getObjectManager() != null) {
+            return Optional.of(world.getObjectManager());
+        }
+        return Optional.empty();
+    }
+
+    private static void onChunkLoad(VxChunkEvent.Load event) {
+        getObjectManager(event.getLevel()).ifPresent(manager ->
+                manager.getObjectStorage().loadObjectsInChunk(event.getChunkPos())
+        );
     }
 
     private static void onChunkUnload(VxChunkEvent.Unload event) {
-        Level chunkLevel = event.getLevel();
-        if (chunkLevel instanceof ServerLevel level && !level.isClientSide()) {
-            getLifecycleManager(level).ifPresent(manager -> manager.handleChunkUnload(event.getChunkPos()));
-        }
-    }
-
-    private static void onChunkWatch(VxChunkEvent.Watch event) {
-        getLifecycleManager(event.getLevel()).ifPresent(manager ->
-                manager.handlePlayerWatchChunk(event.getPlayer(), event.getChunkPos()));
-    }
-
-    private static void onChunkUnwatch(VxChunkEvent.Unwatch event) {
-        getLifecycleManager(event.getLevel()).ifPresent(manager ->
-                manager.handlePlayerUnwatchChunk(event.getPlayer(), event.getChunkPos()));
-    }
-
-    private static void onLevelSave(VxLevelEvent.Save event) {
-        ServerLevel level = event.getLevel();
-        if (level != null) {
-            getLifecycleManager(level).ifPresent(ObjectLifecycleManager::handleLevelSave);
-        }
-    }
-
-    private static void onServerTick(MinecraftServer event) {
-
-        VxPhysicsWorld.getAll().forEach(world -> {
-            if (world.isRunning() && world.getObjectManager() != null && world.getObjectManager().getLifecycleManager() != null) {
-                world.getObjectManager().getLifecycleManager().handleServerTick(world);
-            }
+        getObjectManager(event.getLevel()).ifPresent(manager -> {
+            manager.getObjectContainer().getAllObjects().forEach(obj -> {
+                if (VxObjectManager.getObjectChunkPos(obj).equals(event.getChunkPos())) {
+                    manager.removeObject(obj.getPhysicsId(), VxRemovalReason.SAVE);
+                }
+            });
         });
     }
 
-    private static Optional<ObjectLifecycleManager> getLifecycleManager(Level level) {
-        VxPhysicsWorld world = VxPhysicsWorld.get(level.dimension());
-        if (world != null && world.isRunning()) {
-            VxObjectManager objectManager = world.getObjectManager();
-            if (objectManager != null && objectManager.isInitialized()) {
-                return Optional.ofNullable(objectManager.getLifecycleManager());
+    private static void onChunkWatch(VxChunkEvent.Watch event) {
+        getObjectManager(event.getLevel()).ifPresent(manager -> {
+            ServerPlayer player = event.getPlayer();
+            ChunkPos chunkPos = event.getChunkPos();
+            manager.getNetworkDispatcher().sendExistingObjectsToPlayer(player, chunkPos, manager.getObjectContainer().getAllObjects());
+        });
+    }
+
+    private static void onLevelSave(VxLevelEvent.Save event) {
+
+        getObjectManager(event.getLevel()).ifPresent(manager ->
+                manager.getObjectStorage().saveAll(manager.getObjectContainer().getAllObjects())
+        );
+    }
+
+    private static void onServerTick(MinecraftServer server) {
+
+        VxPhysicsWorld.getAll().forEach(world -> {
+            VxObjectManager manager = world.getObjectManager();
+            if (manager != null) {
+                manager.getObjectContainer().getAllObjects().forEach(obj -> {
+                    if (!obj.isRemoved()) {
+                        obj.fixedGameTick(manager.getWorld().getLevel());
+                        obj.gameTick(manager.getWorld().getLevel());
+                        manager.getNetworkDispatcher().dispatchDataUpdate(obj);
+                    }
+                });
             }
-        }
-        return Optional.empty();
+        });
     }
 }

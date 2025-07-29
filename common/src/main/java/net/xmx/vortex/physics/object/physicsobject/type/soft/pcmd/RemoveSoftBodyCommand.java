@@ -17,7 +17,7 @@ public record RemoveSoftBodyCommand(UUID objectId, int bodyId) implements IComma
     @Override
     public void execute(VxPhysicsWorld world) {
         VxObjectManager objectManager = world.getObjectManager();
-        if (world.getPhysicsSystem() == null || bodyId == 0 || bodyId == Jolt.cInvalidBodyId) {
+        if (world.getPhysicsSystem() == null || objectManager == null || bodyId == 0 || bodyId == Jolt.cInvalidBodyId) {
             return;
         }
 
@@ -27,6 +27,6 @@ public record RemoveSoftBodyCommand(UUID objectId, int bodyId) implements IComma
             bodyInterface.destroyBody(bodyId);
         }
 
-        objectManager.unlinkBodyId(bodyId);
+        objectManager.getObjectContainer().unlinkBodyId(bodyId);
     }
 }

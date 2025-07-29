@@ -1,18 +1,16 @@
 package net.xmx.vortex.builtin.rope;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.Edge;
+import com.github.stephengold.joltjni.SoftBodySharedSettings;
+import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.Vertex;
+import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.Level;
-import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.properties.IPhysicsObjectProperties;
+import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.SoftPhysicsObject;
 
-import org.jetbrains.annotations.Nullable;
-import java.util.UUID;
-
 public class RopeSoftBody extends SoftPhysicsObject {
-
-    public static final String TYPE_IDENTIFIER = "vortex:rope";
 
     private float ropeLength;
     private int numSegments;
@@ -20,18 +18,8 @@ public class RopeSoftBody extends SoftPhysicsObject {
     private float mass;
     private float compliance;
 
-    public RopeSoftBody(UUID physicsId, Level level, VxTransform initialTransform, IPhysicsObjectProperties properties,
-                        float ropeLength, int numSegments, float ropeRadius, float mass, float compliance) {
-        super(physicsId, level, TYPE_IDENTIFIER, initialTransform, properties);
-        this.ropeLength = ropeLength;
-        this.numSegments = numSegments;
-        this.ropeRadius = ropeRadius;
-        this.mass = mass;
-        this.compliance = compliance;
-    }
-
-    public RopeSoftBody(UUID physicsId, Level level, String typeId, VxTransform initialTransform, IPhysicsObjectProperties properties, @Nullable FriendlyByteBuf initialData) {
-        super(physicsId, level, typeId, initialTransform, properties);
+    public RopeSoftBody(PhysicsObjectType<? extends SoftPhysicsObject> type, Level level) {
+        super(type, level);
         this.ropeLength = 10.0f;
         this.numSegments = 20;
         this.ropeRadius = 0.1f;
@@ -39,9 +27,16 @@ public class RopeSoftBody extends SoftPhysicsObject {
         this.compliance = 0.001f;
     }
 
+    public void setConfiguration(float ropeLength, int numSegments, float ropeRadius, float mass, float compliance) {
+        this.ropeLength = ropeLength;
+        this.numSegments = numSegments;
+        this.ropeRadius = ropeRadius;
+        this.mass = mass;
+        this.compliance = compliance;
+    }
+
     @Override
-    protected void addAdditionalData(FriendlyByteBuf buf) {
-        super.addAdditionalData(buf);
+    protected void addAdditionalSpawnData(FriendlyByteBuf buf) {
         buf.writeFloat(this.ropeLength);
         buf.writeInt(this.numSegments);
         buf.writeFloat(this.ropeRadius);
@@ -50,8 +45,7 @@ public class RopeSoftBody extends SoftPhysicsObject {
     }
 
     @Override
-    protected void readAdditionalData(FriendlyByteBuf buf) {
-        super.readAdditionalData(buf);
+    protected void readAdditionalSpawnData(FriendlyByteBuf buf) {
         this.ropeLength = buf.readFloat();
         this.numSegments = buf.readInt();
         this.ropeRadius = buf.readFloat();

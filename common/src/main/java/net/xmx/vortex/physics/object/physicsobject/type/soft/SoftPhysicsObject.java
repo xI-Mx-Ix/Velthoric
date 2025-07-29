@@ -1,7 +1,9 @@
 package net.xmx.vortex.physics.object.physicsobject.type.soft;
 
-import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.SoftBodyCreationSettings;
+import com.github.stephengold.joltjni.SoftBodySharedSettings;
+import com.github.stephengold.joltjni.SoftBodySharedSettingsRef;
+import com.github.stephengold.joltjni.Vec3;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.network.FriendlyByteBuf;
@@ -13,9 +15,9 @@ import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.item.PhysicsRemoverItem;
 import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.object.physicsobject.AbstractPhysicsObject;
-import net.xmx.vortex.physics.object.physicsobject.EObjectType;
+import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
-import net.xmx.vortex.physics.object.physicsobject.properties.IPhysicsObjectProperties;
+import net.xmx.vortex.physics.object.physicsobject.manager.VxRemovalReason;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.client.ClientSoftPhysicsObjectData;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.pcmd.AddSoftBodyCommand;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.pcmd.RemoveSoftBodyCommand;
@@ -23,17 +25,17 @@ import net.xmx.vortex.physics.object.physicsobject.type.soft.properties.SoftPhys
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.UUID;
-
 public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
 
-    public float[] lastSyncedVertexData;
+    protected final PhysicsObjectType<? extends SoftPhysicsObject> type;
+    @Nullable
+    protected float[] lastSyncedVertexData;
     protected SoftPhysicsObjectProperties softProperties;
     protected SoftBodySharedSettingsRef sharedSettingsRef;
 
-    protected SoftPhysicsObject(UUID physicsId, Level level, String objectTypeIdentifier, VxTransform initialTransform, IPhysicsObjectProperties properties) {
-        super(physicsId, level, objectTypeIdentifier, initialTransform, properties);
-
+    protected SoftPhysicsObject(PhysicsObjectType<? extends SoftPhysicsObject> type, Level level) {
+        super(type, level);
+        this.type = type;
         if (!(properties instanceof SoftPhysicsObjectProperties defaultProps)) {
             throw new IllegalArgumentException("SoftPhysicsObject requires SoftPhysicsObjectProperties");
         }
@@ -41,44 +43,15 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     }
 
     @Override
-    protected final void addBodySpecificData(FriendlyByteBuf buf) {
-        this.softProperties.toBuffer(buf);
-        boolean hasVertices = lastSyncedVertexData != null && lastSyncedVertexData.length > 0;
-        buf.writeBoolean(hasVertices);
-        if (hasVertices) {
-            buf.writeVarInt(lastSyncedVertexData.length);
-            for (float v : lastSyncedVertexData) {
-                buf.writeFloat(v);
-            }
-        }
-
-        addAdditionalData(buf);
+    public PhysicsObjectType<? extends SoftPhysicsObject> getPhysicsObjectType() {
+        return this.type;
     }
 
     @Override
-    protected final void readBodySpecificData(FriendlyByteBuf buf) {
-        this.softProperties = SoftPhysicsObjectProperties.fromBuffer(buf);
-        if (buf.readBoolean()) {
-            int length = buf.readVarInt();
-            this.lastSyncedVertexData = new float[length];
-            for (int i = 0; i < length; i++) {
-                this.lastSyncedVertexData[i] = buf.readFloat();
-            }
-        } else {
-            this.lastSyncedVertexData = null;
-        }
-
-        readAdditionalData(buf);
-    }
-
-    protected void addAdditionalData(FriendlyByteBuf buf) {}
-
-    protected void readAdditionalData(FriendlyByteBuf buf) {}
+    protected void addAdditionalSpawnData(FriendlyByteBuf buf) {}
 
     @Override
-    public EObjectType getPhysicsObjectType() {
-        return EObjectType.SOFT_BODY;
-    }
+    protected void readAdditionalSpawnData(FriendlyByteBuf buf) {}
 
     protected abstract SoftBodySharedSettings buildSharedSettings();
 
@@ -87,25 +60,6 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
         if (this.sharedSettingsRef == null) {
             SoftBodySharedSettings settingsTarget = buildSharedSettings();
             if (settingsTarget != null) {
-                if (lastSyncedVertexData != null && lastSyncedVertexData.length > 0) {
-                    Vertex[] vertices = settingsTarget.getVertices();
-                    if (vertices != null && vertices.length * 3 == lastSyncedVertexData.length) {
-                        RVec3 bodyPosition = this.currentTransform.getTranslation();
-                        Quat bodyRotation = this.currentTransform.getRotation();
-                        Quat invRotation = bodyRotation.conjugated();
-                        for (int i = 0; i < vertices.length; ++i) {
-                            Vertex v = vertices[i];
-                            if (v != null) {
-                                RVec3 worldVertexPos = new RVec3(lastSyncedVertexData[i * 3], lastSyncedVertexData[i * 3 + 1], lastSyncedVertexData[i * 3 + 2]);
-                                RVec3 relativePos = Op.minus(worldVertexPos, bodyPosition);
-                                Vec3 localPos = Op.star(invRotation, relativePos.toVec3());
-                                v.setPosition(localPos);
-                            }
-                        }
-                    } else if (vertices != null) {
-                        VxMainClass.LOGGER.warn("Vertex data length mismatch for soft body {}. Saved: {}, Expected: {}", physicsId, lastSyncedVertexData.length, vertices.length * 3);
-                    }
-                }
                 this.sharedSettingsRef = settingsTarget.toRef();
             }
         }
@@ -122,22 +76,17 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
         configureAdditionalSoftBodyCreationSettings(settings);
     }
 
-    protected void configureAdditionalSoftBodyCreationSettings(SoftBodyCreationSettings settings) {
-    }
+    protected void configureAdditionalSoftBodyCreationSettings(SoftBodyCreationSettings settings) {}
 
     @Override
     public void initializePhysics(VxPhysicsWorld physicsWorld) {
-        if (physicsInitialized || isRemoved || level.isClientSide() || physicsWorld == null || !physicsWorld.isRunning()) {
-            return;
-        }
+        if (physicsInitialized || isRemoved || level.isClientSide() || physicsWorld == null || !physicsWorld.isRunning()) return;
         physicsWorld.queueCommand(new AddSoftBodyCommand(this.physicsId));
     }
 
     @Override
     public void removeFromPhysics(VxPhysicsWorld physicsWorld) {
-        if (bodyId == 0 || physicsWorld == null || !physicsWorld.isRunning()) {
-            return;
-        }
+        if (bodyId == 0 || physicsWorld == null || !physicsWorld.isRunning()) return;
         RemoveSoftBodyCommand.queue(physicsWorld, this.physicsId, this.bodyId);
         if (this.sharedSettingsRef != null) {
             this.sharedSettingsRef.close();
@@ -146,42 +95,34 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     }
 
     @Override
+    public void updateStateFromPhysicsThread(long timestampNanos, @Nullable VxTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
+        super.updateStateFromPhysicsThread(timestampNanos, transform, linearVelocity, angularVelocity, softBodyVertices, isActive);
+        if (isActive && softBodyVertices != null) {
+            this.lastSyncedVertexData = softBodyVertices;
+        }
+    }
+
+    @Override
+    @Nullable
     public float[] getLastSyncedVertexData() {
         return this.lastSyncedVertexData;
     }
 
     @Override
-    public void gameTick(ServerLevel serverLevel) {
-    }
-
-    @Override
-    public void physicsTick(VxPhysicsWorld physicsWorld) {
-    }
-
-    @Override
-    public void updateStateFromPhysicsThread(long timestampNanos, @Nullable VxTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive) {
-        super.updateStateFromPhysicsThread(timestampNanos, transform, linearVelocity, angularVelocity, softBodyVertices, isActive);
-        if (isActive) {
-            if (softBodyVertices != null) {
-                this.lastSyncedVertexData = softBodyVertices;
-            }
-        }
-    }
-
-    @Override
     public void onRightClickWithTool(ServerPlayer player) {
         if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem && player.level() instanceof ServerLevel sl) {
-            VxObjectManager manager = VxPhysicsWorld.getObjectManager(sl.dimension());
+            VxObjectManager manager = VxPhysicsWorld.get(sl.dimension()).getObjectManager();
             if (manager != null) {
-                manager.deleteObject(this.physicsId);
+                manager.removeObject(this.physicsId, VxRemovalReason.DISCARD);
             }
         }
     }
 
-    public abstract static class Renderer {
-        public abstract void render(ClientSoftPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight);
-    }
+    @Override
+    public void gameTick(ServerLevel serverLevel) {}
 
+    @Override
+    public void physicsTick(VxPhysicsWorld physicsWorld) {}
 
     @Override
     public final void fixedGameTick(ServerLevel level) {
@@ -193,6 +134,9 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     }
 
     @Override
-    public final void fixedPhysicsTick(VxPhysicsWorld physicsWorld) {
+    public final void fixedPhysicsTick(VxPhysicsWorld physicsWorld) {}
+
+    public abstract static class Renderer {
+        public abstract void render(ClientSoftPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight);
     }
 }

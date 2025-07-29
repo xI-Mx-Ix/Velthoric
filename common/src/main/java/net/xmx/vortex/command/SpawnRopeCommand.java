@@ -13,14 +13,13 @@ import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
+import net.xmx.vortex.builtin.VxRegisteredObjects;
 import net.xmx.vortex.builtin.rope.RopeSoftBody;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
-import net.xmx.vortex.physics.object.physicsobject.registry.GlobalPhysicsObjectRegistry;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
-import java.util.UUID;
+import java.util.Optional;
 
 public final class SpawnRopeCommand {
 
@@ -51,44 +50,30 @@ public final class SpawnRopeCommand {
         float mass = FloatArgumentType.getFloat(context, "mass");
         int segments = IntegerArgumentType.getInteger(context, "segments");
 
-        float compliance = 0.001f;
-
-        VxObjectManager manager = VxPhysicsWorld.getObjectManager(level.dimension());
-        if (manager == null || !manager.isInitialized()) {
+        VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level.dimension());
+        if (physicsWorld == null) {
             source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
             return 0;
         }
-
-        GlobalPhysicsObjectRegistry.RegistrationData regData = GlobalPhysicsObjectRegistry.getRegistrationData(RopeSoftBody.TYPE_IDENTIFIER);
-        if (regData == null) {
-            source.sendFailure(Component.literal("Rope object type '" + RopeSoftBody.TYPE_IDENTIFIER + "' is not registered."));
-            return 0;
-        }
-
+        VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
-        IPhysicsObject rope = new RopeSoftBody(
-                UUID.randomUUID(),
-                level,
+        Optional<RopeSoftBody> spawnedRope = manager.spawnObject(
+                VxRegisteredObjects.ROPE,
                 transform,
-                regData.properties(),
-                length,
-                segments,
-                radius,
-                mass,
-                compliance
+                rope -> rope.setConfiguration(length, segments, radius, mass, 0.001f)
         );
 
-        IPhysicsObject registeredRope = manager.spawnObject(rope);
-        if (registeredRope != null) {
+
+        if (spawnedRope.isPresent()) {
             source.sendSuccess(() -> Component.literal(
                     String.format("Successfully spawned rope with ID %s at %.2f, %.2f, %.2f",
-                            registeredRope.getPhysicsId().toString().substring(0, 8),
+                            spawnedRope.get().getPhysicsId().toString().substring(0, 8),
                             pos.x(), pos.y(), pos.z())
             ), true);
             return 1;
         } else {
-            source.sendFailure(Component.literal("Failed to register the rope. Check logs for details."));
+            source.sendFailure(Component.literal("Failed to spawn the rope. Check logs for details."));
             return 0;
         }
     }

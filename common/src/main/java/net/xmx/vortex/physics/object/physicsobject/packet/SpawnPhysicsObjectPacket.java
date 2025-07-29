@@ -20,11 +20,12 @@ public class SpawnPhysicsObjectPacket {
     public SpawnPhysicsObjectPacket(IPhysicsObject obj, long timestamp) {
         this.id = obj.getPhysicsId();
         this.typeIdentifier = obj.getObjectTypeIdentifier();
-        this.objectType = obj.getPhysicsObjectType();
+        this.objectType = obj.getEObjectType();
         this.timestamp = timestamp;
 
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-        obj.writeSyncData(buf);
+
+        obj.writeSpawnData(buf);
 
         this.data = new byte[buf.readableBytes()];
         buf.readBytes(this.data);

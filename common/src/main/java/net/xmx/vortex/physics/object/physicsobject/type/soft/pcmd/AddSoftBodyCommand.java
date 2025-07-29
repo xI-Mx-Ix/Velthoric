@@ -47,7 +47,7 @@ public record AddSoftBodyCommand(UUID objectId) implements ICommand {
                 if (bodyId != Jolt.cInvalidBodyId) {
                     softObject.setBodyId(bodyId);
                     softObject.confirmPhysicsInitialized();
-                    objectManager.linkBodyId(bodyId, softObject.getPhysicsId());
+                    objectManager.getObjectContainer().linkBodyId(bodyId, softObject.getPhysicsId());
                 } else {
                     VxMainClass.LOGGER.error("Jolt failed to create soft body for object {}", softObject.getPhysicsId());
                     softObject.markRemoved();

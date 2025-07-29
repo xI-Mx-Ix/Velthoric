@@ -34,7 +34,7 @@ public final class PhysicsClickManager {
 
             combinedHitOpt
                     .flatMap(CombinedHitResult::getPhysicsHit)
-                    .flatMap(physicsHit -> physicsWorld.findPhysicsObjectByBodyId(physicsHit.getBodyId()))
+                    .flatMap(physicsHit -> physicsWorld.getObjectManager().getObjectContainer().getByBodyId(physicsHit.getBodyId()))
                     .ifPresent(targetObject -> {
                         sender.getServer().execute(() -> {
                             PhysicsHitInfo physicsHit = combinedHitOpt.get().getPhysicsHit().get();

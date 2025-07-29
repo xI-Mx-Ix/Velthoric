@@ -9,7 +9,6 @@ import net.xmx.vortex.debug.drawer.ServerShapeDrawerManager;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.natives.NativeJoltInitializer;
 import net.xmx.vortex.physics.constraint.manager.VxConstraintManager;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
 import net.xmx.vortex.physics.terrain.TerrainSystem;
 import net.xmx.vortex.physics.world.pcmd.ICommand;
@@ -114,7 +113,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.level = level;
         this.dimensionKey = level.dimension();
         this.fixedTimeStep = 1.0f / DEFAULT_SIMULATION_HZ;
-        this.objectManager = new VxObjectManager();
+        this.objectManager = new VxObjectManager(this);
         this.constraintManager = new VxConstraintManager(this.objectManager);
         this.terrainSystem = new TerrainSystem(this, this.level);
         this.serverShapeDrawerManager = new ServerShapeDrawerManager(this);
@@ -136,7 +135,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     private void initializeAndStart() {
-        this.objectManager.initialize(this);
+        this.objectManager.initialize();
         this.constraintManager.initialize(this);
         this.terrainSystem.initialize();
 
@@ -339,10 +338,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public ResourceKey<Level> getDimensionKey() {
         return dimensionKey;
-    }
-
-    public Optional<IPhysicsObject> findPhysicsObjectByBodyId(int bodyId) {
-        return objectManager.getObjectByBodyId(bodyId);
     }
 
     public float getFixedTimeStep() {

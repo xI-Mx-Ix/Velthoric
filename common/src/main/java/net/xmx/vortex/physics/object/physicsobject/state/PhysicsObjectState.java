@@ -12,7 +12,7 @@ import java.util.UUID;
 public final class PhysicsObjectState {
 
     private UUID id;
-    private EObjectType objectType;
+    private EObjectType eobjectType;
     private final VxTransform transform;
     private final Vec3 linearVelocity;
     private final Vec3 angularVelocity;
@@ -28,7 +28,7 @@ public final class PhysicsObjectState {
 
     public void from(IPhysicsObject obj, long timestamp, boolean isActive) {
         this.id = obj.getPhysicsId();
-        this.objectType = obj.getPhysicsObjectType();
+        this.eobjectType = obj.getEObjectType();
         this.transform.set(obj.getCurrentTransform());
         this.timestamp = timestamp;
         this.isActive = isActive;
@@ -36,7 +36,7 @@ public final class PhysicsObjectState {
         if (isActive) {
             this.linearVelocity.set(obj.getLastSyncedLinearVel());
             this.angularVelocity.set(obj.getLastSyncedAngularVel());
-            if (obj.getPhysicsObjectType() == EObjectType.SOFT_BODY) {
+            if (obj.getEObjectType() == EObjectType.SOFT_BODY) {
                 this.softBodyVertices = obj.getLastSyncedVertexData();
             } else {
                 this.softBodyVertices = null;
@@ -52,14 +52,14 @@ public final class PhysicsObjectState {
         this.id = buf.readUUID();
         this.timestamp = buf.readLong();
         this.isActive = buf.readBoolean();
-        this.objectType = buf.readEnum(EObjectType.class);
+        this.eobjectType = buf.readEnum(EObjectType.class);
         this.transform.fromBuffer(buf);
 
         if (this.isActive) {
             this.linearVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
             this.angularVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
 
-            if (objectType == EObjectType.SOFT_BODY && buf.readBoolean()) {
+            if (eobjectType == EObjectType.SOFT_BODY && buf.readBoolean()) {
                 int length = buf.readVarInt();
                 this.softBodyVertices = new float[length];
                 for (int i = 0; i < length; i++) {
@@ -79,7 +79,7 @@ public final class PhysicsObjectState {
         buf.writeUUID(this.id);
         buf.writeLong(this.timestamp);
         buf.writeBoolean(this.isActive);
-        buf.writeEnum(this.objectType);
+        buf.writeEnum(this.eobjectType);
         this.transform.toBuffer(buf);
 
         if (this.isActive) {
@@ -90,7 +90,7 @@ public final class PhysicsObjectState {
             buf.writeFloat(this.angularVelocity.getY());
             buf.writeFloat(this.angularVelocity.getZ());
 
-            if (objectType == EObjectType.SOFT_BODY) {
+            if (eobjectType == EObjectType.SOFT_BODY) {
                 boolean hasVertices = this.softBodyVertices != null && this.softBodyVertices.length > 0;
                 buf.writeBoolean(hasVertices);
                 if (hasVertices) {
@@ -107,7 +107,7 @@ public final class PhysicsObjectState {
         int size = 16 + 8 + 1 + 1 + 40;
         if(isActive) {
             size += 12 + 12;
-            if(objectType == EObjectType.SOFT_BODY) {
+            if(eobjectType == EObjectType.SOFT_BODY) {
                 size += 1;
                 if(this.softBodyVertices != null && this.softBodyVertices.length > 0) {
                     size += 5 + this.softBodyVertices.length * 4;
@@ -119,7 +119,7 @@ public final class PhysicsObjectState {
 
     public void reset() {
         this.id = null;
-        this.objectType = null;
+        this.eobjectType = null;
         this.softBodyVertices = null;
         this.timestamp = 0L;
         this.isActive = false;
@@ -132,8 +132,8 @@ public final class PhysicsObjectState {
         return id;
     }
 
-    public EObjectType getObjectType() {
-        return objectType;
+    public EObjectType getEObjectType() {
+        return eobjectType;
     }
 
     public VxTransform getTransform() {

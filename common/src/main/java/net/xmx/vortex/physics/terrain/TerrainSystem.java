@@ -371,7 +371,10 @@ public class TerrainSystem implements Runnable {
     }
 
     private void updateTrackers() {
-        Set<UUID> currentObjectIds = physicsWorld.getObjectManager().getManagedObjects().keySet();
+        Set<UUID> currentObjectIds = physicsWorld.getObjectManager().getObjectContainer().getAllObjects().stream()
+                .map(IPhysicsObject::getPhysicsId)
+                .collect(Collectors.toSet());
+
         objectTrackers.keySet().removeIf(id -> {
             if (!currentObjectIds.contains(id)) {
                 Optional.ofNullable(objectTrackers.get(id)).ifPresent(ObjectTerrainTracker::releaseAll);
@@ -380,7 +383,7 @@ public class TerrainSystem implements Runnable {
             return false;
         });
 
-        for (IPhysicsObject obj : physicsWorld.getObjectManager().getManagedObjects().values()) {
+        for (IPhysicsObject obj : physicsWorld.getObjectManager().getObjectContainer().getAllObjects()) {
             if (obj.isPhysicsInitialized() && obj.getBodyId() != 0) {
                 objectTrackers.computeIfAbsent(obj.getPhysicsId(), id -> new ObjectTerrainTracker(obj, this));
             } else {

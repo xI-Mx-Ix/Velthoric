@@ -101,7 +101,7 @@ public class PhysicsGunServerManager {
             var rayDirection = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z);
 
             VxRaytracing.rayCastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHit -> {
-                Optional<IPhysicsObject> physicsObjectOpt = physicsWorld.getObjectManager().getObjectByBodyId(physicsHit.getBodyId());
+                Optional<IPhysicsObject> physicsObjectOpt = physicsWorld.getObjectManager().getObjectContainer().getByBodyId(physicsHit.getBodyId());
                 if (physicsObjectOpt.isEmpty()) return;
 
                 IPhysicsObject physicsObject = physicsObjectOpt.get();

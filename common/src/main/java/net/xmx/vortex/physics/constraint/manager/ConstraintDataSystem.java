@@ -111,20 +111,20 @@ public class ConstraintDataSystem {
             boolean isAffected = false;
 
             UUID body1Id = constraint.getBody1Id();
-            if (body1Id != null && objectManager.isObjectInChunk(body1Id, chunkPos)) {
+            if (body1Id != null && objectManager.getObject(body1Id).map(obj -> VxObjectManager.getObjectChunkPos(obj).equals(chunkPos)).orElse(false)) {
                 isAffected = true;
             }
             UUID body2Id = constraint.getBody2Id();
-            if (body2Id != null && objectManager.isObjectInChunk(body2Id, chunkPos)) {
+            if (body2Id != null && objectManager.getObject(body2Id).map(obj -> VxObjectManager.getObjectChunkPos(obj).equals(chunkPos)).orElse(false)) {
                 isAffected = true;
             }
 
             if (isAffected) {
                 boolean shouldUnload = true;
-                if (body1Id != null && objectManager.isObjectInLoadedChunk(body1Id) && !objectManager.isObjectInChunk(body1Id, chunkPos)) {
+                if (body1Id != null && objectManager.getObjectContainer().hasObject(body1Id) && !objectManager.getObject(body1Id).map(obj -> VxObjectManager.getObjectChunkPos(obj).equals(chunkPos)).orElse(false)) {
                     shouldUnload = false;
                 }
-                if (body2Id != null && objectManager.isObjectInLoadedChunk(body2Id) && !objectManager.isObjectInChunk(body2Id, chunkPos)) {
+                if (body2Id != null && objectManager.getObjectContainer().hasObject(body2Id) && !objectManager.getObject(body2Id).map(obj -> VxObjectManager.getObjectChunkPos(obj).equals(chunkPos)).orElse(false)) {
                     shouldUnload = false;
                 }
 
@@ -152,8 +152,8 @@ public class ConstraintDataSystem {
     }
 
     private boolean isConstraintBodyInChunk(IConstraint c, ChunkPos pos) {
-        return (c.getBody1Id() != null && objectManager.isObjectInChunk(c.getBody1Id(), pos)) ||
-                (c.getBody2Id() != null && objectManager.isObjectInChunk(c.getBody2Id(), pos));
+        return (c.getBody1Id() != null && objectManager.getObject(c.getBody1Id()).map(obj -> VxObjectManager.getObjectChunkPos(obj).equals(pos)).orElse(false)) ||
+                (c.getBody2Id() != null && objectManager.getObject(c.getBody2Id()).map(obj -> VxObjectManager.getObjectChunkPos(obj).equals(pos)).orElse(false));
     }
 
     public void onConstraintUnloaded(UUID constraintId) {

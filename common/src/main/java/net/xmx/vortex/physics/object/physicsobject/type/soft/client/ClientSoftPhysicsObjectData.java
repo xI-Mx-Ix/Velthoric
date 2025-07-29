@@ -33,9 +33,8 @@ public class ClientSoftPhysicsObjectData {
 
     public void readData(ByteBuf buffer) {
         FriendlyByteBuf buf = new FriendlyByteBuf(buffer);
-        initialTransform.fromBuffer(buf);
 
-        SoftPhysicsObjectProperties.fromBuffer(buf);
+        initialTransform.fromBuffer(buf);
 
         if (buf.readBoolean()) {
             int length = buf.readVarInt();
@@ -54,8 +53,6 @@ public class ClientSoftPhysicsObjectData {
             this.customData = new byte[0];
         }
 
-        // Initialize interpolation controller with spawn data immediately
-        // This ensures we have at least one state for interpolation
         interpolationController.addState(this.initialServerTimestamp, initialTransform, initialLinearVelocity, initialAngularVelocity, this.latestSyncedVertexData, true);
     }
 

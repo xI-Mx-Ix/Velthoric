@@ -60,7 +60,7 @@ public record AddRigidBodyCommand(UUID objectId) implements ICommand {
                         if (bodyId != Jolt.cInvalidBodyId) {
                             rigidObject.setBodyId(bodyId);
                             rigidObject.confirmPhysicsInitialized();
-                            objectManager.linkBodyId(bodyId, rigidObject.getPhysicsId());
+                            objectManager.getObjectContainer().linkBodyId(bodyId, rigidObject.getPhysicsId());
                         } else {
                             VxMainClass.LOGGER.error("Jolt failed to create body for object {}", rigidObject.getPhysicsId());
                             rigidObject.markRemoved();

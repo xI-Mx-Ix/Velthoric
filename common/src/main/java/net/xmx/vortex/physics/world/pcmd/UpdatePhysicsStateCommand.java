@@ -19,7 +19,6 @@ public record UpdatePhysicsStateCommand(long timestampNanos) implements ICommand
         if (lockInterface == null) {
             return;
         }
-
-        world.getObjectManager().parallelUpdateAndDispatch(this.timestampNanos, bodyInterface, lockInterface);
+        world.getObjectManager().onPhysicsUpdate(this.timestampNanos, bodyInterface, lockInterface);
     }
 }

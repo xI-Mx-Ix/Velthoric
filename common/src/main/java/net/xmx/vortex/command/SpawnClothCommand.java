@@ -13,14 +13,13 @@ import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
+import net.xmx.vortex.builtin.VxRegisteredObjects;
 import net.xmx.vortex.builtin.cloth.ClothSoftBody;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
-import net.xmx.vortex.physics.object.physicsobject.registry.GlobalPhysicsObjectRegistry;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
-import java.util.UUID;
+import java.util.Optional;
 
 public class SpawnClothCommand {
 
@@ -53,40 +52,25 @@ public class SpawnClothCommand {
         int segmentsWidth = IntegerArgumentType.getInteger(context, "segmentsWidth");
         int segmentsHeight = IntegerArgumentType.getInteger(context, "segmentsHeight");
 
-        float compliance = 0.001f;
-
-        VxObjectManager manager = VxPhysicsWorld.getObjectManager(level.dimension());
-        if (manager == null || !manager.isInitialized()) {
+        VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level.dimension());
+        if (physicsWorld == null) {
             source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
             return 0;
         }
-
-        GlobalPhysicsObjectRegistry.RegistrationData regData = GlobalPhysicsObjectRegistry.getRegistrationData(ClothSoftBody.TYPE_IDENTIFIER);
-        if (regData == null) {
-            source.sendFailure(Component.literal("Cloth object type '" + ClothSoftBody.TYPE_IDENTIFIER + "' is not registered."));
-            return 0;
-        }
-
+        VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
-        IPhysicsObject cloth = new ClothSoftBody(
-                UUID.randomUUID(),
-                level,
+        Optional<ClothSoftBody> spawnedCloth = manager.spawnObject(
+                VxRegisteredObjects.CLOTH,
                 transform,
-                regData.properties(),
-                segmentsWidth,
-                segmentsHeight,
-                width,
-                height,
-                mass,
-                compliance
+                cloth -> cloth.setConfiguration(segmentsWidth, segmentsHeight, width, height, mass, 0.001f)
         );
 
-        IPhysicsObject registeredCloth = manager.spawnObject(cloth);
-        if (registeredCloth != null) {
+        if (spawnedCloth.isPresent()) {
+            source.sendSuccess(() -> Component.literal("Successfully spawned cloth."), true);
             return 1;
         } else {
-            source.sendFailure(Component.literal("Failed to register the cloth. Check server logs."));
+            source.sendFailure(Component.literal("Failed to spawn the cloth. Check server logs."));
             return 0;
         }
     }

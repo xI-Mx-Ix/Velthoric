@@ -2,7 +2,7 @@ package net.xmx.vortex.init;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.xmx.vortex.builtin.BuiltInPhysicsRegistry;
+import net.xmx.vortex.builtin.VxRegisteredObjects;
 import net.xmx.vortex.init.registry.ModRegistries;
 import net.xmx.vortex.network.NetworkHandler;
 import net.xmx.vortex.natives.NativeJoltInitializer;
@@ -17,7 +17,7 @@ public class VxMainClass {
     public static void onInit() {
         ModRegistries.register();
 
-        BuiltInPhysicsRegistry.register();
+        VxRegisteredObjects.register();
         ConstraintSerializerRegistry.registerDefaults();
         NetworkHandler.register();
 
@@ -32,7 +32,7 @@ public class VxMainClass {
 
     @Environment(EnvType.CLIENT)
     public static void onClientInit() {
-        BuiltInPhysicsRegistry.registerClientRenderers();
+        VxRegisteredObjects.registerClientRenderers();
 
         RegisterEvents.registerClient();
     }

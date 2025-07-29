@@ -80,7 +80,7 @@ public class ClientPhysicsObjectManager {
             for (PhysicsObjectState state : states) {
                 updateObject(
                         state.getId(),
-                        state.getObjectType(),
+                        state.getEObjectType(),
                         state.getTransform(),
                         state.getLinearVelocity(),
                         state.getAngularVelocity(),

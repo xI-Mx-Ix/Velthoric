@@ -17,7 +17,7 @@ public record RemoveRigidBodyCommand(UUID objectId, int bodyId) implements IComm
     @Override
     public void execute(VxPhysicsWorld world) {
         VxObjectManager objectManager = world.getObjectManager();
-        if (world.getPhysicsSystem() == null || bodyId == 0 || bodyId == Jolt.cInvalidBodyId) {
+        if (world.getPhysicsSystem() == null || objectManager == null || bodyId == 0 || bodyId == Jolt.cInvalidBodyId) {
             return;
         }
 
@@ -27,6 +27,6 @@ public record RemoveRigidBodyCommand(UUID objectId, int bodyId) implements IComm
             bodyInterface.destroyBody(bodyId);
         }
 
-        objectManager.unlinkBodyId(bodyId);
+        objectManager.getObjectContainer().unlinkBodyId(bodyId);
     }
 }

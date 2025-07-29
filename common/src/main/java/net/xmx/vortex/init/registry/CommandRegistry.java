@@ -12,7 +12,6 @@ public class CommandRegistry {
     public static void registerCommon(CommandDispatcher<CommandSourceStack> dispatcher) {
         SpawnClothCommand.register(dispatcher);
         SpawnRopeCommand.register(dispatcher);
-        TestJointCommand.register(dispatcher);
         SpawnBoxCommand.register(dispatcher);
         SpawnHingePairCommand.register(dispatcher);
     }
