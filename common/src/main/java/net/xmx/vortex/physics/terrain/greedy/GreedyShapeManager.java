@@ -114,6 +114,7 @@ public class GreedyShapeManager {
                 halfZ = Math.max(halfZ, minHalfExtent);
 
                 try (BoxShapeSettings boxSettings = new BoxShapeSettings(halfX, halfY, halfZ)) {
+                    boxSettings.setConvexRadius(0.0f);
                     settings.addShape(centerX, centerY, centerZ, boxSettings);
                 }
             }
