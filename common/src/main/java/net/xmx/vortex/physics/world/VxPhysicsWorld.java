@@ -126,7 +126,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.numVelocityIterations = 10;
 
         this.baumgarteFactor = 0.2f;
-        this.penetrationSlop = 0.02f;
+        this.penetrationSlop = 0.0f;
         this.timeBeforeSleep = 0.5f;
         this.pointVelocitySleepThreshold = 0.03f;
 
@@ -236,9 +236,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             timeAccumulator = MAX_ACCUMULATED_TIME;
         }
 
-        int substepsPerformed = 0;
-
-        while (timeAccumulator >= this.fixedTimeStep && substepsPerformed < maxSubsteps) {
+        if (timeAccumulator >= this.fixedTimeStep) {
             int error = physicsSystem.update(this.fixedTimeStep, 1, tempAllocator, jobSystem);
             if (error != EPhysicsUpdateError.None) {
                 VxMainClass.LOGGER.error("Jolt physics update failed with error code: {}", error);
@@ -246,7 +244,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
                 return;
             }
             timeAccumulator -= this.fixedTimeStep;
-            substepsPerformed++;
         }
 
         if (this.isRunning) {
