@@ -11,14 +11,21 @@ import java.util.function.Supplier;
 public class DebugShapesUpdatePacket {
 
     private final Map<Integer, BodyDrawData> drawData;
+    private final boolean isFirstBatch;
 
-    public record BodyDrawData(int color, float[] vertices) {}
+    public record BodyDrawData(int color, float[] vertices) {
+        public int estimateSize() {
+            return 4 + 4 + 5 + (vertices.length * 4);
+        }
+    }
 
-    public DebugShapesUpdatePacket(Map<Integer, BodyDrawData> data) {
+    public DebugShapesUpdatePacket(Map<Integer, BodyDrawData> data, boolean isFirstBatch) {
         this.drawData = data;
+        this.isFirstBatch = isFirstBatch;
     }
 
     public DebugShapesUpdatePacket(FriendlyByteBuf buf) {
+        this.isFirstBatch = buf.readBoolean();
         int mapSize = buf.readVarInt();
         this.drawData = new HashMap<>(mapSize);
         for (int i = 0; i < mapSize; i++) {
@@ -34,6 +41,7 @@ public class DebugShapesUpdatePacket {
     }
 
     public void encode(FriendlyByteBuf buf) {
+        buf.writeBoolean(isFirstBatch);
         buf.writeVarInt(drawData.size());
         for (Map.Entry<Integer, BodyDrawData> entry : drawData.entrySet()) {
             buf.writeVarInt(entry.getKey());
@@ -55,5 +63,9 @@ public class DebugShapesUpdatePacket {
 
     public Map<Integer, BodyDrawData> getDrawData() {
         return drawData;
+    }
+
+    public boolean isFirstBatch() {
+        return isFirstBatch;
     }
 }

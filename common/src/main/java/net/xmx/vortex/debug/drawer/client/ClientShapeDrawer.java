@@ -5,9 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.vortex.debug.drawer.packet.DebugShapesUpdatePacket;
 
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientShapeDrawer {
@@ -29,13 +27,13 @@ public class ClientShapeDrawer {
             return;
         }
 
-        Set<Integer> receivedBodyIds = new HashSet<>(packet.getDrawData().keySet());
+        if (packet.isFirstBatch()) {
+            lastKnownVertices.clear();
+        }
 
         packet.getDrawData().forEach((bodyId, data) -> {
             lastKnownVertices.put(bodyId, data.vertices());
         });
-
-        lastKnownVertices.keySet().removeIf(id -> !receivedBodyIds.contains(id));
     }
 
     public void render(PoseStack poseStack, VertexConsumer vertexConsumer, Vec3 cameraPos) {

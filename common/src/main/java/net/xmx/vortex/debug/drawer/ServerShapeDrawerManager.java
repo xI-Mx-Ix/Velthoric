@@ -14,6 +14,7 @@ import java.util.Map;
 public class ServerShapeDrawerManager {
 
     private final VxPhysicsWorld physicsWorld;
+    private static final int MAX_PACKET_PAYLOAD_SIZE = 1000 * 1024;
 
     public ServerShapeDrawerManager(VxPhysicsWorld physicsWorld) {
         this.physicsWorld = physicsWorld;
@@ -43,16 +44,12 @@ public class ServerShapeDrawerManager {
             }
         }
 
-        sendPacket(allBodyData);
+        sendPacketsInBatches(allBodyData);
     }
 
     private void extractAndAddBodyData(Body body, Map<Integer, DebugShapesUpdatePacket.BodyDrawData> allBodyData) {
         try (TransformedShape transformedShape = body.getTransformedShape()) {
-            if (transformedShape == null) {
-                return;
-            }
-
-            if (!body.isInBroadPhase()) {
+            if (transformedShape == null || !body.isInBroadPhase()) {
                 return;
             }
 
@@ -86,14 +83,35 @@ public class ServerShapeDrawerManager {
         }
     }
 
-    private void sendPacket(Map<Integer, DebugShapesUpdatePacket.BodyDrawData> allBodyData) {
+    private void sendPacketsInBatches(Map<Integer, DebugShapesUpdatePacket.BodyDrawData> allBodyData) {
         ServerLevel level = physicsWorld.getLevel();
         if (level == null || allBodyData.isEmpty()) {
             return;
         }
 
-        DebugShapesUpdatePacket packet = new DebugShapesUpdatePacket(allBodyData);
+        Map<Integer, DebugShapesUpdatePacket.BodyDrawData> currentBatch = new HashMap<>();
+        int currentBatchSize = 0;
+        boolean isFirst = true;
 
-        NetworkHandler.sendToDimension(packet, level.dimension());
+        for (Map.Entry<Integer, DebugShapesUpdatePacket.BodyDrawData> entry : allBodyData.entrySet()) {
+            int entrySize = entry.getValue().estimateSize();
+
+            if (!currentBatch.isEmpty() && currentBatchSize + entrySize > MAX_PACKET_PAYLOAD_SIZE) {
+                DebugShapesUpdatePacket packet = new DebugShapesUpdatePacket(currentBatch, isFirst);
+                NetworkHandler.sendToDimension(packet, level.dimension());
+
+                currentBatch.clear();
+                currentBatchSize = 0;
+                isFirst = false;
+            }
+
+            currentBatch.put(entry.getKey(), entry.getValue());
+            currentBatchSize += entrySize;
+        }
+
+        if (!currentBatch.isEmpty()) {
+            DebugShapesUpdatePacket packet = new DebugShapesUpdatePacket(currentBatch, isFirst);
+            NetworkHandler.sendToDimension(packet, level.dimension());
+        }
     }
 }
