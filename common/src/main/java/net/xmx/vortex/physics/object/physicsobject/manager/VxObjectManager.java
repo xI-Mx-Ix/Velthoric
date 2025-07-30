@@ -73,7 +73,7 @@ public class VxObjectManager {
         configurator.accept(newObject);
 
         objectContainer.add(newObject);
-        networkDispatcher.dispatchSpawn(newObject);
+        networkDispatcher.queueSpawn(newObject);
 
         return Optional.of(newObject);
     }
@@ -91,7 +91,7 @@ public class VxObjectManager {
             objectStorage.saveData(obj);
         }
 
-        networkDispatcher.dispatchRemoval(id);
+        networkDispatcher.queueRemoval(id);
         world.getConstraintManager().removeConstraintsForObject(id, reason == VxRemovalReason.DISCARD);
     }
 

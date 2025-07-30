@@ -14,9 +14,9 @@ import net.xmx.vortex.item.magnetizer.packet.MagnetizerActionPacket;
 import net.xmx.vortex.item.physicsgun.packet.PhysicsGunActionPacket;
 import net.xmx.vortex.item.physicsgun.packet.PhysicsGunStatePacket;
 import net.xmx.vortex.item.physicsgun.packet.SyncAllPhysicsGunGrabsPacket;
-import net.xmx.vortex.physics.object.physicsobject.packet.RemovePhysicsObjectPacket;
-import net.xmx.vortex.physics.object.physicsobject.packet.SpawnPhysicsObjectPacket;
-import net.xmx.vortex.physics.object.physicsobject.packet.SyncAllPhysicsObjectsPacket;
+import net.xmx.vortex.physics.object.physicsobject.packet.batch.RemovePhysicsObjectBatchPacket;
+import net.xmx.vortex.physics.object.physicsobject.packet.batch.SpawnPhysicsObjectBatchPacket;
+import net.xmx.vortex.physics.object.physicsobject.packet.batch.SyncAllPhysicsObjectsPacket;
 import net.xmx.vortex.physics.object.physicsobject.packet.SyncPhysicsObjectDataPacket;
 import net.xmx.vortex.physics.object.raycast.packet.PhysicsClickPacket;
 
@@ -95,17 +95,17 @@ public class NetworkHandler {
         );
 
         registerPacket(
-                RemovePhysicsObjectPacket.class,
-                RemovePhysicsObjectPacket::encode,
-                RemovePhysicsObjectPacket::new,
-                RemovePhysicsObjectPacket::handle
+                RemovePhysicsObjectBatchPacket.class,
+                RemovePhysicsObjectBatchPacket::encode,
+                RemovePhysicsObjectBatchPacket::new,
+                RemovePhysicsObjectBatchPacket::handle
         );
 
         registerPacket(
-                SpawnPhysicsObjectPacket.class,
-                SpawnPhysicsObjectPacket::encode,
-                SpawnPhysicsObjectPacket::new,
-                SpawnPhysicsObjectPacket::handle
+                SpawnPhysicsObjectBatchPacket.class,
+                SpawnPhysicsObjectBatchPacket::encode,
+                SpawnPhysicsObjectBatchPacket::new,
+                SpawnPhysicsObjectBatchPacket::handle
         );
     }
 

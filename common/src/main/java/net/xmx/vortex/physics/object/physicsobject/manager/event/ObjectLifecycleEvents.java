@@ -66,10 +66,11 @@ public class ObjectLifecycleEvents {
     }
 
     private static void onServerTick(MinecraftServer server) {
-
         VxPhysicsWorld.getAll().forEach(world -> {
             VxObjectManager manager = world.getObjectManager();
             if (manager != null) {
+                manager.getNetworkDispatcher().tick();
+
                 manager.getObjectContainer().getAllObjects().forEach(obj -> {
                     if (!obj.isRemoved()) {
                         obj.fixedGameTick(manager.getWorld().getLevel());

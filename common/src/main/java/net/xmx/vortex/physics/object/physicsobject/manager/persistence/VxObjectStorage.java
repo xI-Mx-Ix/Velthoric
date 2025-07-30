@@ -157,7 +157,7 @@ public class VxObjectStorage {
                         if (obj != null) {
                             objectManager.getObjectContainer().add(obj);
                             removeDataFromChunkIndex(obj.getPhysicsId(), VxObjectManager.getObjectChunkPos(obj));
-                            objectManager.getNetworkDispatcher().dispatchSpawn(obj);
+                            objectManager.getNetworkDispatcher().queueSpawn(obj);
                         }
                         return obj;
                     }, level.getServer())

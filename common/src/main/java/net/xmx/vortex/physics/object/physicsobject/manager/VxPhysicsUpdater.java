@@ -32,7 +32,7 @@ public class VxPhysicsUpdater {
         VxObjectContainer container = manager.getObjectContainer();
         VxObjectNetworkDispatcher dispatcher = manager.getNetworkDispatcher();
         BodyInterface bodyInterfaceNoLock = manager.getWorld().getPhysicsSystem().getBodyInterfaceNoLock();
-        
+
         physicsTickCounter++;
         final boolean isPeriodicUpdateTick = (physicsTickCounter % INACTIVE_OBJECT_UPDATE_INTERVAL_TICKS == 0);
 
@@ -51,7 +51,7 @@ public class VxPhysicsUpdater {
                     return isActive || obj.isDataDirty() || isPeriodicUpdateTick;
                 })
                 .toList();
-        
+
         if (!objectsToUpdate.isEmpty()) {
             List<PhysicsObjectState> statesToSend = new ArrayList<>(objectsToUpdate.size());
             for (IPhysicsObject obj : objectsToUpdate) {
@@ -61,10 +61,10 @@ public class VxPhysicsUpdater {
                 dispatcher.dispatchStateUpdates(statesToSend);
             }
         }
-        
+
         container.processPendingActivations();
     }
-    
+
     private void updateObjectState(IPhysicsObject obj, long timestampNanos, BodyInterface bodyInterfaceNoLock, BodyLockInterface lockInterface, List<PhysicsObjectState> statesToSend) {
         VxTransform transform = tempTransform.get();
         Vec3 linVel = null;
@@ -87,12 +87,12 @@ public class VxPhysicsUpdater {
         } finally {
             transformLock.unlockWrite(stamp);
         }
-        
+
         PhysicsObjectState state = PhysicsObjectStatePool.acquire();
         state.from(obj, timestampNanos, isActive);
         statesToSend.add(state);
     }
-    
+
     @Nullable
     private float[] getSoftBodyVertices(BodyLockInterface lockInterface, int bodyId) {
         try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {

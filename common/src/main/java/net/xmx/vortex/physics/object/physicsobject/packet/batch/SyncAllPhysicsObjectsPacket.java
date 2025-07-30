@@ -1,4 +1,4 @@
-package net.xmx.vortex.physics.object.physicsobject.packet;
+package net.xmx.vortex.physics.object.physicsobject.packet.batch;
 
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
