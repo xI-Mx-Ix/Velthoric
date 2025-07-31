@@ -102,7 +102,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     private float timeAccumulator = 0.0f;
 
-    private static final int DEFAULT_SIMULATION_HZ = 60;
+    private static final int DEFAULT_SIMULATION_HZ = 30;
     private static final float MAX_ACCUMULATED_TIME = 0.2f;
 
     private final ServerShapeDrawerManager serverShapeDrawerManager;
@@ -122,16 +122,16 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.maxBodyPairs = 65536;
         this.maxContactConstraints = 10240;
 
-        this.numPositionIterations = 10;
-        this.numVelocityIterations = 10;
+        this.numPositionIterations = 5;
+        this.numVelocityIterations = 5;
 
         this.baumgarteFactor = 0.2f;
         this.penetrationSlop = 0.0f;
-        this.timeBeforeSleep = 0.5f;
+        this.timeBeforeSleep = 0.2f;
         this.pointVelocitySleepThreshold = 0.03f;
 
         this.gravityY = -9.81f;
-        this.maxSubsteps = 10;
+        this.maxSubsteps = 5;
     }
 
     private void initializeAndStart() {
@@ -282,7 +282,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         settings.setPenetrationSlop(penetrationSlop);
         settings.setTimeBeforeSleep(timeBeforeSleep);
         settings.setPointVelocitySleepThreshold(pointVelocitySleepThreshold);
-        settings.setDeterministicSimulation(true);
+        settings.setDeterministicSimulation(false);
 
         physicsSystem.setGravity(0f, gravityY, 0f);
         physicsSystem.optimizeBroadPhase();
