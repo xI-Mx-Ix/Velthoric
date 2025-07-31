@@ -1,7 +1,11 @@
 package net.xmx.vortex.init.registry;
 
+import dev.architectury.platform.Platform;
 import dev.architectury.registry.client.level.entity.EntityRendererRegistry;
 import dev.architectury.registry.registries.RegistrySupplier;
+import dev.architectury.utils.Env;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -21,7 +25,12 @@ public class EntityRegistry {
 
     public static void register() {
         ModRegistries.ENTITY_TYPES.register();
+        registerEntityRenderers();
+    }
 
-        EntityRendererRegistry.register(EntityRegistry.RIDING_PROXY, NoopRenderer::new);
+    private static void registerEntityRenderers() {
+        if (Platform.getEnvironment() == Env.CLIENT) {
+            EntityRendererRegistry.register(EntityRegistry.RIDING_PROXY, NoopRenderer::new);
+        }
     }
 }

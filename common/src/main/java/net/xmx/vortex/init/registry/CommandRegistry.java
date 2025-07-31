@@ -2,6 +2,8 @@ package net.xmx.vortex.init.registry;
 
 import com.mojang.brigadier.CommandDispatcher;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
+import dev.architectury.platform.Platform;
+import dev.architectury.utils.Env;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.commands.CommandSourceStack;
@@ -16,8 +18,9 @@ public class CommandRegistry {
         SpawnHingePairCommand.register(dispatcher);
     }
 
-    @Environment(EnvType.CLIENT)
     public static void registerClient(CommandDispatcher<CommandSourceStack> dispatcher) {
+        if (Platform.getEnvironment() == Env.CLIENT) {
+        }
     }
 
     public static void register() {
