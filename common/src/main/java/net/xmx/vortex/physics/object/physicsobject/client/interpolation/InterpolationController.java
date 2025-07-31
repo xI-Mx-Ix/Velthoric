@@ -13,12 +13,9 @@ import java.util.Deque;
 public class InterpolationController {
 
     private static final long INTERPOLATION_DELAY_NANOS = 100_000_000L;
-
     private static final float MAX_EXTRAPOLATION_SECONDS = 0.05f;
-
     private static final int MAX_BUFFER_SIZE = 60;
     private static final int IDEAL_BUFFER_SIZE = 10;
-
     private static final long JITTER_THRESHOLD_NANOS = 50_000_000L;
 
     private final Deque<StateSnapshot> stateBuffer = new ArrayDeque<>();
@@ -34,14 +31,14 @@ public class InterpolationController {
 
     public void addState(long serverTimestamp, VxTransform transform, @Nullable Vec3 linVel, @Nullable Vec3 angVel, @Nullable float[] vertices, boolean isActive) {
 
+        // Pakete, die zu alt sind oder in der falschen Reihenfolge ankommen, ignorieren.
         if (!stateBuffer.isEmpty() && serverTimestamp <= stateBuffer.peekLast().serverTimestampNanos) {
             return;
         }
 
-        long timeSinceLast = serverTimestamp - lastAddedTimestamp;
-        if (lastAddedTimestamp > 0 && timeSinceLast > JITTER_THRESHOLD_NANOS * 2) {
-            handleJitterEvent();
-        }
+        // --- KORREKTUR ---
+        // Die aggressive Jitter-Behandlung, die handleJitterEvent() aufrief, wurde hier entfernt.
+        // Das verhindert das Löschen des State-Buffers und die daraus resultierenden Rendering-Fehler.
         lastAddedTimestamp = serverTimestamp;
 
         long clientReceiptTime = VxClientClock.getInstance().getGameTimeNanos();
@@ -50,9 +47,7 @@ public class InterpolationController {
             this.isClockOffsetInitialized = true;
         } else {
             long newOffset = serverTimestamp - clientReceiptTime;
-
-            double factor = (Math.abs(newOffset - clockOffsetNanos) > JITTER_THRESHOLD_NANOS) ?
-                    0.2 : 0.05;
+            double factor = (Math.abs(newOffset - clockOffsetNanos) > JITTER_THRESHOLD_NANOS) ? 0.2 : 0.05;
             this.clockOffsetNanos = (long) (this.clockOffsetNanos * (1.0 - factor) + newOffset * factor);
         }
 
@@ -68,7 +63,6 @@ public class InterpolationController {
     }
 
     private void handleJitterEvent() {
-
         if (stateBuffer.size() > 2) {
             StateSnapshot lastValid = stateBuffer.peekLast();
             stateBuffer.clear();
@@ -80,18 +74,13 @@ public class InterpolationController {
     }
 
     private void cleanupBuffer() {
-
         int targetSize = IDEAL_BUFFER_SIZE;
-
         if (stateBuffer.size() > 2) {
-            long avgInterval = (stateBuffer.peekLast().serverTimestampNanos -
-                    stateBuffer.peekFirst().serverTimestampNanos) / stateBuffer.size();
-
+            long avgInterval = (stateBuffer.peekLast().serverTimestampNanos - stateBuffer.peekFirst().serverTimestampNanos) / stateBuffer.size();
             if (avgInterval > 60_000_000L) {
                 targetSize = MAX_BUFFER_SIZE;
             }
         }
-
         while (stateBuffer.size() > targetSize) {
             StateSnapshot.release(stateBuffer.removeFirst());
         }
@@ -140,7 +129,6 @@ public class InterpolationController {
     }
 
     private void interpolate(StateSnapshot from, StateSnapshot to, float alpha, float dt) {
-
         boolean useCubic = from.isActive && to.isActive &&
                 from.linearVelocity != null && to.linearVelocity != null &&
                 from.angularVelocity != null && to.angularVelocity != null;
@@ -169,12 +157,9 @@ public class InterpolationController {
 
         if (from.vertexData != null && to.vertexData != null &&
                 from.vertexData.length == to.vertexData.length) {
-
-            if (renderState.vertexData == null ||
-                    renderState.vertexData.length != from.vertexData.length) {
+            if (renderState.vertexData == null || renderState.vertexData.length != from.vertexData.length) {
                 renderState.vertexData = new float[from.vertexData.length];
             }
-
             for (int i = 0; i < from.vertexData.length; i++) {
                 renderState.vertexData[i] = Mth.lerp(alpha, from.vertexData[i], to.vertexData[i]);
             }
