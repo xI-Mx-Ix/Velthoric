@@ -6,6 +6,12 @@ loom {
     forge {
         mixinConfig "vortex.mixins.json"
     }
+
+    runs {
+        server {
+            runDir "run-server"
+        }
+    }
 }
 
 architectury {
