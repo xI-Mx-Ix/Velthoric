@@ -12,6 +12,9 @@ forge/.gradle
 forge/run
 fabric/run
 
+forge/run-server
+fabric/run-server
+
 # Temporary Java backup files created by some editors (tilde suffix)
 *.java~
 
