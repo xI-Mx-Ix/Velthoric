@@ -7,6 +7,14 @@ architectury {
     fabric()
 }
 
+loom {
+    runs {
+        server {
+            runDir "run-server"
+        }
+    }
+}
+
 configurations {
     common {
         canBeResolved = true
