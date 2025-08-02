@@ -30,7 +30,6 @@ public class BoxRigidPhysicsObject extends RigidPhysicsObject {
     @Override
     public ShapeSettings buildShapeSettings() {
         BoxShapeSettings settings = new BoxShapeSettings(this.halfExtents);
-        settings.setConvexRadius(0.05f);
         return settings;
     }
 
