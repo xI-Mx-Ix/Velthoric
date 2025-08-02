@@ -11,6 +11,10 @@ loom {
         server {
             runDir "run-server"
         }
+        client {
+            runDir "run-client"
+            programArgs '--username', 'xI0Mx0Ix'
+        }
     }
 }
 
@@ -38,22 +42,6 @@ dependencies {
     forge "net.minecraftforge:forge:$rootProject.forge_version"
 
     modImplementation "dev.architectury:architectury-forge:$rootProject.architectury_api_version"
-
-    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux64:2.1.0")
-    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Windows64:2.1.0:DebugDp")
-    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux64:2.1.0:DebugDp")
-    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:DebugDp")
-    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:DebugDp")
-    minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:DebugDp")
-    minecraftRuntimeLibraries("io.github.electrostat-lab:snaploader:1.1.1-stable")
-
-    include("com.github.stephengold:jolt-jni-Linux64:2.1.0")
-    include("com.github.stephengold:jolt-jni-Windows64:2.1.0:ReleaseDp")
-    include("com.github.stephengold:jolt-jni-Linux64:2.1.0:ReleaseDp")
-    include("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:ReleaseDp")
-    include("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:ReleaseDp")
-    include("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:ReleaseDp")
-    include("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionForge')

@@ -73,13 +73,33 @@ subprojects {
             parchment("org.parchmentmc.data:parchment-1.20.2:2023.10.08@zip")
         }
 
-        implementation("com.github.stephengold:jolt-jni-Linux64:2.1.0")
-        implementation("com.github.stephengold:jolt-jni-Windows64:2.1.0:DebugDp")
-        implementation("com.github.stephengold:jolt-jni-Linux64:2.1.0:DebugDp")
-        implementation("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:DebugDp")
-        implementation("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:DebugDp")
-        implementation("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:DebugDp")
+        //implementation("com.github.stephengold:jolt-jni-Linux64:2.1.0")
+        //implementation("com.github.stephengold:jolt-jni-Windows64:2.1.0:DebugDp")
+        //implementation("com.github.stephengold:jolt-jni-Linux64:2.1.0:DebugDp")
+        //implementation("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:DebugDp")
+        //implementation("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:DebugDp")
+        //implementation("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:DebugDp")
+
+        //include("com.github.stephengold:jolt-jni-Linux64:2.1.0")
+        //include("com.github.stephengold:jolt-jni-Windows64:2.1.0:DebugDp")
+        //include("com.github.stephengold:jolt-jni-Linux64:2.1.0:DebugDp")
+        //include("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:DebugDp")
+        //include("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:DebugDp")
+        //include("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:DebugDp")
+
         implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
+        minecraftRuntimeLibraries("io.github.electrostat-lab:snaploader:1.1.1-stable")
+        include("io.github.electrostat-lab:snaploader:1.1.1-stable")
+
+
+        implementation files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT.jar")
+        implementation files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT-DebugDp.jar")
+
+        minecraftRuntimeLibraries files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT.jar")
+        minecraftRuntimeLibraries files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT-DebugDp.jar")
+
+        include files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT.jar")
+        include files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT-DebugDp.jar")
 
     }
 

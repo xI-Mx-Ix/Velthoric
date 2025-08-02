@@ -12,8 +12,13 @@ loom {
         server {
             runDir "run-server"
         }
+        client {
+            runDir "run-client"
+            programArgs '--username', 'xI0Mx0Ix'
+        }
     }
 }
+
 
 configurations {
     common {
@@ -34,21 +39,13 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
-    modImplementation "curse.maven:sodium-394468:6260639"
+    //modImplementation "curse.maven:sodium-394468:6260639"
     modImplementation "curse.maven:modmenu-308702:5162837"
 
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
-
-    include("com.github.stephengold:jolt-jni-Linux64:2.1.0")
-    include("com.github.stephengold:jolt-jni-Windows64:2.1.0:ReleaseDp")
-    include("com.github.stephengold:jolt-jni-Linux64:2.1.0:ReleaseDp")
-    include("com.github.stephengold:jolt-jni-Linux_ARM64:2.1.0:ReleaseDp")
-    include("com.github.stephengold:jolt-jni-MacOSX64:2.1.0:ReleaseDp")
-    include("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.1.0:ReleaseDp")
-    include("io.github.electrostat-lab:snaploader:1.1.1-stable")
 }
 
 processResources {
