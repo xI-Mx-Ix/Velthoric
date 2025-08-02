@@ -2,8 +2,6 @@ package net.xmx.vortex.init;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.xmx.vortex.debug.drawer.event.ClientShapeDrawerEvents;
-import net.xmx.vortex.debug.drawer.event.ServerShapeDrawerEvents;
 import net.xmx.vortex.debug.screen.DebugScreen;
 import net.xmx.vortex.item.magnetizer.event.MagnetizerEvents;
 import net.xmx.vortex.item.physicsgun.beam.PhysicsGunBeamRenderer;
@@ -25,7 +23,6 @@ public class RegisterEvents {
         ConstraintLifecycleEvents.registerEvents();
         PhysicsGunEvents.registerEvents();
         MagnetizerEvents.registerEvents();
-        ServerShapeDrawerEvents.registerEvents();
     }
 
     @Environment(EnvType.CLIENT)
@@ -36,7 +33,6 @@ public class RegisterEvents {
 
         ClientPhysicsPauseHandler.registerEvents();
         DebugScreen.registerEvents();
-        ClientShapeDrawerEvents.registerEvents();
 
         PhysicsObjectRenderer.registerEvents();
         PhysicsGunBeamRenderer.registerEvents();
