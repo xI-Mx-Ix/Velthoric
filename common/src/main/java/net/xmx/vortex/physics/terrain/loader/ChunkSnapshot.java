@@ -15,8 +15,7 @@ public record ChunkSnapshot(List<ShapeInfo> shapes, VxSectionPos pos) {
 
     public record ShapeInfo(BlockState state, BlockPos localPos) {}
 
-    public static ChunkSnapshot snapshot(Level level, VxSectionPos pos) {
-        LevelChunk chunk = level.getChunk(pos.x(), pos.z());
+    public static ChunkSnapshot snapshotFromChunk(Level level, LevelChunk chunk, VxSectionPos pos) {
         int sectionIndex = level.getSectionIndexFromSectionY(pos.y());
 
         if (sectionIndex < 0 || sectionIndex >= chunk.getSections().length) {

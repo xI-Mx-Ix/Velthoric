@@ -82,9 +82,7 @@ public class TerrainSystem implements Runnable {
 
     public void shutdown() {
         if (isInitialized.compareAndSet(true, false)) {
-
             this.jobSystem.shutdown();
-
             if (workerThread != null) {
                 workerThread.interrupt();
                 try {
@@ -93,7 +91,6 @@ public class TerrainSystem implements Runnable {
                     Thread.currentThread().interrupt();
                 }
             }
-
             mainThreadTasks.clear();
             physicsWorld.execute(() -> {
                 new HashSet<>(chunkStates.keySet()).forEach(this::unloadChunkPhysics);
@@ -170,9 +167,7 @@ public class TerrainSystem implements Runnable {
     private void processSnapshot(@NotNull ChunkSnapshot snapshot, int snapshotVersion, boolean isInitialBuild) {
         VxSectionPos pos = snapshot.pos();
         AtomicInteger state = getState(pos);
-
         if (snapshotVersion < getRebuildVersion(pos).get()) return;
-
         int previousState = state.get();
         if (!state.compareAndSet(STATE_LOADING_SCHEDULED, STATE_GENERATING_SHAPE)) {
             if (state.get() != STATE_GENERATING_SHAPE) {
@@ -180,9 +175,7 @@ public class TerrainSystem implements Runnable {
             }
             return;
         }
-
         final boolean wasActive = (previousState == STATE_READY_ACTIVE);
-
         CompletableFuture.supplyAsync(() -> isInitialBuild ? terrainGenerator.generatePlaceholderShape(snapshot) : terrainGenerator.generateShape(level, snapshot), this.jobSystem.getExecutor())
                 .thenAcceptAsync(generatedShape -> {
                     if (snapshotVersion < getRebuildVersion(pos).get() || getState(pos).get() == STATE_REMOVING) {
@@ -190,14 +183,12 @@ public class TerrainSystem implements Runnable {
                         if (getState(pos).get() != STATE_REMOVING) state.set(previousState);
                         return;
                     }
-
                     BodyInterface bodyInterface = physicsWorld.getBodyInterface();
                     if (bodyInterface == null) {
                         if (generatedShape != null) generatedShape.close();
                         state.set(STATE_UNLOADED);
                         return;
                     }
-
                     if (generatedShape == null) {
                         if (chunkBodyIds.containsKey(pos)) {
                             removeBodyAndShape(pos, bodyInterface);
@@ -206,7 +197,6 @@ public class TerrainSystem implements Runnable {
                         state.set(STATE_AIR_CHUNK);
                         return;
                     }
-
                     Integer bodyId = chunkBodyIds.get(pos);
                     if (bodyId != null) {
                         bodyInterface.setShape(bodyId, generatedShape, true, EActivation.Activate);
@@ -226,12 +216,9 @@ public class TerrainSystem implements Runnable {
                             }
                         }
                     }
-
                     chunkIsPlaceholder.put(pos, isInitialBuild);
                     state.set(wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
-
                     if (wasActive) activateChunk(pos);
-
                 }, physicsWorld)
                 .exceptionally(ex -> {
                     VxMainClass.LOGGER.error("Exception during terrain shape generation for {}", pos, ex);
@@ -244,13 +231,11 @@ public class TerrainSystem implements Runnable {
         if (getState(pos).get() == STATE_AIR_CHUNK) {
             return;
         }
-
         if(isReady(pos) && !chunkBodyIds.containsKey(pos)) {
             VxMainClass.LOGGER.warn("Detected stuck terrain chunk {} in ready state with no body. Forcing high-prio rebuild.", pos);
             scheduleRebuild(pos, VxTaskPriority.HIGH);
             return;
         }
-
         if (chunkBodyIds.containsKey(pos) && getState(pos).compareAndSet(STATE_READY_INACTIVE, STATE_READY_ACTIVE)) {
             physicsWorld.execute(() -> {
                 BodyInterface bodyInterface = physicsWorld.getBodyInterface();
@@ -260,7 +245,6 @@ public class TerrainSystem implements Runnable {
                 }
             });
         }
-
         if (isPlaceholder(pos) && chunkBodyIds.containsKey(pos)) {
             scheduleRebuild(pos, VxTaskPriority.CRITICAL);
         }
@@ -294,7 +278,7 @@ public class TerrainSystem implements Runnable {
 
     private void resetStateAfterFailedSnapshot(VxSectionPos pos) {
         AtomicInteger state = getState(pos);
-        state.compareAndSet(STATE_LOADING_SCHEDULED, STATE_READY_INACTIVE);
+        state.compareAndSet(STATE_LOADING_SCHEDULED, STATE_UNLOADED);
     }
 
     public void loadChunkFromVanilla(@NotNull LevelChunk chunk) {
@@ -333,15 +317,12 @@ public class TerrainSystem implements Runnable {
         AtomicInteger state = getState(pos);
         int oldState = state.getAndSet(STATE_REMOVING);
         if (oldState == STATE_REMOVING) return;
-
         getRebuildVersion(pos).incrementAndGet();
-
         physicsWorld.execute(() -> {
             BodyInterface bi = physicsWorld.getBodyInterface();
             if(bi != null) {
                 removeBodyAndShape(pos, bi);
             }
-
             chunkStates.remove(pos);
             chunkIsPlaceholder.remove(pos);
             chunkRebuildVersions.remove(pos);
@@ -359,7 +340,7 @@ public class TerrainSystem implements Runnable {
 
     public void releaseChunk(VxSectionPos pos) {
         Integer newCount = chunkReferenceCounts.computeIfPresent(pos, (p, count) -> count > 1 ? count - 1 : null);
-        if (newCount == null && chunkReferenceCounts.containsKey(pos)) {
+        if (newCount == null) {
             unloadChunkPhysics(pos);
         }
     }
@@ -374,7 +355,6 @@ public class TerrainSystem implements Runnable {
         Set<UUID> currentObjectIds = physicsWorld.getObjectManager().getObjectContainer().getAllObjects().stream()
                 .map(IPhysicsObject::getPhysicsId)
                 .collect(Collectors.toSet());
-
         objectTrackers.keySet().removeIf(id -> {
             if (!currentObjectIds.contains(id)) {
                 Optional.ofNullable(objectTrackers.get(id)).ifPresent(ObjectTerrainTracker::releaseAll);
@@ -382,7 +362,6 @@ public class TerrainSystem implements Runnable {
             }
             return false;
         });
-
         for (IPhysicsObject obj : physicsWorld.getObjectManager().getObjectContainer().getAllObjects()) {
             if (obj.isPhysicsInitialized() && obj.getBodyId() != 0) {
                 objectTrackers.computeIfAbsent(obj.getPhysicsId(), id -> new ObjectTerrainTracker(obj, this));
@@ -390,7 +369,6 @@ public class TerrainSystem implements Runnable {
                 Optional.ofNullable(objectTrackers.remove(obj.getPhysicsId())).ifPresent(ObjectTerrainTracker::releaseAll);
             }
         }
-
         if (objectTrackers.isEmpty()) {
             Set<VxSectionPos> currentActive = chunkStates.entrySet().stream()
                     .filter(e -> e.getValue().get() == STATE_READY_ACTIVE)
@@ -399,22 +377,18 @@ public class TerrainSystem implements Runnable {
             currentActive.forEach(this::deactivateChunk);
             return;
         }
-
         List<CompletableFuture<Set<VxSectionPos>>> futures = objectTrackers.values().stream()
                 .map(tracker -> CompletableFuture.supplyAsync(tracker::update, this.jobSystem.getExecutor()))
                 .toList();
-
         Set<VxSectionPos> allRequiredActiveChunks = futures.stream()
                 .map(CompletableFuture::join)
                 .flatMap(Set::stream)
                 .collect(Collectors.toSet());
-
         chunkStates.forEach((pos, state) -> {
             if (state.get() == STATE_READY_ACTIVE && !allRequiredActiveChunks.contains(pos)) {
                 deactivateChunk(pos);
             }
         });
-
         allRequiredActiveChunks.forEach(this::activateChunk);
     }
 
@@ -434,35 +408,50 @@ public class TerrainSystem implements Runnable {
         sortedRequests.sort(Comparator.comparing(SnapshotRequest::priority).reversed().thenComparing(Comparator.comparing(SnapshotRequest::version).reversed()));
 
         int batchSize = Math.min(sortedRequests.size(), MAX_SNAPSHOTS_PER_TICK);
-        Map<VxSectionPos, SnapshotRequest> currentBatch = new LinkedHashMap<>();
-
-        for(int i = 0; i < batchSize; i++) {
-            SnapshotRequest request = sortedRequests.get(i);
-            if(pendingSnapshotRequests.remove(request.pos(), request)) {
-                currentBatch.put(request.pos(), request);
-            }
-        }
-        if (currentBatch.isEmpty()) return;
 
         mainThreadTasks.offer(() -> {
-            Map<VxSectionPos, ChunkSnapshot> snapshots = new HashMap<>();
-            for (SnapshotRequest request : currentBatch.values()) {
-                try {
-                    snapshots.put(request.pos(), ChunkSnapshot.snapshot(level, request.pos()));
-                } catch (Exception e) {
-                    VxMainClass.LOGGER.error("Failed to create snapshot for chunk {} on main thread. Skipping.", request.pos(), e);
-                    resetStateAfterFailedSnapshot(request.pos());
-                }
-            }
-            if (snapshots.isEmpty()) return;
-            this.jobSystem.submit(() -> {
-                for (Map.Entry<VxSectionPos, ChunkSnapshot> entry : snapshots.entrySet()) {
-                    SnapshotRequest request = currentBatch.get(entry.getKey());
-                    if (request != null) {
-                        processSnapshot(entry.getValue(), request.version(), request.isInitialBuild());
+            Map<SnapshotRequest, LevelChunk> readyChunks = new HashMap<>();
+            List<SnapshotRequest> failedRequests = new ArrayList<>();
+
+            for(int i = 0; i < batchSize && i < sortedRequests.size(); i++) {
+                SnapshotRequest request = sortedRequests.get(i);
+                LevelChunk chunk = level.getChunkSource().getChunk(request.pos().x(), request.pos().z(), false);
+
+                if (chunk != null) {
+                    if (pendingSnapshotRequests.remove(request.pos(), request)) {
+                        readyChunks.put(request, chunk);
+                    }
+                } else {
+                    if (pendingSnapshotRequests.remove(request.pos(), request)) {
+                        failedRequests.add(request);
                     }
                 }
-            });
+            }
+
+            if (!readyChunks.isEmpty()) {
+                this.jobSystem.submit(() -> {
+                    for (Map.Entry<SnapshotRequest, LevelChunk> entry : readyChunks.entrySet()) {
+                        SnapshotRequest request = entry.getKey();
+                        LevelChunk chunk = entry.getValue();
+                        try {
+                            ChunkSnapshot snapshot = ChunkSnapshot.snapshotFromChunk(level, chunk, request.pos());
+                            processSnapshot(snapshot, request.version(), request.isInitialBuild());
+                        } catch (Exception e) {
+                            VxMainClass.LOGGER.error("Failed to create snapshot for chunk {} from pre-loaded chunk. Skipping.", request.pos(), e);
+                            resetStateAfterFailedSnapshot(request.pos());
+                        }
+                    }
+                });
+            }
+
+            if (!failedRequests.isEmpty()) {
+                for(SnapshotRequest request : failedRequests) {
+                    pendingSnapshotRequests.compute(request.pos(), (p, existing) -> {
+                        if (existing == null) return request;
+                        return request.priority().ordinal() > existing.priority().ordinal() || request.version() > existing.version() ? request : existing;
+                    });
+                }
+            }
         });
     }
 
