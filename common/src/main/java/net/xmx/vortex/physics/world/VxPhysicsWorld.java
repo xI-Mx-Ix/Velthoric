@@ -5,7 +5,6 @@ import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
-import net.xmx.vortex.debug.drawer.ServerShapeDrawerManager;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.natives.NativeJoltInitializer;
 import net.xmx.vortex.physics.constraint.manager.VxConstraintManager;
@@ -13,7 +12,6 @@ import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
 import net.xmx.vortex.physics.terrain.TerrainSystem;
 import net.xmx.vortex.physics.world.pcmd.ICommand;
 import net.xmx.vortex.physics.world.pcmd.RunTaskCommand;
-import net.xmx.vortex.physics.world.pcmd.UpdatePhysicsStateCommand;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -33,7 +31,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final float timeBeforeSleep;
     private final float pointVelocitySleepThreshold;
     private final float gravityY;
-    private final int maxSubsteps;
+    private final float speculativeContactDistance;
 
     // --- Static Registry & Factory ---
 
@@ -105,8 +103,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private static final int DEFAULT_SIMULATION_HZ = 30;
     private static final float MAX_ACCUMULATED_TIME = 0.2f;
 
-    private final ServerShapeDrawerManager serverShapeDrawerManager;
-
     // --- Constructor & Lifecycle ---
 
     private VxPhysicsWorld(ServerLevel level) {
@@ -116,22 +112,22 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.objectManager = new VxObjectManager(this);
         this.constraintManager = new VxConstraintManager(this.objectManager);
         this.terrainSystem = new TerrainSystem(this, this.level);
-        this.serverShapeDrawerManager = new ServerShapeDrawerManager(this);
 
         this.maxBodies = 65536;
         this.maxBodyPairs = 65536;
         this.maxContactConstraints = 10240;
 
-        this.numPositionIterations = 5;
-        this.numVelocityIterations = 5;
-
+        this.numVelocityIterations = 10;
+        this.numPositionIterations = 2;
         this.baumgarteFactor = 0.2f;
-        this.penetrationSlop = 0.0f;
-        this.timeBeforeSleep = 0.2f;
-        this.pointVelocitySleepThreshold = 0.03f;
+        this.penetrationSlop = 0.02f;
+
+        this.speculativeContactDistance = 0.00201f;
+        this.timeBeforeSleep = 0.3f;
+
+        this.pointVelocitySleepThreshold = 0.05f;
 
         this.gravityY = -9.81f;
-        this.maxSubsteps = 5;
     }
 
     private void initializeAndStart() {
@@ -236,8 +232,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             timeAccumulator = MAX_ACCUMULATED_TIME;
         }
 
-        if (timeAccumulator >= this.fixedTimeStep) {
-            int error = physicsSystem.update(this.fixedTimeStep, 1, tempAllocator, jobSystem);
+        while (timeAccumulator >= this.fixedTimeStep) {
+            int error = physicsSystem.update(this.fixedTimeStep, 2, tempAllocator, jobSystem);
             if (error != EPhysicsUpdateError.None) {
                 VxMainClass.LOGGER.error("Jolt physics update failed with error code: {}", error);
                 this.isRunning = false;
@@ -247,7 +243,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
 
         if (this.isRunning) {
-            queueCommand(new UpdatePhysicsStateCommand(System.nanoTime()));
+            BodyInterface bodyInterface = physicsSystem.getBodyInterface();
+            BodyLockInterface lockInterface = this.getBodyLockInterface();
+
+            if (bodyInterface != null && lockInterface != null) {
+                this.objectManager.onPhysicsUpdate(System.nanoTime(), bodyInterface, lockInterface);
+            }
         }
     }
 
@@ -274,16 +275,19 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
         physicsSystem.init(maxBodies, 0, maxBodyPairs, maxContactConstraints, bpli, ovbpf, olpf);
 
-        PhysicsSettings settings = physicsSystem.getPhysicsSettings();
+        try (PhysicsSettings settings = physicsSystem.getPhysicsSettings()) {
+            settings.setNumPositionSteps(numPositionIterations);
+            settings.setNumVelocitySteps(numVelocityIterations);
+            settings.setSpeculativeContactDistance(speculativeContactDistance);
+            settings.setBaumgarte(baumgarteFactor);
+            settings.setPenetrationSlop(penetrationSlop);
+            settings.setTimeBeforeSleep(timeBeforeSleep);
+            settings.setPointVelocitySleepThreshold(pointVelocitySleepThreshold);
+            settings.setDeterministicSimulation(false);
 
-        settings.setNumPositionSteps(numPositionIterations);
-        settings.setNumVelocitySteps(numVelocityIterations);
-        settings.setBaumgarte(baumgarteFactor);
-        settings.setPenetrationSlop(penetrationSlop);
-        settings.setTimeBeforeSleep(timeBeforeSleep);
-        settings.setPointVelocitySleepThreshold(pointVelocitySleepThreshold);
-        settings.setDeterministicSimulation(false);
+            physicsSystem.setPhysicsSettings(settings);
 
+        }
         physicsSystem.setGravity(0f, gravityY, 0f);
         physicsSystem.optimizeBroadPhase();
     }
@@ -402,9 +406,5 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public static Collection<VxPhysicsWorld> getAll() {
         return Collections.unmodifiableCollection(worlds.values());
-    }
-
-    public ServerShapeDrawerManager getDebugDrawerManager() {
-        return serverShapeDrawerManager;
     }
 }
