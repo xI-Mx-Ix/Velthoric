@@ -2,7 +2,7 @@ package net.xmx.vortex.physics.object.physicsobject.manager;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.*;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -23,9 +23,9 @@ public class VxObjectNetworkDispatcher {
     private final VxObjectManager manager;
     private static final int MAX_PACKET_PAYLOAD_SIZE = 128 * 1024;
 
-    private final Map<UUID, Set<UUID>> playerTrackedObjects = new HashMap<>();
-    private final Map<ServerPlayer, ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData>> pendingSpawns = new HashMap<>();
-    private final Map<ServerPlayer, ObjectArrayList<UUID>> pendingRemovals = new HashMap<>();
+    private final Object2ObjectMap<UUID, ObjectSet<UUID>> playerTrackedObjects = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<ServerPlayer, ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData>> pendingSpawns = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<ServerPlayer, ObjectArrayList<UUID>> pendingRemovals = new Object2ObjectOpenHashMap<>();
 
     public VxObjectNetworkDispatcher(ServerLevel level, VxObjectManager manager) {
         this.level = level;
@@ -40,8 +40,8 @@ public class VxObjectNetworkDispatcher {
     public void updatePlayerTracking(ServerPlayer player, Set<IPhysicsObject> visibleObjects) {
         long timestamp = System.nanoTime();
         UUID playerUUID = player.getUUID();
-        Set<UUID> previouslyTracked = this.playerTrackedObjects.computeIfAbsent(playerUUID, k -> new HashSet<>());
-        Set<UUID> newlyVisibleIds = new HashSet<>(visibleObjects.size());
+        ObjectSet<UUID> previouslyTracked = this.playerTrackedObjects.computeIfAbsent(playerUUID, k -> new ObjectOpenHashSet<>());
+        ObjectSet<UUID> newlyVisibleIds = new ObjectOpenHashSet<>(visibleObjects.size());
 
         for (IPhysicsObject obj : visibleObjects) {
             UUID objId = obj.getPhysicsId();
@@ -53,13 +53,14 @@ public class VxObjectNetworkDispatcher {
         }
 
         if (previouslyTracked.size() > newlyVisibleIds.size()) {
-            previouslyTracked.removeIf(trackedId -> {
+            ObjectIterator<UUID> iter = previouslyTracked.iterator();
+            while (iter.hasNext()) {
+                UUID trackedId = iter.next();
                 if (!newlyVisibleIds.contains(trackedId)) {
                     pendingRemovals.computeIfAbsent(player, k -> new ObjectArrayList<>()).add(trackedId);
-                    return true;
+                    iter.remove();
                 }
-                return false;
-            });
+            }
         } else {
             this.playerTrackedObjects.put(playerUUID, newlyVisibleIds);
         }
@@ -76,11 +77,11 @@ public class VxObjectNetworkDispatcher {
             return;
         }
 
-        pendingRemovals.forEach((player, ids) -> {
-            if (!ids.isEmpty()) {
-                NetworkHandler.sendToPlayer(new RemovePhysicsObjectBatchPacket(new ObjectArrayList<>(ids)), player);
+        for (Object2ObjectMap.Entry<ServerPlayer, ObjectArrayList<UUID>> entry : pendingRemovals.object2ObjectEntrySet()) {
+            if (!entry.getValue().isEmpty()) {
+                NetworkHandler.sendToPlayer(new RemovePhysicsObjectBatchPacket(entry.getValue()), entry.getKey());
             }
-        });
+        }
         pendingRemovals.clear();
     }
 
@@ -101,6 +102,7 @@ public class VxObjectNetworkDispatcher {
                 int dataSize = data.estimateSize();
                 if (!currentBatch.isEmpty() && currentBatchSizeBytes + dataSize > MAX_PACKET_PAYLOAD_SIZE) {
                     NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(currentBatch), player);
+
                     currentBatch = new ObjectArrayList<>();
                     currentBatchSizeBytes = 0;
                 }
@@ -116,13 +118,17 @@ public class VxObjectNetworkDispatcher {
     }
 
     public void dispatchStateUpdates(List<PhysicsObjectState> states) {
+
         level.getServer().execute(() -> {
+
             Long2ObjectMap<List<PhysicsObjectState>> statesByChunk = new Long2ObjectOpenHashMap<>();
             for (PhysicsObjectState state : states) {
-                this.manager.getObject(state.getId()).ifPresent(obj -> {
+
+                IPhysicsObject obj = manager.getObject(state.getId()).orElse(null);
+                if (obj != null) {
                     long chunkKey = VxObjectManager.getObjectChunkPos(obj).toLong();
                     statesByChunk.computeIfAbsent(chunkKey, k -> new ObjectArrayList<>()).add(state);
-                });
+                }
             }
             sendUpdatesBatchedByChunk(statesByChunk);
         });
@@ -131,17 +137,22 @@ public class VxObjectNetworkDispatcher {
     public void dispatchDataUpdate(IPhysicsObject obj) {
         if (obj.isDataDirty()) {
             SyncPhysicsObjectDataPacket packet = new SyncPhysicsObjectDataPacket(obj);
-            getPlayersInChunk(VxObjectManager.getObjectChunkPos(obj)).forEach(player -> NetworkHandler.sendToPlayer(packet, player));
+
+            for (ServerPlayer player : getPlayersInChunk(VxObjectManager.getObjectChunkPos(obj))) {
+                NetworkHandler.sendToPlayer(packet, player);
+            }
             obj.clearDataDirty();
         }
     }
 
     private void sendUpdatesBatchedByChunk(Long2ObjectMap<List<PhysicsObjectState>> statesByChunk) {
+
         statesByChunk.forEach((chunkKey, statesInChunk) -> {
             if (statesInChunk.isEmpty()) {
                 return;
             }
             ChunkPos chunkPos = new ChunkPos(chunkKey);
+
             ObjectArrayList<PhysicsObjectState> currentBatch = new ObjectArrayList<>();
             int currentBatchSizeBytes = 0;
 
@@ -163,8 +174,11 @@ public class VxObjectNetworkDispatcher {
     }
 
     private void sendUpdateBatch(ChunkPos chunkPos, List<PhysicsObjectState> batch) {
-        SyncAllPhysicsObjectsPacket packet = new SyncAllPhysicsObjectsPacket(new ObjectArrayList<>(batch));
-        getPlayersInChunk(chunkPos).forEach(player -> NetworkHandler.sendToPlayer(packet, player));
+
+        SyncAllPhysicsObjectsPacket packet = new SyncAllPhysicsObjectsPacket((ObjectArrayList<PhysicsObjectState>)batch);
+        for (ServerPlayer player : getPlayersInChunk(chunkPos)) {
+            NetworkHandler.sendToPlayer(packet, player);
+        }
     }
 
     private Iterable<ServerPlayer> getPlayersInChunk(ChunkPos pos) {

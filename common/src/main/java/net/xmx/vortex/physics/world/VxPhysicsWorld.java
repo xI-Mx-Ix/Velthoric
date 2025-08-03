@@ -100,7 +100,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     private float timeAccumulator = 0.0f;
 
-    private static final int DEFAULT_SIMULATION_HZ = 30;
+    private static final int DEFAULT_SIMULATION_HZ = 60;
     private static final float MAX_ACCUMULATED_TIME = 0.2f;
 
     // --- Constructor & Lifecycle ---
@@ -120,9 +120,9 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.numVelocityIterations = 10;
         this.numPositionIterations = 2;
         this.baumgarteFactor = 0.2f;
-        this.penetrationSlop = 0.02f;
+        this.penetrationSlop = 0.008f;
 
-        this.speculativeContactDistance = 0.00201f;
+        this.speculativeContactDistance = 0.0f;
         this.timeBeforeSleep = 0.3f;
 
         this.pointVelocitySleepThreshold = 0.05f;
