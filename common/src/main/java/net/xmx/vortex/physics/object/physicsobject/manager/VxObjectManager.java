@@ -27,7 +27,6 @@ public class VxObjectManager {
     private final VxObjectContainer objectContainer;
     private final VxPhysicsUpdater physicsUpdater;
     private final VxObjectNetworkDispatcher networkDispatcher;
-    private final VxUnsafe unsafe;
 
     public VxObjectManager(VxPhysicsWorld world) {
         this.world = world;
@@ -37,7 +36,6 @@ public class VxObjectManager {
         this.objectStorage = new VxObjectStorage(level, this);
         this.physicsUpdater = new VxPhysicsUpdater(this);
         this.networkDispatcher = new VxObjectNetworkDispatcher(level, this);
-        this.unsafe = new VxUnsafe(this);
     }
 
     public void initialize() {
@@ -142,7 +140,4 @@ public class VxObjectManager {
         return networkDispatcher;
     }
 
-    public VxUnsafe getUnsafe() {
-        return unsafe;
-    }
 }
