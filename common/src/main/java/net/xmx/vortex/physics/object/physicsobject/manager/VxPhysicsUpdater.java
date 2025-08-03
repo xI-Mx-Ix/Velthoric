@@ -61,8 +61,6 @@ public class VxPhysicsUpdater {
                 dispatcher.dispatchStateUpdates(statesToSend);
             }
         }
-
-        container.processPendingActivations();
     }
 
     private void updateObjectState(IPhysicsObject obj, long timestampNanos, BodyInterface bodyInterfaceNoLock, BodyLockInterface lockInterface, List<PhysicsObjectState> statesToSend) {

@@ -70,7 +70,6 @@ public class VxObjectStorage {
         if (!Files.exists(dataFile)) {
             return;
         }
-
         try (FileChannel channel = FileChannel.open(dataFile, StandardOpenOption.READ)) {
             if (channel.size() == 0) {
                 return;
@@ -104,37 +103,35 @@ public class VxObjectStorage {
     }
 
     public void saveAll(Collection<IPhysicsObject> activeObjects) {
-        ByteBuf buffer = Unpooled.buffer();
+        Map<UUID, byte[]> allObjectsToSave = new ConcurrentHashMap<>(unloadedObjectsData);
+
+        activeObjects.forEach(obj -> {
+            if (!obj.isRemoved()) {
+                allObjectsToSave.put(obj.getPhysicsId(), serializeObjectData(obj));
+            }
+        });
+
         try {
             Files.createDirectories(dataFile.getParent());
-            FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(buffer);
-
-            for (IPhysicsObject obj : activeObjects) {
-                if (obj.isRemoved()) {
-                    continue;
-                }
-                friendlyBuf.writeUUID(obj.getPhysicsId());
-                friendlyBuf.writeByteArray(serializeObjectData(obj));
-            }
-
-            for (Map.Entry<UUID, byte[]> entry : unloadedObjectsData.entrySet()) {
-                friendlyBuf.writeUUID(entry.getKey());
-                friendlyBuf.writeByteArray(entry.getValue());
-            }
-
             try (FileChannel channel = FileChannel.open(dataFile, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-                if (buffer.readableBytes() > 0) {
-                    channel.write(buffer.nioBuffer());
-                } else {
+                if (allObjectsToSave.isEmpty()) {
                     channel.truncate(0);
+                    return;
+                }
+
+                for (Map.Entry<UUID, byte[]> entry : allObjectsToSave.entrySet()) {
+                    ByteBuf tempBuf = Unpooled.buffer();
+                    FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(tempBuf);
+
+                    friendlyBuf.writeUUID(entry.getKey());
+                    friendlyBuf.writeByteArray(entry.getValue());
+
+                    channel.write(tempBuf.nioBuffer());
+                    tempBuf.release();
                 }
             }
         } catch (IOException e) {
             VxMainClass.LOGGER.error("Failed to save physics objects to {}", dataFile, e);
-        } finally {
-            if (buffer.refCnt() > 0) {
-                buffer.release();
-            }
         }
     }
 
@@ -143,7 +140,6 @@ public class VxObjectStorage {
         if (idsToLoad == null || idsToLoad.isEmpty()) {
             return;
         }
-
         for (UUID id : new ObjectArrayList<>(idsToLoad)) {
             if (objectManager.getObjectContainer().hasObject(id)) {
                 continue;
@@ -156,12 +152,10 @@ public class VxObjectStorage {
         if (objectManager.getObjectContainer().hasObject(id)) {
             return CompletableFuture.completedFuture(objectManager.getObjectContainer().get(id).orElse(null));
         }
-
         return pendingLoads.computeIfAbsent(id, objectId -> {
             if (!hasData(objectId)) {
                 return CompletableFuture.completedFuture(null);
             }
-
             return CompletableFuture.supplyAsync(() -> {
                         byte[] data = takeData(objectId);
                         if (data == null) {

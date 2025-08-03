@@ -2,8 +2,11 @@ package net.xmx.vortex.physics.object.physicsobject.manager;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import net.minecraft.core.SectionPos;
 import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.pcmd.ActivateBodyCommand;
+import net.xmx.vortex.physics.terrain.TerrainSystem;
+import net.xmx.vortex.physics.terrain.model.VxSectionPos;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
 import java.util.*;
@@ -11,7 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class VxObjectContainer {
-    
+
     private final VxPhysicsWorld world;
     private final Map<UUID, IPhysicsObject> managedObjects = new ConcurrentHashMap<>();
     private final Int2ObjectMap<UUID> bodyIdToUuidMap = new Int2ObjectOpenHashMap<>();
@@ -43,17 +46,39 @@ public class VxObjectContainer {
         }
         return obj;
     }
-    
+
     public void processPendingActivations() {
         if (pendingActivationQueue.isEmpty()) return;
-        
-        IPhysicsObject obj;
-        while ((obj = pendingActivationQueue.poll()) != null) {
-            if (!obj.isRemoved() && obj.getBodyId() != 0) {
-                 world.queueCommand(new ActivateBodyCommand(obj.getBodyId()));
+
+        TerrainSystem terrainSystem = world.getTerrainSystem();
+        if (terrainSystem == null) {
+            return;
+        }
+
+        Iterator<IPhysicsObject> iterator = pendingActivationQueue.iterator();
+        while (iterator.hasNext()) {
+            IPhysicsObject obj = iterator.next();
+            if (obj.isRemoved()) {
+                iterator.remove();
+                continue;
+            }
+
+            var pos = obj.getCurrentTransform().getTranslation();
+            VxSectionPos sectionPos = new VxSectionPos(
+                    SectionPos.posToSectionCoord(pos.x()),
+                    SectionPos.posToSectionCoord(pos.y()),
+                    SectionPos.posToSectionCoord(pos.z())
+            );
+
+            if (terrainSystem.isReady(sectionPos)) {
+                if (obj.getBodyId() != 0) {
+                    world.queueCommand(new ActivateBodyCommand(obj.getBodyId()));
+                }
+                iterator.remove();
             }
         }
     }
+
 
     public void clear() {
         managedObjects.values().forEach(obj -> obj.removeFromPhysics(world));
@@ -81,22 +106,20 @@ public class VxObjectContainer {
         synchronized (bodyIdToUuidMapLock) {
             objectId = bodyIdToUuidMap.get(bodyId);
         }
-
         if (objectId == null) {
             return Optional.empty();
         }
-
         return Optional.ofNullable(managedObjects.get(objectId));
     }
-    
+
     public Optional<IPhysicsObject> get(UUID id) {
         return Optional.ofNullable(managedObjects.get(id));
     }
-    
+
     public boolean hasObject(UUID id) {
         return managedObjects.containsKey(id);
     }
-    
+
     public Collection<IPhysicsObject> getAllObjects() {
         return Collections.unmodifiableCollection(managedObjects.values());
     }
