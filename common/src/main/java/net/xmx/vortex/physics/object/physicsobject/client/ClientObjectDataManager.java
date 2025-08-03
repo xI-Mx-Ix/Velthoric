@@ -45,8 +45,6 @@ public class ClientObjectDataManager {
 
     private final ConcurrentLinkedQueue<List<PhysicsObjectState>> stateUpdateQueue = new ConcurrentLinkedQueue<>();
 
-    private final ByteBuffer statsBuffer = ByteBuffer.allocateDirect(8);
-
     private ClientObjectDataManager() {}
 
     public static ClientObjectDataManager getInstance() {
@@ -212,10 +210,6 @@ public class ClientObjectDataManager {
 
     public int getRegisteredSoftRendererFactoryCount() {
         return softRendererFactories.size();
-    }
-
-    public int getStateUpdatesPerSecond() {
-        return statsBuffer.getInt(4);
     }
 
     public int getTotalNodeCount() {

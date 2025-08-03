@@ -51,9 +51,8 @@ public class DebugScreen {
 
         left.add("RB Renderers: " + rigidRenderers + " | SB Renderers: " + softRenderers);
 
-        int updatesPerSecond = clientManager.getStateUpdatesPerSecond();
         int totalNodeCount = clientManager.getTotalNodeCount();
-        left.add(String.format("Vertices: %d", totalNodeCount) + " | State Updates/s: " + updatesPerSecond);
+        left.add(String.format("Vertices: %d", totalNodeCount));
     }
 
     private static String getModVersion() {
