@@ -49,24 +49,32 @@ public class VxObjectStorage {
     }
 
     public void initialize() {
-        if (isInitialized.getAndSet(true)) return;
+        if (isInitialized.getAndSet(true)) {
+            return;
+        }
         int threadCount = Math.max(1, Runtime.getRuntime().availableProcessors() / 4);
         this.loaderExecutor = Executors.newFixedThreadPool(threadCount, r -> new Thread(r, "Vortex-Object-Loader"));
         this.loadFromFile();
     }
 
     public void shutdown() {
-        if (!isInitialized.getAndSet(false)) return;
+        if (!isInitialized.getAndSet(false)) {
+            return;
+        }
         if (loaderExecutor != null) {
             loaderExecutor.shutdown();
         }
     }
 
     private void loadFromFile() {
-        if (!Files.exists(dataFile)) return;
+        if (!Files.exists(dataFile)) {
+            return;
+        }
 
         try (FileChannel channel = FileChannel.open(dataFile, StandardOpenOption.READ)) {
-            if (channel.size() == 0) return;
+            if (channel.size() == 0) {
+                return;
+            }
             ByteBuffer buffer = ByteBuffer.allocateDirect((int) channel.size());
             channel.read(buffer);
             buffer.flip();
@@ -102,7 +110,9 @@ public class VxObjectStorage {
             FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(buffer);
 
             for (IPhysicsObject obj : activeObjects) {
-                if (obj.isRemoved()) continue;
+                if (obj.isRemoved()) {
+                    continue;
+                }
                 friendlyBuf.writeUUID(obj.getPhysicsId());
                 friendlyBuf.writeByteArray(serializeObjectData(obj));
             }
@@ -130,10 +140,14 @@ public class VxObjectStorage {
 
     public void loadObjectsInChunk(ChunkPos chunkPos) {
         List<UUID> idsToLoad = unloadedChunkIndex.get(chunkPos.toLong());
-        if (idsToLoad == null || idsToLoad.isEmpty()) return;
+        if (idsToLoad == null || idsToLoad.isEmpty()) {
+            return;
+        }
 
         for (UUID id : new ObjectArrayList<>(idsToLoad)) {
-            if (objectManager.getObjectContainer().hasObject(id)) continue;
+            if (objectManager.getObjectContainer().hasObject(id)) {
+                continue;
+            }
             loadObject(id);
         }
     }
@@ -150,14 +164,15 @@ public class VxObjectStorage {
 
             return CompletableFuture.supplyAsync(() -> {
                         byte[] data = takeData(objectId);
-                        if (data == null) return null;
+                        if (data == null) {
+                            return null;
+                        }
                         return deserializeObject(objectId, data);
                     }, loaderExecutor)
                     .thenApplyAsync(obj -> {
                         if (obj != null) {
                             objectManager.getObjectContainer().add(obj);
                             removeDataFromChunkIndex(obj.getPhysicsId(), VxObjectManager.getObjectChunkPos(obj));
-                            objectManager.getNetworkDispatcher().queueSpawn(obj);
                         }
                         return obj;
                     }, level.getServer())

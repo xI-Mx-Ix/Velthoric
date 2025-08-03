@@ -197,7 +197,7 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
         }
         VxPhysicsWorld world = VxPhysicsWorld.get(getLevel().dimension());
         if (world == null) return null;
-        Optional<IPhysicsObject> found = world.getObjectManager().getUnsafe().getObjectContainer().getByBodyId(getBodyId());
+        Optional<IPhysicsObject> found = world.getObjectManager().getObjectContainer().getByBodyId(getBodyId());
         if (found.isPresent() && found.get() == this) {
             try (BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), getBodyId())) {
                 if (lock.succeededAndIsInBroadPhase()) {

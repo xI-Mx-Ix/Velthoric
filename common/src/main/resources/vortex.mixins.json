@@ -11,6 +11,7 @@
     "event.level.VxLevelEvent_ServerLevelMixin",
     "event.server.VxServerLifecylceEvent_MinecraftServerMixin",
     "misc.ExplosionMixin",
+    "object.DispatchObjects_ChunkMapMixin",
     "terrain.ChunkGetter_ChunkMapMixin",
     "terrain.ChunkHolderMixin",
     "terrain.ChunkUnload_ChunkMapMixin",

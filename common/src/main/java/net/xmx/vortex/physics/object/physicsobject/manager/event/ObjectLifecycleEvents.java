@@ -1,5 +1,6 @@
 package net.xmx.vortex.physics.object.physicsobject.manager.event;
 
+import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -18,9 +19,15 @@ public class ObjectLifecycleEvents {
     public static void registerEvents() {
         VxChunkEvent.Load.EVENT.register(ObjectLifecycleEvents::onChunkLoad);
         VxChunkEvent.Unload.EVENT.register(ObjectLifecycleEvents::onChunkUnload);
-        VxChunkEvent.Watch.EVENT.register(ObjectLifecycleEvents::onChunkWatch);
         VxLevelEvent.Save.EVENT.register(ObjectLifecycleEvents::onLevelSave);
         TickEvent.SERVER_POST.register(ObjectLifecycleEvents::onServerTick);
+        PlayerEvent.PLAYER_QUIT.register(ObjectLifecycleEvents::onPlayerQuit);
+    }
+
+    private static void onPlayerQuit(ServerPlayer player) {
+        getObjectManager(player.level()).ifPresent(manager ->
+                manager.getNetworkDispatcher().onPlayerDisconnect(player)
+        );
     }
 
     private static Optional<VxObjectManager> getObjectManager(Level level) {
@@ -50,16 +57,7 @@ public class ObjectLifecycleEvents {
         });
     }
 
-    private static void onChunkWatch(VxChunkEvent.Watch event) {
-        getObjectManager(event.getLevel()).ifPresent(manager -> {
-            ServerPlayer player = event.getPlayer();
-            ChunkPos chunkPos = event.getChunkPos();
-            manager.getNetworkDispatcher().sendExistingObjectsToPlayer(player, chunkPos, manager.getObjectContainer().getAllObjects());
-        });
-    }
-
     private static void onLevelSave(VxLevelEvent.Save event) {
-
         getObjectManager(event.getLevel()).ifPresent(manager ->
                 manager.getObjectStorage().saveAll(manager.getObjectContainer().getAllObjects())
         );

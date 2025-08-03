@@ -14,13 +14,8 @@ import net.xmx.vortex.physics.object.physicsobject.packet.batch.SpawnPhysicsObje
 import net.xmx.vortex.physics.object.physicsobject.packet.batch.SyncAllPhysicsObjectsPacket;
 import net.xmx.vortex.physics.object.physicsobject.packet.SyncPhysicsObjectDataPacket;
 import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectState;
-import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectStatePool;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.*;
 
 public class VxObjectNetworkDispatcher {
 
@@ -28,8 +23,9 @@ public class VxObjectNetworkDispatcher {
     private final VxObjectManager manager;
     private static final int MAX_PACKET_PAYLOAD_SIZE = 128 * 1024;
 
-    private final Queue<IPhysicsObject> spawnQueue = new ConcurrentLinkedQueue<>();
-    private final Queue<UUID> removalQueue = new ConcurrentLinkedQueue<>();
+    private final Map<UUID, Set<UUID>> playerTrackedObjects = new HashMap<>();
+    private final Map<ServerPlayer, ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData>> pendingSpawns = new HashMap<>();
+    private final Map<ServerPlayer, ObjectArrayList<UUID>> pendingRemovals = new HashMap<>();
 
     public VxObjectNetworkDispatcher(ServerLevel level, VxObjectManager manager) {
         this.level = level;
@@ -37,57 +33,74 @@ public class VxObjectNetworkDispatcher {
     }
 
     public void tick() {
-        processRemovals();
-        processSpawns();
+        processPendingRemovals();
+        processPendingSpawns();
     }
 
-    public void queueSpawn(IPhysicsObject obj) {
-        this.spawnQueue.offer(obj);
-    }
-
-    public void queueRemoval(UUID id) {
-        this.removalQueue.offer(id);
-    }
-
-    private void processRemovals() {
-        if (removalQueue.isEmpty()) return;
-
-        ObjectArrayList<UUID> removedIds = new ObjectArrayList<>();
-        UUID id;
-        while ((id = removalQueue.poll()) != null) {
-            removedIds.add(id);
-        }
-
-        if (!removedIds.isEmpty()) {
-            NetworkHandler.sendToDimension(new RemovePhysicsObjectBatchPacket(removedIds), level.dimension());
-        }
-    }
-
-    private void processSpawns() {
-        if (spawnQueue.isEmpty()) return;
-
-        Long2ObjectMap<ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData>> spawnsByChunk = new Long2ObjectOpenHashMap<>();
+    public void updatePlayerTracking(ServerPlayer player, Set<IPhysicsObject> visibleObjects) {
         long timestamp = System.nanoTime();
-        IPhysicsObject obj;
+        UUID playerUUID = player.getUUID();
+        Set<UUID> previouslyTracked = this.playerTrackedObjects.computeIfAbsent(playerUUID, k -> new HashSet<>());
+        Set<UUID> newlyVisibleIds = new HashSet<>(visibleObjects.size());
 
-        while ((obj = spawnQueue.poll()) != null) {
-            long chunkKey = VxObjectManager.getObjectChunkPos(obj).toLong();
-            spawnsByChunk.computeIfAbsent(chunkKey, k -> new ObjectArrayList<>()).add(new SpawnPhysicsObjectBatchPacket.SpawnData(obj, timestamp));
+        for (IPhysicsObject obj : visibleObjects) {
+            UUID objId = obj.getPhysicsId();
+            newlyVisibleIds.add(objId);
+            if (!previouslyTracked.contains(objId)) {
+                pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>())
+                        .add(new SpawnPhysicsObjectBatchPacket.SpawnData(obj, timestamp));
+            }
         }
 
-        if (spawnsByChunk.isEmpty()) return;
+        if (previouslyTracked.size() > newlyVisibleIds.size()) {
+            previouslyTracked.removeIf(trackedId -> {
+                if (!newlyVisibleIds.contains(trackedId)) {
+                    pendingRemovals.computeIfAbsent(player, k -> new ObjectArrayList<>()).add(trackedId);
+                    return true;
+                }
+                return false;
+            });
+        } else {
+            this.playerTrackedObjects.put(playerUUID, newlyVisibleIds);
+        }
+    }
 
-        spawnsByChunk.forEach((chunkKey, spawnDataList) -> {
-            if (spawnDataList.isEmpty()) return;
+    public void onPlayerDisconnect(ServerPlayer player) {
+        this.playerTrackedObjects.remove(player.getUUID());
+        this.pendingSpawns.remove(player);
+        this.pendingRemovals.remove(player);
+    }
 
-            ChunkPos chunkPos = new ChunkPos(chunkKey);
+    private void processPendingRemovals() {
+        if (pendingRemovals.isEmpty()) {
+            return;
+        }
+
+        pendingRemovals.forEach((player, ids) -> {
+            if (!ids.isEmpty()) {
+                NetworkHandler.sendToPlayer(new RemovePhysicsObjectBatchPacket(new ObjectArrayList<>(ids)), player);
+            }
+        });
+        pendingRemovals.clear();
+    }
+
+    private void processPendingSpawns() {
+        if (pendingSpawns.isEmpty()) {
+            return;
+        }
+
+        pendingSpawns.forEach((player, spawnDataList) -> {
+            if (spawnDataList.isEmpty()) {
+                return;
+            }
+
             ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData> currentBatch = new ObjectArrayList<>();
             int currentBatchSizeBytes = 0;
 
             for (SpawnPhysicsObjectBatchPacket.SpawnData data : spawnDataList) {
                 int dataSize = data.estimateSize();
                 if (!currentBatch.isEmpty() && currentBatchSizeBytes + dataSize > MAX_PACKET_PAYLOAD_SIZE) {
-                    sendSpawnBatch(chunkPos, currentBatch);
+                    NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(currentBatch), player);
                     currentBatch = new ObjectArrayList<>();
                     currentBatchSizeBytes = 0;
                 }
@@ -96,21 +109,13 @@ public class VxObjectNetworkDispatcher {
             }
 
             if (!currentBatch.isEmpty()) {
-                sendSpawnBatch(chunkPos, currentBatch);
+                NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(currentBatch), player);
             }
         });
-    }
-
-    private void sendSpawnBatch(ChunkPos chunkPos, List<SpawnPhysicsObjectBatchPacket.SpawnData> batch) {
-        SpawnPhysicsObjectBatchPacket packet = new SpawnPhysicsObjectBatchPacket(new ObjectArrayList<>(batch));
-        getPlayersInChunk(chunkPos).forEach(player -> NetworkHandler.sendToPlayer(packet, player));
+        pendingSpawns.clear();
     }
 
     public void dispatchStateUpdates(List<PhysicsObjectState> states) {
-        if (level.getServer() == null) {
-            states.forEach(PhysicsObjectStatePool::release);
-            return;
-        }
         level.getServer().execute(() -> {
             Long2ObjectMap<List<PhysicsObjectState>> statesByChunk = new Long2ObjectOpenHashMap<>();
             for (PhysicsObjectState state : states) {
@@ -126,47 +131,16 @@ public class VxObjectNetworkDispatcher {
     public void dispatchDataUpdate(IPhysicsObject obj) {
         if (obj.isDataDirty()) {
             SyncPhysicsObjectDataPacket packet = new SyncPhysicsObjectDataPacket(obj);
-            getPlayersInChunk(VxObjectManager.getObjectChunkPos(obj)).forEach(player -> {
-                NetworkHandler.sendToPlayer(packet, player);
-            });
+            getPlayersInChunk(VxObjectManager.getObjectChunkPos(obj)).forEach(player -> NetworkHandler.sendToPlayer(packet, player));
             obj.clearDataDirty();
-        }
-    }
-
-    public void sendExistingObjectsToPlayer(ServerPlayer player, ChunkPos chunkPos, Collection<IPhysicsObject> objects) {
-        long timestamp = System.nanoTime();
-        ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData> spawnDataList = new ObjectArrayList<>();
-
-        for (IPhysicsObject obj : objects) {
-            if (VxObjectManager.getObjectChunkPos(obj).equals(chunkPos)) {
-                spawnDataList.add(new SpawnPhysicsObjectBatchPacket.SpawnData(obj, timestamp));
-            }
-        }
-
-        if (spawnDataList.isEmpty()) return;
-
-        ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData> currentBatch = new ObjectArrayList<>();
-        int currentBatchSizeBytes = 0;
-
-        for (SpawnPhysicsObjectBatchPacket.SpawnData data : spawnDataList) {
-            int dataSize = data.estimateSize();
-            if (!currentBatch.isEmpty() && currentBatchSizeBytes + dataSize > MAX_PACKET_PAYLOAD_SIZE) {
-                NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(currentBatch), player);
-                currentBatch = new ObjectArrayList<>();
-                currentBatchSizeBytes = 0;
-            }
-            currentBatch.add(data);
-            currentBatchSizeBytes += dataSize;
-        }
-
-        if (!currentBatch.isEmpty()) {
-            NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(currentBatch), player);
         }
     }
 
     private void sendUpdatesBatchedByChunk(Long2ObjectMap<List<PhysicsObjectState>> statesByChunk) {
         statesByChunk.forEach((chunkKey, statesInChunk) -> {
-            if (statesInChunk.isEmpty()) return;
+            if (statesInChunk.isEmpty()) {
+                return;
+            }
             ChunkPos chunkPos = new ChunkPos(chunkKey);
             ObjectArrayList<PhysicsObjectState> currentBatch = new ObjectArrayList<>();
             int currentBatchSizeBytes = 0;
@@ -190,13 +164,11 @@ public class VxObjectNetworkDispatcher {
 
     private void sendUpdateBatch(ChunkPos chunkPos, List<PhysicsObjectState> batch) {
         SyncAllPhysicsObjectsPacket packet = new SyncAllPhysicsObjectsPacket(new ObjectArrayList<>(batch));
-        getPlayersInChunk(chunkPos).forEach(player -> {
-            NetworkHandler.sendToPlayer(packet, player);
-        });
+        getPlayersInChunk(chunkPos).forEach(player -> NetworkHandler.sendToPlayer(packet, player));
     }
 
     private Iterable<ServerPlayer> getPlayersInChunk(ChunkPos pos) {
         ServerChunkCache chunkSource = level.getChunkSource();
-        return (chunkSource != null && chunkSource.chunkMap != null) ? chunkSource.chunkMap.getPlayers(pos, false) : List.of();
+        return chunkSource.chunkMap.getPlayers(pos, false);
     }
 }
