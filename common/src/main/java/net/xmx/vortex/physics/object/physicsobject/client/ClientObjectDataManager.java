@@ -177,7 +177,7 @@ public class ClientObjectDataManager {
         if (container == null) return null;
         return container.getLastKnownPosition();
     }
-    
+
     @Nullable
     public EObjectType getObjectType(UUID id) {
         return objectTypes.get(id);
@@ -192,7 +192,7 @@ public class ClientObjectDataManager {
     public SoftPhysicsObject.Renderer getSoftRenderer(UUID id) {
         return softRenderers.get(id);
     }
-    
+
     @Nullable
     public ByteBuffer getCustomData(UUID id) {
         return customDataMap.get(id);
@@ -201,7 +201,7 @@ public class ClientObjectDataManager {
     public Collection<UUID> getAllObjectIds() {
         return stateContainers.keySet();
     }
-    
+
     public static void registerEvents() {
         ClientTickEvent.CLIENT_PRE.register(client -> INSTANCE.processStateUpdates());
         VxClientPlayerNetworkEvent.LoggingOut.EVENT.register(event -> INSTANCE.clearAll());
@@ -228,5 +228,9 @@ public class ClientObjectDataManager {
                     return (vertices != null) ? vertices.length / 3 : 0;
                 })
                 .sum();
+    }
+
+    public boolean hasObject(UUID id) {
+        return stateContainers.containsKey(id);
     }
 }
