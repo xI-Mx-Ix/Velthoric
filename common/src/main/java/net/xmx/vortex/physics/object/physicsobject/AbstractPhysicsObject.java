@@ -54,6 +54,11 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
         readAdditionalSpawnData(buf);
     }
 
+    @Override
+    public final void writeCustomSyncData(FriendlyByteBuf buf) {
+        addAdditionalSpawnData(buf);
+    }
+
     protected abstract void addAdditionalSpawnData(FriendlyByteBuf buf);
     protected abstract void readAdditionalSpawnData(FriendlyByteBuf buf);
 

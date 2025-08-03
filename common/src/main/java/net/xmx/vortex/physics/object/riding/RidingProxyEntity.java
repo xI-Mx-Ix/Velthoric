@@ -20,8 +20,8 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.vortex.init.registry.EntityRegistry;
 import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectData;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.NotNull;
@@ -140,14 +140,15 @@ public class RidingProxyEntity extends Entity {
 
     @Environment(EnvType.CLIENT)
     private void clientTick(UUID physicsId) {
-        ClientPhysicsObjectManager clientManager = ClientPhysicsObjectManager.getInstance();
-        ClientPhysicsObjectData data = clientManager.getObjectData(physicsId);
-
-        if (data == null || data.getRigidData() == null) {
+        RenderData renderData = ClientObjectDataManager.getInstance().getRenderData(physicsId, 0.0f);
+        if (renderData == null) {
+            if (!this.isRemoved()) {
+                this.remove(RemovalReason.DISCARDED);
+            }
             return;
         }
 
-        this.lastInterpolatedTransform = data.getRigidData().getRenderTransform(0.0f);
+        this.lastInterpolatedTransform = renderData.transform;
         RVec3 pos = this.lastInterpolatedTransform.getTranslation();
         this.setPos(pos.xx(), pos.yy(), pos.zz());
     }
@@ -160,9 +161,8 @@ public class RidingProxyEntity extends Entity {
     @Environment(EnvType.CLIENT)
     public Optional<VxTransform> getInterpolatedTransform(float partialTicks) {
         return getPhysicsObjectId()
-                .map(ClientPhysicsObjectManager.getInstance()::getObjectData)
-                .map(ClientPhysicsObjectData::getRigidData)
-                .map(rigidData -> rigidData.getRenderTransform(partialTicks));
+                .flatMap(uuid -> Optional.ofNullable(ClientObjectDataManager.getInstance().getRenderData(uuid, partialTicks)))
+                .map(renderData -> renderData.transform);
     }
 
     @Override

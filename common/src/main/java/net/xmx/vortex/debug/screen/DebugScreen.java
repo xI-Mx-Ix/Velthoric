@@ -8,9 +8,11 @@ import net.minecraft.client.Minecraft;
 import net.xmx.vortex.event.api.VxDebugEvent;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 @Environment(EnvType.CLIENT)
 public class DebugScreen {
@@ -21,7 +23,6 @@ public class DebugScreen {
 
     public static void onDebugEvent(VxDebugEvent.AddDebugInfo event) {
         List<String> infoList = event.getInfoList();
-
         Minecraft mc = Minecraft.getInstance();
 
         if (!mc.options.renderDebug || mc.level == null) {
@@ -37,11 +38,11 @@ public class DebugScreen {
 
 
     private static void addClientInfo(List<String> left) {
-        ClientPhysicsObjectManager clientManager = ClientPhysicsObjectManager.getInstance();
-        var allClientObjects = clientManager.getAllObjectData();
+        ClientObjectDataManager clientManager = ClientObjectDataManager.getInstance();
+        Collection<UUID> allClientIds = clientManager.getAllObjectIds();
 
-        long clientRigidCount = allClientObjects.stream().filter(d -> d.getObjectType() == EObjectType.RIGID_BODY).count();
-        long clientSoftCount = allClientObjects.stream().filter(d -> d.getObjectType() == EObjectType.SOFT_BODY).count();
+        long clientRigidCount = allClientIds.stream().filter(id -> clientManager.getObjectType(id) == EObjectType.RIGID_BODY).count();
+        long clientSoftCount = allClientIds.stream().filter(id -> clientManager.getObjectType(id) == EObjectType.SOFT_BODY).count();
 
         left.add("RB: " + clientRigidCount + " | SB: " + clientSoftCount);
 
@@ -50,7 +51,7 @@ public class DebugScreen {
 
         left.add("RB Renderers: " + rigidRenderers + " | SB Renderers: " + softRenderers);
 
-        int updatesPerSecond = ClientPhysicsObjectManager.getInstance().getStateUpdatesPerSecond();
+        int updatesPerSecond = clientManager.getStateUpdatesPerSecond();
         int totalNodeCount = clientManager.getTotalNodeCount();
         left.add(String.format("Vertices: %d", totalNodeCount) + " | State Updates/s: " + updatesPerSecond);
     }

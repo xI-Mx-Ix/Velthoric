@@ -8,7 +8,7 @@ import net.xmx.vortex.item.physicsgun.beam.PhysicsGunBeamRenderer;
 import net.xmx.vortex.item.physicsgun.event.PhysicsGunEvents;
 import net.xmx.vortex.physics.VxLifecycleEvents;
 import net.xmx.vortex.physics.constraint.manager.events.ConstraintLifecycleEvents;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 import net.xmx.vortex.physics.object.physicsobject.client.renderer.PhysicsObjectRenderer;
 import net.xmx.vortex.physics.object.physicsobject.client.time.ClientPhysicsPauseHandler;
 import net.xmx.vortex.physics.object.physicsobject.manager.event.ObjectLifecycleEvents;
@@ -29,7 +29,7 @@ public class RegisterEvents {
     public static void registerClient() {
         ClientPlayerRidingSystem.registerEvents();
 
-        ClientPhysicsObjectManager.registerEvents();
+        ClientObjectDataManager.registerEvents();
 
         ClientPhysicsPauseHandler.registerEvents();
         DebugScreen.registerEvents();

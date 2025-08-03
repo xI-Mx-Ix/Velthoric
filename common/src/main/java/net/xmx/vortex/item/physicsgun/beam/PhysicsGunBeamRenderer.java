@@ -13,8 +13,9 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.vortex.event.api.VxRenderEvent;
 import net.xmx.vortex.item.physicsgun.manager.PhysicsGunClientManager;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectData;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.vortex.physics.object.physicsobject.EObjectType;
+import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import org.joml.Matrix4f;
 
 import java.util.Map;
@@ -44,7 +45,7 @@ public class PhysicsGunBeamRenderer {
         float partialTicks = event.getPartialTick();
 
         PhysicsGunClientManager clientManager = PhysicsGunClientManager.getInstance();
-
+        ClientObjectDataManager dataManager = ClientObjectDataManager.getInstance();
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 camPos = camera.getPosition();
 
@@ -70,14 +71,14 @@ public class PhysicsGunBeamRenderer {
             UUID objectUuid = grabData.objectUuid();
 
             Player player = mc.level.getPlayerByUUID(playerUuid);
-            ClientPhysicsObjectData objectData = ClientPhysicsObjectManager.getInstance().getObjectData(objectUuid);
+            EObjectType objectType = dataManager.getObjectType(objectUuid);
 
-            if (player != null && objectData != null && objectData.getRigidData() != null) {
-                VxTransform renderTransform = objectData.getRigidData().getRenderTransform(partialTicks);
-                if (renderTransform == null) continue;
+            if (player != null && objectType == EObjectType.RIGID_BODY) {
+                RenderData renderData = dataManager.getRenderData(objectUuid, partialTicks);
+                if (renderData == null) continue;
 
+                VxTransform renderTransform = renderData.transform;
                 Vec3 startPoint = getGunTipPosition(player, partialTicks);
-
                 com.github.stephengold.joltjni.RVec3 centerPos = renderTransform.getTranslation();
                 com.github.stephengold.joltjni.Quat rotation = renderTransform.getRotation();
                 Vec3 localHitPoint = grabData.localHitPoint();
@@ -114,12 +115,10 @@ public class PhysicsGunBeamRenderer {
             BlockHitResult hitResult = mc.level.clip(clipContext);
 
             Vec3 endPoint = (hitResult.getType() == HitResult.Type.MISS) ? traceEnd : hitResult.getLocation();
-
             drawThickCurvedBeam(bufferBuilder, matrix, camPos, startPoint, endPoint, playerLookVec);
         }
 
         tesselator.end();
-
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
         poseStack.popPose();

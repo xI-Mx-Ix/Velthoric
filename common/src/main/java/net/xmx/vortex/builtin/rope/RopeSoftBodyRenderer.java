@@ -15,8 +15,12 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.SoftPhysicsObject;
-import net.xmx.vortex.physics.object.physicsobject.type.soft.client.ClientSoftPhysicsObjectData;
+import org.jetbrains.annotations.Nullable;
+
+import java.nio.ByteBuffer;
+import java.util.UUID;
 
 @Environment(EnvType.CLIENT)
 public class RopeSoftBodyRenderer extends SoftPhysicsObject.Renderer {
@@ -27,23 +31,21 @@ public class RopeSoftBodyRenderer extends SoftPhysicsObject.Renderer {
     private static final Vec3 JOLT_UNIT_Y = new Vec3(0, 1, 0);
 
     @Override
-    public void render(ClientSoftPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
-        float[] renderVertexData = data.getRenderVertexData(partialTicks);
+    public void render(UUID id, RenderData renderData, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
+        float[] renderVertexData = renderData.vertexData;
         if (renderVertexData == null || renderVertexData.length < 6) {
             return;
         }
 
         float ropeRadius = 0.1f;
-        byte[] customData = data.getCustomData();
-        if (customData != null && customData.length > 0) {
+        if (customData != null && customData.remaining() >= 12) {
+            customData.rewind();
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(customData));
             try {
-
-                buf.readFloat();
-                buf.readInt();
+                buf.readFloat(); // halfHeight
+                buf.readInt();   // segments
                 ropeRadius = buf.readFloat();
-            } catch (Exception e) {
-
+            } catch (Exception ignored) {
             }
         }
 

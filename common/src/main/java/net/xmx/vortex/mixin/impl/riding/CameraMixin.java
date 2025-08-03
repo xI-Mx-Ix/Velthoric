@@ -8,11 +8,11 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.BlockGetter;
 import net.xmx.vortex.math.VxTransform;
+import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.riding.ClientPlayerRidingSystem;
 import net.xmx.vortex.physics.object.riding.PlayerRidingAttachment;
 import net.xmx.vortex.physics.object.riding.RidingProxyEntity;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectManager;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectData;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -21,6 +21,9 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.Optional;
+import java.util.UUID;
 
 @Mixin(Camera.class)
 public abstract class CameraMixin {
@@ -44,7 +47,6 @@ public abstract class CameraMixin {
 
     @Inject(method = "setup", at = @At("HEAD"), cancellable = true)
     private void vortex_setupPhysicsRidingCamera(BlockGetter level, Entity entity, boolean detached, boolean thirdPersonReverse, float partialTicks, CallbackInfo ci) {
-
         PlayerRidingAttachment attachment = ClientPlayerRidingSystem.getAttachment(entity);
         if (attachment == null || !attachment.isRiding()) {
             return;
@@ -53,17 +55,15 @@ public abstract class CameraMixin {
         RidingProxyEntity proxy = attachment.getCurrentProxy();
         if (proxy == null) return;
 
-        ClientPhysicsObjectData physicsData = proxy.getPhysicsObjectId()
-                .map(ClientPhysicsObjectManager.getInstance()::getObjectData)
-                .orElse(null);
+        Optional<UUID> physicsIdOpt = proxy.getPhysicsObjectId();
+        if (physicsIdOpt.isEmpty()) return;
 
-        if (physicsData == null || physicsData.getRigidData() == null) return;
-
-        VxTransform renderTransform = physicsData.getRigidData().getRenderTransform(partialTicks);
-        if (renderTransform == null) return;
+        RenderData renderData = ClientObjectDataManager.getInstance().getRenderData(physicsIdOpt.get(), partialTicks);
+        if (renderData == null) return;
 
         ci.cancel();
 
+        VxTransform renderTransform = renderData.transform;
         this.initialized = true;
         this.level = level;
         this.entity = entity;
@@ -98,7 +98,6 @@ public abstract class CameraMixin {
 
         if (detached) {
             if (thirdPersonReverse) {
-
                 float newYaw = this.yRot + 180.0f;
                 float newPitch = -this.xRot;
                 this.xRot = newPitch;

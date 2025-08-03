@@ -16,14 +16,17 @@ import net.xmx.vortex.item.PhysicsRemoverItem;
 import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.object.physicsobject.AbstractPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxRemovalReason;
-import net.xmx.vortex.physics.object.physicsobject.type.soft.client.ClientSoftPhysicsObjectData;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.pcmd.AddSoftBodyCommand;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.pcmd.RemoveSoftBodyCommand;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.properties.SoftPhysicsObjectProperties;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
+
+import java.nio.ByteBuffer;
+import java.util.UUID;
 
 public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
 
@@ -137,6 +140,6 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     public final void fixedPhysicsTick(VxPhysicsWorld physicsWorld) {}
 
     public abstract static class Renderer {
-        public abstract void render(ClientSoftPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight);
+        public abstract void render(UUID id, RenderData renderData, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight);
     }
 }

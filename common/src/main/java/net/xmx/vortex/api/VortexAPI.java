@@ -4,7 +4,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.SoftPhysicsObject;
 
@@ -51,12 +51,12 @@ public final class VortexAPI {
 
     @Environment(EnvType.CLIENT)
     public void registerRigidRenderer(String typeIdentifier, Supplier<RigidPhysicsObject.Renderer> factory) {
-        ClientPhysicsObjectManager.getInstance().registerRigidRendererFactory(typeIdentifier, factory);
+        ClientObjectDataManager.getInstance().registerRigidRendererFactory(typeIdentifier, factory);
     }
 
     @Environment(EnvType.CLIENT)
     public void registerSoftRenderer(String typeIdentifier, Supplier<SoftPhysicsObject.Renderer> factory) {
-        ClientPhysicsObjectManager.getInstance().registerSoftRendererFactory(typeIdentifier, factory);
+        ClientObjectDataManager.getInstance().registerSoftRendererFactory(typeIdentifier, factory);
     }
 
     public Map<String, PhysicsObjectType<?>> getQueuedRegistrations() {

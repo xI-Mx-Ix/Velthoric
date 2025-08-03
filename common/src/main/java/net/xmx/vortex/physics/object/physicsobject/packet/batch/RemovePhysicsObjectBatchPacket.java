@@ -3,7 +3,7 @@ package net.xmx.vortex.physics.object.physicsobject.packet.batch;
 import dev.architectury.networking.NetworkManager;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 
 import java.util.List;
 import java.util.UUID;
@@ -35,7 +35,7 @@ public class RemovePhysicsObjectBatchPacket {
     public static void handle(RemovePhysicsObjectBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            ClientPhysicsObjectManager manager = ClientPhysicsObjectManager.getInstance();
+            ClientObjectDataManager manager = ClientObjectDataManager.getInstance();
             for (UUID id : msg.ids) {
                 manager.removeObject(id);
             }

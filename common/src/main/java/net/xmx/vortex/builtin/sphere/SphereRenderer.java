@@ -7,11 +7,15 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
-import net.xmx.vortex.physics.object.physicsobject.type.rigid.client.ClientRigidPhysicsObjectData;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+
+import java.nio.ByteBuffer;
+import java.util.UUID;
 
 public class SphereRenderer extends RigidPhysicsObject.Renderer {
 
@@ -19,16 +23,15 @@ public class SphereRenderer extends RigidPhysicsObject.Renderer {
     private static final int SECTORS = 32;
 
     @Override
-    public void render(ClientRigidPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
+    public void render(UUID id, RenderData renderData, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
         float radius = 0.5f;
-        byte[] customData = data.getCustomData();
 
-        if (customData != null && customData.length > 0) {
+        if (customData != null && customData.remaining() >= 4) {
+            customData.rewind();
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(customData));
             try {
                 radius = buf.readFloat();
-            } catch (Exception e) {
-
+            } catch (Exception ignored) {
             }
         }
 

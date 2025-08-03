@@ -233,7 +233,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
 
         while (timeAccumulator >= this.fixedTimeStep) {
-            int error = physicsSystem.update(this.fixedTimeStep, 2, tempAllocator, jobSystem);
+            int error = physicsSystem.update(this.fixedTimeStep, 1, tempAllocator, jobSystem);
             if (error != EPhysicsUpdateError.None) {
                 VxMainClass.LOGGER.error("Jolt physics update failed with error code: {}", error);
                 this.isRunning = false;

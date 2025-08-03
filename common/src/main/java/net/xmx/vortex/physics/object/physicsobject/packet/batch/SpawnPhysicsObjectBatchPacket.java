@@ -6,7 +6,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 
 import java.util.List;
 import java.util.UUID;
@@ -38,7 +38,7 @@ public class SpawnPhysicsObjectBatchPacket {
     public static void handle(SpawnPhysicsObjectBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            ClientPhysicsObjectManager manager = ClientPhysicsObjectManager.getInstance();
+            ClientObjectDataManager manager = ClientObjectDataManager.getInstance();
             for (SpawnData data : msg.spawnDataList) {
                 FriendlyByteBuf dataBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data.data));
                 manager.spawnObject(data.id, data.typeIdentifier, data.objectType, dataBuf, data.timestamp);

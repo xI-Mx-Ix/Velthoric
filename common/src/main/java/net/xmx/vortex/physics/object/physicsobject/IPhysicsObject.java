@@ -63,4 +63,6 @@ public interface IPhysicsObject {
 
     @Nullable
     Body getBody();
+
+    void writeCustomSyncData(FriendlyByteBuf buf);
 }

@@ -13,13 +13,17 @@ import net.minecraft.world.level.Level;
 import net.xmx.vortex.item.PhysicsRemoverItem;
 import net.xmx.vortex.physics.object.physicsobject.AbstractPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxRemovalReason;
-import net.xmx.vortex.physics.object.physicsobject.type.rigid.client.ClientRigidPhysicsObjectData;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.pcmd.AddRigidBodyCommand;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.pcmd.RemoveRigidBodyCommand;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.properties.RigidPhysicsObjectProperties;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
+import org.jetbrains.annotations.Nullable;
+
+import java.nio.ByteBuffer;
+import java.util.UUID;
 
 public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
 
@@ -134,7 +138,7 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     public final void fixedPhysicsTick(VxPhysicsWorld physicsWorld) {}
 
     public abstract static class Renderer {
-        public abstract void render(ClientRigidPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight);
+        public abstract void render(UUID id, RenderData renderData, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight);
     }
 
     public EMotionType getMotionType() {

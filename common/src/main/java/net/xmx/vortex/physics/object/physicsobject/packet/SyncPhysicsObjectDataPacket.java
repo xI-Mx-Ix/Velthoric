@@ -4,7 +4,7 @@ import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -17,9 +17,7 @@ public class SyncPhysicsObjectDataPacket {
     public SyncPhysicsObjectDataPacket(IPhysicsObject obj) {
         this.id = obj.getPhysicsId();
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-
-        obj.writeSpawnData(buf);
-
+        obj.writeCustomSyncData(buf);
         this.data = new byte[buf.readableBytes()];
         buf.readBytes(this.data);
     }
@@ -37,10 +35,8 @@ public class SyncPhysicsObjectDataPacket {
     public static void handle(SyncPhysicsObjectDataPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            ClientPhysicsObjectManager manager = ClientPhysicsObjectManager.getInstance();
-            if (manager != null) {
-                manager.updateObjectData(msg.id, Unpooled.wrappedBuffer(msg.data));
-            }
+            ClientObjectDataManager manager = ClientObjectDataManager.getInstance();
+            manager.updateCustomObjectData(msg.id, Unpooled.wrappedBuffer(msg.data));
         });
     }
 }

@@ -2,7 +2,7 @@ package net.xmx.vortex.physics.object.physicsobject.packet.batch;
 
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientPhysicsObjectManager;
+import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectState;
 import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectStatePool;
 
@@ -37,7 +37,7 @@ public class SyncAllPhysicsObjectsPacket {
     public static void handle(SyncAllPhysicsObjectsPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            ClientPhysicsObjectManager.getInstance().scheduleStatesForUpdate(msg.objectStates);
+            ClientObjectDataManager.getInstance().scheduleStatesForUpdate(msg.objectStates);
         });
     }
 }

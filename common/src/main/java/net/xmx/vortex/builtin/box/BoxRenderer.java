@@ -7,25 +7,26 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Blocks;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
-import net.xmx.vortex.physics.object.physicsobject.type.rigid.client.ClientRigidPhysicsObjectData;
+import org.jetbrains.annotations.Nullable;
+
+import java.nio.ByteBuffer;
+import java.util.UUID;
 
 public class BoxRenderer extends RigidPhysicsObject.Renderer {
 
     @Override
-    public void render(ClientRigidPhysicsObjectData data, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
-
-        byte[] customData = data.getCustomData();
-        if (customData == null || customData.length < 12) {
-
+    public void render(UUID id, RenderData renderData, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
+        if (customData == null || customData.remaining() < 12) {
             return;
         }
 
+        customData.rewind();
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(customData));
         float hx = buf.readFloat();
         float hy = buf.readFloat();
         float hz = buf.readFloat();
-        buf.release();
 
         float fullWidth = hx * 2.0f;
         float fullHeight = hy * 2.0f;
