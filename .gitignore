@@ -18,6 +18,8 @@ fabric/run-client
 forge/run-server
 fabric/run-server
 
+libraries_old
+
 # Temporary Java backup files created by some editors (tilde suffix)
 *.java~
 
