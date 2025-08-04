@@ -1,9 +1,7 @@
 package net.xmx.vortex.mixin.impl.object;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,19 +27,18 @@ public abstract class DispatchObjects_ChunkMapMixin {
     @Shadow @Final
     ServerLevel level;
 
-    @Shadow
-    private volatile Long2ObjectLinkedOpenHashMap<ChunkHolder> visibleChunkMap;
+    @Unique
+    private final Map<UUID, Set<IPhysicsObject>> vortex$playerVisibleObjects = new HashMap<>();
+    @Unique
+    private final Long2ObjectMap<List<IPhysicsObject>> vortex$objectsByChunk = new Long2ObjectOpenHashMap<>();
 
     @Inject(method = "tick(Ljava/util/function/BooleanSupplier;)V", at = @At("TAIL"))
     private void vortex$onTick(BooleanSupplier hasTimeLeft, CallbackInfo ci) {
-
         VxPhysicsWorld world = VxPhysicsWorld.get(this.level.dimension());
-        if (world == null || world.getObjectManager() == null) {
-            return;
-        }
+        if (world == null) return;
 
         VxObjectManager manager = world.getObjectManager();
-        if (manager.getObjectContainer().getAllObjects().isEmpty() && this.level.players().isEmpty()) {
+        if (manager == null || (manager.getObjectContainer().getAllObjects().isEmpty() && this.level.players().isEmpty())) {
             return;
         }
 
@@ -51,45 +48,50 @@ public abstract class DispatchObjects_ChunkMapMixin {
     @Unique
     private void vortex$updatePhysicsObjectTracking(VxObjectManager manager) {
         VxObjectNetworkDispatcher dispatcher = manager.getNetworkDispatcher();
-        ChunkMap self = (ChunkMap) (Object) this;
+        List<ServerPlayer> players = this.level.players();
 
-        Long2ObjectMap<List<IPhysicsObject>> objectsByChunk = new Long2ObjectOpenHashMap<>();
+        vortex$playerVisibleObjects.clear();
+        for (ServerPlayer player : players) {
+            vortex$playerVisibleObjects.put(player.getUUID(), new HashSet<>());
+        }
+
+        vortex$objectsByChunk.clear();
         for (IPhysicsObject obj : manager.getObjectContainer().getAllObjects()) {
             if (!obj.isRemoved()) {
                 long chunkKey = VxObjectManager.getObjectChunkPos(obj).toLong();
-                objectsByChunk.computeIfAbsent(chunkKey, k -> new ArrayList<>()).add(obj);
+                vortex$objectsByChunk.computeIfAbsent(chunkKey, k -> new ArrayList<>()).add(obj);
             }
         }
 
-        Map<UUID, Set<IPhysicsObject>> playerVisibleObjects = new HashMap<>();
-        for (ServerPlayer player : this.level.players()) {
-            playerVisibleObjects.put(player.getUUID(), new HashSet<>());
+        if (vortex$objectsByChunk.isEmpty()) {
+
+            for (ServerPlayer player : players) {
+                dispatcher.updatePlayerTracking(player, Collections.emptySet());
+            }
+            return;
         }
 
-        for (Long2ObjectMap.Entry<ChunkHolder> entry : this.visibleChunkMap.long2ObjectEntrySet()) {
-            long chunkPosLong = entry.getLongKey();
-            List<IPhysicsObject> objectsInChunk = objectsByChunk.get(chunkPosLong);
+        for (ServerPlayer player : players) {
+            Set<IPhysicsObject> visibleSet = vortex$playerVisibleObjects.get(player.getUUID());
+            if (visibleSet == null) continue;
 
-            if (objectsInChunk == null || objectsInChunk.isEmpty()) {
-                continue;
-            }
+            int viewDistance = player.server.getPlayerList().getViewDistance();
+            ChunkPos playerChunkPos = player.chunkPosition();
 
-            ChunkPos chunkPos = new ChunkPos(chunkPosLong);
-            List<ServerPlayer> playersWatching = self.getPlayers(chunkPos, false);
-
-            for (ServerPlayer player : playersWatching) {
-                Set<IPhysicsObject> visibleSet = playerVisibleObjects.get(player.getUUID());
-                if (visibleSet != null) {
-                    visibleSet.addAll(objectsInChunk);
+            for (int cz = playerChunkPos.z - viewDistance; cz <= playerChunkPos.z + viewDistance; ++cz) {
+                for (int cx = playerChunkPos.x - viewDistance; cx <= playerChunkPos.x + viewDistance; ++cx) {
+                    long chunkKey = ChunkPos.asLong(cx, cz);
+                    List<IPhysicsObject> objectsInChunk = vortex$objectsByChunk.get(chunkKey);
+                    if (objectsInChunk != null) {
+                        visibleSet.addAll(objectsInChunk);
+                    }
                 }
             }
         }
 
-        for (ServerPlayer player : this.level.players()) {
-            Set<IPhysicsObject> visibleSet = playerVisibleObjects.get(player.getUUID());
-            if (visibleSet != null) {
-                dispatcher.updatePlayerTracking(player, visibleSet);
-            }
+        for (ServerPlayer player : players) {
+            Set<IPhysicsObject> visibleSet = vortex$playerVisibleObjects.get(player.getUUID());
+            dispatcher.updatePlayerTracking(player, visibleSet != null ? visibleSet : Collections.emptySet());
         }
     }
 }

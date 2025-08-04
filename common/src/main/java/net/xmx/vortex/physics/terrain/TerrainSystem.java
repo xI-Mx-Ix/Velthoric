@@ -38,6 +38,7 @@ public class TerrainSystem implements Runnable {
     private static final int STATE_READY_ACTIVE = 4;
     private static final int STATE_REMOVING = 5;
     private static final int STATE_AIR_CHUNK = 6;
+    private static final int MAX_SNAPSHOTS_PER_TICK = 256;
 
     private final VxPhysicsWorld physicsWorld;
     private final ServerLevel level;
@@ -50,15 +51,12 @@ public class TerrainSystem implements Runnable {
     private final ConcurrentHashMap<VxSectionPos, ShapeRefC> chunkShapes = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<VxSectionPos, Boolean> chunkIsPlaceholder = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<VxSectionPos, AtomicInteger> chunkRebuildVersions = new ConcurrentHashMap<>();
-
     private final Map<VxSectionPos, Integer> chunkReferenceCounts = new ConcurrentHashMap<>();
     private final Map<UUID, ObjectTerrainTracker> objectTrackers = new ConcurrentHashMap<>();
     private final Set<VxSectionPos> chunksToRebuild = ConcurrentHashMap.newKeySet();
-
     private final ConcurrentHashMap<VxSectionPos, SnapshotRequest> pendingSnapshotRequests = new ConcurrentHashMap<>();
     private final ConcurrentLinkedQueue<Runnable> mainThreadTasks = new ConcurrentLinkedQueue<>();
 
-    private static final int MAX_SNAPSHOTS_PER_TICK = 256;
     private final AtomicBoolean isInitialized = new AtomicBoolean(false);
     private Thread workerThread;
 
@@ -231,7 +229,7 @@ public class TerrainSystem implements Runnable {
         if (getState(pos).get() == STATE_AIR_CHUNK) {
             return;
         }
-        if(isReady(pos) && !chunkBodyIds.containsKey(pos)) {
+        if (isReady(pos) && !chunkBodyIds.containsKey(pos)) {
             VxMainClass.LOGGER.warn("Detected stuck terrain chunk {} in ready state with no body. Forcing high-prio rebuild.", pos);
             scheduleRebuild(pos, VxTaskPriority.HIGH);
             return;
@@ -320,7 +318,7 @@ public class TerrainSystem implements Runnable {
         getRebuildVersion(pos).incrementAndGet();
         physicsWorld.execute(() -> {
             BodyInterface bi = physicsWorld.getBodyInterface();
-            if(bi != null) {
+            if (bi != null) {
                 removeBodyAndShape(pos, bi);
             }
             chunkStates.remove(pos);
@@ -377,13 +375,16 @@ public class TerrainSystem implements Runnable {
             currentActive.forEach(this::deactivateChunk);
             return;
         }
+
         List<CompletableFuture<Set<VxSectionPos>>> futures = objectTrackers.values().stream()
                 .map(tracker -> CompletableFuture.supplyAsync(tracker::update, this.jobSystem.getExecutor()))
                 .toList();
+
         Set<VxSectionPos> allRequiredActiveChunks = futures.stream()
                 .map(CompletableFuture::join)
                 .flatMap(Set::stream)
                 .collect(Collectors.toSet());
+
         chunkStates.forEach((pos, state) -> {
             if (state.get() == STATE_READY_ACTIVE && !allRequiredActiveChunks.contains(pos)) {
                 deactivateChunk(pos);
@@ -413,7 +414,7 @@ public class TerrainSystem implements Runnable {
             Map<SnapshotRequest, LevelChunk> readyChunks = new HashMap<>();
             List<SnapshotRequest> failedRequests = new ArrayList<>();
 
-            for(int i = 0; i < batchSize && i < sortedRequests.size(); i++) {
+            for (int i = 0; i < batchSize && i < sortedRequests.size(); i++) {
                 SnapshotRequest request = sortedRequests.get(i);
                 LevelChunk chunk = level.getChunkSource().getChunk(request.pos().x(), request.pos().z(), false);
 
@@ -445,7 +446,7 @@ public class TerrainSystem implements Runnable {
             }
 
             if (!failedRequests.isEmpty()) {
-                for(SnapshotRequest request : failedRequests) {
+                for (SnapshotRequest request : failedRequests) {
                     pendingSnapshotRequests.compute(request.pos(), (p, existing) -> {
                         if (existing == null) return request;
                         return request.priority().ordinal() > existing.priority().ordinal() || request.version() > existing.version() ? request : existing;

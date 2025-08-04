@@ -1,7 +1,6 @@
 package net.xmx.vortex.physics.object.physicsobject.manager;
 
-import com.github.stephengold.joltjni.BodyInterface;
-import com.github.stephengold.joltjni.BodyLockInterface;
+import com.github.stephengold.joltjni.PhysicsSystem;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -49,8 +48,8 @@ public class VxObjectManager {
         objectStorage.shutdown();
     }
 
-    public void onPhysicsUpdate(long timestampNanos, BodyInterface bodyInterface, BodyLockInterface lockInterface) {
-        physicsUpdater.update(timestampNanos, bodyInterface, lockInterface);
+    public void onPhysicsUpdate(long timestampNanos, PhysicsSystem physicsSystem) {
+        physicsUpdater.update(timestampNanos, physicsSystem.getBodyLockInterface());
     }
 
     public <T extends IPhysicsObject> Optional<T> spawnObject(PhysicsObjectType<T> type, VxTransform transform, Consumer<T> configurator) {

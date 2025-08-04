@@ -14,28 +14,61 @@ import net.xmx.vortex.physics.world.pcmd.ICommand;
 import net.xmx.vortex.physics.world.pcmd.RunTaskCommand;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 public final class VxPhysicsWorld implements Runnable, Executor {
 
-    private final int maxBodies;
-    private final int maxBodyPairs;
-    private final int maxContactConstraints;
-    private final int numPositionIterations;
-    private final int numVelocityIterations;
-    private final float baumgarteFactor;
-    private final float penetrationSlop;
-    private final float timeBeforeSleep;
-    private final float pointVelocitySleepThreshold;
-    private final float gravityY;
-    private final float speculativeContactDistance;
+    private static final int SIMULATION_HZ = 60;
+    private static final float FIXED_TIME_STEP = 1.0f / SIMULATION_HZ;
+    private static final long FIXED_TIME_STEP_NANOS = 1_000_000_000L / SIMULATION_HZ;
+    private static final float MAX_ACCUMULATED_TIME = 5.0f * FIXED_TIME_STEP;
+    private static final int MAX_COMMANDS_PER_TICK = 1024;
 
-    // --- Static Registry & Factory ---
+    private final int maxBodies = 65536;
+    private final int maxBodyPairs = 65536;
+    private final int maxContactConstraints = 20480;
+    private final int numPositionIterations = 2;
+    private final int numVelocityIterations = 8;
+    private final float speculativeContactDistance = 0.02f;
+    private final float baumgarteFactor = 0.2f;
+    private final float penetrationSlop = 0.02f;
+    private final float timeBeforeSleep = 0.5f;
+    private final float pointVelocitySleepThreshold = 0.03f;
+    private final float gravityY = -9.81f;
 
     private static final Map<ResourceKey<Level>, VxPhysicsWorld> worlds = new ConcurrentHashMap<>();
+
+    private final ServerLevel level;
+    private final ResourceKey<Level> dimensionKey;
+    private final VxObjectManager objectManager;
+    private final VxConstraintManager constraintManager;
+    private final TerrainSystem terrainSystem;
+
+    private PhysicsSystem physicsSystem;
+    private JobSystemThreadPool jobSystem;
+    private TempAllocator tempAllocator;
+
+    private final Queue<ICommand> commandQueue = new ConcurrentLinkedQueue<>();
+    private volatile Thread physicsThreadExecutor;
+    private volatile boolean isRunning = false;
+    private volatile boolean isPaused = false;
+    private float timeAccumulator = 0.0f;
+
+    private VxPhysicsWorld(ServerLevel level) {
+        this.level = level;
+        this.dimensionKey = level.dimension();
+        this.objectManager = new VxObjectManager(this);
+        this.constraintManager = new VxConstraintManager(this.objectManager);
+        this.terrainSystem = new TerrainSystem(this, this.level);
+    }
 
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
         return worlds.computeIfAbsent(level.dimension(), key -> {
@@ -62,8 +95,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         worlds.clear();
     }
 
-    // --- Jolt Layer Definitions ---
-
     public static class Layers {
         public static final short STATIC = 0;
         public static final short DYNAMIC = 1;
@@ -76,71 +107,18 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         public static final byte NUM_LAYERS = 2;
     }
 
-    // --- Instance Fields: Managers & Game State ---
-
-    private final ServerLevel level;
-    private final ResourceKey<Level> dimensionKey;
-    private final VxObjectManager objectManager;
-    private final VxConstraintManager constraintManager;
-    private final TerrainSystem terrainSystem;
-
-    // --- Instance Fields: Core Physics Simulation ---
-
-    private PhysicsSystem physicsSystem;
-    private JobSystemThreadPool jobSystem;
-    private TempAllocator tempAllocator;
-
-    private final Queue<ICommand> commandQueue = new ConcurrentLinkedQueue<>();
-    private volatile Thread physicsThreadExecutor;
-    private volatile boolean isRunning = false;
-    private volatile boolean isPaused = false;
-
-    private long pauseStartTimeNanos = 0L;
-    private final float fixedTimeStep;
-
-    private float timeAccumulator = 0.0f;
-
-    private static final int DEFAULT_SIMULATION_HZ = 60;
-    private static final float MAX_ACCUMULATED_TIME = 0.2f;
-
-    // --- Constructor & Lifecycle ---
-
-    private VxPhysicsWorld(ServerLevel level) {
-        this.level = level;
-        this.dimensionKey = level.dimension();
-        this.fixedTimeStep = 1.0f / DEFAULT_SIMULATION_HZ;
-        this.objectManager = new VxObjectManager(this);
-        this.constraintManager = new VxConstraintManager(this.objectManager);
-        this.terrainSystem = new TerrainSystem(this, this.level);
-
-        this.maxBodies = 65536;
-        this.maxBodyPairs = 65536;
-        this.maxContactConstraints = 10240;
-
-        this.numVelocityIterations = 10;
-        this.numPositionIterations = 2;
-        this.baumgarteFactor = 0.2f;
-        this.penetrationSlop = 0.008f;
-
-        this.speculativeContactDistance = 0.0f;
-        this.timeBeforeSleep = 0.3f;
-
-        this.pointVelocitySleepThreshold = 0.05f;
-
-        this.gravityY = -9.81f;
-    }
-
     private void initializeAndStart() {
-        this.objectManager.initialize();
-        this.constraintManager.initialize(this);
-        this.terrainSystem.initialize();
-
         if (this.physicsThreadExecutor != null && this.physicsThreadExecutor.isAlive()) {
             return;
         }
 
+        this.objectManager.initialize();
+        this.constraintManager.initialize(this);
+        this.terrainSystem.initialize();
+
         this.isRunning = true;
-        this.physicsThreadExecutor = new Thread(this, "Vortex Physics World: " + dimensionKey.location().getPath());
+        String threadName = "Vortex-Physics-" + dimensionKey.location().getPath().replace('/', '_');
+        this.physicsThreadExecutor = new Thread(this, threadName);
         this.physicsThreadExecutor.setDaemon(true);
         this.physicsThreadExecutor.start();
     }
@@ -151,16 +129,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
         this.isRunning = false;
 
-        if (this.terrainSystem != null) {
-            this.terrainSystem.shutdown();
-        }
-        if (this.constraintManager != null) {
-            this.constraintManager.shutdown();
-        }
-        if (this.objectManager != null) {
-            this.objectManager.shutdown();
-        }
-
         if (this.physicsThreadExecutor != null) {
             this.physicsThreadExecutor.interrupt();
             try {
@@ -169,92 +137,77 @@ public final class VxPhysicsWorld implements Runnable, Executor {
                 Thread.currentThread().interrupt();
             }
         }
-        this.physicsThreadExecutor = null;
     }
-
-    // --- Core Simulation Loop & Logic ---
 
     @Override
     public void run() {
         try {
             NativeJoltInitializer.initialize();
             initializePhysicsSystem();
-        } catch (Throwable t) {
-            VxMainClass.LOGGER.fatal("Failed to initialize physics system for dimension {}", dimensionKey.location(), t);
-            this.isRunning = false;
-            cleanupInternal();
-            return;
-        }
 
-        long lastLoopTimeNanos = System.nanoTime();
-        while (this.isRunning) {
-            try {
+            long nextFrameTimeNanos = System.nanoTime();
+            long lastTimeNanos = nextFrameTimeNanos;
+
+            while (this.isRunning) {
+                waitUntilNextFrame(nextFrameTimeNanos);
+
                 long currentTimeNanos = System.nanoTime();
-                long elapsedNanos = currentTimeNanos - lastLoopTimeNanos;
-                lastLoopTimeNanos = currentTimeNanos;
-                float deltaTimeSeconds = Math.min(elapsedNanos / 1_000_000_000.0f, 0.1f);
+                nextFrameTimeNanos += FIXED_TIME_STEP_NANOS;
 
-                this.update(deltaTimeSeconds);
+                float deltaTime = (currentTimeNanos - lastTimeNanos) / 1_000_000_000.0f;
+                lastTimeNanos = currentTimeNanos;
 
-                long loopEndTimeNanos = System.nanoTime();
-                long actualLoopDurationNanos = loopEndTimeNanos - currentTimeNanos;
-                long sleepTimeNanos = (long) (fixedTimeStep * 1_000_000_000.0) - actualLoopDurationNanos;
-                if (sleepTimeNanos > 500_000L) {
-                    Thread.sleep(sleepTimeNanos / 1_000_000L, (int) (sleepTimeNanos % 1_000_000L));
-                }
-            } catch (InterruptedException e) {
-                this.isRunning = false;
-                Thread.currentThread().interrupt();
-            } catch (Throwable t) {
-                VxMainClass.LOGGER.error("Fatal error in physics loop for dimension {}", dimensionKey.location(), t);
-                this.isRunning = false;
+                this.update(deltaTime);
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Throwable t) {
+            VxMainClass.LOGGER.fatal("Fatal error in physics loop for dimension {}", dimensionKey.location(), t);
+            this.isRunning = false;
+        } finally {
+            shutdownInternalSystems();
+            cleanupJolt();
         }
-        cleanupInternal();
+    }
+
+    private void waitUntilNextFrame(long nextFrameTimeNanos) throws InterruptedException {
+        long sleepTimeNanos = nextFrameTimeNanos - System.nanoTime();
+        if (sleepTimeNanos > 0) {
+            TimeUnit.NANOSECONDS.sleep(sleepTimeNanos);
+        }
     }
 
     private void update(float deltaTime) {
         processCommandQueue();
 
-        if (this.isPaused || !this.isRunning || physicsSystem == null) {
-            if (isPaused && pauseStartTimeNanos == 0L) {
-                pauseStartTimeNanos = System.nanoTime();
-            }
+        if (this.isPaused || !this.isRunning || this.physicsSystem == null) {
             return;
         }
 
-        if (pauseStartTimeNanos != 0L) {
-            pauseStartTimeNanos = 0L;
+        this.timeAccumulator += deltaTime;
+        if (this.timeAccumulator > MAX_ACCUMULATED_TIME) {
+            this.timeAccumulator = MAX_ACCUMULATED_TIME;
         }
 
-        timeAccumulator += deltaTime;
-        if (timeAccumulator > MAX_ACCUMULATED_TIME) {
-            timeAccumulator = MAX_ACCUMULATED_TIME;
-        }
-
-        while (timeAccumulator >= this.fixedTimeStep) {
-            int error = physicsSystem.update(this.fixedTimeStep, 1, tempAllocator, jobSystem);
+        while (this.timeAccumulator >= FIXED_TIME_STEP) {
+            int error = this.physicsSystem.update(FIXED_TIME_STEP, 1, this.tempAllocator, this.jobSystem);
             if (error != EPhysicsUpdateError.None) {
-                VxMainClass.LOGGER.error("Jolt physics update failed with error code: {}", error);
+                VxMainClass.LOGGER.error("Jolt physics update failed with error code: {}. Shutting down world.", error);
                 this.isRunning = false;
                 return;
             }
-            timeAccumulator -= this.fixedTimeStep;
+            this.timeAccumulator -= FIXED_TIME_STEP;
         }
 
-        if (this.isRunning) {
-            BodyInterface bodyInterface = physicsSystem.getBodyInterface();
-            BodyLockInterface lockInterface = this.getBodyLockInterface();
-
-            if (bodyInterface != null && lockInterface != null) {
-                this.objectManager.onPhysicsUpdate(System.nanoTime(), bodyInterface, lockInterface);
-            }
-        }
+        this.objectManager.onPhysicsUpdate(System.nanoTime(), this.physicsSystem);
     }
 
     private void processCommandQueue() {
-        ICommand command;
-        while (physicsSystem != null && isRunning && (command = commandQueue.poll()) != null) {
+        for (int i = 0; i < MAX_COMMANDS_PER_TICK; i++) {
+            ICommand command = this.commandQueue.poll();
+            if (command == null) {
+                break;
+            }
             try {
                 command.execute(this);
             } catch (Exception e) {
@@ -265,7 +218,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public void initializePhysicsSystem() {
         this.tempAllocator = new TempAllocatorMalloc();
-        int numThreads = Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors() / 2));
+        int numThreads = Math.max(1, Runtime.getRuntime().availableProcessors() - 2);
         this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
 
         this.physicsSystem = new PhysicsSystem();
@@ -273,117 +226,121 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         ObjectVsBroadPhaseLayerFilter ovbpf = NativeJoltInitializer.getObjectVsBroadPhaseLayerFilter();
         ObjectLayerPairFilter olpf = NativeJoltInitializer.getObjectLayerPairFilter();
 
-        physicsSystem.init(maxBodies, 0, maxBodyPairs, maxContactConstraints, bpli, ovbpf, olpf);
+        this.physicsSystem.init(maxBodies, 0, maxBodyPairs, maxContactConstraints, bpli, ovbpf, olpf);
 
-        try (PhysicsSettings settings = physicsSystem.getPhysicsSettings()) {
-            settings.setNumPositionSteps(numPositionIterations);
-            settings.setNumVelocitySteps(numVelocityIterations);
-            settings.setSpeculativeContactDistance(speculativeContactDistance);
-            settings.setBaumgarte(baumgarteFactor);
-            settings.setPenetrationSlop(penetrationSlop);
-            settings.setTimeBeforeSleep(timeBeforeSleep);
-            settings.setPointVelocitySleepThreshold(pointVelocitySleepThreshold);
+        try (PhysicsSettings settings = this.physicsSystem.getPhysicsSettings()) {
+            settings.setNumPositionSteps(this.numPositionIterations);
+            settings.setNumVelocitySteps(this.numVelocityIterations);
+            settings.setSpeculativeContactDistance(this.speculativeContactDistance);
+            settings.setBaumgarte(this.baumgarteFactor);
+            settings.setPenetrationSlop(this.penetrationSlop);
+            settings.setTimeBeforeSleep(this.timeBeforeSleep);
+            settings.setPointVelocitySleepThreshold(this.pointVelocitySleepThreshold);
             settings.setDeterministicSimulation(false);
-
-            physicsSystem.setPhysicsSettings(settings);
-
         }
-        physicsSystem.setGravity(0f, gravityY, 0f);
-        physicsSystem.optimizeBroadPhase();
+        this.physicsSystem.setGravity(0f, this.gravityY, 0f);
+        this.physicsSystem.optimizeBroadPhase();
     }
 
-    private void cleanupInternal() {
-        if (physicsSystem != null) {
-            physicsSystem.close();
-            physicsSystem = null;
-        }
-        if (jobSystem != null) {
-            jobSystem.close();
-            jobSystem = null;
-        }
-        if (tempAllocator != null) {
-            tempAllocator.close();
-            tempAllocator = null;
-        }
-        commandQueue.clear();
+    private void shutdownInternalSystems() {
+        if (this.terrainSystem != null) this.terrainSystem.shutdown();
+        if (this.constraintManager != null) this.constraintManager.shutdown();
+        if (this.objectManager != null) this.objectManager.shutdown();
     }
 
-    // --- Public API & Getters ---
+    private void cleanupJolt() {
+        if (this.physicsSystem != null) {
+            this.physicsSystem.close();
+            this.physicsSystem = null;
+        }
+        if (this.jobSystem != null) {
+            this.jobSystem.close();
+            this.jobSystem = null;
+        }
+        if (this.tempAllocator != null) {
+            this.tempAllocator.close();
+            this.tempAllocator = null;
+        }
+        this.commandQueue.clear();
+    }
 
     public void queueCommand(ICommand command) {
         if (command != null && this.isRunning) {
-            commandQueue.offer(command);
+            this.commandQueue.offer(command);
         }
     }
 
+
     @Override
     public void execute(Runnable task) {
-        queueCommand(new RunTaskCommand(task));
+        RunTaskCommand.queue(this, task);
     }
 
     public VxObjectManager getObjectManager() {
-        return objectManager;
+        return this.objectManager;
     }
 
     public VxConstraintManager getConstraintManager() {
-        return constraintManager;
+        return this.constraintManager;
     }
 
     public TerrainSystem getTerrainSystem() {
-        return terrainSystem;
+        return this.terrainSystem;
     }
 
     public ServerLevel getLevel() {
-        return level;
+        return this.level;
     }
 
     public ResourceKey<Level> getDimensionKey() {
-        return dimensionKey;
+        return this.dimensionKey;
     }
 
     public float getFixedTimeStep() {
-        return this.fixedTimeStep;
+        return FIXED_TIME_STEP;
     }
 
+
+
     public boolean isRunning() {
-        return isRunning && physicsThreadExecutor != null && physicsThreadExecutor.isAlive();
+        return this.isRunning && this.physicsThreadExecutor != null && this.physicsThreadExecutor.isAlive();
     }
 
     public boolean isPaused() {
-        return isPaused;
+        return this.isPaused;
     }
 
     public void pause() {
-        execute(() -> this.isPaused = true);
+        this.execute(() -> this.isPaused = true);
     }
 
     public void resume() {
-        execute(() -> this.isPaused = false);
+        this.execute(() -> this.isPaused = false);
     }
 
     @Nullable
     public PhysicsSystem getPhysicsSystem() {
-        return physicsSystem;
+        return this.physicsSystem;
     }
 
     @Nullable
     public BodyInterface getBodyInterface() {
-        return physicsSystem != null ? physicsSystem.getBodyInterface() : null;
+        return this.physicsSystem != null ? this.physicsSystem.getBodyInterface() : null;
     }
 
     @Nullable
     public BodyLockInterface getBodyLockInterface() {
-        return physicsSystem != null ? physicsSystem.getBodyLockInterface() : null;
+        return this.physicsSystem != null ? this.physicsSystem.getBodyLockInterface() : null;
     }
 
     @Nullable
     public BodyLockInterface getBodyLockInterfaceNoLock() {
-        return physicsSystem != null ? physicsSystem.getBodyLockInterfaceNoLock() : null;
+        return this.physicsSystem != null ? this.physicsSystem.getBodyLockInterfaceNoLock() : null;
     }
 
     @Nullable
     public NarrowPhaseQuery getNarrowPhaseQuery() {
-        return physicsSystem != null ? physicsSystem.getNarrowPhaseQuery() : null;
+        return this.physicsSystem != null ? this.physicsSystem.getNarrowPhaseQuery() : null;
     }
 
     @Nullable

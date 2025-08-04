@@ -1,6 +1,7 @@
 package net.xmx.vortex.physics.object.physicsobject.manager;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.core.SectionPos;
 import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
@@ -17,24 +18,26 @@ public class VxObjectContainer {
 
     private final VxPhysicsWorld world;
     private final Map<UUID, IPhysicsObject> managedObjects = new ConcurrentHashMap<>();
-    private final Int2ObjectMap<UUID> bodyIdToUuidMap = new Int2ObjectOpenHashMap<>();
-    private final Object bodyIdToUuidMapLock = new Object();
+
+    private final Int2ObjectMap<UUID> bodyIdToUuidMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
+
     private final Queue<IPhysicsObject> pendingActivationQueue = new ConcurrentLinkedQueue<>();
+
+    private static final int MAX_ACTIVATIONS_PER_TICK = 100;
 
     public VxObjectContainer(VxPhysicsWorld world) {
         this.world = world;
     }
 
     public void add(IPhysicsObject obj) {
-        if (obj == null || managedObjects.containsKey(obj.getPhysicsId())) {
-            return;
-        }
+        if (obj == null) return;
 
-        managedObjects.put(obj.getPhysicsId(), obj);
-        obj.initializePhysics(world);
-        pendingActivationQueue.add(obj);
-
-        world.getConstraintManager().getDataSystem().onDependencyLoaded(obj.getPhysicsId());
+        managedObjects.computeIfAbsent(obj.getPhysicsId(), id -> {
+            obj.initializePhysics(world);
+            pendingActivationQueue.add(obj);
+            world.getConstraintManager().getDataSystem().onDependencyLoaded(id);
+            return obj;
+        });
     }
 
     public IPhysicsObject remove(UUID id) {
@@ -42,7 +45,9 @@ public class VxObjectContainer {
         if (obj != null) {
             obj.markRemoved();
             obj.removeFromPhysics(world);
-            unlinkBodyId(obj.getBodyId());
+            if (obj.getBodyId() != 0) {
+                unlinkBodyId(obj.getBodyId());
+            }
         }
         return obj;
     }
@@ -55,8 +60,9 @@ public class VxObjectContainer {
             return;
         }
 
+        int processedCount = 0;
         Iterator<IPhysicsObject> iterator = pendingActivationQueue.iterator();
-        while (iterator.hasNext()) {
+        while (iterator.hasNext() && processedCount < MAX_ACTIVATIONS_PER_TICK) {
             IPhysicsObject obj = iterator.next();
             if (obj.isRemoved()) {
                 iterator.remove();
@@ -76,36 +82,36 @@ public class VxObjectContainer {
                 }
                 iterator.remove();
             }
+            processedCount++;
         }
     }
 
-
     public void clear() {
-        managedObjects.values().forEach(obj -> obj.removeFromPhysics(world));
+
+        managedObjects.values().parallelStream().forEach(obj -> obj.removeFromPhysics(world));
         managedObjects.clear();
-        synchronized (bodyIdToUuidMapLock) {
-            bodyIdToUuidMap.clear();
-        }
+        bodyIdToUuidMap.clear();
         pendingActivationQueue.clear();
     }
 
     public void linkBodyId(int bodyId, UUID objectId) {
-        synchronized (bodyIdToUuidMapLock) {
-            this.bodyIdToUuidMap.put(bodyId, objectId);
+        System.out.printf("[VxObjectContainer-DEBUG] Linking Body ID %d to UUID %s%n", bodyId, objectId);
+        if (bodyId == 0) {
+            new Throwable("Attempted to link invalid Body ID 0").printStackTrace();
         }
+        this.bodyIdToUuidMap.put(bodyId, objectId);
     }
 
     public void unlinkBodyId(int bodyId) {
-        synchronized (bodyIdToUuidMapLock) {
-            this.bodyIdToUuidMap.remove(bodyId);
+        System.out.printf("[VxObjectContainer-DEBUG] Unlinking Body ID %d%n", bodyId);
+        if (bodyId == 0) {
+            new Throwable("Attempted to unlink invalid Body ID 0").printStackTrace();
         }
+        this.bodyIdToUuidMap.remove(bodyId);
     }
 
     public Optional<IPhysicsObject> getByBodyId(int bodyId) {
-        UUID objectId;
-        synchronized (bodyIdToUuidMapLock) {
-            objectId = bodyIdToUuidMap.get(bodyId);
-        }
+        UUID objectId = bodyIdToUuidMap.get(bodyId);
         if (objectId == null) {
             return Optional.empty();
         }
@@ -121,6 +127,6 @@ public class VxObjectContainer {
     }
 
     public Collection<IPhysicsObject> getAllObjects() {
-        return Collections.unmodifiableCollection(managedObjects.values());
+        return managedObjects.values();
     }
 }

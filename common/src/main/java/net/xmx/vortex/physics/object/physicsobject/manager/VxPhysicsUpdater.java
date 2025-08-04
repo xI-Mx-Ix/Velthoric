@@ -28,7 +28,7 @@ public class VxPhysicsUpdater {
         this.manager = manager;
     }
 
-    public void update(long timestampNanos, BodyInterface bodyInterface, BodyLockInterface lockInterface) {
+    public void update(long timestampNanos, BodyLockInterface lockInterface) {
         VxObjectContainer container = manager.getObjectContainer();
         VxObjectNetworkDispatcher dispatcher = manager.getNetworkDispatcher();
         BodyInterface bodyInterfaceNoLock = manager.getWorld().getPhysicsSystem().getBodyInterfaceNoLock();
