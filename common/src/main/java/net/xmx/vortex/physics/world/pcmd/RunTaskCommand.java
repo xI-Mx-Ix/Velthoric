@@ -3,35 +3,57 @@ package net.xmx.vortex.physics.world.pcmd;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
-public record RunTaskCommand(Runnable task) implements ICommand {
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+public final class RunTaskCommand implements ICommand {
+
+    private static final Queue<RunTaskCommand> POOL = new ConcurrentLinkedQueue<>();
+    private static final int MAX_POOL_SIZE = 1024;
+
+    private Runnable task;
+
+    private RunTaskCommand() {
+    }
+
+    private void setTask(Runnable task) {
+        this.task = task;
+    }
+
+    private static RunTaskCommand acquire() {
+        RunTaskCommand command = POOL.poll();
+        if (command == null) {
+            command = new RunTaskCommand();
+        }
+        return command;
+    }
+
+    private static void release(RunTaskCommand command) {
+        command.setTask(null);
+        if (POOL.size() < MAX_POOL_SIZE) {
+            POOL.offer(command);
+        }
+    }
 
     public static void queue(VxPhysicsWorld physicsWorld, Runnable task) {
-        if (physicsWorld == null) {
-            VxMainClass.LOGGER.warn("Attempted to queue RunTaskCommand with null PhysicsWorld.");
-            return;
-        }
-        if (task == null) {
-            VxMainClass.LOGGER.warn("Attempted to queue null Runnable task.");
+        if (physicsWorld == null || task == null) {
             return;
         }
 
-        RunTaskCommand command = new RunTaskCommand(task);
+        RunTaskCommand command = acquire();
+        command.setTask(task);
         physicsWorld.queueCommand(command);
-
-        VxMainClass.LOGGER.trace("Queued RunTaskCommand to PhysicsWorld {}.", physicsWorld.getDimensionKey().location());
     }
 
     @Override
     public void execute(VxPhysicsWorld world) {
-        if (task() != null) {
+        if (this.task != null) {
             try {
-                task().run();
-                VxMainClass.LOGGER.trace("Executed queued task for dimension {}.", world.getDimensionKey().location());
+                this.task.run();
             } catch (Exception e) {
-                VxMainClass.LOGGER.error("Exception during execution of queued task for dimension {}: {}", world.getDimensionKey().location(), e.getMessage(), e);
+                VxMainClass.LOGGER.error("Exception during execution of pooled task for dimension {}: {}", world.getDimensionKey().location(), e.getMessage(), e);
             }
-        } else {
-            VxMainClass.LOGGER.warn("Cannot execute RunTaskCommand - task is null for dimension {}.", world.getDimensionKey().location());
         }
+        release(this);
     }
 }
