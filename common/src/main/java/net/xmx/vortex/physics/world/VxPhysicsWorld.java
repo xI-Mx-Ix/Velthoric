@@ -12,6 +12,7 @@ import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
 import net.xmx.vortex.physics.terrain.TerrainSystem;
 import net.xmx.vortex.physics.world.pcmd.ICommand;
 import net.xmx.vortex.physics.world.pcmd.RunTaskCommand;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -272,7 +273,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
 
     @Override
-    public void execute(Runnable task) {
+    public void execute(@NotNull Runnable task) {
         RunTaskCommand.queue(this, task);
     }
 
