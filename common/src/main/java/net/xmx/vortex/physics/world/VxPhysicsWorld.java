@@ -29,7 +29,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     private static final int SIMULATION_HZ = 60;
     private static final float FIXED_TIME_STEP = 1.0f / SIMULATION_HZ;
-    private static final long FIXED_TIME_STEP_NANOS = 1_000_000_000L / SIMULATION_HZ;
+
     private static final float MAX_ACCUMULATED_TIME = 5.0f * FIXED_TIME_STEP;
     private static final int MAX_COMMANDS_PER_TICK = 1024;
 
@@ -128,14 +128,22 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         if (!this.isRunning) {
             return;
         }
+
         this.isRunning = false;
 
         if (this.physicsThreadExecutor != null) {
-            this.physicsThreadExecutor.interrupt();
             try {
+
                 this.physicsThreadExecutor.join(5000);
             } catch (InterruptedException e) {
+
                 Thread.currentThread().interrupt();
+                VxMainClass.LOGGER.warn("The server thread was interrupted while waiting for the physics thread {} to stop.", this.physicsThreadExecutor.getName());
+            }
+
+            if (this.physicsThreadExecutor.isAlive()) {
+                VxMainClass.LOGGER.error("Physics thread {} did not stop gracefully. Forcing an interrupt.", this.physicsThreadExecutor.getName());
+                this.physicsThreadExecutor.interrupt();
             }
         }
     }
@@ -146,35 +154,26 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             NativeJoltInitializer.initialize();
             initializePhysicsSystem();
 
-            long nextFrameTimeNanos = System.nanoTime();
-            long lastTimeNanos = nextFrameTimeNanos;
+            long lastTimeNanos = System.nanoTime();
 
             while (this.isRunning) {
-                waitUntilNextFrame(nextFrameTimeNanos);
-
                 long currentTimeNanos = System.nanoTime();
-                nextFrameTimeNanos += FIXED_TIME_STEP_NANOS;
-
                 float deltaTime = (currentTimeNanos - lastTimeNanos) / 1_000_000_000.0f;
                 lastTimeNanos = currentTimeNanos;
 
                 this.update(deltaTime);
+
+                Thread.sleep(1);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+
         } catch (Throwable t) {
             VxMainClass.LOGGER.fatal("Fatal error in physics loop for dimension {}", dimensionKey.location(), t);
             this.isRunning = false;
         } finally {
             shutdownInternalSystems();
             cleanupJolt();
-        }
-    }
-
-    private void waitUntilNextFrame(long nextFrameTimeNanos) throws InterruptedException {
-        long sleepTimeNanos = nextFrameTimeNanos - System.nanoTime();
-        if (sleepTimeNanos > 0) {
-            TimeUnit.NANOSECONDS.sleep(sleepTimeNanos);
         }
     }
 
@@ -186,11 +185,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
 
         this.timeAccumulator += deltaTime;
+
         if (this.timeAccumulator > MAX_ACCUMULATED_TIME) {
             this.timeAccumulator = MAX_ACCUMULATED_TIME;
         }
 
-        while (this.timeAccumulator >= FIXED_TIME_STEP) {
+        if (this.timeAccumulator >= FIXED_TIME_STEP) {
             int error = this.physicsSystem.update(FIXED_TIME_STEP, 1, this.tempAllocator, this.jobSystem);
             if (error != EPhysicsUpdateError.None) {
                 VxMainClass.LOGGER.error("Jolt physics update failed with error code: {}. Shutting down world.", error);
@@ -271,7 +271,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
     }
 
-
     @Override
     public void execute(@NotNull Runnable task) {
         RunTaskCommand.queue(this, task);
@@ -300,8 +299,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     public float getFixedTimeStep() {
         return FIXED_TIME_STEP;
     }
-
-
 
     public boolean isRunning() {
         return this.isRunning && this.physicsThreadExecutor != null && this.physicsThreadExecutor.isAlive();
