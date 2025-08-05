@@ -3,11 +3,8 @@ package net.xmx.vortex.physics.object.physicsobject.manager;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import net.minecraft.core.SectionPos;
+import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
-import net.xmx.vortex.physics.object.physicsobject.pcmd.ActivateBodyCommand;
-import net.xmx.vortex.physics.terrain.TerrainSystem;
-import net.xmx.vortex.physics.terrain.model.VxSectionPos;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
 import java.util.*;
@@ -19,8 +16,6 @@ public class VxObjectContainer {
     private final Map<UUID, IPhysicsObject> managedObjects = new ConcurrentHashMap<>();
 
     private final Int2ObjectMap<UUID> bodyIdToUuidMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
-
-    private static final int MAX_ACTIVATIONS_PER_TICK = 100;
 
     public VxObjectContainer(VxPhysicsWorld world) {
         this.world = world;
@@ -55,7 +50,7 @@ public class VxObjectContainer {
     }
 
     public void linkBodyId(int bodyId, UUID objectId) {
-        System.out.printf("[VxObjectContainer-DEBUG] Linking Body ID %d to UUID %s%n", bodyId, objectId);
+        VxMainClass.LOGGER.debug("[VxObjectContainer-DEBUG] Linking Body ID {} to UUID {}", bodyId, objectId);
         if (bodyId == 0) {
             new Throwable("Attempted to link invalid Body ID 0").printStackTrace();
         }
@@ -63,7 +58,7 @@ public class VxObjectContainer {
     }
 
     public void unlinkBodyId(int bodyId) {
-        System.out.printf("[VxObjectContainer-DEBUG] Unlinking Body ID %d%n", bodyId);
+        VxMainClass.LOGGER.debug("[VxObjectContainer-DEBUG] Unlinking Body ID {}", bodyId);
         if (bodyId == 0) {
             new Throwable("Attempted to unlink invalid Body ID 0").printStackTrace();
         }

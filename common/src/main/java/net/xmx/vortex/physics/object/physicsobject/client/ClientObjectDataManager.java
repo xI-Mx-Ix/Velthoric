@@ -201,7 +201,7 @@ public class ClientObjectDataManager {
     }
 
     @Nullable
-    public RenderData getRenderData(UUID id, float partialTicks) {
+    public RenderData getRenderData(UUID id) {
         InterpolationStateContainer container = stateContainers.get(id);
         if (container == null || !isClockOffsetInitialized) {
             return null;

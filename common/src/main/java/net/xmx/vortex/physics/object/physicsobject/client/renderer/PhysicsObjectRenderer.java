@@ -66,7 +66,7 @@ public class PhysicsObjectRenderer {
                     continue;
                 }
 
-                RenderData renderData = dataManager.getRenderData(id, partialTicks);
+                RenderData renderData = dataManager.getRenderData(id);
                 if (renderData == null) continue;
 
                 EObjectType objectType = dataManager.getObjectType(id);

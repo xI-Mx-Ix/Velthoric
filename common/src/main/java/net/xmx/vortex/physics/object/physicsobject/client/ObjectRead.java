@@ -99,7 +99,7 @@ public final class ObjectRead implements Closeable {
     @Nullable
     public RenderData getRenderData(float partialTicks) {
         if (!isValid) return null;
-        return dataManager.getRenderData(objectId, partialTicks);
+        return dataManager.getRenderData(objectId);
     }
 
     /**

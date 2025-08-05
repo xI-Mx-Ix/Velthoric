@@ -74,7 +74,7 @@ public class PhysicsGunBeamRenderer {
             EObjectType objectType = dataManager.getObjectType(objectUuid);
 
             if (player != null && objectType == EObjectType.RIGID_BODY) {
-                RenderData renderData = dataManager.getRenderData(objectUuid, partialTicks);
+                RenderData renderData = dataManager.getRenderData(objectUuid);
                 if (renderData == null) continue;
 
                 VxTransform renderTransform = renderData.transform;

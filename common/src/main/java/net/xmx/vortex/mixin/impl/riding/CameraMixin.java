@@ -58,7 +58,7 @@ public abstract class CameraMixin {
         Optional<UUID> physicsIdOpt = proxy.getPhysicsObjectId();
         if (physicsIdOpt.isEmpty()) return;
 
-        RenderData renderData = ClientObjectDataManager.getInstance().getRenderData(physicsIdOpt.get(), partialTicks);
+        RenderData renderData = ClientObjectDataManager.getInstance().getRenderData(physicsIdOpt.get());
         if (renderData == null) return;
 
         ci.cancel();

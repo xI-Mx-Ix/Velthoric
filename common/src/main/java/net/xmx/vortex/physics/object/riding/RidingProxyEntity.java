@@ -140,7 +140,7 @@ public class RidingProxyEntity extends Entity {
 
     @Environment(EnvType.CLIENT)
     private void clientTick(UUID physicsId) {
-        RenderData renderData = ClientObjectDataManager.getInstance().getRenderData(physicsId, 0.0f);
+        RenderData renderData = ClientObjectDataManager.getInstance().getRenderData(physicsId);
         if (renderData == null) {
             if (!this.isRemoved()) {
                 this.remove(RemovalReason.DISCARDED);
@@ -161,7 +161,7 @@ public class RidingProxyEntity extends Entity {
     @Environment(EnvType.CLIENT)
     public Optional<VxTransform> getInterpolatedTransform(float partialTicks) {
         return getPhysicsObjectId()
-                .flatMap(uuid -> Optional.ofNullable(ClientObjectDataManager.getInstance().getRenderData(uuid, partialTicks)))
+                .flatMap(uuid -> Optional.ofNullable(ClientObjectDataManager.getInstance().getRenderData(uuid)))
                 .map(renderData -> renderData.transform);
     }
 
