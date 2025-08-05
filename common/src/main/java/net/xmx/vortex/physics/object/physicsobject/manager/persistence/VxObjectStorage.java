@@ -18,6 +18,7 @@ import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -111,27 +112,47 @@ public class VxObjectStorage {
             }
         });
 
+        if (allObjectsToSave.isEmpty()) {
+            try {
+
+                Files.createDirectories(dataFile.getParent());
+
+                try (FileChannel channel = FileChannel.open(dataFile, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+                    channel.truncate(0);
+                }
+            } catch (IOException e) {
+                VxMainClass.LOGGER.error("Failed to truncate physics objects file {}", dataFile, e);
+            }
+            return;
+        }
+
+        ByteBuf masterBuf = Unpooled.buffer();
         try {
+            FriendlyByteBuf friendlyMasterBuf = new FriendlyByteBuf(masterBuf);
+            for (Map.Entry<UUID, byte[]> entry : allObjectsToSave.entrySet()) {
+                friendlyMasterBuf.writeUUID(entry.getKey());
+                friendlyMasterBuf.writeByteArray(entry.getValue());
+            }
+
             Files.createDirectories(dataFile.getParent());
             try (FileChannel channel = FileChannel.open(dataFile, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-                if (allObjectsToSave.isEmpty()) {
-                    channel.truncate(0);
-                    return;
-                }
-
-                for (Map.Entry<UUID, byte[]> entry : allObjectsToSave.entrySet()) {
-                    ByteBuf tempBuf = Unpooled.buffer();
-                    FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(tempBuf);
-
-                    friendlyBuf.writeUUID(entry.getKey());
-                    friendlyBuf.writeByteArray(entry.getValue());
-
-                    channel.write(tempBuf.nioBuffer());
-                    tempBuf.release();
-                }
+                channel.write(masterBuf.nioBuffer());
             }
+
         } catch (IOException e) {
-            VxMainClass.LOGGER.error("Failed to save physics objects to {}", dataFile, e);
+
+            if (e instanceof ClosedByInterruptException || Thread.interrupted()) {
+                VxMainClass.LOGGER.warn("Physics object saving was interrupted during shutdown. Data for {} might not be saved.", dataFile);
+
+                Thread.currentThread().interrupt();
+            } else {
+                VxMainClass.LOGGER.error("Failed to save physics objects to {}", dataFile, e);
+            }
+        } finally {
+
+            if (masterBuf.refCnt() > 0) {
+                masterBuf.release();
+            }
         }
     }
 
