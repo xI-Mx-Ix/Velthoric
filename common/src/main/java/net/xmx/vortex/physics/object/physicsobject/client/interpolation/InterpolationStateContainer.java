@@ -5,7 +5,6 @@ import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.util.Mth;
 import net.xmx.vortex.math.VxOperations;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.client.time.VxClientClock;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
@@ -14,17 +13,12 @@ import java.util.Iterator;
 
 public class InterpolationStateContainer {
 
-    private static final long INTERPOLATION_DELAY_NANOS = 100_000_000L;
-    private static final float MAX_EXTRAPOLATION_SECONDS = 0.05f;
+    private static final float MAX_EXTRAPOLATION_SECONDS = 0.1f;
     private static final int MAX_BUFFER_SIZE = 60;
-    private static final int IDEAL_BUFFER_SIZE = 10;
-    private static final long JITTER_THRESHOLD_NANOS = 50_000_000L;
+    private static final long BUFFER_TIME_NANOS = 200_000_000L;
 
     private final Deque<StateSnapshot> stateBuffer = new ArrayDeque<>();
     private final RenderData renderData = new RenderData();
-
-    private long clockOffsetNanos = 0L;
-    private boolean isClockOffsetInitialized = false;
 
     private final VxTransform lastGoodTransform = new VxTransform();
     @Nullable
@@ -33,16 +27,6 @@ public class InterpolationStateContainer {
     public void addState(long serverTimestamp, VxTransform transform, @Nullable Vec3 linVel, @Nullable Vec3 angVel, @Nullable float[] vertices, boolean isActive) {
         if (!stateBuffer.isEmpty() && serverTimestamp <= stateBuffer.peekLast().serverTimestampNanos) {
             return;
-        }
-
-        long clientReceiptTime = VxClientClock.getInstance().getGameTimeNanos();
-        if (!isClockOffsetInitialized) {
-            this.clockOffsetNanos = serverTimestamp - clientReceiptTime;
-            this.isClockOffsetInitialized = true;
-        } else {
-            long newOffset = serverTimestamp - clientReceiptTime;
-            double factor = (Math.abs(newOffset - clockOffsetNanos) > JITTER_THRESHOLD_NANOS) ? 0.2 : 0.05;
-            this.clockOffsetNanos = (long) (this.clockOffsetNanos * (1.0 - factor) + newOffset * factor);
         }
 
         if (vertices != null) {
@@ -58,58 +42,73 @@ public class InterpolationStateContainer {
     }
 
     private void cleanupBuffer() {
-        int targetSize = stateBuffer.size() > 2
-                ? (stateBuffer.peekLast().serverTimestampNanos - stateBuffer.peekFirst().serverTimestampNanos > 60_000_000L * stateBuffer.size() ? MAX_BUFFER_SIZE : IDEAL_BUFFER_SIZE)
-                : IDEAL_BUFFER_SIZE;
+        if (stateBuffer.size() < 2) return;
 
-        while (stateBuffer.size() > targetSize) {
+        long lastTimestamp = stateBuffer.peekLast().serverTimestampNanos;
+        long cutoffTimestamp = lastTimestamp - BUFFER_TIME_NANOS;
+
+        while (stateBuffer.size() > 2 && stateBuffer.peekFirst().serverTimestampNanos < cutoffTimestamp) {
+            StateSnapshot.release(stateBuffer.removeFirst());
+        }
+
+        while (stateBuffer.size() > MAX_BUFFER_SIZE) {
             StateSnapshot.release(stateBuffer.removeFirst());
         }
     }
 
-    public RenderData getInterpolatedState(float partialTicks) {
-        if (!isClockOffsetInitialized || stateBuffer.isEmpty()) {
+    public RenderData getInterpolatedState(long renderTimestamp) {
+        if (stateBuffer.size() < 2) {
+            if (!stateBuffer.isEmpty()) {
+                return extrapolate(stateBuffer.peekFirst(), renderTimestamp);
+            }
             renderData.transform.set(lastGoodTransform);
             renderData.vertexData = lastGoodVertices;
             return renderData;
         }
-
-        long estimatedServerTime = VxClientClock.getInstance().getGameTimeNanos() + this.clockOffsetNanos;
-        long renderTimestamp = estimatedServerTime - INTERPOLATION_DELAY_NANOS;
 
         StateSnapshot from = null;
         StateSnapshot to = null;
 
-        Iterator<StateSnapshot> it = stateBuffer.iterator();
+        Iterator<StateSnapshot> it = stateBuffer.descendingIterator();
         while (it.hasNext()) {
-            StateSnapshot s = it.next();
-            if (s.serverTimestampNanos <= renderTimestamp) {
-                from = s;
-            } else {
-                to = s;
+            StateSnapshot current = it.next();
+            if (current.serverTimestampNanos <= renderTimestamp) {
+                from = current;
                 break;
+            }
+            to = current;
+        }
+
+        if (from != null && to == null) {
+            Iterator<StateSnapshot> forwardIt = stateBuffer.iterator();
+            while(forwardIt.hasNext()) {
+                StateSnapshot s = forwardIt.next();
+                if (s == from && forwardIt.hasNext()) {
+                    to = forwardIt.next();
+                    break;
+                }
             }
         }
 
         if (from == null) {
-            it = stateBuffer.iterator();
-            if (it.hasNext()) from = it.next();
-            if (it.hasNext()) to = it.next();
-        }
-
-        if (from == null) {
-            renderData.transform.set(lastGoodTransform);
-            renderData.vertexData = lastGoodVertices;
+            StateSnapshot oldest = stateBuffer.peekFirst();
+            renderData.transform.set(oldest.transform);
+            renderData.vertexData = oldest.vertexData;
             return renderData;
         }
 
-        if (to == null || to.serverTimestampNanos <= from.serverTimestampNanos) {
+        if (to == null) {
             return extrapolate(from, renderTimestamp);
         }
 
         long timeDiff = to.serverTimestampNanos - from.serverTimestampNanos;
-        float alpha = Mth.clamp((float) (renderTimestamp - from.serverTimestampNanos) / timeDiff, 0.0f, 1.0f);
+        if (timeDiff <= 0) {
+            renderData.transform.set(from.transform);
+            renderData.vertexData = from.vertexData;
+            return renderData;
+        }
 
+        float alpha = Mth.clamp((float) (renderTimestamp - from.serverTimestampNanos) / timeDiff, 0.0f, 1.0f);
         return interpolate(from, to, alpha, timeDiff / 1_000_000_000.0f);
     }
 
@@ -147,7 +146,8 @@ public class InterpolationStateContainer {
             return this.renderData;
         }
 
-        float dt = (renderTimestamp - from.serverTimestampNanos) / 1_000_000_000.0f;
+        float dt = (float)(renderTimestamp - from.serverTimestampNanos) / 1_000_000_000.0f;
+
         if (dt > 0 && dt < MAX_EXTRAPOLATION_SECONDS) {
             VxOperations.extrapolatePosition(from.transform.getTranslation(), from.linearVelocity, dt, this.renderData.transform.getTranslation());
             VxOperations.extrapolateRotation(from.transform.getRotation(), from.angularVelocity, dt, this.renderData.transform.getRotation());
@@ -179,7 +179,6 @@ public class InterpolationStateContainer {
     public void release() {
         stateBuffer.forEach(StateSnapshot::release);
         stateBuffer.clear();
-        isClockOffsetInitialized = false;
         lastGoodVertices = null;
     }
 }

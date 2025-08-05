@@ -13,6 +13,7 @@ import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolationStateContainer;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
+import net.xmx.vortex.physics.object.physicsobject.client.time.VxClientClock;
 import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectState;
 import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectStatePool;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
@@ -30,6 +31,11 @@ public class ClientObjectDataManager {
 
     private static final ClientObjectDataManager INSTANCE = new ClientObjectDataManager();
 
+    private static final long INTERPOLATION_DELAY_NANOS = 100_000_000L;
+    private static final long JITTER_THRESHOLD_NANOS = 50_000_000L;
+    private long clockOffsetNanos = 0L;
+    private boolean isClockOffsetInitialized = false;
+
     private final Map<UUID, InterpolationStateContainer> stateContainers = new ConcurrentHashMap<>();
     private final Map<UUID, EObjectType> objectTypes = new ConcurrentHashMap<>();
     private final Map<UUID, String> typeIdentifiers = new ConcurrentHashMap<>();
@@ -41,7 +47,7 @@ public class ClientObjectDataManager {
     private final Map<String, Supplier<SoftPhysicsObject.Renderer>> softRendererFactories = new ConcurrentHashMap<>();
 
     private final ConcurrentLinkedQueue<List<PhysicsObjectState>> stateUpdateQueue = new ConcurrentLinkedQueue<>();
-    private final Queue<Vec3> vec3Pool = new ArrayDeque<>();
+    private final Queue<Vec3> vec3Pool = new ConcurrentLinkedQueue<>();
     private final VxTransform tempTransform = new VxTransform();
 
     private ClientObjectDataManager() {}
@@ -51,11 +57,12 @@ public class ClientObjectDataManager {
     }
 
     private Vec3 acquireVec3() {
-        return vec3Pool.isEmpty() ? new Vec3() : vec3Pool.poll();
+        Vec3 v = vec3Pool.poll();
+        return v != null ? v : new Vec3();
     }
 
     private void releaseVec3(Vec3 vec) {
-        if (vec != null && vec3Pool.size() < 16) {
+        if (vec != null) {
             vec3Pool.offer(vec);
         }
     }
@@ -75,63 +82,76 @@ public class ClientObjectDataManager {
     private void processStateUpdates() {
         List<PhysicsObjectState> states;
         while ((states = stateUpdateQueue.poll()) != null) {
+            long clientReceiptTime = VxClientClock.getInstance().getGameTimeNanos();
             for (PhysicsObjectState state : states) {
+                updateGlobalClock(state.getTimestamp(), clientReceiptTime);
                 updateObjectState(state);
                 PhysicsObjectStatePool.release(state);
             }
         }
     }
 
-    public void spawnObject(UUID id, String typeId, EObjectType objType, FriendlyByteBuf data, long serverTimestamp) {
-        if (stateContainers.containsKey(id)) {
-            return;
+    private void updateGlobalClock(long serverTimestamp, long clientReceiptTime) {
+        if (!isClockOffsetInitialized) {
+            this.clockOffsetNanos = serverTimestamp - clientReceiptTime;
+            this.isClockOffsetInitialized = true;
+        } else {
+            long newOffset = serverTimestamp - clientReceiptTime;
+            double factor = (Math.abs(newOffset - clockOffsetNanos) > JITTER_THRESHOLD_NANOS) ? 0.1 : 0.01;
+            this.clockOffsetNanos = (long) (this.clockOffsetNanos * (1.0 - factor) + newOffset * factor);
         }
+    }
 
-        objectTypes.put(id, objType);
-        typeIdentifiers.put(id, typeId);
+    public void spawnObject(UUID id, String typeId, EObjectType objType, FriendlyByteBuf data, long serverTimestamp) {
+        stateContainers.computeIfAbsent(id, key -> {
+            objectTypes.put(id, objType);
+            typeIdentifiers.put(id, typeId);
 
-        InterpolationStateContainer container = new InterpolationStateContainer();
-        stateContainers.put(id, container);
-        tempTransform.fromBuffer(data);
+            InterpolationStateContainer container = new InterpolationStateContainer();
+            tempTransform.fromBuffer(data);
 
-        Vec3 linVel = acquireVec3();
-        Vec3 angVel = acquireVec3();
+            Vec3 linVel = acquireVec3();
+            Vec3 angVel = acquireVec3();
 
-        try {
-            if (objType == EObjectType.RIGID_BODY) {
-                Supplier<RigidPhysicsObject.Renderer> factory = rigidRendererFactories.get(typeId);
-                if (factory != null) rigidRenderers.put(id, factory.get());
-                else VxMainClass.LOGGER.warn("Client: No renderer factory for rigid body type '{}'.", typeId);
+            try {
+                if (objType == EObjectType.RIGID_BODY) {
+                    Supplier<RigidPhysicsObject.Renderer> factory = rigidRendererFactories.get(typeId);
+                    if (factory != null) rigidRenderers.put(id, factory.get());
+                    else VxMainClass.LOGGER.warn("Client: No renderer factory for rigid body type '{}'.", typeId);
 
-                if (data.readableBytes() >= 24) {
-                    linVel.set(data.readFloat(), data.readFloat(), data.readFloat());
-                    angVel.set(data.readFloat(), data.readFloat(), data.readFloat());
-                } else {
+                    if (data.readableBytes() >= 24) {
+                        linVel.set(data.readFloat(), data.readFloat(), data.readFloat());
+                        angVel.set(data.readFloat(), data.readFloat(), data.readFloat());
+                    } else {
+                        linVel.loadZero();
+                        angVel.loadZero();
+                    }
+                    container.addState(serverTimestamp, tempTransform, linVel, angVel, null, true);
+
+                } else if (objType == EObjectType.SOFT_BODY) {
+                    Supplier<SoftPhysicsObject.Renderer> factory = softRendererFactories.get(typeId);
+                    if (factory != null) softRenderers.put(id, factory.get());
+                    else VxMainClass.LOGGER.warn("Client: No renderer factory for soft body type '{}'.", typeId);
+
                     linVel.loadZero();
                     angVel.loadZero();
+                    container.addState(serverTimestamp, tempTransform, linVel, angVel, null, true);
                 }
-                container.addState(serverTimestamp, tempTransform, linVel, angVel, null, true);
 
-            } else if (objType == EObjectType.SOFT_BODY) {
-                Supplier<SoftPhysicsObject.Renderer> factory = softRendererFactories.get(typeId);
-                if (factory != null) softRenderers.put(id, factory.get());
-                else VxMainClass.LOGGER.warn("Client: No renderer factory for soft body type '{}'.", typeId);
+                updateGlobalClock(serverTimestamp, VxClientClock.getInstance().getGameTimeNanos());
 
-                linVel.loadZero();
-                angVel.loadZero();
-                container.addState(serverTimestamp, tempTransform, linVel, angVel, null, true);
+                if (data.readableBytes() > 0) {
+                    ByteBuffer offHeapBuffer = ByteBuffer.allocateDirect(data.readableBytes());
+                    data.readBytes(offHeapBuffer);
+                    offHeapBuffer.flip();
+                    customDataMap.put(id, offHeapBuffer);
+                }
+            } finally {
+                releaseVec3(linVel);
+                releaseVec3(angVel);
             }
-
-            if (data.readableBytes() > 0) {
-                ByteBuffer offHeapBuffer = ByteBuffer.allocateDirect(data.readableBytes());
-                data.readBytes(offHeapBuffer);
-                offHeapBuffer.flip();
-                customDataMap.put(id, offHeapBuffer);
-            }
-        } finally {
-            releaseVec3(linVel);
-            releaseVec3(angVel);
-        }
+            return container;
+        });
     }
 
     private void updateObjectState(PhysicsObjectState state) {
@@ -176,13 +196,21 @@ public class ClientObjectDataManager {
         rigidRenderers.clear();
         softRenderers.clear();
         customDataMap.clear();
+        isClockOffsetInitialized = false;
+        clockOffsetNanos = 0L;
     }
 
     @Nullable
     public RenderData getRenderData(UUID id, float partialTicks) {
         InterpolationStateContainer container = stateContainers.get(id);
-        if (container == null) return null;
-        return container.getInterpolatedState(partialTicks);
+        if (container == null || !isClockOffsetInitialized) {
+            return null;
+        }
+
+        long estimatedServerTime = VxClientClock.getInstance().getGameTimeNanos() + this.clockOffsetNanos;
+        long renderTimestamp = estimatedServerTime - INTERPOLATION_DELAY_NANOS;
+
+        return container.getInterpolatedState(renderTimestamp);
     }
 
     @Nullable
