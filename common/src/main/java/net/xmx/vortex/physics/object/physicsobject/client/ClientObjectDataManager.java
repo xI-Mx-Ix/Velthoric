@@ -20,10 +20,7 @@ import net.xmx.vortex.physics.object.physicsobject.type.soft.SoftPhysicsObject;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Supplier;
@@ -44,11 +41,23 @@ public class ClientObjectDataManager {
     private final Map<String, Supplier<SoftPhysicsObject.Renderer>> softRendererFactories = new ConcurrentHashMap<>();
 
     private final ConcurrentLinkedQueue<List<PhysicsObjectState>> stateUpdateQueue = new ConcurrentLinkedQueue<>();
+    private final Queue<Vec3> vec3Pool = new ArrayDeque<>();
+    private final VxTransform tempTransform = new VxTransform();
 
     private ClientObjectDataManager() {}
 
     public static ClientObjectDataManager getInstance() {
         return INSTANCE;
+    }
+
+    private Vec3 acquireVec3() {
+        return vec3Pool.isEmpty() ? new Vec3() : vec3Pool.poll();
+    }
+
+    private void releaseVec3(Vec3 vec) {
+        if (vec != null && vec3Pool.size() < 16) {
+            vec3Pool.offer(vec);
+        }
     }
 
     public void registerRigidRendererFactory(String identifier, Supplier<RigidPhysicsObject.Renderer> factory) {
@@ -83,36 +92,45 @@ public class ClientObjectDataManager {
 
         InterpolationStateContainer container = new InterpolationStateContainer();
         stateContainers.put(id, container);
+        tempTransform.fromBuffer(data);
 
-        VxTransform initialTransform = new VxTransform();
-        initialTransform.fromBuffer(data);
+        Vec3 linVel = acquireVec3();
+        Vec3 angVel = acquireVec3();
 
-        if (objType == EObjectType.RIGID_BODY) {
-            Supplier<RigidPhysicsObject.Renderer> factory = rigidRendererFactories.get(typeId);
-            if (factory != null) rigidRenderers.put(id, factory.get());
-            else VxMainClass.LOGGER.warn("Client: No renderer factory for rigid body type '{}'.", typeId);
+        try {
+            if (objType == EObjectType.RIGID_BODY) {
+                Supplier<RigidPhysicsObject.Renderer> factory = rigidRendererFactories.get(typeId);
+                if (factory != null) rigidRenderers.put(id, factory.get());
+                else VxMainClass.LOGGER.warn("Client: No renderer factory for rigid body type '{}'.", typeId);
 
-            Vec3 linVel = new Vec3();
-            Vec3 angVel = new Vec3();
-            if (data.readableBytes() >= 24) {
-                linVel.set(data.readFloat(), data.readFloat(), data.readFloat());
-                angVel.set(data.readFloat(), data.readFloat(), data.readFloat());
+                if (data.readableBytes() >= 24) {
+                    linVel.set(data.readFloat(), data.readFloat(), data.readFloat());
+                    angVel.set(data.readFloat(), data.readFloat(), data.readFloat());
+                } else {
+                    linVel.loadZero();
+                    angVel.loadZero();
+                }
+                container.addState(serverTimestamp, tempTransform, linVel, angVel, null, true);
+
+            } else if (objType == EObjectType.SOFT_BODY) {
+                Supplier<SoftPhysicsObject.Renderer> factory = softRendererFactories.get(typeId);
+                if (factory != null) softRenderers.put(id, factory.get());
+                else VxMainClass.LOGGER.warn("Client: No renderer factory for soft body type '{}'.", typeId);
+
+                linVel.loadZero();
+                angVel.loadZero();
+                container.addState(serverTimestamp, tempTransform, linVel, angVel, null, true);
             }
-            container.addState(serverTimestamp, initialTransform, linVel, angVel, null, true);
 
-        } else if (objType == EObjectType.SOFT_BODY) {
-            Supplier<SoftPhysicsObject.Renderer> factory = softRendererFactories.get(typeId);
-            if (factory != null) softRenderers.put(id, factory.get());
-            else VxMainClass.LOGGER.warn("Client: No renderer factory for soft body type '{}'.", typeId);
-
-            container.addState(serverTimestamp, initialTransform, new Vec3(), new Vec3(), null, true);
-        }
-
-        if (data.readableBytes() > 0) {
-            ByteBuffer offHeapBuffer = ByteBuffer.allocateDirect(data.readableBytes());
-            data.readBytes(offHeapBuffer);
-            offHeapBuffer.flip();
-            customDataMap.put(id, offHeapBuffer);
+            if (data.readableBytes() > 0) {
+                ByteBuffer offHeapBuffer = ByteBuffer.allocateDirect(data.readableBytes());
+                data.readBytes(offHeapBuffer);
+                offHeapBuffer.flip();
+                customDataMap.put(id, offHeapBuffer);
+            }
+        } finally {
+            releaseVec3(linVel);
+            releaseVec3(angVel);
         }
     }
 
@@ -120,12 +138,12 @@ public class ClientObjectDataManager {
         InterpolationStateContainer container = stateContainers.get(state.getId());
         if (container != null && state.getTransform() != null) {
             container.addState(
-                state.getTimestamp(),
-                state.getTransform(),
-                state.getLinearVelocity(),
-                state.getAngularVelocity(),
-                state.getSoftBodyVertices(),
-                state.isActive()
+                    state.getTimestamp(),
+                    state.getTransform(),
+                    state.getLinearVelocity(),
+                    state.getAngularVelocity(),
+                    state.getSoftBodyVertices(),
+                    state.isActive()
             );
         }
     }
@@ -136,8 +154,6 @@ public class ClientObjectDataManager {
         offHeapBuffer.flip();
         customDataMap.put(id, offHeapBuffer);
     }
-
-
 
     public void removeObject(UUID id) {
         InterpolationStateContainer container = stateContainers.remove(id);
@@ -204,6 +220,11 @@ public class ClientObjectDataManager {
         ClientTickEvent.CLIENT_PRE.register(client -> INSTANCE.processStateUpdates());
         VxClientPlayerNetworkEvent.LoggingOut.EVENT.register(event -> INSTANCE.clearAll());
     }
+
+    public boolean hasObject(UUID id) {
+        return stateContainers.containsKey(id);
+    }
+
     public int getRegisteredRigidRendererFactoryCount() {
         return rigidRendererFactories.size();
     }
@@ -222,9 +243,5 @@ public class ClientObjectDataManager {
                     return (vertices != null) ? vertices.length / 3 : 0;
                 })
                 .sum();
-    }
-
-    public boolean hasObject(UUID id) {
-        return stateContainers.containsKey(id);
     }
 }

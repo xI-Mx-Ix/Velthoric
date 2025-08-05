@@ -20,65 +20,80 @@ public class VxPhysicsUpdater {
 
     private final VxObjectManager manager;
     private final Map<UUID, Boolean> lastActiveState = new ConcurrentHashMap<>();
-    private final ThreadLocal<VxTransform> tempTransform = ThreadLocal.withInitial(VxTransform::new);
     private long physicsTickCounter = 0;
     private static final int INACTIVE_OBJECT_UPDATE_INTERVAL_TICKS = 3;
+
+    private final ThreadLocal<VxTransform> tempTransform = ThreadLocal.withInitial(VxTransform::new);
+    private final ThreadLocal<ReusableFloatBuffer> tempVertexBuffer = ThreadLocal.withInitial(ReusableFloatBuffer::new);
+    private final ThreadLocal<List<IPhysicsObject>> localObjectsToUpdate = ThreadLocal.withInitial(ArrayList::new);
+    private final ThreadLocal<List<PhysicsObjectState>> localStatesToSend = ThreadLocal.withInitial(ArrayList::new);
 
     public VxPhysicsUpdater(VxObjectManager manager) {
         this.manager = manager;
     }
 
     public void update(long timestampNanos, BodyLockInterface lockInterface) {
-        VxObjectContainer container = manager.getObjectContainer();
-        VxObjectNetworkDispatcher dispatcher = manager.getNetworkDispatcher();
-        BodyInterface bodyInterfaceNoLock = manager.getWorld().getPhysicsSystem().getBodyInterfaceNoLock();
+        final VxObjectContainer container = manager.getObjectContainer();
+        final VxObjectNetworkDispatcher dispatcher = manager.getNetworkDispatcher();
+        final BodyInterface bodyInterfaceNoLock = manager.getWorld().getPhysicsSystem().getBodyInterfaceNoLock();
 
         physicsTickCounter++;
         final boolean isPeriodicUpdateTick = (physicsTickCounter % INACTIVE_OBJECT_UPDATE_INTERVAL_TICKS == 0);
 
-        List<IPhysicsObject> objectsToUpdate = container.getAllObjects().parallelStream()
-                .filter(obj -> obj != null && !obj.isRemoved() && obj.getBodyId() != 0 && bodyInterfaceNoLock.isAdded(obj.getBodyId()))
-                .peek(obj -> {
-                    obj.fixedPhysicsTick(manager.getWorld());
-                    obj.physicsTick(manager.getWorld());
-                })
-                .filter(obj -> {
-                    boolean isActive = bodyInterfaceNoLock.isActive(obj.getBodyId());
-                    if (lastActiveState.getOrDefault(obj.getPhysicsId(), !isActive) != isActive) {
-                        lastActiveState.put(obj.getPhysicsId(), isActive);
-                        return true;
-                    }
-                    return isActive || obj.isDataDirty() || isPeriodicUpdateTick;
-                })
-                .toList();
+        List<IPhysicsObject> objectsToUpdate = localObjectsToUpdate.get();
+        objectsToUpdate.clear();
+
+        for (IPhysicsObject obj : container.getAllObjects()) {
+            if (obj == null || obj.isRemoved()) continue;
+            final int bodyId = obj.getBodyId();
+            if (bodyId == 0 || !bodyInterfaceNoLock.isAdded(bodyId)) continue;
+
+            obj.fixedPhysicsTick(manager.getWorld());
+            obj.physicsTick(manager.getWorld());
+
+            boolean isActive = bodyInterfaceNoLock.isActive(bodyId);
+            Boolean previousState = lastActiveState.get(obj.getPhysicsId());
+            boolean stateChanged = previousState == null || previousState != isActive;
+
+            if (stateChanged) {
+                lastActiveState.put(obj.getPhysicsId(), isActive);
+            }
+
+            if (isActive || stateChanged || obj.isDataDirty() || isPeriodicUpdateTick) {
+                objectsToUpdate.add(obj);
+            }
+        }
 
         if (!objectsToUpdate.isEmpty()) {
-            List<PhysicsObjectState> statesToSend = new ArrayList<>(objectsToUpdate.size());
+            List<PhysicsObjectState> statesToSend = localStatesToSend.get();
+            statesToSend.clear();
             for (IPhysicsObject obj : objectsToUpdate) {
                 updateObjectState(obj, timestampNanos, bodyInterfaceNoLock, lockInterface, statesToSend);
             }
             if (!statesToSend.isEmpty()) {
-                dispatcher.dispatchStateUpdates(statesToSend);
+                dispatcher.dispatchStateUpdates(new ArrayList<>(statesToSend));
             }
         }
     }
 
     private void updateObjectState(IPhysicsObject obj, long timestampNanos, BodyInterface bodyInterfaceNoLock, BodyLockInterface lockInterface, List<PhysicsObjectState> statesToSend) {
-        VxTransform transform = tempTransform.get();
+        final int bodyId = obj.getBodyId();
+        final VxTransform transform = tempTransform.get();
         Vec3 linVel = null;
         Vec3 angVel = null;
         float[] vertexData = null;
-        boolean isActive = bodyInterfaceNoLock.isActive(obj.getBodyId());
+        boolean isActive = bodyInterfaceNoLock.isActive(bodyId);
 
         final StampedLock transformLock = obj.getTransformLock();
         long stamp = transformLock.writeLock();
         try {
-            bodyInterfaceNoLock.getPositionAndRotation(obj.getBodyId(), transform.getTranslation(), transform.getRotation());
+            bodyInterfaceNoLock.getPositionAndRotation(bodyId, transform.getTranslation(), transform.getRotation());
             if (isActive) {
-                linVel = bodyInterfaceNoLock.getLinearVelocity(obj.getBodyId());
-                angVel = bodyInterfaceNoLock.getAngularVelocity(obj.getBodyId());
+                linVel = bodyInterfaceNoLock.getLinearVelocity(bodyId);
+                angVel = bodyInterfaceNoLock.getAngularVelocity(bodyId);
+
                 if (obj.getEObjectType() == EObjectType.SOFT_BODY) {
-                    vertexData = getSoftBodyVertices(lockInterface, obj.getBodyId());
+                    vertexData = getSoftBodyVertices(lockInterface, bodyId);
                 }
             }
             obj.updateStateFromPhysicsThread(timestampNanos, transform, linVel, angVel, vertexData, isActive);
@@ -101,7 +116,7 @@ public class VxPhysicsUpdater {
                     ConstSoftBodySharedSettings sharedSettings = motionProps.getSettings();
                     int numVertices = sharedSettings.countVertices();
                     if (numVertices > 0) {
-                        float[] vertexBuffer = new float[numVertices * 3];
+                        float[] vertexBuffer = tempVertexBuffer.get().getBuffer(numVertices * 3);
                         RMat44 worldTransform = body.getWorldTransform();
                         for (int i = 0; i < numVertices; i++) {
                             SoftBodyVertex vertex = motionProps.getVertex(i);
@@ -119,5 +134,16 @@ public class VxPhysicsUpdater {
             }
         }
         return null;
+    }
+
+    private static class ReusableFloatBuffer {
+        private float[] buffer = new float[0];
+
+        float[] getBuffer(int requiredSize) {
+            if (buffer.length < requiredSize) {
+                buffer = new float[requiredSize];
+            }
+            return buffer;
+        }
     }
 }

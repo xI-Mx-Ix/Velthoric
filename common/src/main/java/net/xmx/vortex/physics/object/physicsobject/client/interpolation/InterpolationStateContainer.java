@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Iterator;
 
 public class InterpolationStateContainer {
 
@@ -20,7 +21,6 @@ public class InterpolationStateContainer {
     private static final long JITTER_THRESHOLD_NANOS = 50_000_000L;
 
     private final Deque<StateSnapshot> stateBuffer = new ArrayDeque<>();
-
     private final RenderData renderData = new RenderData();
 
     private long clockOffsetNanos = 0L;
@@ -54,18 +54,14 @@ public class InterpolationStateContainer {
         stateBuffer.addLast(snapshot);
 
         lastGoodTransform.set(transform);
-
         cleanupBuffer();
     }
 
     private void cleanupBuffer() {
-        int targetSize = IDEAL_BUFFER_SIZE;
-        if (stateBuffer.size() > 2) {
-            long avgInterval = (stateBuffer.peekLast().serverTimestampNanos - stateBuffer.peekFirst().serverTimestampNanos) / stateBuffer.size();
-            if (avgInterval > 60_000_000L) {
-                targetSize = MAX_BUFFER_SIZE;
-            }
-        }
+        int targetSize = stateBuffer.size() > 2
+                ? (stateBuffer.peekLast().serverTimestampNanos - stateBuffer.peekFirst().serverTimestampNanos > 60_000_000L * stateBuffer.size() ? MAX_BUFFER_SIZE : IDEAL_BUFFER_SIZE)
+                : IDEAL_BUFFER_SIZE;
+
         while (stateBuffer.size() > targetSize) {
             StateSnapshot.release(stateBuffer.removeFirst());
         }
@@ -83,7 +79,10 @@ public class InterpolationStateContainer {
 
         StateSnapshot from = null;
         StateSnapshot to = null;
-        for (StateSnapshot s : stateBuffer) {
+
+        Iterator<StateSnapshot> it = stateBuffer.iterator();
+        while (it.hasNext()) {
+            StateSnapshot s = it.next();
             if (s.serverTimestampNanos <= renderTimestamp) {
                 from = s;
             } else {
@@ -93,8 +92,9 @@ public class InterpolationStateContainer {
         }
 
         if (from == null) {
-            from = stateBuffer.peekFirst();
-            to = stateBuffer.size() > 1 ? stateBuffer.toArray(new StateSnapshot[0])[1] : null;
+            it = stateBuffer.iterator();
+            if (it.hasNext()) from = it.next();
+            if (it.hasNext()) to = it.next();
         }
 
         if (from == null) {
@@ -103,19 +103,12 @@ public class InterpolationStateContainer {
             return renderData;
         }
 
-        if (to == null) {
+        if (to == null || to.serverTimestampNanos <= from.serverTimestampNanos) {
             return extrapolate(from, renderTimestamp);
         }
 
-        if (to.serverTimestampNanos <= from.serverTimestampNanos) {
-            renderData.transform.set(from.transform);
-            renderData.vertexData = from.vertexData;
-            return renderData;
-        }
-
         long timeDiff = to.serverTimestampNanos - from.serverTimestampNanos;
-        float alpha = (float) (renderTimestamp - from.serverTimestampNanos) / timeDiff;
-        alpha = Mth.clamp(alpha, 0.0f, 1.0f);
+        float alpha = Mth.clamp((float) (renderTimestamp - from.serverTimestampNanos) / timeDiff, 0.0f, 1.0f);
 
         return interpolate(from, to, alpha, timeDiff / 1_000_000_000.0f);
     }
@@ -154,9 +147,7 @@ public class InterpolationStateContainer {
             return this.renderData;
         }
 
-        long timeSinceUpdate = renderTimestamp - from.serverTimestampNanos;
-        float dt = timeSinceUpdate / 1_000_000_000.0f;
-
+        float dt = (renderTimestamp - from.serverTimestampNanos) / 1_000_000_000.0f;
         if (dt > 0 && dt < MAX_EXTRAPOLATION_SECONDS) {
             VxOperations.extrapolatePosition(from.transform.getTranslation(), from.linearVelocity, dt, this.renderData.transform.getTranslation());
             VxOperations.extrapolateRotation(from.transform.getRotation(), from.angularVelocity, dt, this.renderData.transform.getRotation());
@@ -165,7 +156,6 @@ public class InterpolationStateContainer {
             this.renderData.transform.set(from.transform);
             this.renderData.vertexData = from.vertexData;
         }
-
         return this.renderData;
     }
 

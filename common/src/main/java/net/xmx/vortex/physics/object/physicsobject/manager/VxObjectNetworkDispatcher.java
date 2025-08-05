@@ -27,6 +27,11 @@ public class VxObjectNetworkDispatcher {
     private final Object2ObjectMap<ServerPlayer, ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData>> pendingSpawns = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<ServerPlayer, ObjectArrayList<UUID>> pendingRemovals = new Object2ObjectOpenHashMap<>();
 
+    private final Long2ObjectMap<ObjectArrayList<PhysicsObjectState>> statesByChunk = new Long2ObjectOpenHashMap<>();
+    private final ObjectArrayList<PhysicsObjectState> dispatchChunkBatch = new ObjectArrayList<>();
+    private final ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData> spawnBatch = new ObjectArrayList<>();
+    private final ObjectArrayList<UUID> removalBatch = new ObjectArrayList<>();
+
     public VxObjectNetworkDispatcher(ServerLevel level, VxObjectManager manager) {
         this.level = level;
         this.manager = manager;
@@ -41,30 +46,29 @@ public class VxObjectNetworkDispatcher {
         long timestamp = System.nanoTime();
         UUID playerUUID = player.getUUID();
         ObjectSet<UUID> previouslyTracked = this.playerTrackedObjects.computeIfAbsent(playerUUID, k -> new ObjectOpenHashSet<>());
-        ObjectSet<UUID> newlyVisibleIds = new ObjectOpenHashSet<>(visibleObjects.size());
-
+        ObjectSet<UUID> currentlyVisibleIds = new ObjectOpenHashSet<>(visibleObjects.size());
         for (IPhysicsObject obj : visibleObjects) {
-            UUID objId = obj.getPhysicsId();
-            newlyVisibleIds.add(objId);
-            if (!previouslyTracked.contains(objId)) {
-                pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>())
-                        .add(new SpawnPhysicsObjectBatchPacket.SpawnData(obj, timestamp));
+            currentlyVisibleIds.add(obj.getPhysicsId());
+        }
+
+        ObjectArrayList<UUID> removalsForPlayer = pendingRemovals.computeIfAbsent(player, k -> new ObjectArrayList<>());
+        ObjectIterator<UUID> iter = previouslyTracked.iterator();
+        while (iter.hasNext()) {
+            UUID trackedId = iter.next();
+            if (!currentlyVisibleIds.contains(trackedId)) {
+                removalsForPlayer.add(trackedId);
+                iter.remove();
             }
         }
 
-        if (previouslyTracked.size() > newlyVisibleIds.size()) {
-            ObjectIterator<UUID> iter = previouslyTracked.iterator();
-            while (iter.hasNext()) {
-                UUID trackedId = iter.next();
-                if (!newlyVisibleIds.contains(trackedId)) {
-                    pendingRemovals.computeIfAbsent(player, k -> new ObjectArrayList<>()).add(trackedId);
-                    iter.remove();
-                }
+        ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData> spawnsForPlayer = pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>());
+        for (IPhysicsObject obj : visibleObjects) {
+            if (previouslyTracked.add(obj.getPhysicsId())) {
+                spawnsForPlayer.add(new SpawnPhysicsObjectBatchPacket.SpawnData(obj, timestamp));
             }
-        } else {
-            this.playerTrackedObjects.put(playerUUID, newlyVisibleIds);
         }
     }
+
 
     public void onPlayerDisconnect(ServerPlayer player) {
         this.playerTrackedObjects.remove(player.getUUID());
@@ -77,12 +81,19 @@ public class VxObjectNetworkDispatcher {
             return;
         }
 
-        for (Object2ObjectMap.Entry<ServerPlayer, ObjectArrayList<UUID>> entry : pendingRemovals.object2ObjectEntrySet()) {
-            if (!entry.getValue().isEmpty()) {
-                NetworkHandler.sendToPlayer(new RemovePhysicsObjectBatchPacket(entry.getValue()), entry.getKey());
+        pendingRemovals.forEach((player, removalList) -> {
+            if (removalList.isEmpty()) {
+                return;
             }
-        }
-        pendingRemovals.clear();
+
+            for (int i = 0; i < removalList.size(); i += 512) {
+                int end = Math.min(i + 512, removalList.size());
+                removalBatch.clear();
+                removalBatch.addAll(removalList.subList(i, end));
+                NetworkHandler.sendToPlayer(new RemovePhysicsObjectBatchPacket(removalBatch), player);
+            }
+            removalList.clear();
+        });
     }
 
     private void processPendingSpawns() {
@@ -95,40 +106,36 @@ public class VxObjectNetworkDispatcher {
                 return;
             }
 
-            ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData> currentBatch = new ObjectArrayList<>();
+            spawnBatch.clear();
             int currentBatchSizeBytes = 0;
 
             for (SpawnPhysicsObjectBatchPacket.SpawnData data : spawnDataList) {
                 int dataSize = data.estimateSize();
-                if (!currentBatch.isEmpty() && currentBatchSizeBytes + dataSize > MAX_PACKET_PAYLOAD_SIZE) {
-                    NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(currentBatch), player);
-
-                    currentBatch = new ObjectArrayList<>();
+                if (!spawnBatch.isEmpty() && currentBatchSizeBytes + dataSize > MAX_PACKET_PAYLOAD_SIZE) {
+                    NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(spawnBatch), player);
+                    spawnBatch.clear();
                     currentBatchSizeBytes = 0;
                 }
-                currentBatch.add(data);
+                spawnBatch.add(data);
                 currentBatchSizeBytes += dataSize;
             }
 
-            if (!currentBatch.isEmpty()) {
-                NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(currentBatch), player);
+            if (!spawnBatch.isEmpty()) {
+                NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(spawnBatch), player);
             }
+            spawnDataList.clear();
         });
-        pendingSpawns.clear();
     }
 
     public void dispatchStateUpdates(List<PhysicsObjectState> states) {
-
         level.getServer().execute(() -> {
+            statesByChunk.values().forEach(ObjectArrayList::clear);
 
-            Long2ObjectMap<List<PhysicsObjectState>> statesByChunk = new Long2ObjectOpenHashMap<>();
             for (PhysicsObjectState state : states) {
-
-                IPhysicsObject obj = manager.getObject(state.getId()).orElse(null);
-                if (obj != null) {
+                manager.getObject(state.getId()).ifPresent(obj -> {
                     long chunkKey = VxObjectManager.getObjectChunkPos(obj).toLong();
                     statesByChunk.computeIfAbsent(chunkKey, k -> new ObjectArrayList<>()).add(state);
-                }
+                });
             }
             sendUpdatesBatchedByChunk(statesByChunk);
         });
@@ -137,52 +144,47 @@ public class VxObjectNetworkDispatcher {
     public void dispatchDataUpdate(IPhysicsObject obj) {
         if (obj.isDataDirty()) {
             SyncPhysicsObjectDataPacket packet = new SyncPhysicsObjectDataPacket(obj);
-
-            for (ServerPlayer player : getPlayersInChunk(VxObjectManager.getObjectChunkPos(obj))) {
+            ChunkPos chunkPos = VxObjectManager.getObjectChunkPos(obj);
+            ServerChunkCache chunkSource = level.getChunkSource();
+            for (ServerPlayer player : chunkSource.chunkMap.getPlayers(chunkPos, false)) {
                 NetworkHandler.sendToPlayer(packet, player);
             }
             obj.clearDataDirty();
         }
     }
 
-    private void sendUpdatesBatchedByChunk(Long2ObjectMap<List<PhysicsObjectState>> statesByChunk) {
-
-        statesByChunk.forEach((chunkKey, statesInChunk) -> {
+    private void sendUpdatesBatchedByChunk(Long2ObjectMap<ObjectArrayList<PhysicsObjectState>> chunkMap) {
+        chunkMap.forEach((chunkKey, statesInChunk) -> {
             if (statesInChunk.isEmpty()) {
                 return;
             }
             ChunkPos chunkPos = new ChunkPos(chunkKey);
 
-            ObjectArrayList<PhysicsObjectState> currentBatch = new ObjectArrayList<>();
+            dispatchChunkBatch.clear();
             int currentBatchSizeBytes = 0;
 
             for (PhysicsObjectState state : statesInChunk) {
                 int stateSize = state.estimateEncodedSize();
-                if (!currentBatch.isEmpty() && currentBatchSizeBytes + stateSize > MAX_PACKET_PAYLOAD_SIZE) {
-                    sendUpdateBatch(chunkPos, currentBatch);
-                    currentBatch = new ObjectArrayList<>();
+                if (!dispatchChunkBatch.isEmpty() && currentBatchSizeBytes + stateSize > MAX_PACKET_PAYLOAD_SIZE) {
+                    sendUpdateBatch(chunkPos, dispatchChunkBatch);
+                    dispatchChunkBatch.clear();
                     currentBatchSizeBytes = 0;
                 }
-                currentBatch.add(state);
+                dispatchChunkBatch.add(state);
                 currentBatchSizeBytes += stateSize;
             }
 
-            if (!currentBatch.isEmpty()) {
-                sendUpdateBatch(chunkPos, currentBatch);
+            if (!dispatchChunkBatch.isEmpty()) {
+                sendUpdateBatch(chunkPos, dispatchChunkBatch);
             }
         });
     }
 
     private void sendUpdateBatch(ChunkPos chunkPos, List<PhysicsObjectState> batch) {
-
-        SyncAllPhysicsObjectsPacket packet = new SyncAllPhysicsObjectsPacket((ObjectArrayList<PhysicsObjectState>)batch);
-        for (ServerPlayer player : getPlayersInChunk(chunkPos)) {
+        SyncAllPhysicsObjectsPacket packet = new SyncAllPhysicsObjectsPacket((ObjectArrayList<PhysicsObjectState>) batch);
+        ServerChunkCache chunkSource = level.getChunkSource();
+        for (ServerPlayer player : chunkSource.chunkMap.getPlayers(chunkPos, false)) {
             NetworkHandler.sendToPlayer(packet, player);
         }
-    }
-
-    private Iterable<ServerPlayer> getPlayersInChunk(ChunkPos pos) {
-        ServerChunkCache chunkSource = level.getChunkSource();
-        return chunkSource.chunkMap.getPlayers(pos, false);
     }
 }
