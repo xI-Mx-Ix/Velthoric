@@ -12,7 +12,6 @@ import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class VxObjectContainer {
 
@@ -20,8 +19,6 @@ public class VxObjectContainer {
     private final Map<UUID, IPhysicsObject> managedObjects = new ConcurrentHashMap<>();
 
     private final Int2ObjectMap<UUID> bodyIdToUuidMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
-
-    private final Queue<IPhysicsObject> pendingActivationQueue = new ConcurrentLinkedQueue<>();
 
     private static final int MAX_ACTIVATIONS_PER_TICK = 100;
 
@@ -34,7 +31,6 @@ public class VxObjectContainer {
 
         managedObjects.computeIfAbsent(obj.getPhysicsId(), id -> {
             obj.initializePhysics(world);
-            pendingActivationQueue.add(obj);
             world.getConstraintManager().getDataSystem().onDependencyLoaded(id);
             return obj;
         });
@@ -52,46 +48,10 @@ public class VxObjectContainer {
         return obj;
     }
 
-    public void processPendingActivations() {
-        if (pendingActivationQueue.isEmpty()) return;
-
-        TerrainSystem terrainSystem = world.getTerrainSystem();
-        if (terrainSystem == null) {
-            return;
-        }
-
-        int processedCount = 0;
-        Iterator<IPhysicsObject> iterator = pendingActivationQueue.iterator();
-        while (iterator.hasNext() && processedCount < MAX_ACTIVATIONS_PER_TICK) {
-            IPhysicsObject obj = iterator.next();
-            if (obj.isRemoved()) {
-                iterator.remove();
-                continue;
-            }
-
-            var pos = obj.getCurrentTransform().getTranslation();
-            VxSectionPos sectionPos = new VxSectionPos(
-                    SectionPos.posToSectionCoord(pos.x()),
-                    SectionPos.posToSectionCoord(pos.y()),
-                    SectionPos.posToSectionCoord(pos.z())
-            );
-
-            if (terrainSystem.isReady(sectionPos)) {
-                if (obj.getBodyId() != 0) {
-                    world.queueCommand(new ActivateBodyCommand(obj.getBodyId()));
-                }
-                iterator.remove();
-            }
-            processedCount++;
-        }
-    }
-
     public void clear() {
-
         managedObjects.values().parallelStream().forEach(obj -> obj.removeFromPhysics(world));
         managedObjects.clear();
         bodyIdToUuidMap.clear();
-        pendingActivationQueue.clear();
     }
 
     public void linkBodyId(int bodyId, UUID objectId) {
