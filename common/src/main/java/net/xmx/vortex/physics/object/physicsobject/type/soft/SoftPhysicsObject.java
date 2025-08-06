@@ -35,6 +35,7 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
     protected float[] lastSyncedVertexData;
     protected SoftPhysicsObjectProperties softProperties;
     protected SoftBodySharedSettingsRef sharedSettingsRef;
+    protected float buoyancyFactor;
 
     protected SoftPhysicsObject(PhysicsObjectType<? extends SoftPhysicsObject> type, Level level) {
         super(type, level);
@@ -43,6 +44,7 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
             throw new IllegalArgumentException("SoftPhysicsObject requires SoftPhysicsObjectProperties");
         }
         this.softProperties = defaultProps;
+        this.buoyancyFactor = this.softProperties.getBuoyancyFactor();
     }
 
     @Override
@@ -141,5 +143,9 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
 
     public abstract static class Renderer {
         public abstract void render(UUID id, RenderData renderData, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight);
+    }
+
+    public float getBuoyancyFactor() {
+        return this.buoyancyFactor;
     }
 }

@@ -36,6 +36,7 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     protected float angularDamping;
     protected float gravityFactor;
     protected EMotionType motionType;
+    protected float buoyancyFactor;
 
     protected RigidPhysicsObject(PhysicsObjectType<? extends RigidPhysicsObject> type, Level level) {
         super(type, level);
@@ -48,6 +49,7 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
         this.angularDamping = defaultProps.getAngularDamping();
         this.gravityFactor = defaultProps.getGravityFactor();
         this.motionType = defaultProps.getMotionType();
+        this.buoyancyFactor = defaultProps.getBuoyancyFactor();
     }
 
     @Override
@@ -143,5 +145,9 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
 
     public EMotionType getMotionType() {
         return this.motionType;
+    }
+
+    public float getBuoyancyFactor() {
+        return this.buoyancyFactor;
     }
 }
