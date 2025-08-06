@@ -12,7 +12,6 @@ import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManage
 import net.xmx.vortex.physics.object.physicsobject.client.renderer.PhysicsObjectRenderer;
 import net.xmx.vortex.physics.object.physicsobject.client.time.ClientPhysicsPauseHandler;
 import net.xmx.vortex.physics.object.physicsobject.manager.event.ObjectLifecycleEvents;
-import net.xmx.vortex.physics.object.riding.ClientPlayerRidingSystem;
 
 public class RegisterEvents {
 
@@ -27,7 +26,6 @@ public class RegisterEvents {
 
     @Environment(EnvType.CLIENT)
     public static void registerClient() {
-        ClientPlayerRidingSystem.registerEvents();
 
         ClientObjectDataManager.registerEvents();
 

@@ -19,13 +19,15 @@ import net.xmx.vortex.physics.object.physicsobject.manager.VxRemovalReason;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.pcmd.AddRigidBodyCommand;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.pcmd.RemoveRigidBodyCommand;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.properties.RigidPhysicsObjectProperties;
+import net.xmx.vortex.physics.object.riding.Rideable;
+import net.xmx.vortex.physics.object.riding.RidingProxyEntity;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
 
-public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
+public abstract class RigidPhysicsObject extends AbstractPhysicsObject implements Rideable {
 
     protected final PhysicsObjectType<? extends RigidPhysicsObject> type;
     protected ShapeSettingsRef shapeSettingsRef;
@@ -37,6 +39,7 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
     protected float gravityFactor;
     protected EMotionType motionType;
     protected float buoyancyFactor;
+    protected Vec3 ridePositionOffset = new Vec3(0, 0.5f, 0);
 
     protected RigidPhysicsObject(PhysicsObjectType<? extends RigidPhysicsObject> type, Level level) {
         super(type, level);
@@ -149,5 +152,23 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject {
 
     public float getBuoyancyFactor() {
         return this.buoyancyFactor;
+    }
+
+    // Riding
+
+    @Override
+    public Vec3 getRidePositionOffset() { return this.ridePositionOffset; }
+
+    @Override
+    public void setRidePositionOffset(Vec3 offset) { this.ridePositionOffset = offset; }
+
+    @Override
+    public void onStartRiding(ServerPlayer player, RidingProxyEntity proxy) {
+        this.setRidingProxy(proxy);
+    }
+
+    @Override
+    public void onStopRiding(ServerPlayer player) {
+        this.setRidingProxy(null);
     }
 }

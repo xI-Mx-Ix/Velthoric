@@ -37,6 +37,11 @@ public class VxTransform {
         this.rotation.set(other.rotation);
     }
 
+    public void set(RVec3Arg translation, QuatArg rotation) {
+        this.translation.set(translation);
+        this.rotation.set(rotation);
+    }
+
     public VxTransform copy() {
         return new VxTransform(this.translation, this.rotation);
     }

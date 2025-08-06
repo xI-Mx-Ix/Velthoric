@@ -29,9 +29,9 @@
     "physicsgun.PhysicsGunHandling_KeyboardHandlerMixin",
     "physicsgun.PhysicsGunHandling_MouseHandlerMixin",
     "raytracing.ClickNotifier_MouseHandlerMixin",
+
     "riding.CameraMixin",
-    "riding.LivingEntityRendererMixin",
-    "riding.LocalPlayerMixin"
+    "riding.PlayerRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

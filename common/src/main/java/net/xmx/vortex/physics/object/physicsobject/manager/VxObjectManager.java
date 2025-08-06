@@ -11,6 +11,7 @@ import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
 import net.xmx.vortex.physics.object.physicsobject.manager.persistence.VxObjectStorage;
 import net.xmx.vortex.physics.object.physicsobject.manager.registry.VxObjectRegistry;
+import net.xmx.vortex.physics.object.riding.RidingManager;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
 import java.util.Optional;
@@ -26,6 +27,7 @@ public class VxObjectManager {
     private final VxObjectContainer objectContainer;
     private final VxPhysicsUpdater physicsUpdater;
     private final VxObjectNetworkDispatcher networkDispatcher;
+    private final RidingManager ridingManager;
 
     public VxObjectManager(VxPhysicsWorld world) {
         this.world = world;
@@ -35,6 +37,7 @@ public class VxObjectManager {
         this.objectStorage = new VxObjectStorage(level, this);
         this.physicsUpdater = new VxPhysicsUpdater(this);
         this.networkDispatcher = new VxObjectNetworkDispatcher(level, this);
+        this.ridingManager = new RidingManager(world);
     }
 
     public void initialize() {
@@ -135,5 +138,9 @@ public class VxObjectManager {
 
     public VxObjectNetworkDispatcher getNetworkDispatcher() {
         return networkDispatcher;
+    }
+
+    public RidingManager getRidingManager() {
+        return this.ridingManager;
     }
 }
