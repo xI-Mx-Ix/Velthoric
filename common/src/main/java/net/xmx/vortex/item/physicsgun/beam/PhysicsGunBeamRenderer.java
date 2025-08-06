@@ -1,5 +1,7 @@
 package net.xmx.vortex.item.physicsgun.beam;
 
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.Camera;
@@ -15,6 +17,7 @@ import net.xmx.vortex.item.physicsgun.manager.PhysicsGunClientManager;
 import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
+import net.xmx.vortex.physics.object.physicsobject.client.ObjectRead;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import org.joml.Matrix4f;
 
@@ -28,6 +31,8 @@ public class PhysicsGunBeamRenderer {
     private static final float BEAM_WIDTH = 0.15f;
     private static final float BEAM_CURVE_STRENGTH = 0.3f;
     private static final float BEAM_MAX_LENGTH = 100.0f;
+
+    private static final RenderData INTERPOLATED_DATA = new RenderData();
 
     public static void registerEvents() {
         VxRenderEvent.ClientRenderLevelStageEvent.EVENT.register(PhysicsGunBeamRenderer::onRenderLevelStage);
@@ -45,7 +50,6 @@ public class PhysicsGunBeamRenderer {
         float partialTicks = event.getPartialTick();
 
         PhysicsGunClientManager clientManager = PhysicsGunClientManager.getInstance();
-        ClientObjectDataManager dataManager = ClientObjectDataManager.getInstance();
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 camPos = camera.getPosition();
 
@@ -71,16 +75,24 @@ public class PhysicsGunBeamRenderer {
             UUID objectUuid = grabData.objectUuid();
 
             Player player = mc.level.getPlayerByUUID(playerUuid);
-            EObjectType objectType = dataManager.getObjectType(objectUuid);
+            if (player == null) continue;
 
-            if (player != null && objectType == EObjectType.RIGID_BODY) {
-                RenderData renderData = dataManager.getRenderData(objectUuid);
-                if (renderData == null) continue;
+            try (ObjectRead objRead = ObjectRead.get(objectUuid)) {
+                if (!objRead.isValid() || objRead.getObjectType() != EObjectType.RIGID_BODY) {
+                    continue;
+                }
+
+                ClientObjectDataManager.InterpolatedRenderState renderState = objRead.getRenderState();
+                if (renderState == null || !renderState.isInitialized) {
+                    continue;
+                }
+
+                RenderData renderData = RenderData.interpolate(renderState, partialTicks, INTERPOLATED_DATA);
 
                 VxTransform renderTransform = renderData.transform;
                 Vec3 startPoint = getGunTipPosition(player, partialTicks);
-                com.github.stephengold.joltjni.RVec3 centerPos = renderTransform.getTranslation();
-                com.github.stephengold.joltjni.Quat rotation = renderTransform.getRotation();
+                RVec3 centerPos = renderTransform.getTranslation();
+                Quat rotation = renderTransform.getRotation();
                 Vec3 localHitPoint = grabData.localHitPoint();
 
                 com.github.stephengold.joltjni.Vec3 localHitJolt = new com.github.stephengold.joltjni.Vec3(
@@ -90,7 +102,7 @@ public class PhysicsGunBeamRenderer {
                 );
 
                 com.github.stephengold.joltjni.Vec3 rotatedOffset = com.github.stephengold.joltjni.operator.Op.star(rotation, localHitJolt);
-                com.github.stephengold.joltjni.RVec3 endPointJolt = com.github.stephengold.joltjni.operator.Op.plus(centerPos, rotatedOffset);
+                RVec3 endPointJolt = com.github.stephengold.joltjni.operator.Op.plus(centerPos, rotatedOffset);
                 Vec3 endPoint = new Vec3(endPointJolt.xx(), endPointJolt.yy(), endPointJolt.zz());
 
                 Vec3 playerLookVec = getPlayerLookVector(player, partialTicks);

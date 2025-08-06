@@ -2,7 +2,6 @@ package net.xmx.vortex.physics.object.physicsobject.client;
 
 import com.github.stephengold.joltjni.RVec3;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.SoftPhysicsObject;
 import org.jetbrains.annotations.Nullable;
@@ -21,8 +20,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * <pre>{@code
  * try (ObjectRead objRead = ObjectRead.get(objectId)) {
  *     if (objRead.isValid()) {
- *         RenderData data = objRead.getRenderData(partialTicks);
- *         // ... use the data
+ *         ClientObjectDataManager.InterpolatedRenderState state = objRead.getRenderState();
+ *         if (state != null && state.isInitialized) {
+ *              // Caller can now perform interpolation using state.previous, state.current and partialTicks
+ *         }
  *     }
  * }
  * }</pre>
@@ -91,15 +92,14 @@ public final class ObjectRead implements Closeable {
     }
 
     /**
-     * Retrieves the interpolated rendering data for the object.
+     * Retrieves the object's render state, containing the previous and current state for interpolation.
      *
-     * @param partialTicks The fraction of the current tick that has passed.
-     * @return The {@link RenderData} for the object, or {@code null} if the handle is invalid.
+     * @return The {@link ClientObjectDataManager.InterpolatedRenderState} for the object, or {@code null} if the handle is invalid.
      */
     @Nullable
-    public RenderData getRenderData(float partialTicks) {
+    public ClientObjectDataManager.InterpolatedRenderState getRenderState() {
         if (!isValid) return null;
-        return dataManager.getRenderData(objectId);
+        return dataManager.getRenderState(objectId);
     }
 
     /**

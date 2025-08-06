@@ -37,6 +37,15 @@ public class ClientObjectDataManager {
     private boolean isClockOffsetInitialized = false;
 
     private final Map<UUID, InterpolationStateContainer> stateContainers = new ConcurrentHashMap<>();
+
+    public static class InterpolatedRenderState {
+        public final RenderData previous = new RenderData();
+        public final RenderData current = new RenderData();
+        public boolean isInitialized = false;
+    }
+
+    private final Map<UUID, InterpolatedRenderState> renderStates = new ConcurrentHashMap<>();
+
     private final Map<UUID, EObjectType> objectTypes = new ConcurrentHashMap<>();
     private final Map<UUID, String> typeIdentifiers = new ConcurrentHashMap<>();
     private final Map<UUID, RigidPhysicsObject.Renderer> rigidRenderers = new ConcurrentHashMap<>();
@@ -91,6 +100,41 @@ public class ClientObjectDataManager {
         }
     }
 
+    private void updateInterpolationTargets() {
+        if (!isClockOffsetInitialized) return;
+
+        long estimatedServerTime = VxClientClock.getInstance().getGameTimeNanos() + this.clockOffsetNanos;
+        long renderTimestamp = estimatedServerTime - INTERPOLATION_DELAY_NANOS;
+
+        for (Map.Entry<UUID, InterpolationStateContainer> entry : stateContainers.entrySet()) {
+            UUID id = entry.getKey();
+            InterpolationStateContainer container = entry.getValue();
+            InterpolatedRenderState state = renderStates.computeIfAbsent(id, k -> new InterpolatedRenderState());
+
+            state.previous.transform.set(state.current.transform);
+            if (state.current.vertexData != null) {
+                if (state.previous.vertexData == null || state.previous.vertexData.length != state.current.vertexData.length) {
+                    state.previous.vertexData = new float[state.current.vertexData.length];
+                }
+                System.arraycopy(state.current.vertexData, 0, state.previous.vertexData, 0, state.current.vertexData.length);
+            } else {
+                state.previous.vertexData = null;
+            }
+
+            RenderData newCurrentData = container.getInterpolatedState(renderTimestamp);
+            if (newCurrentData != null) {
+                state.current.transform.set(newCurrentData.transform);
+                state.current.vertexData = newCurrentData.vertexData;
+            }
+
+            if (!state.isInitialized) {
+                state.previous.transform.set(state.current.transform);
+                state.previous.vertexData = state.current.vertexData;
+                state.isInitialized = true;
+            }
+        }
+    }
+
     private void updateGlobalClock(long serverTimestamp, long clientReceiptTime) {
         if (!isClockOffsetInitialized) {
             this.clockOffsetNanos = serverTimestamp - clientReceiptTime;
@@ -104,6 +148,7 @@ public class ClientObjectDataManager {
 
     public void spawnObject(UUID id, String typeId, EObjectType objType, FriendlyByteBuf data, long serverTimestamp) {
         stateContainers.computeIfAbsent(id, key -> {
+            renderStates.put(id, new InterpolatedRenderState());
             objectTypes.put(id, objType);
             typeIdentifiers.put(id, typeId);
 
@@ -180,6 +225,7 @@ public class ClientObjectDataManager {
         if (container != null) {
             container.release();
         }
+        renderStates.remove(id);
         objectTypes.remove(id);
         typeIdentifiers.remove(id);
         rigidRenderers.remove(id);
@@ -191,6 +237,7 @@ public class ClientObjectDataManager {
         stateUpdateQueue.clear();
         stateContainers.values().forEach(InterpolationStateContainer::release);
         stateContainers.clear();
+        renderStates.clear();
         objectTypes.clear();
         typeIdentifiers.clear();
         rigidRenderers.clear();
@@ -201,16 +248,8 @@ public class ClientObjectDataManager {
     }
 
     @Nullable
-    public RenderData getRenderData(UUID id) {
-        InterpolationStateContainer container = stateContainers.get(id);
-        if (container == null || !isClockOffsetInitialized) {
-            return null;
-        }
-
-        long estimatedServerTime = VxClientClock.getInstance().getGameTimeNanos() + this.clockOffsetNanos;
-        long renderTimestamp = estimatedServerTime - INTERPOLATION_DELAY_NANOS;
-
-        return container.getInterpolatedState(renderTimestamp);
+    public InterpolatedRenderState getRenderState(UUID id) {
+        return renderStates.get(id);
     }
 
     @Nullable
@@ -245,7 +284,10 @@ public class ClientObjectDataManager {
     }
 
     public static void registerEvents() {
-        ClientTickEvent.CLIENT_PRE.register(client -> INSTANCE.processStateUpdates());
+        ClientTickEvent.CLIENT_PRE.register(client -> {
+            INSTANCE.processStateUpdates();
+            INSTANCE.updateInterpolationTargets();
+        });
         VxClientPlayerNetworkEvent.LoggingOut.EVENT.register(event -> INSTANCE.clearAll());
     }
 
