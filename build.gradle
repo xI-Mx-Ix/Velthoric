@@ -58,6 +58,11 @@ subprojects {
             name = 'ParchmentMC'
             url = 'https://maven.parchmentmc.org'
         }
+
+        flatDir {
+            dirs "${rootDir}/libraries"
+        }
+
     }
 
     loom {
@@ -92,14 +97,14 @@ subprojects {
         include("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
 
-        implementation files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT.jar")
-        implementation files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT-DebugDp.jar")
+        implementation ":jolt-jni:2.1.1-SNAPSHOT"
+        implementation ":jolt-jni:2.1.1-SNAPSHOT:DebugDp"
 
-        minecraftRuntimeLibraries files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT.jar")
-        minecraftRuntimeLibraries files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT-DebugDp.jar")
+        include ":jolt-jni:2.1.1-SNAPSHOT"
+        include ":jolt-jni:2.1.1-SNAPSHOT:DebugDp"
 
-        include files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT.jar")
-        include files("${rootDir}/libraries/jolt-jni-2.1.1-SNAPSHOT-DebugDp.jar")
+        minecraftRuntimeLibraries ":jolt-jni:2.1.1-SNAPSHOT"
+        minecraftRuntimeLibraries ":jolt-jni:2.1.1-SNAPSHOT:DebugDp"
 
     }
 
