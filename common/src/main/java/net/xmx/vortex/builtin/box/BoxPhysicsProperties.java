@@ -11,6 +11,6 @@ public class BoxPhysicsProperties {
             .linearDamping(0.3f)
             .angularDamping(0.3f)
             .gravityFactor(1.0f)
-            .buoyancyFactor(1.6f)
+            .buoyancyFactor(1.8f)
             .build();
 }
