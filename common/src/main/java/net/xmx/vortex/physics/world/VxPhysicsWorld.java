@@ -23,7 +23,6 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 
 public final class VxPhysicsWorld implements Runnable, Executor {
 
