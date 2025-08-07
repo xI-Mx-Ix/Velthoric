@@ -16,10 +16,11 @@
     "terrain.ChunkHolderMixin",
     "terrain.ChunkUnload_ChunkMapMixin",
     "terrain.LevelMixin",
-    "terrain.ServerLevelMixin"
+    "terrain.ServerLevelMixin",
+
+    "entitycollision.EntityCollisions_MixinEntity"
   ],
   "client": [
-    "debug.EntityRenderDispatcherMixin",
     "event.debug.VxAddDebugInfoEvent_DebugScreenOverlayMixin",
     "event.network.VxClientPlayerNetworkEvent_ClientLevelMixin",
     "event.network.VxClientPlayerNetworkEvent_ClientPacketListenerMixin",
@@ -30,7 +31,6 @@
     "physicsgun.PhysicsGunHandling_MouseHandlerMixin",
     "raytracing.ClickNotifier_MouseHandlerMixin",
     "riding.CameraMixin",
-    ,
     "riding.PlayerRendererMixin"
   ],
   "injectors": {
