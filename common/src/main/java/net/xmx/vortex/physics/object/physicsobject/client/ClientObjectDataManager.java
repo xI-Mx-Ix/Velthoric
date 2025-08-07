@@ -11,6 +11,7 @@ import net.xmx.vortex.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolationStateContainer;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.physicsobject.client.time.VxClientClock;
@@ -37,12 +38,6 @@ public class ClientObjectDataManager {
     private boolean isClockOffsetInitialized = false;
 
     private final Map<UUID, InterpolationStateContainer> stateContainers = new ConcurrentHashMap<>();
-
-    public static class InterpolatedRenderState {
-        public final RenderData previous = new RenderData();
-        public final RenderData current = new RenderData();
-        public boolean isInitialized = false;
-    }
 
     private final Map<UUID, InterpolatedRenderState> renderStates = new ConcurrentHashMap<>();
 

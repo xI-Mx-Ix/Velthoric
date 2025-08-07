@@ -16,6 +16,7 @@ import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.math.VxOperations;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.SoftPhysicsObject;
@@ -74,7 +75,7 @@ public class PhysicsObjectRenderer {
                     continue;
                 }
 
-                ClientObjectDataManager.InterpolatedRenderState renderState = dataManager.getRenderState(id);
+                InterpolatedRenderState renderState = dataManager.getRenderState(id);
                 if (renderState == null || !renderState.isInitialized) continue;
 
                 EObjectType objectType = dataManager.getObjectType(id);
@@ -92,7 +93,7 @@ public class PhysicsObjectRenderer {
         bufferSource.endBatch();
     }
 
-    private static void renderRigidBody(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, UUID id, ClientObjectDataManager.InterpolatedRenderState renderState, RigidPhysicsObject.Renderer renderer, ByteBuffer customData) {
+    private static void renderRigidBody(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, UUID id, InterpolatedRenderState renderState, RigidPhysicsObject.Renderer renderer, ByteBuffer customData) {
         if (renderer == null) return;
 
         poseStack.pushPose();
@@ -122,7 +123,7 @@ public class PhysicsObjectRenderer {
         poseStack.popPose();
     }
 
-    private static void renderSoftBody(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, UUID id, ClientObjectDataManager.InterpolatedRenderState renderState, SoftPhysicsObject.Renderer renderer, ByteBuffer customData) {
+    private static void renderSoftBody(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, UUID id, InterpolatedRenderState renderState, SoftPhysicsObject.Renderer renderer, ByteBuffer customData) {
         if (renderer == null) return;
 
         poseStack.pushPose();

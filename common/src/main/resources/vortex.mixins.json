@@ -29,8 +29,8 @@
     "physicsgun.PhysicsGunHandling_KeyboardHandlerMixin",
     "physicsgun.PhysicsGunHandling_MouseHandlerMixin",
     "raytracing.ClickNotifier_MouseHandlerMixin",
-
     "riding.CameraMixin",
+    ,
     "riding.PlayerRendererMixin"
   ],
   "injectors": {

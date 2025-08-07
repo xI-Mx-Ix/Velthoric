@@ -5,14 +5,13 @@ import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.util.Mth;
 import net.xmx.vortex.math.VxOperations;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 import org.jetbrains.annotations.Nullable;
 
 public class RenderData {
     public final VxTransform transform = new VxTransform();
     public float @Nullable [] vertexData = null;
 
-    public static RenderData interpolate(ClientObjectDataManager.InterpolatedRenderState state, float partialTicks, RenderData out) {
+    public static RenderData interpolate(InterpolatedRenderState state, float partialTicks, RenderData out) {
 
         RVec3 prevPos = state.previous.transform.getTranslation();
         RVec3 currPos = state.current.transform.getTranslation();

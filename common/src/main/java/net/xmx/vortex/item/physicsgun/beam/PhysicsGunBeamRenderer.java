@@ -16,7 +16,7 @@ import net.xmx.vortex.event.api.VxRenderEvent;
 import net.xmx.vortex.item.physicsgun.manager.PhysicsGunClientManager;
 import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
-import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
 import net.xmx.vortex.physics.object.physicsobject.client.ObjectRead;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import org.joml.Matrix4f;
@@ -82,7 +82,7 @@ public class PhysicsGunBeamRenderer {
                     continue;
                 }
 
-                ClientObjectDataManager.InterpolatedRenderState renderState = objRead.getRenderState();
+                InterpolatedRenderState renderState = objRead.getRenderState();
                 if (renderState == null || !renderState.isInitialized) {
                     continue;
                 }
