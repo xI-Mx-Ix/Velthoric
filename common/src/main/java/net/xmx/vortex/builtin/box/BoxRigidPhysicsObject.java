@@ -4,12 +4,12 @@ import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
-import net.xmx.vortex.physics.world.VxPhysicsWorld;
+import net.xmx.vortex.physics.object.riding.seat.Seat;
+import org.joml.Vector3f;
 
 public class BoxRigidPhysicsObject extends RigidPhysicsObject {
 
@@ -22,11 +22,28 @@ public class BoxRigidPhysicsObject extends RigidPhysicsObject {
 
     public void setHalfExtents(Vec3 halfExtents) {
         this.halfExtents = halfExtents;
+        this.markDataDirty();
     }
 
     public Vec3 getHalfExtents() {
         return halfExtents;
     }
+
+    @Override
+    public Seat[] defineSeats() {
+        Seat leftSeat = new Seat("leftSeat",
+                new AABB(-2f, -1f, -1f, 0f, 1f, 1f),   // linker Sitzbereich links vom Ursprung
+                new Vector3f(-1f, 0f, 0f)              // Rider-Offset links
+        );
+
+        Seat rightSeat = new Seat("rightSeat",
+                new AABB(0f, -1f, -1f, 2f, 1f, 1f),    // rechter Sitzbereich rechts vom Ursprung
+                new Vector3f(1f, 0f, 0f)               // Rider-Offset rechts
+        );
+
+        return new Seat[]{leftSeat, rightSeat};
+    }
+
 
     @Override
     public ShapeSettings buildShapeSettings() {
@@ -44,15 +61,5 @@ public class BoxRigidPhysicsObject extends RigidPhysicsObject {
     @Override
     protected void readAdditionalSpawnData(FriendlyByteBuf buf) {
         this.halfExtents = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
-    }
-
-    @Override
-    public void onRightClick(ServerPlayer player, com.github.stephengold.joltjni.Vec3 hitPoint, com.github.stephengold.joltjni.Vec3 hitNormal) {
-        if (this.level instanceof ServerLevel serverLevel) {
-            VxPhysicsWorld world = VxPhysicsWorld.get(serverLevel.dimension());
-            if (world != null) {
-                world.getObjectManager().getRidingManager().startRiding(player, this);
-            }
-        }
     }
 }

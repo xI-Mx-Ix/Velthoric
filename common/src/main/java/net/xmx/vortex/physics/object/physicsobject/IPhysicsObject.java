@@ -7,7 +7,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.riding.RidingProxyEntity;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -36,12 +35,12 @@ public interface IPhysicsObject {
     void onRightClick(ServerPlayer player, Vec3 hitPoint, Vec3 hitNormal);
     void onRightClickWithTool(ServerPlayer player);
 
-    void updateStateFromPhysicsThread(long timestampNanos, @Nullable VxTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, boolean isActive);
+    void updateStateFromPhysicsThread(long timestampNanos, @Nullable VxTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, float @Nullable [] softBodyVertices, boolean isActive);
     Vec3 getLastSyncedLinearVel();
     Vec3 getLastSyncedAngularVel();
     boolean isPhysicsActive();
     long getLastUpdateTimestampNanos();
-    @Nullable float[] getLastSyncedVertexData();
+    float @Nullable [] getLastSyncedVertexData();
 
     void markDataDirty();
     boolean isDataDirty();
@@ -57,9 +56,6 @@ public interface IPhysicsObject {
 
     void setPhysicsId(UUID uuid);
     void setInitialTransform(VxTransform transform);
-
-    void setRidingProxy(@Nullable RidingProxyEntity proxy);
-    @Nullable RidingProxyEntity getRidingProxy();
 
     @Nullable
     Body getBody();

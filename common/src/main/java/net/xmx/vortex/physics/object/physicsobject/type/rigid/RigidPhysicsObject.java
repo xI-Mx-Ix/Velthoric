@@ -20,7 +20,7 @@ import net.xmx.vortex.physics.object.physicsobject.type.rigid.pcmd.AddRigidBodyC
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.pcmd.RemoveRigidBodyCommand;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.properties.RigidPhysicsObjectProperties;
 import net.xmx.vortex.physics.object.riding.Rideable;
-import net.xmx.vortex.physics.object.riding.RidingProxyEntity;
+import net.xmx.vortex.physics.object.riding.seat.Seat;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -39,7 +39,6 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject implement
     protected float gravityFactor;
     protected EMotionType motionType;
     protected float buoyancyFactor;
-    protected Vec3 ridePositionOffset = new Vec3(0, 0.5f, 0);
 
     protected RigidPhysicsObject(PhysicsObjectType<? extends RigidPhysicsObject> type, Level level) {
         super(type, level);
@@ -56,8 +55,13 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject implement
     }
 
     @Override
-    public PhysicsObjectType<? extends RigidPhysicsObject> getPhysicsObjectType() {
-        return this.type;
+    public void onRightClickWithTool(ServerPlayer player) {
+        if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem && player.level() instanceof ServerLevel sl) {
+            VxObjectManager manager = VxPhysicsWorld.get(sl.dimension()).getObjectManager();
+            if (manager != null) {
+                manager.removeObject(this.physicsId, VxRemovalReason.DISCARD);
+            }
+        }
     }
 
     @Override
@@ -123,21 +127,7 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject implement
     public void physicsTick(VxPhysicsWorld physicsWorld) {}
 
     @Override
-    public void onRightClickWithTool(ServerPlayer player) {
-        if (player.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof PhysicsRemoverItem && player.level() instanceof ServerLevel sl) {
-            VxObjectManager manager = VxPhysicsWorld.get(sl.dimension()).getObjectManager();
-            if (manager != null) {
-                manager.removeObject(this.physicsId, VxRemovalReason.DISCARD);
-            }
-        }
-    }
-
-    @Override
-    public final void fixedGameTick(ServerLevel level) {
-        if (this.ridingProxy != null && this.ridingProxy.isRemoved()) {
-            this.ridingProxy = null;
-        }
-    }
+    public final void fixedGameTick(ServerLevel level) {}
 
     @Override
     public final void fixedPhysicsTick(VxPhysicsWorld physicsWorld) {}
@@ -154,21 +144,16 @@ public abstract class RigidPhysicsObject extends AbstractPhysicsObject implement
         return this.buoyancyFactor;
     }
 
-    // Riding
-
     @Override
-    public Vec3 getRidePositionOffset() { return this.ridePositionOffset; }
-
-    @Override
-    public void setRidePositionOffset(Vec3 offset) { this.ridePositionOffset = offset; }
-
-    @Override
-    public void onStartRiding(ServerPlayer player, RidingProxyEntity proxy) {
-        this.setRidingProxy(proxy);
+    public void onStartRiding(ServerPlayer player, Seat seat) {
     }
 
     @Override
     public void onStopRiding(ServerPlayer player) {
-        this.setRidingProxy(null);
+    }
+
+    @Override
+    public PhysicsObjectType<? extends RigidPhysicsObject> getPhysicsObjectType() {
+        return this.type;
     }
 }

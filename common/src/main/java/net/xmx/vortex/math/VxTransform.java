@@ -6,6 +6,8 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.readonly.QuatArg;
 import com.github.stephengold.joltjni.readonly.RVec3Arg;
 import net.minecraft.network.FriendlyByteBuf;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 public class VxTransform {
     private final RVec3 translation = new RVec3();
@@ -88,5 +90,13 @@ public class VxTransform {
                 "translation=" + translation +
                 ", rotation=" + rotation +
                 '}';
+    }
+
+    public Vector3f getTranslation(Vector3f dest) {
+        return dest.set((float) this.translation.xx(), (float) this.translation.yy(), (float) this.translation.zz());
+    }
+
+    public Quaternionf getRotation(Quaternionf dest) {
+        return dest.set(this.rotation.getX(), this.rotation.getY(), this.rotation.getZ(), this.rotation.getW());
     }
 }

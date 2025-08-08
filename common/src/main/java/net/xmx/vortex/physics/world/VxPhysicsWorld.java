@@ -9,6 +9,7 @@ import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.natives.NativeJoltInitializer;
 import net.xmx.vortex.physics.constraint.manager.VxConstraintManager;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
+import net.xmx.vortex.physics.object.riding.RidingManager;
 import net.xmx.vortex.physics.terrain.TerrainSystem;
 import net.xmx.vortex.physics.world.pcmd.ICommand;
 import net.xmx.vortex.physics.world.pcmd.RunTaskCommand;
@@ -51,6 +52,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxObjectManager objectManager;
     private final VxConstraintManager constraintManager;
     private final TerrainSystem terrainSystem;
+    private final RidingManager ridingManager;
 
     private PhysicsSystem physicsSystem;
     private JobSystemThreadPool jobSystem;
@@ -68,6 +70,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.objectManager = new VxObjectManager(this);
         this.constraintManager = new VxConstraintManager(this.objectManager);
         this.terrainSystem = new TerrainSystem(this, this.level);
+        this.ridingManager = new RidingManager(this);
     }
 
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
@@ -287,6 +290,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return this.terrainSystem;
     }
 
+    public RidingManager getRidingManager() {
+        return this.ridingManager;
+    }
+
     public ServerLevel getLevel() {
         return this.level;
     }
@@ -356,6 +363,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     public static TerrainSystem getTerrainSystem(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
         return world != null ? world.getTerrainSystem() : null;
+    }
+
+    @Nullable
+    public static RidingManager getRidingManager(ResourceKey<Level> dimensionKey) {
+        VxPhysicsWorld world = get(dimensionKey);
+        return world != null ? world.getRidingManager() : null;
     }
 
     public static Collection<VxPhysicsWorld> getAll() {

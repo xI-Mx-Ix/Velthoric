@@ -7,13 +7,15 @@ import net.minecraft.server.level.ServerPlayer;
 import net.xmx.vortex.physics.object.raycast.info.PhysicsHitInfo;
 import net.xmx.vortex.physics.object.raycast.packet.PhysicsClickPacket;
 import net.xmx.vortex.physics.object.raycast.result.CombinedHitResult;
+import net.xmx.vortex.physics.object.riding.Rideable;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
 import java.util.Optional;
 
 public final class PhysicsClickManager {
 
-    private PhysicsClickManager() {}
+    private PhysicsClickManager() {
+    }
 
     public static void processClick(PhysicsClickPacket msg, ServerPlayer sender) {
         if (sender == null) return;
@@ -44,6 +46,10 @@ public final class PhysicsClickManager {
                             if (msg.isRightClick()) {
                                 targetObject.onRightClick(sender, hitPoint.toVec3(), hitNormal);
                                 targetObject.onRightClickWithTool(sender);
+                                if (targetObject instanceof Rideable rideable) {
+
+                                    rideable.handleRightClick(sender, hitPoint.toVec3());
+                                }
                             } else {
                                 targetObject.onLeftClick(sender, hitPoint.toVec3(), hitNormal);
                             }

@@ -68,7 +68,7 @@ public class ObjectLifecycleEvents {
             VxObjectManager manager = world.getObjectManager();
             if (manager != null) {
                 manager.getNetworkDispatcher().tick();
-                manager.getRidingManager().tick();
+                world.getRidingManager().tick();
                 manager.getObjectContainer().getAllObjects().forEach(obj -> {
                     if (!obj.isRemoved()) {
                         obj.fixedGameTick(manager.getWorld().getLevel());

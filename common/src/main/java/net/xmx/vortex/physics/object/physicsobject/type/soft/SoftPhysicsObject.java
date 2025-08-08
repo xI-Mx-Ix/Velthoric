@@ -131,11 +131,6 @@ public abstract class SoftPhysicsObject extends AbstractPhysicsObject {
 
     @Override
     public final void fixedGameTick(ServerLevel level) {
-        if (ridingProxy != null) {
-            VxMainClass.LOGGER.warn("Soft Bodies cannot be ridden.");
-            ridingProxy.kill();
-            ridingProxy = null;
-        }
     }
 
     @Override

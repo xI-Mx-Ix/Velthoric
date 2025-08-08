@@ -34,9 +34,6 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
     protected boolean isRemoved = false;
     protected boolean physicsInitialized = false;
 
-    @Nullable
-    protected transient RidingProxyEntity ridingProxy = null;
-
     protected AbstractPhysicsObject(PhysicsObjectType<?> type, Level level) {
         this.level = level;
         this.properties = type.getDefaultProperties();
@@ -175,13 +172,6 @@ public abstract class AbstractPhysicsObject implements IPhysicsObject {
 
     @Override
     public abstract void onRightClickWithTool(ServerPlayer player);
-
-    @Override
-    public void setRidingProxy(@Nullable RidingProxyEntity proxy) { this.ridingProxy = proxy; }
-
-    @Nullable
-    @Override
-    public RidingProxyEntity getRidingProxy() { return this.ridingProxy; }
 
     @Override
     public abstract void fixedGameTick(ServerLevel level);
