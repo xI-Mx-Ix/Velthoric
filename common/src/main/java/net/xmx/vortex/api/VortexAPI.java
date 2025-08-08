@@ -34,19 +34,19 @@ public final class VortexAPI {
 
     public void registerPhysicsObjectType(PhysicsObjectType<?> type) {
         if (type == null) {
-            throw new IllegalArgumentException("PhysicsObjectType darf nicht null sein.");
+            throw new IllegalArgumentException("PhysicsObjectType must not be null.");
         }
         String typeId = type.getTypeId();
         if (typeId == null || typeId.trim().isEmpty()) {
-            throw new IllegalArgumentException("PhysicsObjectType typeId darf nicht null oder leer sein.");
+            throw new IllegalArgumentException("PhysicsObjectType typeId must not be null or empty.");
         }
 
         if (queuedRegistrations.containsKey(typeId)) {
-            VxMainClass.LOGGER.warn("PhysicsObjectType '{}' ist bereits zur Registrierung vorgemerkt. Wird überschrieben.", typeId);
+            VxMainClass.LOGGER.warn("PhysicsObjectType '{}' is already queued for registration. Overwriting.", typeId);
         }
 
         queuedRegistrations.put(typeId, type);
-        VxMainClass.LOGGER.debug("Factory-Registrierung für PhysicsObjectType '{}' vorgemerkt.", typeId);
+        VxMainClass.LOGGER.debug("Queued factory registration for PhysicsObjectType '{}'.", typeId);
     }
 
     @Environment(EnvType.CLIENT)
