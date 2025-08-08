@@ -1,15 +1,13 @@
 # Vortex Physics – Jolt Physics for Minecraft
 
-[![Documentation](https://img.shields.io/badge/view-documentation-brightgreen.svg)](https://xi-mx-ix.github.io/vortex-documentation/)
-
-**Vortex Physics** is a Minecraft mod that integrates the high-performance [Jolt Physics Engine](https://github.com/jrouwe/JoltPhysics) directly into the game.  
-It provides advanced physics features like rigid bodies, soft bodies, custom collision shapes, constraints, and more.
+**Vortex Physics** is a Minecraft mod that integrates the high-performance [Jolt Physics](https://github.com/jrouwe/JoltPhysics) library directly into the game.  
+It brings advanced simulation features such as rigid bodies, soft bodies, custom collision shapes, constraints, and more.
 
 ---
 
 ## Features
 
-- Full support for Jolt’s rigid body and soft body physics
+- Full support for Jolt Physics rigid body and soft body simulation
 - Custom shapes, forces, constraints, and interactive world integration
 - Designed for Minecraft modders (Forge 1.20.1+)
 - Extendable API to build your own physics-powered mods
@@ -18,8 +16,7 @@ It provides advanced physics features like rigid bodies, soft bodies, custom col
 
 ## Documentation
 
-Explore the full API documentation here:
-
+Explore the full API documentation here:  
 [https://xi-mx-ix.github.io/vortex-documentation/](https://xi-mx-ix.github.io/vortex-documentation/)
 
 ---
