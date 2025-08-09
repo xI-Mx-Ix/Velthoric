@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.xmx.vortex.item.boxthrower.packet.BoxThrowerActionPacket;
 import net.xmx.vortex.item.magnetizer.packet.MagnetizerActionPacket;
 import net.xmx.vortex.item.physicsgun.packet.PhysicsGunActionPacket;
 import net.xmx.vortex.item.physicsgun.packet.PhysicsGunStatePacket;
@@ -98,6 +99,13 @@ public class NetworkHandler {
                 SpawnPhysicsObjectBatchPacket::encode,
                 SpawnPhysicsObjectBatchPacket::new,
                 SpawnPhysicsObjectBatchPacket::handle
+        );
+
+        registerPacket(
+                BoxThrowerActionPacket.class,
+                BoxThrowerActionPacket::encode,
+                BoxThrowerActionPacket::decode,
+                BoxThrowerActionPacket::handle
         );
     }
 

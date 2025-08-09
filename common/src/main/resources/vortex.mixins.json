@@ -16,9 +16,7 @@
     "terrain.ChunkHolderMixin",
     "terrain.ChunkUnload_ChunkMapMixin",
     "terrain.LevelMixin",
-    "terrain.ServerLevelMixin",
-
-    "entitycollision.EntityCollisions_MixinEntity"
+    "terrain.ServerLevelMixin"
   ],
   "client": [
     "event.debug.VxAddDebugInfoEvent_DebugScreenOverlayMixin",
@@ -29,6 +27,7 @@
     "physicsgun.PhysicsGunArmPose_PlayerRendererMixin",
     "physicsgun.PhysicsGunHandling_KeyboardHandlerMixin",
     "physicsgun.PhysicsGunHandling_MouseHandlerMixin",
+    "boxthrower.BoxThrowerInput_MouseHandlerMixin",
     "raytracing.ClickNotifier_MouseHandlerMixin",
     "riding.CameraMixin",
     "riding.PlayerRendererMixin"
