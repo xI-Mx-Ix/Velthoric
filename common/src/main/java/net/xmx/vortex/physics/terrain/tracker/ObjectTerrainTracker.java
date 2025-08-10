@@ -36,8 +36,8 @@ public class ObjectTerrainTracker {
     private static final int UPDATE_INTERVAL_TICKS = 10;
     private static final float MAX_SPEED_FOR_COOLDOWN_SQR = 100f * 100f;
 
-    private static final int PRELOAD_RADIUS_CHUNKS = 5;
-    private static final int ACTIVATION_RADIUS_CHUNKS = 2;
+    private static final int PRELOAD_RADIUS_CHUNKS = 3;
+    private static final int ACTIVATION_RADIUS_CHUNKS = 1;
     private static final float PREDICTION_SECONDS = 0.5f;
 
     public ObjectTerrainTracker(IPhysicsObject physicsObject, TerrainSystem terrainSystem) {
