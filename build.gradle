@@ -23,12 +23,14 @@ subprojects {
     }
 
     repositories {
-
         mavenCentral()
         maven { url = 'https://cursemaven.com'}
         maven { url = 'https://maven.parchmentmc.org' }
         maven { url = 'https://jitpack.io' }
         maven { url = 'https://s01.oss.sonatype.org/content/repositories/snapshots'}
+
+        flatDir {
+            dirs rootProject.file('libraries')
         }
     }
 
@@ -64,14 +66,14 @@ subprojects {
         include("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
 
-        implementation ":jolt-jni:2.1.1-SNAPSHOT"
-        implementation ":jolt-jni:2.1.1-SNAPSHOT:DebugSp"
+        implementation(name: 'jolt-jni-2.1.1-SNAPSHOT', ext: 'jar')
+        implementation(name: 'jolt-jni-2.1.1-SNAPSHOT-DebugSp', ext: 'jar')
 
-        include ":jolt-jni:2.1.1-SNAPSHOT"
-        include ":jolt-jni:2.1.1-SNAPSHOT:DebugSp"
+        include(name: 'jolt-jni-2.1.1-SNAPSHOT', ext: 'jar')
+        include(name: 'jolt-jni-2.1.1-SNAPSHOT-DebugSp', ext: 'jar')
 
-        minecraftRuntimeLibraries ":jolt-jni:2.1.1-SNAPSHOT"
-        minecraftRuntimeLibraries ":jolt-jni:2.1.1-SNAPSHOT:DebugSp"
+        minecraftRuntimeLibraries(name: 'jolt-jni-2.1.1-SNAPSHOT', ext: 'jar')
+        minecraftRuntimeLibraries(name: 'jolt-jni-2.1.1-SNAPSHOT-DebugSp', ext: 'jar')
 
     }
 
