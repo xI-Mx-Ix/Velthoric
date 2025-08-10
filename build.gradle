@@ -25,44 +25,11 @@ subprojects {
     repositories {
 
         mavenCentral()
-        maven { url = 'https://maven.maxhenkel.de/repository/public'}
-        maven { url = 'https://api.modrinth.com/maven'}
         maven { url = 'https://cursemaven.com'}
-        maven { url = 'https://maven.kosmx.dev' }
         maven { url = 'https://maven.parchmentmc.org' }
-        maven { url = 'https://repo.essential.gg/repository/maven-public'}
         maven { url = 'https://jitpack.io' }
         maven { url = 'https://s01.oss.sonatype.org/content/repositories/snapshots'}
-        maven { url = 'https://downhill.ddns.net/maven'}
-        maven { url = 'https://jitpack.io'}
-
-        maven { url = 'https://maven.su5ed.dev/releases'}
-
-        maven { url = 'https://maven.deftu.dev/snapshots'}
-        maven { url = 'https://maven.deftu.dev/releases'}
-
-        maven { url = 'https://maven.saps.dev/minecraft'}
-
-        maven { url = 'https://maven.izzel.io/releases'}
-
-        maven {
-            name = 'GeckoLib'
-            url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
-            content {
-                includeGroupByRegex("software\\.bernie.*")
-                includeGroup("com.eliotlash.mclib")
-            }
         }
-
-        maven {
-            name = 'ParchmentMC'
-            url = 'https://maven.parchmentmc.org'
-        }
-
-        flatDir {
-            dirs "${rootDir}/libraries"
-        }
-
     }
 
     loom {
@@ -98,13 +65,13 @@ subprojects {
 
 
         implementation ":jolt-jni:2.1.1-SNAPSHOT"
-        implementation ":jolt-jni:2.1.1-SNAPSHOT:DebugDp"
+        implementation ":jolt-jni:2.1.1-SNAPSHOT:DebugSp"
 
         include ":jolt-jni:2.1.1-SNAPSHOT"
-        include ":jolt-jni:2.1.1-SNAPSHOT:DebugDp"
+        include ":jolt-jni:2.1.1-SNAPSHOT:DebugSp"
 
         minecraftRuntimeLibraries ":jolt-jni:2.1.1-SNAPSHOT"
-        minecraftRuntimeLibraries ":jolt-jni:2.1.1-SNAPSHOT:DebugDp"
+        minecraftRuntimeLibraries ":jolt-jni:2.1.1-SNAPSHOT:DebugSp"
 
     }
 
