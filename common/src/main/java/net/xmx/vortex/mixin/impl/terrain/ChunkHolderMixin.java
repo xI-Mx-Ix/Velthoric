@@ -19,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
 @Mixin(ChunkHolder.class)
 public abstract class ChunkHolderMixin {
 
-    @Shadow @Final
+    @Shadow
     private volatile CompletableFuture<Either<LevelChunk, ChunkHolder.ChunkLoadingFailure>> fullChunkFuture;
 
     @Inject(method = "<init>", at = @At("RETURN"))
@@ -36,7 +36,7 @@ public abstract class ChunkHolderMixin {
                         TerrainSystem terrainSystem = VxPhysicsWorld.getTerrainSystem(serverLevel.dimension());
                         if (terrainSystem != null) {
 
-                            terrainSystem.loadChunkFromVanilla(levelChunk);
+                            terrainSystem.onChunkLoadedFromVanilla(levelChunk);
                         }
                     });
                 }

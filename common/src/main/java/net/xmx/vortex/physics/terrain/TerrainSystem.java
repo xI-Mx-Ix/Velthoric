@@ -24,7 +24,6 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -38,13 +37,14 @@ public class TerrainSystem implements Runnable {
     private static final int STATE_READY_ACTIVE = 4;
     private static final int STATE_REMOVING = 5;
     private static final int STATE_AIR_CHUNK = 6;
-    private static final int MAX_SNAPSHOTS_PER_TICK = 256;
 
     private final VxPhysicsWorld physicsWorld;
     private final ServerLevel level;
     private final TerrainGenerator terrainGenerator;
     private final TerrainShapeCache shapeCache;
     private final VxTerrainJobSystem jobSystem;
+    private final Thread workerThread;
+    private final AtomicBoolean isInitialized = new AtomicBoolean(false);
 
     private final ConcurrentHashMap<VxSectionPos, AtomicInteger> chunkStates = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<VxSectionPos, Integer> chunkBodyIds = new ConcurrentHashMap<>();
@@ -54,13 +54,6 @@ public class TerrainSystem implements Runnable {
     private final Map<VxSectionPos, Integer> chunkReferenceCounts = new ConcurrentHashMap<>();
     private final Map<UUID, ObjectTerrainTracker> objectTrackers = new ConcurrentHashMap<>();
     private final Set<VxSectionPos> chunksToRebuild = ConcurrentHashMap.newKeySet();
-    private final ConcurrentHashMap<VxSectionPos, SnapshotRequest> pendingSnapshotRequests = new ConcurrentHashMap<>();
-    private final ConcurrentLinkedQueue<Runnable> mainThreadTasks = new ConcurrentLinkedQueue<>();
-
-    private final AtomicBoolean isInitialized = new AtomicBoolean(false);
-    private Thread workerThread;
-
-    private record SnapshotRequest(int version, boolean isInitialBuild, VxTaskPriority priority, VxSectionPos pos) {}
 
     public TerrainSystem(VxPhysicsWorld physicsWorld, ServerLevel level) {
         this.physicsWorld = physicsWorld;
@@ -68,34 +61,30 @@ public class TerrainSystem implements Runnable {
         this.shapeCache = new TerrainShapeCache(1024);
         this.terrainGenerator = new TerrainGenerator(this.shapeCache);
         this.jobSystem = new VxTerrainJobSystem();
+        this.workerThread = new Thread(this, "Vortex-Terrain-Tracker-" + level.dimension().location().getPath());
+        this.workerThread.setDaemon(true);
     }
 
     public void initialize() {
         if (isInitialized.compareAndSet(false, true)) {
-            this.workerThread = new Thread(this, "Vortex-Terrain-Tracker-" + level.dimension().location().getPath());
-            this.workerThread.setDaemon(true);
             this.workerThread.start();
         }
     }
 
     public void shutdown() {
         if (isInitialized.compareAndSet(true, false)) {
-            this.jobSystem.shutdown();
-            if (workerThread != null) {
-                workerThread.interrupt();
-                try {
-                    workerThread.join(5000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
+            jobSystem.shutdown();
+            workerThread.interrupt();
+            try {
+                workerThread.join(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
-            mainThreadTasks.clear();
             physicsWorld.execute(() -> {
-                new HashSet<>(chunkStates.keySet()).forEach(this::unloadChunkPhysics);
+                new HashSet<>(chunkStates.keySet()).forEach(this::unloadChunkPhysicsInternal);
                 chunkReferenceCounts.clear();
                 objectTrackers.clear();
                 shapeCache.clear();
-                pendingSnapshotRequests.clear();
                 chunksToRebuild.clear();
             });
         }
@@ -107,7 +96,6 @@ public class TerrainSystem implements Runnable {
             try {
                 updateTrackers();
                 processRebuildQueue();
-                schedulePendingSnapshotsForMainThreadProcessing();
                 Thread.sleep(50);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -119,122 +107,168 @@ public class TerrainSystem implements Runnable {
     }
 
     public void onBlockUpdate(BlockPos worldPos, BlockState oldState, BlockState newState) {
-        if (!isInitialized.get() || this.jobSystem.isShutdown()) return;
-        chunksToRebuild.add(VxSectionPos.fromBlockPos(worldPos));
+        if (!isInitialized.get() || jobSystem.isShutdown()) {
+            return;
+        }
+
+        chunksToRebuild.add(VxSectionPos.fromBlockPos(worldPos.immutable()));
+
         physicsWorld.execute(() -> {
             BodyInterface bi = physicsWorld.getBodyInterface();
             if (bi == null) return;
+
             RVec3 min = new RVec3(worldPos.getX() - 2.0, worldPos.getY() - 2.0, worldPos.getZ() - 2.0);
             RVec3 max = new RVec3(worldPos.getX() + 3.0, worldPos.getY() + 3.0, worldPos.getZ() + 3.0);
-            try (AaBox a = new AaBox(min, max); BroadPhaseLayerFilter bf = new BroadPhaseLayerFilter(); ObjectLayerFilter of = new ObjectLayerFilter()) {
-                bi.activateBodiesInAaBox(a, bf, of);
+
+            try (
+                    AaBox aabox = new AaBox(min, max);
+                    BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
+                    ObjectLayerFilter olFilter = new ObjectLayerFilter()
+            ) {
+                bi.activateBodiesInAaBox(aabox, bplFilter, olFilter);
+            }
+        });
+    }
+
+    public void onChunkLoadedFromVanilla(@NotNull LevelChunk chunk) {
+        if (!isInitialized.get() || jobSystem.isShutdown()) return;
+
+        jobSystem.submit(() -> {
+            ChunkPos chunkPos = chunk.getPos();
+            for (int y = level.getMinSection(); y < level.getMaxSection(); ++y) {
+                VxSectionPos vPos = new VxSectionPos(chunkPos.x, y, chunkPos.z);
+                if (chunkReferenceCounts.getOrDefault(vPos, 0) > 0) {
+                    scheduleShapeGeneration(vPos, true, VxTaskPriority.HIGH);
+                }
+            }
+        });
+    }
+
+    public void onChunkUnloaded(@NotNull ChunkPos chunkPos) {
+        if (!isInitialized.get() || jobSystem.isShutdown()) return;
+        jobSystem.submit(() -> {
+            for (int y = level.getMinSection(); y < level.getMaxSection(); y++) {
+                unloadChunkPhysicsInternal(new VxSectionPos(chunkPos.x, y, chunkPos.z));
             }
         });
     }
 
     private void processRebuildQueue() {
         if (chunksToRebuild.isEmpty()) return;
-        Set<VxSectionPos> batch = new HashSet<>(chunksToRebuild);
-        chunksToRebuild.clear();
-        batch.forEach(pos -> scheduleRebuild(pos, VxTaskPriority.HIGH));
-    }
 
-    private void scheduleInitialBuild(VxSectionPos pos) {
-        AtomicInteger state = getState(pos);
-        if (state.get() == STATE_UNLOADED) {
-            chunkIsPlaceholder.put(pos, true);
-            if (state.compareAndSet(STATE_UNLOADED, STATE_LOADING_SCHEDULED)) {
-                int version = getRebuildVersion(pos).incrementAndGet();
-                requestSnapshot(new SnapshotRequest(version, true, VxTaskPriority.CRITICAL, pos));
-            }
+        Set<VxSectionPos> batch = new HashSet<>(chunksToRebuild);
+        chunksToRebuild.removeAll(batch);
+
+        for (VxSectionPos pos : batch) {
+            scheduleShapeGeneration(pos, false, VxTaskPriority.MEDIUM);
         }
     }
 
-    private void scheduleRebuild(VxSectionPos pos, VxTaskPriority priority) {
+    private void scheduleShapeGeneration(VxSectionPos pos, boolean isInitialBuild, VxTaskPriority priority) {
         AtomicInteger state = getState(pos);
         int currentState = state.get();
+
         if (currentState == STATE_REMOVING || currentState == STATE_LOADING_SCHEDULED || currentState == STATE_GENERATING_SHAPE) {
             return;
         }
+
         if (state.compareAndSet(currentState, STATE_LOADING_SCHEDULED)) {
-            int version = getRebuildVersion(pos).incrementAndGet();
-            requestSnapshot(new SnapshotRequest(version, false, priority, pos));
+            final int version = getRebuildVersion(pos).incrementAndGet();
+            jobSystem.submit(() -> processChunkAndGenerateShape(pos, version, isInitialBuild, currentState));
         }
     }
 
-    private void processSnapshot(@NotNull ChunkSnapshot snapshot, int snapshotVersion, boolean isInitialBuild) {
-        VxSectionPos pos = snapshot.pos();
+    private void processChunkAndGenerateShape(VxSectionPos pos, int version, boolean isInitialBuild, int previousState) {
+        if (version < getRebuildVersion(pos).get()) {
+            getState(pos).compareAndSet(STATE_LOADING_SCHEDULED, previousState);
+            return;
+        }
+
+        LevelChunk chunk = level.getChunkSource().getChunk(pos.x(), pos.z(), false);
+        if (chunk == null) {
+            getState(pos).compareAndSet(STATE_LOADING_SCHEDULED, STATE_UNLOADED);
+            return;
+        }
+
+        if (!getState(pos).compareAndSet(STATE_LOADING_SCHEDULED, STATE_GENERATING_SHAPE)) {
+            return;
+        }
+
+        try {
+            ChunkSnapshot snapshot = ChunkSnapshot.snapshotFromChunk(level, chunk, pos);
+            ShapeRefC generatedShape = terrainGenerator.generateShape(level, snapshot);
+            physicsWorld.execute(() -> applyGeneratedShape(pos, version, generatedShape, isInitialBuild));
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Exception during terrain shape generation for {}", pos, e);
+            getState(pos).set(STATE_UNLOADED);
+        }
+    }
+
+    private void applyGeneratedShape(VxSectionPos pos, int version, ShapeRefC shape, boolean isInitialBuild) {
         AtomicInteger state = getState(pos);
-        if (snapshotVersion < getRebuildVersion(pos).get()) return;
-        int previousState = state.get();
-        if (!state.compareAndSet(STATE_LOADING_SCHEDULED, STATE_GENERATING_SHAPE)) {
-            if (state.get() != STATE_GENERATING_SHAPE) {
-                state.set(previousState);
+        boolean wasActive = state.get() == STATE_READY_ACTIVE;
+
+        if (version < getRebuildVersion(pos).get() || state.get() == STATE_REMOVING) {
+            if (shape != null) {
+                shape.close();
+            }
+            if (state.get() != STATE_REMOVING) {
+                state.set(STATE_UNLOADED);
             }
             return;
         }
-        final boolean wasActive = (previousState == STATE_READY_ACTIVE);
-        CompletableFuture.supplyAsync(() -> isInitialBuild ? terrainGenerator.generatePlaceholderShape(snapshot) : terrainGenerator.generateShape(level, snapshot), this.jobSystem.getExecutor())
-                .thenAcceptAsync(generatedShape -> {
-                    if (snapshotVersion < getRebuildVersion(pos).get() || getState(pos).get() == STATE_REMOVING) {
-                        if (generatedShape != null) generatedShape.close();
-                        if (getState(pos).get() != STATE_REMOVING) state.set(previousState);
-                        return;
-                    }
-                    BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-                    if (bodyInterface == null) {
-                        if (generatedShape != null) generatedShape.close();
-                        state.set(STATE_UNLOADED);
-                        return;
-                    }
-                    if (generatedShape == null) {
-                        if (chunkBodyIds.containsKey(pos)) {
-                            removeBodyAndShape(pos, bodyInterface);
-                        }
-                        chunkIsPlaceholder.put(pos, true);
-                        state.set(STATE_AIR_CHUNK);
-                        return;
-                    }
-                    Integer bodyId = chunkBodyIds.get(pos);
-                    if (bodyId != null) {
-                        bodyInterface.setShape(bodyId, generatedShape, true, EActivation.Activate);
-                        ShapeRefC oldShape = chunkShapes.put(pos, generatedShape);
-                        if (oldShape != null && !oldShape.equals(generatedShape)) oldShape.close();
-                    } else {
-                        RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
-                        try (BodyCreationSettings bcs = new BodyCreationSettings(generatedShape, position, Quat.sIdentity(), EMotionType.Static, VxPhysicsWorld.Layers.STATIC)) {
-                            Body body = bodyInterface.createBody(bcs);
-                            if (body != null) {
-                                chunkBodyIds.put(pos, body.getId());
-                                chunkShapes.put(pos, generatedShape);
-                                body.close();
-                            } else {
-                                VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}", pos);
-                                generatedShape.close();
-                            }
-                        }
-                    }
-                    chunkIsPlaceholder.put(pos, isInitialBuild);
-                    state.set(wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
-                    if (wasActive) activateChunk(pos);
-                }, physicsWorld)
-                .exceptionally(ex -> {
-                    VxMainClass.LOGGER.error("Exception during terrain shape generation for {}", pos, ex);
-                    state.set(previousState);
-                    return null;
-                });
+
+        BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+        if (bodyInterface == null) {
+            if (shape != null) {
+                shape.close();
+            }
+            state.set(STATE_UNLOADED);
+            return;
+        }
+
+        if (shape == null) {
+            removeBodyAndShape(pos, bodyInterface);
+            state.set(STATE_AIR_CHUNK);
+            return;
+        }
+
+        Integer bodyId = chunkBodyIds.get(pos);
+        if (bodyId != null) {
+            bodyInterface.setShape(bodyId, shape, true, EActivation.Activate);
+            ShapeRefC oldShape = chunkShapes.put(pos, shape);
+            if (oldShape != null && !oldShape.equals(shape)) {
+                oldShape.close();
+            }
+        } else {
+            RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
+            try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxPhysicsWorld.Layers.STATIC)) {
+                Body body = bodyInterface.createBody(bcs);
+                if (body != null) {
+                    chunkBodyIds.put(pos, body.getId());
+                    chunkShapes.put(pos, shape);
+                } else {
+                    VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}", pos);
+                    shape.close();
+                }
+            }
+        }
+
+        chunkIsPlaceholder.put(pos, isInitialBuild);
+        state.set(wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
+
+        if (wasActive) {
+            activateChunk(pos);
+        }
     }
 
     private void activateChunk(VxSectionPos pos) {
-        if (getState(pos).get() == STATE_AIR_CHUNK) {
+        AtomicInteger state = getState(pos);
+        if (state.get() == STATE_AIR_CHUNK) {
             return;
         }
-        if (isReady(pos) && !chunkBodyIds.containsKey(pos)) {
-            VxMainClass.LOGGER.warn("Detected stuck terrain chunk {} in ready state with no body. Forcing high-prio rebuild.", pos);
-            scheduleRebuild(pos, VxTaskPriority.HIGH);
-            return;
-        }
-        if (chunkBodyIds.containsKey(pos) && getState(pos).compareAndSet(STATE_READY_INACTIVE, STATE_READY_ACTIVE)) {
+
+        if (chunkBodyIds.containsKey(pos) && state.compareAndSet(STATE_READY_INACTIVE, STATE_READY_ACTIVE)) {
             physicsWorld.execute(() -> {
                 BodyInterface bodyInterface = physicsWorld.getBodyInterface();
                 Integer bodyId = chunkBodyIds.get(pos);
@@ -243,8 +277,9 @@ public class TerrainSystem implements Runnable {
                 }
             });
         }
+
         if (isPlaceholder(pos) && chunkBodyIds.containsKey(pos)) {
-            scheduleRebuild(pos, VxTaskPriority.CRITICAL);
+            scheduleShapeGeneration(pos, false, VxTaskPriority.CRITICAL);
         }
     }
 
@@ -260,9 +295,26 @@ public class TerrainSystem implements Runnable {
         }
     }
 
+    private void unloadChunkPhysicsInternal(VxSectionPos pos) {
+        AtomicInteger state = getState(pos);
+        int oldState = state.getAndSet(STATE_REMOVING);
+        if (oldState == STATE_REMOVING) return;
+
+        getRebuildVersion(pos).incrementAndGet();
+
+        physicsWorld.execute(() -> {
+            removeBodyAndShape(pos, physicsWorld.getBodyInterface());
+            chunkStates.remove(pos);
+            chunkIsPlaceholder.remove(pos);
+            chunkRebuildVersions.remove(pos);
+            chunkReferenceCounts.remove(pos);
+            chunksToRebuild.remove(pos);
+        });
+    }
+
     private void removeBodyAndShape(VxSectionPos pos, BodyInterface bodyInterface) {
         Integer bodyId = chunkBodyIds.remove(pos);
-        if (bodyId != null) {
+        if (bodyId != null && bodyInterface != null) {
             if (bodyInterface.isAdded(bodyId)) {
                 bodyInterface.removeBody(bodyId);
             }
@@ -274,78 +326,24 @@ public class TerrainSystem implements Runnable {
         }
     }
 
-    private void resetStateAfterFailedSnapshot(VxSectionPos pos) {
-        AtomicInteger state = getState(pos);
-        state.compareAndSet(STATE_LOADING_SCHEDULED, STATE_UNLOADED);
-    }
-
-    public void loadChunkFromVanilla(@NotNull LevelChunk chunk) {
-        if (!isInitialized.get() || this.jobSystem.isShutdown()) return;
-        this.jobSystem.submit(() -> {
-            ChunkPos chunkPos = chunk.getPos();
-            for (int y = level.getMinSection(); y < level.getMaxSection(); ++y) {
-                VxSectionPos vPos = new VxSectionPos(chunkPos.x, y, chunkPos.z);
-                if (vPos.isWithinWorldHeight(this.level)) {
-                    getState(vPos);
-                    getRebuildVersion(vPos);
-                    chunkReferenceCounts.putIfAbsent(vPos, 0);
-                    scheduleInitialBuild(vPos);
-                }
-            }
-        });
-    }
-
-    public void onChunkUnloaded(@NotNull ChunkPos chunkPos) {
-        if (!isInitialized.get() || this.jobSystem.isShutdown()) return;
-        this.jobSystem.submit(() -> {
-            for (int y = level.getMinSection(); y < level.getMaxSection(); y++) {
-                unloadChunkPhysics(new VxSectionPos(chunkPos.x, y, chunkPos.z));
-            }
-        });
-    }
-
-    private void loadChunkPhysics(VxSectionPos pos) {
-        if (!isInitialized.get()) return;
-        getState(pos);
-        getRebuildVersion(pos);
-        scheduleInitialBuild(pos);
-    }
-
-    private void unloadChunkPhysics(VxSectionPos pos) {
-        AtomicInteger state = getState(pos);
-        int oldState = state.getAndSet(STATE_REMOVING);
-        if (oldState == STATE_REMOVING) return;
-        getRebuildVersion(pos).incrementAndGet();
-        physicsWorld.execute(() -> {
-            BodyInterface bi = physicsWorld.getBodyInterface();
-            if (bi != null) {
-                removeBodyAndShape(pos, bi);
-            }
-            chunkStates.remove(pos);
-            chunkIsPlaceholder.remove(pos);
-            chunkRebuildVersions.remove(pos);
-            chunkReferenceCounts.remove(pos);
-            chunksToRebuild.remove(pos);
-            pendingSnapshotRequests.remove(pos);
-        });
-    }
-
     public void requestChunk(VxSectionPos pos) {
         if (chunkReferenceCounts.compute(pos, (p, count) -> (count == null) ? 1 : count + 1) == 1) {
-            loadChunkPhysics(pos);
+            getState(pos);
+            getRebuildVersion(pos);
+            scheduleShapeGeneration(pos, true, VxTaskPriority.HIGH);
         }
     }
 
     public void releaseChunk(VxSectionPos pos) {
         Integer newCount = chunkReferenceCounts.computeIfPresent(pos, (p, count) -> count > 1 ? count - 1 : null);
         if (newCount == null) {
-            unloadChunkPhysics(pos);
+            unloadChunkPhysicsInternal(pos);
         }
     }
 
     public void prioritizeChunk(VxSectionPos pos, VxTaskPriority priority) {
         if (isPlaceholder(pos) || !isReady(pos)) {
-            scheduleRebuild(pos, priority);
+            scheduleShapeGeneration(pos, false, priority);
         }
     }
 
@@ -353,6 +351,7 @@ public class TerrainSystem implements Runnable {
         Set<UUID> currentObjectIds = physicsWorld.getObjectManager().getObjectContainer().getAllObjects().stream()
                 .map(IPhysicsObject::getPhysicsId)
                 .collect(Collectors.toSet());
+
         objectTrackers.keySet().removeIf(id -> {
             if (!currentObjectIds.contains(id)) {
                 Optional.ofNullable(objectTrackers.get(id)).ifPresent(ObjectTerrainTracker::releaseAll);
@@ -360,6 +359,7 @@ public class TerrainSystem implements Runnable {
             }
             return false;
         });
+
         for (IPhysicsObject obj : physicsWorld.getObjectManager().getObjectContainer().getAllObjects()) {
             if (obj.isPhysicsInitialized() && obj.getBodyId() != 0) {
                 objectTrackers.computeIfAbsent(obj.getPhysicsId(), id -> new ObjectTerrainTracker(obj, this));
@@ -367,6 +367,7 @@ public class TerrainSystem implements Runnable {
                 Optional.ofNullable(objectTrackers.remove(obj.getPhysicsId())).ifPresent(ObjectTerrainTracker::releaseAll);
             }
         }
+
         if (objectTrackers.isEmpty()) {
             Set<VxSectionPos> currentActive = chunkStates.entrySet().stream()
                     .filter(e -> e.getValue().get() == STATE_READY_ACTIVE)
@@ -377,7 +378,7 @@ public class TerrainSystem implements Runnable {
         }
 
         List<CompletableFuture<Set<VxSectionPos>>> futures = objectTrackers.values().stream()
-                .map(tracker -> CompletableFuture.supplyAsync(tracker::update, this.jobSystem.getExecutor()))
+                .map(tracker -> CompletableFuture.supplyAsync(tracker::update, jobSystem.getExecutor()))
                 .toList();
 
         Set<VxSectionPos> allRequiredActiveChunks = futures.stream()
@@ -390,75 +391,8 @@ public class TerrainSystem implements Runnable {
                 deactivateChunk(pos);
             }
         });
+
         allRequiredActiveChunks.forEach(this::activateChunk);
-    }
-
-    private void requestSnapshot(@NotNull SnapshotRequest request) {
-        pendingSnapshotRequests.compute(request.pos(), (p, existing) -> {
-            if (existing == null || request.priority().ordinal() > existing.priority().ordinal() || (request.priority() == existing.priority() && request.version() > existing.version())) {
-                return request;
-            }
-            return existing;
-        });
-    }
-
-    private void schedulePendingSnapshotsForMainThreadProcessing() {
-        if (pendingSnapshotRequests.isEmpty()) return;
-
-        List<SnapshotRequest> sortedRequests = new ArrayList<>(pendingSnapshotRequests.values());
-        sortedRequests.sort(Comparator.comparing(SnapshotRequest::priority).reversed().thenComparing(Comparator.comparing(SnapshotRequest::version).reversed()));
-
-        int batchSize = Math.min(sortedRequests.size(), MAX_SNAPSHOTS_PER_TICK);
-
-        mainThreadTasks.offer(() -> {
-            Map<SnapshotRequest, LevelChunk> readyChunks = new HashMap<>();
-            List<SnapshotRequest> failedRequests = new ArrayList<>();
-
-            for (int i = 0; i < batchSize && i < sortedRequests.size(); i++) {
-                SnapshotRequest request = sortedRequests.get(i);
-                LevelChunk chunk = level.getChunkSource().getChunk(request.pos().x(), request.pos().z(), false);
-
-                if (chunk != null) {
-                    if (pendingSnapshotRequests.remove(request.pos(), request)) {
-                        readyChunks.put(request, chunk);
-                    }
-                } else {
-                    if (pendingSnapshotRequests.remove(request.pos(), request)) {
-                        failedRequests.add(request);
-                    }
-                }
-            }
-
-            if (!readyChunks.isEmpty()) {
-                this.jobSystem.submit(() -> {
-                    for (Map.Entry<SnapshotRequest, LevelChunk> entry : readyChunks.entrySet()) {
-                        SnapshotRequest request = entry.getKey();
-                        LevelChunk chunk = entry.getValue();
-                        try {
-                            ChunkSnapshot snapshot = ChunkSnapshot.snapshotFromChunk(level, chunk, request.pos());
-                            processSnapshot(snapshot, request.version(), request.isInitialBuild());
-                        } catch (Exception e) {
-                            VxMainClass.LOGGER.error("Failed to create snapshot for chunk {} from pre-loaded chunk. Skipping.", request.pos(), e);
-                            resetStateAfterFailedSnapshot(request.pos());
-                        }
-                    }
-                });
-            }
-
-            if (!failedRequests.isEmpty()) {
-                for (SnapshotRequest request : failedRequests) {
-                    pendingSnapshotRequests.compute(request.pos(), (p, existing) -> {
-                        if (existing == null) return request;
-                        return request.priority().ordinal() > existing.priority().ordinal() || request.version() > existing.version() ? request : existing;
-                    });
-                }
-            }
-        });
-    }
-
-    public void processPendingSnapshotsOnMainThread() {
-        Runnable task;
-        while ((task = mainThreadTasks.poll()) != null) task.run();
     }
 
     private AtomicInteger getState(VxSectionPos pos) {
@@ -479,13 +413,14 @@ public class TerrainSystem implements Runnable {
     }
 
     public boolean isSectionReady(SectionPos sectionPos) {
-        if (sectionPos == null) return false;
+        if (sectionPos == null) {
+            return false;
+        }
         return isReady(new VxSectionPos(sectionPos.x(), sectionPos.y(), sectionPos.z()));
     }
 
     public boolean isTerrainBody(int bodyId) {
-        if (bodyId < 0) return false;
-        return chunkBodyIds.containsValue(bodyId);
+        return bodyId >= 0 && chunkBodyIds.containsValue(bodyId);
     }
 
     public ServerLevel getLevel() {
