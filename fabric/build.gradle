@@ -14,7 +14,7 @@ loom {
         }
         client {
             runDir "run-client"
-            programArgs '--username', 'xI0Mx0Ix'
+            programArgs '--username', 'dev'
         }
     }
 }
