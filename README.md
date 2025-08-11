@@ -9,7 +9,6 @@ It brings advanced simulation features such as rigid bodies, soft bodies, custom
 
 - Full support for Jolt Physics rigid body and soft body simulation
 - Custom shapes, forces, constraints, and interactive world integration
-- Designed for Minecraft modders (Forge 1.20.1+)
 - Extendable API to build your own physics-powered mods
 
 ---
