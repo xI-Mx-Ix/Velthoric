@@ -40,10 +40,12 @@ public class VxObjectManager {
 
     public void initialize() {
         objectStorage.initialize();
+        networkDispatcher.start();
         VortexAPI.getInstance().getQueuedRegistrations().values().forEach(this.objectRegistry::register);
     }
 
     public void shutdown() {
+        networkDispatcher.stop();
         objectStorage.saveAll(objectContainer.getAllObjects());
         objectContainer.clear();
         objectStorage.shutdown();

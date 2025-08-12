@@ -69,9 +69,10 @@ public class VxPhysicsUpdater {
             statesToSend.clear();
             for (IPhysicsObject obj : objectsToUpdate) {
                 updateObjectState(obj, timestampNanos, bodyInterfaceNoLock, lockInterface, statesToSend);
+                dispatcher.dispatchDataUpdate(obj);
             }
             if (!statesToSend.isEmpty()) {
-                dispatcher.dispatchStateUpdates(new ArrayList<>(statesToSend));
+                dispatcher.queueStateUpdates(statesToSend);
             }
         }
     }
