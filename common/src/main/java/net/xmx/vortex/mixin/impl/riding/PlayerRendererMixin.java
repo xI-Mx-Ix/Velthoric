@@ -7,9 +7,9 @@ import com.mojang.math.Axis;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.util.Mth;
-import net.xmx.vortex.math.VxOperations;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.riding.RidingProxyEntity;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -34,24 +34,18 @@ public abstract class PlayerRendererMixin {
                     return;
                 }
 
-                RVec3 prevPos = state.previous.transform.getTranslation();
-                RVec3 currPos = state.current.transform.getTranslation();
-                double physX = Mth.lerp(partialTicks, prevPos.xx(), currPos.xx());
-                double physY = Mth.lerp(partialTicks, prevPos.yy(), currPos.yy());
-                double physZ = Mth.lerp(partialTicks, prevPos.zz(), currPos.zz());
+                RenderData interpolatedData = RenderData.interpolate(state, partialTicks, new RenderData());
+                RVec3 physPos = interpolatedData.transform.getTranslation();
+                Quat physRotQuat = interpolatedData.transform.getRotation();
 
-                Quat prevRot = state.previous.transform.getRotation();
-                Quat currRot = state.current.transform.getRotation();
-                Quat physRotQuat = new Quat();
-                VxOperations.slerp(prevRot, currRot, partialTicks, physRotQuat);
                 Quaternionf physRotation = new Quaternionf(physRotQuat.getX(), physRotQuat.getY(), physRotQuat.getZ(), physRotQuat.getW());
 
                 Vector3f rideOffset = new Vector3f(proxy.getRidePositionOffset());
                 physRotation.transform(rideOffset);
 
-                double playerX = physX + rideOffset.x();
-                double playerY = physY + rideOffset.y();
-                double playerZ = physZ + rideOffset.z();
+                double playerX = physPos.x() + rideOffset.x();
+                double playerY = physPos.y() + rideOffset.y();
+                double playerZ = physPos.z() + rideOffset.z();
 
                 double renderPlayerX = Mth.lerp(partialTicks, player.xOld, player.getX());
                 double renderPlayerY = Mth.lerp(partialTicks, player.yOld, player.getY());
@@ -62,9 +56,7 @@ public abstract class PlayerRendererMixin {
                 double deltaZ = playerZ - renderPlayerZ;
 
                 poseStack.translate(deltaX, deltaY, deltaZ);
-
                 poseStack.mulPose(physRotation);
-
                 poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
 
                 if (player.deathTime > 0) {

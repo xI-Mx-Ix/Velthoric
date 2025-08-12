@@ -12,6 +12,7 @@ import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -123,7 +124,8 @@ public class VxPhysicsUpdater {
                             vertexBuffer[baseIndex + 1] = worldPos.y();
                             vertexBuffer[baseIndex + 2] = worldPos.z();
                         }
-                        return vertexBuffer;
+
+                        return Arrays.copyOf(vertexBuffer, numVertices * 3);
                     }
                 }
             }

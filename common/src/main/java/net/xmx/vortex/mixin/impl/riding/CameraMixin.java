@@ -6,9 +6,9 @@ import net.minecraft.client.Camera;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.BlockGetter;
-import net.xmx.vortex.math.VxOperations;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.riding.RidingProxyEntity;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -48,27 +48,21 @@ public abstract class CameraMixin {
             proxy.getPhysicsObjectId().ifPresent(id -> {
                 InterpolatedRenderState state = ClientObjectDataManager.getInstance().getRenderState(id);
                 if (state == null || !state.isInitialized) {
-
                     return;
                 }
 
-                RVec3 prevPos = state.previous.transform.getTranslation();
-                RVec3 currPos = state.current.transform.getTranslation();
-                double physX = Mth.lerp(partialTick, prevPos.xx(), currPos.xx());
-                double physY = Mth.lerp(partialTick, prevPos.yy(), currPos.yy());
-                double physZ = Mth.lerp(partialTick, prevPos.zz(), currPos.zz());
+                RenderData interpolatedData = RenderData.interpolate(state, partialTick, new RenderData());
+                RVec3 physPos = interpolatedData.transform.getTranslation();
+                Quat physRotQuat = interpolatedData.transform.getRotation();
 
-                Quat prevRot = state.previous.transform.getRotation();
-                Quat currRot = state.current.transform.getRotation();
-                Quat physRotQuat = new Quat();
-                VxOperations.slerp(prevRot, currRot, partialTick, physRotQuat);
                 Quaternionf physRotation = new Quaternionf(physRotQuat.getX(), physRotQuat.getY(), physRotQuat.getZ(), physRotQuat.getW());
 
                 Vector3f rideOffset = new Vector3f(proxy.getRidePositionOffset());
                 physRotation.transform(rideOffset);
-                double playerX = physX + rideOffset.x();
-                double playerY = physY + rideOffset.y();
-                double playerZ = physZ + rideOffset.z();
+
+                double playerX = physPos.x() + rideOffset.x();
+                double playerY = physPos.y() + rideOffset.y();
+                double playerZ = physPos.z() + rideOffset.z();
 
                 this.setRotation(focusedEntity.getViewYRot(partialTick), focusedEntity.getViewXRot(partialTick));
 

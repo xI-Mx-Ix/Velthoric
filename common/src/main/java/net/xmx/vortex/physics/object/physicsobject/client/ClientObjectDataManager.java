@@ -136,14 +136,27 @@ public class ClientObjectDataManager {
             }
 
             RenderData newCurrentData = container.getInterpolatedState(renderTimestamp);
+
             if (newCurrentData != null) {
                 state.current.transform.set(newCurrentData.transform);
-                state.current.vertexData = newCurrentData.vertexData;
+
+                if (newCurrentData.vertexData != null) {
+
+                    if (state.current.vertexData == null || state.current.vertexData.length != newCurrentData.vertexData.length) {
+                        state.current.vertexData = new float[newCurrentData.vertexData.length];
+                    }
+
+                    System.arraycopy(newCurrentData.vertexData, 0, state.current.vertexData, 0, newCurrentData.vertexData.length);
+                } else {
+                    state.current.vertexData = null;
+                }
+
             }
 
             if (!state.isInitialized) {
                 state.previous.transform.set(state.current.transform);
                 if (state.current.vertexData != null) {
+
                     state.previous.vertexData = Arrays.copyOf(state.current.vertexData, state.current.vertexData.length);
                 }
                 state.isInitialized = true;

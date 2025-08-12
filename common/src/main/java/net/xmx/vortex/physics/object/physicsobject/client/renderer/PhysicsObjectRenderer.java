@@ -8,12 +8,10 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.vortex.event.api.VxRenderEvent;
 import net.xmx.vortex.init.VxMainClass;
-import net.xmx.vortex.math.VxOperations;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
@@ -28,12 +26,7 @@ import java.util.UUID;
 
 public class PhysicsObjectRenderer {
 
-    private static final Quaternionf REUSABLE_QUATERNION = new Quaternionf();
     private static final float CULLING_BOUNDS_INFLATION = 2.0f;
-    private static final RenderData FINAL_RENDER_DATA = new RenderData();
-    private static final RVec3 RENDER_POSITION = new RVec3();
-    private static final Quat RENDER_ROTATION = new Quat();
-    private static float[] RENDER_VERTICES = null;
 
     public static void registerEvents() {
         VxRenderEvent.ClientRenderLevelStageEvent.EVENT.register(PhysicsObjectRenderer::onRenderLevelStage);
@@ -94,29 +87,20 @@ public class PhysicsObjectRenderer {
     private static void renderRigidBody(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, UUID id, InterpolatedRenderState renderState, VxRigidBody.Renderer renderer, ByteBuffer customData) {
         if (renderer == null) return;
 
+        RenderData finalRenderData = RenderData.interpolate(renderState, partialTicks, new RenderData());
+
         poseStack.pushPose();
 
-        RVec3 prevPos = renderState.previous.transform.getTranslation();
-        RVec3 currPos = renderState.current.transform.getTranslation();
-        RENDER_POSITION.set(
-                (float)Mth.lerp(partialTicks, prevPos.x(), currPos.x()),
-                (float)Mth.lerp(partialTicks, prevPos.y(), currPos.y()),
-                (float)Mth.lerp(partialTicks, prevPos.z(), currPos.z())
-        );
+        RVec3 renderPosition = finalRenderData.transform.getTranslation();
+        Quat renderRotation = finalRenderData.transform.getRotation();
 
-        var prevRot = renderState.previous.transform.getRotation();
-        var currRot = renderState.current.transform.getRotation();
-        VxOperations.slerp(prevRot, currRot, partialTicks, RENDER_ROTATION);
+        poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
 
-        poseStack.translate(RENDER_POSITION.x(), RENDER_POSITION.y(), RENDER_POSITION.z());
-        REUSABLE_QUATERNION.set(RENDER_ROTATION.getX(), RENDER_ROTATION.getY(), RENDER_ROTATION.getZ(), RENDER_ROTATION.getW());
-        poseStack.mulPose(REUSABLE_QUATERNION);
+        poseStack.mulPose(new Quaternionf(renderRotation.getX(), renderRotation.getY(), renderRotation.getZ(), renderRotation.getW()));
 
-        FINAL_RENDER_DATA.transform.set(RENDER_POSITION, RENDER_ROTATION);
-        FINAL_RENDER_DATA.vertexData = null;
+        int packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(renderPosition.x(), renderPosition.y(), renderPosition.z()));
 
-        int packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(RENDER_POSITION.x(), RENDER_POSITION.y(), RENDER_POSITION.z()));
-        renderer.render(id, FINAL_RENDER_DATA, customData, poseStack, bufferSource, partialTicks, packedLight);
+        renderer.render(id, finalRenderData, customData, poseStack, bufferSource, partialTicks, packedLight);
 
         poseStack.popPose();
     }
@@ -124,39 +108,17 @@ public class PhysicsObjectRenderer {
     private static void renderSoftBody(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, UUID id, InterpolatedRenderState renderState, VxSoftBody.Renderer renderer, ByteBuffer customData) {
         if (renderer == null) return;
 
-        poseStack.pushPose();
+        RenderData finalRenderData = RenderData.interpolate(renderState, partialTicks, new RenderData());
 
-        float[] prevVerts = renderState.previous.vertexData;
-        float[] currVerts = renderState.current.vertexData;
-
-        if (prevVerts != null && currVerts != null && prevVerts.length == currVerts.length) {
-            if (RENDER_VERTICES == null || RENDER_VERTICES.length != currVerts.length) {
-                RENDER_VERTICES = new float[currVerts.length];
-            }
-            for (int i = 0; i < currVerts.length; i++) {
-                RENDER_VERTICES[i] = Mth.lerp(partialTicks, prevVerts[i], currVerts[i]);
-            }
-            FINAL_RENDER_DATA.vertexData = RENDER_VERTICES;
-        } else if (currVerts != null) {
-            FINAL_RENDER_DATA.vertexData = currVerts;
-        } else {
-            FINAL_RENDER_DATA.vertexData = prevVerts;
-        }
-
-        if (FINAL_RENDER_DATA.vertexData == null) {
-            poseStack.popPose();
+        if (finalRenderData.vertexData == null || finalRenderData.vertexData.length < 3) {
             return;
         }
 
-        int packedLight;
-        if (FINAL_RENDER_DATA.vertexData.length >= 3) {
-            packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(FINAL_RENDER_DATA.vertexData[0], FINAL_RENDER_DATA.vertexData[1], FINAL_RENDER_DATA.vertexData[2]));
-        } else {
-            RVec3 pos = renderState.current.transform.getTranslation();
-            packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(pos.x(), pos.y(), pos.z()));
-        }
+        poseStack.pushPose();
 
-        renderer.render(id, FINAL_RENDER_DATA, customData, poseStack, bufferSource, partialTicks, packedLight);
+        int packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(finalRenderData.vertexData[0], finalRenderData.vertexData[1], finalRenderData.vertexData[2]));
+
+        renderer.render(id, finalRenderData, customData, poseStack, bufferSource, partialTicks, packedLight);
 
         poseStack.popPose();
     }
