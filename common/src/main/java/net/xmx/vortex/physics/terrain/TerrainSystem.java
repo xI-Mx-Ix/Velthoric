@@ -10,7 +10,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.xmx.vortex.init.VxMainClass;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.terrain.cache.TerrainShapeCache;
 import net.xmx.vortex.physics.terrain.job.VxTaskPriority;
 import net.xmx.vortex.physics.terrain.job.VxTerrainJobSystem;
@@ -349,7 +349,7 @@ public class TerrainSystem implements Runnable {
 
     private void updateTrackers() {
         Set<UUID> currentObjectIds = physicsWorld.getObjectManager().getObjectContainer().getAllObjects().stream()
-                .map(IPhysicsObject::getPhysicsId)
+                .map(VxAbstractBody::getPhysicsId)
                 .collect(Collectors.toSet());
 
         objectTrackers.keySet().removeIf(id -> {
@@ -360,8 +360,8 @@ public class TerrainSystem implements Runnable {
             return false;
         });
 
-        for (IPhysicsObject obj : physicsWorld.getObjectManager().getObjectContainer().getAllObjects()) {
-            if (obj.isPhysicsInitialized() && obj.getBodyId() != 0) {
+        for (VxAbstractBody obj : physicsWorld.getObjectManager().getObjectContainer().getAllObjects()) {
+            if (obj.getBodyId() != 0) {
                 objectTrackers.computeIfAbsent(obj.getPhysicsId(), id -> new ObjectTerrainTracker(obj, this));
             } else {
                 Optional.ofNullable(objectTrackers.remove(obj.getPhysicsId())).ifPresent(ObjectTerrainTracker::releaseAll);

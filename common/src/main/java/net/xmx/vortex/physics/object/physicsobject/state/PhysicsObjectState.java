@@ -4,7 +4,6 @@ import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
@@ -12,7 +11,7 @@ import java.util.UUID;
 public final class PhysicsObjectState {
 
     private UUID id;
-    private EObjectType eobjectType;
+    private EObjectType eObjectType;
     private final VxTransform transform;
     private final Vec3 linearVelocity;
     private final Vec3 angularVelocity;
@@ -26,21 +25,17 @@ public final class PhysicsObjectState {
         this.angularVelocity = new Vec3();
     }
 
-    public void from(IPhysicsObject obj, long timestamp, boolean isActive) {
-        this.id = obj.getPhysicsId();
-        this.eobjectType = obj.getEObjectType();
-        this.transform.set(obj.getCurrentTransform());
+    public void from(UUID id, EObjectType eObjectType, VxTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, long timestamp, boolean isActive) {
+        this.id = id;
+        this.eObjectType = eObjectType;
+        this.transform.set(transform);
         this.timestamp = timestamp;
         this.isActive = isActive;
 
         if (isActive) {
-            this.linearVelocity.set(obj.getLastSyncedLinearVel());
-            this.angularVelocity.set(obj.getLastSyncedAngularVel());
-            if (obj.getEObjectType() == EObjectType.SOFT_BODY) {
-                this.softBodyVertices = obj.getLastSyncedVertexData();
-            } else {
-                this.softBodyVertices = null;
-            }
+            if (linearVelocity != null) this.linearVelocity.set(linearVelocity); else this.linearVelocity.loadZero();
+            if (angularVelocity != null) this.angularVelocity.set(angularVelocity); else this.angularVelocity.loadZero();
+            this.softBodyVertices = softBodyVertices;
         } else {
             this.linearVelocity.loadZero();
             this.angularVelocity.loadZero();
@@ -52,14 +47,14 @@ public final class PhysicsObjectState {
         this.id = buf.readUUID();
         this.timestamp = buf.readLong();
         this.isActive = buf.readBoolean();
-        this.eobjectType = buf.readEnum(EObjectType.class);
+        this.eObjectType = buf.readEnum(EObjectType.class);
         this.transform.fromBuffer(buf);
 
         if (this.isActive) {
             this.linearVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
             this.angularVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
 
-            if (eobjectType == EObjectType.SOFT_BODY && buf.readBoolean()) {
+            if (eObjectType == EObjectType.SOFT_BODY && buf.readBoolean()) {
                 int length = buf.readVarInt();
                 this.softBodyVertices = new float[length];
                 for (int i = 0; i < length; i++) {
@@ -79,7 +74,7 @@ public final class PhysicsObjectState {
         buf.writeUUID(this.id);
         buf.writeLong(this.timestamp);
         buf.writeBoolean(this.isActive);
-        buf.writeEnum(this.eobjectType);
+        buf.writeEnum(this.eObjectType);
         this.transform.toBuffer(buf);
 
         if (this.isActive) {
@@ -90,7 +85,7 @@ public final class PhysicsObjectState {
             buf.writeFloat(this.angularVelocity.getY());
             buf.writeFloat(this.angularVelocity.getZ());
 
-            if (eobjectType == EObjectType.SOFT_BODY) {
+            if (eObjectType == EObjectType.SOFT_BODY) {
                 boolean hasVertices = this.softBodyVertices != null && this.softBodyVertices.length > 0;
                 buf.writeBoolean(hasVertices);
                 if (hasVertices) {
@@ -104,10 +99,10 @@ public final class PhysicsObjectState {
     }
 
     public int estimateEncodedSize() {
-        int size = 16 + 8 + 1 + 1 + 40;
+        int size = 16 + 8 + 1 + 4 + 40;
         if(isActive) {
             size += 12 + 12;
-            if(eobjectType == EObjectType.SOFT_BODY) {
+            if(eObjectType == EObjectType.SOFT_BODY) {
                 size += 1;
                 if(this.softBodyVertices != null && this.softBodyVertices.length > 0) {
                     size += 5 + this.softBodyVertices.length * 4;
@@ -119,7 +114,7 @@ public final class PhysicsObjectState {
 
     public void reset() {
         this.id = null;
-        this.eobjectType = null;
+        this.eObjectType = null;
         this.softBodyVertices = null;
         this.timestamp = 0L;
         this.isActive = false;
@@ -128,37 +123,12 @@ public final class PhysicsObjectState {
         this.transform.loadIdentity();
     }
 
-    public UUID getId() {
-        return id;
-    }
-
-    public EObjectType getEObjectType() {
-        return eobjectType;
-    }
-
-    public VxTransform getTransform() {
-        return transform;
-    }
-
-    public Vec3 getLinearVelocity() {
-        return linearVelocity;
-    }
-
-    public Vec3 getAngularVelocity() {
-        return angularVelocity;
-    }
-
-    @Nullable
-    public float[] getSoftBodyVertices() {
-        return softBodyVertices;
-    }
-
-    public long getTimestamp() {
-        return timestamp;
-    }
-
-    public boolean isActive() {
-        return isActive;
-    }
-
+    public UUID getId() { return id; }
+    public EObjectType getEObjectType() { return eObjectType; }
+    public VxTransform getTransform() { return transform; }
+    public Vec3 getLinearVelocity() { return linearVelocity; }
+    public Vec3 getAngularVelocity() { return angularVelocity; }
+    @Nullable public float[] getSoftBodyVertices() { return softBodyVertices; }
+    public long getTimestamp() { return timestamp; }
+    public boolean isActive() { return isActive; }
 }

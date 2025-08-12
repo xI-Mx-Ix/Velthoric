@@ -1,17 +1,18 @@
 package net.xmx.vortex.physics.object.physicsobject.manager;
 
-import com.github.stephengold.joltjni.PhysicsSystem;
+import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.minecraft.core.SectionPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.vortex.api.VortexAPI;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.physicsobject.manager.persistence.VxObjectStorage;
 import net.xmx.vortex.physics.object.physicsobject.manager.registry.VxObjectRegistry;
-import net.xmx.vortex.physics.object.riding.RidingManager;
+import net.xmx.vortex.physics.object.physicsobject.type.rigid.VxRigidBody;
+import net.xmx.vortex.physics.object.physicsobject.type.soft.VxSoftBody;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
 import java.util.Optional;
@@ -30,12 +31,11 @@ public class VxObjectManager {
 
     public VxObjectManager(VxPhysicsWorld world) {
         this.world = world;
-        ServerLevel level = world.getLevel();
         this.objectRegistry = new VxObjectRegistry();
         this.objectContainer = new VxObjectContainer(world);
-        this.objectStorage = new VxObjectStorage(level, this);
+        this.objectStorage = new VxObjectStorage(world.getLevel(), this);
         this.physicsUpdater = new VxPhysicsUpdater(this);
-        this.networkDispatcher = new VxObjectNetworkDispatcher(level, this);
+        this.networkDispatcher = new VxObjectNetworkDispatcher(world.getLevel(), this);
     }
 
     public void initialize() {
@@ -46,39 +46,87 @@ public class VxObjectManager {
 
     public void shutdown() {
         networkDispatcher.stop();
-        objectStorage.saveAll(objectContainer.getAllObjects());
+        objectContainer.getAllObjects().forEach(objectStorage::storeObject);
+        objectStorage.saveToFile();
         objectContainer.clear();
         objectStorage.shutdown();
     }
 
-    public void onPhysicsUpdate(long timestampNanos, PhysicsSystem physicsSystem) {
-        physicsUpdater.update(timestampNanos, physicsSystem.getBodyLockInterface());
+    public void onPhysicsUpdate(long timestampNanos) {
+        physicsUpdater.update(timestampNanos, this.world);
     }
 
-    public <T extends IPhysicsObject> Optional<T> spawnObject(PhysicsObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
-        UUID id = UUID.randomUUID();
-        if (objectContainer.hasObject(id) || objectStorage.hasData(id)) {
-            VxMainClass.LOGGER.error("Generated a duplicate UUID during spawning: {}. This is highly unlikely. Aborting.", id);
-            return Optional.empty();
+    private void addRigidBodyToPhysicsWorld(VxRigidBody body) {
+        try (ShapeSettings shapeSettings = body.createShapeSettings()) {
+            if (shapeSettings == null) throw new IllegalStateException("createShapeSettings returned null for type: " + body.getType().getTypeId());
+            try (ShapeResult shapeResult = shapeSettings.create()) {
+                if (shapeResult.hasError()) throw new IllegalStateException("Shape creation failed: " + shapeResult.getError());
+                try (ShapeRefC shapeRef = shapeResult.get()) {
+                    try (BodyCreationSettings bcs = body.createBodyCreationSettings(shapeRef)) {
+                        bcs.setPosition(body.getGameTransform().getTranslation());
+                        bcs.setRotation(body.getGameTransform().getRotation());
+                        int bodyId = world.getBodyInterface().createAndAddBody(bcs, EActivation.Activate);
+                        if (bodyId == Jolt.cInvalidBodyId) {
+                            VxMainClass.LOGGER.error("Jolt failed to create/re-create rigid body for {}", body.getPhysicsId());
+                            return;
+                        }
+                        body.setBodyId(bodyId);
+                        objectContainer.add(body);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Failed to create/re-create rigid body {}", body.getPhysicsId(), e);
         }
+    }
 
-        T newObject = type.create(world.getLevel());
-        if (newObject == null) {
-            VxMainClass.LOGGER.error("Factory for {} returned null.", type.getTypeId());
-            return Optional.empty();
+    private void addSoftBodyToPhysicsWorld(VxSoftBody body) {
+        try (SoftBodySharedSettings sharedSettings = body.createSoftBodySharedSettings()) {
+            if (sharedSettings == null) throw new IllegalStateException("createSoftBodySharedSettings returned null for type: " + body.getType().getTypeId());
+            try (SoftBodyCreationSettings settings = body.createSoftBodyCreationSettings(sharedSettings)) {
+                settings.setPosition(body.getGameTransform().getTranslation());
+                settings.setRotation(body.getGameTransform().getRotation());
+                int bodyId = world.getBodyInterface().createAndAddSoftBody(settings, EActivation.Activate);
+                if (bodyId == Jolt.cInvalidBodyId) {
+                    VxMainClass.LOGGER.error("Jolt failed to create/re-create soft body for {}", body.getPhysicsId());
+                    return;
+                }
+                body.setBodyId(bodyId);
+                objectContainer.add(body);
+            }
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Failed to create/re-create soft body {}", body.getPhysicsId(), e);
         }
+    }
 
-        newObject.setPhysicsId(id);
-        newObject.setInitialTransform(transform);
-        configurator.accept(newObject);
+    public void reAddObjectToWorld(VxAbstractBody body) {
+        world.execute(() -> {
+            if (body instanceof VxRigidBody rigidBody) {
+                addRigidBodyToPhysicsWorld(rigidBody);
+            } else if (body instanceof VxSoftBody softBody) {
+                addSoftBodyToPhysicsWorld(softBody);
+            }
+        });
+    }
 
-        objectContainer.add(newObject);
+    public <T extends VxRigidBody> Optional<T> createRigidBody(PhysicsObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
+        T body = type.create(world, UUID.randomUUID());
+        body.getGameTransform().set(transform);
+        configurator.accept(body);
+        world.execute(() -> addRigidBodyToPhysicsWorld(body));
+        return Optional.of(body);
+    }
 
-        return Optional.of(newObject);
+    public <T extends VxSoftBody> Optional<T> createSoftBody(PhysicsObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
+        T body = type.create(world, UUID.randomUUID());
+        body.getGameTransform().set(transform);
+        configurator.accept(body);
+        world.execute(() -> addSoftBodyToPhysicsWorld(body));
+        return Optional.of(body);
     }
 
     public void removeObject(UUID id, VxRemovalReason reason) {
-        IPhysicsObject obj = objectContainer.remove(id);
+        final VxAbstractBody obj = objectContainer.remove(id);
         if (obj == null) {
             if (reason == VxRemovalReason.DISCARD) {
                 objectStorage.removeData(id);
@@ -87,29 +135,32 @@ public class VxObjectManager {
         }
 
         if (reason == VxRemovalReason.SAVE) {
-            objectStorage.saveData(obj);
+            obj.getTransform(world).ifPresent(t -> obj.getGameTransform().set(t));
+            objectStorage.storeObject(obj);
+        } else if (reason == VxRemovalReason.DISCARD) {
+            objectStorage.removeData(id);
         }
 
         world.getConstraintManager().removeConstraintsForObject(id, reason == VxRemovalReason.DISCARD);
+
+        final int bodyIdToRemove = obj.getBodyId();
+        if (bodyIdToRemove != 0) {
+            world.execute(() -> {
+                world.getBodyInterface().removeBody(bodyIdToRemove);
+                world.getBodyInterface().destroyBody(bodyIdToRemove);
+            });
+        }
     }
 
-    public static ChunkPos getObjectChunkPos(IPhysicsObject obj) {
-        VxTransform transform = obj.getCurrentTransform();
-        return new ChunkPos(
-                SectionPos.posToSectionCoord(transform.getTranslation().x()),
-                SectionPos.posToSectionCoord(transform.getTranslation().z())
-        );
-    }
-
-    public Optional<IPhysicsObject> getObject(UUID id) {
+    public Optional<VxAbstractBody> getObject(UUID id) {
         return objectContainer.get(id);
     }
 
-    public CompletableFuture<IPhysicsObject> getOrLoadObject(UUID id) {
+    public CompletableFuture<VxAbstractBody> getOrLoadObject(UUID id) {
         if (id == null) {
             return CompletableFuture.completedFuture(null);
         }
-        Optional<IPhysicsObject> loadedObject = getObject(id);
+        Optional<VxAbstractBody> loadedObject = getObject(id);
         if (loadedObject.isPresent()) {
             return CompletableFuture.completedFuture(loadedObject.get());
         }
@@ -132,11 +183,12 @@ public class VxObjectManager {
         return objectRegistry;
     }
 
-    public VxPhysicsUpdater getPhysicsUpdater() {
-        return physicsUpdater;
-    }
-
     public VxObjectNetworkDispatcher getNetworkDispatcher() {
         return networkDispatcher;
+    }
+
+    public static ChunkPos getObjectChunkPos(VxAbstractBody body) {
+        var pos = body.getGameTransform().getTranslation();
+        return new ChunkPos(SectionPos.posToSectionCoord(pos.xx()), SectionPos.posToSectionCoord(pos.zz()));
     }
 }

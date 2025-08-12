@@ -3,13 +3,14 @@ package net.xmx.vortex.physics.object.physicsobject.manager;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.*;
+import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.network.NetworkHandler;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.physicsobject.packet.batch.RemovePhysicsObjectBatchPacket;
 import net.xmx.vortex.physics.object.physicsobject.packet.batch.SpawnPhysicsObjectBatchPacket;
 import net.xmx.vortex.physics.object.physicsobject.packet.batch.SyncAllPhysicsObjectsPacket;
@@ -80,12 +81,12 @@ public class VxObjectNetworkDispatcher {
         this.stateUpdateQueue.addAll(states);
     }
 
-    public void updatePlayerTracking(ServerPlayer player, Set<IPhysicsObject> visibleObjects) {
+    public void updatePlayerTracking(ServerPlayer player, Set<VxAbstractBody> visibleObjects) {
         long timestamp = System.nanoTime();
         UUID playerUUID = player.getUUID();
         ObjectSet<UUID> previouslyTracked = this.playerTrackedObjects.computeIfAbsent(playerUUID, k -> new ObjectOpenHashSet<>());
         ObjectSet<UUID> currentlyVisibleIds = new ObjectOpenHashSet<>(visibleObjects.size());
-        for (IPhysicsObject obj : visibleObjects) {
+        for (VxAbstractBody obj : visibleObjects) {
             currentlyVisibleIds.add(obj.getPhysicsId());
         }
 
@@ -100,7 +101,7 @@ public class VxObjectNetworkDispatcher {
         }
 
         ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData> spawnsForPlayer = pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>());
-        for (IPhysicsObject obj : visibleObjects) {
+        for (VxAbstractBody obj : visibleObjects) {
             if (previouslyTracked.add(obj.getPhysicsId())) {
                 spawnsForPlayer.add(new SpawnPhysicsObjectBatchPacket.SpawnData(obj, timestamp));
             }
@@ -175,10 +176,9 @@ public class VxObjectNetworkDispatcher {
 
         Long2ObjectMap<ObjectArrayList<PhysicsObjectState>> statesByChunk = new Long2ObjectOpenHashMap<>();
         for (PhysicsObjectState s : statesToProcess) {
-            manager.getObject(s.getId()).ifPresent(obj -> {
-                long chunkKey = VxObjectManager.getObjectChunkPos(obj).toLong();
-                statesByChunk.computeIfAbsent(chunkKey, k -> new ObjectArrayList<>()).add(s);
-            });
+            var transform = s.getTransform();
+            long chunkKey = ChunkPos.asLong(SectionPos.posToSectionCoord(transform.getTranslation().x()), SectionPos.posToSectionCoord(transform.getTranslation().z()));
+            statesByChunk.computeIfAbsent(chunkKey, k -> new ObjectArrayList<>()).add(s);
         }
         statesToProcess.clear();
 
@@ -216,10 +216,11 @@ public class VxObjectNetworkDispatcher {
         });
     }
 
-    public void dispatchDataUpdate(IPhysicsObject obj) {
+    public void dispatchDataUpdate(VxAbstractBody obj) {
         if (obj.isDataDirty()) {
             SyncPhysicsObjectDataPacket packet = new SyncPhysicsObjectDataPacket(obj);
-            ChunkPos chunkPos = VxObjectManager.getObjectChunkPos(obj);
+            var transform = obj.getGameTransform();
+            ChunkPos chunkPos = new ChunkPos(SectionPos.posToSectionCoord(transform.getTranslation().x()), SectionPos.posToSectionCoord(transform.getTranslation().z()));
             level.getServer().execute(() -> {
                 ServerChunkCache chunkSource = level.getChunkSource();
                 for (ServerPlayer player : chunkSource.chunkMap.getPlayers(chunkPos, false)) {

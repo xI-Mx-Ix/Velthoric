@@ -20,7 +20,6 @@ public class SyncAllPhysicsObjectsPacket {
             buf.writeVarInt(objectStates.size());
             for (PhysicsObjectState state : objectStates) {
                 state.encode(buf);
-                PhysicsObjectStatePool.release(state);
             }
             this.data = new byte[buf.readableBytes()];
             buf.readBytes(this.data);

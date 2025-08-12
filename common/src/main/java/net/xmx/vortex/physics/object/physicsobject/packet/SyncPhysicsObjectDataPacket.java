@@ -3,7 +3,7 @@ package net.xmx.vortex.physics.object.physicsobject.packet;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 
 import java.util.UUID;
@@ -14,12 +14,13 @@ public class SyncPhysicsObjectDataPacket {
     private final UUID id;
     private final byte[] data;
 
-    public SyncPhysicsObjectDataPacket(IPhysicsObject obj) {
+    public SyncPhysicsObjectDataPacket(VxAbstractBody obj) {
         this.id = obj.getPhysicsId();
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-        obj.writeCustomSyncData(buf);
+        obj.writeCreationData(buf);
         this.data = new byte[buf.readableBytes()];
         buf.readBytes(this.data);
+        buf.release();
     }
 
     public SyncPhysicsObjectDataPacket(FriendlyByteBuf buf) {

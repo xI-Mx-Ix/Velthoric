@@ -32,7 +32,7 @@ import net.xmx.vortex.physics.constraint.builder.base.ConstraintBuilder;
 import net.xmx.vortex.physics.constraint.serializer.base.ConstraintSerializer;
 import net.xmx.vortex.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
 import net.xmx.vortex.physics.constraint.util.VxBufferUtil;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
@@ -195,8 +195,8 @@ public class VxConstraintManager {
                 b2Id = ids[1];
             }
 
-            IPhysicsObject b1 = (b1Id != null) ? objectManager.getObject(b1Id).orElse(null) : null;
-            IPhysicsObject b2 = (b2Id != null) ? objectManager.getObject(b2Id).orElse(null) : null;
+            VxAbstractBody b1 = (b1Id != null) ? objectManager.getObject(b1Id).orElse(null) : null;
+            VxAbstractBody b2 = (b2Id != null) ? objectManager.getObject(b2Id).orElse(null) : null;
             IConstraint d1 = (d1Id != null) ? getConstraint(d1Id) : null;
             IConstraint d2 = (d2Id != null) ? getConstraint(d2Id) : null;
 
