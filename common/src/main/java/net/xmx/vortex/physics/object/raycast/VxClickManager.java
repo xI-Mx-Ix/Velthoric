@@ -4,6 +4,8 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.xmx.vortex.init.registry.ItemRegistry;
+import net.xmx.vortex.physics.object.physicsobject.manager.VxRemovalReason;
 import net.xmx.vortex.physics.object.raycast.info.PhysicsHitInfo;
 import net.xmx.vortex.physics.object.raycast.packet.PhysicsClickPacket;
 import net.xmx.vortex.physics.object.raycast.result.CombinedHitResult;
@@ -47,6 +49,11 @@ public final class VxClickManager {
                             if (targetObject instanceof Clickable clickable) {
                                 if (msg.isRightClick()) {
                                     clickable.onRightClick(sender, hitPoint, hitNormal);
+
+                                    if (sender.getMainHandItem().getItem() == ItemRegistry.PHYSICS_REMOVER_STICK.get()) {
+                                        var objectManager = physicsWorld.getObjectManager();
+                                        objectManager.removeObject(targetObject.getPhysicsId(), VxRemovalReason.DISCARD);
+                                    }
                                 } else {
                                     clickable.onLeftClick(sender, hitPoint, hitNormal);
                                 }
