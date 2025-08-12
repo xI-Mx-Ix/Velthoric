@@ -38,7 +38,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final int maxContactConstraints = 20480;
     private final int numPositionIterations = 2;
     private final int numVelocityIterations = 8;
-    private final float speculativeContactDistance = 0.02f;
+    private final float speculativeContactDistance = 0.0f;
     private final float baumgarteFactor = 0.2f;
     private final float penetrationSlop = 0.02f;
     private final float timeBeforeSleep = 0.5f;
