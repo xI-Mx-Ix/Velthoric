@@ -66,7 +66,7 @@ public class PhysicsCreatorItem extends Item {
 
         VxObjectManager manager = physicsWorld.getObjectManager();
 
-        Optional<BlockRigidPhysicsObject> spawnedObject = manager.spawnObject(
+        Optional<BlockRigidPhysicsObject> spawnedObject = manager.createRigidBody(
                 VxRegisteredObjects.BLOCK,
                 transform,
                 block -> block.setRepresentedBlockState(clickedState)

@@ -12,9 +12,9 @@ import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
 import java.util.Optional;
 
-public final class PhysicsClickManager {
+public final class VxClickManager {
 
-    private PhysicsClickManager() {
+    private VxClickManager() {
     }
 
     public static void processClick(PhysicsClickPacket msg, ServerPlayer sender) {
@@ -40,18 +40,20 @@ public final class PhysicsClickManager {
                     .ifPresent(targetObject -> {
                         sender.getServer().execute(() -> {
                             PhysicsHitInfo physicsHit = combinedHitOpt.get().getPhysicsHit().get();
-                            RVec3 hitPoint = physicsHit.calculateHitPoint(rayOrigin, rayDirection, VxRaytracing.DEFAULT_MAX_DISTANCE);
+                            RVec3 hitPointR = physicsHit.calculateHitPoint(rayOrigin, rayDirection, VxRaytracing.DEFAULT_MAX_DISTANCE);
+                            Vec3 hitPoint = hitPointR.toVec3();
                             Vec3 hitNormal = physicsHit.getHitNormal();
 
-                            if (msg.isRightClick()) {
-                                targetObject.onRightClick(sender, hitPoint.toVec3(), hitNormal);
-                                targetObject.onRightClickWithTool(sender);
-                                if (targetObject instanceof Rideable rideable) {
-
-                                    rideable.handleRightClick(sender, hitPoint.toVec3());
+                            if (targetObject instanceof Clickable clickable) {
+                                if (msg.isRightClick()) {
+                                    clickable.onRightClick(sender, hitPoint, hitNormal);
+                                } else {
+                                    clickable.onLeftClick(sender, hitPoint, hitNormal);
                                 }
-                            } else {
-                                targetObject.onLeftClick(sender, hitPoint.toVec3(), hitNormal);
+                            }
+
+                            if (msg.isRightClick() && targetObject instanceof Rideable rideable) {
+                                rideable.handleRightClick(sender, hitPoint);
                             }
                         });
                     });

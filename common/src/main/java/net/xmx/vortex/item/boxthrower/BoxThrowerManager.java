@@ -76,7 +76,7 @@ public class BoxThrowerManager {
         VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(spawnPosMc.x, spawnPosMc.y, spawnPosMc.z), Quat.sIdentity());
 
-        Optional<BoxRigidPhysicsObject> spawnedObjectOpt = manager.spawnObject(
+        Optional<BoxRigidPhysicsObject> spawnedObjectOpt = manager.createRigidBody(
                 VxRegisteredObjects.BOX,
                 transform,
                 box -> box.setHalfExtents(halfExtents)

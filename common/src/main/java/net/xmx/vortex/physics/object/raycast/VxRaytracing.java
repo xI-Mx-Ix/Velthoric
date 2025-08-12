@@ -11,7 +11,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.raycast.info.MinecraftHitInfo;
 import net.xmx.vortex.physics.object.raycast.info.PhysicsHitInfo;
 import net.xmx.vortex.physics.object.raycast.result.CombinedHitResult;
@@ -73,9 +73,9 @@ public final class VxRaytracing {
         net.minecraft.world.phys.Vec3 mcRayOrigin = new net.minecraft.world.phys.Vec3(rayOrigin.xx(), rayOrigin.yy(), rayOrigin.zz());
         net.minecraft.world.phys.Vec3 mcRayEnd = mcRayOrigin.add(rayDirection.getX() * maxDistance, rayDirection.getY() * maxDistance, rayDirection.getZ() * maxDistance);
 
-        for (IPhysicsObject obj : physicsWorld.getObjectManager().getObjectContainer().getAllObjects()) {
+        for (VxAbstractBody obj : physicsWorld.getObjectManager().getObjectContainer().getAllObjects()) {
             if (obj instanceof Rideable rideable && rideable.defineSeats().length > 0) {
-                VxTransform transform = rideable.getCurrentTransform();
+                VxTransform transform = obj.getGameTransform();
                 Quaternionf worldRot = transform.getRotation(new Quaternionf());
                 Vector3f worldPos = transform.getTranslation(new Vector3f());
 
@@ -95,7 +95,7 @@ public final class VxRaytracing {
                         if (fraction < minFraction) {
                             minFraction = fraction;
                             Vec3 worldNormal = calculateHitNormal(hitOpt.get(), seat.getLocalAABB(), worldRot);
-                            closestHit = new PhysicsHitInfo(rideable.getBodyId(), fraction, worldNormal);
+                            closestHit = new PhysicsHitInfo(obj.getBodyId(), fraction, worldNormal);
                         }
                     }
                 }

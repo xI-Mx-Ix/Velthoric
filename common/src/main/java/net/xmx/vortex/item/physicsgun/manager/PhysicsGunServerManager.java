@@ -9,7 +9,7 @@ import net.xmx.vortex.item.physicsgun.GrabbedObjectInfo;
 import net.xmx.vortex.item.physicsgun.packet.PhysicsGunStatePacket;
 import net.xmx.vortex.item.physicsgun.packet.PlayerTryingStatePacket;
 import net.xmx.vortex.network.NetworkHandler;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.physicsobject.pcmd.DeactivateBodyCommand;
 import net.xmx.vortex.physics.object.raycast.VxRaytracing;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
@@ -110,10 +110,10 @@ public class PhysicsGunServerManager {
             var rayDirection = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z);
 
             VxRaytracing.rayCastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHit -> {
-                Optional<IPhysicsObject> physicsObjectOpt = physicsWorld.getObjectManager().getObjectContainer().getByBodyId(physicsHit.getBodyId());
+                Optional<VxAbstractBody> physicsObjectOpt = physicsWorld.getObjectManager().getObjectContainer().getByBodyId(physicsHit.getBodyId());
                 if (physicsObjectOpt.isEmpty()) return;
 
-                IPhysicsObject physicsObject = physicsObjectOpt.get();
+                VxAbstractBody physicsObject = physicsObjectOpt.get();
                 UUID objectId = physicsObject.getPhysicsId();
 
                 var bodyInterface = physicsWorld.getBodyInterface();

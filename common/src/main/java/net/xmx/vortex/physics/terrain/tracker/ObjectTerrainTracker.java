@@ -6,7 +6,7 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.ConstAaBox;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.terrain.TerrainSystem;
 import net.xmx.vortex.physics.terrain.job.VxTaskPriority;
 import net.xmx.vortex.physics.terrain.model.VxSectionPos;
@@ -18,7 +18,7 @@ import java.util.Set;
 
 public class ObjectTerrainTracker {
 
-    private final IPhysicsObject physicsObject;
+    private final VxAbstractBody physicsObject;
     private final TerrainSystem terrainSystem;
 
     private final Set<VxSectionPos> currentPreloadedChunks = new HashSet<>();
@@ -40,14 +40,14 @@ public class ObjectTerrainTracker {
     private static final int ACTIVATION_RADIUS_CHUNKS = 1;
     private static final float PREDICTION_SECONDS = 0.5f;
 
-    public ObjectTerrainTracker(IPhysicsObject physicsObject, TerrainSystem terrainSystem) {
+    public ObjectTerrainTracker(VxAbstractBody physicsObject, TerrainSystem terrainSystem) {
         this.physicsObject = physicsObject;
         this.terrainSystem = terrainSystem;
     }
 
     public Set<VxSectionPos> update() {
         Body body = physicsObject.getBody();
-        if (body == null || !physicsObject.isPhysicsInitialized()) {
+        if (body == null) {
             releaseAll();
             criticalChunksToReturn.clear();
             return criticalChunksToReturn;
