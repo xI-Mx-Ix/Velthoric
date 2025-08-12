@@ -21,19 +21,6 @@ public abstract class VxRigidBody extends VxAbstractBody implements Rideable, Cl
         super(type, world, id);
     }
 
-    @Override
-    public void onStartRiding(ServerPlayer player, Seat seat) {}
-
-    @Override
-    public void onStopRiding(ServerPlayer player) {}
-
-    @Override
-    public void onLeftClick(ServerPlayer player, Vec3 hitPoint, Vec3 hitNormal) {}
-
-    @Override
-    public void onRightClick(ServerPlayer player, Vec3 hitPoint, Vec3 hitNormal) {}
-
-
     public abstract ShapeSettings createShapeSettings();
 
     public abstract BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef);
@@ -41,4 +28,20 @@ public abstract class VxRigidBody extends VxAbstractBody implements Rideable, Cl
     public interface Renderer {
         void render(UUID id, RenderData renderData, ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTick, int packedLight);
     }
+
+    // ---- Rideable ---- //
+
+    @Override
+    public void onStartRiding(ServerPlayer player, Seat seat) {}
+
+    @Override
+    public void onStopRiding(ServerPlayer player) {}
+
+    // ---- Clickable ---- //
+
+    @Override
+    public void onLeftClick(ServerPlayer player, Vec3 hitPoint, Vec3 hitNormal) {}
+
+    @Override
+    public void onRightClick(ServerPlayer player, Vec3 hitPoint, Vec3 hitNormal) {}
 }
