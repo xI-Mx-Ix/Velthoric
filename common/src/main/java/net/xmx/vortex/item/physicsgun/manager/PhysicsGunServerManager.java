@@ -7,6 +7,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.xmx.vortex.item.physicsgun.GrabbedObjectInfo;
 import net.xmx.vortex.item.physicsgun.packet.PhysicsGunStatePacket;
+import net.xmx.vortex.item.physicsgun.packet.PlayerTryingStatePacket;
 import net.xmx.vortex.network.NetworkHandler;
 import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
 import net.xmx.vortex.physics.object.physicsobject.pcmd.DeactivateBodyCommand;
@@ -28,8 +29,7 @@ public class PhysicsGunServerManager {
     private static final float MIN_DISTANCE = 2.0f;
     private static final float MAX_DISTANCE = 450.0f;
 
-    private PhysicsGunServerManager() {
-    }
+    private PhysicsGunServerManager() {}
 
     public static PhysicsGunServerManager getInstance() {
         return INSTANCE;
@@ -42,11 +42,16 @@ public class PhysicsGunServerManager {
     }
 
     public void startGrabAttempt(ServerPlayer player) {
-        playersTryingToGrab.add(player.getUUID());
+        if (isGrabbing(player)) return;
+        if (playersTryingToGrab.add(player.getUUID())) {
+            NetworkHandler.sendToAll(new PlayerTryingStatePacket(player.getUUID(), true));
+        }
     }
 
     public void stopGrabAttempt(ServerPlayer player) {
-        playersTryingToGrab.remove(player.getUUID());
+        if (playersTryingToGrab.remove(player.getUUID())) {
+            NetworkHandler.sendToAll(new PlayerTryingStatePacket(player.getUUID(), false));
+        }
         stopGrab(player);
     }
 
@@ -60,6 +65,10 @@ public class PhysicsGunServerManager {
 
     public boolean isTryingToGrab(Player player) {
         return playersTryingToGrab.contains(player.getUUID());
+    }
+
+    public Set<UUID> getPlayersTryingToGrab() {
+        return playersTryingToGrab;
     }
 
     public void startRotationMode(ServerPlayer player) {
@@ -142,6 +151,10 @@ public class PhysicsGunServerManager {
                             );
 
                             grabbedObjects.put(player.getUUID(), info);
+                            if (playersTryingToGrab.remove(player.getUUID())) {
+                                NetworkHandler.sendToAll(new PlayerTryingStatePacket(player.getUUID(), false));
+                            }
+
                             motionProperties.setAngularDamping(2.0f);
                             body.setAngularVelocity(new Vec3(0, 0, 0));
 
@@ -159,7 +172,6 @@ public class PhysicsGunServerManager {
     }
 
     public void stopGrab(ServerPlayer player) {
-        playersTryingToGrab.remove(player.getUUID());
         GrabbedObjectInfo info = grabbedObjects.remove(player.getUUID());
 
         if (info != null) {

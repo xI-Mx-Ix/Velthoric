@@ -11,9 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.xmx.vortex.item.boxthrower.packet.BoxThrowerActionPacket;
 import net.xmx.vortex.item.magnetizer.packet.MagnetizerActionPacket;
-import net.xmx.vortex.item.physicsgun.packet.PhysicsGunActionPacket;
-import net.xmx.vortex.item.physicsgun.packet.PhysicsGunStatePacket;
-import net.xmx.vortex.item.physicsgun.packet.SyncAllPhysicsGunGrabsPacket;
+import net.xmx.vortex.item.physicsgun.packet.*;
 import net.xmx.vortex.physics.object.physicsobject.packet.batch.RemovePhysicsObjectBatchPacket;
 import net.xmx.vortex.physics.object.physicsobject.packet.batch.SpawnPhysicsObjectBatchPacket;
 import net.xmx.vortex.physics.object.physicsobject.packet.batch.SyncAllPhysicsObjectsPacket;
@@ -43,6 +41,20 @@ public class NetworkHandler {
                 SyncPhysicsObjectDataPacket::encode,
                 SyncPhysicsObjectDataPacket::new,
                 SyncPhysicsObjectDataPacket::handle
+        );
+
+        registerPacket(
+                PlayerTryingStatePacket.class,
+                PlayerTryingStatePacket::encode,
+                PlayerTryingStatePacket::decode,
+                PlayerTryingStatePacket::handle
+        );
+
+        registerPacket(
+                SyncPlayersTryingToGrabPacket.class,
+                SyncPlayersTryingToGrabPacket::encode,
+                SyncPlayersTryingToGrabPacket::decode,
+                SyncPlayersTryingToGrabPacket::handle
         );
 
         registerPacket(

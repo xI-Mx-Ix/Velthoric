@@ -2,6 +2,8 @@ package net.xmx.vortex.item.physicsgun.manager;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+import net.xmx.vortex.item.physicsgun.packet.PhysicsGunActionPacket;
+import net.xmx.vortex.network.NetworkHandler;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
@@ -27,11 +29,14 @@ public class PhysicsGunClientManager {
     }
 
     public void startGrabAttempt(Player player) {
-        playersTryingToGrab.add(player.getUUID());
+        // Sende eine Anfrage an den Server, anstatt nur den lokalen Zustand zu ändern.
+        // Der Server wird den Zustand an alle Clients (einschließlich diesen) zurücksenden.
+        NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.START_GRAB_ATTEMPT));
     }
 
     public void stopGrabAttempt(Player player) {
-        playersTryingToGrab.remove(player.getUUID());
+        // Sende ebenfalls eine Anfrage an den Server.
+        NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_GRAB_ATTEMPT));
         this.setRotationMode(false);
     }
 
@@ -48,6 +53,7 @@ public class PhysicsGunClientManager {
             activeGrabs.remove(playerUuid);
         } else {
             activeGrabs.put(playerUuid, new ClientGrabData(objectUuid, localHitPoint));
+            playersTryingToGrab.remove(playerUuid);
         }
     }
 

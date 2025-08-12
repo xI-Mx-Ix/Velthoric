@@ -9,6 +9,7 @@ import net.xmx.vortex.item.physicsgun.GrabbedObjectInfo;
 import net.xmx.vortex.item.physicsgun.manager.PhysicsGunClientManager;
 import net.xmx.vortex.item.physicsgun.manager.PhysicsGunServerManager;
 import net.xmx.vortex.item.physicsgun.packet.SyncAllPhysicsGunGrabsPacket;
+import net.xmx.vortex.item.physicsgun.packet.SyncPlayersTryingToGrabPacket;
 import net.xmx.vortex.network.NetworkHandler;
 
 import java.util.Map;
@@ -61,6 +62,10 @@ public class PhysicsGunEvents {
 
         if (!grabsForPacket.isEmpty()) {
             NetworkHandler.sendToPlayer(new SyncAllPhysicsGunGrabsPacket(grabsForPacket), newPlayer);
+        }
+
+        if (!manager.getPlayersTryingToGrab().isEmpty()) {
+            NetworkHandler.sendToPlayer(new SyncPlayersTryingToGrabPacket(manager.getPlayersTryingToGrab()), newPlayer);
         }
     }
 

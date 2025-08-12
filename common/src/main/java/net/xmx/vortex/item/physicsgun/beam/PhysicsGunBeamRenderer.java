@@ -66,8 +66,6 @@ public class PhysicsGunBeamRenderer {
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
 
-        bufferBuilder.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
-
         Map<UUID, PhysicsGunClientManager.ClientGrabData> activeGrabs = clientManager.getActiveGrabs();
         for (var entry : activeGrabs.entrySet()) {
             UUID playerUuid = entry.getKey();
@@ -106,7 +104,10 @@ public class PhysicsGunBeamRenderer {
                 Vec3 endPoint = new Vec3(endPointJolt.xx(), endPointJolt.yy(), endPointJolt.zz());
 
                 Vec3 playerLookVec = getPlayerLookVector(player, partialTicks);
+
+                bufferBuilder.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
                 drawThickCurvedBeam(bufferBuilder, matrix, camPos, startPoint, endPoint, playerLookVec);
+                tesselator.end();
             }
         }
 
@@ -127,10 +128,12 @@ public class PhysicsGunBeamRenderer {
             BlockHitResult hitResult = mc.level.clip(clipContext);
 
             Vec3 endPoint = (hitResult.getType() == HitResult.Type.MISS) ? traceEnd : hitResult.getLocation();
+
+            bufferBuilder.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
             drawThickCurvedBeam(bufferBuilder, matrix, camPos, startPoint, endPoint, playerLookVec);
+            tesselator.end();
         }
 
-        tesselator.end();
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
         poseStack.popPose();
