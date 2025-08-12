@@ -1,22 +1,23 @@
 package net.xmx.vortex.builtin.box;
 
-import com.github.stephengold.joltjni.BoxShapeSettings;
-import com.github.stephengold.joltjni.ShapeSettings;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
-import net.xmx.vortex.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.type.rigid.VxRigidBody;
 import net.xmx.vortex.physics.object.riding.seat.Seat;
+import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
+import net.minecraft.world.phys.AABB;
 
-public class BoxRigidPhysicsObject extends RigidPhysicsObject {
+import java.util.UUID;
+
+public class BoxRigidPhysicsObject extends VxRigidBody {
 
     private Vec3 halfExtents;
 
-    public BoxRigidPhysicsObject(PhysicsObjectType<? extends RigidPhysicsObject> type, Level level) {
-        super(type, level);
+    public BoxRigidPhysicsObject(PhysicsObjectType<BoxRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
+        super(type, world, id);
         this.halfExtents = new Vec3(0.5f, 0.5f, 0.5f);
     }
 
@@ -32,34 +33,42 @@ public class BoxRigidPhysicsObject extends RigidPhysicsObject {
     @Override
     public Seat[] defineSeats() {
         Seat leftSeat = new Seat("leftSeat",
-                new AABB(-2f, -1f, -1f, 0f, 1f, 1f),   // linker Sitzbereich links vom Ursprung
-                new Vector3f(-1f, 0f, 0f)              // Rider-Offset links
+                new AABB(-2f, -1f, -1f, 0f, 1f, 1f),
+                new Vector3f(-1f, 0f, 0f)
         );
 
         Seat rightSeat = new Seat("rightSeat",
-                new AABB(0f, -1f, -1f, 2f, 1f, 1f),    // rechter Sitzbereich rechts vom Ursprung
-                new Vector3f(1f, 0f, 0f)               // Rider-Offset rechts
+                new AABB(0f, -1f, -1f, 2f, 1f, 1f),
+                new Vector3f(1f, 0f, 0f)
         );
 
         return new Seat[]{leftSeat, rightSeat};
     }
 
-
     @Override
-    public ShapeSettings buildShapeSettings() {
-        BoxShapeSettings settings = new BoxShapeSettings(this.halfExtents);
-        return settings;
+    public ShapeSettings createShapeSettings() {
+        return new BoxShapeSettings(this.halfExtents);
     }
 
     @Override
-    protected void addAdditionalSpawnData(FriendlyByteBuf buf) {
+    public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
+        return new BodyCreationSettings(
+                shapeRef,
+                this.getGameTransform().getTranslation(),
+                this.getGameTransform().getRotation(),
+                EMotionType.Dynamic,
+                VxPhysicsWorld.Layers.DYNAMIC);
+    }
+
+    @Override
+    public void writeCreationData(FriendlyByteBuf buf) {
         buf.writeFloat(this.halfExtents.getX());
         buf.writeFloat(this.halfExtents.getY());
         buf.writeFloat(this.halfExtents.getZ());
     }
 
     @Override
-    protected void readAdditionalSpawnData(FriendlyByteBuf buf) {
+    public void readCreationData(FriendlyByteBuf buf) {
         this.halfExtents = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
     }
 }

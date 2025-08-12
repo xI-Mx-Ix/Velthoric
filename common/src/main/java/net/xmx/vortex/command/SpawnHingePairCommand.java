@@ -18,7 +18,7 @@ import net.xmx.vortex.builtin.box.BoxRigidPhysicsObject;
 import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.constraint.builder.HingeConstraintBuilder;
 import net.xmx.vortex.physics.constraint.manager.VxConstraintManager;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxRemovalReason;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
@@ -79,8 +79,8 @@ public final class SpawnHingePairCommand {
         VxTransform transform1 = new VxTransform(pos1, Quat.sIdentity());
         VxTransform transform2 = new VxTransform(pos2, Quat.sIdentity());
 
-        Optional<BoxRigidPhysicsObject> box1Opt = objectManager.spawnObject(VxRegisteredObjects.BOX, transform1, box -> box.setHalfExtents(halfExtents));
-        Optional<BoxRigidPhysicsObject> box2Opt = objectManager.spawnObject(VxRegisteredObjects.BOX, transform2, box -> box.setHalfExtents(halfExtents));
+        Optional<BoxRigidPhysicsObject> box1Opt = objectManager.createRigidBody(VxRegisteredObjects.BOX, transform1, box -> box.setHalfExtents(halfExtents));
+        Optional<BoxRigidPhysicsObject> box2Opt = objectManager.createRigidBody(VxRegisteredObjects.BOX, transform2, box -> box.setHalfExtents(halfExtents));
 
         if (box1Opt.isEmpty() || box2Opt.isEmpty()) {
             source.sendFailure(Component.literal("Failed to spawn one or both boxes. Aborting."));
@@ -89,8 +89,8 @@ public final class SpawnHingePairCommand {
             return 0;
         }
 
-        IPhysicsObject box1 = box1Opt.get();
-        IPhysicsObject box2 = box2Opt.get();
+        VxAbstractBody box1 = box1Opt.get();
+        VxAbstractBody box2 = box2Opt.get();
 
         HingeConstraintBuilder hingeBuilder = constraintManager.createHinge();
         RVec3 hingePoint = new RVec3(centerPosMc.x, centerPosMc.y, centerPosMc.z);

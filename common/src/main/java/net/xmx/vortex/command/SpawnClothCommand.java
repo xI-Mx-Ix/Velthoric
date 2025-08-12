@@ -60,7 +60,7 @@ public class SpawnClothCommand {
         VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
-        Optional<ClothSoftBody> spawnedCloth = manager.spawnObject(
+        Optional<ClothSoftBody> spawnedCloth = manager.createSoftBody(
                 VxRegisteredObjects.CLOTH,
                 transform,
                 cloth -> cloth.setConfiguration(segmentsWidth, segmentsHeight, width, height, mass, 0.001f)

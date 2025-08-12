@@ -3,7 +3,7 @@ package net.xmx.vortex.physics.object.raycast.packet;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.vortex.physics.object.raycast.PhysicsClickManager;
+import net.xmx.vortex.physics.object.raycast.VxClickManager;
 
 import java.util.function.Supplier;
 
@@ -35,7 +35,7 @@ public record PhysicsClickPacket(
         context.queue(() -> {
             ServerPlayer player = (ServerPlayer) context.getPlayer();
             if (player != null) {
-                PhysicsClickManager.processClick(msg, player);
+                VxClickManager.processClick(msg, player);
             }
         });
     }

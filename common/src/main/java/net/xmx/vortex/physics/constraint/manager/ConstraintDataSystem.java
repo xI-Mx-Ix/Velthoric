@@ -128,14 +128,17 @@ public class ConstraintDataSystem {
                     shouldUnload = false;
                 }
 
-                if (constraint.getConstraintType().equals("vortex:gear") || constraint.getConstraintType().equals("vortex:rack_and_pinion")) {
-                    UUID dep1Id = constraint.getDependency(0);
-                    UUID dep2Id = constraint.getDependency(1);
-                    if ((dep1Id != null && constraintManager.isJointLoaded(dep1Id)) || (dep2Id != null && constraintManager.isJointLoaded(dep2Id))) {
-                        IConstraint dep1 = constraintManager.getConstraint(dep1Id);
-                        IConstraint dep2 = constraintManager.getConstraint(dep2Id);
-                        if ((dep1 != null && !isConstraintBodyInChunk(dep1, chunkPos)) || (dep2 != null && !isConstraintBodyInChunk(dep2, chunkPos))) {
-                            shouldUnload = false;
+                if (shouldUnload && (constraint.getConstraintType().equals("vortex:gear") || constraint.getConstraintType().equals("vortex:rack_and_pinion"))) {
+                    Set<UUID> dependentConstraints = constraintToDependenciesMap.get(constraint.getId());
+                    if (dependentConstraints != null) {
+                        for (UUID depId : dependentConstraints) {
+                            if (constraintManager.isJointLoaded(depId)) {
+                                IConstraint depConstraint = constraintManager.getConstraint(depId);
+                                if (depConstraint != null && !isConstraintBodyInChunk(depConstraint, chunkPos)) {
+                                    shouldUnload = false;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }

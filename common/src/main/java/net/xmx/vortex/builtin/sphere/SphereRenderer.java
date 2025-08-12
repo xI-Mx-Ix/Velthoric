@@ -8,7 +8,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
-import net.xmx.vortex.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.type.rigid.VxRigidBody;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
@@ -17,7 +17,7 @@ import org.joml.Vector3f;
 import java.nio.ByteBuffer;
 import java.util.UUID;
 
-public class SphereRenderer extends RigidPhysicsObject.Renderer {
+public class SphereRenderer implements VxRigidBody.Renderer {
 
     private static final int STACKS = 16;
     private static final int SECTORS = 32;

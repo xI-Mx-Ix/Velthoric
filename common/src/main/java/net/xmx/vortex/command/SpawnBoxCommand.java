@@ -42,7 +42,6 @@ public final class SpawnBoxCommand {
                         )
         );
 
-        // Neuer Befehl für das Kistenraster
         dispatcher.register(
                 Commands.literal("spawnboxgrid")
                         .requires(source -> source.hasPermission(2))
@@ -128,7 +127,7 @@ public final class SpawnBoxCommand {
         VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(spawnPosMc.x, spawnPosMc.y, spawnPosMc.z), Quat.sIdentity());
 
-        Optional<BoxRigidPhysicsObject> spawnedObject = manager.spawnObject(
+        Optional<BoxRigidPhysicsObject> spawnedObject = manager.createRigidBody(
                 VxRegisteredObjects.BOX,
                 transform,
                 box -> box.setHalfExtents(halfExtents)

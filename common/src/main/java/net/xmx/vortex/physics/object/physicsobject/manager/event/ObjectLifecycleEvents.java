@@ -1,13 +1,16 @@
 package net.xmx.vortex.physics.object.physicsobject.manager.event;
 
+import com.github.stephengold.joltjni.Vec3;
 import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
+import net.minecraft.core.SectionPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.xmx.vortex.event.api.VxChunkEvent;
 import net.xmx.vortex.event.api.VxLevelEvent;
+import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxObjectManager;
 import net.xmx.vortex.physics.object.physicsobject.manager.VxRemovalReason;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
@@ -34,6 +37,7 @@ public class ObjectLifecycleEvents {
         if (level.isClientSide()) {
             return Optional.empty();
         }
+
         VxPhysicsWorld world = VxPhysicsWorld.get(level.dimension());
         if (world != null && world.getObjectManager() != null) {
             return Optional.of(world.getObjectManager());
@@ -49,8 +53,18 @@ public class ObjectLifecycleEvents {
 
     private static void onChunkUnload(VxChunkEvent.Unload event) {
         getObjectManager(event.getLevel()).ifPresent(manager -> {
+
             manager.getObjectContainer().getAllObjects().forEach(obj -> {
-                if (VxObjectManager.getObjectChunkPos(obj).equals(event.getChunkPos())) {
+
+                VxTransform gameTransform = obj.getGameTransform();
+                var translation = gameTransform.getTranslation();
+
+                ChunkPos currentChunkPos = new ChunkPos(
+                        SectionPos.posToSectionCoord(translation.xx()),
+                        SectionPos.posToSectionCoord(translation.zz())
+                );
+
+                if (currentChunkPos.equals(event.getChunkPos())) {
                     manager.removeObject(obj.getPhysicsId(), VxRemovalReason.SAVE);
                 }
             });
@@ -58,9 +72,14 @@ public class ObjectLifecycleEvents {
     }
 
     private static void onLevelSave(VxLevelEvent.Save event) {
-        getObjectManager(event.getLevel()).ifPresent(manager ->
-                manager.getObjectStorage().saveAll(manager.getObjectContainer().getAllObjects())
-        );
+
+        getObjectManager(event.getLevel()).ifPresent(manager -> {
+
+            manager.getObjectContainer().getAllObjects()
+                    .forEach(manager.getObjectStorage()::storeObject);
+
+            manager.getObjectStorage().saveToFile();
+        });
     }
 
     private static void onServerTick(MinecraftServer server) {
@@ -69,13 +88,7 @@ public class ObjectLifecycleEvents {
             if (manager != null) {
                 manager.getNetworkDispatcher().tick();
                 world.getRidingManager().tick();
-                manager.getObjectContainer().getAllObjects().forEach(obj -> {
-                    if (!obj.isRemoved()) {
-                        obj.fixedGameTick(manager.getWorld().getLevel());
-                        obj.gameTick(manager.getWorld().getLevel());
-                        manager.getNetworkDispatcher().dispatchDataUpdate(obj);
-                    }
-                });
+                manager.getObjectContainer().getAllObjects().forEach(obj -> obj.gameTick(manager.getWorld().getLevel()));
             }
         });
     }

@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.network.FriendlyByteBuf;
@@ -19,14 +20,14 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
-import net.xmx.vortex.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.type.rigid.VxRigidBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
 
 @Environment(EnvType.CLIENT)
-public class BlockRenderer extends RigidPhysicsObject.Renderer {
+public class BlockRenderer implements VxRigidBody.Renderer {
 
     @Override
     public void render(UUID id, RenderData renderData, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
@@ -70,6 +71,7 @@ public class BlockRenderer extends RigidPhysicsObject.Renderer {
                             packedLight,
                             OverlayTexture.NO_OVERLAY
                     );
+
                 } else if (shape == RenderShape.ENTITYBLOCK_ANIMATED) {
                     Minecraft.getInstance().getItemRenderer().renderStatic(
                             new ItemStack(blockStateToRender.getBlock()),
@@ -78,7 +80,7 @@ public class BlockRenderer extends RigidPhysicsObject.Renderer {
                             OverlayTexture.NO_OVERLAY,
                             poseStack,
                             bufferSource,
-                            null,
+                            Minecraft.getInstance().level,
                             0
                     );
                 }

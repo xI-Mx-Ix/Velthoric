@@ -1,23 +1,26 @@
 package net.xmx.vortex.builtin.sphere;
 
-import com.github.stephengold.joltjni.ShapeSettings;
-import com.github.stephengold.joltjni.SphereShapeSettings;
+import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.Level;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
-import net.xmx.vortex.physics.object.physicsobject.type.rigid.RigidPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.type.rigid.VxRigidBody;
+import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
-public class SphereRigidPhysicsObject extends RigidPhysicsObject {
+import java.util.UUID;
+
+public class SphereRigidPhysicsObject extends VxRigidBody {
 
     private float radius;
 
-    public SphereRigidPhysicsObject(PhysicsObjectType<? extends RigidPhysicsObject> type, Level level) {
-        super(type, level);
+    public SphereRigidPhysicsObject(PhysicsObjectType<SphereRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
+        super(type, world, id);
         this.radius = 0.5f;
     }
 
     public void setRadius(float radius) {
         this.radius = radius > 0 ? radius : 0.5f;
+        this.markDataDirty();
     }
 
     public float getRadius() {
@@ -25,17 +28,27 @@ public class SphereRigidPhysicsObject extends RigidPhysicsObject {
     }
 
     @Override
-    public ShapeSettings buildShapeSettings() {
+    public ShapeSettings createShapeSettings() {
         return new SphereShapeSettings(this.radius);
     }
 
     @Override
-    protected void addAdditionalSpawnData(FriendlyByteBuf buf) {
+    public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
+        return new BodyCreationSettings(
+                shapeRef,
+                this.getGameTransform().getTranslation(),
+                this.getGameTransform().getRotation(),
+                EMotionType.Dynamic,
+                VxPhysicsWorld.Layers.DYNAMIC);
+    }
+
+    @Override
+    public void writeCreationData(FriendlyByteBuf buf) {
         buf.writeFloat(this.radius);
     }
 
     @Override
-    protected void readAdditionalSpawnData(FriendlyByteBuf buf) {
+    public void readCreationData(FriendlyByteBuf buf) {
         this.radius = buf.readFloat();
     }
 }

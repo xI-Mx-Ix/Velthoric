@@ -16,16 +16,16 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
-import net.xmx.vortex.physics.object.physicsobject.type.soft.SoftPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.type.soft.VxSoftBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
 
 @Environment(EnvType.CLIENT)
-public class RopeSoftBodyRenderer extends SoftPhysicsObject.Renderer {
+public class RopeSoftBodyRenderer implements VxSoftBody.Renderer {
 
-    private static final ResourceLocation YELLOW_WOOL_BLOCK_TEXTURE = ResourceLocation.tryParse("minecraft:block/yellow_wool");
+    private static final ResourceLocation YELLOW_WOOL_BLOCK_TEXTURE = new ResourceLocation("minecraft:block/yellow_wool");
     private static final int SIDES = 12;
     private static final Vec3 JOLT_UNIT_X = new Vec3(1, 0, 0);
     private static final Vec3 JOLT_UNIT_Y = new Vec3(0, 1, 0);
@@ -38,11 +38,11 @@ public class RopeSoftBodyRenderer extends SoftPhysicsObject.Renderer {
         }
 
         float ropeRadius = 0.1f;
-        if (customData != null && customData.remaining() >= 12) {
+        if (customData != null && customData.remaining() >= 20) {
             customData.rewind();
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(customData));
             try {
-                buf.readFloat(); // halfHeight
+                buf.readFloat(); // ropeLength
                 buf.readInt();   // segments
                 ropeRadius = buf.readFloat();
             } catch (Exception ignored) {
@@ -86,7 +86,7 @@ public class RopeSoftBodyRenderer extends SoftPhysicsObject.Renderer {
                 direction = Op.plus(dirToNext, dirFromPrev);
             }
             if (direction.lengthSq() < 1e-12f) {
-                direction = JOLT_UNIT_Y;
+                direction.set(0, -1, 0);
             }
             directions[i] = direction.normalized();
         }
@@ -120,8 +120,6 @@ public class RopeSoftBodyRenderer extends SoftPhysicsObject.Renderer {
         }
 
         for (int nodeIdx = 0; nodeIdx < numNodes - 1; nodeIdx++) {
-            float texU0 = (float) nodeIdx / (numNodes - 1);
-            float texU1 = (float) (nodeIdx + 1) / (numNodes - 1);
             for (int sideIdx = 0; sideIdx < SIDES; sideIdx++) {
                 int nextSideIdx = (sideIdx + 1) % SIDES;
                 Vec3 v00 = ringVertices[nodeIdx][sideIdx];
@@ -136,26 +134,20 @@ public class RopeSoftBodyRenderer extends SoftPhysicsObject.Renderer {
                 }
                 float texV0 = (float) sideIdx / SIDES;
                 float texV1 = (float) nextSideIdx / SIDES;
-                float finalTexU00 = uMin + (uMax - uMin) * texU0;
-                float finalTexV00 = vMin + (vMax - vMin) * texV0;
-                float finalTexU01 = uMin + (uMax - uMin) * texU0;
-                float finalTexV01 = vMin + (vMax - vMin) * texV1;
-                float finalTexU10 = uMin + (uMax - uMin) * texU1;
-                float finalTexV10 = vMin + (vMax - vMin) * texV0;
-                float finalTexU11 = uMin + (uMax - uMin) * texU1;
-                float finalTexV11 = vMin + (vMax - vMin) * texV1;
-                addQuad(buffer, poseStack, v00, v10, v11, v01, normal, finalTexU00, finalTexV00, finalTexU10, finalTexV10, finalTexU11, finalTexV11, finalTexU01, finalTexV01, packedLight);
+                float u0 = uMin + (vMax-vMin) * ((float)nodeIdx / numNodes);
+                float u1 = uMin + (vMax-vMin) * ((float)(nodeIdx+1) / numNodes);
+                addQuad(buffer, poseStack, v00, v10, v11, v01, normal, u0, texV0, u1, texV0, u1, texV1, u0, texV1, packedLight, yellowWoolSprite);
             }
         }
     }
 
     private void addQuad(VertexConsumer buffer, PoseStack poseStack, Vec3 v1, Vec3 v2, Vec3 v3, Vec3 v4, Vec3 normal,
                          float u1, float v1Coord, float u2, float v2Coord, float u3, float v3Coord, float u4, float v4Coord,
-                         int packedLight) {
+                         int packedLight, TextureAtlasSprite sprite) {
         PoseStack.Pose last = poseStack.last();
-        buffer.vertex(last.pose(), v1.getX(), v1.getY(), v1.getZ()).color(255, 255, 255, 255).uv(u1, v1Coord).uv2(packedLight).normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
-        buffer.vertex(last.pose(), v2.getX(), v2.getY(), v2.getZ()).color(255, 255, 255, 255).uv(u2, v2Coord).uv2(packedLight).normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
-        buffer.vertex(last.pose(), v3.getX(), v3.getY(), v3.getZ()).color(255, 255, 255, 255).uv(u3, v3Coord).uv2(packedLight).normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
-        buffer.vertex(last.pose(), v4.getX(), v4.getY(), v4.getZ()).color(255, 255, 255, 255).uv(u4, v4Coord).uv2(packedLight).normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
+        buffer.vertex(last.pose(), v1.getX(), v1.getY(), v1.getZ()).color(255, 255, 255, 255).uv(sprite.getU(u1*16), sprite.getV(v1Coord*16)).uv2(packedLight).normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
+        buffer.vertex(last.pose(), v2.getX(), v2.getY(), v2.getZ()).color(255, 255, 255, 255).uv(sprite.getU(u2*16), sprite.getV(v2Coord*16)).uv2(packedLight).normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
+        buffer.vertex(last.pose(), v3.getX(), v3.getY(), v3.getZ()).color(255, 255, 255, 255).uv(sprite.getU(u3*16), sprite.getV(v3Coord*16)).uv2(packedLight).normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
+        buffer.vertex(last.pose(), v4.getX(), v4.getY(), v4.getZ()).color(255, 255, 255, 255).uv(sprite.getU(u4*16), sprite.getV(v4Coord*16)).uv2(packedLight).normal(last.normal(), normal.getX(), normal.getY(), normal.getZ()).endVertex();
     }
 }

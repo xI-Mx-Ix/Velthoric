@@ -4,12 +4,14 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.Level;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
-import net.xmx.vortex.physics.object.physicsobject.type.soft.SoftPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.type.soft.VxSoftBody;
+import net.xmx.vortex.physics.world.VxPhysicsWorld;
+
+import java.util.UUID;
 import java.util.function.BiFunction;
 
-public class ClothSoftBody extends SoftPhysicsObject {
+public class ClothSoftBody extends VxSoftBody {
 
     private int widthSegments;
     private int heightSegments;
@@ -18,8 +20,8 @@ public class ClothSoftBody extends SoftPhysicsObject {
     private float mass;
     private float compliance;
 
-    public ClothSoftBody(PhysicsObjectType<? extends SoftPhysicsObject> type, Level level) {
-        super(type, level);
+    public ClothSoftBody(PhysicsObjectType<ClothSoftBody> type, VxPhysicsWorld world, UUID id) {
+        super(type, world, id);
         this.widthSegments = 15;
         this.heightSegments = 15;
         this.clothWidth = 2.0f;
@@ -38,7 +40,7 @@ public class ClothSoftBody extends SoftPhysicsObject {
     }
 
     @Override
-    protected void addAdditionalSpawnData(FriendlyByteBuf buf) {
+    public void writeCreationData(FriendlyByteBuf buf) {
         buf.writeInt(this.widthSegments);
         buf.writeInt(this.heightSegments);
         buf.writeFloat(this.clothWidth);
@@ -48,7 +50,7 @@ public class ClothSoftBody extends SoftPhysicsObject {
     }
 
     @Override
-    protected void readAdditionalSpawnData(FriendlyByteBuf buf) {
+    public void readCreationData(FriendlyByteBuf buf) {
         this.widthSegments = buf.readInt();
         this.heightSegments = buf.readInt();
         this.clothWidth = buf.readFloat();
@@ -58,12 +60,16 @@ public class ClothSoftBody extends SoftPhysicsObject {
     }
 
     @Override
-    protected void configureAdditionalSoftBodyCreationSettings(SoftBodyCreationSettings settings) {
+    public SoftBodyCreationSettings createSoftBodyCreationSettings(SoftBodySharedSettings sharedSettings) {
+        SoftBodyCreationSettings settings = new SoftBodyCreationSettings();
+        settings.setSettings(sharedSettings);
+        settings.setObjectLayer(VxPhysicsWorld.Layers.DYNAMIC);
         settings.setVertexRadius(0.02f);
+        return settings;
     }
 
     @Override
-    protected SoftBodySharedSettings buildSharedSettings() {
+    public SoftBodySharedSettings createSoftBodySharedSettings() {
         int numVerticesX = this.widthSegments + 1;
         int numVerticesY = this.heightSegments + 1;
         int totalVertices = numVerticesX * numVerticesY;

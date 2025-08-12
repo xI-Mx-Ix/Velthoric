@@ -2,7 +2,7 @@ package net.xmx.vortex.physics.constraint.builder.base;
 
 import com.github.stephengold.joltjni.TwoBodyConstraint;
 import net.xmx.vortex.physics.constraint.manager.VxConstraintManager;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 
 import java.util.UUID;
 
@@ -22,7 +22,7 @@ public abstract class ConstraintBuilder<B extends ConstraintBuilder<B, C>, C ext
     public abstract void reset();
 
     @SuppressWarnings("unchecked")
-    public B between(IPhysicsObject body1, IPhysicsObject body2) {
+    public B between(VxAbstractBody body1, VxAbstractBody body2) {
         this.body1Id = (body1 != null) ? body1.getPhysicsId() : null;
         this.body2Id = (body2 != null) ? body2.getPhysicsId() : null;
         return (B) this;

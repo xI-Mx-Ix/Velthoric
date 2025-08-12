@@ -58,7 +58,7 @@ public final class SpawnRopeCommand {
         VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
-        Optional<RopeSoftBody> spawnedRope = manager.spawnObject(
+        Optional<RopeSoftBody> spawnedRope = manager.createSoftBody(
                 VxRegisteredObjects.ROPE,
                 transform,
                 rope -> rope.setConfiguration(length, segments, radius, mass, 0.001f)

@@ -13,7 +13,7 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
-import net.xmx.vortex.physics.object.physicsobject.type.soft.SoftPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.type.soft.VxSoftBody;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
@@ -22,9 +22,9 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 
 @Environment(EnvType.CLIENT)
-public class ClothSoftBodyRenderer extends SoftPhysicsObject.Renderer {
+public class ClothSoftBodyRenderer implements VxSoftBody.Renderer {
 
-    private static final ResourceLocation BLUE_WOOL_TEXTURE = ResourceLocation.tryParse("minecraft:block/blue_wool");
+    private static final ResourceLocation BLUE_WOOL_TEXTURE = new ResourceLocation("minecraft:block/blue_wool");
 
     @Override
     public void render(UUID id, RenderData renderData, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {

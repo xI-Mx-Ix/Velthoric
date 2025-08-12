@@ -5,8 +5,9 @@ import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
+import net.xmx.vortex.physics.object.physicsobject.type.soft.VxSoftBody;
 
 import java.util.List;
 import java.util.UUID;
@@ -42,6 +43,9 @@ public class SpawnPhysicsObjectBatchPacket {
             for (SpawnData data : msg.spawnDataList) {
                 FriendlyByteBuf dataBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data.data));
                 manager.spawnObject(data.id, data.typeIdentifier, data.objectType, dataBuf, data.timestamp);
+                if (dataBuf.refCnt() > 0) {
+                    dataBuf.release();
+                }
             }
         });
     }
@@ -53,15 +57,22 @@ public class SpawnPhysicsObjectBatchPacket {
         final long timestamp;
         final byte[] data;
 
-        public SpawnData(IPhysicsObject obj, long timestamp) {
+        public SpawnData(VxAbstractBody obj, long timestamp) {
             this.id = obj.getPhysicsId();
-            this.typeIdentifier = obj.getObjectTypeIdentifier();
-            this.objectType = obj.getEObjectType();
+            this.typeIdentifier = obj.getType().getTypeId();
+            this.objectType = obj instanceof VxSoftBody ? EObjectType.SOFT_BODY : EObjectType.RIGID_BODY;
             this.timestamp = timestamp;
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-            obj.writeSpawnData(buf);
-            this.data = new byte[buf.readableBytes()];
-            buf.readBytes(this.data);
+            try {
+                obj.getGameTransform().toBuffer(buf);
+                obj.writeCreationData(buf);
+                this.data = new byte[buf.readableBytes()];
+                buf.readBytes(this.data);
+            } finally {
+                if(buf.refCnt() > 0) {
+                    buf.release();
+                }
+            }
         }
 
         public SpawnData(FriendlyByteBuf buf) {
@@ -79,9 +90,9 @@ public class SpawnPhysicsObjectBatchPacket {
             buf.writeLong(timestamp);
             buf.writeByteArray(data);
         }
-        
+
         public int estimateSize() {
-            return 16 + (typeIdentifier.length() * 4) + 4 + 8 + 4 + data.length;
+            return 16 + FriendlyByteBuf.getVarIntSize(typeIdentifier.length()) + typeIdentifier.length() + 4 + 8 + FriendlyByteBuf.getVarIntSize(data.length) + data.length;
         }
     }
 }

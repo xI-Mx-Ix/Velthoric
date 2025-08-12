@@ -1,16 +1,18 @@
 package net.xmx.vortex.builtin.rope;
 
 import com.github.stephengold.joltjni.Edge;
+import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.Vertex;
-import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.Level;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
-import net.xmx.vortex.physics.object.physicsobject.type.soft.SoftPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.type.soft.VxSoftBody;
+import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
-public class RopeSoftBody extends SoftPhysicsObject {
+import java.util.UUID;
+
+public class RopeSoftBody extends VxSoftBody {
 
     private float ropeLength;
     private int numSegments;
@@ -18,8 +20,8 @@ public class RopeSoftBody extends SoftPhysicsObject {
     private float mass;
     private float compliance;
 
-    public RopeSoftBody(PhysicsObjectType<? extends SoftPhysicsObject> type, Level level) {
-        super(type, level);
+    public RopeSoftBody(PhysicsObjectType<RopeSoftBody> type, VxPhysicsWorld world, UUID id) {
+        super(type, world, id);
         this.ropeLength = 10.0f;
         this.numSegments = 20;
         this.ropeRadius = 0.1f;
@@ -33,10 +35,11 @@ public class RopeSoftBody extends SoftPhysicsObject {
         this.ropeRadius = ropeRadius;
         this.mass = mass;
         this.compliance = compliance;
+        this.markDataDirty();
     }
 
     @Override
-    protected void addAdditionalSpawnData(FriendlyByteBuf buf) {
+    public void writeCreationData(FriendlyByteBuf buf) {
         buf.writeFloat(this.ropeLength);
         buf.writeInt(this.numSegments);
         buf.writeFloat(this.ropeRadius);
@@ -45,7 +48,7 @@ public class RopeSoftBody extends SoftPhysicsObject {
     }
 
     @Override
-    protected void readAdditionalSpawnData(FriendlyByteBuf buf) {
+    public void readCreationData(FriendlyByteBuf buf) {
         this.ropeLength = buf.readFloat();
         this.numSegments = buf.readInt();
         this.ropeRadius = buf.readFloat();
@@ -54,12 +57,16 @@ public class RopeSoftBody extends SoftPhysicsObject {
     }
 
     @Override
-    protected void configureAdditionalSoftBodyCreationSettings(SoftBodyCreationSettings settings) {
+    public SoftBodyCreationSettings createSoftBodyCreationSettings(SoftBodySharedSettings sharedSettings) {
+        SoftBodyCreationSettings settings = new SoftBodyCreationSettings();
+        settings.setSettings(sharedSettings);
+        settings.setObjectLayer(VxPhysicsWorld.Layers.DYNAMIC);
         settings.setVertexRadius(this.ropeRadius);
+        return settings;
     }
 
     @Override
-    protected SoftBodySharedSettings buildSharedSettings() {
+    public SoftBodySharedSettings createSoftBodySharedSettings() {
         int safeNumSegments = Math.max(1, this.numSegments);
         float safeMass = Math.max(0.001f, this.mass);
         float safeRopeLength = Math.max(0.1f, this.ropeLength);
@@ -77,13 +84,12 @@ public class RopeSoftBody extends SoftPhysicsObject {
         }
 
         for (int i = 0; i < numNodes - 1; i++) {
-            try (Edge edge = new Edge()) {
-                edge.setVertex(0, i);
-                edge.setVertex(1, i + 1);
-                edge.setCompliance(this.compliance);
-                edge.setRestLength(segmentLength);
-                settings.addEdgeConstraint(edge);
-            }
+            Edge edge = new Edge();
+            edge.setVertex(0, i);
+            edge.setVertex(1, i + 1);
+            edge.setCompliance(this.compliance);
+            edge.setRestLength(segmentLength);
+            settings.addEdgeConstraint(edge);
         }
 
         settings.optimize();

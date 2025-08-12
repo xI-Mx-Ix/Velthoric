@@ -7,7 +7,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.xmx.vortex.init.registry.EntityRegistry;
-import net.xmx.vortex.physics.object.physicsobject.IPhysicsObject;
+import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.riding.seat.Seat;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.joml.Quaternionf;
@@ -27,16 +27,15 @@ public class RidingManager {
     }
 
     public void startRiding(ServerPlayer player, Rideable rideable, Seat seat) {
-        IPhysicsObject object = rideable;
-        if (player.level().isClientSide() || isRiding(player) || isSeatOccupied(object.getPhysicsId(), seat)) {
+        if (player.level().isClientSide() || isRiding(player) || isSeatOccupied(rideable.getPhysicsId(), seat)) {
             return;
         }
 
         RidingProxyEntity proxy = new RidingProxyEntity(EntityRegistry.RIDING_PROXY.get(), player.level());
         Vector3f rideOffsetJoml = new Vector3f(seat.getRiderOffset());
-        proxy.setFollowInfo(object.getPhysicsId(), rideOffsetJoml);
+        proxy.setFollowInfo(rideable.getPhysicsId(), rideOffsetJoml);
 
-        var initialTransform = object.getCurrentTransform();
+        var initialTransform = rideable.getGameTransform();
         var initialPos = initialTransform.getTranslation();
         var initialRot = initialTransform.getRotation();
         Quaternionf initialQuat = new Quaternionf(initialRot.getX(), initialRot.getY(), initialRot.getZ(), initialRot.getW());
@@ -57,8 +56,8 @@ public class RidingManager {
         world.getLevel().addFreshEntity(proxy);
         player.startRiding(proxy, true);
 
-        objectToRidersMap.computeIfAbsent(object.getPhysicsId(), k -> Maps.newHashMap()).put(player.getUUID(), player);
-        playerToObjectIdMap.put(player.getUUID(), object.getPhysicsId());
+        objectToRidersMap.computeIfAbsent(rideable.getPhysicsId(), k -> Maps.newHashMap()).put(player.getUUID(), player);
+        playerToObjectIdMap.put(player.getUUID(), rideable.getPhysicsId());
         playerToSeatMap.put(player.getUUID(), seat);
 
         rideable.onStartRiding(player, seat);
@@ -86,9 +85,10 @@ public class RidingManager {
                 }
             });
         }
-        if (player.getVehicle() instanceof RidingProxyEntity) {
+        Entity vehicle = player.getVehicle();
+        if (vehicle instanceof RidingProxyEntity) {
             player.stopRiding();
-            player.getVehicle().discard();
+            vehicle.discard();
         }
     }
 
@@ -100,14 +100,14 @@ public class RidingManager {
             Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
             if (riders == null) continue;
 
-            Optional<IPhysicsObject> physObjectOpt = world.getObjectManager().getObject(objectId);
+            Optional<VxAbstractBody> physObjectOpt = world.getObjectManager().getObject(objectId);
             if (physObjectOpt.isEmpty()) {
                 playersToStopRiding.addAll(riders.values());
                 continue;
             }
 
-            IPhysicsObject physObject = physObjectOpt.get();
-            var trans = physObject.getCurrentTransform();
+            VxAbstractBody physObject = physObjectOpt.get();
+            var trans = physObject.getGameTransform();
             var pos = trans.getTranslation();
             var rot = trans.getRotation();
             Quaternionf jomlQuat = new Quaternionf(rot.getX(), rot.getY(), rot.getZ(), rot.getW());
@@ -124,7 +124,6 @@ public class RidingManager {
                         Entity vehicle = rider.getVehicle();
 
                         Vector3f rideOffset = new Vector3f(seat.getRiderOffset());
-
                         jomlQuat.transform(rideOffset);
 
                         double finalX = pos.x() + rideOffset.x();
@@ -134,7 +133,6 @@ public class RidingManager {
                         vehicle.setPos(finalX, finalY, finalZ);
                         vehicle.setYRot(yawDegrees);
                     } else {
-
                         playersToStopRiding.add(rider);
                     }
                 }
