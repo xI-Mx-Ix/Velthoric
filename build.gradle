@@ -55,11 +55,11 @@ subprojects {
         implementation("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.2.0:DebugDp")
 
         include("com.github.stephengold:jolt-jni-Linux64:2.2.0")
-        include("com.github.stephengold:jolt-jni-Windows64:2.2.0:DebugDp")
-        include("com.github.stephengold:jolt-jni-Linux64:2.2.0:DebugDp")
-        include("com.github.stephengold:jolt-jni-Linux_ARM64:2.2.0:DebugDp")
-        include("com.github.stephengold:jolt-jni-MacOSX64:2.2.0:DebugDp")
-        include("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.2.0:DebugDp")
+        include("com.github.stephengold:jolt-jni-Windows64:2.2.0:ReleaseDp")
+        include("com.github.stephengold:jolt-jni-Linux64:2.2.0:ReleaseDp")
+        include("com.github.stephengold:jolt-jni-Linux_ARM64:2.2.0:ReleaseDp")
+        include("com.github.stephengold:jolt-jni-MacOSX64:2.2.0:ReleaseDp")
+        include("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.2.0:ReleaseDp")
 
         minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux64:2.2.0")
         minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Windows64:2.2.0:DebugDp")
@@ -72,17 +72,15 @@ subprojects {
         minecraftRuntimeLibraries("io.github.electrostat-lab:snaploader:1.1.1-stable")
         include("io.github.electrostat-lab:snaploader:1.1.1-stable")
 
-/**
+        /**
+        implementation(name: 'jolt-jni-2.2.1-SNAPSHOT', ext: 'jar')
+        implementation(name: 'jolt-jni-2.2.1-SNAPSHOT-DebugSp', ext: 'jar')
 
-        implementation(name: 'jolt-jni-2.1.1-SNAPSHOT', ext: 'jar')
-        implementation(name: 'jolt-jni-2.1.1-SNAPSHOT-DebugSp', ext: 'jar')
+        include(name: 'jolt-jni-2.2.1-SNAPSHOT', ext: 'jar')
+        include(name: 'jolt-jni-2.2.1-SNAPSHOT-DebugSp', ext: 'jar')
 
-        include(name: 'jolt-jni-2.1.1-SNAPSHOT', ext: 'jar')
-        include(name: 'jolt-jni-2.1.1-SNAPSHOT-DebugSp', ext: 'jar')
-
-        minecraftRuntimeLibraries(name: 'jolt-jni-2.1.1-SNAPSHOT', ext: 'jar')
-        minecraftRuntimeLibraries(name: 'jolt-jni-2.1.1-SNAPSHOT-DebugSp', ext: 'jar')
-
+        minecraftRuntimeLibraries(name: 'jolt-jni-2.2.1-SNAPSHOT', ext: 'jar')
+        minecraftRuntimeLibraries(name: 'jolt-jni-2.2.1-SNAPSHOT-DebugSp', ext: 'jar')
  **/
     }
 
