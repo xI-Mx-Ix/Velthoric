@@ -65,21 +65,39 @@ public abstract class VxAbstractBody {
         return null;
     }
 
-    public void setBodyId(int bodyId) { this.bodyId = bodyId; }
+    public void setBodyId(int bodyId) {
+        this.bodyId = bodyId;
+    }
 
-    public UUID getPhysicsId() { return this.physicsId; }
+    public UUID getPhysicsId() {
+        return this.physicsId;
+    }
 
-    public int getBodyId() { return this.bodyId; }
+    public int getBodyId() {
+        return this.bodyId;
+    }
 
-    public PhysicsObjectType<? extends VxAbstractBody> getType() { return type; }
+    public PhysicsObjectType<? extends VxAbstractBody> getType() {
+        return type;
+    }
 
-    public VxTransform getGameTransform() { return this.gameTransform; }
+    public VxTransform getGameTransform() {
+        return this.gameTransform;
+    }
 
-    public VxPhysicsWorld getWorld() { return this.world; }
+    public VxPhysicsWorld getWorld() {
+        return this.world;
+    }
 
-    public void markDataDirty() { this.isDataDirty = true; }
+    public void markDataDirty() {
+        this.isDataDirty = true;
+    }
 
-    public boolean isDataDirty() { return this.isDataDirty; }
+    public boolean isDataDirty() {
+        return this.isDataDirty;
+    }
 
-    public void clearDataDirty() { this.isDataDirty = false; }
+    public void clearDataDirty() {
+        this.isDataDirty = false;
+    }
 }
