@@ -27,7 +27,7 @@ public class ClothSoftBody extends VxSoftBody {
         this.clothWidth = 2.0f;
         this.clothHeight = 2.0f;
         this.mass = 2.0f;
-        this.compliance = 0.001f;
+        this.compliance = 0.02f;
     }
 
     public void setConfiguration(int widthSegments, int heightSegments, float clothWidth, float clothHeight, float mass, float compliance) {

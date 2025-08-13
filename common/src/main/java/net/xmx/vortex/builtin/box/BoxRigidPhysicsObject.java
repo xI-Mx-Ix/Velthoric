@@ -52,12 +52,15 @@ public class BoxRigidPhysicsObject extends VxRigidBody {
 
     @Override
     public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
-        return new BodyCreationSettings(
+        var settings = new BodyCreationSettings(
                 shapeRef,
                 this.getGameTransform().getTranslation(),
                 this.getGameTransform().getRotation(),
                 EMotionType.Dynamic,
                 VxPhysicsWorld.Layers.DYNAMIC);
+
+        settings.setRestitution(0.4f);
+        return settings;
     }
 
     @Override
