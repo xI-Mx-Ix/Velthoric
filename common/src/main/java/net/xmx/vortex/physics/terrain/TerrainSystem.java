@@ -108,11 +108,19 @@ public class TerrainSystem implements Runnable {
     }
 
     public void onBlockUpdate(BlockPos worldPos, BlockState oldState, BlockState newState) {
-        if (!isInitialized.get() || jobSystem.isShutdown()) {
+        if (!isInitialized.get()) {
             return;
         }
 
-        chunksToRebuild.add(VxSectionPos.fromBlockPos(worldPos.immutable()));
+        VxSectionPos pos = VxSectionPos.fromBlockPos(worldPos.immutable());
+        AtomicInteger state = chunkStates.get(pos);
+
+        if (state != null) {
+            int currentState = state.get();
+            if (currentState == STATE_READY_ACTIVE || currentState == STATE_READY_INACTIVE) {
+                chunksToRebuild.add(pos);
+            }
+        }
 
         physicsWorld.execute(() -> {
             BodyInterface bi = physicsWorld.getBodyInterface();
@@ -130,6 +138,7 @@ public class TerrainSystem implements Runnable {
             }
         });
     }
+
 
     public void onChunkLoadedFromVanilla(@NotNull LevelChunk chunk) {
         if (!isInitialized.get() || jobSystem.isShutdown()) return;

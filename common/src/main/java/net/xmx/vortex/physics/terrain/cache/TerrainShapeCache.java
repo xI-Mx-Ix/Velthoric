@@ -24,17 +24,19 @@ public class TerrainShapeCache {
     }
 
     public synchronized ShapeRefC get(int key) {
-        ShapeRefC shapeRef = cache.get(key);
-        if (shapeRef != null && shapeRef.getPtr() != null) {
-            return shapeRef.getPtr().toRefC();
+        ShapeRefC masterRef = cache.get(key);
+        if (masterRef != null && masterRef.getPtr() != null) {
+            return masterRef.getPtr().toRefC();
         }
         return null;
     }
 
     public synchronized void put(int key, ShapeRefC shape) {
         if (shape == null) return;
+
         ShapeRefC oldShape = cache.put(key, shape);
-        if (oldShape != null && oldShape != shape && oldShape.getPtr() != shape.getPtr()) {
+
+        if (oldShape != null && oldShape != shape) {
             oldShape.close();
         }
     }
