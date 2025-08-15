@@ -15,6 +15,7 @@ import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.model.converter.VoxelShapeConverter;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.VxRigidBody;
+import net.xmx.vortex.physics.world.VxLayers;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
@@ -58,7 +59,7 @@ public class BlockRigidPhysicsObject extends VxRigidBody {
                 this.getGameTransform().getTranslation(),
                 this.getGameTransform().getRotation(),
                 EMotionType.Dynamic,
-                VxPhysicsWorld.Layers.DYNAMIC);
+                VxLayers.DYNAMIC);
     }
 
     @Override

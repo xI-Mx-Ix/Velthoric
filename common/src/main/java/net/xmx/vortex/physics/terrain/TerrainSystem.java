@@ -18,6 +18,7 @@ import net.xmx.vortex.physics.terrain.loader.ChunkSnapshot;
 import net.xmx.vortex.physics.terrain.loader.TerrainGenerator;
 import net.xmx.vortex.physics.terrain.model.VxSectionPos;
 import net.xmx.vortex.physics.terrain.tracker.ObjectTerrainTracker;
+import net.xmx.vortex.physics.world.VxLayers;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.NotNull;
 
@@ -242,7 +243,7 @@ public class TerrainSystem implements Runnable {
             }
         } else {
             RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
-            try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxPhysicsWorld.Layers.STATIC)) {
+            try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxLayers.STATIC)) {
                 Body body = bodyInterface.createBody(bcs);
                 if (body != null) {
                     chunkBodyIds.put(pos, body.getId());

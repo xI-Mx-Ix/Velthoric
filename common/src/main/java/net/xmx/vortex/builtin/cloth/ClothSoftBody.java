@@ -6,6 +6,7 @@ import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.VxSoftBody;
+import net.xmx.vortex.physics.world.VxLayers;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
@@ -63,7 +64,7 @@ public class ClothSoftBody extends VxSoftBody {
     public SoftBodyCreationSettings createSoftBodyCreationSettings(SoftBodySharedSettings sharedSettings) {
         SoftBodyCreationSettings settings = new SoftBodyCreationSettings();
         settings.setSettings(sharedSettings);
-        settings.setObjectLayer(VxPhysicsWorld.Layers.DYNAMIC);
+        settings.setObjectLayer(VxLayers.DYNAMIC);
         settings.setVertexRadius(0.02f);
         return settings;
     }

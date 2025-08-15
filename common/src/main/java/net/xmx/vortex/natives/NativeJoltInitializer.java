@@ -3,7 +3,8 @@ package net.xmx.vortex.natives;
 import com.github.stephengold.joltjni.*;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.natives.loader.*;
-import net.xmx.vortex.physics.world.VxPhysicsWorld;
+import net.xmx.vortex.physics.world.VxLayers;
+import net.xmx.vortex.physics.world.VxBroadPhaseLayers;
 
 public class NativeJoltInitializer {
 
@@ -45,24 +46,24 @@ public class NativeJoltInitializer {
 
     private static void initializeCollisionFilters() {
 
-        final int numObjectLayers = VxPhysicsWorld.Layers.NUM_LAYERS;
+        final int numObjectLayers = VxLayers.NUM_LAYERS;
 
-        final int numBroadPhaseLayers = VxPhysicsWorld.BroadPhaseLayers.NUM_LAYERS;
+        final int numBroadPhaseLayers = VxBroadPhaseLayers.NUM_LAYERS;
 
         ObjectLayerPairFilterTable olpfTable = new ObjectLayerPairFilterTable(numObjectLayers);
 
-        olpfTable.disableCollision(VxPhysicsWorld.Layers.STATIC, VxPhysicsWorld.Layers.STATIC);
+        olpfTable.disableCollision(VxLayers.STATIC, VxLayers.STATIC);
 
-        olpfTable.enableCollision(VxPhysicsWorld.Layers.DYNAMIC, VxPhysicsWorld.Layers.DYNAMIC);
+        olpfTable.enableCollision(VxLayers.DYNAMIC, VxLayers.DYNAMIC);
 
-        olpfTable.enableCollision(VxPhysicsWorld.Layers.STATIC, VxPhysicsWorld.Layers.DYNAMIC);
+        olpfTable.enableCollision(VxLayers.STATIC, VxLayers.DYNAMIC);
 
         objectLayerPairFilter = olpfTable;
 
         BroadPhaseLayerInterfaceTable bpliTable = new BroadPhaseLayerInterfaceTable(numObjectLayers, numBroadPhaseLayers);
 
-        bpliTable.mapObjectToBroadPhaseLayer(VxPhysicsWorld.Layers.STATIC, VxPhysicsWorld.BroadPhaseLayers.STATIC);
-        bpliTable.mapObjectToBroadPhaseLayer(VxPhysicsWorld.Layers.DYNAMIC, VxPhysicsWorld.BroadPhaseLayers.DYNAMIC);
+        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.STATIC, VxBroadPhaseLayers.STATIC);
+        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.DYNAMIC, VxBroadPhaseLayers.DYNAMIC);
 
         broadPhaseLayerInterface = bpliTable;
 

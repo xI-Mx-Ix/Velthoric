@@ -6,6 +6,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.VxRigidBody;
 import net.xmx.vortex.physics.object.riding.seat.Seat;
+import net.xmx.vortex.physics.world.VxLayers;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 import net.minecraft.world.phys.AABB;
@@ -57,7 +58,7 @@ public class BoxRigidPhysicsObject extends VxRigidBody {
                 this.getGameTransform().getTranslation(),
                 this.getGameTransform().getRotation(),
                 EMotionType.Dynamic,
-                VxPhysicsWorld.Layers.DYNAMIC);
+                VxLayers.DYNAMIC);
 
         settings.setRestitution(0.4f);
         return settings;

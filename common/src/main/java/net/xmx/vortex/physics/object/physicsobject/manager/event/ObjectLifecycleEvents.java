@@ -1,6 +1,5 @@
 package net.xmx.vortex.physics.object.physicsobject.manager.event;
 
-import com.github.stephengold.joltjni.Vec3;
 import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.core.SectionPos;

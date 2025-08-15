@@ -1,9 +1,7 @@
 package net.xmx.vortex.mixin.impl.terrain;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.vortex.physics.terrain.TerrainSystem;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
@@ -11,7 +9,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import java.util.function.BooleanSupplier;
 
 @Mixin(ServerLevel.class)
 public abstract class ServerLevelMixin {

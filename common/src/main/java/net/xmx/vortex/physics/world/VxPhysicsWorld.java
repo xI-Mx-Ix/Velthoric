@@ -36,11 +36,11 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final int maxBodies = 65536;
     private final int maxBodyPairs = 65536;
     private final int maxContactConstraints = 20480;
-    private final int numPositionIterations = 2;
+    private final int numPositionIterations = 4;
     private final int numVelocityIterations = 8;
     private final float speculativeContactDistance = 0.0f;
     private final float baumgarteFactor = 0.2f;
-    private final float penetrationSlop = 0.02f;
+    private final float penetrationSlop = 0.006f;
     private final float timeBeforeSleep = 0.5f;
     private final float pointVelocitySleepThreshold = 0.03f;
     private final float gravityY = -9.81f;
@@ -96,18 +96,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     public static void shutdownAll() {
         new ArrayList<>(worlds.keySet()).forEach(VxPhysicsWorld::shutdown);
         worlds.clear();
-    }
-
-    public static class Layers {
-        public static final short STATIC = 0;
-        public static final short DYNAMIC = 1;
-        public static final short NUM_LAYERS = 2;
-    }
-
-    public static class BroadPhaseLayers {
-        public static final byte STATIC = 0;
-        public static final byte DYNAMIC = 1;
-        public static final byte NUM_LAYERS = 2;
     }
 
     private void initializeAndStart() {
