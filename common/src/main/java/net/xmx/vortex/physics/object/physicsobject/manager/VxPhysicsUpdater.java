@@ -1,6 +1,7 @@
 package net.xmx.vortex.physics.object.physicsobject.manager;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodySharedSettings;
 import net.xmx.vortex.math.VxTransform;
 import net.xmx.vortex.physics.object.physicsobject.EObjectType;
@@ -21,11 +22,19 @@ import java.util.concurrent.ConcurrentHashMap;
 public class VxPhysicsUpdater {
 
     private final VxObjectManager manager;
-    private final Map<UUID, Boolean> lastActiveState = new ConcurrentHashMap<>();
+    private final Map<UUID, LastSentState> lastSentStates = new ConcurrentHashMap<>();
     private long physicsTickCounter = 0;
     private static final int INACTIVE_OBJECT_UPDATE_INTERVAL_TICKS = 3;
 
+    private static final double POSITION_THRESHOLD_SQUARED = 0.01 * 0.01;
+
+    private static final float ROTATION_THRESHOLD = 0.99999f;
+
+    private static final float VELOCITY_THRESHOLD_SQUARED = 0.01f * 0.01f;
+
     private final ThreadLocal<VxTransform> tempTransform = ThreadLocal.withInitial(VxTransform::new);
+    private final ThreadLocal<Vec3> tempLinVel = ThreadLocal.withInitial(Vec3::new);
+    private final ThreadLocal<Vec3> tempAngVel = ThreadLocal.withInitial(Vec3::new);
     private final ThreadLocal<ReusableFloatBuffer> tempVertexBuffer = ThreadLocal.withInitial(ReusableFloatBuffer::new);
     private final ThreadLocal<List<VxAbstractBody>> localObjectsToUpdate = ThreadLocal.withInitial(ArrayList::new);
     private final ThreadLocal<List<PhysicsObjectState>> localStatesToSend = ThreadLocal.withInitial(ArrayList::new);
@@ -52,12 +61,8 @@ public class VxPhysicsUpdater {
             obj.physicsTick(world);
 
             boolean isActive = bodyInterface.isActive(bodyId);
-            Boolean previousState = lastActiveState.get(obj.getPhysicsId());
-            boolean stateChanged = previousState == null || !previousState.equals(isActive);
-
-            if (stateChanged) {
-                lastActiveState.put(obj.getPhysicsId(), isActive);
-            }
+            LastSentState lastState = lastSentStates.get(obj.getPhysicsId());
+            boolean stateChanged = (lastState == null) || (lastState.isActive != isActive);
 
             if (isActive || stateChanged || isPeriodicUpdateTick) {
                 objectsToUpdate.add(obj);
@@ -68,7 +73,7 @@ public class VxPhysicsUpdater {
             List<PhysicsObjectState> statesToSend = localStatesToSend.get();
             statesToSend.clear();
             for (VxAbstractBody obj : objectsToUpdate) {
-                prepareNetworkData(obj, timestampNanos, bodyInterface, world.getBodyLockInterface(), statesToSend);
+                prepareAndQueueStateUpdate(obj, timestampNanos, bodyInterface, world.getBodyLockInterface(), statesToSend);
                 if (obj.isDataDirty()) {
                     dispatcher.dispatchDataUpdate(obj);
                 }
@@ -79,28 +84,86 @@ public class VxPhysicsUpdater {
         }
     }
 
-    private void prepareNetworkData(VxAbstractBody obj, long timestampNanos, BodyInterface bodyInterface, BodyLockInterface lockInterface, List<PhysicsObjectState> statesToSend) {
+    private void prepareAndQueueStateUpdate(VxAbstractBody obj, long timestampNanos, BodyInterface bodyInterface, BodyLockInterface lockInterface, List<PhysicsObjectState> statesToSend) {
         final int bodyId = obj.getBodyId();
-        final VxTransform transform = tempTransform.get();
+        final UUID id = obj.getPhysicsId();
+        final VxTransform currentTransform = tempTransform.get();
 
         boolean isActive = bodyInterface.isActive(bodyId);
+        bodyInterface.getPositionAndRotation(bodyId, currentTransform.getTranslation(), currentTransform.getRotation());
+        obj.getGameTransform().set(currentTransform);
 
-        bodyInterface.getPositionAndRotation(bodyId, transform.getTranslation(), transform.getRotation());
-        obj.getGameTransform().set(transform);
+        Vec3 linVel;
+        Vec3 angVel;
 
-        Vec3 linVel = isActive ? bodyInterface.getLinearVelocity(bodyId) : null;
-        Vec3 angVel = isActive ? bodyInterface.getAngularVelocity(bodyId) : null;
+        if (isActive) {
+            linVel = bodyInterface.getLinearVelocity(bodyId);
+            angVel = bodyInterface.getAngularVelocity(bodyId);
+        } else {
+            linVel = tempLinVel.get();
+            linVel.loadZero();
+            angVel = tempAngVel.get();
+            angVel.loadZero();
+        }
 
         float[] vertexData = null;
         if (obj instanceof VxSoftBody softBody) {
             vertexData = getSoftBodyVertices(lockInterface, bodyId);
-            softBody.setLastSyncedVertexData(vertexData);
         }
 
-        EObjectType eObjectType = obj instanceof VxSoftBody ? EObjectType.SOFT_BODY : EObjectType.RIGID_BODY;
-        PhysicsObjectState state = PhysicsObjectStatePool.acquire();
-        state.from(obj.getPhysicsId(), eObjectType, transform, linVel, angVel, vertexData, timestampNanos, isActive);
-        statesToSend.add(state);
+        LastSentState lastState = lastSentStates.get(id);
+
+        if (hasStateChanged(lastState, currentTransform, linVel, angVel, vertexData, isActive)) {
+            if (lastState == null) {
+                lastState = new LastSentState();
+                lastSentStates.put(id, lastState);
+            }
+            lastState.update(currentTransform, linVel, angVel, vertexData, isActive);
+            if (obj instanceof VxSoftBody softBody && vertexData != null) {
+                softBody.setLastSyncedVertexData(Arrays.copyOf(vertexData, vertexData.length));
+            }
+
+            EObjectType eObjectType = obj instanceof VxSoftBody ? EObjectType.SOFT_BODY : EObjectType.RIGID_BODY;
+            PhysicsObjectState state = PhysicsObjectStatePool.acquire();
+            state.from(id, eObjectType, currentTransform, linVel, angVel, vertexData, timestampNanos, isActive);
+            statesToSend.add(state);
+        }
+    }
+
+    private boolean hasStateChanged(LastSentState lastState, VxTransform currentTransform, Vec3 currentLinVel, Vec3 currentAngVel, float[] currentVertices, boolean isActive) {
+        if (lastState == null || lastState.isActive != isActive) {
+            return true;
+        }
+
+        if (isActive) {
+
+            if (Op.minus(lastState.linearVelocity, currentLinVel).lengthSq() > VELOCITY_THRESHOLD_SQUARED ||
+                    Op.minus(lastState.angularVelocity, currentAngVel).lengthSq() > VELOCITY_THRESHOLD_SQUARED) {
+                return true;
+            }
+
+        }
+
+        if (Op.minus(lastState.transform.getTranslation(), currentTransform.getTranslation()).lengthSq() > POSITION_THRESHOLD_SQUARED) {
+            return true;
+        }
+
+        Quat q1 = lastState.transform.getRotation();
+        Quat q2 = currentTransform.getRotation();
+        float dot = q1.getX() * q2.getX() + q1.getY() * q2.getY() + q1.getZ() * q2.getZ() + q1.getW() * q2.getW();
+        if (Math.abs(dot) < ROTATION_THRESHOLD) {
+            return true;
+        }
+
+        if (!Arrays.equals(lastState.vertexData, currentVertices)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public void clearStateFor(UUID id) {
+        lastSentStates.remove(id);
     }
 
     private float @Nullable [] getSoftBodyVertices(BodyLockInterface lockInterface, int bodyId) {
@@ -131,6 +194,31 @@ public class VxPhysicsUpdater {
             }
         }
         return null;
+    }
+
+    private static class LastSentState {
+        final VxTransform transform = new VxTransform();
+        final Vec3 linearVelocity = new Vec3();
+        final Vec3 angularVelocity = new Vec3();
+        @Nullable
+        float[] vertexData;
+        boolean isActive;
+
+        void update(VxTransform transform, Vec3 linVel, Vec3 angVel, @Nullable float[] vertices, boolean isActive) {
+            this.transform.set(transform);
+            this.linearVelocity.set(linVel);
+            this.angularVelocity.set(angVel);
+            this.isActive = isActive;
+
+            if (vertices != null) {
+                if (this.vertexData == null || this.vertexData.length != vertices.length) {
+                    this.vertexData = new float[vertices.length];
+                }
+                System.arraycopy(vertices, 0, this.vertexData, 0, vertices.length);
+            } else {
+                this.vertexData = null;
+            }
+        }
     }
 
     private static class ReusableFloatBuffer {

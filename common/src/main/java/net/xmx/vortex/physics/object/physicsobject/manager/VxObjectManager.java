@@ -133,6 +133,7 @@ public class VxObjectManager {
             }
             return;
         }
+        physicsUpdater.clearStateFor(id);
 
         if (reason == VxRemovalReason.SAVE) {
             obj.getTransform(world).ifPresent(t -> obj.getGameTransform().set(t));

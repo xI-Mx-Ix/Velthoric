@@ -16,6 +16,9 @@ public class InterpolationStateContainer {
     private static final float MAX_EXTRAPOLATION_SECONDS = 0.1f;
     private static final int MAX_BUFFER_SIZE = 60;
     private static final long BUFFER_TIME_NANOS = 200_000_000L;
+    private static final float CUBIC_INTERPOLATION_TIME_THRESHOLD_SECONDS = 0.1f;
+
+    private static final long BRIDGE_STATE_TIME_OFFSET_NANOS = 1L;
 
     private final Deque<StateSnapshot> stateBuffer = new ArrayDeque<>();
     private final RenderData renderData = new RenderData();
@@ -27,6 +30,22 @@ public class InterpolationStateContainer {
     public void addState(long serverTimestamp, VxTransform transform, @Nullable Vec3 linVel, @Nullable Vec3 angVel, @Nullable float[] vertices, boolean isActive) {
         if (!stateBuffer.isEmpty() && serverTimestamp <= stateBuffer.peekLast().serverTimestampNanos) {
             return;
+        }
+
+        StateSnapshot last = stateBuffer.peekLast();
+        if (last != null && !last.isActive && isActive) {
+
+            StateSnapshot bridgeState = StateSnapshot.acquire();
+
+            bridgeState.transform.set(last.transform);
+
+            bridgeState.serverTimestampNanos = serverTimestamp - BRIDGE_STATE_TIME_OFFSET_NANOS;
+
+            bridgeState.isActive = true;
+            bridgeState.linearVelocity.loadZero();
+            bridgeState.angularVelocity.loadZero();
+            bridgeState.vertexData = last.vertexData;
+            stateBuffer.addLast(bridgeState);
         }
 
         if (vertices != null) {
@@ -91,6 +110,7 @@ public class InterpolationStateContainer {
         }
 
         if (from == null) {
+
             StateSnapshot oldest = stateBuffer.peekFirst();
             renderData.transform.set(oldest.transform);
             renderData.vertexData = oldest.vertexData;
@@ -98,11 +118,13 @@ public class InterpolationStateContainer {
         }
 
         if (to == null) {
+
             return extrapolate(from, renderTimestamp);
         }
 
         long timeDiff = to.serverTimestampNanos - from.serverTimestampNanos;
         if (timeDiff <= 0) {
+
             renderData.transform.set(from.transform);
             renderData.vertexData = from.vertexData;
             return renderData;
@@ -115,7 +137,8 @@ public class InterpolationStateContainer {
     private RenderData interpolate(StateSnapshot from, StateSnapshot to, float alpha, float dt) {
         boolean useCubic = from.isActive && to.isActive &&
                 from.linearVelocity != null && to.linearVelocity != null &&
-                from.angularVelocity != null && to.angularVelocity != null;
+                from.angularVelocity != null && to.angularVelocity != null &&
+                dt < CUBIC_INTERPOLATION_TIME_THRESHOLD_SECONDS;
 
         if (useCubic) {
             VxOperations.cubicHermite(from.transform.getTranslation(), from.linearVelocity, to.transform.getTranslation(), to.linearVelocity, alpha, dt, this.renderData.transform.getTranslation());
