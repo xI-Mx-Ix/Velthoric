@@ -38,7 +38,7 @@ public class BlockRenderer implements VxRigidBody.Renderer {
             try {
                 int blockStateId = buf.readVarInt();
                 BlockState parsedState = Block.stateById(blockStateId);
-                if (parsedState != null && !parsedState.isAir()) {
+                if (!parsedState.isAir()) {
                     blockStateToRender = parsedState;
                 }
             } catch (Exception e) {

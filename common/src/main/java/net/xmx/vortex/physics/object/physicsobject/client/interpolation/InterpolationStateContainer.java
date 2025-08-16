@@ -179,8 +179,7 @@ public class InterpolationStateContainer {
         return stateBuffer.peekLast().transform.getTranslation();
     }
 
-    @Nullable
-    public float[] getLatestVertexData() {
+    public float @Nullable [] getLatestVertexData() {
         if (stateBuffer.isEmpty()) {
             return lastGoodVertices;
         }
