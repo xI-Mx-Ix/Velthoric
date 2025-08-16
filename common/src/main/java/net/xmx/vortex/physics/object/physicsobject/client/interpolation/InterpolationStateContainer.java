@@ -17,12 +17,9 @@ public class InterpolationStateContainer {
     private static final int MAX_BUFFER_SIZE = 60;
     private static final long BUFFER_TIME_NANOS = 200_000_000L;
     private static final float CUBIC_INTERPOLATION_TIME_THRESHOLD_SECONDS = 0.1f;
-
     private static final long BRIDGE_STATE_TIME_OFFSET_NANOS = 1L;
 
     private final Deque<StateSnapshot> stateBuffer = new ArrayDeque<>();
-    private final RenderData renderData = new RenderData();
-
     private final VxTransform lastGoodTransform = new VxTransform();
     @Nullable
     private float[] lastGoodVertices = null;
@@ -34,13 +31,9 @@ public class InterpolationStateContainer {
 
         StateSnapshot last = stateBuffer.peekLast();
         if (last != null && !last.isActive && isActive) {
-
             StateSnapshot bridgeState = StateSnapshot.acquire();
-
             bridgeState.transform.set(last.transform);
-
             bridgeState.serverTimestampNanos = serverTimestamp - BRIDGE_STATE_TIME_OFFSET_NANOS;
-
             bridgeState.isActive = true;
             bridgeState.linearVelocity.loadZero();
             bridgeState.angularVelocity.loadZero();
@@ -75,14 +68,15 @@ public class InterpolationStateContainer {
         }
     }
 
-    public RenderData getInterpolatedState(long renderTimestamp) {
+    public void getInterpolatedState(long renderTimestamp, RenderState out) {
         if (stateBuffer.size() < 2) {
             if (!stateBuffer.isEmpty()) {
-                return extrapolate(stateBuffer.peekFirst(), renderTimestamp);
+                extrapolate(stateBuffer.peekFirst(), renderTimestamp, out);
+            } else {
+                out.transform.set(lastGoodTransform);
+                out.vertexData = lastGoodVertices;
             }
-            renderData.transform.set(lastGoodTransform);
-            renderData.vertexData = lastGoodVertices;
-            return renderData;
+            return;
         }
 
         StateSnapshot from = null;
@@ -100,7 +94,7 @@ public class InterpolationStateContainer {
 
         if (from != null && to == null) {
             Iterator<StateSnapshot> forwardIt = stateBuffer.iterator();
-            while(forwardIt.hasNext()) {
+            while (forwardIt.hasNext()) {
                 StateSnapshot s = forwardIt.next();
                 if (s == from && forwardIt.hasNext()) {
                     to = forwardIt.next();
@@ -110,76 +104,71 @@ public class InterpolationStateContainer {
         }
 
         if (from == null) {
-
             StateSnapshot oldest = stateBuffer.peekFirst();
-            renderData.transform.set(oldest.transform);
-            renderData.vertexData = oldest.vertexData;
-            return renderData;
+            out.transform.set(oldest.transform);
+            out.vertexData = oldest.vertexData;
+            return;
         }
 
         if (to == null) {
-
-            return extrapolate(from, renderTimestamp);
+            extrapolate(from, renderTimestamp, out);
+            return;
         }
 
         long timeDiff = to.serverTimestampNanos - from.serverTimestampNanos;
         if (timeDiff <= 0) {
-
-            renderData.transform.set(from.transform);
-            renderData.vertexData = from.vertexData;
-            return renderData;
+            out.transform.set(from.transform);
+            out.vertexData = from.vertexData;
+            return;
         }
 
         float alpha = Mth.clamp((float) (renderTimestamp - from.serverTimestampNanos) / timeDiff, 0.0f, 1.0f);
-        return interpolate(from, to, alpha, timeDiff / 1_000_000_000.0f);
+        interpolate(from, to, alpha, timeDiff / 1_000_000_000.0f, out);
     }
 
-    private RenderData interpolate(StateSnapshot from, StateSnapshot to, float alpha, float dt) {
+    private void interpolate(StateSnapshot from, StateSnapshot to, float alpha, float dt, RenderState out) {
         boolean useCubic = from.isActive && to.isActive &&
                 from.linearVelocity != null && to.linearVelocity != null &&
                 from.angularVelocity != null && to.angularVelocity != null &&
                 dt < CUBIC_INTERPOLATION_TIME_THRESHOLD_SECONDS;
 
         if (useCubic) {
-            VxOperations.cubicHermite(from.transform.getTranslation(), from.linearVelocity, to.transform.getTranslation(), to.linearVelocity, alpha, dt, this.renderData.transform.getTranslation());
+            VxOperations.cubicHermite(from.transform.getTranslation(), from.linearVelocity, to.transform.getTranslation(), to.linearVelocity, alpha, dt, out.transform.getTranslation());
         } else {
-            VxOperations.lerp(from.transform.getTranslation(), to.transform.getTranslation(), alpha, this.renderData.transform.getTranslation());
+            VxOperations.lerp(from.transform.getTranslation(), to.transform.getTranslation(), alpha, out.transform.getTranslation());
         }
 
-        VxOperations.slerp(from.transform.getRotation(), to.transform.getRotation(), alpha, this.renderData.transform.getRotation());
+        VxOperations.slerp(from.transform.getRotation(), to.transform.getRotation(), alpha, out.transform.getRotation());
 
         if (from.vertexData != null && to.vertexData != null && from.vertexData.length == to.vertexData.length) {
-            if (this.renderData.vertexData == null || this.renderData.vertexData.length != from.vertexData.length) {
-                this.renderData.vertexData = new float[from.vertexData.length];
+            if (out.vertexData == null || out.vertexData.length != from.vertexData.length) {
+                out.vertexData = new float[from.vertexData.length];
             }
             for (int i = 0; i < from.vertexData.length; i++) {
-                this.renderData.vertexData[i] = Mth.lerp(alpha, from.vertexData[i], to.vertexData[i]);
+                out.vertexData[i] = Mth.lerp(alpha, from.vertexData[i], to.vertexData[i]);
             }
         } else {
-            this.renderData.vertexData = to.vertexData != null ? to.vertexData : from.vertexData;
+            out.vertexData = to.vertexData != null ? to.vertexData : from.vertexData;
         }
-
-        return this.renderData;
     }
 
-    private RenderData extrapolate(StateSnapshot from, long renderTimestamp) {
+    private void extrapolate(StateSnapshot from, long renderTimestamp, RenderState out) {
         if (!from.isActive || from.linearVelocity == null || from.angularVelocity == null) {
-            this.renderData.transform.set(from.transform);
-            this.renderData.vertexData = from.vertexData;
-            return this.renderData;
+            out.transform.set(from.transform);
+            out.vertexData = from.vertexData;
+            return;
         }
 
-        float dt = (float)(renderTimestamp - from.serverTimestampNanos) / 1_000_000_000.0f;
+        float dt = (float) (renderTimestamp - from.serverTimestampNanos) / 1_000_000_000.0f;
 
         if (dt > 0 && dt < MAX_EXTRAPOLATION_SECONDS) {
-            VxOperations.extrapolatePosition(from.transform.getTranslation(), from.linearVelocity, dt, this.renderData.transform.getTranslation());
-            VxOperations.extrapolateRotation(from.transform.getRotation(), from.angularVelocity, dt, this.renderData.transform.getRotation());
-            this.renderData.vertexData = from.vertexData;
+            VxOperations.extrapolatePosition(from.transform.getTranslation(), from.linearVelocity, dt, out.transform.getTranslation());
+            VxOperations.extrapolateRotation(from.transform.getRotation(), from.angularVelocity, dt, out.transform.getRotation());
+            out.vertexData = from.vertexData;
         } else {
-            this.renderData.transform.set(from.transform);
-            this.renderData.vertexData = from.vertexData;
+            out.transform.set(from.transform);
+            out.vertexData = from.vertexData;
         }
-        return this.renderData;
     }
 
     @Nullable

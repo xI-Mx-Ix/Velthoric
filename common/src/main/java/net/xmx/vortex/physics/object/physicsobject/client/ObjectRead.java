@@ -2,10 +2,11 @@ package net.xmx.vortex.physics.object.physicsobject.client;
 
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolationFrame;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.VxRigidBody;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.VxSoftBody;
 import org.jetbrains.annotations.Nullable;
+
 import java.io.Closeable;
 import java.nio.ByteBuffer;
 import java.util.UUID;
@@ -19,7 +20,8 @@ public final class ObjectRead implements Closeable {
     private UUID objectId;
     private boolean isValid = false;
 
-    private ObjectRead() {}
+    private ObjectRead() {
+    }
 
     public static ObjectRead get(UUID objectId) {
         ObjectRead reader = POOL.poll();
@@ -51,9 +53,9 @@ public final class ObjectRead implements Closeable {
     }
 
     @Nullable
-    public InterpolatedRenderState getRenderState() {
+    public InterpolationFrame getInterpolationFrame() {
         if (!isValid) return null;
-        return dataManager.getRenderState(objectId);
+        return dataManager.getInterpolationFrame(objectId);
     }
 
     @Nullable

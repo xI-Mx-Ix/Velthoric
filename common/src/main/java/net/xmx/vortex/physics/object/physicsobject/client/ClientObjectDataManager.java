@@ -11,9 +11,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.vortex.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolationFrame;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolationStateContainer;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
 import net.xmx.vortex.physics.object.physicsobject.client.time.VxClientClock;
 import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectState;
 import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectStatePool;
@@ -37,7 +36,7 @@ public class ClientObjectDataManager {
     private boolean isClockOffsetInitialized = false;
 
     private final Map<UUID, InterpolationStateContainer> stateContainers = new ConcurrentHashMap<>();
-    private final Map<UUID, InterpolatedRenderState> renderStates = new ConcurrentHashMap<>();
+    private final Map<UUID, InterpolationFrame> renderFrames = new ConcurrentHashMap<>();
     private final Map<UUID, EBodyType> objectTypes = new ConcurrentHashMap<>();
     private final Map<UUID, String> typeIdentifiers = new ConcurrentHashMap<>();
     private final Map<UUID, VxRigidBody.Renderer> rigidRenderers = new ConcurrentHashMap<>();
@@ -123,50 +122,22 @@ public class ClientObjectDataManager {
         for (Map.Entry<UUID, InterpolationStateContainer> entry : stateContainers.entrySet()) {
             UUID id = entry.getKey();
             InterpolationStateContainer container = entry.getValue();
-            InterpolatedRenderState state = renderStates.computeIfAbsent(id, k -> new InterpolatedRenderState());
+            InterpolationFrame frame = renderFrames.computeIfAbsent(id, k -> new InterpolationFrame());
 
-            state.previous.transform.set(state.current.transform);
-            if (state.current.vertexData != null) {
-                if (state.previous.vertexData == null || state.previous.vertexData.length != state.current.vertexData.length) {
-                    state.previous.vertexData = new float[state.current.vertexData.length];
-                }
-                System.arraycopy(state.current.vertexData, 0, state.previous.vertexData, 0, state.current.vertexData.length);
-            } else {
-                state.previous.vertexData = null;
-            }
+            frame.previous.set(frame.current);
 
-            RenderData newCurrentData = container.getInterpolatedState(renderTimestamp);
+            container.getInterpolatedState(renderTimestamp, frame.current);
 
-            if (newCurrentData != null) {
-                state.current.transform.set(newCurrentData.transform);
-
-                if (newCurrentData.vertexData != null) {
-
-                    if (state.current.vertexData == null || state.current.vertexData.length != newCurrentData.vertexData.length) {
-                        state.current.vertexData = new float[newCurrentData.vertexData.length];
-                    }
-
-                    System.arraycopy(newCurrentData.vertexData, 0, state.current.vertexData, 0, newCurrentData.vertexData.length);
-                } else {
-                    state.current.vertexData = null;
-                }
-
-            }
-
-            if (!state.isInitialized) {
-                state.previous.transform.set(state.current.transform);
-                if (state.current.vertexData != null) {
-
-                    state.previous.vertexData = Arrays.copyOf(state.current.vertexData, state.current.vertexData.length);
-                }
-                state.isInitialized = true;
+            if (!frame.isInitialized) {
+                frame.previous.set(frame.current);
+                frame.isInitialized = true;
             }
         }
     }
 
     public void spawnObject(UUID id, String typeId, EBodyType objType, FriendlyByteBuf data, long serverTimestamp) {
         stateContainers.computeIfAbsent(id, key -> {
-            renderStates.put(id, new InterpolatedRenderState());
+            renderFrames.put(id, new InterpolationFrame());
             objectTypes.put(id, objType);
             typeIdentifiers.put(id, typeId);
 
@@ -246,7 +217,7 @@ public class ClientObjectDataManager {
         if (container != null) {
             container.release();
         }
-        renderStates.remove(id);
+        renderFrames.remove(id);
         objectTypes.remove(id);
         typeIdentifiers.remove(id);
         rigidRenderers.remove(id);
@@ -258,7 +229,7 @@ public class ClientObjectDataManager {
         stateUpdateQueue.clear();
         stateContainers.values().forEach(InterpolationStateContainer::release);
         stateContainers.clear();
-        renderStates.clear();
+        renderFrames.clear();
         objectTypes.clear();
         typeIdentifiers.clear();
         rigidRenderers.clear();
@@ -270,8 +241,8 @@ public class ClientObjectDataManager {
     }
 
     @Nullable
-    public InterpolatedRenderState getRenderState(UUID id) {
-        return renderStates.get(id);
+    public InterpolationFrame getInterpolationFrame(UUID id) {
+        return renderFrames.get(id);
     }
 
     @Nullable
@@ -316,9 +287,9 @@ public class ClientObjectDataManager {
         int total = 0;
         for (UUID id : objectTypes.keySet()) {
             if (objectTypes.get(id) == EBodyType.SoftBody) {
-                InterpolatedRenderState state = renderStates.get(id);
-                if (state != null && state.current != null && state.current.vertexData != null) {
-                    total += state.current.vertexData.length / 3;
+                InterpolationFrame frame = renderFrames.get(id);
+                if (frame != null && frame.current.vertexData != null) {
+                    total += frame.current.vertexData.length / 3;
                 }
             }
         }

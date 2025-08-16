@@ -8,8 +8,8 @@ import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.util.Mth;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolationFrame;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderState;
 import net.xmx.vortex.physics.object.riding.RidingProxyEntity;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -21,6 +21,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(PlayerRenderer.class)
 public abstract class PlayerRendererMixin {
 
+    private static final RenderState vortex_reusableRenderState = new RenderState();
+
     protected float getDeathMaxRotation(AbstractClientPlayer player) {
         return 90.0F;
     }
@@ -29,14 +31,14 @@ public abstract class PlayerRendererMixin {
     private void vortex_setupPhysicsObjectRotations(AbstractClientPlayer player, PoseStack poseStack, float ageInTicks, float rotationYaw, float partialTicks, CallbackInfo ci) {
         if (player.getVehicle() instanceof RidingProxyEntity proxy) {
             proxy.getPhysicsObjectId().ifPresent(id -> {
-                InterpolatedRenderState state = ClientObjectDataManager.getInstance().getRenderState(id);
-                if (state == null || !state.isInitialized) {
+                InterpolationFrame frame = ClientObjectDataManager.getInstance().getInterpolationFrame(id);
+                if (frame == null || !frame.isInitialized) {
                     return;
                 }
 
-                RenderData interpolatedData = RenderData.interpolate(state, partialTicks, new RenderData());
-                RVec3 physPos = interpolatedData.transform.getTranslation();
-                Quat physRotQuat = interpolatedData.transform.getRotation();
+                frame.interpolate(vortex_reusableRenderState, partialTicks);
+                RVec3 physPos = vortex_reusableRenderState.transform.getTranslation();
+                Quat physRotQuat = vortex_reusableRenderState.transform.getRotation();
 
                 Quaternionf physRotation = new Quaternionf(physRotQuat.getX(), physRotQuat.getY(), physRotQuat.getZ(), physRotQuat.getW());
 

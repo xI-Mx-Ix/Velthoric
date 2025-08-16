@@ -8,7 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockColors;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.network.FriendlyByteBuf;
@@ -19,7 +18,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.vortex.init.VxMainClass;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderState;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.VxRigidBody;
 import org.jetbrains.annotations.Nullable;
 
@@ -30,7 +29,7 @@ import java.util.UUID;
 public class BlockRenderer implements VxRigidBody.Renderer {
 
     @Override
-    public void render(UUID id, RenderData renderData, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
+    public void render(UUID id, RenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
         BlockState blockStateToRender = Blocks.STONE.defaultBlockState();
 
         if (customData != null && customData.hasRemaining()) {

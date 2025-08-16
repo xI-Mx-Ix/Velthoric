@@ -4,29 +4,27 @@ import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.util.Mth;
 import net.xmx.vortex.math.VxOperations;
-import net.xmx.vortex.math.VxTransform;
-import org.jetbrains.annotations.Nullable;
 
-public class RenderData {
-    public final VxTransform transform = new VxTransform();
-    public float @Nullable [] vertexData = null;
+public class InterpolationFrame {
+    public final RenderState previous = new RenderState();
+    public final RenderState current = new RenderState();
+    public boolean isInitialized = false;
 
-    public static RenderData interpolate(InterpolatedRenderState state, float partialTicks, RenderData out) {
-
-        RVec3 prevPos = state.previous.transform.getTranslation();
-        RVec3 currPos = state.current.transform.getTranslation();
+    public void interpolate(RenderState out, float partialTicks) {
+        RVec3 prevPos = previous.transform.getTranslation();
+        RVec3 currPos = current.transform.getTranslation();
         out.transform.getTranslation().set(
                 (float) Mth.lerp(partialTicks, prevPos.xx(), currPos.xx()),
                 (float) Mth.lerp(partialTicks, prevPos.yy(), currPos.yy()),
                 (float) Mth.lerp(partialTicks, prevPos.zz(), currPos.zz())
         );
 
-        Quat prevRot = state.previous.transform.getRotation();
-        Quat currRot = state.current.transform.getRotation();
+        Quat prevRot = previous.transform.getRotation();
+        Quat currRot = current.transform.getRotation();
         VxOperations.slerp(prevRot, currRot, partialTicks, out.transform.getRotation());
 
-        float[] prevVerts = state.previous.vertexData;
-        float[] currVerts = state.current.vertexData;
+        float[] prevVerts = previous.vertexData;
+        float[] currVerts = current.vertexData;
         if (prevVerts != null && currVerts != null && prevVerts.length == currVerts.length) {
             if (out.vertexData == null || out.vertexData.length != currVerts.length) {
                 out.vertexData = new float[currVerts.length];
@@ -37,7 +35,11 @@ public class RenderData {
         } else {
             out.vertexData = currVerts;
         }
+    }
 
-        return out;
+    public RenderState getInterpolatedState(float partialTicks) {
+        RenderState newState = new RenderState();
+        interpolate(newState, partialTicks);
+        return newState;
     }
 }

@@ -16,9 +16,9 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.vortex.event.api.VxRenderEvent;
 import net.xmx.vortex.item.physicsgun.manager.PhysicsGunClientManager;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
 import net.xmx.vortex.physics.object.physicsobject.client.ObjectRead;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolationFrame;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderState;
 import org.joml.Matrix4f;
 
 import java.util.Map;
@@ -32,7 +32,7 @@ public class PhysicsGunBeamRenderer {
     private static final float BEAM_CURVE_STRENGTH = 0.3f;
     private static final float BEAM_MAX_LENGTH = 100.0f;
 
-    private static final RenderData INTERPOLATED_DATA = new RenderData();
+    private static final RenderState INTERPOLATED_STATE = new RenderState();
 
     public static void registerEvents() {
         VxRenderEvent.ClientRenderLevelStageEvent.EVENT.register(PhysicsGunBeamRenderer::onRenderLevelStage);
@@ -80,14 +80,14 @@ public class PhysicsGunBeamRenderer {
                     continue;
                 }
 
-                InterpolatedRenderState renderState = objRead.getRenderState();
-                if (renderState == null || !renderState.isInitialized) {
+                InterpolationFrame frame = objRead.getInterpolationFrame();
+                if (frame == null || !frame.isInitialized) {
                     continue;
                 }
 
-                RenderData renderData = RenderData.interpolate(renderState, partialTicks, INTERPOLATED_DATA);
+                frame.interpolate(INTERPOLATED_STATE, partialTicks);
 
-                VxTransform renderTransform = renderData.transform;
+                VxTransform renderTransform = INTERPOLATED_STATE.transform;
                 Vec3 startPoint = getGunTipPosition(player, partialTicks);
                 RVec3 centerPos = renderTransform.getTranslation();
                 Quat rotation = renderTransform.getRotation();

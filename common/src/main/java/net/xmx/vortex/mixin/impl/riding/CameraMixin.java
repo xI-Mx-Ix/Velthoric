@@ -7,8 +7,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.BlockGetter;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolationFrame;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderState;
 import net.xmx.vortex.physics.object.riding.RidingProxyEntity;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -24,7 +24,6 @@ public abstract class CameraMixin {
     @Shadow private boolean initialized;
     @Shadow private BlockGetter level;
     @Shadow private boolean detached;
-
     @Shadow private Entity entity;
     @Shadow private float eyeHeight;
     @Shadow private float eyeHeightOld;
@@ -36,6 +35,8 @@ public abstract class CameraMixin {
     @Shadow protected abstract void move(double distanceOffset, double verticalOffset, double horizontalOffset);
     @Shadow protected abstract double getMaxZoom(double startingDistance);
 
+    private static final RenderState vortex_reusableRenderState_camera = new RenderState();
+
     @Inject(method = "setup", at = @At("HEAD"), cancellable = true)
     private void vortex_followPhysicsObject(BlockGetter area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float partialTick, CallbackInfo ci) {
         if (focusedEntity.getVehicle() instanceof RidingProxyEntity proxy) {
@@ -46,14 +47,14 @@ public abstract class CameraMixin {
             this.detached = thirdPerson;
 
             proxy.getPhysicsObjectId().ifPresent(id -> {
-                InterpolatedRenderState state = ClientObjectDataManager.getInstance().getRenderState(id);
-                if (state == null || !state.isInitialized) {
+                InterpolationFrame frame = ClientObjectDataManager.getInstance().getInterpolationFrame(id);
+                if (frame == null || !frame.isInitialized) {
                     return;
                 }
 
-                RenderData interpolatedData = RenderData.interpolate(state, partialTick, new RenderData());
-                RVec3 physPos = interpolatedData.transform.getTranslation();
-                Quat physRotQuat = interpolatedData.transform.getRotation();
+                frame.interpolate(vortex_reusableRenderState_camera, partialTick);
+                RVec3 physPos = vortex_reusableRenderState_camera.transform.getTranslation();
+                Quat physRotQuat = vortex_reusableRenderState_camera.transform.getRotation();
 
                 Quaternionf physRotation = new Quaternionf(physRotQuat.getX(), physRotQuat.getY(), physRotQuat.getZ(), physRotQuat.getW());
 

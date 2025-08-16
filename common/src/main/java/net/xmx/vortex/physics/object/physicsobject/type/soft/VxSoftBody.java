@@ -6,7 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
 import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderState;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -36,6 +36,6 @@ public abstract class VxSoftBody extends VxAbstractBody {
     }
 
     public interface Renderer {
-        void render(UUID id, RenderData renderData, ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTick, int packedLight);
+        void render(UUID id, RenderState renderState, ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTick, int packedLight);
     }
 }

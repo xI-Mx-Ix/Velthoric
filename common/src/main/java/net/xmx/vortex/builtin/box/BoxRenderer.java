@@ -4,11 +4,10 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import io.netty.buffer.Unpooled;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Blocks;
-import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
+import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderState;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.VxRigidBody;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,7 +17,7 @@ import java.util.UUID;
 public class BoxRenderer implements VxRigidBody.Renderer {
 
     @Override
-    public void render(UUID id, RenderData renderData, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
+    public void render(UUID id, RenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
         if (customData == null || customData.remaining() < 12) {
             return;
         }
