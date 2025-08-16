@@ -110,42 +110,45 @@ subprojects {
 }
 
 task generateJoltDoc {
-    group = 'Documentation'
-    description = 'Erstellt eine Dokumentation aller Methoden aus der jolt-jni.jar.'
 
-    def inputJar = file("C:/Users/milan/.gradle/caches/modules-2/files-2.1/com.github.stephengold/jolt-jni-Windows64/2.2.0/36b0cbf834222077132d6d0d2a81f5e47c477ed4/jolt-jni-Windows64-2.2.0.jar")
+    def joltModule = configurations.detachedConfiguration(
+            dependencies.create("com.github.stephengold:jolt-jni-Linux64:2.2.0")
+    ).singleFile
 
     def outputFile = file("$buildDir/docs/jolt.txt")
 
-    inputs.file(inputJar)
+    inputs.file(joltModule)
     outputs.file(outputFile)
 
     doLast {
+        println "=== JoltDoc Generation Started ==="
 
-        if (!inputJar.exists()) {
-            throw new FileNotFoundException("Input-JAR nicht gefunden: ${inputJar.absolutePath}")
+        if (!joltModule.exists()) {
+            throw new FileNotFoundException("Input JAR not found: ${joltModule.absolutePath}")
         }
+
+        println "Analyzing JAR: ${joltModule.name}"
+        println "Writing output to: ${outputFile.absolutePath}"
 
         outputFile.parentFile.mkdirs()
         outputFile.text = ''
 
-        println "Analysiere JAR: ${inputJar.name}"
-        println "Schreibe Ausgabe nach: ${outputFile.absolutePath}"
-
-        def zipFile = new java.util.zip.ZipFile(inputJar)
+        def zipFile = new java.util.zip.ZipFile(joltModule)
         def classEntries = zipFile.entries().findAll { entry ->
             !entry.isDirectory() && entry.name.endsWith('.class')
         }
 
-        classEntries.each { entry ->
+        println "Found ${classEntries.size()} class files."
 
+        classEntries.eachWithIndex { entry, idx ->
             def className = entry.name.replace('/', '.').replaceAll('\\.class$', '')
+            println "[${idx + 1}/${classEntries.size()}] Processing class: ${className}"
 
             def commandOutput = new ByteArrayOutputStream()
 
             project.exec {
                 executable = 'javap'
-                args '-p', '-classpath', inputJar.absolutePath, className
+                args '-p', '-classpath', joltModule.absolutePath, className
                 standardOutput = commandOutput
                 ignoreExitValue = true
             }
@@ -153,20 +156,22 @@ task generateJoltDoc {
             outputFile.append("${className.substring(className.lastIndexOf('.') + 1)}.class:\n")
 
             def javapResult = commandOutput.toString()
-            javapResult.lines()
-
+            def methodLines = javapResult.lines()
                     .findAll { it.contains('(') && it.contains(')') && !it.contains('{') && !it.contains('Compiled from') }
-                    .each { line ->
 
-                        String cleanedLine = line.trim()
-                                .replaceAll('public |private |protected |static |final |synchronized |native ', '')
-                        outputFile.append("  ${cleanedLine}\n")
-                    }
+            println "  Found ${methodLines.size()} methods in ${className}."
+
+            methodLines.each { line ->
+                String cleanedLine = line.trim()
+                        .replaceAll('public |private |protected |static |final |synchronized |native ', '')
+                outputFile.append("  ${cleanedLine}\n")
+                println "    Logged method: ${cleanedLine}"
+            }
 
             outputFile.append("\n")
         }
 
         zipFile.close()
-        println "Dokumentation erfolgreich erstellt!"
+        println "=== JoltDoc Generation Finished ==="
     }
 }
