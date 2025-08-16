@@ -1,7 +1,7 @@
 package net.xmx.vortex.physics.object.physicsobject.client;
 
 import com.github.stephengold.joltjni.RVec3;
-import net.xmx.vortex.physics.object.physicsobject.EObjectType;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
 import net.xmx.vortex.physics.object.physicsobject.type.rigid.VxRigidBody;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.VxSoftBody;
@@ -63,7 +63,7 @@ public final class ObjectRead implements Closeable {
     }
 
     @Nullable
-    public EObjectType getObjectType() {
+    public EBodyType getObjectType() {
         if (!isValid) return null;
         return dataManager.getObjectType(objectId);
     }

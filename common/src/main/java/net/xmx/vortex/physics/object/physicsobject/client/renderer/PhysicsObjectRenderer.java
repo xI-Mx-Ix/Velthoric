@@ -2,6 +2,7 @@ package net.xmx.vortex.physics.object.physicsobject.client.renderer;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -12,7 +13,6 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.vortex.event.api.VxRenderEvent;
 import net.xmx.vortex.init.VxMainClass;
-import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
@@ -69,10 +69,10 @@ public class PhysicsObjectRenderer {
                 InterpolatedRenderState renderState = dataManager.getRenderState(id);
                 if (renderState == null || !renderState.isInitialized) continue;
 
-                EObjectType objectType = dataManager.getObjectType(id);
-                if (objectType == EObjectType.RIGID_BODY) {
+                EBodyType objectType = dataManager.getObjectType(id);
+                if (objectType == EBodyType.RigidBody) {
                     renderRigidBody(mc, poseStack, bufferSource, partialTicks, id, renderState, dataManager.getRigidRenderer(id), dataManager.getCustomData(id));
-                } else if (objectType == EObjectType.SOFT_BODY) {
+                } else if (objectType == EBodyType.SoftBody) {
                     renderSoftBody(mc, poseStack, bufferSource, partialTicks, id, renderState, dataManager.getSoftRenderer(id), dataManager.getCustomData(id));
                 }
             } catch (Exception e) {

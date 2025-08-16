@@ -1,10 +1,10 @@
 package net.xmx.vortex.physics.object.physicsobject.manager;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodySharedSettings;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectState;
 import net.xmx.vortex.physics.object.physicsobject.state.PhysicsObjectStatePool;
@@ -123,9 +123,9 @@ public class VxPhysicsUpdater {
                 softBody.setLastSyncedVertexData(Arrays.copyOf(vertexData, vertexData.length));
             }
 
-            EObjectType eObjectType = obj instanceof VxSoftBody ? EObjectType.SOFT_BODY : EObjectType.RIGID_BODY;
+            EBodyType eBodyType = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
             PhysicsObjectState state = PhysicsObjectStatePool.acquire();
-            state.from(id, eObjectType, currentTransform, linVel, angVel, vertexData, timestampNanos, isActive);
+            state.from(id, eBodyType, currentTransform, linVel, angVel, vertexData, timestampNanos, isActive);
             statesToSend.add(state);
         }
     }

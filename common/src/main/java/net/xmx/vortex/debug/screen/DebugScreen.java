@@ -1,13 +1,13 @@
 package net.xmx.vortex.debug.screen;
 
 import com.github.stephengold.joltjni.Jolt;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import dev.architectury.platform.Platform;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.xmx.vortex.event.api.VxDebugEvent;
 import net.xmx.vortex.init.VxMainClass;
-import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 
 import java.util.Collection;
@@ -41,8 +41,8 @@ public class DebugScreen {
         ClientObjectDataManager clientManager = ClientObjectDataManager.getInstance();
         Collection<UUID> allClientIds = clientManager.getAllObjectIds();
 
-        long clientRigidCount = allClientIds.stream().filter(id -> clientManager.getObjectType(id) == EObjectType.RIGID_BODY).count();
-        long clientSoftCount = allClientIds.stream().filter(id -> clientManager.getObjectType(id) == EObjectType.SOFT_BODY).count();
+        long clientRigidCount = allClientIds.stream().filter(id -> clientManager.getObjectType(id) == EBodyType.RigidBody).count();
+        long clientSoftCount = allClientIds.stream().filter(id -> clientManager.getObjectType(id) == EBodyType.SoftBody).count();
 
         left.add("RB: " + clientRigidCount + " | SB: " + clientSoftCount);
 

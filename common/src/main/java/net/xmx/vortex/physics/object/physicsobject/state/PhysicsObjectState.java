@@ -1,9 +1,9 @@
 package net.xmx.vortex.physics.object.physicsobject.state;
 
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
@@ -11,7 +11,7 @@ import java.util.UUID;
 public final class PhysicsObjectState {
 
     private UUID id;
-    private EObjectType eObjectType;
+    private EBodyType eBodyType;
     private final VxTransform transform;
     private final Vec3 linearVelocity;
     private final Vec3 angularVelocity;
@@ -25,9 +25,9 @@ public final class PhysicsObjectState {
         this.angularVelocity = new Vec3();
     }
 
-    public void from(UUID id, EObjectType eObjectType, VxTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, long timestamp, boolean isActive) {
+    public void from(UUID id, EBodyType eBodyType, VxTransform transform, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, @Nullable float[] softBodyVertices, long timestamp, boolean isActive) {
         this.id = id;
-        this.eObjectType = eObjectType;
+        this.eBodyType = eBodyType;
         this.transform.set(transform);
         this.timestamp = timestamp;
         this.isActive = isActive;
@@ -47,14 +47,14 @@ public final class PhysicsObjectState {
         this.id = buf.readUUID();
         this.timestamp = buf.readLong();
         this.isActive = buf.readBoolean();
-        this.eObjectType = buf.readEnum(EObjectType.class);
+        this.eBodyType = buf.readEnum(EBodyType.class);
         this.transform.fromBuffer(buf);
 
         if (this.isActive) {
             this.linearVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
             this.angularVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
 
-            if (eObjectType == EObjectType.SOFT_BODY && buf.readBoolean()) {
+            if (eBodyType == EBodyType.SoftBody && buf.readBoolean()) {
                 int length = buf.readVarInt();
                 this.softBodyVertices = new float[length];
                 for (int i = 0; i < length; i++) {
@@ -74,7 +74,7 @@ public final class PhysicsObjectState {
         buf.writeUUID(this.id);
         buf.writeLong(this.timestamp);
         buf.writeBoolean(this.isActive);
-        buf.writeEnum(this.eObjectType);
+        buf.writeEnum(this.eBodyType);
         this.transform.toBuffer(buf);
 
         if (this.isActive) {
@@ -85,7 +85,7 @@ public final class PhysicsObjectState {
             buf.writeFloat(this.angularVelocity.getY());
             buf.writeFloat(this.angularVelocity.getZ());
 
-            if (eObjectType == EObjectType.SOFT_BODY) {
+            if (eBodyType == EBodyType.SoftBody) {
                 boolean hasVertices = this.softBodyVertices != null && this.softBodyVertices.length > 0;
                 buf.writeBoolean(hasVertices);
                 if (hasVertices) {
@@ -102,7 +102,7 @@ public final class PhysicsObjectState {
         int size = 16 + 8 + 1 + 4 + 40;
         if(isActive) {
             size += 12 + 12;
-            if(eObjectType == EObjectType.SOFT_BODY) {
+            if(eBodyType == EBodyType.SoftBody) {
                 size += 1;
                 if(this.softBodyVertices != null && this.softBodyVertices.length > 0) {
                     size += 5 + this.softBodyVertices.length * 4;
@@ -114,7 +114,7 @@ public final class PhysicsObjectState {
 
     public void reset() {
         this.id = null;
-        this.eObjectType = null;
+        this.eBodyType = null;
         this.softBodyVertices = null;
         this.timestamp = 0L;
         this.isActive = false;
@@ -124,7 +124,7 @@ public final class PhysicsObjectState {
     }
 
     public UUID getId() { return id; }
-    public EObjectType getEObjectType() { return eObjectType; }
+    public EBodyType getEObjectType() { return eBodyType; }
     public VxTransform getTransform() { return transform; }
     public Vec3 getLinearVelocity() { return linearVelocity; }
     public Vec3 getAngularVelocity() { return angularVelocity; }

@@ -2,6 +2,7 @@ package net.xmx.vortex.physics.object.physicsobject.client;
 
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import dev.architectury.event.events.client.ClientTickEvent;
 import io.netty.buffer.ByteBuf;
 import net.fabricmc.api.EnvType;
@@ -10,7 +11,6 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.vortex.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolationStateContainer;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
@@ -38,7 +38,7 @@ public class ClientObjectDataManager {
 
     private final Map<UUID, InterpolationStateContainer> stateContainers = new ConcurrentHashMap<>();
     private final Map<UUID, InterpolatedRenderState> renderStates = new ConcurrentHashMap<>();
-    private final Map<UUID, EObjectType> objectTypes = new ConcurrentHashMap<>();
+    private final Map<UUID, EBodyType> objectTypes = new ConcurrentHashMap<>();
     private final Map<UUID, String> typeIdentifiers = new ConcurrentHashMap<>();
     private final Map<UUID, VxRigidBody.Renderer> rigidRenderers = new ConcurrentHashMap<>();
     private final Map<UUID, VxSoftBody.Renderer> softRenderers = new ConcurrentHashMap<>();
@@ -164,7 +164,7 @@ public class ClientObjectDataManager {
         }
     }
 
-    public void spawnObject(UUID id, String typeId, EObjectType objType, FriendlyByteBuf data, long serverTimestamp) {
+    public void spawnObject(UUID id, String typeId, EBodyType objType, FriendlyByteBuf data, long serverTimestamp) {
         stateContainers.computeIfAbsent(id, key -> {
             renderStates.put(id, new InterpolatedRenderState());
             objectTypes.put(id, objType);
@@ -177,7 +177,7 @@ public class ClientObjectDataManager {
             Vec3 angVel = acquireVec3();
 
             try {
-                if (objType == EObjectType.RIGID_BODY) {
+                if (objType == EBodyType.RigidBody) {
                     Supplier<VxRigidBody.Renderer> factory = rigidRendererFactories.get(typeId);
                     if (factory != null) rigidRenderers.put(id, factory.get());
                     else VxMainClass.LOGGER.warn("Client: No renderer factory for rigid body type '{}'.", typeId);
@@ -190,7 +190,7 @@ public class ClientObjectDataManager {
                         angVel.loadZero();
                     }
                     container.addState(serverTimestamp, tempTransform, linVel, angVel, null, true);
-                } else if (objType == EObjectType.SOFT_BODY) {
+                } else if (objType == EBodyType.SoftBody) {
                     Supplier<VxSoftBody.Renderer> factory = softRendererFactories.get(typeId);
                     if (factory != null) softRenderers.put(id, factory.get());
                     else VxMainClass.LOGGER.warn("Client: No renderer factory for soft body type '{}'.", typeId);
@@ -281,7 +281,7 @@ public class ClientObjectDataManager {
     }
 
     @Nullable
-    public EObjectType getObjectType(UUID id) {
+    public EBodyType getObjectType(UUID id) {
         return objectTypes.get(id);
     }
 
@@ -315,7 +315,7 @@ public class ClientObjectDataManager {
     public int getTotalNodeCount() {
         int total = 0;
         for (UUID id : objectTypes.keySet()) {
-            if (objectTypes.get(id) == EObjectType.SOFT_BODY) {
+            if (objectTypes.get(id) == EBodyType.SoftBody) {
                 InterpolatedRenderState state = renderStates.get(id);
                 if (state != null && state.current != null && state.current.vertexData != null) {
                     total += state.current.vertexData.length / 3;

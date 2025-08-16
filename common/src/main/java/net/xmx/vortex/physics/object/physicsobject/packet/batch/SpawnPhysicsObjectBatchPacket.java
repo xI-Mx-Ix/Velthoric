@@ -1,10 +1,10 @@
 package net.xmx.vortex.physics.object.physicsobject.packet.batch;
 
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 import net.xmx.vortex.physics.object.physicsobject.type.soft.VxSoftBody;
@@ -53,14 +53,14 @@ public class SpawnPhysicsObjectBatchPacket {
     public static class SpawnData {
         final UUID id;
         final String typeIdentifier;
-        final EObjectType objectType;
+        final EBodyType objectType;
         final long timestamp;
         final byte[] data;
 
         public SpawnData(VxAbstractBody obj, long timestamp) {
             this.id = obj.getPhysicsId();
             this.typeIdentifier = obj.getType().getTypeId();
-            this.objectType = obj instanceof VxSoftBody ? EObjectType.SOFT_BODY : EObjectType.RIGID_BODY;
+            this.objectType = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
             this.timestamp = timestamp;
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
             try {
@@ -78,7 +78,7 @@ public class SpawnPhysicsObjectBatchPacket {
         public SpawnData(FriendlyByteBuf buf) {
             this.id = buf.readUUID();
             this.typeIdentifier = buf.readUtf();
-            this.objectType = buf.readEnum(EObjectType.class);
+            this.objectType = buf.readEnum(EBodyType.class);
             this.timestamp = buf.readLong();
             this.data = buf.readByteArray();
         }

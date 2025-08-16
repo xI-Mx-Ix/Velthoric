@@ -2,6 +2,7 @@ package net.xmx.vortex.item.physicsgun.beam;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.Camera;
@@ -15,7 +16,6 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.vortex.event.api.VxRenderEvent;
 import net.xmx.vortex.item.physicsgun.manager.PhysicsGunClientManager;
 import net.xmx.vortex.math.VxTransform;
-import net.xmx.vortex.physics.object.physicsobject.EObjectType;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.InterpolatedRenderState;
 import net.xmx.vortex.physics.object.physicsobject.client.ObjectRead;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderData;
@@ -76,7 +76,7 @@ public class PhysicsGunBeamRenderer {
             if (player == null) continue;
 
             try (ObjectRead objRead = ObjectRead.get(objectUuid)) {
-                if (!objRead.isValid() || objRead.getObjectType() != EObjectType.RIGID_BODY) {
+                if (!objRead.isValid() || objRead.getObjectType() != EBodyType.RigidBody) {
                     continue;
                 }
 
