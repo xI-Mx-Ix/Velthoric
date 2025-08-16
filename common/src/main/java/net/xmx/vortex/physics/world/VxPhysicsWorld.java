@@ -228,6 +228,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             settings.setTimeBeforeSleep(this.timeBeforeSleep);
             settings.setPointVelocitySleepThreshold(this.pointVelocitySleepThreshold);
             settings.setDeterministicSimulation(false);
+            this.physicsSystem.setPhysicsSettings(settings);
         }
         this.physicsSystem.setGravity(0f, this.gravityY, 0f);
         this.physicsSystem.optimizeBroadPhase();
