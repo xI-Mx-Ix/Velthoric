@@ -17,7 +17,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ChunkMap.class)
 public class VxChunkWatchEvent_ChunkMapMixin {
 
-    @Shadow @Final private ServerLevel level;
+    @Shadow @Final
+    ServerLevel level;
 
     @Inject(method = "updateChunkTracking", at = @At("HEAD"))
     private void onUpdateChunkTracking(ServerPlayer player, ChunkPos pos, MutableObject<?> packetRef, boolean watch, boolean currentlyWatching, CallbackInfo ci) {
