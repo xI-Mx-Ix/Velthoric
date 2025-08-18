@@ -3,6 +3,8 @@ package net.xmx.vortex.physics.terrain;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
+import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.ConstAaBox;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
@@ -17,7 +19,6 @@ import net.xmx.vortex.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.vortex.physics.terrain.loader.ChunkSnapshot;
 import net.xmx.vortex.physics.terrain.loader.TerrainGenerator;
 import net.xmx.vortex.physics.terrain.model.VxSectionPos;
-import net.xmx.vortex.physics.terrain.tracker.ObjectTerrainTracker;
 import net.xmx.vortex.physics.world.VxLayers;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.NotNull;
@@ -53,8 +54,16 @@ public class TerrainSystem implements Runnable {
     private final ConcurrentHashMap<VxSectionPos, Boolean> chunkIsPlaceholder = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<VxSectionPos, AtomicInteger> chunkRebuildVersions = new ConcurrentHashMap<>();
     private final Map<VxSectionPos, Integer> chunkReferenceCounts = new ConcurrentHashMap<>();
-    private final Map<UUID, ObjectTerrainTracker> objectTrackers = new ConcurrentHashMap<>();
     private final Set<VxSectionPos> chunksToRebuild = ConcurrentHashMap.newKeySet();
+
+    private final Map<UUID, Set<VxSectionPos>> objectTrackedChunks = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> objectUpdateCooldowns = new ConcurrentHashMap<>();
+
+    private static final int UPDATE_INTERVAL_TICKS = 10;
+    private static final float MAX_SPEED_FOR_COOLDOWN_SQR = 100f * 100f;
+    private static final int PRELOAD_RADIUS_CHUNKS = 3;
+    private static final int ACTIVATION_RADIUS_CHUNKS = 1;
+    private static final float PREDICTION_SECONDS = 0.5f;
 
     public TerrainSystem(VxPhysicsWorld physicsWorld, ServerLevel level) {
         this.physicsWorld = physicsWorld;
@@ -84,7 +93,8 @@ public class TerrainSystem implements Runnable {
             physicsWorld.execute(() -> {
                 new HashSet<>(chunkStates.keySet()).forEach(this::unloadChunkPhysicsInternal);
                 chunkReferenceCounts.clear();
-                objectTrackers.clear();
+                objectTrackedChunks.clear();
+                objectUpdateCooldowns.clear();
                 shapeCache.clear();
                 chunksToRebuild.clear();
             });
@@ -358,51 +368,208 @@ public class TerrainSystem implements Runnable {
     }
 
     private void updateTrackers() {
-        Set<UUID> currentObjectIds = physicsWorld.getObjectManager().getObjectContainer().getAllObjects().stream()
+        Collection<VxAbstractBody> currentObjects = physicsWorld.getObjectManager().getObjectContainer().getAllObjects();
+        Set<UUID> currentObjectIds = currentObjects.stream()
                 .map(VxAbstractBody::getPhysicsId)
                 .collect(Collectors.toSet());
 
-        objectTrackers.keySet().removeIf(id -> {
+        objectTrackedChunks.keySet().removeIf(id -> {
             if (!currentObjectIds.contains(id)) {
-                Optional.ofNullable(objectTrackers.get(id)).ifPresent(ObjectTerrainTracker::releaseAll);
+                Set<VxSectionPos> chunksToRelease = objectTrackedChunks.get(id);
+                if (chunksToRelease != null) {
+                    chunksToRelease.forEach(this::releaseChunk);
+                }
+                objectUpdateCooldowns.remove(id);
                 return true;
             }
             return false;
         });
 
-        for (VxAbstractBody obj : physicsWorld.getObjectManager().getObjectContainer().getAllObjects()) {
-            if (obj.getBodyId() != 0) {
-                objectTrackers.computeIfAbsent(obj.getPhysicsId(), id -> new ObjectTerrainTracker(obj, this));
-            } else {
-                Optional.ofNullable(objectTrackers.remove(obj.getPhysicsId())).ifPresent(ObjectTerrainTracker::releaseAll);
-            }
-        }
-
-        if (objectTrackers.isEmpty()) {
-            Set<VxSectionPos> currentActive = chunkStates.entrySet().stream()
+        if (currentObjects.isEmpty()) {
+            chunkStates.entrySet().stream()
                     .filter(e -> e.getValue().get() == STATE_READY_ACTIVE)
                     .map(Map.Entry::getKey)
-                    .collect(Collectors.toSet());
-            currentActive.forEach(this::deactivateChunk);
+                    .forEach(this::deactivateChunk);
             return;
         }
 
-        List<CompletableFuture<Set<VxSectionPos>>> futures = objectTrackers.values().stream()
-                .map(tracker -> CompletableFuture.supplyAsync(tracker::update, jobSystem.getExecutor()))
-                .toList();
+        List<CompletableFuture<Map<UUID, Set<VxSectionPos>>>> futures = new ArrayList<>();
+        List<VxAbstractBody> batch = new ArrayList<>();
+        for (VxAbstractBody obj : currentObjects) {
+            if (obj.getBodyId() != 0) {
+                batch.add(obj);
+                if (batch.size() >= 100) {
+                    List<VxAbstractBody> finalBatch = new ArrayList<>(batch);
+                    futures.add(CompletableFuture.supplyAsync(() -> updateTrackerBatch(finalBatch), jobSystem.getExecutor()));
+                    batch.clear();
+                }
+            } else {
+                removeObjectTracking(obj.getPhysicsId());
+            }
+        }
+        if (!batch.isEmpty()) {
+            List<VxAbstractBody> finalBatch = new ArrayList<>(batch);
+            futures.add(CompletableFuture.supplyAsync(() -> updateTrackerBatch(finalBatch), jobSystem.getExecutor()));
+        }
 
-        Set<VxSectionPos> allRequiredActiveChunks = futures.stream()
+        Map<VxSectionPos, VxTaskPriority> allRequiredChunks = new HashMap<>();
+
+        futures.stream()
                 .map(CompletableFuture::join)
-                .flatMap(Set::stream)
-                .collect(Collectors.toSet());
+                .forEach(resultMap -> {
+                    resultMap.forEach((id, required) -> {
+                        Set<VxSectionPos> previouslyTracked = objectTrackedChunks.computeIfAbsent(id, k -> new HashSet<>());
+
+                        Set<VxSectionPos> toRelease = new HashSet<>(previouslyTracked);
+                        toRelease.removeAll(required);
+                        toRelease.forEach(this::releaseChunk);
+
+                        Set<VxSectionPos> toRequest = new HashSet<>(required);
+                        toRequest.removeAll(previouslyTracked);
+                        toRequest.forEach(this::requestChunk);
+
+                        previouslyTracked.clear();
+                        previouslyTracked.addAll(required);
+                    });
+                });
+
+        Map<VxSectionPos, VxTaskPriority> criticalChunks = new HashMap<>();
+        for (VxAbstractBody obj : currentObjects) {
+            Body body = obj.getBody();
+            if (body != null) {
+                calculatePrioritiesForObject(body.getWorldSpaceBounds(), body.getLinearVelocity(), criticalChunks);
+            }
+        }
+
+        criticalChunks.forEach((pos, priority) -> prioritizeChunk(pos, priority));
+
+        Set<VxSectionPos> activeSet = criticalChunks.keySet();
 
         chunkStates.forEach((pos, state) -> {
-            if (state.get() == STATE_READY_ACTIVE && !allRequiredActiveChunks.contains(pos)) {
+            if (state.get() == STATE_READY_ACTIVE && !activeSet.contains(pos)) {
                 deactivateChunk(pos);
             }
         });
+        activeSet.forEach(this::activateChunk);
+    }
 
-        allRequiredActiveChunks.forEach(this::activateChunk);
+    private Map<UUID, Set<VxSectionPos>> updateTrackerBatch(List<VxAbstractBody> objects) {
+        Map<UUID, Set<VxSectionPos>> results = new HashMap<>();
+        for(VxAbstractBody obj : objects) {
+            UUID id = obj.getPhysicsId();
+            int cooldown = objectUpdateCooldowns.getOrDefault(id, 0);
+            Body body = obj.getBody();
+            if (body == null) {
+                removeObjectTracking(id);
+                continue;
+            }
+
+            Vec3 vel = body.getLinearVelocity();
+            if (cooldown > 0 && vel.lengthSq() < MAX_SPEED_FOR_COOLDOWN_SQR) {
+                objectUpdateCooldowns.put(id, cooldown - 1);
+                results.put(id, objectTrackedChunks.getOrDefault(id, Collections.emptySet()));
+                continue;
+            }
+            objectUpdateCooldowns.put(id, UPDATE_INTERVAL_TICKS);
+
+            Set<VxSectionPos> required = new HashSet<>();
+            calculateRequiredChunksForObject(body.getWorldSpaceBounds(), body.getLinearVelocity(), required);
+            results.put(id, required);
+        }
+        return results;
+    }
+
+    private void removeObjectTracking(UUID id) {
+        Set<VxSectionPos> chunksToRelease = objectTrackedChunks.remove(id);
+        if (chunksToRelease != null) {
+            chunksToRelease.forEach(this::releaseChunk);
+        }
+        objectUpdateCooldowns.remove(id);
+    }
+
+    private void calculateRequiredChunksForObject(ConstAaBox currentAabb, Vec3 velocity, Set<VxSectionPos> outRequiredChunks) {
+        addChunksForAabb(currentAabb, PRELOAD_RADIUS_CHUNKS, outRequiredChunks);
+
+        Vec3 tempDisplacement = new Vec3(velocity);
+        RVec3 tempRVec3Min = new RVec3(currentAabb.getMin());
+        RVec3 tempRVec3Max = new RVec3(currentAabb.getMax());
+        Vec3 tempVec3Min = new Vec3();
+        Vec3 tempVec3Max = new Vec3();
+        try (AaBox predictedAabb = new AaBox()) {
+            Op.starEquals(tempDisplacement, PREDICTION_SECONDS);
+            Op.plusEquals(tempRVec3Min, tempDisplacement);
+            Op.plusEquals(tempRVec3Max, tempDisplacement);
+
+            tempVec3Min.set(tempRVec3Min);
+            tempVec3Max.set(tempRVec3Max);
+            predictedAabb.setMin(tempVec3Min);
+            predictedAabb.setMax(tempVec3Max);
+
+            addChunksForAabb(predictedAabb, PRELOAD_RADIUS_CHUNKS, outRequiredChunks);
+        }
+    }
+
+    private void calculatePrioritiesForObject(ConstAaBox currentAabb, Vec3 velocity, Map<VxSectionPos, VxTaskPriority> outPriorities) {
+        addChunksForAabbWithPriority(currentAabb, ACTIVATION_RADIUS_CHUNKS, VxTaskPriority.CRITICAL, outPriorities);
+
+        Vec3 tempDisplacement = new Vec3(velocity);
+        RVec3 tempRVec3Min = new RVec3(currentAabb.getMin());
+        RVec3 tempRVec3Max = new RVec3(currentAabb.getMax());
+        Vec3 tempVec3Min = new Vec3();
+        Vec3 tempVec3Max = new Vec3();
+        try (AaBox predictedAabb = new AaBox()) {
+            Op.starEquals(tempDisplacement, PREDICTION_SECONDS);
+            Op.plusEquals(tempRVec3Min, tempDisplacement);
+            Op.plusEquals(tempRVec3Max, tempDisplacement);
+
+            tempVec3Min.set(tempRVec3Min);
+            tempVec3Max.set(tempRVec3Max);
+            predictedAabb.setMin(tempVec3Min);
+            predictedAabb.setMax(tempVec3Max);
+
+            addChunksForAabbWithPriority(predictedAabb, ACTIVATION_RADIUS_CHUNKS, VxTaskPriority.CRITICAL, outPriorities);
+        }
+    }
+
+    private void addChunksForAabb(ConstAaBox aabb, int radiusInChunks, Set<VxSectionPos> outChunks) {
+        RVec3 tempRVec3Min = new RVec3(aabb.getMin());
+        RVec3 tempRVec3Max = new RVec3(aabb.getMax());
+
+        VxSectionPos minSection = VxSectionPos.fromWorldSpace(tempRVec3Min.xx(), tempRVec3Min.yy(), tempRVec3Min.zz());
+        VxSectionPos maxSection = VxSectionPos.fromWorldSpace(tempRVec3Max.xx(), tempRVec3Max.yy(), tempRVec3Max.zz());
+
+        final int worldMinY = level.getMinBuildHeight() >> 4;
+        final int worldMaxY = level.getMaxBuildHeight() >> 4;
+
+        for (int y = minSection.y() - radiusInChunks; y <= maxSection.y() + radiusInChunks; ++y) {
+            if (y < worldMinY || y >= worldMaxY) continue;
+            for (int z = minSection.z() - radiusInChunks; z <= maxSection.z() + radiusInChunks; ++z) {
+                for (int x = minSection.x() - radiusInChunks; x <= maxSection.x() + radiusInChunks; ++x) {
+                    outChunks.add(new VxSectionPos(x, y, z));
+                }
+            }
+        }
+    }
+
+    private void addChunksForAabbWithPriority(ConstAaBox aabb, int radiusInChunks, VxTaskPriority priority, Map<VxSectionPos, VxTaskPriority> outPriorities) {
+        RVec3 tempRVec3Min = new RVec3(aabb.getMin());
+        RVec3 tempRVec3Max = new RVec3(aabb.getMax());
+
+        VxSectionPos minSection = VxSectionPos.fromWorldSpace(tempRVec3Min.xx(), tempRVec3Min.yy(), tempRVec3Min.zz());
+        VxSectionPos maxSection = VxSectionPos.fromWorldSpace(tempRVec3Max.xx(), tempRVec3Max.yy(), tempRVec3Max.zz());
+
+        final int worldMinY = level.getMinBuildHeight() >> 4;
+        final int worldMaxY = level.getMaxBuildHeight() >> 4;
+
+        for (int y = minSection.y() - radiusInChunks; y <= maxSection.y() + radiusInChunks; ++y) {
+            if (y < worldMinY || y >= worldMaxY) continue;
+            for (int z = minSection.z() - radiusInChunks; z <= maxSection.z() + radiusInChunks; ++z) {
+                for (int x = minSection.x() - radiusInChunks; x <= maxSection.x() + radiusInChunks; ++x) {
+                    VxSectionPos pos = new VxSectionPos(x, y, z);
+                    outPriorities.merge(pos, priority, (oldP, newP) -> newP.ordinal() > oldP.ordinal() ? newP : oldP);
+                }
+            }
+        }
     }
 
     private AtomicInteger getState(VxSectionPos pos) {
