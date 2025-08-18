@@ -127,7 +127,7 @@ public class TerrainSystem implements Runnable {
 
         if (state != null) {
             int currentState = state.get();
-            if (currentState == STATE_READY_ACTIVE || currentState == STATE_READY_INACTIVE) {
+            if (currentState == STATE_READY_ACTIVE || currentState == STATE_READY_INACTIVE || currentState == STATE_AIR_CHUNK) {
                 chunksToRebuild.add(pos);
             }
         }
@@ -247,35 +247,38 @@ public class TerrainSystem implements Runnable {
             return;
         }
 
-        if (shape == null) {
-            removeBodyAndShape(pos, bodyInterface);
-            state.set(STATE_AIR_CHUNK);
-            return;
-        }
-
         Integer bodyId = chunkBodyIds.get(pos);
-        if (bodyId != null) {
+
+        if (bodyId != null && shape != null) {
             bodyInterface.setShape(bodyId, shape, true, EActivation.Activate);
             ShapeRefC oldShape = chunkShapes.put(pos, shape);
             if (oldShape != null && !oldShape.equals(shape)) {
                 oldShape.close();
             }
+            state.set(wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
         } else {
-            RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
-            try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxLayers.STATIC)) {
-                Body body = bodyInterface.createBody(bcs);
-                if (body != null) {
-                    chunkBodyIds.put(pos, body.getId());
-                    chunkShapes.put(pos, shape);
-                } else {
-                    VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}", pos);
-                    shape.close();
+            removeBodyAndShape(pos, bodyInterface);
+            if (shape != null) {
+                RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
+                try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxLayers.STATIC)) {
+                    Body body = bodyInterface.createBody(bcs);
+                    if (body != null) {
+                        chunkBodyIds.put(pos, body.getId());
+                        chunkShapes.put(pos, shape);
+                        state.set(wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
+                    } else {
+                        VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}", pos);
+                        shape.close();
+                        state.set(STATE_UNLOADED);
+                        return;
+                    }
                 }
+            } else {
+                state.set(STATE_AIR_CHUNK);
             }
         }
 
         chunkIsPlaceholder.put(pos, isInitialBuild);
-        state.set(wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
 
         if (wasActive) {
             activateChunk(pos);
@@ -327,7 +330,6 @@ public class TerrainSystem implements Runnable {
             chunkStates.remove(pos);
             chunkIsPlaceholder.remove(pos);
             chunkRebuildVersions.remove(pos);
-            chunkReferenceCounts.remove(pos);
             chunksToRebuild.remove(pos);
         });
     }

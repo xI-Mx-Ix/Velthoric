@@ -1,17 +1,22 @@
 package net.xmx.vortex.physics.terrain.loader;
 
 import com.github.stephengold.joltjni.*;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.vortex.init.VxMainClass;
 import net.xmx.vortex.physics.terrain.cache.TerrainShapeCache;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class TerrainGenerator {
 
     private final TerrainShapeCache shapeCache;
+
+    private static final int SUBDIVISIONS = 16;
+    private static final int MASK_DIM = 16 * SUBDIVISIONS;
+    private static final float VOXEL_SIZE = 1.0f / SUBDIVISIONS;
 
     public TerrainGenerator(TerrainShapeCache shapeCache) {
         this.shapeCache = shapeCache;
@@ -28,33 +33,43 @@ public final class TerrainGenerator {
             return cached;
         }
 
-        final boolean[][][] solid = new boolean[16][16][16];
-        for (ChunkSnapshot.ShapeInfo info : snapshot.shapes()) {
-            BlockPos p = info.localPos();
-            if ((p.getX() | p.getY() | p.getZ()) < 0 || p.getX() >= 16 || p.getY() >= 16 || p.getZ() >= 16) continue;
-            solid[p.getX()][p.getY()][p.getZ()] = true;
-        }
-
-        if (isEmpty(solid)) return null;
-
         final ArrayList<Float3> vertices = new ArrayList<>();
         final ArrayList<IndexedTriangle> triangles = new ArrayList<>();
         final Map<VecKey, Integer> vmap = new HashMap<>(4096);
 
-        try {
+        Map<Integer, boolean[][]>[] facesByAxisAndDir = new Map[3];
+        for (int i = 0; i < 3; i++) {
+            facesByAxisAndDir[i] = new HashMap<>();
+        }
 
-            greedyAxis(solid, 0, +1, vertices, triangles, vmap);
-            greedyAxis(solid, 0, -1, vertices, triangles, vmap);
-            greedyAxis(solid, 1, +1, vertices, triangles, vmap);
-            greedyAxis(solid, 1, -1, vertices, triangles, vmap);
-            greedyAxis(solid, 2, +1, vertices, triangles, vmap);
-            greedyAxis(solid, 2, -1, vertices, triangles, vmap);
+        for (ChunkSnapshot.ShapeInfo info : snapshot.shapes()) {
+            BlockPos worldPos = snapshot.pos().getOrigin().offset(info.localPos());
+            VoxelShape voxelShape = info.state().getCollisionShape(level, worldPos);
 
-            if (vertices.isEmpty() || triangles.isEmpty()) return null;
+            for (AABB aabb : voxelShape.toAabbs()) {
+                extractFacesToMasks(info.localPos(), aabb, facesByAxisAndDir);
+            }
+        }
 
-            VertexList vlist = new VertexList();
-            IndexedTriangleList ilist = new IndexedTriangleList();
+        for (int axis = 0; axis < 3; axis++) {
+            for (Map.Entry<Integer, boolean[][]> entry : facesByAxisAndDir[axis].entrySet()) {
+                int packedPosAndDir = entry.getKey();
+                boolean[][] mask = entry.getValue();
 
+                int dir = (packedPosAndDir & 1) == 0 ? -1 : 1;
+                int pos = packedPosAndDir >> 1;
+
+                greedyMeshMask(mask, axis, dir, pos, vertices, triangles, vmap);
+            }
+        }
+
+        if (vertices.isEmpty() || triangles.isEmpty()) {
+            return null;
+        }
+
+        VertexList vlist = new VertexList();
+        IndexedTriangleList ilist = new IndexedTriangleList();
+        {
             vlist.resize(vertices.size());
             for (int i = 0; i < vertices.size(); i++) vlist.set(i, vertices.get(i));
 
@@ -71,112 +86,83 @@ public final class TerrainGenerator {
                         VxMainClass.LOGGER.error("Failed to create terrain mesh for {}: {}", snapshot.pos(), res.getError());
                     }
                 }
+            } finally {
+                for (IndexedTriangle t : triangles) t.close();
             }
-        } finally {
-            for (IndexedTriangle t : triangles) t.close();
+            return null;
         }
-        return null;
     }
 
-    private static void greedyAxis(
-            boolean[][][] solid,
-            int axis,
-            int dir,
-            ArrayList<Float3> vertices,
-            ArrayList<IndexedTriangle> triangles,
-            Map<VecKey, Integer> vmap
-    ) {
-        final int U = (axis + 1) % 3;
-        final int V = (axis + 2) % 3;
+    private void extractFacesToMasks(BlockPos localPos, AABB aabb, Map<Integer, boolean[][]>[] facesByAxis) {
+        float[] min = {(float) (localPos.getX() + aabb.minX), (float) (localPos.getY() + aabb.minY), (float) (localPos.getZ() + aabb.minZ)};
+        float[] max = {(float) (localPos.getX() + aabb.maxX), (float) (localPos.getY() + aabb.maxY), (float) (localPos.getZ() + aabb.maxZ)};
 
-        final int[] dims = {16,16,16};
-        final int aDim = dims[axis], uDim = dims[U], vDim = dims[V];
+        for (int axis = 0; axis < 3; axis++) {
+            int u = (axis + 1) % 3;
+            int v = (axis + 2) % 3;
 
-        final boolean[][] mask = new boolean[uDim][vDim];
+            int minPos = Math.round(min[axis] * SUBDIVISIONS);
+            int maxPos = Math.round(max[axis] * SUBDIVISIONS);
+            int u0 = Math.round(min[u] * SUBDIVISIONS);
+            int v0 = Math.round(min[v] * SUBDIVISIONS);
+            int u1 = Math.round(max[u] * SUBDIVISIONS);
+            int v1 = Math.round(max[v] * SUBDIVISIONS);
 
-        for (int a = 0; a <= aDim; a++) {
+            int keyNeg = (minPos << 1) | 0;
+            boolean[][] maskNeg = facesByAxis[axis].computeIfAbsent(keyNeg, k -> new boolean[MASK_DIM][MASK_DIM]);
+            for(int i = u0; i < u1; i++) for(int j = v0; j < v1; j++) maskNeg[i][j] = !maskNeg[i][j];
 
-            for (int u = 0; u < uDim; u++) {
-                for (int v = 0; v < vDim; v++) {
-                    boolean s0 = voxel(solid, axis, a - 1, U, u, V, v);
-                    boolean s1 = voxel(solid, axis, a,     U, u, V, v);
+            int keyPos = (maxPos << 1) | 1;
+            boolean[][] maskPos = facesByAxis[axis].computeIfAbsent(keyPos, k -> new boolean[MASK_DIM][MASK_DIM]);
+            for(int i = u0; i < u1; i++) for(int j = v0; j < v1; j++) maskPos[i][j] = !maskPos[i][j];
+        }
+    }
 
-                    mask[u][v] = (dir > 0) ? (s0 && !s1) : (s1 && !s0);
+    private void greedyMeshMask(
+            boolean[][] mask, int axis, int dir, int pos,
+            ArrayList<Float3> vertices, ArrayList<IndexedTriangle> triangles, Map<VecKey, Integer> vmap) {
+
+        for (int u = 0; u < MASK_DIM; u++) {
+            for (int v = 0; v < MASK_DIM; ) {
+                if (!mask[u][v]) {
+                    v++;
+                    continue;
                 }
-            }
 
-            int u = 0;
-            while (u < uDim) {
-                int v = 0;
-                while (v < vDim) {
-                    if (!mask[u][v]) { v++; continue; }
+                int w = 1;
+                while (u + w < MASK_DIM && mask[u + w][v]) w++;
 
-                    int w = 1;
-                    while (u + w < uDim && mask[u + w][v]) w++;
-
-                    int h = 1;
-                    outer:
-                    while (v + h < vDim) {
-                        for (int k = 0; k < w; k++) {
-                            if (!mask[u + k][v + h]) break outer;
-                        }
-                        h++;
+                int h = 1;
+                outer:
+                while (v + h < MASK_DIM) {
+                    for (int k = 0; k < w; k++) {
+                        if (!mask[u + k][v + h]) break outer;
                     }
-
-                    for (int du = 0; du < w; du++)
-                        for (int dv = 0; dv < h; dv++)
-                            mask[u + du][v + dv] = false;
-
-                    addQuad(axis, dir, a, u, v, w, h, vertices, triangles, vmap);
-                    v += h;
+                    h++;
                 }
-                u++;
+
+                addQuad(axis, dir, pos * VOXEL_SIZE, u * VOXEL_SIZE, v * VOXEL_SIZE, w * VOXEL_SIZE, h * VOXEL_SIZE, vertices, triangles, vmap);
+
+                for (int du = 0; du < w; du++)
+                    for (int dv = 0; dv < h; dv++)
+                        mask[u + du][v + dv] = false;
+
+                v += h;
             }
         }
-    }
-
-    private static boolean voxel(
-            boolean[][][] solid,
-            int axis, int a,
-            int U, int u,
-            int V, int v
-    ) {
-        int x, y, z;
-        int[] coords = new int[3];
-        coords[axis] = a;
-        coords[U]    = u;
-        coords[V]    = v;
-        x = coords[0]; y = coords[1]; z = coords[2];
-        if (x < 0 || y < 0 || z < 0 || x >= 16 || y >= 16 || z >= 16) return false;
-        return solid[x][y][z];
     }
 
     private static void addQuad(
-            int axis, int dir, int a, int u, int v, int w, int h,
-            ArrayList<Float3> vertices,
-            ArrayList<IndexedTriangle> triangles,
-            Map<VecKey, Integer> vmap
-    ) {
+            int axis, int dir, float a, float u, float v, float w, float h,
+            ArrayList<Float3> vertices, ArrayList<IndexedTriangle> triangles, Map<VecKey, Integer> vmap) {
 
-        int[][] corners = new int[4][3];
-
-        int[][] uv = {
-                {u, v},
-                {u + w, v},
-                {u + w, v + h},
-                {u, v + h}
-        };
+        float[][] corners = new float[4][3];
+        float[][] uv = {{u, v}, {u + w, v}, {u + w, v + h}, {u, v + h}};
 
         for (int i = 0; i < 4; i++) {
-            int[] c = new int[3];
-            c[axis] = a;
-            c[(axis + 1) % 3] = uv[i][0];
-            c[(axis + 2) % 3] = uv[i][1];
-            corners[i] = c;
-        }
-
-        if (dir < 0) {
-            for (int i = 0; i < 4; i++) corners[i][axis] -= 1;
+            corners[i][axis] = a;
+            corners[i][(axis + 1) % 3] = uv[i][0];
+            corners[i][(axis + 2) % 3] = uv[i][1];
         }
 
         int i1 = vid(vertices, vmap, corners[0][0], corners[0][1], corners[0][2]);
@@ -193,7 +179,7 @@ public final class TerrainGenerator {
         }
     }
 
-    private static int vid(ArrayList<Float3> vertices, Map<VecKey, Integer> vmap, int x, int y, int z) {
+    private static int vid(ArrayList<Float3> vertices, Map<VecKey, Integer> vmap, float x, float y, float z) {
         VecKey key = new VecKey(x, y, z);
         Integer idx = vmap.get(key);
         if (idx != null) return idx;
@@ -203,16 +189,7 @@ public final class TerrainGenerator {
         return ni;
     }
 
-    private static boolean isEmpty(boolean[][][] solid) {
-        for (int x = 0; x < 16; x++)
-            for (int y = 0; y < 16; y++)
-                for (int z = 0; z < 16; z++)
-                    if (solid[x][y][z]) return false;
-        return true;
-    }
-
     private int computeContentHash(ChunkSnapshot snapshot) {
-
         List<Integer> hashes = new ArrayList<>(snapshot.shapes().size());
         for (ChunkSnapshot.ShapeInfo info : snapshot.shapes()) {
             hashes.add(Objects.hash(info.state().hashCode(), info.localPos().hashCode()));
@@ -222,16 +199,15 @@ public final class TerrainGenerator {
     }
 
     private static final class VecKey {
-        final int x, y, z;
-        VecKey(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
+        final float x, y, z;
+        VecKey(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
         @Override public boolean equals(Object o) {
             if (this == o) return true;
             if (!(o instanceof VecKey k)) return false;
-            return x == k.x && y == k.y && z == k.z;
+            return Float.compare(k.x, x) == 0 && Float.compare(k.y, y) == 0 && Float.compare(k.z, z) == 0;
         }
         @Override public int hashCode() {
-
-            return (x & 0x1F) | ((y & 0x1F) << 5) | ((z & 0x1F) << 10);
+            return Objects.hash(x, y, z);
         }
     }
 }
