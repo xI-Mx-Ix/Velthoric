@@ -12,11 +12,13 @@
     "event.server.VxServerLifecylceEvent_MinecraftServerMixin",
     "misc.ExplosionMixin",
     "object.DispatchObjects_ChunkMapMixin",
+    "riding.EntityMixin",
     "terrain.ChunkHolderMixin",
     "terrain.ChunkUnload_ChunkMapMixin",
     "terrain.ServerLevelMixin"
   ],
   "client": [
+    "boxthrower.BoxThrowerInput_MouseHandlerMixin",
     "event.debug.VxAddDebugInfoEvent_DebugScreenOverlayMixin",
     "event.network.VxClientPlayerNetworkEvent_ClientLevelMixin",
     "event.network.VxClientPlayerNetworkEvent_ClientPacketListenerMixin",
@@ -25,9 +27,9 @@
     "physicsgun.PhysicsGunArmPose_PlayerRendererMixin",
     "physicsgun.PhysicsGunHandling_KeyboardHandlerMixin",
     "physicsgun.PhysicsGunHandling_MouseHandlerMixin",
-    "boxthrower.BoxThrowerInput_MouseHandlerMixin",
     "raytracing.ClickNotifier_MouseHandlerMixin",
     "riding.CameraMixin",
+    "riding.GameRendererMixin",
     "riding.PlayerRendererMixin"
   ],
   "injectors": {
