@@ -41,6 +41,9 @@ configurations {
 dependencies {
     forge "net.minecraftforge:forge:$rootProject.forge_version"
 
+    implementation(annotationProcessor("io.github.llamalad7:mixinextras-common:0.4.1"))
+    implementation(include("io.github.llamalad7:mixinextras-forge:0.4.1"))
+
     modImplementation "dev.architectury:architectury-forge:$rootProject.architectury_api_version"
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
