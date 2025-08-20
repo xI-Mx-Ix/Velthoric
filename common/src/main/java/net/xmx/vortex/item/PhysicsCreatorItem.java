@@ -73,7 +73,6 @@ public class PhysicsCreatorItem extends Item {
         );
 
         if (spawnedObject.isPresent()) {
-            level.playSound(null, blockPos, SoundEvents.STONE_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
             if (context.getPlayer() != null && !context.getPlayer().getAbilities().instabuild) {
                 context.getItemInHand().shrink(1);
             }
