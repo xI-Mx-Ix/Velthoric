@@ -15,6 +15,7 @@ loom {
         client {
             runDir "run-client"
             programArgs '--username', 'dev'
+            //vmArg "-Dfabric.log.level=debug"
         }
     }
 }
