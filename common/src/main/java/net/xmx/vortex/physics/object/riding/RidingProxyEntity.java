@@ -41,10 +41,10 @@ public class RidingProxyEntity extends Entity {
         entityToUpdate.setYHeadRot(entityToUpdate.getYRot());
     }
 
-    @Override
-    public void onPassengerTurned(Entity entityToUpdate) {
-        this.clampRotation(entityToUpdate);
-    }
+    //@Override
+    //public void onPassengerTurned(Entity entityToUpdate) {
+    //     this.clampRotation(entityToUpdate);
+    // }
 
     @Override
     protected void positionRider(Entity passenger, Entity.MoveFunction callback) {
