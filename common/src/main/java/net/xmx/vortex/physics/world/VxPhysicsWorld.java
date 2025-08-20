@@ -208,7 +208,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     public void initializePhysicsSystem() {
-        this.tempAllocator = new TempAllocatorMalloc();
+        this.tempAllocator = new TempAllocatorImpl(64 * 1024 * 1024);
         int numThreads = Math.max(1, Runtime.getRuntime().availableProcessors() - 2);
         this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
 
