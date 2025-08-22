@@ -1,6 +1,8 @@
 package net.xmx.velthoric.item.physicsgun.manager;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -9,7 +11,6 @@ import net.xmx.velthoric.item.physicsgun.packet.PhysicsGunStatePacket;
 import net.xmx.velthoric.item.physicsgun.packet.PlayerTryingStatePacket;
 import net.xmx.velthoric.network.NetworkHandler;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
-import net.xmx.velthoric.physics.object.pcmd.DeactivateBodyCommand;
 import net.xmx.velthoric.physics.raycasting.VxHitResult;
 import net.xmx.velthoric.physics.raycasting.VxRaytracing;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -120,6 +121,7 @@ public class PhysicsGunServerManager {
                 var bodyInterface = physicsWorld.getBodyInterface();
                 if (bodyInterface == null) return;
 
+                bodyInterface.setMotionType(physicsHit.bodyId(), EMotionType.Dynamic, EActivation.Activate);
                 bodyInterface.activateBody(physicsHit.bodyId());
 
                 var bodyLockInterface = physicsWorld.getBodyLockInterface();
@@ -216,7 +218,11 @@ public class PhysicsGunServerManager {
 
             VxRaytracing.raycastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHitResult -> {
                 VxHitResult.PhysicsHit physicsHit = physicsHitResult.getPhysicsHit().orElseThrow();
-                new DeactivateBodyCommand(physicsHit.bodyId()).execute(physicsWorld);
+                var bodyInterface = physicsWorld.getBodyInterface();
+                if (bodyInterface != null) {
+
+                    bodyInterface.setMotionType(physicsHit.bodyId(), EMotionType.Static, EActivation.DontActivate);
+                }
             });
         });
     }
