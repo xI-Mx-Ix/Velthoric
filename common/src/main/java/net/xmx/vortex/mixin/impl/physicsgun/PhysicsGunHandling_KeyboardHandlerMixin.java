@@ -33,20 +33,20 @@ public abstract class PhysicsGunHandling_KeyboardHandlerMixin {
 
         var clientManager = PhysicsGunClientManager.getInstance();
 
-        if (clientManager.isTryingToGrab(player)) {
-            if (pKey == GLFW.GLFW_KEY_E) {
-                if (pAction == GLFW.GLFW_PRESS && !clientManager.isRotationMode()) {
+        if (clientManager.isGrabbing(player) && pKey == GLFW.GLFW_KEY_E) {
+            if (pAction == GLFW.GLFW_PRESS) {
+                if (!clientManager.isRotationMode()) {
                     clientManager.setRotationMode(true);
                     NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.START_ROTATION_MODE));
-                    ci.cancel();
-                } else if (pAction == GLFW.GLFW_RELEASE && clientManager.isRotationMode()) {
+                }
+            } else if (pAction == GLFW.GLFW_RELEASE) {
+                if (clientManager.isRotationMode()) {
                     clientManager.setRotationMode(false);
                     NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_ROTATION_MODE));
-                    ci.cancel();
-                } else if (clientManager.isRotationMode() && (pAction == GLFW.GLFW_REPEAT || pAction == GLFW.GLFW_PRESS)) {
-                    ci.cancel();
                 }
             }
+
+            ci.cancel();
         }
     }
 }
