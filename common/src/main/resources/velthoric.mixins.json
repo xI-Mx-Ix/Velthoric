@@ -1,0 +1,38 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.xmx.velthoric.mixin.impl",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "event.chunk.VxChunkLoadEvent_ChunkMapMixin",
+    "event.chunk.VxChunkUnloadEvent_ChunkMapMixin",
+    "event.chunk.VxChunkWatchEvent_ChunkMapMixin",
+    "event.level.VxLevelEvent_MinecraftServerMixin",
+    "event.level.VxLevelEvent_ServerLevelMixin",
+    "event.server.VxServerLifecylceEvent_MinecraftServerMixin",
+    "misc.ExplosionMixin",
+    "object.DispatchObjects_ChunkMapMixin",
+    "riding.EntityMixin",
+    "terrain.ChunkHolderMixin",
+    "terrain.ChunkUnload_ChunkMapMixin",
+    "terrain.ServerLevelMixin"
+  ],
+  "client": [
+    "boxthrower.BoxThrowerInput_MouseHandlerMixin",
+    "event.debug.VxAddDebugInfoEvent_DebugScreenOverlayMixin",
+    "event.network.VxClientPlayerNetworkEvent_ClientLevelMixin",
+    "event.network.VxClientPlayerNetworkEvent_ClientPacketListenerMixin",
+    "event.render.VxRenderEvent_LevelRendererMixin",
+    "magnetizer.MagnetizerInput_MouseHandlerMixin",
+    "physicsgun.PhysicsGunArmPose_PlayerRendererMixin",
+    "physicsgun.PhysicsGunHandling_KeyboardHandlerMixin",
+    "physicsgun.PhysicsGunHandling_MouseHandlerMixin",
+    "raytracing.ClickNotifier_MouseHandlerMixin",
+    "riding.CameraMixin",
+    "riding.GameRendererMixin",
+    "riding.PlayerRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

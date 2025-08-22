@@ -1,30 +1,20 @@
-# Vortex Physics – Jolt Physics for Minecraft
+# Velthoric
 
-**Vortex Physics** is a Minecraft mod that integrates the high-performance [Jolt Physics](https://github.com/jrouwe/JoltPhysics) library directly into the game.  
-It brings advanced simulation features such as rigid bodies, soft bodies, custom collision shapes, constraints, and more.
-
----
+**Velthoric** is a lightweight physics mod for Minecraft that provides a full physics API and serialization system.
+It uses Jolt Physics via [JoltJNI](https://github.com/stephengold/jolt-jni) for efficient handling of soft bodies, rigid bodies, and constraints.
 
 ## Features
 
-- Full support for Jolt Physics rigid body and soft body simulation
-- Custom shapes, forces, constraints, and interactive world integration
-- Extendable API to build your own physics-powered mods
+- Lightweight and optimized for performance
+- API for creating and manipulating physics objects
+- Serialization support for soft bodies, rigid bodies, and constraints
+- Fully extensible for custom physics implementations
+- Integrates seamlessly with Minecraft mechanics
 
----
+## Thanks
 
-## Documentation
+Special thanks to [Stephen Gold](https://github.com/stephengold/jolt-jni) for creating JoltJNI, which makes this mod possible.
 
-Explore the full API documentation here:  
-[https://xi-mx-ix.github.io/vortex-documentation/](https://xi-mx-ix.github.io/vortex-documentation/)
+## License
 
----
-
-## Contributing
-
-Contributions, ideas, and bug reports are always welcome.  
-Feel free to open issues or submit pull requests.
-
----
-
-> Special thanks to [Stephen Gold](https://github.com/stephengold) and the [jolt-jni](https://github.com/stephengold/jolt-jni) project for providing the Java Native Interface to Jolt Physics.
+Velthoric is licensed under **LGPL 3**. See LICENSE file for details.

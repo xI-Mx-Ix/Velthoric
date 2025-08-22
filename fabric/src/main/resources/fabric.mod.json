@@ -8,15 +8,15 @@
     "${mod_authors}"
   ],
   "license": "${mod_license}",
-  "icon": "assets/vortex/vortex.png",
+  "icon": "assets/velthoric/velthoric.png",
   "environment": "*",
   "entrypoints": {
     "main": [
-      "net.xmx.vortex.fabric.VortexFabric"
+      "net.xmx.velthoric.fabric.VxFabric"
     ]
   },
   "mixins": [
-    "vortex.mixins.json"
+    "velthoric.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${fabric_loader_version}",

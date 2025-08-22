@@ -36,4 +36,4 @@ random_names.txt
 out/
 
 # Ignore resource files that have "All Rights Reserved" license
-common/src/main/resources/assets/vortex/obj/
+common/src/main/resources/assets/velthoric/obj/

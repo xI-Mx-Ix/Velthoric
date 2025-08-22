@@ -7,7 +7,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'Vortex Physics'
+rootProject.name = 'Velthoric'
 
 include 'common'
 include 'fabric'

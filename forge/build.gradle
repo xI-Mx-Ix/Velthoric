@@ -4,7 +4,7 @@ plugins {
 
 loom {
     forge {
-        mixinConfig "vortex.mixins.json"
+        mixinConfig "velthoric.mixins.json"
     }
 
     runs {
