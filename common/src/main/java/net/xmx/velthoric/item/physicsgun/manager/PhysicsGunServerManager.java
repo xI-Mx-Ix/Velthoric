@@ -204,17 +204,12 @@ public class PhysicsGunServerManager {
     }
 
     public void freezeObject(ServerPlayer player) {
-
         GrabbedObjectInfo info = grabbedObjects.get(player.getUUID());
-
         if (info == null) {
-
-            System.out.println("[PhysicsGun] Player " + player.getName().getString() + " tried to freeze, but is not grabbing anything.");
             return;
         }
 
         stopGrab(player);
-
         var physicsWorld = VxPhysicsWorld.get(player.level().dimension());
         if (physicsWorld == null) {
             return;
