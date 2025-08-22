@@ -53,17 +53,13 @@ public class PhysicsGunHandling_MouseHandlerMixin {
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             if (action == GLFW.GLFW_PRESS) {
                 clientManager.startGrabAttempt(player);
-                NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.START_GRAB_ATTEMPT));
             } else if (action == GLFW.GLFW_RELEASE) {
                 clientManager.stopGrabAttempt(player);
-                NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_GRAB_ATTEMPT));
             }
         }
 
         if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
             if (action == GLFW.GLFW_PRESS) {
-                clientManager.stopGrabAttempt(player);
-                NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_GRAB_ATTEMPT));
                 NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.FREEZE_OBJECT));
             }
         }

@@ -204,26 +204,27 @@ public class PhysicsGunServerManager {
     }
 
     public void freezeObject(ServerPlayer player) {
-        stopGrab(player);
-        var physicsWorld = VxPhysicsWorld.get(player.level().dimension());
-        if (physicsWorld == null) return;
 
-        final net.minecraft.world.phys.Vec3 eyePos = player.getEyePosition();
-        final net.minecraft.world.phys.Vec3 lookVec = player.getLookAngle();
-        final net.minecraft.world.level.Level level = player.level();
+        GrabbedObjectInfo info = grabbedObjects.get(player.getUUID());
+
+        if (info == null) {
+
+            System.out.println("[PhysicsGun] Player " + player.getName().getString() + " tried to freeze, but is not grabbing anything.");
+            return;
+        }
+
+        stopGrab(player);
+
+        var physicsWorld = VxPhysicsWorld.get(player.level().dimension());
+        if (physicsWorld == null) {
+            return;
+        }
 
         physicsWorld.execute(() -> {
-            var rayOrigin = new com.github.stephengold.joltjni.RVec3((float) eyePos.x(), (float) eyePos.y(), (float) eyePos.z());
-            var rayDirection = new com.github.stephengold.joltjni.Vec3((float) lookVec.x(), (float) lookVec.y(), (float) lookVec.z());
-
-            VxRaytracing.raycastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHitResult -> {
-                VxHitResult.PhysicsHit physicsHit = physicsHitResult.getPhysicsHit().orElseThrow();
-                var bodyInterface = physicsWorld.getBodyInterface();
-                if (bodyInterface != null) {
-
-                    bodyInterface.setMotionType(physicsHit.bodyId(), EMotionType.Static, EActivation.DontActivate);
-                }
-            });
+            var bodyInterface = physicsWorld.getBodyInterface();
+            if (bodyInterface != null) {
+                bodyInterface.setMotionType(info.bodyId(), EMotionType.Static, EActivation.DontActivate);
+            }
         });
     }
 
