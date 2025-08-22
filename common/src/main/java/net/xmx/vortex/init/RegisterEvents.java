@@ -8,7 +8,7 @@ import net.xmx.vortex.item.magnetizer.event.MagnetizerEvents;
 import net.xmx.vortex.item.physicsgun.beam.PhysicsGunBeamRenderer;
 import net.xmx.vortex.item.physicsgun.event.PhysicsGunEvents;
 import net.xmx.vortex.physics.VxLifecycleEvents;
-import net.xmx.vortex.physics.constraint.manager.events.ConstraintLifecycleEvents;
+import net.xmx.vortex.physics.constraint.manager.event.ConstraintLifecycleEvents;
 import net.xmx.vortex.physics.object.physicsobject.client.ClientObjectDataManager;
 import net.xmx.vortex.physics.object.physicsobject.client.renderer.PhysicsObjectRenderer;
 import net.xmx.vortex.physics.object.physicsobject.client.time.ClientPhysicsPauseHandler;

@@ -6,7 +6,6 @@ import net.xmx.vortex.builtin.VxRegisteredObjects;
 import net.xmx.vortex.init.registry.ModRegistries;
 import net.xmx.vortex.network.NetworkHandler;
 import net.xmx.vortex.natives.NativeJoltInitializer;
-import net.xmx.vortex.physics.constraint.serializer.registry.ConstraintSerializerRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -18,7 +17,6 @@ public class VxMainClass {
         ModRegistries.register();
 
         VxRegisteredObjects.register();
-        ConstraintSerializerRegistry.registerDefaults();
         NetworkHandler.register();
 
         RegisterEvents.register();

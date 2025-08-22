@@ -72,6 +72,7 @@ public class VxObjectManager {
                         }
                         body.setBodyId(bodyId);
                         objectContainer.add(body);
+                        world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
                     }
                 }
             }
@@ -93,6 +94,7 @@ public class VxObjectManager {
                 }
                 body.setBodyId(bodyId);
                 objectContainer.add(body);
+                world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
             }
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to create/re-create soft body {}", body.getPhysicsId(), e);
@@ -131,6 +133,7 @@ public class VxObjectManager {
             if (reason == VxRemovalReason.DISCARD) {
                 objectStorage.removeData(id);
             }
+            world.getConstraintManager().removeConstraintsForObject(id, reason == VxRemovalReason.DISCARD);
             return;
         }
         physicsUpdater.clearStateFor(id);

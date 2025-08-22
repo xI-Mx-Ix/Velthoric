@@ -4,8 +4,6 @@ import com.mojang.brigadier.CommandDispatcher;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
 import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.minecraft.commands.CommandSourceStack;
 import net.xmx.vortex.command.*;
 
@@ -15,7 +13,8 @@ public class CommandRegistry {
         SpawnClothCommand.register(dispatcher);
         SpawnRopeCommand.register(dispatcher);
         SpawnBoxCommand.register(dispatcher);
-        SpawnHingePairCommand.register(dispatcher);
+        SpawnConnectedBoxesCommand.register(dispatcher);
+        CreateRopeCommand.register(dispatcher);
     }
 
     public static void registerClient(CommandDispatcher<CommandSourceStack> dispatcher) {
