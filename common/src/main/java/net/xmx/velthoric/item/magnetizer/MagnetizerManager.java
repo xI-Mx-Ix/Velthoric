@@ -7,10 +7,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
-import net.xmx.velthoric.physics.object.raycast.VxClipContext;
-import net.xmx.velthoric.physics.object.raycast.VxHitResult;
-import net.xmx.velthoric.physics.object.raycast.VxRaytracing;
-import net.xmx.velthoric.physics.object.physicsobject.pcmd.ActivateBodyCommand;
+import net.xmx.velthoric.physics.raycasting.VxClipContext;
+import net.xmx.velthoric.physics.raycasting.VxHitResult;
+import net.xmx.velthoric.physics.raycasting.VxRaytracing;
+import net.xmx.velthoric.physics.object.pcmd.ActivateBodyCommand;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Map;

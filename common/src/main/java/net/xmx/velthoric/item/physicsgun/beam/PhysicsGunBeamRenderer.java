@@ -16,9 +16,9 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.event.api.VxRenderEvent;
 import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunClientManager;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.physicsobject.client.ObjectRead;
-import net.xmx.velthoric.physics.object.physicsobject.client.interpolation.InterpolationFrame;
-import net.xmx.velthoric.physics.object.physicsobject.client.interpolation.RenderState;
+import net.xmx.velthoric.physics.object.client.ObjectRead;
+import net.xmx.velthoric.physics.object.client.interpolation.InterpolationFrame;
+import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
 import org.joml.Matrix4f;
 
 import java.util.Map;

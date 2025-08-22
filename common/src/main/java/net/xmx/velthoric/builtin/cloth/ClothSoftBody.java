@@ -4,8 +4,8 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.velthoric.physics.object.physicsobject.PhysicsObjectType;
-import net.xmx.velthoric.physics.object.physicsobject.type.soft.VxSoftBody;
+import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 

@@ -1,7 +1,7 @@
 package net.xmx.velthoric.physics.constraint.manager;
 
 import net.xmx.velthoric.physics.constraint.VxConstraint;
-import net.xmx.velthoric.physics.object.physicsobject.manager.VxObjectManager;
+import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 
 import java.util.Map;
 import java.util.Set;

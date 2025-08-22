@@ -5,7 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.minecraft.client.player.LocalPlayer;
 import net.xmx.velthoric.network.NetworkHandler;
-import net.xmx.velthoric.physics.object.raycast.click.packet.VxClickPacket;
+import net.xmx.velthoric.physics.raycasting.click.packet.VxClickPacket;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

@@ -15,8 +15,8 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.physics.object.physicsobject.client.interpolation.RenderState;
-import net.xmx.velthoric.physics.object.physicsobject.type.soft.VxSoftBody;
+import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
+import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;

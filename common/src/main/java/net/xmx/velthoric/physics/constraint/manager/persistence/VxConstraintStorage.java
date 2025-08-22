@@ -11,7 +11,7 @@ import net.minecraft.world.level.storage.LevelResource;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
-import net.xmx.velthoric.physics.object.physicsobject.manager.VxObjectManager;
+import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 
 import java.io.IOException;
 import java.nio.channels.FileChannel;

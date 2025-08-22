@@ -12,11 +12,11 @@ import net.minecraft.world.level.Level;
 import net.xmx.velthoric.item.boxthrower.packet.BoxThrowerActionPacket;
 import net.xmx.velthoric.item.magnetizer.packet.MagnetizerActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.*;
-import net.xmx.velthoric.physics.object.physicsobject.packet.batch.RemovePhysicsObjectBatchPacket;
-import net.xmx.velthoric.physics.object.physicsobject.packet.batch.SpawnPhysicsObjectBatchPacket;
-import net.xmx.velthoric.physics.object.physicsobject.packet.batch.SyncAllPhysicsObjectsPacket;
-import net.xmx.velthoric.physics.object.physicsobject.packet.SyncPhysicsObjectDataPacket;
-import net.xmx.velthoric.physics.object.raycast.click.packet.VxClickPacket;
+import net.xmx.velthoric.physics.object.packet.batch.RemovePhysicsObjectBatchPacket;
+import net.xmx.velthoric.physics.object.packet.batch.SpawnPhysicsObjectBatchPacket;
+import net.xmx.velthoric.physics.object.packet.batch.SyncAllPhysicsObjectsPacket;
+import net.xmx.velthoric.physics.object.packet.SyncPhysicsObjectDataPacket;
+import net.xmx.velthoric.physics.raycasting.click.packet.VxClickPacket;
 
 import java.util.function.BiConsumer;
 import java.util.function.Function;

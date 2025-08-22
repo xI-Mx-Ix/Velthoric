@@ -16,7 +16,7 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.builtin.VxRegisteredObjects;
 import net.xmx.velthoric.builtin.rope.RopeSoftBody;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.physicsobject.manager.VxObjectManager;
+import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Optional;

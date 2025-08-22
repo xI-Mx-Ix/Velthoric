@@ -18,7 +18,7 @@ import net.xmx.velthoric.builtin.VxRegisteredObjects;
 import net.xmx.velthoric.builtin.block.BlockRigidPhysicsObject;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.physicsobject.manager.VxObjectManager;
+import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Optional;

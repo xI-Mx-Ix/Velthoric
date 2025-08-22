@@ -6,8 +6,8 @@ import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.Vertex;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.velthoric.physics.object.physicsobject.PhysicsObjectType;
-import net.xmx.velthoric.physics.object.physicsobject.type.soft.VxSoftBody;
+import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 

@@ -13,8 +13,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.model.converter.VoxelShapeConverter;
-import net.xmx.velthoric.physics.object.physicsobject.PhysicsObjectType;
-import net.xmx.velthoric.physics.object.physicsobject.type.rigid.VxRigidBody;
+import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 

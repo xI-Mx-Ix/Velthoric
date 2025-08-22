@@ -3,8 +3,8 @@ package net.xmx.velthoric.builtin.sphere;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.velthoric.physics.object.physicsobject.PhysicsObjectType;
-import net.xmx.velthoric.physics.object.physicsobject.type.rigid.VxRigidBody;
+import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 

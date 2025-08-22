@@ -3,10 +3,10 @@ package net.xmx.velthoric.api;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.physicsobject.PhysicsObjectType;
-import net.xmx.velthoric.physics.object.physicsobject.client.ClientObjectDataManager;
-import net.xmx.velthoric.physics.object.physicsobject.type.rigid.VxRigidBody;
-import net.xmx.velthoric.physics.object.physicsobject.type.soft.VxSoftBody;
+import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
+import net.xmx.velthoric.physics.object.type.VxRigidBody;
+import net.xmx.velthoric.physics.object.type.VxSoftBody;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

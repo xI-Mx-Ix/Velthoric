@@ -9,10 +9,10 @@ import net.xmx.velthoric.item.physicsgun.beam.PhysicsGunBeamRenderer;
 import net.xmx.velthoric.item.physicsgun.event.PhysicsGunEvents;
 import net.xmx.velthoric.physics.VxLifecycleEvents;
 import net.xmx.velthoric.physics.constraint.manager.event.ConstraintLifecycleEvents;
-import net.xmx.velthoric.physics.object.physicsobject.client.ClientObjectDataManager;
-import net.xmx.velthoric.physics.object.physicsobject.client.renderer.PhysicsObjectRenderer;
-import net.xmx.velthoric.physics.object.physicsobject.client.time.ClientPhysicsPauseHandler;
-import net.xmx.velthoric.physics.object.physicsobject.manager.event.ObjectLifecycleEvents;
+import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
+import net.xmx.velthoric.physics.object.client.renderer.PhysicsObjectRenderer;
+import net.xmx.velthoric.physics.object.client.time.ClientPhysicsPauseHandler;
+import net.xmx.velthoric.physics.object.manager.event.ObjectLifecycleEvents;
 
 public class RegisterEvents {
 

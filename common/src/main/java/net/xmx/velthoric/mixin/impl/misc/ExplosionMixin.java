@@ -4,7 +4,7 @@ import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
-import net.xmx.velthoric.physics.object.physicsobject.util.VxExplosionUtil;
+import net.xmx.velthoric.physics.object.util.VxExplosionUtil;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

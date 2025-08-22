@@ -18,8 +18,8 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.physicsobject.client.interpolation.RenderState;
-import net.xmx.velthoric.physics.object.physicsobject.type.rigid.VxRigidBody;
+import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
+import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;

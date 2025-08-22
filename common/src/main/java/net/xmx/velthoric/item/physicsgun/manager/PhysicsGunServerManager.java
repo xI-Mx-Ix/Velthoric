@@ -8,10 +8,10 @@ import net.xmx.velthoric.item.physicsgun.GrabbedObjectInfo;
 import net.xmx.velthoric.item.physicsgun.packet.PhysicsGunStatePacket;
 import net.xmx.velthoric.item.physicsgun.packet.PlayerTryingStatePacket;
 import net.xmx.velthoric.network.NetworkHandler;
-import net.xmx.velthoric.physics.object.physicsobject.VxAbstractBody;
-import net.xmx.velthoric.physics.object.physicsobject.pcmd.DeactivateBodyCommand;
-import net.xmx.velthoric.physics.object.raycast.VxHitResult;
-import net.xmx.velthoric.physics.object.raycast.VxRaytracing;
+import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.pcmd.DeactivateBodyCommand;
+import net.xmx.velthoric.physics.raycasting.VxHitResult;
+import net.xmx.velthoric.physics.raycasting.VxRaytracing;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Map;

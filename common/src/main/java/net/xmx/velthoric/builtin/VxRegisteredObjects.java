@@ -13,7 +13,7 @@ import net.xmx.velthoric.builtin.rope.RopeSoftBody;
 import net.xmx.velthoric.builtin.rope.RopeSoftBodyRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRigidPhysicsObject;
-import net.xmx.velthoric.physics.object.physicsobject.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.PhysicsObjectType;
 
 public class VxRegisteredObjects {
 

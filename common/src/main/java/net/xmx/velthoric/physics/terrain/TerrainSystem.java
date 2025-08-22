@@ -12,7 +12,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.physicsobject.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.terrain.cache.TerrainShapeCache;
 import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;

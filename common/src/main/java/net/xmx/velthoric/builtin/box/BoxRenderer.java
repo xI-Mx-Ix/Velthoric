@@ -7,8 +7,8 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Blocks;
-import net.xmx.velthoric.physics.object.physicsobject.client.interpolation.RenderState;
-import net.xmx.velthoric.physics.object.physicsobject.type.rigid.VxRigidBody;
+import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
+import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;

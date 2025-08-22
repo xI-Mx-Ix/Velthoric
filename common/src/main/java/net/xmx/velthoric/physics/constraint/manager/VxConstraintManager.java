@@ -9,8 +9,8 @@ import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.manager.persistence.VxConstraintStorage;
 import net.xmx.velthoric.physics.constraint.serializer.ConstraintSerializerRegistry;
 import net.xmx.velthoric.physics.constraint.serializer.IVxConstraintSerializer;
-import net.xmx.velthoric.physics.object.physicsobject.VxAbstractBody;
-import net.xmx.velthoric.physics.object.physicsobject.manager.VxObjectManager;
+import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Map;

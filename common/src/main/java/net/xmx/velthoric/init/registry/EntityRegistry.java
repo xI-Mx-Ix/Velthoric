@@ -7,7 +7,7 @@ import dev.architectury.utils.Env;
 import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.xmx.velthoric.physics.object.riding.RidingProxyEntity;
+import net.xmx.velthoric.physics.riding.RidingProxyEntity;
 
 public class EntityRegistry {
 

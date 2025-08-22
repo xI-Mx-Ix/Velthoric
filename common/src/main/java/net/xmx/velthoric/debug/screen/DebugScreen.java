@@ -8,7 +8,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.xmx.velthoric.event.api.VxDebugEvent;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.physicsobject.client.ClientObjectDataManager;
+import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
 
 import java.util.Collection;
 import java.util.List;
