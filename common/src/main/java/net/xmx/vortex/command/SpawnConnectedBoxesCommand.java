@@ -47,8 +47,6 @@ public final class SpawnConnectedBoxesCommand {
             return 0;
         }
 
-        // *** KORREKTUR: Die GESAMTE Logik (Körpererstellung + Constrainterstellung) MUSS
-        // in einem einzigen execute-Block stattfinden, um die Race Condition zu verhindern. ***
         physicsWorld.execute(() -> {
             VxObjectManager objectManager = physicsWorld.getObjectManager();
             VxConstraintManager constraintManager = physicsWorld.getConstraintManager();
@@ -57,7 +55,6 @@ public final class SpawnConnectedBoxesCommand {
             float spacing = 0.1f;
             Vec3 halfExtents = new Vec3(halfExtent, halfExtent, halfExtent);
 
-            // Schritt 1: Erstelle die Körper INNERHALB des execute-Blocks
             RVec3 pos1 = new RVec3(centerPos.x - halfExtent - spacing, centerPos.y, centerPos.z);
             Optional<BoxRigidPhysicsObject> box1Opt = objectManager.createRigidBody(
                     VxRegisteredObjects.BOX,
@@ -67,7 +64,7 @@ public final class SpawnConnectedBoxesCommand {
 
             if (box1Opt.isEmpty()) {
                 source.sendFailure(Component.literal("Failed to spawn the first box."));
-                return; // Beendet das Runnable
+                return;
             }
 
             RVec3 pos2 = new RVec3(centerPos.x + halfExtent + spacing, centerPos.y, centerPos.z);

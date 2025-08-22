@@ -29,13 +29,10 @@ public class PhysicsGunClientManager {
     }
 
     public void startGrabAttempt(Player player) {
-        // Sende eine Anfrage an den Server, anstatt nur den lokalen Zustand zu ändern.
-        // Der Server wird den Zustand an alle Clients (einschließlich diesen) zurücksenden.
         NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.START_GRAB_ATTEMPT));
     }
 
     public void stopGrabAttempt(Player player) {
-        // Sende ebenfalls eine Anfrage an den Server.
         NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_GRAB_ATTEMPT));
         this.setRotationMode(false);
     }
