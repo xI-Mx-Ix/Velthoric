@@ -7,7 +7,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.xmx.vortex.physics.object.physicsobject.PhysicsObjectType;
 import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.physicsobject.client.interpolation.RenderState;
-import net.xmx.vortex.physics.object.raycast.Clickable;
+import net.xmx.vortex.physics.object.raycast.click.Clickable;
 import net.xmx.vortex.physics.object.riding.Rideable;
 import net.xmx.vortex.physics.object.riding.seat.Seat;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;

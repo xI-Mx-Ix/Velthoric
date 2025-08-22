@@ -11,6 +11,7 @@ import net.xmx.vortex.item.physicsgun.packet.PlayerTryingStatePacket;
 import net.xmx.vortex.network.NetworkHandler;
 import net.xmx.vortex.physics.object.physicsobject.VxAbstractBody;
 import net.xmx.vortex.physics.object.physicsobject.pcmd.DeactivateBodyCommand;
+import net.xmx.vortex.physics.object.raycast.VxHitResult;
 import net.xmx.vortex.physics.object.raycast.VxRaytracing;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
@@ -101,47 +102,49 @@ public class PhysicsGunServerManager {
         var physicsWorld = VxPhysicsWorld.get(player.level().dimension());
         if (physicsWorld == null) return;
 
-        final var eyePos = player.getEyePosition();
-        final var lookVec = player.getLookAngle();
-        final Level level = player.level();
+        final net.minecraft.world.phys.Vec3 eyePos = player.getEyePosition();
+        final net.minecraft.world.phys.Vec3 lookVec = player.getLookAngle();
+        final net.minecraft.world.level.Level level = player.level();
 
         physicsWorld.execute(() -> {
-            var rayOrigin = new RVec3(eyePos.x, eyePos.y, eyePos.z);
-            var rayDirection = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z);
+            var rayOrigin = new com.github.stephengold.joltjni.RVec3((float) eyePos.x(), (float) eyePos.y(), (float) eyePos.z());
+            var rayDirection = new com.github.stephengold.joltjni.Vec3((float) lookVec.x(), (float) lookVec.y(), (float) lookVec.z());
 
-            VxRaytracing.rayCastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHit -> {
-                Optional<VxAbstractBody> physicsObjectOpt = physicsWorld.getObjectManager().getObjectContainer().getByBodyId(physicsHit.getBodyId());
+            VxRaytracing.raycastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHitResult -> {
+                VxHitResult.PhysicsHit physicsHit = physicsHitResult.getPhysicsHit().orElseThrow();
+                Optional<VxAbstractBody> physicsObjectOpt = physicsWorld.getObjectManager().getObjectContainer().getByBodyId(physicsHit.bodyId());
                 if (physicsObjectOpt.isEmpty()) return;
 
                 VxAbstractBody physicsObject = physicsObjectOpt.get();
-                UUID objectId = physicsObject.getPhysicsId();
+                java.util.UUID objectId = physicsObject.getPhysicsId();
 
                 var bodyInterface = physicsWorld.getBodyInterface();
                 if (bodyInterface == null) return;
 
-                bodyInterface.activateBody(physicsHit.getBodyId());
+                bodyInterface.activateBody(physicsHit.bodyId());
 
                 var bodyLockInterface = physicsWorld.getBodyLockInterface();
                 if (bodyLockInterface == null) return;
 
-                try (var lock = new BodyLockWrite(bodyLockInterface, physicsHit.getBodyId())) {
+                try (var lock = new com.github.stephengold.joltjni.BodyLockWrite(bodyLockInterface, physicsHit.bodyId())) {
                     if (lock.succeededAndIsInBroadPhase() && lock.getBody().isDynamic()) {
-                        Body body = lock.getBody();
-                        MotionProperties motionProperties = body.getMotionProperties();
+                        com.github.stephengold.joltjni.Body body = lock.getBody();
+                        com.github.stephengold.joltjni.MotionProperties motionProperties = body.getMotionProperties();
                         if (motionProperties == null) return;
 
-                        RVec3 hitPointWorld = physicsHit.calculateHitPoint(rayOrigin, rayDirection, MAX_DISTANCE);
+                        com.github.stephengold.joltjni.Vec3 offset = com.github.stephengold.joltjni.operator.Op.star(rayDirection, physicsHit.hitFraction() * MAX_DISTANCE);
+                        com.github.stephengold.joltjni.RVec3 hitPointWorld = com.github.stephengold.joltjni.operator.Op.plus(rayOrigin, offset);
 
                         try (var invBodyTransform = body.getInverseCenterOfMassTransform()) {
                             float originalDamping = motionProperties.getAngularDamping();
-                            Vec3 hitPointLocal = Op.star(invBodyTransform, hitPointWorld).toVec3();
-                            float grabDistance = (float) Op.minus(rayOrigin, hitPointWorld).length();
-                            Quat initialPlayerRot = playerRotToQuat(player.getXRot(), player.getYRot());
-                            Quat initialBodyRot = body.getRotation();
+                            com.github.stephengold.joltjni.Vec3 hitPointLocal = com.github.stephengold.joltjni.operator.Op.star(invBodyTransform, hitPointWorld).toVec3();
+                            float grabDistance = (float) com.github.stephengold.joltjni.operator.Op.minus(rayOrigin, hitPointWorld).length();
+                            com.github.stephengold.joltjni.Quat initialPlayerRot = playerRotToQuat(player.getXRot(), player.getYRot());
+                            com.github.stephengold.joltjni.Quat initialBodyRot = body.getRotation();
 
                             var info = new GrabbedObjectInfo(
                                     objectId,
-                                    physicsHit.getBodyId(),
+                                    physicsHit.bodyId(),
                                     hitPointLocal,
                                     grabDistance,
                                     originalDamping,
@@ -156,7 +159,7 @@ public class PhysicsGunServerManager {
                             }
 
                             motionProperties.setAngularDamping(2.0f);
-                            body.setAngularVelocity(new Vec3(0, 0, 0));
+                            body.setAngularVelocity(new com.github.stephengold.joltjni.Vec3(0, 0, 0));
 
                             net.minecraft.world.phys.Vec3 localHitPointForPacket = new net.minecraft.world.phys.Vec3(
                                     info.grabPointLocal().getX(),
@@ -204,16 +207,17 @@ public class PhysicsGunServerManager {
         var physicsWorld = VxPhysicsWorld.get(player.level().dimension());
         if (physicsWorld == null) return;
 
-        final var eyePos = player.getEyePosition();
-        final var lookVec = player.getLookAngle();
-        final Level level = player.level();
+        final net.minecraft.world.phys.Vec3 eyePos = player.getEyePosition();
+        final net.minecraft.world.phys.Vec3 lookVec = player.getLookAngle();
+        final net.minecraft.world.level.Level level = player.level();
 
         physicsWorld.execute(() -> {
-            var rayOrigin = new RVec3(eyePos.x, eyePos.y, eyePos.z);
-            var rayDirection = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z);
+            var rayOrigin = new com.github.stephengold.joltjni.RVec3((float) eyePos.x(), (float) eyePos.y(), (float) eyePos.z());
+            var rayDirection = new com.github.stephengold.joltjni.Vec3((float) lookVec.x(), (float) lookVec.y(), (float) lookVec.z());
 
-            VxRaytracing.rayCastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHit -> {
-                new DeactivateBodyCommand(physicsHit.getBodyId()).execute(physicsWorld);
+            VxRaytracing.raycastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHitResult -> {
+                VxHitResult.PhysicsHit physicsHit = physicsHitResult.getPhysicsHit().orElseThrow();
+                new DeactivateBodyCommand(physicsHit.bodyId()).execute(physicsWorld);
             });
         });
     }

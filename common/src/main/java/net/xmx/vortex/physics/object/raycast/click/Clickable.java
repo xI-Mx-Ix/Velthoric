@@ -1,4 +1,4 @@
-package net.xmx.vortex.physics.object.raycast;
+package net.xmx.vortex.physics.object.raycast.click;
 
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.server.level.ServerPlayer;

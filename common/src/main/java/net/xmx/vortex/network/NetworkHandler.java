@@ -16,7 +16,7 @@ import net.xmx.vortex.physics.object.physicsobject.packet.batch.RemovePhysicsObj
 import net.xmx.vortex.physics.object.physicsobject.packet.batch.SpawnPhysicsObjectBatchPacket;
 import net.xmx.vortex.physics.object.physicsobject.packet.batch.SyncAllPhysicsObjectsPacket;
 import net.xmx.vortex.physics.object.physicsobject.packet.SyncPhysicsObjectDataPacket;
-import net.xmx.vortex.physics.object.raycast.packet.PhysicsClickPacket;
+import net.xmx.vortex.physics.object.raycast.click.packet.VxClickPacket;
 
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -93,10 +93,10 @@ public class NetworkHandler {
         );
 
         registerPacket(
-                PhysicsClickPacket.class,
-                PhysicsClickPacket::encode,
-                PhysicsClickPacket::decode,
-                PhysicsClickPacket::handle
+                VxClickPacket.class,
+                VxClickPacket::encode,
+                VxClickPacket::decode,
+                VxClickPacket::handle
         );
 
         registerPacket(

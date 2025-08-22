@@ -1,13 +1,13 @@
-package net.xmx.vortex.physics.object.raycast.packet;
+package net.xmx.vortex.physics.object.raycast.click.packet;
 
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.vortex.physics.object.raycast.VxClickManager;
+import net.xmx.vortex.physics.object.raycast.click.VxClickManager;
 
 import java.util.function.Supplier;
 
-public record PhysicsClickPacket(
+public record VxClickPacket(
         float rayOriginX, float rayOriginY, float rayOriginZ,
         float rayDirectionX, float rayDirectionY, float rayDirectionZ,
         boolean isRightClick) {
@@ -22,15 +22,15 @@ public record PhysicsClickPacket(
         buffer.writeBoolean(isRightClick);
     }
 
-    public static PhysicsClickPacket decode(FriendlyByteBuf buffer) {
-        return new PhysicsClickPacket(
+    public static VxClickPacket decode(FriendlyByteBuf buffer) {
+        return new VxClickPacket(
                 buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),
                 buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),
                 buffer.readBoolean()
         );
     }
 
-    public static void handle(PhysicsClickPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
+    public static void handle(VxClickPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             ServerPlayer player = (ServerPlayer) context.getPlayer();

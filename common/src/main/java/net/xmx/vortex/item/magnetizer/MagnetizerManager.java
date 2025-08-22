@@ -5,10 +5,12 @@ import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.xmx.vortex.physics.object.raycast.VxClipContext;
+import net.xmx.vortex.physics.object.raycast.VxHitResult;
 import net.xmx.vortex.physics.object.raycast.VxRaytracing;
 import net.xmx.vortex.physics.object.physicsobject.pcmd.ActivateBodyCommand;
-import net.xmx.vortex.physics.object.raycast.result.CombinedHitResult;
 import net.xmx.vortex.physics.world.VxPhysicsWorld;
 
 import java.util.Map;
@@ -62,35 +64,23 @@ public class MagnetizerManager {
             return;
         }
 
-        final var eyePos = player.getEyePosition();
-        final var lookVec = player.getLookAngle();
-        final RVec3 rayOrigin = new RVec3(eyePos.x, eyePos.y, eyePos.z);
-        final Vec3 rayDirection = new Vec3(lookVec.x, lookVec.y, lookVec.z).normalized();
+        final net.minecraft.world.phys.Vec3 eyePos = player.getEyePosition();
+        final net.minecraft.world.phys.Vec3 lookVec = player.getLookAngle();
+        final net.minecraft.world.phys.Vec3 rayEnd = eyePos.add(lookVec.scale(TARGET_DISTANCE));
 
-        Optional<CombinedHitResult> hitResult =
-                VxRaytracing.rayCast(level, rayOrigin, rayDirection, TARGET_DISTANCE, player);
+        VxClipContext context = new VxClipContext(eyePos, rayEnd, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player, true);
 
-        final RVec3 targetPointRVec;
+        Optional<VxHitResult> hitResult = VxRaytracing.raycast(level, context);
+
+        final net.minecraft.world.phys.Vec3 targetPoint;
         if (hitResult.isPresent()) {
-            CombinedHitResult hit = hitResult.get();
-
-            if (hit.isPhysicsHit()) {
-
-                targetPointRVec = hit.getPhysicsHit().get().calculateHitPoint(rayOrigin, rayDirection, TARGET_DISTANCE);
-            } else if (hit.isMinecraftHit()) {
-
-                var mcHitPos = hit.getMinecraftHit().get().getHitResult().getLocation();
-                targetPointRVec = new RVec3(mcHitPos.x, mcHitPos.y, mcHitPos.z);
-            } else {
-
-                Vec3 offset = Op.star(rayDirection, TARGET_DISTANCE);
-                targetPointRVec = Op.plus(rayOrigin, offset);
-            }
+            targetPoint = hitResult.get().getLocation();
         } else {
-
-            Vec3 offset = Op.star(rayDirection, TARGET_DISTANCE);
-            targetPointRVec = Op.plus(rayOrigin, offset);
+            targetPoint = rayEnd;
         }
+
+        final RVec3 targetPointRVec = new RVec3((float) targetPoint.x(), (float) targetPoint.y(), (float) targetPoint.z());
+
 
         if (level instanceof ServerLevel serverLevel) {
             var particleType = mode == MagnetMode.ATTRACT ? ParticleTypes.END_ROD : ParticleTypes.FLAME;
@@ -130,18 +120,18 @@ public class MagnetizerManager {
                         RVec3 bodyPos = body.getCenterOfMassPosition();
 
                         RVec3 vectorToBody = Op.minus(bodyPos, targetPointRVec);
-                        double distanceSq = vectorToBody.lengthSq();
+                        double distance = vectorToBody.length();
 
-                        double distance = Math.sqrt(distanceSq);
+                        if (distance < 1e-5) continue;
 
                         float forceMagnitude = (float) ((mode == MagnetMode.ATTRACT ? BASE_ATTRACT_FORCE : BASE_REPEL_FORCE) * distance);
 
-                        Vec3 forceDirection = vectorToBody.toVec3().normalized();
+                        com.github.stephengold.joltjni.Vec3 forceDirection = vectorToBody.toVec3().normalized();
                         if (mode == MagnetMode.ATTRACT) {
                             forceDirection.scaleInPlace(-1f);
                         }
 
-                        Vec3 finalForce = Op.star(forceDirection, forceMagnitude);
+                        com.github.stephengold.joltjni.Vec3 finalForce = Op.star(forceDirection, forceMagnitude);
                         body.addForce(finalForce);
                     }
                 }

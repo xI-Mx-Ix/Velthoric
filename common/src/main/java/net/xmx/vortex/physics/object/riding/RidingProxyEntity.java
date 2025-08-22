@@ -1,4 +1,4 @@
-package net.xmx.vortex.physics.object.riding;// package net.xmx.vortex.physics.object.riding;
+package net.xmx.vortex.physics.object.riding;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
