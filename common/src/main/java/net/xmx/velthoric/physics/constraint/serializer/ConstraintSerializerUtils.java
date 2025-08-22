@@ -3,7 +3,10 @@ package net.xmx.velthoric.physics.constraint.serializer;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.readonly.RVec3Arg;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
+import com.github.stephengold.joltjni.std.StringStream;
 import io.netty.buffer.ByteBuf;
+
+import java.nio.charset.StandardCharsets;
 
 public final class ConstraintSerializerUtils {
 
@@ -58,6 +61,47 @@ public final class ConstraintSerializerUtils {
             motor.setTorqueLimits(buf.readFloat(), buf.readFloat());
             try (SpringSettings ss = motor.getSpringSettings()) {
                 loadSpring(ss, buf);
+            }
+        }
+    }
+
+    public static void savePath(PathConstraintPath path, ByteBuf buf) {
+
+        try (StringStream stringStream = new StringStream();
+             StreamOutWrapper streamOut = new StreamOutWrapper(stringStream)) {
+
+            path.saveBinaryState(streamOut);
+
+            byte[] pathData = stringStream.str().getBytes(StandardCharsets.ISO_8859_1);
+            buf.writeInt(pathData.length);
+            buf.writeBytes(pathData);
+        }
+    }
+
+    public static PathConstraintPath loadPath(ByteBuf buf) {
+        int length = buf.readInt();
+        if (length == 0) {
+            return new PathConstraintPathHermite();
+        }
+        byte[] pathData = new byte[length];
+        buf.readBytes(pathData);
+
+        String pathString = new String(pathData, StandardCharsets.ISO_8859_1);
+
+        try (StringStream stringStream = new StringStream(pathString);
+             StreamInWrapper streamIn = new StreamInWrapper(stringStream)) {
+
+            try (PathResult result = PathConstraintPath.sRestoreFromBinaryState(streamIn)) {
+                if (result.hasError()) {
+
+                    System.err.println("Fehler beim Wiederherstellen des Pfades aus dem Binärzustand: " + result.getError());
+                    return new PathConstraintPathHermite();
+                }
+
+                try (PathConstraintPathRef pathRef = result.get()) {
+
+                    return pathRef.getPtr();
+                }
             }
         }
     }
