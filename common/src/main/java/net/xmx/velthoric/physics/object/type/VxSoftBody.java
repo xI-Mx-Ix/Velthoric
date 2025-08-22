@@ -15,8 +15,7 @@ import java.util.UUID;
 
 public abstract class VxSoftBody extends VxAbstractBody {
 
-    @Nullable
-    protected float[] lastSyncedVertexData;
+    protected float @Nullable [] lastSyncedVertexData;
 
     protected VxSoftBody(PhysicsObjectType<? extends VxSoftBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
@@ -26,12 +25,11 @@ public abstract class VxSoftBody extends VxAbstractBody {
 
     public abstract SoftBodyCreationSettings createSoftBodyCreationSettings(SoftBodySharedSettings sharedSettings);
 
-    @Nullable
-    public float[] getLastSyncedVertexData() {
+    public float @Nullable [] getLastSyncedVertexData() {
         return this.lastSyncedVertexData;
     }
 
-    public void setLastSyncedVertexData(@Nullable float[] data) {
+    public void setLastSyncedVertexData(float @Nullable [] data) {
         this.lastSyncedVertexData = data;
     }
 
