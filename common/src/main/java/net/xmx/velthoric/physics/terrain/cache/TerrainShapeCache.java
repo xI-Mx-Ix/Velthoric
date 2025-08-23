@@ -1,6 +1,7 @@
 package net.xmx.velthoric.physics.terrain.cache;
 
 import com.github.stephengold.joltjni.ShapeRefC;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -46,5 +47,9 @@ public class TerrainShapeCache {
             if (shapeRef != null) shapeRef.close();
         });
         cache.clear();
+    }
+
+    public synchronized Map<Integer, ShapeRefC> getEntries() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(this.cache));
     }
 }

@@ -13,7 +13,6 @@ import java.util.*;
 public final class TerrainGenerator {
 
     private final TerrainShapeCache shapeCache;
-
     private static final int SUBDIVISIONS = 16;
     private static final int MASK_DIM = 16 * SUBDIVISIONS;
     private static final float VOXEL_SIZE = 1.0f / SUBDIVISIONS;
@@ -35,61 +34,68 @@ public final class TerrainGenerator {
 
         final ArrayList<Float3> vertices = new ArrayList<>();
         final ArrayList<IndexedTriangle> triangles = new ArrayList<>();
-        final Map<VecKey, Integer> vmap = new HashMap<>(4096);
+        try {
+            final Map<VecKey, Integer> vmap = new HashMap<>(4096);
 
-        Map<Integer, boolean[][]>[] facesByAxisAndDir = new Map[3];
-        for (int i = 0; i < 3; i++) {
-            facesByAxisAndDir[i] = new HashMap<>();
-        }
-
-        for (ChunkSnapshot.ShapeInfo info : snapshot.shapes()) {
-            BlockPos worldPos = snapshot.pos().getOrigin().offset(info.localPos());
-            VoxelShape voxelShape = info.state().getCollisionShape(level, worldPos);
-
-            for (AABB aabb : voxelShape.toAabbs()) {
-                extractFacesToMasks(info.localPos(), aabb, facesByAxisAndDir);
+            @SuppressWarnings("unchecked")
+            Map<Integer, boolean[][]>[] facesByAxisAndDir = new Map[3];
+            for (int i = 0; i < 3; i++) {
+                facesByAxisAndDir[i] = new HashMap<>();
             }
-        }
 
-        for (int axis = 0; axis < 3; axis++) {
-            for (Map.Entry<Integer, boolean[][]> entry : facesByAxisAndDir[axis].entrySet()) {
-                int packedPosAndDir = entry.getKey();
-                boolean[][] mask = entry.getValue();
+            for (ChunkSnapshot.ShapeInfo info : snapshot.shapes()) {
+                BlockPos worldPos = snapshot.pos().getOrigin().offset(info.localPos());
+                VoxelShape voxelShape = info.state().getCollisionShape(level, worldPos);
 
-                int dir = (packedPosAndDir & 1) == 0 ? -1 : 1;
-                int pos = packedPosAndDir >> 1;
-
-                greedyMeshMask(mask, axis, dir, pos, vertices, triangles, vmap);
+                for (AABB aabb : voxelShape.toAabbs()) {
+                    extractFacesToMasks(info.localPos(), aabb, facesByAxisAndDir);
+                }
             }
-        }
 
-        if (vertices.isEmpty() || triangles.isEmpty()) {
-            return null;
-        }
+            for (int axis = 0; axis < 3; axis++) {
+                for (Map.Entry<Integer, boolean[][]> entry : facesByAxisAndDir[axis].entrySet()) {
+                    int packedPosAndDir = entry.getKey();
+                    boolean[][] mask = entry.getValue();
+                    int dir = (packedPosAndDir & 1) == 0 ? -1 : 1;
+                    int pos = packedPosAndDir >> 1;
+                    greedyMeshMask(mask, axis, dir, pos, vertices, triangles, vmap);
+                }
+            }
 
-        VertexList vlist = new VertexList();
-        IndexedTriangleList ilist = new IndexedTriangleList();
-        {
-            vlist.resize(vertices.size());
-            for (int i = 0; i < vertices.size(); i++) vlist.set(i, vertices.get(i));
+            if (vertices.isEmpty() || triangles.isEmpty()) {
+                return null;
+            }
 
-            ilist.resize(triangles.size());
-            for (int i = 0; i < triangles.size(); i++) ilist.set(i, triangles.get(i));
+            VertexList vlist = new VertexList();
+            try (IndexedTriangleList ilist = new IndexedTriangleList()) {
+                vlist.resize(vertices.size());
+                for (int i = 0; i < vertices.size(); i++) {
+                    vlist.set(i, vertices.get(i));
+                }
 
-            try (MeshShapeSettings mss = new MeshShapeSettings(vlist, ilist)) {
-                try (ShapeResult res = mss.create()) {
-                    if (res.isValid()) {
-                        ShapeRefC master = res.get();
-                        shapeCache.put(contentHash, master);
-                        return master.getPtr().toRefC();
-                    } else {
-                        VxMainClass.LOGGER.error("Failed to create terrain mesh for {}: {}", snapshot.pos(), res.getError());
+                ilist.resize(triangles.size());
+                for (int i = 0; i < triangles.size(); i++) {
+                    ilist.set(i, triangles.get(i));
+                }
+
+                try (MeshShapeSettings mss = new MeshShapeSettings(vlist, ilist)) {
+                    try (ShapeResult res = mss.create()) {
+                        if (res.isValid()) {
+                            ShapeRefC master = res.get();
+                            shapeCache.put(contentHash, master);
+                            return master.getPtr().toRefC();
+                        } else {
+                            VxMainClass.LOGGER.error("Failed to create terrain mesh for {}: {}", snapshot.pos(), res.getError());
+                        }
                     }
                 }
-            } finally {
-                for (IndexedTriangle t : triangles) t.close();
             }
             return null;
+
+        } finally {
+            for (IndexedTriangle t : triangles) {
+                if (t != null) t.close();
+            }
         }
     }
 

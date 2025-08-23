@@ -14,6 +14,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.terrain.cache.TerrainShapeCache;
+import net.xmx.velthoric.physics.terrain.cache.TerrainStorage;
 import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.physics.terrain.loader.ChunkSnapshot;
@@ -44,6 +45,7 @@ public class TerrainSystem implements Runnable {
     private final ServerLevel level;
     private final TerrainGenerator terrainGenerator;
     private final TerrainShapeCache shapeCache;
+    private final TerrainStorage terrainStorage;
     private final VxTerrainJobSystem jobSystem;
     private final Thread workerThread;
     private final AtomicBoolean isInitialized = new AtomicBoolean(false);
@@ -69,6 +71,7 @@ public class TerrainSystem implements Runnable {
         this.physicsWorld = physicsWorld;
         this.level = level;
         this.shapeCache = new TerrainShapeCache(1024);
+        this.terrainStorage = new TerrainStorage(this.level, this, this.shapeCache);
         this.terrainGenerator = new TerrainGenerator(this.shapeCache);
         this.jobSystem = new VxTerrainJobSystem();
         this.workerThread = new Thread(this, "Velthoric Terrain Tracker - " + level.dimension().location().getPath());
@@ -77,6 +80,7 @@ public class TerrainSystem implements Runnable {
 
     public void initialize() {
         if (isInitialized.compareAndSet(false, true)) {
+            this.terrainStorage.initialize();
             this.workerThread.start();
         }
     }
@@ -90,6 +94,9 @@ public class TerrainSystem implements Runnable {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+
+            this.terrainStorage.saveToFile();
+
             physicsWorld.execute(() -> {
                 new HashSet<>(chunkStates.keySet()).forEach(this::unloadChunkPhysicsInternal);
                 chunkReferenceCounts.clear();
@@ -148,7 +155,6 @@ public class TerrainSystem implements Runnable {
             }
         });
     }
-
 
     public void onChunkLoadedFromVanilla(@NotNull LevelChunk chunk) {
         if (!isInitialized.get() || jobSystem.isShutdown()) return;
@@ -253,33 +259,36 @@ public class TerrainSystem implements Runnable {
 
         Integer bodyId = chunkBodyIds.get(pos);
 
-        if (bodyId != null && shape != null) {
-            bodyInterface.setShape(bodyId, shape, true, EActivation.Activate);
-            ShapeRefC oldShape = chunkShapes.put(pos, shape);
-            if (oldShape != null && !oldShape.equals(shape)) {
-                oldShape.close();
-            }
-            state.set(wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
-        } else {
-            removeBodyAndShape(pos, bodyInterface);
+        if (bodyId != null) {
             if (shape != null) {
-                RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
-                try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxLayers.STATIC)) {
-                    Body body = bodyInterface.createBody(bcs);
-                    if (body != null) {
-                        chunkBodyIds.put(pos, body.getId());
-                        chunkShapes.put(pos, shape);
-                        state.set(wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
-                    } else {
-                        VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}", pos);
-                        shape.close();
-                        state.set(STATE_UNLOADED);
-                        return;
-                    }
+                bodyInterface.setShape(bodyId, shape, true, EActivation.DontActivate);
+                ShapeRefC oldShape = chunkShapes.put(pos, shape);
+                if (oldShape != null && !oldShape.equals(shape)) {
+                    oldShape.close();
                 }
+                state.set(wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
             } else {
+                removeBodyAndShape(pos, bodyInterface);
                 state.set(STATE_AIR_CHUNK);
             }
+        } else if (shape != null) {
+            RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
+            try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxLayers.STATIC)) {
+
+                Body body = bodyInterface.createBody(bcs);
+                if (body != null) {
+                    chunkBodyIds.put(pos, body.getId());
+                    chunkShapes.put(pos, shape);
+
+                    state.set(wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
+                } else {
+                    VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}", pos);
+                    shape.close();
+                    state.set(STATE_UNLOADED);
+                }
+            }
+        } else {
+            state.set(STATE_AIR_CHUNK);
         }
 
         chunkIsPlaceholder.put(pos, isInitialBuild);
@@ -608,9 +617,5 @@ public class TerrainSystem implements Runnable {
 
     public ServerLevel getLevel() {
         return level;
-    }
-
-    public boolean isKnownSection(VxSectionPos pos) {
-        return chunkStates.containsKey(pos);
     }
 }
