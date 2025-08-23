@@ -29,13 +29,9 @@ public class VxObjectStorage {
     private final Path dataFile;
     private final VxObjectManager objectManager;
     private final ServerLevel level;
-
     private final ConcurrentMap<UUID, byte[]> unloadedObjectsData = new ConcurrentHashMap<>();
-
     private final ConcurrentMap<Long, List<UUID>> unloadedChunkIndex = new ConcurrentHashMap<>();
-
     private final ConcurrentMap<UUID, CompletableFuture<VxAbstractBody>> pendingLoads = new ConcurrentHashMap<>();
-
     private ExecutorService loaderExecutor;
     private final AtomicBoolean isInitialized = new AtomicBoolean(false);
 
@@ -49,16 +45,13 @@ public class VxObjectStorage {
 
     public void initialize() {
         if (isInitialized.getAndSet(true)) return;
-
         int threadCount = Math.max(1, Runtime.getRuntime().availableProcessors() / 4);
         this.loaderExecutor = Executors.newFixedThreadPool(threadCount, r -> new Thread(r, "Velthoric Object Loader"));
-
         loadFromFile();
     }
 
     public void shutdown() {
         if (!isInitialized.getAndSet(false)) return;
-
         if (loaderExecutor != null) {
             loaderExecutor.shutdown();
             try {
@@ -74,11 +67,11 @@ public class VxObjectStorage {
 
     private void loadFromFile() {
         if (!Files.exists(dataFile)) return;
+        try {
+            byte[] fileBytes = Files.readAllBytes(dataFile);
+            if (fileBytes.length == 0) return;
 
-        try (FileChannel channel = FileChannel.open(dataFile, StandardOpenOption.READ)) {
-            if (channel.size() == 0) return;
-
-            ByteBuf buffer = Unpooled.wrappedBuffer(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
+            ByteBuf buffer = Unpooled.wrappedBuffer(fileBytes);
             FriendlyByteBuf fileBuf = new FriendlyByteBuf(buffer);
             while (fileBuf.isReadable()) {
                 UUID id = fileBuf.readUUID();
@@ -96,12 +89,10 @@ public class VxObjectStorage {
         unloadedObjectsData.forEach(this::indexObjectData);
     }
 
-    public void saveToFile() {
+    public synchronized void saveToFile() {
         if (unloadedObjectsData.isEmpty()) {
             try {
-                if(Files.exists(dataFile)) {
-                    Files.delete(dataFile);
-                }
+                Files.deleteIfExists(dataFile);
             } catch (IOException e) {
                 VxMainClass.LOGGER.error("Failed to delete empty physics objects file {}", dataFile, e);
             }
@@ -152,12 +143,10 @@ public class VxObjectStorage {
         if (objectManager.getObjectContainer().hasObject(id)) {
             return CompletableFuture.completedFuture(objectManager.getObjectContainer().get(id).orElse(null));
         }
-
         return pendingLoads.computeIfAbsent(id, objectId ->
                 CompletableFuture.supplyAsync(() -> {
                             byte[] data = unloadedObjectsData.remove(objectId);
                             if (data == null) return null;
-
                             deIndexObject(objectId, data);
                             return deserializeObject(objectId, data);
                         }, loaderExecutor)
@@ -241,20 +230,14 @@ public class VxObjectStorage {
     private long getChunkKeyFromData(byte[] data) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
         try {
-
             buf.readUtf();
-
             VxTransform tempTransform = new VxTransform();
             tempTransform.fromBuffer(buf);
-
             var translation = tempTransform.getTranslation();
-
             int chunkX = SectionPos.posToSectionCoord(translation.xx());
             int chunkZ = SectionPos.posToSectionCoord(translation.zz());
-
             return new ChunkPos(chunkX, chunkZ).toLong();
         } finally {
-
             if (buf.refCnt() > 0) {
                 buf.release();
             }

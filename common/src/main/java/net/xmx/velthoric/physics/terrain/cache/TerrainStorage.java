@@ -13,7 +13,6 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.terrain.TerrainSystem;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,7 +25,6 @@ public class TerrainStorage {
     private final Path dataFile;
     private final TerrainSystem terrainSystem;
     private final TerrainShapeCache shapeCache;
-
     private final Map<Integer, byte[]> preloadedShapes = new ConcurrentHashMap<>();
 
     public TerrainStorage(ServerLevel level, TerrainSystem terrainSystem, TerrainShapeCache shapeCache) {
@@ -41,7 +39,7 @@ public class TerrainStorage {
         loadFromFile();
     }
 
-    public void saveToFile() {
+    public synchronized void saveToFile() {
         Map<Integer, ShapeRefC> entries = shapeCache.getEntries();
         if (entries.isEmpty()) {
             try {
@@ -94,11 +92,11 @@ public class TerrainStorage {
         if (!Files.exists(dataFile)) return;
         preloadedShapes.clear();
 
-        try (FileChannel channel = FileChannel.open(dataFile, StandardOpenOption.READ)) {
-            if (channel.size() == 0) return;
+        try {
+            byte[] fileBytes = Files.readAllBytes(dataFile);
+            if (fileBytes.length == 0) return;
 
-            ByteBuffer nioBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
-            ByteBuf buffer = Unpooled.wrappedBuffer(nioBuffer);
+            ByteBuf buffer = Unpooled.wrappedBuffer(fileBytes);
             FriendlyByteBuf fileBuf = new FriendlyByteBuf(buffer);
 
             while (fileBuf.isReadable()) {
@@ -134,7 +132,6 @@ public class TerrainStorage {
                     return result.get();
                 } else {
                     VxMainClass.LOGGER.warn("Failed to deserialize shape with hash {}: {}", hash, result.getError());
-                    result.get();
                     result.get().close();
                 }
             }

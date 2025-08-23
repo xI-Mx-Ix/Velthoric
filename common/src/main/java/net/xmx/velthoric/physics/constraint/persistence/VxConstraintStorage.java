@@ -50,7 +50,6 @@ public class VxConstraintStorage {
 
     public void shutdown() {
         if (!isInitialized.getAndSet(false)) return;
-
         if (loaderExecutor != null) {
             loaderExecutor.shutdown();
             try {
@@ -66,9 +65,11 @@ public class VxConstraintStorage {
 
     private void loadFromFile() {
         if (!Files.exists(dataFile)) return;
-        try (FileChannel channel = FileChannel.open(dataFile, StandardOpenOption.READ)) {
-            if (channel.size() == 0) return;
-            ByteBuf buffer = Unpooled.wrappedBuffer(channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size()));
+        try {
+            byte[] fileBytes = Files.readAllBytes(dataFile);
+            if (fileBytes.length == 0) return;
+
+            ByteBuf buffer = Unpooled.wrappedBuffer(fileBytes);
             FriendlyByteBuf fileBuf = new FriendlyByteBuf(buffer);
             while (fileBuf.isReadable()) {
                 UUID id = fileBuf.readUUID();
@@ -86,7 +87,7 @@ public class VxConstraintStorage {
         unloadedConstraintsData.forEach(this::indexConstraintData);
     }
 
-    public void saveToFile() {
+    public synchronized void saveToFile() {
         ByteBuf masterBuf = Unpooled.buffer();
         try {
             FriendlyByteBuf friendlyMasterBuf = new FriendlyByteBuf(masterBuf);
@@ -101,9 +102,7 @@ public class VxConstraintStorage {
                     channel.write(masterBuf.nioBuffer());
                 }
             } else {
-                if (Files.exists(dataFile)) {
-                    Files.delete(dataFile);
-                }
+                Files.deleteIfExists(dataFile);
             }
         } catch (IOException e) {
             VxMainClass.LOGGER.error("Failed to save physics constraints to {}", dataFile, e);
