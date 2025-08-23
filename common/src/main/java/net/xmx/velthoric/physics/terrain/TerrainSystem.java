@@ -185,6 +185,10 @@ public class TerrainSystem implements Runnable {
     }
 
     private void scheduleShapeGeneration(VxSectionPos pos, boolean isInitialBuild, VxTaskPriority priority) {
+        if (jobSystem.isShutdown()) {
+            return;
+        }
+
         AtomicInteger state = getState(pos);
         int currentState = state.get();
 
