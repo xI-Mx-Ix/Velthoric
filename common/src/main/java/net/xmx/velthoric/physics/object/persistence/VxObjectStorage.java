@@ -1,4 +1,4 @@
-package net.xmx.velthoric.physics.object.manager.persistence;
+package net.xmx.velthoric.physics.object.persistence;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

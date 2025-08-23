@@ -6,7 +6,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
-import net.xmx.velthoric.physics.constraint.manager.persistence.VxConstraintStorage;
+import net.xmx.velthoric.physics.constraint.persistence.VxConstraintStorage;
 import net.xmx.velthoric.physics.constraint.serializer.ConstraintSerializerRegistry;
 import net.xmx.velthoric.physics.constraint.serializer.IVxConstraintSerializer;
 import net.xmx.velthoric.physics.object.VxAbstractBody;

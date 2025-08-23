@@ -1,4 +1,4 @@
-package net.xmx.velthoric.physics.constraint.manager.persistence;
+package net.xmx.velthoric.physics.constraint.persistence;
 
 import com.github.stephengold.joltjni.enumerate.EConstraintSubType;
 import io.netty.buffer.ByteBuf;
