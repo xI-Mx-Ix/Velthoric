@@ -109,12 +109,18 @@ public final class TerrainGenerator {
 
             int minPos = Math.round(min[axis] * SUBDIVISIONS);
             int maxPos = Math.round(max[axis] * SUBDIVISIONS);
+
             int u0 = Math.round(min[u] * SUBDIVISIONS);
             int v0 = Math.round(min[v] * SUBDIVISIONS);
             int u1 = Math.round(max[u] * SUBDIVISIONS);
             int v1 = Math.round(max[v] * SUBDIVISIONS);
 
-            int keyNeg = (minPos << 1) | 0;
+            u0 = Math.max(0, u0);
+            v0 = Math.max(0, v0);
+            u1 = Math.min(MASK_DIM, u1);
+            v1 = Math.min(MASK_DIM, v1);
+
+            int keyNeg = (minPos << 1);
             boolean[][] maskNeg = facesByAxis[axis].computeIfAbsent(keyNeg, k -> new boolean[MASK_DIM][MASK_DIM]);
             for(int i = u0; i < u1; i++) for(int j = v0; j < v1; j++) maskNeg[i][j] = !maskNeg[i][j];
 
