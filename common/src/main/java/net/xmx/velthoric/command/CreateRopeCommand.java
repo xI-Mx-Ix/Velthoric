@@ -76,7 +76,7 @@ public final class CreateRopeCommand {
             VxConstraintManager constraintManager = physicsWorld.getConstraintManager();
 
             float segmentLength = 0.5f;
-            float segmentRadius = 0.05f;
+            float segmentRadius = 0.25f;
             Vec3 segmentHalfExtents = new Vec3(segmentRadius, segmentLength / 2.0f, segmentRadius);
             
             RVec3 anchorPosition = new RVec3(startPos.x, startPos.y, startPos.z);
