@@ -87,7 +87,7 @@ public class ObjectLifecycleEvents {
             if (manager != null) {
                 manager.getNetworkDispatcher().tick();
                 world.getRidingManager().tick();
-                manager.getObjectContainer().getAllObjects().forEach(obj -> obj.gameTick(manager.getWorld().getLevel()));
+                manager.getObjectContainer().getAllObjects().forEach(obj -> obj.gameTick(manager.getPhysicsWorld().getLevel()));
             }
         });
     }

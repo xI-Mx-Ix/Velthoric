@@ -187,7 +187,7 @@ public class VxObjectStorage {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
         try {
             String typeId = buf.readUtf();
-            VxAbstractBody obj = objectManager.getObjectRegistry().create(typeId, objectManager.getWorld(), id);
+            VxAbstractBody obj = objectManager.getObjectRegistry().create(typeId, objectManager.getPhysicsWorld(), id);
             if (obj == null) {
                 VxMainClass.LOGGER.error("Failed to create object of type {} with ID {} during deserialization. Registry might be missing this type.", typeId, id);
                 return null;

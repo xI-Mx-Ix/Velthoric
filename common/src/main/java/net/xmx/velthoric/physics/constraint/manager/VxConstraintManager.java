@@ -28,7 +28,7 @@ public class VxConstraintManager {
 
     public VxConstraintManager(VxObjectManager objectManager) {
         this.objectManager = objectManager;
-        this.world = objectManager.getWorld();
+        this.world = objectManager.getPhysicsWorld();
         this.constraintStorage = new VxConstraintStorage(world.getLevel(), this);
         this.dataSystem = new DependencyDataSystem(this);
         ConstraintSerializerRegistry.initialize();
