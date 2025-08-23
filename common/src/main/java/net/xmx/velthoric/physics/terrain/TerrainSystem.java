@@ -72,7 +72,7 @@ public class TerrainSystem implements Runnable {
         this.level = level;
         this.shapeCache = new TerrainShapeCache(1024);
         this.terrainStorage = new TerrainStorage(this.level, this, this.shapeCache);
-        this.terrainGenerator = new TerrainGenerator(this.shapeCache);
+        this.terrainGenerator = new TerrainGenerator(this.shapeCache, this.terrainStorage);
         this.jobSystem = new VxTerrainJobSystem();
         this.workerThread = new Thread(this, "Velthoric Terrain Tracker - " + level.dimension().location().getPath());
         this.workerThread.setDaemon(true);

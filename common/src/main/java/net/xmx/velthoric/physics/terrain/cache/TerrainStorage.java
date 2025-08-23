@@ -2,6 +2,7 @@ package net.xmx.velthoric.physics.terrain.cache;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.readonly.ConstShape;
+import com.github.stephengold.joltjni.std.StringStream;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
@@ -13,20 +14,20 @@ import net.xmx.velthoric.physics.terrain.TerrainSystem;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TerrainStorage {
 
     private final Path dataFile;
     private final TerrainSystem terrainSystem;
     private final TerrainShapeCache shapeCache;
+
+    private final Map<Integer, byte[]> preloadedShapes = new ConcurrentHashMap<>();
 
     public TerrainStorage(ServerLevel level, TerrainSystem terrainSystem, TerrainShapeCache shapeCache) {
         this.terrainSystem = terrainSystem;
@@ -57,25 +58,19 @@ public class TerrainStorage {
         for (Map.Entry<Integer, ShapeRefC> entry : entries.entrySet()) {
             Integer hash = entry.getKey();
             ShapeRefC shapeRef = entry.getValue();
-
             if (shapeRef == null || shapeRef.getPtr() == null) continue;
 
-            ConstShape shape = shapeRef.getPtr();
+            try (StringStream stringStream = new StringStream();
+                 StreamOutWrapper streamOut = new StreamOutWrapper(stringStream)) {
 
-            int numTriangles = shape.countDebugTriangles();
-            if (numTriangles == 0) continue;
+                shapeRef.saveBinaryState(streamOut);
+                byte[] shapeData = stringStream.str().getBytes();
 
-            int numFloats = numTriangles * 3 * 3;
-            FloatBuffer buffer = Jolt.newDirectFloatBuffer(numFloats);
-            shape.copyDebugTriangles(buffer);
-
-            float[] vertexData = new float[numFloats];
-            buffer.get(0, vertexData);
-
-            friendlyMasterBuf.writeInt(hash);
-            friendlyMasterBuf.writeInt(vertexData.length);
-            for (float f : vertexData) {
-                friendlyMasterBuf.writeFloat(f);
+                if (shapeData.length > 0) {
+                    friendlyMasterBuf.writeInt(hash);
+                    friendlyMasterBuf.writeInt(shapeData.length);
+                    friendlyMasterBuf.writeBytes(shapeData);
+                }
             }
         }
 
@@ -97,8 +92,8 @@ public class TerrainStorage {
 
     private void loadFromFile() {
         if (!Files.exists(dataFile)) return;
+        preloadedShapes.clear();
 
-        int loadedCount = 0;
         try (FileChannel channel = FileChannel.open(dataFile, StandardOpenOption.READ)) {
             if (channel.size() == 0) return;
 
@@ -108,55 +103,42 @@ public class TerrainStorage {
 
             while (fileBuf.isReadable()) {
                 int hash = fileBuf.readInt();
+                int dataLength = fileBuf.readInt();
 
-                // Manually read the float array
-                int arrayLength = fileBuf.readInt();
-                float[] vertexData = new float[arrayLength];
-                for (int i = 0; i < arrayLength; i++) {
-                    vertexData[i] = fileBuf.readFloat();
-                }
-
-                if (vertexData.length == 0 || vertexData.length % 9 != 0) {
-                    VxMainClass.LOGGER.warn("Invalid vertex data for shape with hash {}", hash);
-                    continue;
-                }
-
-                List<Triangle> triangles = new ArrayList<>(vertexData.length / 9);
-                MeshShapeSettings settings = null;
-                ShapeResult result = null;
-
-                try {
-                    for (int i = 0; i < vertexData.length; i += 9) {
-                        Float3 v1 = new Float3(vertexData[i], vertexData[i + 1], vertexData[i + 2]);
-                        Float3 v2 = new Float3(vertexData[i + 3], vertexData[i + 4], vertexData[i + 5]);
-                        Float3 v3 = new Float3(vertexData[i + 6], vertexData[i + 7], vertexData[i + 8]);
-                        triangles.add(new Triangle(v1, v2, v3));
-                    }
-
-                    settings = new MeshShapeSettings(triangles);
-                    result = settings.create();
-
-                    if (result.isValid()) {
-                        shapeCache.put(hash, result.get());
-                        loadedCount++;
-                    } else {
-                        VxMainClass.LOGGER.warn("Failed to load shape from mesh data with hash {}: {}", hash, result.getError());
-                        if (result.get() != null) result.get().close();
-                    }
-                } finally {
-                    if (result != null) result.close();
-                    if (settings != null) settings.close();
-                    for (Triangle t : triangles) {
-                        t.close();
-                    }
+                if (dataLength > 0 && fileBuf.isReadable(dataLength)) {
+                    byte[] shapeData = new byte[dataLength];
+                    fileBuf.readBytes(shapeData);
+                    preloadedShapes.put(hash, shapeData);
                 }
             }
         } catch (IOException e) {
             VxMainClass.LOGGER.error("Failed to load terrain cache from {}", dataFile, e);
         }
 
-        if (loadedCount > 0) {
-            VxMainClass.LOGGER.info("Loaded {} terrain shapes from cache for dimension {}", loadedCount, terrainSystem.getLevel().dimension().location());
+        if (!preloadedShapes.isEmpty()) {
+            VxMainClass.LOGGER.info("Pre-loaded {} serialized terrain shapes from cache for dimension {}", preloadedShapes.size(), terrainSystem.getLevel().dimension().location());
         }
+    }
+
+    public ShapeRefC shapeFromPreload(int hash) {
+        byte[] shapeData = preloadedShapes.get(hash);
+        if (shapeData == null) {
+            return null;
+        }
+
+        try (StringStream stringStream = new StringStream(new String(shapeData));
+             StreamInWrapper streamIn = new StreamInWrapper(stringStream)) {
+
+            try (ShapeResult result = Shape.sRestoreFromBinaryState(streamIn)) {
+                if (result.isValid()) {
+                    return result.get();
+                } else {
+                    VxMainClass.LOGGER.warn("Failed to deserialize shape with hash {}: {}", hash, result.getError());
+                    result.get();
+                    result.get().close();
+                }
+            }
+        }
+        return null;
     }
 }

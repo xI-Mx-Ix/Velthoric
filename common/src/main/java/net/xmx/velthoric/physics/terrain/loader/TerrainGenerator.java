@@ -7,96 +7,121 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.terrain.cache.TerrainShapeCache;
+import net.xmx.velthoric.physics.terrain.cache.TerrainStorage;
 
 import java.util.*;
 
 public final class TerrainGenerator {
 
     private final TerrainShapeCache shapeCache;
+    private final TerrainStorage terrainStorage;
     private static final int SUBDIVISIONS = 16;
     private static final int MASK_DIM = 16 * SUBDIVISIONS;
     private static final float VOXEL_SIZE = 1.0f / SUBDIVISIONS;
+    private static final float PRECISION = 1e5f;
 
-    public TerrainGenerator(TerrainShapeCache shapeCache) {
+    private float[] vertices = new float[4096 * 3];
+    private int vertexCount = 0;
+    private final ArrayList<Integer> triangles = new ArrayList<>(4096 * 2);
+
+    private int[] vmapKeysX = new int[4096];
+    private int[] vmapKeysY = new int[4096];
+    private int[] vmapKeysZ = new int[4096];
+    private int[] vmapValues = new int[4096];
+    private int vmapSize = 0;
+
+    public TerrainGenerator(TerrainShapeCache shapeCache, TerrainStorage terrainStorage) {
         this.shapeCache = shapeCache;
+        this.terrainStorage = terrainStorage;
     }
 
-    public ShapeRefC generateShape(ServerLevel level, ChunkSnapshot snapshot) {
+    public synchronized ShapeRefC generateShape(ServerLevel level, ChunkSnapshot snapshot) {
         if (snapshot.shapes().isEmpty()) {
             return null;
         }
 
         int contentHash = computeContentHash(snapshot);
+
         ShapeRefC cached = shapeCache.get(contentHash);
         if (cached != null) {
             return cached;
         }
 
-        final ArrayList<Float3> vertices = new ArrayList<>();
-        final ArrayList<IndexedTriangle> triangles = new ArrayList<>();
-        try {
-            final Map<VecKey, Integer> vmap = new HashMap<>(4096);
+        ShapeRefC preloadedShape = terrainStorage.shapeFromPreload(contentHash);
+        if (preloadedShape != null) {
+            shapeCache.put(contentHash, preloadedShape.getPtr().toRefC());
+            return preloadedShape;
+        }
 
-            @SuppressWarnings("unchecked")
-            Map<Integer, boolean[][]>[] facesByAxisAndDir = new Map[3];
-            for (int i = 0; i < 3; i++) {
-                facesByAxisAndDir[i] = new HashMap<>();
+        return generateShapeFromVoxels(level, snapshot, contentHash);
+    }
+
+    private ShapeRefC generateShapeFromVoxels(ServerLevel level, ChunkSnapshot snapshot, int contentHash) {
+        vertexCount = 0;
+        triangles.clear();
+        vmapSize = 0;
+
+        @SuppressWarnings("unchecked")
+        Map<Integer, boolean[][]>[] facesByAxisAndDir = new Map[3];
+        for (int i = 0; i < 3; i++) {
+            facesByAxisAndDir[i] = new HashMap<>();
+        }
+
+        for (ChunkSnapshot.ShapeInfo info : snapshot.shapes()) {
+            BlockPos worldPos = snapshot.pos().getOrigin().offset(info.localPos());
+            VoxelShape voxelShape = info.state().getCollisionShape(level, worldPos);
+
+            for (AABB aabb : voxelShape.toAabbs()) {
+                extractFacesToMasks(info.localPos(), aabb, facesByAxisAndDir);
+            }
+        }
+
+        for (int axis = 0; axis < 3; axis++) {
+            for (Map.Entry<Integer, boolean[][]> entry : facesByAxisAndDir[axis].entrySet()) {
+                int packedPosAndDir = entry.getKey();
+                boolean[][] mask = entry.getValue();
+                int dir = (packedPosAndDir & 1) == 0 ? -1 : 1;
+                int pos = packedPosAndDir >> 1;
+                greedyMeshMask(mask, axis, dir, pos);
+            }
+        }
+
+        if (vertexCount == 0 || triangles.isEmpty()) {
+            return null;
+        }
+
+        VertexList vlist = new VertexList();
+        try (IndexedTriangleList ilist = new IndexedTriangleList()) {
+            vlist.resize(vertexCount);
+            for (int i = 0; i < vertexCount; i++) {
+                int baseIndex = i * 3;
+                vlist.set(i, vertices[baseIndex], vertices[baseIndex + 1], vertices[baseIndex + 2]);
             }
 
-            for (ChunkSnapshot.ShapeInfo info : snapshot.shapes()) {
-                BlockPos worldPos = snapshot.pos().getOrigin().offset(info.localPos());
-                VoxelShape voxelShape = info.state().getCollisionShape(level, worldPos);
-
-                for (AABB aabb : voxelShape.toAabbs()) {
-                    extractFacesToMasks(info.localPos(), aabb, facesByAxisAndDir);
+            int triangleCount = triangles.size() / 3;
+            ilist.resize(triangleCount);
+            for (int i = 0; i < triangleCount; i++) {
+                int i1 = triangles.get(i * 3);
+                int i2 = triangles.get(i * 3 + 1);
+                int i3 = triangles.get(i * 3 + 2);
+                try (IndexedTriangle tri = new IndexedTriangle(i1, i2, i3)) {
+                    ilist.set(i, tri);
                 }
             }
 
-            for (int axis = 0; axis < 3; axis++) {
-                for (Map.Entry<Integer, boolean[][]> entry : facesByAxisAndDir[axis].entrySet()) {
-                    int packedPosAndDir = entry.getKey();
-                    boolean[][] mask = entry.getValue();
-                    int dir = (packedPosAndDir & 1) == 0 ? -1 : 1;
-                    int pos = packedPosAndDir >> 1;
-                    greedyMeshMask(mask, axis, dir, pos, vertices, triangles, vmap);
-                }
-            }
-
-            if (vertices.isEmpty() || triangles.isEmpty()) {
-                return null;
-            }
-
-            VertexList vlist = new VertexList();
-            try (IndexedTriangleList ilist = new IndexedTriangleList()) {
-                vlist.resize(vertices.size());
-                for (int i = 0; i < vertices.size(); i++) {
-                    vlist.set(i, vertices.get(i));
-                }
-
-                ilist.resize(triangles.size());
-                for (int i = 0; i < triangles.size(); i++) {
-                    ilist.set(i, triangles.get(i));
-                }
-
-                try (MeshShapeSettings mss = new MeshShapeSettings(vlist, ilist)) {
-                    try (ShapeResult res = mss.create()) {
-                        if (res.isValid()) {
-                            ShapeRefC master = res.get();
-                            shapeCache.put(contentHash, master);
-                            return master.getPtr().toRefC();
-                        } else {
-                            VxMainClass.LOGGER.error("Failed to create terrain mesh for {}: {}", snapshot.pos(), res.getError());
-                        }
+            try (MeshShapeSettings mss = new MeshShapeSettings(vlist, ilist)) {
+                try (ShapeResult res = mss.create()) {
+                    if (res.isValid()) {
+                        ShapeRefC master = res.get();
+                        shapeCache.put(contentHash, master);
+                        return master.getPtr().toRefC();
+                    } else {
+                        VxMainClass.LOGGER.error("Failed to create terrain mesh for {}: {}", snapshot.pos(), res.getError());
                     }
                 }
             }
-            return null;
-
-        } finally {
-            for (IndexedTriangle t : triangles) {
-                if (t != null) t.close();
-            }
         }
+        return null;
     }
 
     private void extractFacesToMasks(BlockPos localPos, AABB aabb, Map<Integer, boolean[][]>[] facesByAxis) {
@@ -130,10 +155,7 @@ public final class TerrainGenerator {
         }
     }
 
-    private void greedyMeshMask(
-            boolean[][] mask, int axis, int dir, int pos,
-            ArrayList<Float3> vertices, ArrayList<IndexedTriangle> triangles, Map<VecKey, Integer> vmap) {
-
+    private void greedyMeshMask(boolean[][] mask, int axis, int dir, int pos) {
         for (int u = 0; u < MASK_DIM; u++) {
             for (int v = 0; v < MASK_DIM; ) {
                 if (!mask[u][v]) {
@@ -153,7 +175,7 @@ public final class TerrainGenerator {
                     h++;
                 }
 
-                addQuad(axis, dir, pos * VOXEL_SIZE, u * VOXEL_SIZE, v * VOXEL_SIZE, w * VOXEL_SIZE, h * VOXEL_SIZE, vertices, triangles, vmap);
+                addQuad(axis, dir, pos * VOXEL_SIZE, u * VOXEL_SIZE, v * VOXEL_SIZE, w * VOXEL_SIZE, h * VOXEL_SIZE);
 
                 for (int du = 0; du < w; du++)
                     for (int dv = 0; dv < h; dv++)
@@ -164,10 +186,7 @@ public final class TerrainGenerator {
         }
     }
 
-    private static void addQuad(
-            int axis, int dir, float a, float u, float v, float w, float h,
-            ArrayList<Float3> vertices, ArrayList<IndexedTriangle> triangles, Map<VecKey, Integer> vmap) {
-
+    private void addQuad(int axis, int dir, float a, float u, float v, float w, float h) {
         float[][] corners = new float[4][3];
         float[][] uv = {{u, v}, {u + w, v}, {u + w, v + h}, {u, v + h}};
 
@@ -177,28 +196,52 @@ public final class TerrainGenerator {
             corners[i][(axis + 2) % 3] = uv[i][1];
         }
 
-        int i1 = vid(vertices, vmap, corners[0][0], corners[0][1], corners[0][2]);
-        int i2 = vid(vertices, vmap, corners[1][0], corners[1][1], corners[1][2]);
-        int i3 = vid(vertices, vmap, corners[2][0], corners[2][1], corners[2][2]);
-        int i4 = vid(vertices, vmap, corners[3][0], corners[3][1], corners[3][2]);
+        int i1 = vid(corners[0][0], corners[0][1], corners[0][2]);
+        int i2 = vid(corners[1][0], corners[1][1], corners[1][2]);
+        int i3 = vid(corners[2][0], corners[2][1], corners[2][2]);
+        int i4 = vid(corners[3][0], corners[3][1], corners[3][2]);
 
         if (dir > 0) {
-            triangles.add(new IndexedTriangle(i1, i2, i3));
-            triangles.add(new IndexedTriangle(i1, i3, i4));
+            triangles.add(i1); triangles.add(i2); triangles.add(i3);
+            triangles.add(i1); triangles.add(i3); triangles.add(i4);
         } else {
-            triangles.add(new IndexedTriangle(i1, i3, i2));
-            triangles.add(new IndexedTriangle(i1, i4, i3));
+            triangles.add(i1); triangles.add(i3); triangles.add(i2);
+            triangles.add(i1); triangles.add(i4); triangles.add(i3);
         }
     }
 
-    private static int vid(ArrayList<Float3> vertices, Map<VecKey, Integer> vmap, float x, float y, float z) {
-        VecKey key = new VecKey(x, y, z);
-        Integer idx = vmap.get(key);
-        if (idx != null) return idx;
-        int ni = vertices.size();
-        vertices.add(new Float3(x, y, z));
-        vmap.put(key, ni);
-        return ni;
+    private int vid(float x, float y, float z) {
+        int ix = (int)(x * PRECISION);
+        int iy = (int)(y * PRECISION);
+        int iz = (int)(z * PRECISION);
+
+        for (int i = 0; i < vmapSize; i++) {
+            if (vmapKeysX[i] == ix && vmapKeysY[i] == iy && vmapKeysZ[i] == iz) {
+                return vmapValues[i];
+            }
+        }
+
+        if ((vertexCount + 1) * 3 > vertices.length) {
+            vertices = Arrays.copyOf(vertices, Math.max(vertices.length * 2, (vertexCount + 1) * 3));
+            int newCap = Math.max(vmapKeysX.length * 2, vertexCount + 1);
+            vmapKeysX = Arrays.copyOf(vmapKeysX, newCap);
+            vmapKeysY = Arrays.copyOf(vmapKeysY, newCap);
+            vmapKeysZ = Arrays.copyOf(vmapKeysZ, newCap);
+            vmapValues = Arrays.copyOf(vmapValues, newCap);
+        }
+
+        int baseIndex = vertexCount * 3;
+        vertices[baseIndex] = x;
+        vertices[baseIndex + 1] = y;
+        vertices[baseIndex + 2] = z;
+
+        int newIndex = vertexCount++;
+        vmapKeysX[vmapSize] = ix;
+        vmapKeysY[vmapSize] = iy;
+        vmapKeysZ[vmapSize] = iz;
+        vmapValues[vmapSize] = newIndex;
+        vmapSize++;
+        return newIndex;
     }
 
     private int computeContentHash(ChunkSnapshot snapshot) {
@@ -208,18 +251,5 @@ public final class TerrainGenerator {
         }
         Collections.sort(hashes);
         return hashes.hashCode();
-    }
-
-    private static final class VecKey {
-        final float x, y, z;
-        VecKey(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
-        @Override public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof VecKey k)) return false;
-            return Float.compare(k.x, x) == 0 && Float.compare(k.y, y) == 0 && Float.compare(k.z, z) == 0;
-        }
-        @Override public int hashCode() {
-            return Objects.hash(x, y, z);
-        }
     }
 }
