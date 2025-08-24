@@ -12,4 +12,9 @@ public class EntityAttachmentData {
     public boolean isAttached() {
         return attachedBodyUuid != null && ticksSinceGrounded < 5;
     }
+
+    public void detach() {
+        this.attachedBodyUuid = null;
+        this.lastBodyTransform = null;
+    }
 }
