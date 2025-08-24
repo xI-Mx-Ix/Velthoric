@@ -1,6 +1,10 @@
 package net.xmx.velthoric.mixin.impl.entity_collision;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.AaBox;
+import com.github.stephengold.joltjni.AllHitCollideShapeBodyCollector;
+import com.github.stephengold.joltjni.BroadPhaseLayerFilter;
+import com.github.stephengold.joltjni.BroadPhaseQuery;
+import com.github.stephengold.joltjni.ObjectLayerFilter;
 import com.google.common.collect.ImmutableList;
 import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.world.entity.Entity;
