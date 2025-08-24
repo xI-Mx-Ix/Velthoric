@@ -1,14 +1,15 @@
 package net.xmx.velthoric.physics.entity_collision;
 
-
 import com.github.stephengold.joltjni.RMat44;
 
+import java.util.UUID;
+
 public class EntityAttachmentData {
-    public Integer attachedBodyId = null;
+    public UUID attachedBodyUuid = null;
     public RMat44 lastBodyTransform = null;
     public int ticksSinceGrounded = 0;
 
     public boolean isAttached() {
-        return attachedBodyId != null && ticksSinceGrounded < 5;
+        return attachedBodyUuid != null && ticksSinceGrounded < 5;
     }
 }

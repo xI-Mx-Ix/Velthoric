@@ -18,18 +18,19 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public class VxCombinedVoxelShape extends ArrayVoxelShape {
 
-    private final List<Integer> bodyIds;
+    private final List<UUID> bodyUuids;
     private final VxPhysicsWorld physicsWorld;
     private final Level level;
     private final @Nullable Entity entity;
     private static final AABB EMPTY_AABB = new AABB(0, 0, 0, 0, 0, 0);
 
-    public VxCombinedVoxelShape(Level level, List<Integer> bodyIds, @Nullable Entity entity) {
+    public VxCombinedVoxelShape(Level level, List<UUID> bodyUuids, @Nullable Entity entity) {
         super(createDiscreteShape(), new double[]{0, 1}, new double[]{0, 1}, new double[]{0, 1});
-        this.bodyIds = bodyIds;
+        this.bodyUuids = bodyUuids;
         this.physicsWorld = VxPhysicsWorld.get(level.dimension());
         this.level = level;
         this.entity = entity;
@@ -47,7 +48,12 @@ public class VxCombinedVoxelShape extends ArrayVoxelShape {
             return EMPTY_AABB;
         }
         AABB combinedBounds = null;
-        for (int bodyId : bodyIds) {
+        for (UUID bodyUuid : bodyUuids) {
+            Optional<VxAbstractBody> bodyOpt = physicsWorld.getObjectManager().getObject(bodyUuid);
+            if (bodyOpt.isEmpty()) continue;
+            int bodyId = bodyOpt.get().getBodyId();
+            if (bodyId == 0) continue;
+
             try (BodyLockRead lock = new BodyLockRead(physicsWorld.getBodyLockInterface(), bodyId)) {
                 if (lock.succeededAndIsInBroadPhase()) {
                     ConstAaBox joltAabb = lock.getBody().getWorldSpaceBounds();
@@ -94,7 +100,10 @@ public class VxCombinedVoxelShape extends ArrayVoxelShape {
                  BodyFilter multiBodyFilter = new BodyFilter() {
                      @Override
                      public boolean shouldCollide(int bodyId) {
-                         return bodyIds.contains(bodyId);
+                         return physicsWorld.getObjectManager().getObjectContainer().getByBodyId(bodyId)
+                                 .map(VxAbstractBody::getPhysicsId)
+                                 .map(bodyUuids::contains)
+                                 .orElse(false);
                      }
                  }) {
                 RVec3Arg startPos = new Vec3(entityAABB.getCenter().x, entityAABB.getCenter().y, entityAABB.getCenter().z).toRVec3();
@@ -115,7 +124,10 @@ public class VxCombinedVoxelShape extends ArrayVoxelShape {
             }
 
             if (hitBodyId != null && entity != null && movementAxis == Direction.Axis.Y && Math.abs(finalOffset) < Math.abs(desiredOffset)) {
-                updateAttachmentState(hitBodyId, entity);
+                final int finalHitBodyId = hitBodyId;
+                physicsWorld.getObjectManager().getObjectContainer().getByBodyId(finalHitBodyId)
+                        .map(VxAbstractBody::getPhysicsId)
+                        .ifPresent(uuid -> updateAttachmentState(uuid, entity));
             }
             return finalOffset;
         } catch (Exception e) {
@@ -124,13 +136,18 @@ public class VxCombinedVoxelShape extends ArrayVoxelShape {
         }
     }
 
-    private void updateAttachmentState(int bodyId, Entity entity) {
+    private void updateAttachmentState(UUID bodyUuid, Entity entity) {
         IEntityAttachmentData attachmentProvider = (IEntityAttachmentData) entity;
         EntityAttachmentData data = attachmentProvider.getAttachmentData();
         data.ticksSinceGrounded = 0;
 
-        if (!Integer.valueOf(bodyId).equals(data.attachedBodyId)) {
-            data.attachedBodyId = bodyId;
+        if (!bodyUuid.equals(data.attachedBodyUuid)) {
+            data.attachedBodyUuid = bodyUuid;
+            Optional<VxAbstractBody> bodyOpt = physicsWorld.getObjectManager().getObject(bodyUuid);
+            if(bodyOpt.isEmpty()) return;
+            int bodyId = bodyOpt.get().getBodyId();
+            if(bodyId == 0) return;
+
             try (BodyLockRead lock = new BodyLockRead(physicsWorld.getBodyLockInterface(), bodyId)) {
                 if (lock.succeededAndIsInBroadPhase()) {
                     data.lastBodyTransform = lock.getBody().getWorldTransform();

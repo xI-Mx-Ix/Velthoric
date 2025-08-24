@@ -14,6 +14,8 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.entity_collision.VxCombinedVoxelShape;
+import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.terrain.TerrainSystem;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
@@ -26,6 +28,7 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Mixin(Entity.class)
 public abstract class EntityCollisionsMixin {
@@ -48,15 +51,15 @@ public abstract class EntityCollisionsMixin {
             CallbackInfoReturnable<Vec3> cir,
             @Local ImmutableList.Builder<VoxelShape> builder
     ) {
-        List<Integer> physicsBodyIds = jolt$getPhysicsBodiesInArea(level, collisionBox, vec);
-        if (!physicsBodyIds.isEmpty()) {
-            VxCombinedVoxelShape combinedShape = new VxCombinedVoxelShape(level, physicsBodyIds, entity);
+        List<UUID> physicsBodyUuids = jolt$getPhysicsBodiesInArea(level, collisionBox, vec);
+        if (!physicsBodyUuids.isEmpty()) {
+            VxCombinedVoxelShape combinedShape = new VxCombinedVoxelShape(level, physicsBodyUuids, entity);
             builder.add(combinedShape);
         }
     }
 
     @Unique
-    private static List<Integer> jolt$getPhysicsBodiesInArea(Level level, AABB collisionBox, Vec3 movement) {
+    private static List<UUID> jolt$getPhysicsBodiesInArea(Level level, AABB collisionBox, Vec3 movement) {
         VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level.dimension());
         if (physicsWorld == null || !physicsWorld.isRunning() || physicsWorld.getPhysicsSystem() == null) {
             return new ArrayList<>();
@@ -68,7 +71,8 @@ public abstract class EntityCollisionsMixin {
         }
 
         AABB expandedBox = collisionBox.expandTowards(movement);
-        List<Integer> physicsBodyIds = new ArrayList<>();
+        List<UUID> physicsBodyUuids = new ArrayList<>();
+        VxObjectManager objectManager = physicsWorld.getObjectManager();
 
         com.github.stephengold.joltjni.Vec3 minJoltVec = new com.github.stephengold.joltjni.Vec3((float) expandedBox.minX, (float) expandedBox.minY, (float) expandedBox.minZ);
         com.github.stephengold.joltjni.Vec3 maxJoltVec = new com.github.stephengold.joltjni.Vec3((float) expandedBox.maxX, (float) expandedBox.maxY, (float) expandedBox.maxZ);
@@ -82,7 +86,9 @@ public abstract class EntityCollisionsMixin {
 
             for (int bodyId : broadPhaseCollector.getHits()) {
                 if (!terrainSystem.isTerrainBody(bodyId)) {
-                    physicsBodyIds.add(bodyId);
+                    objectManager.getObjectContainer().getByBodyId(bodyId)
+                            .map(VxAbstractBody::getPhysicsId)
+                            .ifPresent(physicsBodyUuids::add);
                 }
             }
 
@@ -90,6 +96,6 @@ public abstract class EntityCollisionsMixin {
             VxMainClass.LOGGER.error("Error during Jolt broad-phase query", e);
         }
 
-        return physicsBodyIds;
+        return physicsBodyUuids;
     }
 }

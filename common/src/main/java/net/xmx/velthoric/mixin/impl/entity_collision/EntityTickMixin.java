@@ -6,12 +6,14 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.physics.entity_collision.EntityAttachmentData;
 import net.xmx.velthoric.physics.entity_collision.IEntityAttachmentData;
+import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import java.util.Optional;
 
 @Mixin(Entity.class)
 public abstract class EntityTickMixin {
@@ -34,11 +36,25 @@ public abstract class EntityTickMixin {
         if (data.isAttached()) {
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level.dimension());
             if (physicsWorld == null || !physicsWorld.isRunning() || physicsWorld.getBodyLockInterface() == null) {
-                data.attachedBodyId = null;
+                data.attachedBodyUuid = null;
                 return;
             }
 
-            try (BodyLockRead lock = new BodyLockRead(physicsWorld.getBodyLockInterface(), data.attachedBodyId)) {
+            Optional<VxAbstractBody> bodyOpt = physicsWorld.getObjectManager().getObject(data.attachedBodyUuid);
+            if (bodyOpt.isEmpty()) {
+                data.attachedBodyUuid = null;
+                data.lastBodyTransform = null;
+                return;
+            }
+
+            int bodyId = bodyOpt.get().getBodyId();
+            if (bodyId == 0) {
+                data.attachedBodyUuid = null;
+                data.lastBodyTransform = null;
+                return;
+            }
+
+            try (BodyLockRead lock = new BodyLockRead(physicsWorld.getBodyLockInterface(), bodyId)) {
                 if (lock.succeededAndIsInBroadPhase() && data.lastBodyTransform != null) {
                     Body body = lock.getBody();
                     RMat44 currentTransform = body.getWorldTransform();
@@ -61,7 +77,7 @@ public abstract class EntityTickMixin {
 
                     data.lastBodyTransform = currentTransform;
                 } else {
-                    data.attachedBodyId = null;
+                    data.attachedBodyUuid = null;
                     data.lastBodyTransform = null;
                 }
             }
