@@ -118,22 +118,14 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         if (!this.isRunning) {
             return;
         }
-
         this.isRunning = false;
-
-        if (this.physicsThreadExecutor != null) {
+        if (this.physicsThreadExecutor != null && this.physicsThreadExecutor.isAlive()) {
             try {
-
-                this.physicsThreadExecutor.join(5000);
+                this.physicsThreadExecutor.join();
             } catch (InterruptedException e) {
 
                 Thread.currentThread().interrupt();
-                VxMainClass.LOGGER.warn("The server thread was interrupted while waiting for the physics thread {} to stop.", this.physicsThreadExecutor.getName());
-            }
-
-            if (this.physicsThreadExecutor.isAlive()) {
-                VxMainClass.LOGGER.error("Physics thread {} did not stop gracefully. Forcing an interrupt.", this.physicsThreadExecutor.getName());
-                this.physicsThreadExecutor.interrupt();
+                VxMainClass.LOGGER.warn("The server thread was interrupted while waiting for the physics thread {} to stop completely.", this.physicsThreadExecutor.getName());
             }
         }
     }
