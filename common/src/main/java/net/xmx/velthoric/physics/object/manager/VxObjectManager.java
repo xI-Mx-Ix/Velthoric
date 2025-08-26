@@ -13,7 +13,7 @@ import net.xmx.velthoric.physics.object.persistence.VxObjectStorage;
 import net.xmx.velthoric.physics.object.manager.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
-import net.xmx.velthoric.physics.terrain.model.VxSectionPos;
+import net.xmx.velthoric.physics.terrain.VxSectionPos;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.ArrayList;

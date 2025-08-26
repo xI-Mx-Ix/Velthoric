@@ -19,13 +19,14 @@ public final class VxTerrainJobSystem {
     }
 
     public CompletableFuture<Void> submit(Runnable task) {
+        if (isShutdown()) return CompletableFuture.completedFuture(null);
         return CompletableFuture.runAsync(task, executorService);
     }
 
     public void shutdown() {
         executorService.shutdown();
         try {
-            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+            if (!executorService.awaitTermination(1, TimeUnit.SECONDS)) {
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                     VxMainClass.LOGGER.error("JobSystem did not terminate.");
@@ -55,6 +56,6 @@ public final class VxTerrainJobSystem {
     }
 
     public boolean isShutdown() {
-        return executorService.isShutdown();
+        return executorService.isShutdown() || executorService.isTerminated();
     }
 }

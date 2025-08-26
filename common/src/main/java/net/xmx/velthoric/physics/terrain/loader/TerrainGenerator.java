@@ -37,6 +37,7 @@ public final class TerrainGenerator {
 
     public synchronized ShapeRefC generateShape(ServerLevel level, ChunkSnapshot snapshot) {
         if (snapshot.shapes().isEmpty()) {
+            terrainStorage.removeShape(snapshot.pos());
             return null;
         }
 
@@ -47,13 +48,23 @@ public final class TerrainGenerator {
             return cached;
         }
 
-        ShapeRefC preloadedShape = terrainStorage.shapeFromPreload(contentHash);
-        if (preloadedShape != null) {
-            shapeCache.put(contentHash, preloadedShape.getPtr().toRefC());
-            return preloadedShape;
+        ShapeRefC storedShape = terrainStorage.getShape(snapshot.pos(), contentHash);
+        if (storedShape != null) {
+            shapeCache.put(contentHash, storedShape.getPtr().toRefC());
+            return storedShape;
         }
 
-        return generateShapeFromVoxels(level, snapshot, contentHash);
+        ShapeRefC generatedShape = generateShapeFromVoxels(level, snapshot, contentHash);
+
+        if (generatedShape != null) {
+            terrainStorage.storeShape(snapshot.pos(), contentHash, generatedShape);
+            shapeCache.put(contentHash, generatedShape);
+            return generatedShape.getPtr().toRefC();
+        } else {
+            terrainStorage.removeShape(snapshot.pos());
+        }
+
+        return null;
     }
 
     private ShapeRefC generateShapeFromVoxels(ServerLevel level, ChunkSnapshot snapshot, int contentHash) {
@@ -112,9 +123,7 @@ public final class TerrainGenerator {
             try (MeshShapeSettings mss = new MeshShapeSettings(vlist, ilist)) {
                 try (ShapeResult res = mss.create()) {
                     if (res.isValid()) {
-                        ShapeRefC master = res.get();
-                        shapeCache.put(contentHash, master);
-                        return master.getPtr().toRefC();
+                        return res.get();
                     } else {
                         VxMainClass.LOGGER.error("Failed to create terrain mesh for {}: {}", snapshot.pos(), res.getError());
                     }

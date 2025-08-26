@@ -19,7 +19,6 @@ import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.physics.terrain.loader.ChunkSnapshot;
 import net.xmx.velthoric.physics.terrain.loader.TerrainGenerator;
-import net.xmx.velthoric.physics.terrain.model.VxSectionPos;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.NotNull;
@@ -71,7 +70,7 @@ public class TerrainSystem implements Runnable {
         this.physicsWorld = physicsWorld;
         this.level = level;
         this.shapeCache = new TerrainShapeCache(1024);
-        this.terrainStorage = new TerrainStorage(this.level, this, this.shapeCache);
+        this.terrainStorage = new TerrainStorage(this.level);
         this.terrainGenerator = new TerrainGenerator(this.shapeCache, this.terrainStorage);
         this.jobSystem = new VxTerrainJobSystem();
         this.workerThread = new Thread(this, "Velthoric Terrain Tracker - " + level.dimension().location().getPath());
@@ -95,7 +94,7 @@ public class TerrainSystem implements Runnable {
                 Thread.currentThread().interrupt();
             }
 
-            this.terrainStorage.saveToFile();
+            this.terrainStorage.shutdown();
 
             physicsWorld.execute(() -> {
                 new HashSet<>(chunkStates.keySet()).forEach(this::unloadChunkPhysicsInternal);
@@ -121,6 +120,12 @@ public class TerrainSystem implements Runnable {
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Error in TerrainSystem worker thread", e);
             }
+        }
+    }
+
+    public void saveDirtyRegions() {
+        if (terrainStorage != null) {
+            terrainStorage.saveDirtyRegions();
         }
     }
 

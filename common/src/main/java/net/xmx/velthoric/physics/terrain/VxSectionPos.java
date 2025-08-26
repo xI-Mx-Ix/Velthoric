@@ -1,4 +1,4 @@
-package net.xmx.velthoric.physics.terrain.model;
+package net.xmx.velthoric.physics.terrain;
 
 import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.core.BlockPos;
