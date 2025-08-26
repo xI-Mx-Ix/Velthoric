@@ -40,7 +40,7 @@ public class VxObjectStorage {
         this.level = level;
         Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
         Path dimensionRoot = DimensionType.getStorageFolder(level.dimension(), worldRoot);
-        this.dataFile = dimensionRoot.resolve("velthoric").resolve("bodies.bin");
+        this.dataFile = dimensionRoot.resolve("velthoric").resolve("bodies.vxdat");
     }
 
     public void initialize() {

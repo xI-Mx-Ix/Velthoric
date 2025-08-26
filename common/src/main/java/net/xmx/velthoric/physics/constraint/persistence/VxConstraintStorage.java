@@ -39,7 +39,7 @@ public class VxConstraintStorage {
         this.level = level;
         Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
         Path dimensionRoot = DimensionType.getStorageFolder(level.dimension(), worldRoot);
-        this.dataFile = dimensionRoot.resolve("velthoric").resolve("constraints.bin");
+        this.dataFile = dimensionRoot.resolve("velthoric").resolve("constraints.vxdat");
     }
 
     public void initialize() {
