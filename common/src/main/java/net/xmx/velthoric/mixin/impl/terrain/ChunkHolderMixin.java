@@ -4,7 +4,7 @@ import com.mojang.datafixers.util.Either;
 import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.xmx.velthoric.physics.terrain.TerrainSystem;
+import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -31,7 +31,7 @@ public abstract class ChunkHolderMixin {
 
                     serverLevel.getServer().execute(() -> {
 
-                        TerrainSystem terrainSystem = VxPhysicsWorld.getTerrainSystem(serverLevel.dimension());
+                        VxTerrainSystem terrainSystem = VxPhysicsWorld.getTerrainSystem(serverLevel.dimension());
                         if (terrainSystem != null) {
 
                             terrainSystem.onChunkLoadedFromVanilla(levelChunk);

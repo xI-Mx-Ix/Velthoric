@@ -2,7 +2,7 @@ package net.xmx.velthoric.physics.terrain.event;
 
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.event.api.VxLevelEvent;
-import net.xmx.velthoric.physics.terrain.TerrainSystem;
+import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 public class TerrainLifecycleEvents {
@@ -19,7 +19,7 @@ public class TerrainLifecycleEvents {
 
         VxPhysicsWorld world = VxPhysicsWorld.get(level.dimension());
         if (world != null) {
-            TerrainSystem terrainSystem = world.getTerrainSystem();
+            VxTerrainSystem terrainSystem = world.getTerrainSystem();
             if (terrainSystem != null) {
                 terrainSystem.saveDirtyRegions();
             }

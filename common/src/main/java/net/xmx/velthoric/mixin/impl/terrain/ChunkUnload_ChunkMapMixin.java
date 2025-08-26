@@ -7,7 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.xmx.velthoric.physics.terrain.TerrainSystem;
+import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -33,7 +33,7 @@ public abstract class ChunkUnload_ChunkMapMixin {
             ChunkAccess chunkAccess = chunkFuture.getNow(null);
             if (chunkAccess instanceof LevelChunk levelChunk) {
                 ResourceKey<Level> dimensionKey = this.level.dimension();
-                TerrainSystem terrainSystem = VxPhysicsWorld.getTerrainSystem(dimensionKey);
+                VxTerrainSystem terrainSystem = VxPhysicsWorld.getTerrainSystem(dimensionKey);
 
                 if (terrainSystem != null) {
                     terrainSystem.onChunkUnloaded(levelChunk.getPos());

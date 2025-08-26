@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-public class TerrainSystem implements Runnable {
+public class VxTerrainSystem implements Runnable {
 
     private static final int STATE_UNLOADED = 0;
     private static final int STATE_LOADING_SCHEDULED = 1;
@@ -66,7 +66,7 @@ public class TerrainSystem implements Runnable {
     private static final int ACTIVATION_RADIUS_CHUNKS = 1;
     private static final float PREDICTION_SECONDS = 0.5f;
 
-    public TerrainSystem(VxPhysicsWorld physicsWorld, ServerLevel level) {
+    public VxTerrainSystem(VxPhysicsWorld physicsWorld, ServerLevel level) {
         this.physicsWorld = physicsWorld;
         this.level = level;
         this.shapeCache = new TerrainShapeCache(1024);

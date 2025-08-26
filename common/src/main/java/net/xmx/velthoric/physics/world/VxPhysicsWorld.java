@@ -10,7 +10,7 @@ import net.xmx.velthoric.natives.NativeJoltInitializer;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.riding.RidingManager;
-import net.xmx.velthoric.physics.terrain.TerrainSystem;
+import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.pcmd.ICommand;
 import net.xmx.velthoric.physics.world.pcmd.RunTaskCommand;
 import org.jetbrains.annotations.NotNull;
@@ -51,7 +51,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final ResourceKey<Level> dimensionKey;
     private final VxObjectManager objectManager;
     private final VxConstraintManager constraintManager;
-    private final TerrainSystem terrainSystem;
+    private final VxTerrainSystem terrainSystem;
     private final RidingManager ridingManager;
 
     private PhysicsSystem physicsSystem;
@@ -69,7 +69,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.dimensionKey = level.dimension();
         this.objectManager = new VxObjectManager(this);
         this.constraintManager = new VxConstraintManager(this.objectManager);
-        this.terrainSystem = new TerrainSystem(this, this.level);
+        this.terrainSystem = new VxTerrainSystem(this, this.level);
         this.ridingManager = new RidingManager(this);
     }
 
@@ -267,7 +267,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return this.constraintManager;
     }
 
-    public TerrainSystem getTerrainSystem() {
+    public VxTerrainSystem getTerrainSystem() {
         return this.terrainSystem;
     }
 
@@ -341,7 +341,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     @Nullable
-    public static TerrainSystem getTerrainSystem(ResourceKey<Level> dimensionKey) {
+    public static VxTerrainSystem getTerrainSystem(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
         return world != null ? world.getTerrainSystem() : null;
     }

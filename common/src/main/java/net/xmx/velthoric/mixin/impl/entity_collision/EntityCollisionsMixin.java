@@ -16,7 +16,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.entity_collision.VxCombinedVoxelShape;
-import net.xmx.velthoric.physics.terrain.TerrainSystem;
+import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -65,7 +65,7 @@ public abstract class EntityCollisionsMixin {
             return new IntArrayList();
         }
 
-        TerrainSystem terrainSystem = VxPhysicsWorld.getTerrainSystem(level.dimension());
+        VxTerrainSystem terrainSystem = VxPhysicsWorld.getTerrainSystem(level.dimension());
         if (terrainSystem == null) {
             return new IntArrayList();
         }

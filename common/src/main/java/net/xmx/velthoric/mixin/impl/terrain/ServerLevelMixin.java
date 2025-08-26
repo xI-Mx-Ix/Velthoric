@@ -3,7 +3,7 @@ package net.xmx.velthoric.mixin.impl.terrain;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
-import net.xmx.velthoric.physics.terrain.TerrainSystem;
+import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -15,7 +15,7 @@ public abstract class ServerLevelMixin {
 
     @Inject(method = "onBlockStateChange", at = @At("HEAD"))
     private void onBlockStateChangeHook(BlockPos pos, BlockState oldState, BlockState newState, CallbackInfo ci) {
-        TerrainSystem terrainSystem = VxPhysicsWorld.getTerrainSystem(((ServerLevel)(Object)this).dimension());
+        VxTerrainSystem terrainSystem = VxPhysicsWorld.getTerrainSystem(((ServerLevel)(Object)this).dimension());
         if (terrainSystem != null) {
             terrainSystem.onBlockUpdate(pos, oldState, newState);
         }
