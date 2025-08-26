@@ -10,6 +10,7 @@ import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.storage.LevelResource;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 
@@ -173,7 +174,7 @@ public class VxObjectStorage {
     }
 
     private VxAbstractBody deserializeObject(UUID id, byte[] data) {
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
+        VxByteBuf buf = new VxByteBuf(Unpooled.wrappedBuffer(data));
         try {
             String typeId = buf.readUtf();
             VxAbstractBody obj = objectManager.getObjectRegistry().create(typeId, objectManager.getPhysicsWorld(), id);
@@ -196,7 +197,7 @@ public class VxObjectStorage {
 
     private byte[] serializeObjectData(VxAbstractBody object) {
         ByteBuf buffer = Unpooled.buffer();
-        FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(buffer);
+        VxByteBuf friendlyBuf = new VxByteBuf(buffer);
         try {
             friendlyBuf.writeUtf(object.getType().getTypeId());
             object.getGameTransform().toBuffer(friendlyBuf);

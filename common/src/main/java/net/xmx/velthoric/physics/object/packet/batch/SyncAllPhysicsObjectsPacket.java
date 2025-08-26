@@ -3,6 +3,7 @@ package net.xmx.velthoric.physics.object.packet.batch;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectState;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
@@ -15,7 +16,7 @@ public class SyncAllPhysicsObjectsPacket {
     private final byte[] data;
 
     public SyncAllPhysicsObjectsPacket(List<PhysicsObjectState> objectStates) {
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(objectStates.size() * 64));
+        VxByteBuf buf = new VxByteBuf(Unpooled.buffer(objectStates.size() * 64));
         try {
             buf.writeVarInt(objectStates.size());
             for (PhysicsObjectState state : objectStates) {
@@ -37,7 +38,7 @@ public class SyncAllPhysicsObjectsPacket {
     }
 
     public static void handle(SyncAllPhysicsObjectsPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
-        FriendlyByteBuf dataBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(msg.data));
+        VxByteBuf dataBuf = new VxByteBuf(Unpooled.wrappedBuffer(msg.data));
         try {
             int size = dataBuf.readVarInt();
             final List<PhysicsObjectState> objectStates = new ArrayList<>(size);

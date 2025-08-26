@@ -11,6 +11,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.NetworkHandler;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.packet.SpawnData;
 import net.xmx.velthoric.physics.object.packet.batch.RemovePhysicsObjectBatchPacket;
 import net.xmx.velthoric.physics.object.packet.batch.SpawnPhysicsObjectBatchPacket;
 import net.xmx.velthoric.physics.object.packet.batch.SyncAllPhysicsObjectsPacket;
@@ -30,9 +31,9 @@ public class VxObjectNetworkDispatcher {
     private static final int NETWORK_THREAD_TICK_RATE_MS = 10;
 
     private final Object2ObjectMap<UUID, ObjectSet<UUID>> playerTrackedObjects = new Object2ObjectOpenHashMap<>();
-    private final Object2ObjectMap<ServerPlayer, ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData>> pendingSpawns = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<ServerPlayer, ObjectArrayList<SpawnData>> pendingSpawns = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<ServerPlayer, ObjectArrayList<UUID>> pendingRemovals = new Object2ObjectOpenHashMap<>();
-    private final ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData> spawnBatch = new ObjectArrayList<>();
+    private final ObjectArrayList<SpawnData> spawnBatch = new ObjectArrayList<>();
     private final ObjectArrayList<UUID> removalBatch = new ObjectArrayList<>();
 
     private final ConcurrentLinkedQueue<PhysicsObjectState> stateUpdateQueue = new ConcurrentLinkedQueue<>();
@@ -100,10 +101,10 @@ public class VxObjectNetworkDispatcher {
             }
         }
 
-        ObjectArrayList<SpawnPhysicsObjectBatchPacket.SpawnData> spawnsForPlayer = pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>());
+        ObjectArrayList<SpawnData> spawnsForPlayer = pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>());
         for (VxAbstractBody obj : visibleObjects) {
             if (previouslyTracked.add(obj.getPhysicsId())) {
-                spawnsForPlayer.add(new SpawnPhysicsObjectBatchPacket.SpawnData(obj, timestamp));
+                spawnsForPlayer.add(new SpawnData(obj, timestamp));
             }
         }
     }
@@ -142,7 +143,7 @@ public class VxObjectNetworkDispatcher {
             }
             spawnBatch.clear();
             int currentBatchSizeBytes = 0;
-            for (SpawnPhysicsObjectBatchPacket.SpawnData data : spawnDataList) {
+            for (SpawnData data : spawnDataList) {
                 int dataSize = data.estimateSize();
                 if (!spawnBatch.isEmpty() && currentBatchSizeBytes + dataSize > MAX_PACKET_PAYLOAD_SIZE) {
                     NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(spawnBatch), player);

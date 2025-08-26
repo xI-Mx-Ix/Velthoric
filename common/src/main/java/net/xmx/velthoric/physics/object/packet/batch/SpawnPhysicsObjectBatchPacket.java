@@ -1,16 +1,12 @@
 package net.xmx.velthoric.physics.object.packet.batch;
-
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
-import net.xmx.velthoric.physics.object.type.VxSoftBody;
+import net.xmx.velthoric.physics.object.packet.SpawnData;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 public class SpawnPhysicsObjectBatchPacket {
@@ -48,51 +44,5 @@ public class SpawnPhysicsObjectBatchPacket {
                 }
             }
         });
-    }
-
-    public static class SpawnData {
-        final UUID id;
-        final String typeIdentifier;
-        final EBodyType objectType;
-        final long timestamp;
-        final byte[] data;
-
-        public SpawnData(VxAbstractBody obj, long timestamp) {
-            this.id = obj.getPhysicsId();
-            this.typeIdentifier = obj.getType().getTypeId();
-            this.objectType = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
-            this.timestamp = timestamp;
-            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-            try {
-                obj.getGameTransform().toBuffer(buf);
-                obj.writeCreationData(buf);
-                this.data = new byte[buf.readableBytes()];
-                buf.readBytes(this.data);
-            } finally {
-                if(buf.refCnt() > 0) {
-                    buf.release();
-                }
-            }
-        }
-
-        public SpawnData(FriendlyByteBuf buf) {
-            this.id = buf.readUUID();
-            this.typeIdentifier = buf.readUtf();
-            this.objectType = buf.readEnum(EBodyType.class);
-            this.timestamp = buf.readLong();
-            this.data = buf.readByteArray();
-        }
-
-        public void encode(FriendlyByteBuf buf) {
-            buf.writeUUID(id);
-            buf.writeUtf(typeIdentifier);
-            buf.writeEnum(objectType);
-            buf.writeLong(timestamp);
-            buf.writeByteArray(data);
-        }
-
-        public int estimateSize() {
-            return 16 + FriendlyByteBuf.getVarIntSize(typeIdentifier.length()) + typeIdentifier.length() + 4 + 8 + FriendlyByteBuf.getVarIntSize(data.length) + data.length;
-        }
     }
 }

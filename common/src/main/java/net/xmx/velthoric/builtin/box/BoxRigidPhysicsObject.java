@@ -2,7 +2,7 @@ package net.xmx.velthoric.builtin.box;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
-import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.PhysicsObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.riding.seat.Seat;
@@ -65,14 +65,12 @@ public class BoxRigidPhysicsObject extends VxRigidBody {
     }
 
     @Override
-    public void writeCreationData(FriendlyByteBuf buf) {
-        buf.writeFloat(this.halfExtents.getX());
-        buf.writeFloat(this.halfExtents.getY());
-        buf.writeFloat(this.halfExtents.getZ());
+    public void writeCreationData(VxByteBuf buf) {
+        buf.writeVec3(halfExtents);
     }
 
     @Override
-    public void readCreationData(FriendlyByteBuf buf) {
-        this.halfExtents = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
+    public void readCreationData(VxByteBuf buf) {
+        this.halfExtents = buf.readVec3();
     }
 }

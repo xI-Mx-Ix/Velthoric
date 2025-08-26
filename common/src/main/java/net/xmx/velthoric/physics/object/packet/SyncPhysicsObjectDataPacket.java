@@ -3,6 +3,7 @@ package net.xmx.velthoric.physics.object.packet;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
 
@@ -16,7 +17,7 @@ public class SyncPhysicsObjectDataPacket {
 
     public SyncPhysicsObjectDataPacket(VxAbstractBody obj) {
         this.id = obj.getPhysicsId();
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        VxByteBuf buf = new VxByteBuf(Unpooled.buffer());
         obj.writeCreationData(buf);
         this.data = new byte[buf.readableBytes()];
         buf.readBytes(this.data);

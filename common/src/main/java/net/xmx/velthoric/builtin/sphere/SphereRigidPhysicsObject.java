@@ -2,7 +2,7 @@ package net.xmx.velthoric.builtin.sphere;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
-import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.PhysicsObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.world.VxLayers;
@@ -44,12 +44,12 @@ public class SphereRigidPhysicsObject extends VxRigidBody {
     }
 
     @Override
-    public void writeCreationData(FriendlyByteBuf buf) {
+    public void writeCreationData(VxByteBuf buf) {
         buf.writeFloat(this.radius);
     }
 
     @Override
-    public void readCreationData(FriendlyByteBuf buf) {
+    public void readCreationData(VxByteBuf buf) {
         this.radius = buf.readFloat();
     }
 }

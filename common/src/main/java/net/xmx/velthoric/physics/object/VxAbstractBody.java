@@ -2,10 +2,10 @@ package net.xmx.velthoric.physics.object;
 
 import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.BodyLockRead;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,9 +31,9 @@ public abstract class VxAbstractBody {
 
     public void gameTick(ServerLevel level) {}
 
-    public void writeCreationData(FriendlyByteBuf buf) {}
+    public void writeCreationData(VxByteBuf buf) {}
 
-    public void readCreationData(FriendlyByteBuf buf) {}
+    public void readCreationData(VxByteBuf buf) {}
 
     public Optional<VxTransform> getTransform(VxPhysicsWorld world) {
         if (bodyId == 0) return Optional.empty();

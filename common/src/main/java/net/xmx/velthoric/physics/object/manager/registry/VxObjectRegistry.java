@@ -1,7 +1,7 @@
 package net.xmx.velthoric.physics.object.manager.registry;
 
-import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.PhysicsObjectType;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -38,7 +38,7 @@ public class VxObjectRegistry {
     }
 
     @Nullable
-    public VxAbstractBody createAndDeserialize(String typeId, UUID id, VxPhysicsWorld world, FriendlyByteBuf data) {
+    public VxAbstractBody createAndDeserialize(String typeId, UUID id, VxPhysicsWorld world, VxByteBuf data) {
         VxAbstractBody obj = create(typeId, world, id);
         if (obj != null) {
             if (data != null) {

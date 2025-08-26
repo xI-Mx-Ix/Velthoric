@@ -5,7 +5,7 @@ import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.Vertex;
-import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.PhysicsObjectType;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.world.VxLayers;
@@ -40,7 +40,7 @@ public class RopeSoftBody extends VxSoftBody {
     }
 
     @Override
-    public void writeCreationData(FriendlyByteBuf buf) {
+    public void writeCreationData(VxByteBuf buf) {
         buf.writeFloat(this.ropeLength);
         buf.writeInt(this.numSegments);
         buf.writeFloat(this.ropeRadius);
@@ -49,7 +49,7 @@ public class RopeSoftBody extends VxSoftBody {
     }
 
     @Override
-    public void readCreationData(FriendlyByteBuf buf) {
+    public void readCreationData(VxByteBuf buf) {
         this.ropeLength = buf.readFloat();
         this.numSegments = buf.readInt();
         this.ropeRadius = buf.readFloat();

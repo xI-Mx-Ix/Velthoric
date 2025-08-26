@@ -2,8 +2,8 @@ package net.xmx.velthoric.physics.object.state;
 
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
-import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.math.VxTransform;
+import net.xmx.velthoric.network.VxByteBuf;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
@@ -43,7 +43,7 @@ public final class PhysicsObjectState {
         }
     }
 
-    public void decode(FriendlyByteBuf buf) {
+    public void decode(VxByteBuf buf) {
         this.id = buf.readUUID();
         this.timestamp = buf.readLong();
         this.isActive = buf.readBoolean();
@@ -51,8 +51,8 @@ public final class PhysicsObjectState {
         this.transform.fromBuffer(buf);
 
         if (this.isActive) {
-            this.linearVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
-            this.angularVelocity.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
+            this.linearVelocity.set(buf.readVec3());
+            this.angularVelocity.set(buf.readVec3());
 
             if (eBodyType == EBodyType.SoftBody && buf.readBoolean()) {
                 int length = buf.readVarInt();
@@ -70,7 +70,7 @@ public final class PhysicsObjectState {
         }
     }
 
-    public void encode(FriendlyByteBuf buf) {
+    public void encode(VxByteBuf buf) {
         buf.writeUUID(this.id);
         buf.writeLong(this.timestamp);
         buf.writeBoolean(this.isActive);
@@ -78,12 +78,8 @@ public final class PhysicsObjectState {
         this.transform.toBuffer(buf);
 
         if (this.isActive) {
-            buf.writeFloat(this.linearVelocity.getX());
-            buf.writeFloat(this.linearVelocity.getY());
-            buf.writeFloat(this.linearVelocity.getZ());
-            buf.writeFloat(this.angularVelocity.getX());
-            buf.writeFloat(this.angularVelocity.getY());
-            buf.writeFloat(this.angularVelocity.getZ());
+            buf.writeVec3(this.linearVelocity);
+            buf.writeVec3(this.angularVelocity);
 
             if (eBodyType == EBodyType.SoftBody) {
                 boolean hasVertices = this.softBodyVertices != null && this.softBodyVertices.length > 0;
@@ -128,7 +124,7 @@ public final class PhysicsObjectState {
     public VxTransform getTransform() { return transform; }
     public Vec3 getLinearVelocity() { return linearVelocity; }
     public Vec3 getAngularVelocity() { return angularVelocity; }
-    @Nullable public float[] getSoftBodyVertices() { return softBodyVertices; }
+    public float @Nullable [] getSoftBodyVertices() { return softBodyVertices; }
     public long getTimestamp() { return timestamp; }
     public boolean isActive() { return isActive; }
 }

@@ -3,7 +3,7 @@ package net.xmx.velthoric.builtin.cloth;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
-import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.PhysicsObjectType;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.world.VxLayers;
@@ -41,7 +41,7 @@ public class ClothSoftBody extends VxSoftBody {
     }
 
     @Override
-    public void writeCreationData(FriendlyByteBuf buf) {
+    public void writeCreationData(VxByteBuf buf) {
         buf.writeInt(this.widthSegments);
         buf.writeInt(this.heightSegments);
         buf.writeFloat(this.clothWidth);
@@ -51,7 +51,7 @@ public class ClothSoftBody extends VxSoftBody {
     }
 
     @Override
-    public void readCreationData(FriendlyByteBuf buf) {
+    public void readCreationData(VxByteBuf buf) {
         this.widthSegments = buf.readInt();
         this.heightSegments = buf.readInt();
         this.clothWidth = buf.readFloat();

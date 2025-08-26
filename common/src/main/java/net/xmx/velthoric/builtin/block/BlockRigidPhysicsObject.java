@@ -6,13 +6,13 @@ import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.model.converter.VoxelShapeConverter;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.PhysicsObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.world.VxLayers;
@@ -63,12 +63,12 @@ public class BlockRigidPhysicsObject extends VxRigidBody {
     }
 
     @Override
-    public void writeCreationData(FriendlyByteBuf buf) {
+    public void writeCreationData(VxByteBuf buf) {
         buf.writeVarInt(Block.getId(this.representedBlockState));
     }
 
     @Override
-    public void readCreationData(FriendlyByteBuf buf) {
+    public void readCreationData(VxByteBuf buf) {
         int blockStateId = buf.readVarInt();
         this.representedBlockState = Block.stateById(blockStateId);
         if (this.representedBlockState.isAir()) {
