@@ -47,7 +47,7 @@ public class RidingProxyEntity extends Entity {
     // }
 
     @Override
-    protected void positionRider(Entity passenger, Entity.MoveFunction callback) {
+    protected void positionRider(Entity passenger, MoveFunction callback) {
         super.positionRider(passenger, callback);
 
         if (this.isControlledByLocalInstance() || !level().isClientSide()) {
@@ -85,7 +85,7 @@ public class RidingProxyEntity extends Entity {
         return this.entityData.get(RIDE_POSITION_OFFSET);
     }
 
-    public void setFollowInfo(UUID physicsId, org.joml.Vector3f rideOffset) {
+    public void setFollowInfo(UUID physicsId, Vector3f rideOffset) {
         this.entityData.set(PHYSICS_OBJECT_ID, Optional.of(physicsId));
         this.entityData.set(RIDE_POSITION_OFFSET, rideOffset);
     }

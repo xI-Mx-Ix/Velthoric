@@ -14,16 +14,59 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class RidingManager {
 
     private final VxPhysicsWorld world;
+    private final Object2ObjectMap<UUID, Map<String, Seat>> objectToSeatsMap = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<UUID, UUID> playerToObjectIdMap = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<UUID, Map<UUID, ServerPlayer>> objectToRidersMap = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<UUID, Seat> playerToSeatMap = new Object2ObjectOpenHashMap<>();
 
     public RidingManager(VxPhysicsWorld world) {
         this.world = world;
+    }
+
+    public void addSeat(UUID objectId, Seat.Properties properties) {
+        Seat seat = new Seat(properties);
+        this.objectToSeatsMap.computeIfAbsent(objectId, k -> new ConcurrentHashMap<>()).put(properties.seatName, seat);
+    }
+
+    public void removeSeat(UUID objectId, String seatName) {
+        Map<String, Seat> seats = this.objectToSeatsMap.get(objectId);
+        if (seats != null) {
+            seats.remove(seatName);
+            if (seats.isEmpty()) {
+                this.objectToSeatsMap.remove(objectId);
+            }
+        }
+    }
+
+    public Optional<Seat> getSeat(UUID objectId, String seatName) {
+        Map<String, Seat> seats = this.objectToSeatsMap.get(objectId);
+        return seats != null ? Optional.ofNullable(seats.get(seatName)) : Optional.empty();
+    }
+
+    public Collection<Seat> getSeats(UUID objectId) {
+        Map<String, Seat> seats = this.objectToSeatsMap.get(objectId);
+        return seats != null ? seats.values() : Collections.emptyList();
+    }
+
+    public void lockSeat(UUID objectId, String seatName) {
+        getSeat(objectId, seatName).ifPresent(Seat::lock);
+    }
+
+    public void unlockSeat(UUID objectId, String seatName) {
+        getSeat(objectId, seatName).ifPresent(Seat::unlock);
+    }
+
+    public boolean isSeatLocked(UUID objectId, String seatName) {
+        return getSeat(objectId, seatName).map(Seat::isLocked).orElse(true);
+    }
+
+    public Object2ObjectMap<UUID, Map<String, Seat>> getObjectToSeatsMap() {
+        return this.objectToSeatsMap;
     }
 
     public void startRiding(ServerPlayer player, Rideable rideable, Seat seat) {
@@ -90,6 +133,20 @@ public class RidingManager {
             player.stopRiding();
             vehicle.discard();
         }
+    }
+
+    public void ejectPassengerFromSeat(UUID objectId, String seatName) {
+        Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
+        if (riders == null) return;
+
+        Optional<ServerPlayer> playerToEject = riders.values().stream()
+                .filter(player -> {
+                    Seat seat = playerToSeatMap.get(player.getUUID());
+                    return seat != null && seat.getName().equals(seatName);
+                })
+                .findFirst();
+
+        playerToEject.ifPresent(this::stopRiding);
     }
 
     public void tick() {
@@ -161,7 +218,7 @@ public class RidingManager {
         }
         for (UUID riderUuid : riders.keySet()) {
             Seat occupiedSeat = playerToSeatMap.get(riderUuid);
-            if (occupiedSeat != null && occupiedSeat.getSeatName().equals(seat.getSeatName())) {
+            if (occupiedSeat != null && occupiedSeat.getName().equals(seat.getName())) {
                 return true;
             }
         }
