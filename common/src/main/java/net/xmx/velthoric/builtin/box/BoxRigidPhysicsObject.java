@@ -32,21 +32,6 @@ public class BoxRigidPhysicsObject extends VxRigidBody {
     }
 
     @Override
-    public Seat[] defineSeats() {
-        Seat leftSeat = new Seat("leftSeat",
-                new AABB(-2f, -1f, -1f, 0f, 1f, 1f),
-                new Vector3f(-1f, 0f, 0f)
-        );
-
-        Seat rightSeat = new Seat("rightSeat",
-                new AABB(0f, -1f, -1f, 2f, 1f, 1f),
-                new Vector3f(1f, 0f, 0f)
-        );
-
-        return new Seat[]{leftSeat, rightSeat};
-    }
-
-    @Override
     public ShapeSettings createShapeSettings() {
         return new BoxShapeSettings(this.halfExtents);
     }

@@ -84,6 +84,7 @@ public class VxObjectManager {
                         }
                         body.setBodyId(bodyId);
                         objectContainer.add(body);
+                        body.onBodyAdded(world);
 
                         if (activation == EActivation.DontActivate) {
                             pendingActivations.put(body.getPhysicsId(), body);
@@ -111,6 +112,7 @@ public class VxObjectManager {
                 }
                 body.setBodyId(bodyId);
                 objectContainer.add(body);
+                body.onBodyAdded(world);
 
                 if (activation == EActivation.DontActivate) {
                     pendingActivations.put(body.getPhysicsId(), body);
@@ -223,6 +225,7 @@ public class VxObjectManager {
             world.getConstraintManager().removeConstraintsForObject(id, reason == VxRemovalReason.DISCARD);
             return;
         }
+        obj.onBodyRemoved(world, reason);
         physicsUpdater.clearStateFor(id);
 
         if (reason == VxRemovalReason.SAVE) {

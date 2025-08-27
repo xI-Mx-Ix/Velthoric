@@ -6,6 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,6 +27,9 @@ public abstract class VxAbstractBody {
         this.world = world;
         this.physicsId = id;
     }
+
+    public void onBodyAdded(VxPhysicsWorld world) {}
+    public void onBodyRemoved(VxPhysicsWorld world, VxRemovalReason reason) {}
 
     public void physicsTick(VxPhysicsWorld world) {}
 
