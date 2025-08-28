@@ -4,9 +4,6 @@
   "package": "net.xmx.velthoric.mixin.impl",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
-    "entity_collision.EntityAttachmentMixin",
-    "entity_collision.EntityCollisionsMixin",
-    "entity_collision.EntityTickMixin",
     "event.chunk.VxChunkLoadEvent_ChunkMapMixin",
     "event.chunk.VxChunkUnloadEvent_ChunkMapMixin",
     "event.chunk.VxChunkWatchEvent_ChunkMapMixin",
