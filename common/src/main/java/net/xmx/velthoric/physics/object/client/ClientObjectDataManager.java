@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Supplier;
 
-@Environment(EnvType.CLIENT)
 public class ClientObjectDataManager {
 
     private static final ClientObjectDataManager INSTANCE = new ClientObjectDataManager();
