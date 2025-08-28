@@ -5,8 +5,6 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import dev.architectury.event.events.client.ClientTickEvent;
 import io.netty.buffer.ByteBuf;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.init.VxMainClass;
