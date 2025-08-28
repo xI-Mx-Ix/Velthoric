@@ -29,7 +29,7 @@ public final class CreateRopeCommand {
                 Commands.literal("createrope")
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("start_position", Vec3Argument.vec3(true))
-                                .then(Commands.argument("segments", IntegerArgumentType.integer(2, 100))
+                                .then(Commands.argument("segments", IntegerArgumentType.integer(2, 1000))
                                         .executes(CreateRopeCommand::execute)
                                 )
                         )
