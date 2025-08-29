@@ -1,5 +1,7 @@
 package net.xmx.velthoric.builtin.sphere;
 
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import io.netty.buffer.Unpooled;
@@ -12,6 +14,7 @@ import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.nio.ByteBuffer;
@@ -34,6 +37,13 @@ public class SphereRenderer implements VxRigidBody.Renderer {
             } catch (Exception ignored) {
             }
         }
+
+        poseStack.pushPose();
+
+        RVec3 renderPosition = renderState.transform.getTranslation();
+        Quat renderRotation = renderState.transform.getRotation();
+        poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
+        poseStack.mulPose(new Quaternionf(renderRotation.getX(), renderRotation.getY(), renderRotation.getZ(), renderRotation.getW()));
 
         PoseStack.Pose lastPose = poseStack.last();
         Matrix4f poseMatrix = lastPose.pose();
@@ -65,6 +75,7 @@ public class SphereRenderer implements VxRigidBody.Renderer {
                 addVertex(consumer, poseMatrix, normalMatrix, v4, r, g, b, a, packedLight);
             }
         }
+        poseStack.popPose();
     }
 
     private Vector3f getSphereVertex(float radius, float phi, float theta) {

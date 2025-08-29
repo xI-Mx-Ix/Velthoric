@@ -1,5 +1,7 @@
 package net.xmx.velthoric.builtin.block;
 
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
 import com.mojang.blaze3d.vertex.PoseStack;
 import io.netty.buffer.Unpooled;
 import net.fabricmc.api.EnvType;
@@ -21,6 +23,7 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Quaternionf;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
@@ -47,6 +50,12 @@ public class BlockRenderer implements VxRigidBody.Renderer {
         }
 
         poseStack.pushPose();
+
+        RVec3 renderPosition = renderState.transform.getTranslation();
+        Quat renderRotation = renderState.transform.getRotation();
+        poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
+        poseStack.mulPose(new Quaternionf(renderRotation.getX(), renderRotation.getY(), renderRotation.getZ(), renderRotation.getW()));
+
         poseStack.translate(-0.5, -0.5, -0.5);
 
         try {

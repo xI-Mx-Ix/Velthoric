@@ -1,6 +1,5 @@
 package net.xmx.velthoric.physics.object.client.renderer;
 
-import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -19,18 +18,17 @@ import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
 
-public class PhysicsObjectRenderer {
+public class VxPhysicsRenderer {
 
     private static final float CULLING_BOUNDS_INFLATION = 2.0f;
     private static final RenderState finalRenderState = new RenderState();
 
     public static void registerEvents() {
-        VxRenderEvent.ClientRenderLevelStageEvent.EVENT.register(PhysicsObjectRenderer::onRenderLevelStage);
+        VxRenderEvent.ClientRenderLevelStageEvent.EVENT.register(VxPhysicsRenderer::onRenderLevelStage);
     }
 
     private static void onRenderLevelStage(VxRenderEvent.ClientRenderLevelStageEvent event) {
@@ -90,20 +88,10 @@ public class PhysicsObjectRenderer {
 
         frame.interpolate(finalRenderState, partialTicks);
 
-        poseStack.pushPose();
-
         RVec3 renderPosition = finalRenderState.transform.getTranslation();
-        Quat renderRotation = finalRenderState.transform.getRotation();
-
-        poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
-
-        poseStack.mulPose(new Quaternionf(renderRotation.getX(), renderRotation.getY(), renderRotation.getZ(), renderRotation.getW()));
-
         int packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(renderPosition.x(), renderPosition.y(), renderPosition.z()));
 
         renderer.render(id, finalRenderState, customData, poseStack, bufferSource, partialTicks, packedLight);
-
-        poseStack.popPose();
     }
 
     private static void renderSoftBody(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, UUID id, InterpolationFrame frame, VxSoftBody.Renderer renderer, ByteBuffer customData) {
@@ -115,12 +103,8 @@ public class PhysicsObjectRenderer {
             return;
         }
 
-        poseStack.pushPose();
-
         int packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(finalRenderState.vertexData[0], finalRenderState.vertexData[1], finalRenderState.vertexData[2]));
 
         renderer.render(id, finalRenderState, customData, poseStack, bufferSource, partialTicks, packedLight);
-
-        poseStack.popPose();
     }
 }
