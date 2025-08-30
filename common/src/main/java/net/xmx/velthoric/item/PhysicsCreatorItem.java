@@ -2,26 +2,23 @@ package net.xmx.velthoric.item;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.xmx.velthoric.builtin.VxRegisteredObjects;
-import net.xmx.velthoric.builtin.block.BlockRigidPhysicsObject;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.object.util.VxVoxelShapeUtil;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
-
-import java.util.Optional;
 
 public class PhysicsCreatorItem extends Item {
 
@@ -32,85 +29,53 @@ public class PhysicsCreatorItem extends Item {
     @Override
     public InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
-        if (level.isClientSide) {
+        if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
 
-        if (!(level instanceof ServerLevel serverLevel)) {
-            return InteractionResult.PASS;
+        BlockPos pos = context.getClickedPos();
+        BlockState originalState = level.getBlockState(pos);
+
+        if (originalState.isAir() || originalState.getDestroySpeed(level, pos) < 0) {
+            return InteractionResult.FAIL;
         }
 
-        BlockPos blockPos = context.getClickedPos();
-        BlockState clickedState = level.getBlockState(blockPos);
-
-        if (clickedState.isAir()) {
-            return InteractionResult.PASS;
-        }
-
-        VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(serverLevel.dimension());
+        VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level.dimension());
         if (physicsWorld == null) {
-            VxMainClass.LOGGER.error("Physics world is not initialized in this dimension.");
+            VxMainClass.LOGGER.error("Could not find VxPhysicsWorld for the level!");
             return InteractionResult.FAIL;
         }
+        VxObjectManager objectManager = physicsWorld.getObjectManager();
 
-        if (!serverLevel.removeBlock(blockPos, false)) {
-            VxMainClass.LOGGER.warn("Failed to remove block at {} to create physics object.", blockPos);
-            return InteractionResult.FAIL;
-        }
-
-        RVec3 spawnPosition = new RVec3(blockPos.getX() + 0.5, blockPos.getY() + 0.5, blockPos.getZ() + 0.5);
-        Quat spawnRotation = extractRotationFromBlockState(clickedState);
-        VxTransform transform = new VxTransform(spawnPosition, spawnRotation);
-
-        VxObjectManager manager = physicsWorld.getObjectManager();
-
-        Optional<BlockRigidPhysicsObject> spawnedObject = manager.createRigidBody(
-                VxRegisteredObjects.BLOCK,
-                transform,
-                block -> block.setRepresentedBlockState(clickedState)
-        );
-
-        if (spawnedObject.isPresent()) {
-            if (context.getPlayer() != null && !context.getPlayer().getAbilities().instabuild) {
-                context.getItemInHand().shrink(1);
+        try (var ignored = VxVoxelShapeUtil.toMutableCompoundShape(originalState.getVisualShape(level, pos, CollisionContext.empty()))) {
+            if (ignored == null) {
+                VxMainClass.LOGGER.warn("Could not generate a valid physics shape for the block: {}", originalState);
+                return InteractionResult.FAIL;
             }
-            return InteractionResult.SUCCESS;
-        } else {
-            VxMainClass.LOGGER.warn("Failed to spawn BlockRigidPhysicsObject. Restoring block at {}.", blockPos);
-            serverLevel.setBlock(blockPos, clickedState, 3);
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Error during pre-check of physics shape creation", e);
             return InteractionResult.FAIL;
         }
-    }
 
-    private Quat extractRotationFromBlockState(BlockState state) {
+        try {
+            level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL | Block.UPDATE_IMMEDIATE);
 
-        Quat totalRotation = Quat.sIdentity();
+            RVec3 position = new RVec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
+            Quat rotation = Quat.sIdentity();
+            VxTransform transform = new VxTransform(position, rotation);
 
-        if (state.hasProperty(BlockStateProperties.AXIS)) {
-            totalRotation = switch (state.getValue(BlockStateProperties.AXIS)) {
-                case X -> new Quat(0f, 0f, 0.7071f, 0.7071f);
-                case Z -> new Quat(0f, 0.7071f, 0f, 0.7071f);
-                default -> Quat.sIdentity();
-            };
+            objectManager.createRigidBody(
+                    VxRegisteredObjects.BLOCK,
+                    transform,
+                    body -> body.setRepresentedBlockState(originalState)
+            ).orElseThrow(() -> new IllegalStateException("Body creation returned an empty Optional."));
+
+            return InteractionResult.SUCCESS;
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Error creating physics object, restoring original block.", e);
+            level.setBlock(pos, originalState, Block.UPDATE_ALL | Block.UPDATE_IMMEDIATE);
+            return InteractionResult.FAIL;
         }
-
-        if (state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
-            Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
-            float yaw = facing.toYRot();
-            Quat facingRot = Quat.sEulerAngles(0, (float) Math.toRadians(yaw), 0);
-            totalRotation = Op.star(facingRot, totalRotation);
-        } else if (state.hasProperty(BlockStateProperties.FACING)) {
-
-        }
-
-        if (state.hasProperty(BlockStateProperties.ROTATION_16)) {
-            int rotation = state.getValue(BlockStateProperties.ROTATION_16);
-            float yaw = rotation * -22.5f;
-            Quat rotation16 = Quat.sEulerAngles(0f, (float) Math.toRadians(yaw), 0f);
-            totalRotation = Op.star(rotation16, totalRotation);
-        }
-
-        return totalRotation.normalized();
     }
 
     @Override

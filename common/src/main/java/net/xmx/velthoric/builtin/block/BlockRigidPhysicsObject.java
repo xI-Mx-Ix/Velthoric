@@ -1,9 +1,9 @@
 package net.xmx.velthoric.builtin.block;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
+import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.ShapeRefC;
 import com.github.stephengold.joltjni.ShapeSettings;
-import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
@@ -11,10 +11,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.model.converter.VoxelShapeConverter;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.PhysicsObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
+import net.xmx.velthoric.physics.object.util.VxVoxelShapeUtil;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
@@ -42,12 +42,13 @@ public class BlockRigidPhysicsObject extends VxRigidBody {
     public ShapeSettings createShapeSettings() {
         BlockState stateForShape = getRepresentedBlockState();
         VoxelShape voxelShape = stateForShape.getCollisionShape(this.world.getLevel(), BlockPos.ZERO);
-        ShapeSettings convertedShapeSettings = VoxelShapeConverter.convert(voxelShape);
+
+        ShapeSettings convertedShapeSettings = VxVoxelShapeUtil.toMutableCompoundShape(voxelShape);
 
         if (convertedShapeSettings != null) {
             return convertedShapeSettings;
         } else {
-            VxMainClass.LOGGER.warn("VoxelShape conversion failed for BlockState {}. Using BoxShape as fallback.", stateForShape);
+            VxMainClass.LOGGER.warn("VoxelShape conversion for BlockState {} failed. Using BoxShape as fallback.", stateForShape);
             return new BoxShapeSettings(0.5f, 0.5f, 0.5f);
         }
     }
