@@ -158,12 +158,18 @@ task generateJoltDoc {
             def javapResult = commandOutput.toString()
             def methodLines = javapResult.lines()
                     .findAll { it.contains('(') && it.contains(')') && !it.contains('{') && !it.contains('Compiled from') }
+                    .findAll { it.trim().startsWith('public') || it.trim().startsWith('protected') }
 
             println "  Found ${methodLines.size()} methods in ${className}."
 
             methodLines.each { line ->
                 String cleanedLine = line.trim()
-                        .replaceAll('public |private |protected |static |final |synchronized |native ', '')
+                        .replaceAll('public |protected |static |final |synchronized |native ', '')
+
+                if (line.trim().startsWith('protected')) {
+                    cleanedLine = "protected ${cleanedLine}"
+                }
+
                 outputFile.append("  ${cleanedLine}\n")
                 println "    Logged method: ${cleanedLine}"
             }
