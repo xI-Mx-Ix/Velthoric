@@ -209,28 +209,37 @@ public class VxTerrainSystem implements Runnable {
 
         if (state.compareAndSet(currentState, STATE_LOADING_SCHEDULED)) {
             final int version = getRebuildVersion(pos).incrementAndGet();
-            jobSystem.submit(() -> processChunkAndGenerateShape(pos, version, isInitialBuild, currentState));
+
+            level.getServer().execute(() -> {
+                if (version < getRebuildVersion(pos).get()) {
+                    state.compareAndSet(STATE_LOADING_SCHEDULED, currentState);
+                    return;
+                }
+
+                LevelChunk chunk = level.getChunkSource().getChunk(pos.x(), pos.z(), false);
+                if (chunk == null) {
+                    state.set(STATE_UNLOADED);
+                    return;
+                }
+
+                ChunkSnapshot snapshot = ChunkSnapshot.snapshotFromChunk(level, chunk, pos);
+
+                if (!state.compareAndSet(STATE_LOADING_SCHEDULED, STATE_GENERATING_SHAPE)) {
+                    return;
+                }
+
+                jobSystem.submit(() -> processShapeGenerationOnWorker(pos, version, snapshot, isInitialBuild, currentState));
+            });
         }
     }
 
-    private void processChunkAndGenerateShape(VxSectionPos pos, int version, boolean isInitialBuild, int previousState) {
+    private void processShapeGenerationOnWorker(VxSectionPos pos, int version, ChunkSnapshot snapshot, boolean isInitialBuild, int previousState) {
         if (version < getRebuildVersion(pos).get()) {
-            getState(pos).compareAndSet(STATE_LOADING_SCHEDULED, previousState);
-            return;
-        }
-
-        LevelChunk chunk = level.getChunkSource().getChunk(pos.x(), pos.z(), false);
-        if (chunk == null) {
-            getState(pos).compareAndSet(STATE_LOADING_SCHEDULED, STATE_UNLOADED);
-            return;
-        }
-
-        if (!getState(pos).compareAndSet(STATE_LOADING_SCHEDULED, STATE_GENERATING_SHAPE)) {
+            getState(pos).compareAndSet(STATE_GENERATING_SHAPE, previousState);
             return;
         }
 
         try {
-            ChunkSnapshot snapshot = ChunkSnapshot.snapshotFromChunk(level, chunk, pos);
             ShapeRefC generatedShape = terrainGenerator.generateShape(level, snapshot);
             physicsWorld.execute(() -> applyGeneratedShape(pos, version, generatedShape, isInitialBuild));
         } catch (Exception e) {
