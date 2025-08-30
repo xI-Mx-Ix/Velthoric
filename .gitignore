@@ -1,4 +1,4 @@
-# Build output folders for all subprojects
+# Build output folders for all subprojects (generated during compilation, not needed in repo)
 build
 .gradle
 common/build
@@ -8,32 +8,34 @@ fabric/.gradle
 forge/build
 forge/.gradle
 
-# Run folders
+# Run folders (temporary runtime folders created when starting Minecraft)
 forge/run
 fabric/run
 
+# Specific runtime folders for client instances
 forge/run-client
 fabric/run-client
 
+# Specific runtime folders for server instances
 forge/run-server
 fabric/run-server
 
-libraries_old
-libraries
+# Folder for JVM crash logs
+hell nah/
 
 # Temporary Java backup files created by some editors (tilde suffix)
 *.java~
 
-# Ignore ProGuard configuration files (used for code obfuscation)
+# ProGuard configuration files (used for code obfuscation, not versioned)
 proguard.pro
 
-# Debug or test related text files, not needed in version control
+# Debug or test-related text files, not needed in version control
 random_names.txt
 
-# IntelliJ IDEA project files and folders to keep repo clean
+# IntelliJ IDEA project files, to keep the repo clean
 .idea/
 *.iml
 out/
 
-# Ignore resource files that have "All Rights Reserved" license
+# Resource files with "All Rights Reserved" license, not to be included
 common/src/main/resources/assets/velthoric/obj/
