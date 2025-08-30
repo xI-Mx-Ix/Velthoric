@@ -11,7 +11,7 @@ import org.apache.logging.log4j.Logger;
 
 public class VxMainClass {
     public static final String MODID = "velthoric";
-    public static final Logger LOGGER = LogManager.getLogger();
+    public static final Logger LOGGER = LogManager.getLogger("Velthoric");
 
     public static void onInit() {
         ModRegistries.register();
