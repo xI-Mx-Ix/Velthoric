@@ -67,11 +67,13 @@ public class VxObjectManager {
         physicsUpdater.update(timestampNanos, this.world);
     }
 
-    void addRigidBodyToPhysicsWorld(VxRigidBody body, EActivation activation) {
+    void addRigidBodyToPhysicsWorld(VxRigidBody body, EActivation activation, boolean usePendingActivation) {
         try (ShapeSettings shapeSettings = body.createShapeSettings()) {
-            if (shapeSettings == null) throw new IllegalStateException("createShapeSettings returned null for type: " + body.getType().getTypeId());
+            if (shapeSettings == null)
+                throw new IllegalStateException("createShapeSettings returned null for type: " + body.getType().getTypeId());
             try (ShapeResult shapeResult = shapeSettings.create()) {
-                if (shapeResult.hasError()) throw new IllegalStateException("Shape creation failed: " + shapeResult.getError());
+                if (shapeResult.hasError())
+                    throw new IllegalStateException("Shape creation failed: " + shapeResult.getError());
                 try (ShapeRefC shapeRef = shapeResult.get()) {
                     try (BodyCreationSettings bcs = body.createBodyCreationSettings(shapeRef)) {
                         bcs.setPosition(body.getGameTransform().getTranslation());
@@ -86,7 +88,7 @@ public class VxObjectManager {
                         objectContainer.add(body);
                         body.onBodyAdded(world);
 
-                        if (activation == EActivation.DontActivate) {
+                        if (activation == EActivation.DontActivate && usePendingActivation) {
                             pendingActivations.put(body.getPhysicsId(), body);
                         }
                         world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
@@ -98,9 +100,10 @@ public class VxObjectManager {
         }
     }
 
-    void addSoftBodyToPhysicsWorld(VxSoftBody body, EActivation activation) {
+    void addSoftBodyToPhysicsWorld(VxSoftBody body, EActivation activation, boolean usePendingActivation) {
         try (SoftBodySharedSettings sharedSettings = body.createSoftBodySharedSettings()) {
-            if (sharedSettings == null) throw new IllegalStateException("createSoftBodySharedSettings returned null for type: " + body.getType().getTypeId());
+            if (sharedSettings == null)
+                throw new IllegalStateException("createSoftBodySharedSettings returned null for type: " + body.getType().getTypeId());
             try (SoftBodyCreationSettings settings = body.createSoftBodyCreationSettings(sharedSettings)) {
                 settings.setPosition(body.getGameTransform().getTranslation());
                 settings.setRotation(body.getGameTransform().getRotation());
@@ -114,7 +117,7 @@ public class VxObjectManager {
                 objectContainer.add(body);
                 body.onBodyAdded(world);
 
-                if (activation == EActivation.DontActivate) {
+                if (activation == EActivation.DontActivate && usePendingActivation) {
                     pendingActivations.put(body.getPhysicsId(), body);
                 }
                 world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
@@ -124,12 +127,13 @@ public class VxObjectManager {
         }
     }
 
+
     public void reAddObjectToWorld(VxAbstractBody body) {
         world.execute(() -> {
             if (body instanceof VxRigidBody rigidBody) {
-                addRigidBodyToPhysicsWorld(rigidBody, EActivation.DontActivate);
+                addRigidBodyToPhysicsWorld(rigidBody, EActivation.DontActivate, false);
             } else if (body instanceof VxSoftBody softBody) {
-                addSoftBodyToPhysicsWorld(softBody, EActivation.DontActivate);
+                addSoftBodyToPhysicsWorld(softBody, EActivation.DontActivate, false);
             }
         });
     }
@@ -139,7 +143,7 @@ public class VxObjectManager {
         body.getGameTransform().set(transform);
         configurator.accept(body);
         world.execute(() ->
-                addRigidBodyToPhysicsWorld(body, EActivation.DontActivate)
+                addRigidBodyToPhysicsWorld(body, EActivation.DontActivate, true)
         );
         return Optional.of(body);
     }
@@ -149,7 +153,7 @@ public class VxObjectManager {
         body.getGameTransform().set(transform);
         configurator.accept(body);
         world.execute(() ->
-                addSoftBodyToPhysicsWorld(body, EActivation.DontActivate)
+                addSoftBodyToPhysicsWorld(body, EActivation.DontActivate, true)
         );
         return Optional.of(body);
     }
