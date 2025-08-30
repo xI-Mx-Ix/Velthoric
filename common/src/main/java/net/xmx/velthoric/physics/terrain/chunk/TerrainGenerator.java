@@ -1,4 +1,4 @@
-package net.xmx.velthoric.physics.terrain.loader;
+package net.xmx.velthoric.physics.terrain.chunk;
 
 import com.github.stephengold.joltjni.*;
 import net.minecraft.core.BlockPos;

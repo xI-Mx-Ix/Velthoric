@@ -1,4 +1,4 @@
-package net.xmx.velthoric.physics.terrain.loader;
+package net.xmx.velthoric.physics.terrain.chunk;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
