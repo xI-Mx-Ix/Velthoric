@@ -36,18 +36,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private static final float MAX_ACCUMULATED_TIME = 5.0f * FIXED_TIME_STEP;
     private static final int MAX_COMMANDS_PER_TICK = 1024;
 
-    private final int maxBodies = 65536;
-    private final int maxBodyPairs = 65536;
-    private final int maxContactConstraints = 20480;
-    private final int numPositionIterations = 4;
-    private final int numVelocityIterations = 8;
-    private final float speculativeContactDistance = 0.0f;
-    private final float baumgarteFactor = 0.2f;
-    private final float penetrationSlop = 0.006f;
-    private final float timeBeforeSleep = 0.5f;
-    private final float pointVelocitySleepThreshold = 0.03f;
-    private final float gravityY = -9.81f;
-
     private static final Map<ResourceKey<Level>, VxPhysicsWorld> worlds = new ConcurrentHashMap<>();
 
     private final ServerLevel level;
@@ -203,6 +191,18 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     public void initializePhysicsSystem() {
+        final int maxBodies = 65536;
+        final int maxBodyPairs = 65536;
+        final int maxContactConstraints = 20480;
+        final int numPositionIterations = 4;
+        final int numVelocityIterations = 8;
+        final float speculativeContactDistance = 0.02f;
+        final float baumgarteFactor = 0.3f;
+        final float penetrationSlop = 0.0001f;
+        final float timeBeforeSleep = 1.0f;
+        final float pointVelocitySleepThreshold = 0.00005f;
+        final float gravityY = -9.81f;
+
         this.tempAllocator = new TempAllocatorImpl(64 * 1024 * 1024);
         int numThreads = Math.max(1, Runtime.getRuntime().availableProcessors() - 2);
         this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
@@ -215,17 +215,17 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.physicsSystem.init(maxBodies, 0, maxBodyPairs, maxContactConstraints, bpli, ovbpf, olpf);
 
         try (PhysicsSettings settings = this.physicsSystem.getPhysicsSettings()) {
-            settings.setNumPositionSteps(this.numPositionIterations);
-            settings.setNumVelocitySteps(this.numVelocityIterations);
-            settings.setSpeculativeContactDistance(this.speculativeContactDistance);
-            settings.setBaumgarte(this.baumgarteFactor);
-            settings.setPenetrationSlop(this.penetrationSlop);
-            settings.setTimeBeforeSleep(this.timeBeforeSleep);
-            settings.setPointVelocitySleepThreshold(this.pointVelocitySleepThreshold);
+            settings.setNumPositionSteps(numPositionIterations);
+            settings.setNumVelocitySteps(numVelocityIterations);
+            settings.setSpeculativeContactDistance(speculativeContactDistance);
+            settings.setBaumgarte(baumgarteFactor);
+            settings.setPenetrationSlop(penetrationSlop);
+            settings.setTimeBeforeSleep(timeBeforeSleep);
+            settings.setPointVelocitySleepThreshold(pointVelocitySleepThreshold);
             settings.setDeterministicSimulation(false);
             this.physicsSystem.setPhysicsSettings(settings);
         }
-        this.physicsSystem.setGravity(0f, this.gravityY, 0f);
+        this.physicsSystem.setGravity(0f, gravityY, 0f);
         this.physicsSystem.optimizeBroadPhase();
     }
 
