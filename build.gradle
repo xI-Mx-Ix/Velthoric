@@ -47,26 +47,26 @@ subprojects {
             parchment("org.parchmentmc.data:parchment-1.20.2:2023.10.08@zip")
         }
 
-        implementation("com.github.stephengold:jolt-jni-Linux64:2.2.0")
-        implementation("com.github.stephengold:jolt-jni-Windows64:2.2.0:DebugDp")
-        implementation("com.github.stephengold:jolt-jni-Linux64:2.2.0:DebugDp")
-        implementation("com.github.stephengold:jolt-jni-Linux_ARM64:2.2.0:DebugDp")
-        implementation("com.github.stephengold:jolt-jni-MacOSX64:2.2.0:DebugDp")
-        implementation("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.2.0:DebugDp")
+        implementation("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}")
+        implementation("com.github.stephengold:jolt-jni-Windows64:${jolt_jni_version}:DebugDp")
+        implementation("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}:DebugDp")
+        implementation("com.github.stephengold:jolt-jni-Linux_ARM64:${jolt_jni_version}:DebugDp")
+        implementation("com.github.stephengold:jolt-jni-MacOSX64:${jolt_jni_version}:DebugDp")
+        implementation("com.github.stephengold:jolt-jni-MacOSX_ARM64:${jolt_jni_version}:DebugDp")
 
-        include("com.github.stephengold:jolt-jni-Linux64:2.2.0")
-        include("com.github.stephengold:jolt-jni-Windows64:2.2.0:ReleaseDp")
-        include("com.github.stephengold:jolt-jni-Linux64:2.2.0:ReleaseDp")
-        include("com.github.stephengold:jolt-jni-Linux_ARM64:2.2.0:ReleaseDp")
-        include("com.github.stephengold:jolt-jni-MacOSX64:2.2.0:ReleaseDp")
-        include("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.2.0:ReleaseDp")
+        include("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}")
+        include("com.github.stephengold:jolt-jni-Windows64:${jolt_jni_version}:ReleaseDp")
+        include("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}:ReleaseDp")
+        include("com.github.stephengold:jolt-jni-Linux_ARM64:${jolt_jni_version}:ReleaseDp")
+        include("com.github.stephengold:jolt-jni-MacOSX64:${jolt_jni_version}:ReleaseDp")
+        include("com.github.stephengold:jolt-jni-MacOSX_ARM64:${jolt_jni_version}:ReleaseDp")
 
-        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux64:2.2.0")
-        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Windows64:2.2.0:DebugDp")
-        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux64:2.2.0:DebugDp")
-        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux_ARM64:2.2.0:DebugDp")
-        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-MacOSX64:2.2.0:DebugDp")
-        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-MacOSX_ARM64:2.2.0:DebugDp")
+        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}")
+        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Windows64:${jolt_jni_version}:DebugDp")
+        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}:DebugDp")
+        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux_ARM64:${jolt_jni_version}:DebugDp")
+        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-MacOSX64:${jolt_jni_version}:DebugDp")
+        minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-MacOSX_ARM64:${jolt_jni_version}:DebugDp")
 
         implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
         minecraftRuntimeLibraries("io.github.electrostat-lab:snaploader:1.1.1-stable")
@@ -112,7 +112,7 @@ subprojects {
 task generateJoltDoc {
 
     def joltModule = configurations.detachedConfiguration(
-            dependencies.create("com.github.stephengold:jolt-jni-Linux64:2.2.0")
+            dependencies.create("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}")
     ).singleFile
 
     def outputFile = file("$buildDir/docs/jolt.txt")
