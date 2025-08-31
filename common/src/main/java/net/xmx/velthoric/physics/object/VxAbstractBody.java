@@ -1,6 +1,5 @@
 package net.xmx.velthoric.physics.object;
 
-import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.BodyLockRead;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import net.minecraft.server.level.ServerLevel;

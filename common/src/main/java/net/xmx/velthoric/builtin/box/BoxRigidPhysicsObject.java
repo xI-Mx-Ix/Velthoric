@@ -5,11 +5,8 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.PhysicsObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
-import net.xmx.velthoric.physics.riding.seat.Seat;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
-import org.joml.Vector3f;
-import net.minecraft.world.phys.AABB;
 
 import java.util.UUID;
 
