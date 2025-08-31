@@ -2,6 +2,9 @@ package net.xmx.velthoric.physics.world;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
+import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceLocking;
+import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceNoLock;
+import com.github.stephengold.joltjni.readonly.ConstNarrowPhaseQuery;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
@@ -314,17 +317,17 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     @Nullable
-    public BodyLockInterface getBodyLockInterface() {
+    public ConstBodyLockInterfaceLocking getBodyLockInterface() {
         return this.physicsSystem != null ? this.physicsSystem.getBodyLockInterface() : null;
     }
 
     @Nullable
-    public BodyLockInterface getBodyLockInterfaceNoLock() {
+    public ConstBodyLockInterfaceNoLock getBodyLockInterfaceNoLock() {
         return this.physicsSystem != null ? this.physicsSystem.getBodyLockInterfaceNoLock() : null;
     }
 
     @Nullable
-    public NarrowPhaseQuery getNarrowPhaseQuery() {
+    public ConstNarrowPhaseQuery getNarrowPhaseQuery() {
         return this.physicsSystem != null ? this.physicsSystem.getNarrowPhaseQuery() : null;
     }
 

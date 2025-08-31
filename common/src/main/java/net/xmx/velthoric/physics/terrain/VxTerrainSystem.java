@@ -464,7 +464,7 @@ public class VxTerrainSystem implements Runnable {
 
         Map<VxSectionPos, VxTaskPriority> criticalChunks = new HashMap<>();
         for (VxAbstractBody obj : currentObjects) {
-            Body body = obj.getBody();
+            var body = obj.getBody();
             if (body != null) {
                 calculatePrioritiesForObject(body.getWorldSpaceBounds(), body.getLinearVelocity(), criticalChunks);
             }
@@ -487,7 +487,7 @@ public class VxTerrainSystem implements Runnable {
         for(VxAbstractBody obj : objects) {
             UUID id = obj.getPhysicsId();
             int cooldown = objectUpdateCooldowns.getOrDefault(id, 0);
-            Body body = obj.getBody();
+            var body = obj.getBody();
             if (body == null) {
                 removeObjectTracking(id);
                 continue;

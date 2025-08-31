@@ -2,6 +2,7 @@ package net.xmx.velthoric.item.magnetizer;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.ConstBroadPhaseQuery;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -101,7 +102,7 @@ public class MagnetizerManager {
             PhysicsSystem physicsSystem = physicsWorld.getPhysicsSystem();
             if (physicsSystem == null) return;
 
-            BroadPhaseQuery broadPhaseQuery = physicsSystem.getBroadPhaseQuery();
+            ConstBroadPhaseQuery broadPhaseQuery = physicsSystem.getBroadPhaseQuery();
             var collector = new AllHitCollideShapeBodyCollector();
 
             var broadPhaseFilter = new BroadPhaseLayerFilter();

@@ -1,6 +1,7 @@
 package net.xmx.velthoric.physics.constraint.serializer;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.readonly.ConstPathConstraintPath;
 import com.github.stephengold.joltjni.readonly.RVec3Arg;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import com.github.stephengold.joltjni.std.StringStream;
@@ -65,8 +66,7 @@ public final class ConstraintSerializerUtils {
         }
     }
 
-    public static void savePath(PathConstraintPath path, ByteBuf buf) {
-
+    public static void savePath(ConstPathConstraintPath path, ByteBuf buf) {
         try (StringStream stringStream = new StringStream();
              StreamOutWrapper streamOut = new StreamOutWrapper(stringStream)) {
 
@@ -93,13 +93,11 @@ public final class ConstraintSerializerUtils {
 
             try (PathResult result = PathConstraintPath.sRestoreFromBinaryState(streamIn)) {
                 if (result.hasError()) {
-
                     System.err.println("Fehler beim Wiederherstellen des Pfades aus dem Binärzustand: " + result.getError());
                     return new PathConstraintPathHermite();
                 }
 
                 try (PathConstraintPathRef pathRef = result.get()) {
-
                     return pathRef.getPtr();
                 }
             }

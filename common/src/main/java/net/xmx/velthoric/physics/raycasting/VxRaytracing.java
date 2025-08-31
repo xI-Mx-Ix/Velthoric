@@ -2,6 +2,7 @@ package net.xmx.velthoric.physics.raycasting;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.ConstNarrowPhaseQuery;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.Level;
@@ -89,7 +90,7 @@ public final class VxRaytracing {
         if (physicsWorld == null || !physicsWorld.isRunning() || physicsWorld.getPhysicsSystem() == null) return Optional.empty();
 
         PhysicsSystem physicsSystem = physicsWorld.getPhysicsSystem();
-        NarrowPhaseQuery narrowPhaseQuery = physicsSystem.getNarrowPhaseQuery();
+        ConstNarrowPhaseQuery narrowPhaseQuery = physicsSystem.getNarrowPhaseQuery();
         com.github.stephengold.joltjni.Vec3 directionAndLength = Op.star(rayDirection, maxDistance);
         try (RRayCast ray = new RRayCast(rayOrigin, directionAndLength); RayCastSettings settings = new RayCastSettings(); ClosestHitCastRayCollector collector = new ClosestHitCastRayCollector()) {
             narrowPhaseQuery.castRay(ray, settings, collector);

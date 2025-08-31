@@ -2,6 +2,7 @@ package net.xmx.velthoric.physics.object;
 
 import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.BodyLockRead;
+import com.github.stephengold.joltjni.readonly.ConstBody;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
@@ -53,7 +54,7 @@ public abstract class VxAbstractBody {
     }
 
     @Nullable
-    public Body getBody() {
+    public ConstBody getBody() {
         if (bodyId == 0) {
             return null;
         }
@@ -65,7 +66,7 @@ public abstract class VxAbstractBody {
                 }
             }
         }
-        VxMainClass.LOGGER.warn("Returned null Body for bodyId {}", bodyId);
+        VxMainClass.LOGGER.warn("Returned null ConstBody for bodyId {}", bodyId);
         return null;
     }
 

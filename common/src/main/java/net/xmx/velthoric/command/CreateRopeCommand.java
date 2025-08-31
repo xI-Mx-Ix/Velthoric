@@ -103,7 +103,7 @@ public final class CreateRopeCommand {
                 }
 
                 try (PointConstraintSettings settings = new PointConstraintSettings()) {
-                    settings.setSpace(EConstraintSpace.LocalToBodyCOM);
+                    settings.setSpace(EConstraintSpace.LocalToBodyCom);
                     
                     settings.setNumPositionStepsOverride(4);
                     settings.setNumVelocityStepsOverride(4);

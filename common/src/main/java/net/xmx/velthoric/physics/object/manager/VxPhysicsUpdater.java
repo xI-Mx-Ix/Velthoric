@@ -3,6 +3,9 @@ package net.xmx.velthoric.physics.object.manager;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.ConstBody;
+import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceLocking;
+import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodySharedSettings;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
@@ -84,7 +87,7 @@ public class VxPhysicsUpdater {
         }
     }
 
-    private void prepareAndQueueStateUpdate(VxAbstractBody obj, long timestampNanos, BodyInterface bodyInterface, BodyLockInterface lockInterface, List<PhysicsObjectState> statesToSend) {
+    private void prepareAndQueueStateUpdate(VxAbstractBody obj, long timestampNanos, BodyInterface bodyInterface, ConstBodyLockInterfaceLocking lockInterface, List<PhysicsObjectState> statesToSend) {
         final int bodyId = obj.getBodyId();
         final UUID id = obj.getPhysicsId();
         final VxTransform currentTransform = tempTransform.get();
@@ -166,29 +169,23 @@ public class VxPhysicsUpdater {
         lastSentStates.remove(id);
     }
 
-    private float @Nullable [] getSoftBodyVertices(BodyLockInterface lockInterface, int bodyId) {
+    private float @Nullable [] getSoftBodyVertices(ConstBodyLockInterfaceLocking lockInterface, int bodyId) {
         try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {
             if (lock.succeededAndIsInBroadPhase()) {
-                Body body = lock.getBody();
+                ConstBody body = lock.getBody();
                 if (body != null && body.isSoftBody()) {
-                    SoftBodyMotionProperties motionProps = (SoftBodyMotionProperties) body.getMotionProperties();
-                    ConstSoftBodySharedSettings sharedSettings = motionProps.getSettings();
-                    int numVertices = sharedSettings.countVertices();
+                    ConstSoftBodyMotionProperties motionProps = (ConstSoftBodyMotionProperties) body.getMotionProperties();
+                    int numVertices = motionProps.getSettings().countVertices();
                     if (numVertices > 0) {
-                        float[] vertexBuffer = tempVertexBuffer.get().getBuffer(numVertices * 3);
-                        RMat44 worldTransform = body.getWorldTransform();
-                        for (int i = 0; i < numVertices; i++) {
-                            SoftBodyVertex vertex = motionProps.getVertex(i);
-                            if (vertex == null) continue;
-                            Vec3 localPos = vertex.getPosition();
-                            RVec3 worldPos = worldTransform.multiply3x4(localPos);
-                            int baseIndex = i * 3;
-                            vertexBuffer[baseIndex] = worldPos.x();
-                            vertexBuffer[baseIndex + 1] = worldPos.y();
-                            vertexBuffer[baseIndex + 2] = worldPos.z();
-                        }
+                        int bufferSize = numVertices * 3;
+                        java.nio.FloatBuffer vertexBuffer = Jolt.newDirectFloatBuffer(bufferSize);
+                        motionProps.putVertexLocations(body.getPosition(), vertexBuffer);
 
-                        return Arrays.copyOf(vertexBuffer, numVertices * 3);
+                        vertexBuffer.flip();
+
+                        float[] vertexArray = new float[bufferSize];
+                        vertexBuffer.get(vertexArray);
+                        return vertexArray;
                     }
                 }
             }

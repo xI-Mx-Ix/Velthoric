@@ -4,6 +4,7 @@ import com.github.stephengold.joltjni.MotorSettings;
 import com.github.stephengold.joltjni.PathConstraintPath;
 import com.github.stephengold.joltjni.PathConstraintSettings;
 import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.readonly.ConstPathConstraintPath;
 import com.github.stephengold.joltjni.enumerate.EPathRotationConstraintType;
 import io.netty.buffer.ByteBuf;
 import net.xmx.velthoric.physics.constraint.serializer.ConstraintSerializerUtils;
@@ -16,9 +17,8 @@ public class PathConstraintSerializer extends VxConstraintSerializer implements 
     public void save(PathConstraintSettings settings, ByteBuf buf) {
         saveBase(settings, buf);
 
-        try (PathConstraintPath path = settings.getPath()) {
-            ConstraintSerializerUtils.savePath(path, buf);
-        }
+        ConstPathConstraintPath path = settings.getPath();
+        ConstraintSerializerUtils.savePath(path, buf);
 
         ConstraintSerializerUtils.saveVec3(settings.getPathPosition(), buf);
         buf.writeFloat(settings.getPathRotation().getX());

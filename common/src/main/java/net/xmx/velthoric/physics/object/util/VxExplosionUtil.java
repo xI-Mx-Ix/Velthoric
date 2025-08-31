@@ -2,6 +2,7 @@ package net.xmx.velthoric.physics.object.util;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.ConstBroadPhaseQuery;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 public class VxExplosionUtil {
@@ -13,7 +14,7 @@ public class VxExplosionUtil {
             PhysicsSystem physicsSystem = physicsWorld.getPhysicsSystem();
             if (physicsSystem == null) return;
 
-            BroadPhaseQuery broadPhaseQuery = physicsSystem.getBroadPhaseQuery();
+            ConstBroadPhaseQuery broadPhaseQuery = physicsSystem.getBroadPhaseQuery();
             AllHitCollideShapeBodyCollector collector = new AllHitCollideShapeBodyCollector();
 
             BroadPhaseLayerFilter broadPhaseFilter = new BroadPhaseLayerFilter();
