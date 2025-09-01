@@ -14,8 +14,13 @@ import net.xmx.velthoric.builtin.rope.RopeSoftBodyRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRigidPhysicsObject;
 import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.ship.VxStructureBody;
 
 public class VxRegisteredObjects {
+
+    public static final PhysicsObjectType<VxStructureBody> STRUCTURE_BODY = PhysicsObjectType.Builder
+            .create(VxStructureBody::new)
+            .build("velthoric:structure_body");
 
     public static final PhysicsObjectType<BlockRigidPhysicsObject> BLOCK = PhysicsObjectType.Builder
             .create(BlockRigidPhysicsObject::new)
@@ -40,6 +45,8 @@ public class VxRegisteredObjects {
     public static void register() {
         var api = VelthoricAPI.getInstance();
 
+        api.registerPhysicsObjectType(STRUCTURE_BODY);
+
         api.registerPhysicsObjectType(BLOCK);
         api.registerPhysicsObjectType(SPHERE);
         api.registerPhysicsObjectType(BOX);
@@ -50,6 +57,8 @@ public class VxRegisteredObjects {
     @Environment(EnvType.CLIENT)
     public static void registerClientRenderers() {
         var api = VelthoricAPI.getInstance();
+
+        api.registerRigidRenderer(STRUCTURE_BODY.getTypeId(), VxEmptyRenderer::new);
 
         api.registerRigidRenderer(BLOCK.getTypeId(), BlockRenderer::new);
         api.registerRigidRenderer(SPHERE.getTypeId(), SphereRenderer::new);

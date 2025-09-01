@@ -27,7 +27,7 @@ import java.util.function.BooleanSupplier;
 public abstract class DispatchObjects_ChunkMapMixin {
 
     @Shadow @Final
-    private ServerLevel level;
+    ServerLevel level;
 
     @Unique
     private final Map<UUID, Set<VxAbstractBody>> velthoric$playerVisibleObjects = new HashMap<>();
