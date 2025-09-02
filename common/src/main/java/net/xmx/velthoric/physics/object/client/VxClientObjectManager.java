@@ -107,7 +107,15 @@ public class VxClientObjectManager {
         store.state1_rotY[index] = rot.getY();
         store.state1_rotZ[index] = rot.getZ();
         store.state1_rotW[index] = rot.getW();
-        store.state1_vertexData[index] = state.getSoftBodyVertices();
+
+        float[] newVertices = state.getSoftBodyVertices();
+        if (newVertices != null) {
+
+            store.state1_vertexData[index] = newVertices;
+        } else {
+
+            store.state1_vertexData[index] = store.state0_vertexData[index];
+        }
 
         store.lastKnownPosition[index].set(pos);
     }
@@ -138,6 +146,9 @@ public class VxClientObjectManager {
             store.renderer[index] = registry.createRigidRenderer(typeId);
         } else if (objType == EBodyType.SoftBody) {
             store.renderer[index] = registry.createSoftRenderer(typeId);
+
+            store.state0_vertexData[index] = null;
+            store.state1_vertexData[index] = null;
         }
 
         if (store.renderer[index] == null) {
