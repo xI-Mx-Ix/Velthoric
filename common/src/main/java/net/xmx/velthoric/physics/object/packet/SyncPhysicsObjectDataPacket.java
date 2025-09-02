@@ -5,7 +5,7 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
-import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -37,7 +37,7 @@ public class SyncPhysicsObjectDataPacket {
     public static void handle(SyncPhysicsObjectDataPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            ClientObjectDataManager manager = ClientObjectDataManager.getInstance();
+            VxClientObjectManager manager = VxClientObjectManager.getInstance();
             manager.updateCustomObjectData(msg.id, Unpooled.wrappedBuffer(msg.data));
         });
     }

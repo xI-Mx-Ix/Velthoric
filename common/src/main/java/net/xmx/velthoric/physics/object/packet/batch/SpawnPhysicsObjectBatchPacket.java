@@ -3,7 +3,7 @@ import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.packet.SpawnData;
 
 import java.util.List;
@@ -35,7 +35,7 @@ public class SpawnPhysicsObjectBatchPacket {
     public static void handle(SpawnPhysicsObjectBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            ClientObjectDataManager manager = ClientObjectDataManager.getInstance();
+            VxClientObjectManager manager = VxClientObjectManager.getInstance();
             for (SpawnData data : msg.spawnDataList) {
                 FriendlyByteBuf dataBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data.data));
                 manager.spawnObject(data.id, data.typeIdentifier, data.objectType, dataBuf, data.timestamp);

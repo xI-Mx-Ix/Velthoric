@@ -2,7 +2,7 @@ package net.xmx.velthoric.builtin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
+import net.xmx.velthoric.physics.object.client.RenderState;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import org.jetbrains.annotations.Nullable;
 

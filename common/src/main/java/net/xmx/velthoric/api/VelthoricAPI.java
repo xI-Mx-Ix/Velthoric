@@ -4,7 +4,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.object.PhysicsObjectType;
-import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 
@@ -51,12 +51,12 @@ public final class VelthoricAPI {
 
     @Environment(EnvType.CLIENT)
     public void registerRigidRenderer(String typeIdentifier, Supplier<VxRigidBody.Renderer> factory) {
-        ClientObjectDataManager.getInstance().registerRigidRendererFactory(typeIdentifier, factory);
+        VxClientObjectManager.getInstance().registerRigidRendererFactory(typeIdentifier, factory);
     }
 
     @Environment(EnvType.CLIENT)
     public void registerSoftRenderer(String typeIdentifier, Supplier<VxSoftBody.Renderer> factory) {
-        ClientObjectDataManager.getInstance().registerSoftRendererFactory(typeIdentifier, factory);
+        VxClientObjectManager.getInstance().registerSoftRendererFactory(typeIdentifier, factory);
     }
 
     public Map<String, PhysicsObjectType<?>> getQueuedRegistrations() {

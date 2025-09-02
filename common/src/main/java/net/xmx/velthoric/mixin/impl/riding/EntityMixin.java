@@ -5,9 +5,9 @@ import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
-import net.xmx.velthoric.physics.object.client.interpolation.InterpolationFrame;
-import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
+import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
 import net.xmx.velthoric.physics.riding.RidingProxyEntity;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
@@ -26,26 +26,39 @@ public abstract class EntityMixin {
     @Shadow public abstract Entity getVehicle();
 
     @Unique
-    private static final RenderState velthoric_reusableRenderState_entity = new RenderState();
+    private static final RVec3 velthoric_interpolatedPosition_entity = new RVec3();
+    @Unique
+    private static final Quat velthoric_interpolatedRotation_entity = new Quat();
 
     @Inject(method = "getEyePosition(F)Lnet/minecraft/world/phys/Vec3;", at = @At("HEAD"), cancellable = true)
     private void velthoric_getEyePositionOnPhysicsObject(float partialTicks, CallbackInfoReturnable<Vec3> cir) {
         if (getVehicle() instanceof RidingProxyEntity proxy) {
             proxy.getPhysicsObjectId().ifPresent(id -> {
-                InterpolationFrame frame = ClientObjectDataManager.getInstance().getInterpolationFrame(id);
-                if (frame == null || !frame.isInitialized) {
+                VxClientObjectManager manager = VxClientObjectManager.getInstance();
+                VxClientObjectStore store = manager.getStore();
+                VxClientObjectInterpolator interpolator = manager.getInterpolator();
+                Integer index = store.getIndexForId(id);
+
+                if (index == null || !store.render_isInitialized[index]) {
                     return;
                 }
 
-                frame.interpolate(velthoric_reusableRenderState_entity, partialTicks);
-                RVec3 physPos = velthoric_reusableRenderState_entity.transform.getTranslation();
-                Quat physRotQuat = velthoric_reusableRenderState_entity.transform.getRotation();
-                Quaterniond physRotation = new Quaterniond(physRotQuat.getX(), physRotQuat.getY(), physRotQuat.getZ(), physRotQuat.getW());
+                interpolator.interpolateFrame(store, index, partialTicks, velthoric_interpolatedPosition_entity, velthoric_interpolatedRotation_entity);
+
+                Quaterniond physRotation = new Quaterniond(
+                        velthoric_interpolatedRotation_entity.getX(),
+                        velthoric_interpolatedRotation_entity.getY(),
+                        velthoric_interpolatedRotation_entity.getZ(),
+                        velthoric_interpolatedRotation_entity.getW()
+                );
 
                 Vector3f rideOffset = new Vector3f(proxy.getRidePositionOffset());
                 physRotation.transform(rideOffset);
-                Vector3d playerBasePos = new Vector3d(physPos.x(), physPos.y(), physPos.z())
-                        .add(rideOffset.x(), rideOffset.y(), rideOffset.z());
+                Vector3d playerBasePos = new Vector3d(
+                        velthoric_interpolatedPosition_entity.xx(),
+                        velthoric_interpolatedPosition_entity.yy(),
+                        velthoric_interpolatedPosition_entity.zz()
+                ).add(rideOffset.x(), rideOffset.y(), rideOffset.z());
 
                 Vector3d eyeOffset = new Vector3d(0.0, this.getEyeHeight(), 0.0);
                 physRotation.transform(eyeOffset);
@@ -60,13 +73,15 @@ public abstract class EntityMixin {
     private void velthoric_calculateViewVectorOnPhysicsObject(float xRot, float yRot, CallbackInfoReturnable<Vec3> cir) {
         if (getVehicle() instanceof RidingProxyEntity proxy) {
             proxy.getPhysicsObjectId().ifPresent(id -> {
-                InterpolationFrame frame = ClientObjectDataManager.getInstance().getInterpolationFrame(id);
-                if (frame == null || !frame.isInitialized) {
+                VxClientObjectManager manager = VxClientObjectManager.getInstance();
+                VxClientObjectStore store = manager.getStore();
+                Integer index = store.getIndexForId(id);
+
+                if (index == null || !store.render_isInitialized[index]) {
                     return;
                 }
-                
-                frame.interpolate(velthoric_reusableRenderState_entity, 0.0f);
-                Quat physRotQuat = velthoric_reusableRenderState_entity.transform.getRotation();
+
+                Quat physRotQuat = new Quat(store.render_rotX[index], store.render_rotY[index], store.render_rotZ[index], store.render_rotW[index]);
                 Quaterniond physRotation = new Quaterniond(physRotQuat.getX(), physRotQuat.getY(), physRotQuat.getZ(), physRotQuat.getW());
 
                 float f = xRot * ((float)Math.PI / 180F);

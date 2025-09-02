@@ -15,10 +15,9 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.event.api.VxRenderEvent;
 import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunClientManager;
-import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.client.ObjectRead;
-import net.xmx.velthoric.physics.object.client.interpolation.InterpolationFrame;
-import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
+import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
 import org.joml.Matrix4f;
 
 import java.util.Map;
@@ -32,7 +31,8 @@ public class PhysicsGunBeamRenderer {
     private static final float BEAM_CURVE_STRENGTH = 0.3f;
     private static final float BEAM_MAX_LENGTH = 100.0f;
 
-    private static final RenderState INTERPOLATED_STATE = new RenderState();
+    private static final RVec3 INTERPOLATED_POSITION = new RVec3();
+    private static final Quat INTERPOLATED_ROTATION = new Quat();
 
     public static void registerEvents() {
         VxRenderEvent.ClientRenderLevelStageEvent.EVENT.register(PhysicsGunBeamRenderer::onRenderLevelStage);
@@ -50,6 +50,10 @@ public class PhysicsGunBeamRenderer {
         float partialTicks = event.getPartialTick();
 
         PhysicsGunClientManager clientManager = PhysicsGunClientManager.getInstance();
+        VxClientObjectManager objectManager = VxClientObjectManager.getInstance();
+        VxClientObjectStore store = objectManager.getStore();
+        VxClientObjectInterpolator interpolator = objectManager.getInterpolator();
+
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 camPos = camera.getPosition();
 
@@ -75,40 +79,33 @@ public class PhysicsGunBeamRenderer {
             Player player = mc.level.getPlayerByUUID(playerUuid);
             if (player == null) continue;
 
-            try (ObjectRead objRead = ObjectRead.get(objectUuid)) {
-                if (!objRead.isValid() || objRead.getObjectType() != EBodyType.RigidBody) {
-                    continue;
-                }
-
-                InterpolationFrame frame = objRead.getInterpolationFrame();
-                if (frame == null || !frame.isInitialized) {
-                    continue;
-                }
-
-                frame.interpolate(INTERPOLATED_STATE, partialTicks);
-
-                VxTransform renderTransform = INTERPOLATED_STATE.transform;
-                Vec3 startPoint = getGunTipPosition(player, partialTicks);
-                RVec3 centerPos = renderTransform.getTranslation();
-                Quat rotation = renderTransform.getRotation();
-                Vec3 localHitPoint = grabData.localHitPoint();
-
-                com.github.stephengold.joltjni.Vec3 localHitJolt = new com.github.stephengold.joltjni.Vec3(
-                        (float) localHitPoint.x(),
-                        (float) localHitPoint.y(),
-                        (float) localHitPoint.z()
-                );
-
-                com.github.stephengold.joltjni.Vec3 rotatedOffset = com.github.stephengold.joltjni.operator.Op.star(rotation, localHitJolt);
-                RVec3 endPointJolt = com.github.stephengold.joltjni.operator.Op.plus(centerPos, rotatedOffset);
-                Vec3 endPoint = new Vec3(endPointJolt.xx(), endPointJolt.yy(), endPointJolt.zz());
-
-                Vec3 playerLookVec = getPlayerLookVector(player, partialTicks);
-
-                bufferBuilder.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
-                drawThickCurvedBeam(bufferBuilder, matrix, camPos, startPoint, endPoint, playerLookVec);
-                tesselator.end();
+            Integer index = store.getIndexForId(objectUuid);
+            if (index == null || !store.render_isInitialized[index] || store.objectType[index] != EBodyType.RigidBody) {
+                continue;
             }
+
+            interpolator.interpolateFrame(store, index, partialTicks, INTERPOLATED_POSITION, INTERPOLATED_ROTATION);
+
+            Vec3 startPoint = getGunTipPosition(player, partialTicks);
+            RVec3 centerPos = INTERPOLATED_POSITION;
+            Quat rotation = INTERPOLATED_ROTATION;
+            Vec3 localHitPoint = grabData.localHitPoint();
+
+            com.github.stephengold.joltjni.Vec3 localHitJolt = new com.github.stephengold.joltjni.Vec3(
+                    (float) localHitPoint.x(),
+                    (float) localHitPoint.y(),
+                    (float) localHitPoint.z()
+            );
+
+            com.github.stephengold.joltjni.Vec3 rotatedOffset = com.github.stephengold.joltjni.operator.Op.star(rotation, localHitJolt);
+            RVec3 endPointJolt = com.github.stephengold.joltjni.operator.Op.plus(centerPos, rotatedOffset);
+            Vec3 endPoint = new Vec3(endPointJolt.xx(), endPointJolt.yy(), endPointJolt.zz());
+
+            Vec3 playerLookVec = getPlayerLookVector(player, partialTicks);
+
+            bufferBuilder.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
+            drawThickCurvedBeam(bufferBuilder, matrix, camPos, startPoint, endPoint, playerLookVec);
+            tesselator.end();
         }
 
         Set<UUID> playersTryingToGrab = clientManager.getPlayersTryingToGrab();
@@ -146,34 +143,25 @@ public class PhysicsGunBeamRenderer {
         float baseAlpha = 0.83f;
 
         double distance = start.distanceTo(end);
-
         Vec3 p0 = start;
         Vec3 p3 = end;
-
         Vec3 p1 = p0.add(playerLookVec.scale(distance * BEAM_CURVE_STRENGTH));
         Vec3 tangentAtEnd = p0.subtract(p3).normalize();
         Vec3 p2 = p3.add(tangentAtEnd.scale(distance * BEAM_CURVE_STRENGTH));
-
         Vec3 lastPos = p0;
 
         for (int i = 0; i <= BEAM_SEGMENTS; i++) {
             float t = (float) i / BEAM_SEGMENTS;
             Vec3 currentPos = getCubicBezierPoint(t, p0, p1, p2, p3);
-
             Vec3 viewDir = currentPos.subtract(camPos).normalize();
             Vec3 segmentDir = (i == 0) ? p1.subtract(p0).normalize() : currentPos.subtract(lastPos).normalize();
-
             if (segmentDir.lengthSqr() < 1.0E-6) {
                 segmentDir = playerLookVec;
             }
-
             Vec3 side = segmentDir.cross(viewDir).normalize().scale(BEAM_WIDTH / 2.0);
-
             float alpha = baseAlpha;
-
             bufferBuilder.vertex(matrix, (float) (currentPos.x + side.x), (float) (currentPos.y + side.y), (float) (currentPos.z + side.z)).color(r, g, b, alpha).endVertex();
             bufferBuilder.vertex(matrix, (float) (currentPos.x - side.x), (float) (currentPos.y - side.y), (float) (currentPos.z - side.z)).color(r, g, b, alpha).endVertex();
-
             lastPos = currentPos;
         }
     }
@@ -184,12 +172,10 @@ public class PhysicsGunBeamRenderer {
         float uu = u * u;
         float uuu = uu * u;
         float ttt = tt * t;
-
         Vec3 p = p0.scale(uuu);
         p = p.add(p1.scale(3 * uu * t));
         p = p.add(p2.scale(3 * u * tt));
         p = p.add(p3.scale(ttt));
-
         return p;
     }
 
@@ -199,12 +185,10 @@ public class PhysicsGunBeamRenderer {
         boolean isFirstPerson = mc.options.getCameraType().isFirstPerson();
 
         if (isLocalPlayer && isFirstPerson) {
-
             Camera camera = mc.gameRenderer.getMainCamera();
             org.joml.Vector3f lookVector = camera.getLookVector();
             return new Vec3(lookVector.x(), lookVector.y(), lookVector.z());
         } else {
-
             return player.getViewVector(partialTicks);
         }
     }
@@ -230,7 +214,6 @@ public class PhysicsGunBeamRenderer {
                     .add(camRight.scale(0.3))
                     .add(camUp.scale(-0.15));
         } else {
-
             Vec3 eyePos = player.getEyePosition(partialTicks);
             Vec3 lookVec = player.getViewVector(partialTicks);
             Vec3 upVec = player.getUpVector(partialTicks);

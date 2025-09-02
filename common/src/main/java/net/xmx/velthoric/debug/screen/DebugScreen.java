@@ -8,9 +8,9 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.xmx.velthoric.event.api.VxDebugEvent;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -38,21 +38,29 @@ public class DebugScreen {
 
 
     private static void addClientInfo(List<String> left) {
-        ClientObjectDataManager clientManager = ClientObjectDataManager.getInstance();
-        Collection<UUID> allClientIds = clientManager.getAllObjectIds();
+        VxClientObjectManager clientManager = VxClientObjectManager.getInstance();
+        VxClientObjectStore store = clientManager.getStore();
 
-        long clientRigidCount = allClientIds.stream().filter(id -> clientManager.getObjectType(id) == EBodyType.RigidBody).count();
-        long clientSoftCount = allClientIds.stream().filter(id -> clientManager.getObjectType(id) == EBodyType.SoftBody).count();
+        long clientRigidCount = 0;
+        long clientSoftCount = 0;
+        int totalVertexCount = 0;
+
+        for (UUID id : store.getAllObjectIds()) {
+            Integer index = store.getIndexForId(id);
+            if (index == null) continue;
+
+            if (store.objectType[index] == EBodyType.RigidBody) {
+                clientRigidCount++;
+            } else if (store.objectType[index] == EBodyType.SoftBody) {
+                clientSoftCount++;
+                if (store.render_vertexData[index] != null) {
+                    totalVertexCount += store.render_vertexData[index].length / 3;
+                }
+            }
+        }
 
         left.add("RB: " + clientRigidCount + " | SB: " + clientSoftCount);
-
-        int rigidRenderers = clientManager.getRegisteredRigidRendererFactoryCount();
-        int softRenderers = clientManager.getRegisteredSoftRendererFactoryCount();
-
-        left.add("RB Renderers: " + rigidRenderers + " | SB Renderers: " + softRenderers);
-
-        int totalNodeCount = clientManager.getTotalNodeCount();
-        left.add(String.format("Vertices: %d", totalNodeCount));
+        left.add(String.format("Vertices: %d", totalVertexCount));
     }
 
     private static String getModVersion() {

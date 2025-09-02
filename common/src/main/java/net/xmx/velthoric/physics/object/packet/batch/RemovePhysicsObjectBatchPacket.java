@@ -3,7 +3,7 @@ package net.xmx.velthoric.physics.object.packet.batch;
 import dev.architectury.networking.NetworkManager;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 
 import java.util.List;
 import java.util.UUID;
@@ -35,7 +35,7 @@ public class RemovePhysicsObjectBatchPacket {
     public static void handle(RemovePhysicsObjectBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            ClientObjectDataManager manager = ClientObjectDataManager.getInstance();
+            VxClientObjectManager manager = VxClientObjectManager.getInstance();
             for (UUID id : msg.ids) {
                 manager.removeObject(id);
             }

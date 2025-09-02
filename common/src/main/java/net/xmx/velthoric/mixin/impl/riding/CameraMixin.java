@@ -10,9 +10,9 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
-import net.xmx.velthoric.physics.object.client.interpolation.InterpolationFrame;
-import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
+import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
 import net.xmx.velthoric.physics.riding.RidingProxyEntity;
 import org.joml.Quaterniond;
 import org.joml.Quaternionf;
@@ -25,6 +25,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import java.util.UUID;
 
 @Mixin(Camera.class)
 public abstract class CameraMixin {
@@ -33,7 +34,6 @@ public abstract class CameraMixin {
     @Shadow @Final private Vector3f forwards;
     @Shadow @Final private Vector3f up;
     @Shadow @Final private Vector3f left;
-
     @Shadow private boolean initialized;
     @Shadow private BlockGetter level;
     @Shadow private boolean detached;
@@ -49,22 +49,20 @@ public abstract class CameraMixin {
     @Shadow protected abstract double getMaxZoom(double startingDistance);
 
     @Unique
-    private static final RenderState velthoric_reusableRenderState_camera = new RenderState();
+    private static final RVec3 velthoric_interpolatedPosition = new RVec3();
+    @Unique
+    private static final Quat velthoric_interpolatedRotation = new Quat();
 
     @Unique
     private void velthoric_setRotationWithPhysicsTransform(float yaw, float pitch, Quaternionf physRotation) {
-
         Quaterniond originalRotation = new Quaterniond()
                 .rotateY(Math.toRadians(-yaw))
                 .rotateX(Math.toRadians(pitch))
                 .normalize();
-
         Quaterniond newRotation = new Quaterniond(physRotation).mul(originalRotation);
-
         this.xRot = pitch;
         this.yRot = yaw;
         this.rotation.set(newRotation);
-
         this.forwards.set(0.0F, 0.0F, 1.0F);
         this.rotation.transform(this.forwards);
         this.up.set(0.0F, 1.0F, 0.0F);
@@ -74,7 +72,7 @@ public abstract class CameraMixin {
     }
 
     @Unique
-    private double velthoric_getMaxZoomIgnoringPhysicsObject(Level level, double maxZoom, java.util.UUID physicsObjectId) {
+    private double velthoric_getMaxZoomIgnoringPhysicsObject(Level level, double maxZoom, UUID physicsObjectId) {
         for (int i = 0; i < 8; ++i) {
             float f = (float) ((i & 1) * 2 - 1);
             float g = (float) ((i >> 1 & 1) * 2 - 1);
@@ -88,11 +86,9 @@ public abstract class CameraMixin {
                     this.position.y - (double) this.forwards.y() * maxZoom + (double) g,
                     this.position.z - (double) this.forwards.z() * maxZoom + (double) h
             );
-
             final HitResult hitResult = level.clip(new ClipContext(
                     vec3, vec32, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, this.entity
             ));
-
             if (hitResult.getType() != HitResult.Type.MISS) {
                 final double e = hitResult.getLocation().distanceTo(this.position);
                 if (e < maxZoom) {
@@ -107,20 +103,31 @@ public abstract class CameraMixin {
     private void velthoric_followPhysicsObject(BlockGetter area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float partialTick, CallbackInfo ci) {
         if (focusedEntity.getVehicle() instanceof RidingProxyEntity proxy) {
             proxy.getPhysicsObjectId().ifPresent(id -> {
-                InterpolationFrame frame = ClientObjectDataManager.getInstance().getInterpolationFrame(id);
-                if (frame == null || !frame.isInitialized) {
+                VxClientObjectManager manager = VxClientObjectManager.getInstance();
+                VxClientObjectStore store = manager.getStore();
+                VxClientObjectInterpolator interpolator = manager.getInterpolator();
+                Integer index = store.getIndexForId(id);
+
+                if (index == null || !store.render_isInitialized[index]) {
                     return;
                 }
 
-                frame.interpolate(velthoric_reusableRenderState_camera, partialTick);
-                RVec3 physPos = velthoric_reusableRenderState_camera.transform.getTranslation();
-                Quat physRotQuat = velthoric_reusableRenderState_camera.transform.getRotation();
-                Quaternionf physRotation = new Quaternionf(physRotQuat.getX(), physRotQuat.getY(), physRotQuat.getZ(), physRotQuat.getW());
+                interpolator.interpolateFrame(store, index, partialTick, velthoric_interpolatedPosition, velthoric_interpolatedRotation);
+
+                Quaternionf physRotation = new Quaternionf(
+                        velthoric_interpolatedRotation.getX(),
+                        velthoric_interpolatedRotation.getY(),
+                        velthoric_interpolatedRotation.getZ(),
+                        velthoric_interpolatedRotation.getW()
+                );
 
                 Vector3f rideOffset = new Vector3f(proxy.getRidePositionOffset());
                 physRotation.transform(rideOffset);
-                Vector3d playerBasePos = new Vector3d(physPos.x(), physPos.y(), physPos.z())
-                        .add(rideOffset.x(), rideOffset.y(), rideOffset.z());
+                Vector3d playerBasePos = new Vector3d(
+                        velthoric_interpolatedPosition.xx(),
+                        velthoric_interpolatedPosition.yy(),
+                        velthoric_interpolatedPosition.zz()
+                ).add(rideOffset.x(), rideOffset.y(), rideOffset.z());
 
                 double eyeY = Mth.lerp(partialTick, this.eyeHeightOld, this.eyeHeight);
                 Vector3f eyeOffset = new Vector3f(0.0f, (float) eyeY, 0.0f);
@@ -142,14 +149,12 @@ public abstract class CameraMixin {
                     if (inverseView) {
                         this.velthoric_setRotationWithPhysicsTransform(currentYaw + 180.0F, -currentPitch, physRotation);
                     }
-
                     if (this.level instanceof Level) {
                         this.move(-this.velthoric_getMaxZoomIgnoringPhysicsObject((Level) this.level, 4.0, id), 0.0, 0.0);
                     } else {
                         this.move(-this.getMaxZoom(4.0), 0.0, 0.0);
                     }
                 }
-
                 ci.cancel();
             });
         }

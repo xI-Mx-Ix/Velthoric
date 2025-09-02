@@ -1,5 +1,7 @@
 package net.xmx.velthoric.mixin.impl.ship.render;
 
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexBuffer;
@@ -16,9 +18,9 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.mixin.impl.ship.accessor.ViewAreaAccessor;
-import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
-import net.xmx.velthoric.physics.object.client.interpolation.InterpolationFrame;
-import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
+import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -29,7 +31,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.Map;
@@ -46,28 +47,34 @@ public abstract class LevelRendererMixin {
     private final Map<UUID, ObjectArrayList<ChunkRenderDispatcher.RenderChunk>> velthoric$shipRenderChunks = new ConcurrentHashMap<>();
     @Unique
     private final Map<UUID, BoundingBox> velthoric$plotBoxCache = new ConcurrentHashMap<>();
+    @Unique
+    private static final RVec3 velthoric_interpolatedPosition_lr = new RVec3();
+    @Unique
+    private static final Quat velthoric_interpolatedRotation_lr = new Quat();
 
     @Inject(method = "setupRender", at = @At("RETURN"))
     private void velthoric_gatherShipChunks(Camera camera, Frustum frustum, boolean hasForcedFrustum, boolean isSpectator, CallbackInfo ci) {
         velthoric$shipRenderChunks.clear();
         if (viewArea == null) return;
 
-        ClientObjectDataManager manager = ClientObjectDataManager.getInstance();
+        VxClientObjectManager manager = VxClientObjectManager.getInstance();
+        VxClientObjectStore store = manager.getStore();
         ViewAreaAccessor viewAreaAccessor = (ViewAreaAccessor) viewArea;
 
-        for (UUID id : manager.getAllObjectIds()) {
+        for (UUID id : store.getAllObjectIds()) {
+            Integer index = store.getIndexForId(id);
+            if(index == null) continue;
+
             BoundingBox plotBox = velthoric$getPlotBox(id);
             if (plotBox == null) continue;
 
-            InterpolationFrame frame = manager.getInterpolationFrame(id);
-            if (frame == null || !frame.isInitialized) continue;
+            if (!store.render_isInitialized[index]) continue;
 
             ObjectArrayList<ChunkRenderDispatcher.RenderChunk> chunks = velthoric$shipRenderChunks.computeIfAbsent(id, k -> new ObjectArrayList<>());
-            RenderState renderState = frame.getInterpolatedState(minecraft.getFrameTime());
 
             AABB shipRenderAABB = new AABB(plotBox.minX(), plotBox.minY(), plotBox.minZ(), plotBox.maxX() + 1, plotBox.maxY() + 1, plotBox.maxZ() + 1)
                     .move(-plotBox.getCenter().getX() - 0.5, -plotBox.getCenter().getY() - 0.5, -plotBox.getCenter().getZ() - 0.5)
-                    .move(renderState.transform.getTranslation().x(), renderState.transform.getTranslation().y(), renderState.transform.getTranslation().z());
+                    .move(store.render_posX[index], store.render_posY[index], store.render_posZ[index]);
 
             if (!frustum.isVisible(shipRenderAABB)) {
                 continue;
@@ -78,7 +85,6 @@ public abstract class LevelRendererMixin {
                     for (int sectionY = minecraft.level.getMinSection(); sectionY < minecraft.level.getMaxSection(); sectionY++) {
                         BlockPos chunkOrigin = new BlockPos(chunkX * 16, sectionY * 16, chunkZ * 16);
                         ChunkRenderDispatcher.RenderChunk renderChunk = viewAreaAccessor.callGetRenderChunkAt(chunkOrigin);
-
                         if (renderChunk != null && !renderChunk.getCompiledChunk().hasNoRenderableLayers()) {
                             chunks.add(renderChunk);
                         }
@@ -90,20 +96,24 @@ public abstract class LevelRendererMixin {
 
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/LevelRenderer;renderWorldBorder(Lnet/minecraft/client/Camera;)V", shift = At.Shift.AFTER))
     private void velthoric_renderShips(PoseStack poseStack, float partialTick, long finishNanoTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture, Matrix4f projectionMatrix, CallbackInfo ci) {
-        ClientObjectDataManager manager = ClientObjectDataManager.getInstance();
+        VxClientObjectManager manager = VxClientObjectManager.getInstance();
+        VxClientObjectStore store = manager.getStore();
+        VxClientObjectInterpolator interpolator = manager.getInterpolator();
 
         for (Map.Entry<UUID, ObjectArrayList<ChunkRenderDispatcher.RenderChunk>> entry : velthoric$shipRenderChunks.entrySet()) {
             UUID id = entry.getKey();
+            Integer index = store.getIndexForId(id);
+            if (index == null) continue;
+
             ObjectArrayList<ChunkRenderDispatcher.RenderChunk> chunksToRender = entry.getValue();
             if (chunksToRender.isEmpty()) continue;
 
-            InterpolationFrame frame = manager.getInterpolationFrame(id);
-            if (frame == null || !frame.isInitialized) continue;
+            if (!store.render_isInitialized[index]) continue;
 
             BoundingBox plotBox = velthoric$getPlotBox(id);
             if (plotBox == null) continue;
 
-            RenderState renderState = frame.getInterpolatedState(partialTick);
+            interpolator.interpolateFrame(store, index, partialTick, velthoric_interpolatedPosition_lr, velthoric_interpolatedRotation_lr);
 
             poseStack.pushPose();
 
@@ -113,22 +123,21 @@ public abstract class LevelRendererMixin {
             double pivotZ = plotCenter.getZ() + 0.5;
 
             poseStack.translate(
-                    renderState.transform.getTranslation().x() - camera.getPosition().x,
-                    renderState.transform.getTranslation().y() - camera.getPosition().y,
-                    renderState.transform.getTranslation().z() - camera.getPosition().z
+                    velthoric_interpolatedPosition_lr.xx() - camera.getPosition().x,
+                    velthoric_interpolatedPosition_lr.yy() - camera.getPosition().y,
+                    velthoric_interpolatedPosition_lr.zz() - camera.getPosition().z
             );
             poseStack.mulPose(new Quaternionf(
-                    renderState.transform.getRotation().getX(),
-                    renderState.transform.getRotation().getY(),
-                    renderState.transform.getRotation().getZ(),
-                    renderState.transform.getRotation().getW()
+                    velthoric_interpolatedRotation_lr.getX(),
+                    velthoric_interpolatedRotation_lr.getY(),
+                    velthoric_interpolatedRotation_lr.getZ(),
+                    velthoric_interpolatedRotation_lr.getW()
             ));
             poseStack.translate(-pivotX, -pivotY, -pivotZ);
 
             for (RenderType renderType : RenderType.chunkBufferLayers()) {
                 velthoric_renderShipChunkLayer(renderType, poseStack, camera.getPosition().x, camera.getPosition().y, camera.getPosition().z, projectionMatrix, chunksToRender);
             }
-
             poseStack.popPose();
         }
     }
@@ -136,20 +145,17 @@ public abstract class LevelRendererMixin {
     @Unique
     private void velthoric_renderShipChunkLayer(RenderType renderType, PoseStack poseStack, double camX, double camY, double camZ, Matrix4f projectionMatrix, ObjectList<ChunkRenderDispatcher.RenderChunk> chunksToRender) {
         renderType.setupRenderState();
-
         if (renderType == RenderType.translucent()) {
             chunksToRender.sort(Comparator.comparingDouble(chunk -> {
                 BlockPos origin = ((ChunkRenderDispatcher.RenderChunk) chunk).getOrigin();
                 return new BlockPos((int)camX, (int)camY, (int)camZ).distSqr(origin);
             }).reversed());
         }
-
         ShaderInstance shader = RenderSystem.getShader();
         shader.MODEL_VIEW_MATRIX.set(poseStack.last().pose());
         shader.PROJECTION_MATRIX.set(projectionMatrix);
         RenderSystem.setupShaderLights(shader);
         shader.apply();
-
         for (ChunkRenderDispatcher.RenderChunk renderChunk : chunksToRender) {
             if (!renderChunk.getCompiledChunk().isEmpty(renderType)) {
                 VertexBuffer buffer = renderChunk.getBuffer(renderType);
@@ -160,7 +166,6 @@ public abstract class LevelRendererMixin {
                 buffer.draw();
             }
         }
-
         shader.CHUNK_OFFSET.set(0.0F, 0.0F, 0.0F);
         shader.clear();
         VertexBuffer.unbind();
@@ -170,13 +175,15 @@ public abstract class LevelRendererMixin {
     @Unique
     private BoundingBox velthoric$getPlotBox(UUID id) {
         return velthoric$plotBoxCache.computeIfAbsent(id, key -> {
-            ClientObjectDataManager manager = ClientObjectDataManager.getInstance();
-            if (!manager.hasObject(key)) {
+            VxClientObjectManager manager = VxClientObjectManager.getInstance();
+            if (!manager.getStore().hasObject(key)) {
                 velthoric$plotBoxCache.remove(key);
                 return null;
             }
+            Integer index = manager.getStore().getIndexForId(key);
+            if (index == null) return null;
 
-            ByteBuffer data = manager.getCustomData(key);
+            ByteBuffer data = manager.getStore().customData[index];
             if (data == null) return null;
 
             data.rewind();

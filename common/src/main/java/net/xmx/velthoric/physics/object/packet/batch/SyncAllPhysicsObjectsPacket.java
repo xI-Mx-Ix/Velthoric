@@ -4,7 +4,7 @@ import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectState;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
 
@@ -48,7 +48,7 @@ public class SyncAllPhysicsObjectsPacket {
                 objectStates.add(state);
             }
             NetworkManager.PacketContext context = contextSupplier.get();
-            context.queue(() -> ClientObjectDataManager.getInstance().scheduleStatesForUpdate(objectStates));
+            context.queue(() -> VxClientObjectManager.getInstance().scheduleStatesForUpdate(objectStates));
         } finally {
             dataBuf.release();
         }

@@ -1,4 +1,4 @@
-package net.xmx.velthoric.physics.object.client.interpolation;
+package net.xmx.velthoric.physics.object.client;
 
 import net.xmx.velthoric.math.VxTransform;
 import org.jetbrains.annotations.Nullable;

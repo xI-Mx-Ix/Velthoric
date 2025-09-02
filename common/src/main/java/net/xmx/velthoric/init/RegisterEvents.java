@@ -9,7 +9,7 @@ import net.xmx.velthoric.item.physicsgun.beam.PhysicsGunBeamRenderer;
 import net.xmx.velthoric.item.physicsgun.event.PhysicsGunEvents;
 import net.xmx.velthoric.physics.VxLifecycleEvents;
 import net.xmx.velthoric.physics.constraint.manager.event.ConstraintLifecycleEvents;
-import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.renderer.VxPhysicsRenderer;
 import net.xmx.velthoric.physics.object.client.time.ClientPhysicsPauseHandler;
 import net.xmx.velthoric.physics.object.manager.event.ObjectLifecycleEvents;
@@ -31,7 +31,7 @@ public class RegisterEvents {
     @Environment(EnvType.CLIENT)
     public static void registerClient() {
 
-        ClientObjectDataManager.registerEvents();
+        VxClientObjectManager.registerEvents();
 
         ClientPhysicsPauseHandler.registerEvents();
         DebugScreen.registerEvents();

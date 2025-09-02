@@ -7,9 +7,9 @@ import com.mojang.math.Axis;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.util.Mth;
-import net.xmx.velthoric.physics.object.client.ClientObjectDataManager;
-import net.xmx.velthoric.physics.object.client.interpolation.InterpolationFrame;
-import net.xmx.velthoric.physics.object.client.interpolation.RenderState;
+import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
 import net.xmx.velthoric.physics.riding.RidingProxyEntity;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -21,7 +21,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(PlayerRenderer.class)
 public abstract class PlayerRendererMixin {
 
-    private static final RenderState velthoric_reusableRenderState = new RenderState();
+    private static final RVec3 velthoric_interpolatedPosition_pr = new RVec3();
+    private static final Quat velthoric_interpolatedRotation_pr = new Quat();
 
     private float getFlipDegrees(AbstractClientPlayer player) {
         return 90.0F;
@@ -34,30 +35,36 @@ public abstract class PlayerRendererMixin {
         }
 
         proxy.getPhysicsObjectId().ifPresent(id -> {
-            InterpolationFrame frame = ClientObjectDataManager.getInstance().getInterpolationFrame(id);
-            if (frame == null || !frame.isInitialized) {
+            VxClientObjectManager manager = VxClientObjectManager.getInstance();
+            VxClientObjectStore store = manager.getStore();
+            VxClientObjectInterpolator interpolator = manager.getInterpolator();
+            Integer index = store.getIndexForId(id);
+
+            if (index == null || !store.render_isInitialized[index]) {
                 return;
             }
 
-            frame.interpolate(velthoric_reusableRenderState, partialTicks);
-            RVec3 physPos = velthoric_reusableRenderState.transform.getTranslation();
-            Quat physRotQuat = velthoric_reusableRenderState.transform.getRotation();
+            interpolator.interpolateFrame(store, index, partialTicks, velthoric_interpolatedPosition_pr, velthoric_interpolatedRotation_pr);
 
-            Quaternionf physRotation = new Quaternionf(physRotQuat.getX(), physRotQuat.getY(), physRotQuat.getZ(), physRotQuat.getW());
+            Quaternionf physRotation = new Quaternionf(
+                    velthoric_interpolatedRotation_pr.getX(),
+                    velthoric_interpolatedRotation_pr.getY(),
+                    velthoric_interpolatedRotation_pr.getZ(),
+                    velthoric_interpolatedRotation_pr.getW()
+            );
 
             Vector3f rideOffset = new Vector3f(proxy.getRidePositionOffset());
             physRotation.transform(rideOffset);
 
-            double playerX = physPos.x() + rideOffset.x();
-            double playerY = physPos.y() + rideOffset.y();
-            double playerZ = physPos.z() + rideOffset.z();
+            double playerX = velthoric_interpolatedPosition_pr.xx() + rideOffset.x();
+            double playerY = velthoric_interpolatedPosition_pr.yy() + rideOffset.y();
+            double playerZ = velthoric_interpolatedPosition_pr.zz() + rideOffset.z();
 
             double renderPlayerX = Mth.lerp(partialTicks, player.xOld, player.getX());
             double renderPlayerY = Mth.lerp(partialTicks, player.yOld, player.getY());
             double renderPlayerZ = Mth.lerp(partialTicks, player.zOld, player.getZ());
 
             poseStack.translate(playerX - renderPlayerX, playerY - renderPlayerY, playerZ - renderPlayerZ);
-
             poseStack.mulPose(physRotation);
 
             if (player.deathTime > 0) {
