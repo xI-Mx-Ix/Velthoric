@@ -64,7 +64,6 @@ public class VxPhysicsRenderer {
 
             try {
                 RVec3 lastPos = store.lastKnownPosition[index];
-                if (lastPos.lengthSq() < 1e-6) continue;
 
                 AABB objectAABB = new AABB(
                         lastPos.xx() - CULLING_BOUNDS_INFLATION, lastPos.yy() - CULLING_BOUNDS_INFLATION, lastPos.zz() - CULLING_BOUNDS_INFLATION,

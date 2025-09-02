@@ -19,11 +19,13 @@ public class VxClientObjectStore {
     public long[] state0_timestamp;
     public float[] state0_posX, state0_posY, state0_posZ;
     public float[] state0_rotX, state0_rotY, state0_rotZ, state0_rotW;
+    public float[] state0_velX, state0_velY, state0_velZ;
     public float[] @Nullable [] state0_vertexData;
 
     public long[] state1_timestamp;
     public float[] state1_posX, state1_posY, state1_posZ;
     public float[] state1_rotX, state1_rotY, state1_rotZ, state1_rotW;
+    public float[] state1_velX, state1_velY, state1_velZ;
     public float[] @Nullable [] state1_vertexData;
 
     public float[] prev_posX, prev_posY, prev_posZ;
@@ -53,6 +55,9 @@ public class VxClientObjectStore {
         state0_rotY = grow(state0_rotY, newCapacity);
         state0_rotZ = grow(state0_rotZ, newCapacity);
         state0_rotW = grow(state0_rotW, newCapacity);
+        state0_velX = grow(state0_velX, newCapacity);
+        state0_velY = grow(state0_velY, newCapacity);
+        state0_velZ = grow(state0_velZ, newCapacity);
         state0_vertexData = grow(state0_vertexData, newCapacity);
 
         state1_timestamp = grow(state1_timestamp, newCapacity);
@@ -63,6 +68,9 @@ public class VxClientObjectStore {
         state1_rotY = grow(state1_rotY, newCapacity);
         state1_rotZ = grow(state1_rotZ, newCapacity);
         state1_rotW = grow(state1_rotW, newCapacity);
+        state1_velX = grow(state1_velX, newCapacity);
+        state1_velY = grow(state1_velY, newCapacity);
+        state1_velZ = grow(state1_velZ, newCapacity);
         state1_vertexData = grow(state1_vertexData, newCapacity);
 
         prev_posX = grow(prev_posX, newCapacity);
@@ -87,7 +95,6 @@ public class VxClientObjectStore {
         objectType = grow(objectType, newCapacity);
         renderer = grow(renderer, newCapacity);
         customData = grow(customData, newCapacity);
-
         lastKnownPosition = grow(lastKnownPosition, newCapacity);
 
         this.capacity = newCapacity;
@@ -156,6 +163,8 @@ public class VxClientObjectStore {
         if (lastKnownPosition != null && lastKnownPosition[index] != null) {
             lastKnownPosition[index].loadZero();
         }
+        state0_velX[index] = state0_velY[index] = state0_velZ[index] = 0;
+        state1_velX[index] = state1_velY[index] = state1_velZ[index] = 0;
     }
 
     private long[] grow(long[] src, int size) {
@@ -196,5 +205,4 @@ public class VxClientObjectStore {
         }
         return dest;
     }
-
 }

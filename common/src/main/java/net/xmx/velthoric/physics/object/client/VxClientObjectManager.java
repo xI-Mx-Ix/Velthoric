@@ -95,6 +95,9 @@ public class VxClientObjectManager {
         store.state0_rotY[index] = store.state1_rotY[index];
         store.state0_rotZ[index] = store.state1_rotZ[index];
         store.state0_rotW[index] = store.state1_rotW[index];
+        store.state0_velX[index] = store.state1_velX[index];
+        store.state0_velY[index] = store.state1_velY[index];
+        store.state0_velZ[index] = store.state1_velZ[index];
         store.state0_vertexData[index] = store.state1_vertexData[index];
 
         store.state1_timestamp[index] = state.getTimestamp();
@@ -108,12 +111,15 @@ public class VxClientObjectManager {
         store.state1_rotZ[index] = rot.getZ();
         store.state1_rotW[index] = rot.getW();
 
+        com.github.stephengold.joltjni.Vec3 linVel = state.getLinearVelocity();
+        store.state1_velX[index] = linVel.getX();
+        store.state1_velY[index] = linVel.getY();
+        store.state1_velZ[index] = linVel.getZ();
+
         float[] newVertices = state.getSoftBodyVertices();
         if (newVertices != null) {
-
             store.state1_vertexData[index] = newVertices;
         } else {
-
             store.state1_vertexData[index] = store.state0_vertexData[index];
         }
 
@@ -130,6 +136,20 @@ public class VxClientObjectManager {
         RVec3 pos = tempTransform.getTranslation();
         Quat rot = tempTransform.getRotation();
 
+        float velX = 0, velY = 0, velZ = 0;
+
+        if (objType == EBodyType.RigidBody) {
+            if (data.readableBytes() >= 24) {
+                velX = data.readFloat();
+                velY = data.readFloat();
+                velZ = data.readFloat();
+
+                data.readFloat();
+                data.readFloat();
+                data.readFloat();
+            }
+        }
+
         store.state0_timestamp[index] = serverTimestamp;
         store.state1_timestamp[index] = serverTimestamp;
         store.state0_posX[index] = store.state1_posX[index] = pos.x();
@@ -139,14 +159,33 @@ public class VxClientObjectManager {
         store.state0_rotY[index] = store.state1_rotY[index] = rot.getY();
         store.state0_rotZ[index] = store.state1_rotZ[index] = rot.getZ();
         store.state0_rotW[index] = store.state1_rotW[index] = rot.getW();
+        store.state0_velX[index] = store.state1_velX[index] = velX;
+        store.state0_velY[index] = store.state1_velY[index] = velY;
+        store.state0_velZ[index] = store.state1_velZ[index] = velZ;
 
+        store.render_posX[index] = pos.x();
+        store.render_posY[index] = pos.y();
+        store.render_posZ[index] = pos.z();
+        store.render_rotX[index] = rot.getX();
+        store.render_rotY[index] = rot.getY();
+        store.render_rotZ[index] = rot.getZ();
+        store.render_rotW[index] = rot.getW();
+
+        store.prev_posX[index] = pos.x();
+        store.prev_posY[index] = pos.y();
+        store.prev_posZ[index] = pos.z();
+        store.prev_rotX[index] = rot.getX();
+        store.prev_rotY[index] = rot.getY();
+        store.prev_rotZ[index] = rot.getZ();
+        store.prev_rotW[index] = rot.getW();
+
+        store.render_isInitialized[index] = true;
         store.lastKnownPosition[index].set(pos);
 
         if (objType == EBodyType.RigidBody) {
             store.renderer[index] = registry.createRigidRenderer(typeId);
         } else if (objType == EBodyType.SoftBody) {
             store.renderer[index] = registry.createSoftRenderer(typeId);
-
             store.state0_vertexData[index] = null;
             store.state1_vertexData[index] = null;
         }
