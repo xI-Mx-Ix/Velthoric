@@ -37,7 +37,6 @@ public class VxPhysicsUpdater {
     private final ThreadLocal<VxTransform> tempTransform = ThreadLocal.withInitial(VxTransform::new);
     private final ThreadLocal<Vec3> tempLinVel = ThreadLocal.withInitial(Vec3::new);
     private final ThreadLocal<Vec3> tempAngVel = ThreadLocal.withInitial(Vec3::new);
-    private final ThreadLocal<ReusableFloatBuffer> tempVertexBuffer = ThreadLocal.withInitial(ReusableFloatBuffer::new);
     private final ThreadLocal<List<VxAbstractBody>> localObjectsToUpdate = ThreadLocal.withInitial(ArrayList::new);
     private final ThreadLocal<List<PhysicsObjectState>> localStatesToSend = ThreadLocal.withInitial(ArrayList::new);
 
