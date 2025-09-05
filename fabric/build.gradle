@@ -18,6 +18,8 @@ loom {
             //vmArg "-Dfabric.log.level=debug"
         }
     }
+
+    accessWidenerPath = project(":common").loom.accessWidenerPath
 }
 
 
@@ -42,7 +44,7 @@ dependencies {
     include(implementation(annotationProcessor("io.github.llamalad7:mixinextras-fabric:0.4.1")))
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
-    modImplementation "curse.maven:sodium-394468:6260639"
+    //todo: modImplementation "curse.maven:sodium-394468:6260639"
     modImplementation "curse.maven:modmenu-308702:5162837"
 
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
