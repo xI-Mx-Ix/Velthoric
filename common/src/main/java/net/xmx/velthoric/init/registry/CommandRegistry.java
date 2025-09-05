@@ -6,7 +6,6 @@ import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
 import net.minecraft.commands.CommandSourceStack;
 import net.xmx.velthoric.command.*;
-import net.xmx.velthoric.ship.command.AssembleCommand;
 
 public class CommandRegistry {
 
@@ -16,7 +15,6 @@ public class CommandRegistry {
         SpawnBoxCommand.register(dispatcher);
         SpawnConnectedBoxesCommand.register(dispatcher);
         CreateRopeCommand.register(dispatcher);
-        AssembleCommand.register(dispatcher);
     }
 
     public static void registerClient(CommandDispatcher<CommandSourceStack> dispatcher) {

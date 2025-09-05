@@ -13,9 +13,6 @@
     "misc.ExplosionMixin",
     "object.DispatchObjects_ChunkMapMixin",
     "riding.EntityMixin",
-    "ship.ServerLevelMixin",
-    "ship.chunk.ChunkMapMixin",
-    "ship.chunk.NoiseBasedChunkGeneratorMixin",
     "terrain.ChunkHolderMixin",
     "terrain.ChunkUnload_ChunkMapMixin",
     "terrain.ServerLevelMixin"
@@ -33,11 +30,7 @@
     "raytracing.ClickNotifier_MouseHandlerMixin",
     "riding.CameraMixin",
     "riding.GameRendererMixin",
-    "riding.PlayerRendererMixin",
-    "ship.accessor.ViewAreaAccessor",
-    "ship.chunk.ClientChunkCacheMixin",
-    "ship.render.LevelRendererMixin",
-    "ship.render.ViewAreaMixin"
+    "riding.PlayerRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
