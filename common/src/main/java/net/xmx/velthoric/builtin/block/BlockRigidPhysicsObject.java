@@ -4,6 +4,7 @@ import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.ShapeRefC;
 import com.github.stephengold.joltjni.ShapeSettings;
+import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
@@ -55,12 +56,14 @@ public class BlockRigidPhysicsObject extends VxRigidBody {
 
     @Override
     public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
-        return new BodyCreationSettings(
+        var bcs = new BodyCreationSettings(
                 shapeRef,
                 this.getGameTransform().getTranslation(),
                 this.getGameTransform().getRotation(),
                 EMotionType.Dynamic,
                 VxLayers.DYNAMIC);
+        bcs.setMotionQuality(EMotionQuality.LinearCast);
+        return bcs;
     }
 
     @Override
