@@ -195,11 +195,10 @@ public class VxPhysicsUpdater {
         final VxTransform transform = new VxTransform();
         final Vec3 linearVelocity = new Vec3();
         final Vec3 angularVelocity = new Vec3();
-        @Nullable
-        float[] vertexData;
+        float @Nullable [] vertexData;
         boolean isActive;
 
-        void update(VxTransform transform, Vec3 linVel, Vec3 angVel, @Nullable float[] vertices, boolean isActive) {
+        void update(VxTransform transform, Vec3 linVel, Vec3 angVel, float @Nullable [] vertices, boolean isActive) {
             this.transform.set(transform);
             this.linearVelocity.set(linVel);
             this.angularVelocity.set(angVel);
@@ -213,17 +212,6 @@ public class VxPhysicsUpdater {
             } else {
                 this.vertexData = null;
             }
-        }
-    }
-
-    private static class ReusableFloatBuffer {
-        private float[] buffer = new float[0];
-
-        float[] getBuffer(int requiredSize) {
-            if (buffer.length < requiredSize) {
-                buffer = new float[requiredSize];
-            }
-            return buffer;
         }
     }
 }
