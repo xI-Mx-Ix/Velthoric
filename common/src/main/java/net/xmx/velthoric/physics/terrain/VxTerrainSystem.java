@@ -86,6 +86,7 @@ public class VxTerrainSystem implements Runnable {
 
     public void shutdown() {
         if (isInitialized.compareAndSet(true, false)) {
+
             jobSystem.shutdown();
             workerThread.interrupt();
             try {
@@ -97,12 +98,19 @@ public class VxTerrainSystem implements Runnable {
             this.terrainStorage.shutdown();
 
             physicsWorld.execute(() -> {
+
                 new HashSet<>(chunkStates.keySet()).forEach(this::unloadChunkPhysicsInternal);
+
+                chunkStates.clear();
+                chunkBodyIds.clear();
+                chunkShapes.clear();
+                chunkIsPlaceholder.clear();
+                chunkRebuildVersions.clear();
                 chunkReferenceCounts.clear();
+                chunksToRebuild.clear();
                 objectTrackedChunks.clear();
                 objectUpdateCooldowns.clear();
                 shapeCache.clear();
-                chunksToRebuild.clear();
             });
         }
     }

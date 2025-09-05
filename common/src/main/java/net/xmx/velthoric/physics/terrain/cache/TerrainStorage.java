@@ -54,6 +54,7 @@ public class TerrainStorage {
         loadedRegions.entrySet().parallelStream().forEach(entry -> {
             saveRegion(entry.getKey(), entry.getValue());
         });
+        loadedRegions.clear();
     }
 
     public void saveDirtyRegions() {
