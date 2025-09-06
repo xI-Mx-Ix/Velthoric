@@ -6,53 +6,46 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.dimension.DimensionType;
-import net.minecraft.world.level.storage.LevelResource;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
+import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 
-import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-public class VxObjectStorage {
+public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
-    private final Path dataFile;
     private final VxObjectManager objectManager;
-    private final ServerLevel level;
-    private final ConcurrentMap<UUID, byte[]> unloadedObjectsData = new ConcurrentHashMap<>();
-    private final ConcurrentMap<Long, List<UUID>> unloadedChunkIndex = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long, List<UUID>> chunkToUuidIndex = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, CompletableFuture<VxAbstractBody>> pendingLoads = new ConcurrentHashMap<>();
     private ExecutorService loaderExecutor;
-    private final AtomicBoolean isInitialized = new AtomicBoolean(false);
 
     public VxObjectStorage(ServerLevel level, VxObjectManager objectManager) {
+        super(level, "bodies", "body");
         this.objectManager = objectManager;
-        this.level = level;
-        Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
-        Path dimensionRoot = DimensionType.getStorageFolder(level.dimension(), worldRoot);
-        this.dataFile = dimensionRoot.resolve("velthoric").resolve("bodies.vxdat");
     }
 
+    @Override
+    protected VxRegionIndex createRegionIndex() {
+        return new VxRegionIndex(storagePath, "body");
+    }
+
+    @Override
     public void initialize() {
-        if (isInitialized.getAndSet(true)) return;
+        super.initialize();
         int threadCount = Math.max(1, Runtime.getRuntime().availableProcessors() / 4);
         this.loaderExecutor = Executors.newFixedThreadPool(threadCount, r -> new Thread(r, "Velthoric Object Loader"));
-        loadFromFile();
     }
 
+    @Override
     public void shutdown() {
-        if (!isInitialized.getAndSet(false)) return;
+        super.shutdown();
         if (loaderExecutor != null) {
             loaderExecutor.shutdown();
             try {
@@ -66,70 +59,48 @@ public class VxObjectStorage {
         }
     }
 
-    private void loadFromFile() {
-        if (!Files.exists(dataFile)) return;
-        try {
-            byte[] fileBytes = Files.readAllBytes(dataFile);
-            if (fileBytes.length == 0) return;
-
-            ByteBuf buffer = Unpooled.wrappedBuffer(fileBytes);
-            FriendlyByteBuf fileBuf = new FriendlyByteBuf(buffer);
-            while (fileBuf.isReadable()) {
-                UUID id = fileBuf.readUUID();
-                byte[] data = fileBuf.readByteArray();
-                unloadedObjectsData.put(id, data);
-            }
-        } catch (IOException e) {
-            VxMainClass.LOGGER.error("Failed to load physics objects from {}", dataFile, e);
-        }
-        rebuildChunkIndex();
+    private RegionPos getRegionPos(ChunkPos chunkPos) {
+        return new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
     }
 
-    private void rebuildChunkIndex() {
-        unloadedChunkIndex.clear();
-        unloadedObjectsData.forEach(this::indexObjectData);
+    @Override
+    protected void readRegionData(ByteBuf buffer, RegionData<UUID, byte[]> regionData) {
+        FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(buffer);
+        while (friendlyBuf.isReadable()) {
+            UUID id = friendlyBuf.readUUID();
+            byte[] data = friendlyBuf.readByteArray();
+            regionData.entries.put(id, data);
+            indexObjectData(id, data);
+        }
     }
 
-    public synchronized void saveToFile() {
-        if (unloadedObjectsData.isEmpty()) {
-            try {
-                Files.deleteIfExists(dataFile);
-            } catch (IOException e) {
-                VxMainClass.LOGGER.error("Failed to delete empty physics objects file {}", dataFile, e);
-            }
-            return;
-        }
-
-        ByteBuf masterBuf = Unpooled.buffer();
-        try {
-            FriendlyByteBuf friendlyMasterBuf = new FriendlyByteBuf(masterBuf);
-            for (Map.Entry<UUID, byte[]> entry : unloadedObjectsData.entrySet()) {
-                friendlyMasterBuf.writeUUID(entry.getKey());
-                friendlyMasterBuf.writeByteArray(entry.getValue());
-            }
-
-            Files.createDirectories(dataFile.getParent());
-            try (FileChannel channel = FileChannel.open(dataFile, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-                channel.write(masterBuf.nioBuffer());
-            }
-        } catch (IOException e) {
-            VxMainClass.LOGGER.error("Failed to save physics objects to {}", dataFile, e);
-        } finally {
-            if (masterBuf.refCnt() > 0) {
-                masterBuf.release();
-            }
+    @Override
+    protected void writeRegionData(ByteBuf buffer, Map<UUID, byte[]> entries) {
+        FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(buffer);
+        for (Map.Entry<UUID, byte[]> entry : entries.entrySet()) {
+            friendlyBuf.writeUUID(entry.getKey());
+            friendlyBuf.writeByteArray(entry.getValue());
         }
     }
 
     public void storeObject(VxAbstractBody object) {
         if (object == null) return;
         byte[] data = serializeObjectData(object);
-        unloadedObjectsData.put(object.getPhysicsId(), data);
+        ChunkPos chunkPos = VxObjectManager.getObjectChunkPos(object);
+        RegionPos regionPos = getRegionPos(chunkPos);
+        RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
+
+        region.entries.put(object.getPhysicsId(), data);
+        region.dirty.set(true);
+        regionIndex.put(object.getPhysicsId(), regionPos);
         indexObjectData(object.getPhysicsId(), data);
     }
 
     public void loadObjectsInChunk(ChunkPos chunkPos) {
-        List<UUID> idsToLoad = unloadedChunkIndex.get(chunkPos.toLong());
+        RegionPos regionPos = getRegionPos(chunkPos);
+        loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
+
+        List<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
         if (idsToLoad == null || idsToLoad.isEmpty()) return;
 
         for (UUID id : List.copyOf(idsToLoad)) {
@@ -144,32 +115,49 @@ public class VxObjectStorage {
         if (objectManager.getObjectContainer().hasObject(id)) {
             return CompletableFuture.completedFuture(objectManager.getObjectContainer().get(id).orElse(null));
         }
-        return pendingLoads.computeIfAbsent(id, objectId ->
-                CompletableFuture.supplyAsync(() -> {
-                            byte[] data = unloadedObjectsData.remove(objectId);
-                            if (data == null) return null;
-                            deIndexObject(objectId, data);
-                            return deserializeObject(objectId, data);
-                        }, loaderExecutor)
-                        .thenApplyAsync(obj -> {
-                            if (obj != null) {
-                                objectManager.reAddObjectToWorld(obj);
-                            }
-                            return obj;
-                        }, level.getServer())
-                        .whenComplete((obj, ex) -> {
-                            if (ex != null) {
-                                VxMainClass.LOGGER.error("Exception loading physics object {}", id, ex);
-                            }
-                            pendingLoads.remove(id);
-                        })
-        );
+        return pendingLoads.computeIfAbsent(id, this::loadObjectAsync);
+    }
+
+    private CompletableFuture<VxAbstractBody> loadObjectAsync(UUID id) {
+        return CompletableFuture.supplyAsync(() -> {
+                    RegionPos regionPos = regionIndex.get(id);
+                    if (regionPos == null) return null;
+
+                    RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
+                    byte[] data = region.entries.remove(id);
+
+                    if (data != null) {
+                        region.dirty.set(true);
+                        deIndexObject(id, data);
+                        return deserializeObject(id, data);
+                    }
+                    return null;
+                }, loaderExecutor)
+                .thenApplyAsync(obj -> {
+                    if (obj != null) {
+                        objectManager.reAddObjectToWorld(obj);
+                    }
+                    return obj;
+                }, level.getServer())
+                .whenComplete((obj, ex) -> {
+                    if (ex != null) {
+                        VxMainClass.LOGGER.error("Exception loading physics object {}", id, ex);
+                    }
+                    pendingLoads.remove(id);
+                });
     }
 
     public void removeData(UUID id) {
-        byte[] data = unloadedObjectsData.remove(id);
+        RegionPos regionPos = regionIndex.get(id);
+        if (regionPos == null) return;
+
+        RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
+        byte[] data = region.entries.remove(id);
+
         if (data != null) {
+            region.dirty.set(true);
             deIndexObject(id, data);
+            regionIndex.remove(id);
         }
     }
 
@@ -179,7 +167,7 @@ public class VxObjectStorage {
             String typeId = buf.readUtf();
             VxAbstractBody obj = objectManager.getObjectRegistry().create(typeId, objectManager.getPhysicsWorld(), id);
             if (obj == null) {
-                VxMainClass.LOGGER.error("Failed to create object of type {} with ID {} during deserialization. Registry might be missing this type.", typeId, id);
+                VxMainClass.LOGGER.error("Failed to create object of type {} with ID {} during deserialization.", typeId, id);
                 return null;
             }
             obj.getGameTransform().fromBuffer(buf);
@@ -214,16 +202,16 @@ public class VxObjectStorage {
 
     private void indexObjectData(UUID id, byte[] data) {
         long chunkKey = getChunkKeyFromData(data);
-        unloadedChunkIndex.computeIfAbsent(chunkKey, k -> new CopyOnWriteArrayList<>()).add(id);
+        chunkToUuidIndex.computeIfAbsent(chunkKey, k -> new CopyOnWriteArrayList<>()).add(id);
     }
 
     private void deIndexObject(UUID id, byte[] data) {
         long chunkKey = getChunkKeyFromData(data);
-        List<UUID> idList = unloadedChunkIndex.get(chunkKey);
+        List<UUID> idList = chunkToUuidIndex.get(chunkKey);
         if (idList != null) {
             idList.remove(id);
             if (idList.isEmpty()) {
-                unloadedChunkIndex.remove(chunkKey);
+                chunkToUuidIndex.remove(chunkKey);
             }
         }
     }

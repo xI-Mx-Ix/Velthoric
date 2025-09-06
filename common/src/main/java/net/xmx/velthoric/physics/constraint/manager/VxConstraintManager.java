@@ -40,7 +40,7 @@ public class VxConstraintManager {
 
     public void saveData() {
         activeConstraints.values().forEach(constraintStorage::storeConstraint);
-        constraintStorage.saveToFile();
+        constraintStorage.saveDirtyRegions();
     }
 
     public void shutdown() {

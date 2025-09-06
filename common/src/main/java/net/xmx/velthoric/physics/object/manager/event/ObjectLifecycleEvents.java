@@ -77,7 +77,7 @@ public class ObjectLifecycleEvents {
             manager.getObjectContainer().getAllObjects()
                     .forEach(manager.getObjectStorage()::storeObject);
 
-            manager.getObjectStorage().saveToFile();
+            manager.getObjectStorage().saveDirtyRegions();
         });
     }
 

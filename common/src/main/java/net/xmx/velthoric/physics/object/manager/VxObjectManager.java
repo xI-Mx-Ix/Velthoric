@@ -56,7 +56,7 @@ public class VxObjectManager {
         networkDispatcher.stop();
         objectContainer.getAllObjects().forEach(objectStorage::storeObject);
         pendingActivations.values().forEach(objectStorage::storeObject);
-        objectStorage.saveToFile();
+        objectStorage.saveDirtyRegions();
         objectContainer.clear();
         pendingActivations.clear();
         objectStorage.shutdown();

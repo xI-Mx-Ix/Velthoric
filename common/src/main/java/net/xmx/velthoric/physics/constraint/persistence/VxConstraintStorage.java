@@ -6,50 +6,43 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.dimension.DimensionType;
-import net.minecraft.world.level.storage.LevelResource;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
+import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 
-import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-public class VxConstraintStorage {
+public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
-    private final Path dataFile;
     private final VxConstraintManager constraintManager;
-    private final ServerLevel level;
-    private final ConcurrentMap<UUID, byte[]> unloadedConstraintsData = new ConcurrentHashMap<>();
-    private final ConcurrentMap<Long, List<UUID>> unloadedChunkIndex = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long, List<UUID>> chunkToUuidIndex = new ConcurrentHashMap<>();
     private ExecutorService loaderExecutor;
-    private final AtomicBoolean isInitialized = new AtomicBoolean(false);
 
     public VxConstraintStorage(ServerLevel level, VxConstraintManager constraintManager) {
+        super(level, "constraints", "constraint");
         this.constraintManager = constraintManager;
-        this.level = level;
-        Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
-        Path dimensionRoot = DimensionType.getStorageFolder(level.dimension(), worldRoot);
-        this.dataFile = dimensionRoot.resolve("velthoric").resolve("constraints.vxdat");
     }
 
+    @Override
+    protected VxRegionIndex createRegionIndex() {
+        return new VxRegionIndex(storagePath, "constraint");
+    }
+
+    @Override
     public void initialize() {
-        if (isInitialized.getAndSet(true)) return;
+        super.initialize();
         this.loaderExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "Velthoric Constraint Loader"));
-        loadFromFile();
     }
 
+    @Override
     public void shutdown() {
-        if (!isInitialized.getAndSet(false)) return;
+        super.shutdown();
         if (loaderExecutor != null) {
             loaderExecutor.shutdown();
             try {
@@ -63,53 +56,27 @@ public class VxConstraintStorage {
         }
     }
 
-    private void loadFromFile() {
-        if (!Files.exists(dataFile)) return;
-        try {
-            byte[] fileBytes = Files.readAllBytes(dataFile);
-            if (fileBytes.length == 0) return;
+    private RegionPos getRegionPos(ChunkPos chunkPos) {
+        return new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
+    }
 
-            ByteBuf buffer = Unpooled.wrappedBuffer(fileBytes);
-            FriendlyByteBuf fileBuf = new FriendlyByteBuf(buffer);
-            while (fileBuf.isReadable()) {
-                UUID id = fileBuf.readUUID();
-                byte[] data = fileBuf.readByteArray();
-                unloadedConstraintsData.put(id, data);
-            }
-        } catch (IOException e) {
-            VxMainClass.LOGGER.error("Failed to load physics constraints from {}", dataFile, e);
+    @Override
+    protected void readRegionData(ByteBuf buffer, RegionData<UUID, byte[]> regionData) {
+        FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(buffer);
+        while (friendlyBuf.isReadable()) {
+            UUID id = friendlyBuf.readUUID();
+            byte[] data = friendlyBuf.readByteArray();
+            regionData.entries.put(id, data);
+            indexConstraintData(id, data);
         }
-        rebuildChunkIndex();
     }
 
-    private void rebuildChunkIndex() {
-        unloadedChunkIndex.clear();
-        unloadedConstraintsData.forEach(this::indexConstraintData);
-    }
-
-    public synchronized void saveToFile() {
-        ByteBuf masterBuf = Unpooled.buffer();
-        try {
-            FriendlyByteBuf friendlyMasterBuf = new FriendlyByteBuf(masterBuf);
-            for (Map.Entry<UUID, byte[]> entry : unloadedConstraintsData.entrySet()) {
-                friendlyMasterBuf.writeUUID(entry.getKey());
-                friendlyMasterBuf.writeByteArray(entry.getValue());
-            }
-
-            if (masterBuf.readableBytes() > 0) {
-                Files.createDirectories(dataFile.getParent());
-                try (FileChannel channel = FileChannel.open(dataFile, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-                    channel.write(masterBuf.nioBuffer());
-                }
-            } else {
-                Files.deleteIfExists(dataFile);
-            }
-        } catch (IOException e) {
-            VxMainClass.LOGGER.error("Failed to save physics constraints to {}", dataFile, e);
-        } finally {
-            if (masterBuf.refCnt() > 0) {
-                masterBuf.release();
-            }
+    @Override
+    protected void writeRegionData(ByteBuf buffer, Map<UUID, byte[]> entries) {
+        FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(buffer);
+        for (Map.Entry<UUID, byte[]> entry : entries.entrySet()) {
+            friendlyBuf.writeUUID(entry.getKey());
+            friendlyBuf.writeByteArray(entry.getValue());
         }
     }
 
@@ -118,13 +85,21 @@ public class VxConstraintStorage {
         constraintManager.getObjectManager().getObject(constraint.getBody1Id()).ifPresent(body1 -> {
             ChunkPos chunkPos = VxObjectManager.getObjectChunkPos(body1);
             byte[] data = serializeConstraintData(constraint, chunkPos);
-            unloadedConstraintsData.put(constraint.getConstraintId(), data);
+            RegionPos regionPos = getRegionPos(chunkPos);
+
+            RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
+            region.entries.put(constraint.getConstraintId(), data);
+            region.dirty.set(true);
+            regionIndex.put(constraint.getConstraintId(), regionPos);
             indexConstraintData(constraint.getConstraintId(), data);
         });
     }
 
     public void loadConstraintsInChunk(ChunkPos chunkPos) {
-        List<UUID> idsToLoad = unloadedChunkIndex.get(chunkPos.toLong());
+        RegionPos regionPos = getRegionPos(chunkPos);
+        loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
+
+        List<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
         if (idsToLoad == null || idsToLoad.isEmpty()) return;
         for (UUID id : List.copyOf(idsToLoad)) {
             if (constraintManager.hasActiveConstraint(id) || constraintManager.getDataSystem().isPending(id)) continue;
@@ -134,11 +109,18 @@ public class VxConstraintStorage {
 
     public void loadConstraint(UUID id) {
         CompletableFuture.runAsync(() -> {
-            byte[] data = unloadedConstraintsData.remove(id);
-            if (data == null) return;
-            deIndexConstraint(id, data);
-            VxConstraint constraint = deserializeConstraint(id, data);
-            level.getServer().execute(() -> constraintManager.addConstraintFromStorage(constraint));
+            RegionPos regionPos = regionIndex.get(id);
+            if (regionPos == null) return;
+
+            RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
+            byte[] data = region.entries.remove(id);
+
+            if (data != null) {
+                region.dirty.set(true);
+                deIndexConstraint(id, data);
+                VxConstraint c = deserializeConstraint(id, data);
+                level.getServer().execute(() -> constraintManager.addConstraintFromStorage(c));
+            }
         }, loaderExecutor).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Exception loading physics constraint {}", id, ex);
             return null;
@@ -146,9 +128,16 @@ public class VxConstraintStorage {
     }
 
     public void removeData(UUID id) {
-        byte[] data = unloadedConstraintsData.remove(id);
+        RegionPos regionPos = regionIndex.get(id);
+        if (regionPos == null) return;
+
+        RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
+        byte[] data = region.entries.remove(id);
+
         if (data != null) {
+            region.dirty.set(true);
             deIndexConstraint(id, data);
+            regionIndex.remove(id);
         }
     }
 
@@ -190,16 +179,16 @@ public class VxConstraintStorage {
 
     private void indexConstraintData(UUID id, byte[] data) {
         long chunkKey = getChunkKeyFromData(data);
-        unloadedChunkIndex.computeIfAbsent(chunkKey, k -> new CopyOnWriteArrayList<>()).add(id);
+        chunkToUuidIndex.computeIfAbsent(chunkKey, k -> new CopyOnWriteArrayList<>()).add(id);
     }
 
     private void deIndexConstraint(UUID id, byte[] data) {
         long chunkKey = getChunkKeyFromData(data);
-        List<UUID> idList = unloadedChunkIndex.get(chunkKey);
+        List<UUID> idList = chunkToUuidIndex.get(chunkKey);
         if (idList != null) {
             idList.remove(id);
             if (idList.isEmpty()) {
-                unloadedChunkIndex.remove(chunkKey);
+                chunkToUuidIndex.remove(chunkKey);
             }
         }
     }
