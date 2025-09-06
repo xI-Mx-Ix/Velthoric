@@ -4,7 +4,7 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -21,7 +21,7 @@ public class ClothSoftBody extends VxSoftBody {
     private float mass;
     private float compliance;
 
-    public ClothSoftBody(PhysicsObjectType<ClothSoftBody> type, VxPhysicsWorld world, UUID id) {
+    public ClothSoftBody(VxObjectType<ClothSoftBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.widthSegments = 15;
         this.heightSegments = 15;

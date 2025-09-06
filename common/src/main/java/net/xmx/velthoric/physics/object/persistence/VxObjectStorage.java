@@ -27,7 +27,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     private ExecutorService loaderExecutor;
 
     public VxObjectStorage(ServerLevel level, VxObjectManager objectManager) {
-        super(level, "bodies", "body");
+        super(level, "body", "body");
         this.objectManager = objectManager;
     }
 

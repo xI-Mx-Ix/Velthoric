@@ -5,7 +5,7 @@ import net.fabricmc.api.Environment;
 import net.xmx.velthoric.builtin.VxRegisteredObjects;
 import net.xmx.velthoric.init.registry.ModRegistries;
 import net.xmx.velthoric.network.NetworkHandler;
-import net.xmx.velthoric.natives.NativeJoltInitializer;
+import net.xmx.velthoric.natives.VxNativeJolt;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,7 +22,7 @@ public class VxMainClass {
         RegisterEvents.register();
 
         try {
-            NativeJoltInitializer.initialize();
+            VxNativeJolt.initialize();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

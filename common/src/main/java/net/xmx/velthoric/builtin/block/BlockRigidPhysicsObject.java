@@ -13,7 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.util.VxVoxelShapeUtil;
 import net.xmx.velthoric.physics.world.VxLayers;
@@ -25,7 +25,7 @@ public class BlockRigidPhysicsObject extends VxRigidBody {
 
     private BlockState representedBlockState;
 
-    public BlockRigidPhysicsObject(PhysicsObjectType<BlockRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
+    public BlockRigidPhysicsObject(VxObjectType<BlockRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.representedBlockState = Blocks.STONE.defaultBlockState();
     }

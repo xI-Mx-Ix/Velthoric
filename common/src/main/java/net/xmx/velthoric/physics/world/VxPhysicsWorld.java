@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.natives.NativeJoltInitializer;
+import net.xmx.velthoric.natives.VxNativeJolt;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.riding.RidingManager;
@@ -124,7 +124,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     @Override
     public void run() {
         try {
-            NativeJoltInitializer.initialize();
+            VxNativeJolt.initialize();
             initializePhysicsSystem();
 
             long lastTimeNanos = System.nanoTime();
@@ -208,9 +208,9 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
 
         this.physicsSystem = new PhysicsSystem();
-        BroadPhaseLayerInterface bpli = NativeJoltInitializer.getBroadPhaseLayerInterface();
-        ObjectVsBroadPhaseLayerFilter ovbpf = NativeJoltInitializer.getObjectVsBroadPhaseLayerFilter();
-        ObjectLayerPairFilter olpf = NativeJoltInitializer.getObjectLayerPairFilter();
+        BroadPhaseLayerInterface bpli = VxNativeJolt.getBroadPhaseLayerInterface();
+        ObjectVsBroadPhaseLayerFilter ovbpf = VxNativeJolt.getObjectVsBroadPhaseLayerFilter();
+        ObjectLayerPairFilter olpf = VxNativeJolt.getObjectLayerPairFilter();
 
         this.physicsSystem.init(maxBodies, 0, maxBodyPairs, maxContactConstraints, bpli, ovbpf, olpf);
 

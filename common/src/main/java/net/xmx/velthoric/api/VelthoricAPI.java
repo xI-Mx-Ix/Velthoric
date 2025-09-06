@@ -3,7 +3,7 @@ package net.xmx.velthoric.api;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
@@ -16,7 +16,7 @@ public final class VelthoricAPI {
 
     private static VelthoricAPI instance;
 
-    private final Map<String, PhysicsObjectType<?>> queuedRegistrations = new ConcurrentHashMap<>();
+    private final Map<String, VxObjectType<?>> queuedRegistrations = new ConcurrentHashMap<>();
 
     private VelthoricAPI() {}
 
@@ -32,7 +32,7 @@ public final class VelthoricAPI {
         return instance;
     }
 
-    public void registerPhysicsObjectType(PhysicsObjectType<?> type) {
+    public void registerPhysicsObjectType(VxObjectType<?> type) {
         if (type == null) {
             throw new IllegalArgumentException("PhysicsObjectType must not be null.");
         }
@@ -59,7 +59,7 @@ public final class VelthoricAPI {
         VxClientObjectManager.getInstance().registerSoftRendererFactory(typeIdentifier, factory);
     }
 
-    public Map<String, PhysicsObjectType<?>> getQueuedRegistrations() {
+    public Map<String, VxObjectType<?>> getQueuedRegistrations() {
         return Map.copyOf(queuedRegistrations);
     }
 }

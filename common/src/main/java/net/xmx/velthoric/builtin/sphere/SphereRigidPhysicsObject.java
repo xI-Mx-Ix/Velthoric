@@ -3,7 +3,7 @@ package net.xmx.velthoric.builtin.sphere;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -14,7 +14,7 @@ public class SphereRigidPhysicsObject extends VxRigidBody {
 
     private float radius;
 
-    public SphereRigidPhysicsObject(PhysicsObjectType<SphereRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
+    public SphereRigidPhysicsObject(VxObjectType<SphereRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.radius = 0.5f;
     }

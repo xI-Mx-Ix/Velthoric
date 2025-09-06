@@ -3,7 +3,7 @@ package net.xmx.velthoric.builtin.box;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -14,7 +14,7 @@ public class BoxRigidPhysicsObject extends VxRigidBody {
 
     private Vec3 halfExtents;
 
-    public BoxRigidPhysicsObject(PhysicsObjectType<BoxRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
+    public BoxRigidPhysicsObject(VxObjectType<BoxRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.halfExtents = new Vec3(0.5f, 0.5f, 0.5f);
     }

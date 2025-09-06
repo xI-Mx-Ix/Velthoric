@@ -6,7 +6,7 @@ import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.Vertex;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -21,7 +21,7 @@ public class RopeSoftBody extends VxSoftBody {
     private float mass;
     private float compliance;
 
-    public RopeSoftBody(PhysicsObjectType<RopeSoftBody> type, VxPhysicsWorld world, UUID id) {
+    public RopeSoftBody(VxObjectType<RopeSoftBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.ropeLength = 10.0f;
         this.numSegments = 20;

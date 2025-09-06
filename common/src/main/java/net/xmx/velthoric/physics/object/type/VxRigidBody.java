@@ -4,7 +4,7 @@ import com.github.stephengold.joltjni.*;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.client.RenderState;
 import net.xmx.velthoric.physics.raycasting.click.Clickable;
@@ -17,7 +17,7 @@ import java.util.UUID;
 
 public abstract class VxRigidBody extends VxAbstractBody implements Rideable, Clickable {
 
-    protected VxRigidBody(PhysicsObjectType<? extends VxRigidBody> type, VxPhysicsWorld world, UUID id) {
+    protected VxRigidBody(VxObjectType<? extends VxRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
     }
 

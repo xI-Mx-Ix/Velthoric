@@ -4,9 +4,8 @@ import com.github.stephengold.joltjni.*;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.natives.loader.*;
 import net.xmx.velthoric.physics.world.VxLayers;
-import net.xmx.velthoric.physics.world.VxBroadPhaseLayers;
 
-public class NativeJoltInitializer {
+public class VxNativeJolt {
 
     private static volatile boolean isInitialized = false;
     private static final Object lock = new Object();
@@ -23,14 +22,13 @@ public class NativeJoltInitializer {
             if (isInitialized) {
                 return;
             }
-            VxMainClass.LOGGER.debug("Performing one-time global Jolt Physics initialization...");
+            VxMainClass.LOGGER.debug("Performing global physics Physics initialization...");
 
             NativeJoltLibraryLoader.load();
 
             Jolt.registerDefaultAllocator();
             Jolt.installDefaultAssertCallback();
             Jolt.installDefaultTraceCallback();
-            //Jolt.setTraceAllocations(true);
 
             if (!Jolt.newFactory()) {
                 throw new IllegalStateException("Global Jolt Factory could not be created.");
@@ -40,31 +38,23 @@ public class NativeJoltInitializer {
             initializeCollisionFilters();
 
             isInitialized = true;
-            VxMainClass.LOGGER.debug("Global Jolt initialization complete.");
+            VxMainClass.LOGGER.debug("Global physics initialization complete.");
         }
     }
 
     private static void initializeCollisionFilters() {
-
         final int numObjectLayers = VxLayers.NUM_LAYERS;
-
-        final int numBroadPhaseLayers = VxBroadPhaseLayers.NUM_LAYERS;
+        final int numBroadPhaseLayers = VxLayers.NUM_LAYERS;
 
         ObjectLayerPairFilterTable olpfTable = new ObjectLayerPairFilterTable(numObjectLayers);
-
         olpfTable.disableCollision(VxLayers.STATIC, VxLayers.STATIC);
-
         olpfTable.enableCollision(VxLayers.DYNAMIC, VxLayers.DYNAMIC);
-
         olpfTable.enableCollision(VxLayers.STATIC, VxLayers.DYNAMIC);
-
         objectLayerPairFilter = olpfTable;
 
         BroadPhaseLayerInterfaceTable bpliTable = new BroadPhaseLayerInterfaceTable(numObjectLayers, numBroadPhaseLayers);
-
-        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.STATIC, VxBroadPhaseLayers.STATIC);
-        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.DYNAMIC, VxBroadPhaseLayers.DYNAMIC);
-
+        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.STATIC, VxLayers.STATIC);
+        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.DYNAMIC, VxLayers.DYNAMIC);
         broadPhaseLayerInterface = bpliTable;
 
         objectVsBroadPhaseLayerFilter = new ObjectVsBroadPhaseLayerFilterTable(
@@ -81,7 +71,7 @@ public class NativeJoltInitializer {
             if (!isInitialized) {
                 return;
             }
-            VxMainClass.LOGGER.debug("Performing one-time global Jolt shutdown...");
+            VxMainClass.LOGGER.debug("Performing global physics shutdown...");
 
             if (objectVsBroadPhaseLayerFilter != null) objectVsBroadPhaseLayerFilter.close();
             if (objectLayerPairFilter != null) objectLayerPairFilter.close();
@@ -89,7 +79,7 @@ public class NativeJoltInitializer {
 
             Jolt.destroyFactory();
             isInitialized = false;
-            VxMainClass.LOGGER.debug("Global Jolt shutdown complete.");
+            VxMainClass.LOGGER.debug("Global physics shutdown complete.");
         }
     }
 
@@ -97,7 +87,15 @@ public class NativeJoltInitializer {
         return isInitialized;
     }
 
-    public static BroadPhaseLayerInterface getBroadPhaseLayerInterface() { return broadPhaseLayerInterface; }
-    public static ObjectVsBroadPhaseLayerFilter getObjectVsBroadPhaseLayerFilter() { return objectVsBroadPhaseLayerFilter; }
-    public static ObjectLayerPairFilter getObjectLayerPairFilter() { return objectLayerPairFilter; }
+    public static BroadPhaseLayerInterface getBroadPhaseLayerInterface() {
+        return broadPhaseLayerInterface;
+    }
+
+    public static ObjectVsBroadPhaseLayerFilter getObjectVsBroadPhaseLayerFilter() {
+        return objectVsBroadPhaseLayerFilter;
+    }
+
+    public static ObjectLayerPairFilter getObjectLayerPairFilter() {
+        return objectLayerPairFilter;
+    }
 }

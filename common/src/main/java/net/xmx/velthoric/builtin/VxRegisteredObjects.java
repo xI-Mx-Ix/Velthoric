@@ -13,27 +13,27 @@ import net.xmx.velthoric.builtin.rope.RopeSoftBody;
 import net.xmx.velthoric.builtin.rope.RopeSoftBodyRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRigidPhysicsObject;
-import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.VxObjectType;
 
 public class VxRegisteredObjects {
 
-    public static final PhysicsObjectType<BlockRigidPhysicsObject> BLOCK = PhysicsObjectType.Builder
+    public static final VxObjectType<BlockRigidPhysicsObject> BLOCK = VxObjectType.Builder
             .create(BlockRigidPhysicsObject::new)
             .build("velthoric:block_obj");
 
-    public static final PhysicsObjectType<SphereRigidPhysicsObject> SPHERE = PhysicsObjectType.Builder
+    public static final VxObjectType<SphereRigidPhysicsObject> SPHERE = VxObjectType.Builder
             .create(SphereRigidPhysicsObject::new)
             .build("velthoric:sphere_obj");
 
-    public static final PhysicsObjectType<BoxRigidPhysicsObject> BOX = PhysicsObjectType.Builder
+    public static final VxObjectType<BoxRigidPhysicsObject> BOX = VxObjectType.Builder
             .create(BoxRigidPhysicsObject::new)
             .build("velthoric:box_obj");
 
-    public static final PhysicsObjectType<ClothSoftBody> CLOTH = PhysicsObjectType.Builder
+    public static final VxObjectType<ClothSoftBody> CLOTH = VxObjectType.Builder
             .create(ClothSoftBody::new)
             .build("velthoric:cloth_obj");
 
-    public static final PhysicsObjectType<RopeSoftBody> ROPE = PhysicsObjectType.Builder
+    public static final VxObjectType<RopeSoftBody> ROPE = VxObjectType.Builder
             .create(RopeSoftBody::new)
             .build("velthoric:rope_obj");
 

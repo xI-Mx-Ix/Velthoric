@@ -16,13 +16,13 @@ import java.util.UUID;
 public abstract class VxAbstractBody {
 
     protected final UUID physicsId;
-    protected final PhysicsObjectType<? extends VxAbstractBody> type;
+    protected final VxObjectType<? extends VxAbstractBody> type;
     protected final VxPhysicsWorld world;
     protected int bodyId = 0;
     protected final VxTransform gameTransform = new VxTransform();
     protected boolean isDataDirty = false;
 
-    protected VxAbstractBody(PhysicsObjectType<? extends VxAbstractBody> type, VxPhysicsWorld world, UUID id) {
+    protected VxAbstractBody(VxObjectType<? extends VxAbstractBody> type, VxPhysicsWorld world, UUID id) {
         this.type = type;
         this.world = world;
         this.physicsId = id;
@@ -81,7 +81,7 @@ public abstract class VxAbstractBody {
         return this.bodyId;
     }
 
-    public PhysicsObjectType<? extends VxAbstractBody> getType() {
+    public VxObjectType<? extends VxAbstractBody> getType() {
         return type;
     }
 

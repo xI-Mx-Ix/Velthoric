@@ -25,7 +25,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     private ExecutorService loaderExecutor;
 
     public VxConstraintStorage(ServerLevel level, VxConstraintManager constraintManager) {
-        super(level, "constraints", "constraint");
+        super(level, "constraint", "constraint");
         this.constraintManager = constraintManager;
     }
 

@@ -7,7 +7,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.api.VelthoricAPI;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.persistence.VxObjectStorage;
 import net.xmx.velthoric.physics.object.manager.registry.VxObjectRegistry;
@@ -138,7 +138,7 @@ public class VxObjectManager {
         });
     }
 
-    public <T extends VxRigidBody> Optional<T> createRigidBody(PhysicsObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
+    public <T extends VxRigidBody> Optional<T> createRigidBody(VxObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
         T body = type.create(world, UUID.randomUUID());
         body.getGameTransform().set(transform);
         configurator.accept(body);
@@ -148,7 +148,7 @@ public class VxObjectManager {
         return Optional.of(body);
     }
 
-    public <T extends VxSoftBody> Optional<T> createSoftBody(PhysicsObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
+    public <T extends VxSoftBody> Optional<T> createSoftBody(VxObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
         T body = type.create(world, UUID.randomUUID());
         body.getGameTransform().set(transform);
         configurator.accept(body);

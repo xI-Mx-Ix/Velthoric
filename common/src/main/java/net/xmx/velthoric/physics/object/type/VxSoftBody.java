@@ -4,7 +4,7 @@ import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.xmx.velthoric.physics.object.PhysicsObjectType;
+import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.client.RenderState;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -17,7 +17,7 @@ public abstract class VxSoftBody extends VxAbstractBody {
 
     protected float @Nullable [] lastSyncedVertexData;
 
-    protected VxSoftBody(PhysicsObjectType<? extends VxSoftBody> type, VxPhysicsWorld world, UUID id) {
+    protected VxSoftBody(VxObjectType<? extends VxSoftBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
     }
 

@@ -3,12 +3,12 @@ package net.xmx.velthoric.physics.object;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import java.util.UUID;
 
-public final class PhysicsObjectType<T extends VxAbstractBody> {
+public final class VxObjectType<T extends VxAbstractBody> {
 
     private final String typeId;
     private final Factory<T> factory;
 
-    private PhysicsObjectType(String typeId, Factory<T> factory) {
+    private VxObjectType(String typeId, Factory<T> factory) {
         this.typeId = typeId;
         this.factory = factory;
     }
@@ -23,7 +23,7 @@ public final class PhysicsObjectType<T extends VxAbstractBody> {
 
     @FunctionalInterface
     public interface Factory<T extends VxAbstractBody> {
-        T create(PhysicsObjectType<T> type, VxPhysicsWorld world, UUID id);
+        T create(VxObjectType<T> type, VxPhysicsWorld world, UUID id);
     }
 
     public static class Builder<T extends VxAbstractBody> {
@@ -37,8 +37,8 @@ public final class PhysicsObjectType<T extends VxAbstractBody> {
             return new Builder<>(factory);
         }
 
-        public PhysicsObjectType<T> build(String typeId) {
-            return new PhysicsObjectType<>(typeId, factory);
+        public VxObjectType<T> build(String typeId) {
+            return new VxObjectType<>(typeId, factory);
         }
     }
 }
