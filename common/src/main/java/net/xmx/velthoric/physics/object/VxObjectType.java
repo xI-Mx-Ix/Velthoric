@@ -1,14 +1,15 @@
 package net.xmx.velthoric.physics.object;
 
+import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import java.util.UUID;
 
 public final class VxObjectType<T extends VxAbstractBody> {
 
-    private final String typeId;
+    private final ResourceLocation typeId;
     private final Factory<T> factory;
 
-    private VxObjectType(String typeId, Factory<T> factory) {
+    private VxObjectType(ResourceLocation typeId, Factory<T> factory) {
         this.typeId = typeId;
         this.factory = factory;
     }
@@ -17,7 +18,7 @@ public final class VxObjectType<T extends VxAbstractBody> {
         return this.factory.create(this, world, id);
     }
 
-    public String getTypeId() {
+    public ResourceLocation getTypeId() {
         return typeId;
     }
 
@@ -37,7 +38,7 @@ public final class VxObjectType<T extends VxAbstractBody> {
             return new Builder<>(factory);
         }
 
-        public VxObjectType<T> build(String typeId) {
+        public VxObjectType<T> build(ResourceLocation typeId) {
             return new VxObjectType<>(typeId, factory);
         }
     }

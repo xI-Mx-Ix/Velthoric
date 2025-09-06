@@ -1,5 +1,6 @@
 package net.xmx.velthoric.physics.object.manager.registry;
 
+import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
@@ -13,20 +14,20 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class VxObjectRegistry {
 
-    private final Map<String, VxObjectType<?>> registeredTypes = new ConcurrentHashMap<>();
+    private final Map<ResourceLocation, VxObjectType<?>> registeredTypes = new ConcurrentHashMap<>();
 
     public void register(VxObjectType<?> type) {
         if (registeredTypes.containsKey(type.getTypeId())) {
-            VxMainClass.LOGGER.warn("PhysicsObjectType '{}' is already registered. Overwriting.", type.getTypeId());
+            VxMainClass.LOGGER.warn("VxObjectType '{}' is already registered. Overwriting.", type.getTypeId());
         }
         registeredTypes.put(type.getTypeId(), type);
     }
 
     @Nullable
-    public VxAbstractBody create(String typeId, VxPhysicsWorld world, UUID id) {
+    public VxAbstractBody create(ResourceLocation typeId, VxPhysicsWorld world, UUID id) {
         VxObjectType<?> type = registeredTypes.get(typeId);
         if (type == null) {
-            VxMainClass.LOGGER.error("No PhysicsObjectType registered for ID: {}", typeId);
+            VxMainClass.LOGGER.error("No VxObjectType registered for ID: {}", typeId);
             return null;
         }
         try {
@@ -38,7 +39,7 @@ public class VxObjectRegistry {
     }
 
     @Nullable
-    public VxAbstractBody createAndDeserialize(String typeId, UUID id, VxPhysicsWorld world, VxByteBuf data) {
+    public VxAbstractBody createAndDeserialize(ResourceLocation typeId, UUID id, VxPhysicsWorld world, VxByteBuf data) {
         VxAbstractBody obj = create(typeId, world, id);
         if (obj != null) {
             if (data != null) {
@@ -50,11 +51,11 @@ public class VxObjectRegistry {
     }
 
     @Nullable
-    public VxObjectType<?> getRegistrationData(String typeId) {
+    public VxObjectType<?> getRegistrationData(ResourceLocation typeId) {
         return registeredTypes.get(typeId);
     }
 
-    public Map<String, VxObjectType<?>> getRegisteredTypes() {
+    public Map<ResourceLocation, VxObjectType<?>> getRegisteredTypes() {
         return Map.copyOf(registeredTypes);
     }
 }

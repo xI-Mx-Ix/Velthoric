@@ -2,6 +2,7 @@ package net.xmx.velthoric.api;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
@@ -17,7 +18,7 @@ public final class VelthoricAPI {
 
     private static volatile VelthoricAPI instance;
 
-    private final Map<String, VxObjectType<?>> queuedRegistrations = new ConcurrentHashMap<>();
+    private final Map<ResourceLocation, VxObjectType<?>> queuedRegistrations = new ConcurrentHashMap<>();
 
     private VelthoricAPI() {}
 
@@ -37,9 +38,9 @@ public final class VelthoricAPI {
         if (type == null) {
             throw new IllegalArgumentException("VxObjectType must not be null.");
         }
-        String typeId = type.getTypeId();
-        if (typeId == null || typeId.trim().isEmpty()) {
-            throw new IllegalArgumentException("VxObjectType typeId must not be null or empty.");
+        ResourceLocation typeId = type.getTypeId();
+        if (typeId == null) {
+            throw new IllegalArgumentException("VxObjectType typeId must not be null.");
         }
 
         if (queuedRegistrations.containsKey(typeId)) {
@@ -51,7 +52,7 @@ public final class VelthoricAPI {
     }
 
     @Environment(EnvType.CLIENT)
-    public void registerRendererFactory(String typeIdentifier, Supplier<VxAbstractBody.Renderer> factory) {
+    public void registerRendererFactory(ResourceLocation typeIdentifier, Supplier<VxAbstractBody.Renderer> factory) {
         if (factory.get() instanceof VxRigidBody.Renderer) {
             VxClientObjectManager.getInstance().registerRigidRendererFactory(typeIdentifier,
                     () -> (VxRigidBody.Renderer) factory.get());
@@ -63,7 +64,7 @@ public final class VelthoricAPI {
         }
     }
 
-    public Map<String, VxObjectType<?>> getQueuedRegistrations() {
+    public Map<ResourceLocation, VxObjectType<?>> getQueuedRegistrations() {
         return Map.copyOf(queuedRegistrations);
     }
 }

@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
@@ -164,7 +165,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     private VxAbstractBody deserializeObject(UUID id, byte[] data) {
         VxByteBuf buf = new VxByteBuf(Unpooled.wrappedBuffer(data));
         try {
-            String typeId = buf.readUtf();
+            ResourceLocation typeId = new ResourceLocation(buf.readUtf());
             VxAbstractBody obj = objectManager.getObjectRegistry().create(typeId, objectManager.getPhysicsWorld(), id);
             if (obj == null) {
                 VxMainClass.LOGGER.error("Failed to create object of type {} with ID {} during deserialization.", typeId, id);
@@ -187,7 +188,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         ByteBuf buffer = Unpooled.buffer();
         VxByteBuf friendlyBuf = new VxByteBuf(buffer);
         try {
-            friendlyBuf.writeUtf(object.getType().getTypeId());
+            friendlyBuf.writeUtf(object.getType().getTypeId().toString());
             object.getGameTransform().toBuffer(friendlyBuf);
             object.writeCreationData(friendlyBuf);
             byte[] data = new byte[buffer.readableBytes()];

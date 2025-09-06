@@ -2,6 +2,7 @@ package net.xmx.velthoric.builtin;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.api.VelthoricAPI;
 import net.xmx.velthoric.builtin.block.BlockRenderer;
 import net.xmx.velthoric.builtin.block.BlockRigidPhysicsObject;
@@ -19,23 +20,23 @@ public class VxRegisteredObjects {
 
     public static final VxObjectType<BlockRigidPhysicsObject> BLOCK = VxObjectType.Builder
             .create(BlockRigidPhysicsObject::new)
-            .build("velthoric:block_obj");
+            .build(new ResourceLocation("velthoric", "block_obj"));
 
     public static final VxObjectType<SphereRigidPhysicsObject> SPHERE = VxObjectType.Builder
             .create(SphereRigidPhysicsObject::new)
-            .build("velthoric:sphere_obj");
+            .build(new ResourceLocation("velthoric", "sphere_obj"));
 
     public static final VxObjectType<BoxRigidPhysicsObject> BOX = VxObjectType.Builder
             .create(BoxRigidPhysicsObject::new)
-            .build("velthoric:box_obj");
+            .build(new ResourceLocation("velthoric", "box_obj"));
 
     public static final VxObjectType<ClothSoftBody> CLOTH = VxObjectType.Builder
             .create(ClothSoftBody::new)
-            .build("velthoric:cloth_obj");
+            .build(new ResourceLocation("velthoric", "cloth_obj"));
 
     public static final VxObjectType<RopeSoftBody> ROPE = VxObjectType.Builder
             .create(RopeSoftBody::new)
-            .build("velthoric:rope_obj");
+            .build(new ResourceLocation("velthoric", "rope_obj"));
 
     public static void register() {
         var api = VelthoricAPI.getInstance();

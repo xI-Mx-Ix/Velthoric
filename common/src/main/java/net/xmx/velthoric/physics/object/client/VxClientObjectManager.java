@@ -6,6 +6,7 @@ import com.github.stephengold.joltjni.enumerate.EBodyType;
 import dev.architectury.event.events.client.ClientTickEvent;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
@@ -44,11 +45,11 @@ public class VxClientObjectManager {
         return INSTANCE;
     }
 
-    public void registerRigidRendererFactory(String identifier, Supplier<VxRigidBody.Renderer> factory) {
+    public void registerRigidRendererFactory(ResourceLocation identifier, Supplier<VxRigidBody.Renderer> factory) {
         registry.registerRigidRendererFactory(identifier, factory);
     }
 
-    public void registerSoftRendererFactory(String identifier, Supplier<VxSoftBody.Renderer> factory) {
+    public void registerSoftRendererFactory(ResourceLocation identifier, Supplier<VxSoftBody.Renderer> factory) {
         registry.registerSoftRendererFactory(identifier, factory);
     }
 
@@ -126,7 +127,7 @@ public class VxClientObjectManager {
         store.lastKnownPosition[index].set(pos);
     }
 
-    public void spawnObject(UUID id, String typeId, EBodyType objType, FriendlyByteBuf data, long serverTimestamp) {
+    public void spawnObject(UUID id, ResourceLocation typeId, EBodyType objType, FriendlyByteBuf data, long serverTimestamp) {
         if (store.hasObject(id)) return;
 
         int index = store.addObject(id);
