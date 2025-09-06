@@ -25,7 +25,7 @@ public abstract class VxRigidBody extends VxAbstractBody implements Rideable, Cl
 
     public abstract BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef);
 
-    public interface Renderer {
+    public interface Renderer extends VxAbstractBody.Renderer {
         void render(UUID id, RenderState renderState, ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTick, int packedLight);
     }
 

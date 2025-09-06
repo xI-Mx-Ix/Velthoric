@@ -33,7 +33,7 @@ public abstract class VxSoftBody extends VxAbstractBody {
         this.lastSyncedVertexData = data;
     }
 
-    public interface Renderer {
+    public interface Renderer extends VxAbstractBody.Renderer {
         void render(UUID id, RenderState renderState, ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTick, int packedLight);
     }
 }

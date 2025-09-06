@@ -104,4 +104,7 @@ public abstract class VxAbstractBody {
     public void clearDataDirty() {
         this.isDataDirty = false;
     }
+
+    public interface Renderer {
+    }
 }

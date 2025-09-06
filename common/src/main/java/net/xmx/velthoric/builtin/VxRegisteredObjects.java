@@ -40,21 +40,21 @@ public class VxRegisteredObjects {
     public static void register() {
         var api = VelthoricAPI.getInstance();
 
-        api.registerPhysicsObjectType(BLOCK);
-        api.registerPhysicsObjectType(SPHERE);
-        api.registerPhysicsObjectType(BOX);
-        api.registerPhysicsObjectType(CLOTH);
-        api.registerPhysicsObjectType(ROPE);
+        api.registerObjectType(BLOCK);
+        api.registerObjectType(SPHERE);
+        api.registerObjectType(BOX);
+        api.registerObjectType(CLOTH);
+        api.registerObjectType(ROPE);
     }
 
     @Environment(EnvType.CLIENT)
     public static void registerClientRenderers() {
         var api = VelthoricAPI.getInstance();
 
-        api.registerRigidRenderer(BLOCK.getTypeId(), BlockRenderer::new);
-        api.registerRigidRenderer(SPHERE.getTypeId(), SphereRenderer::new);
-        api.registerRigidRenderer(BOX.getTypeId(), BoxRenderer::new);
-        api.registerSoftRenderer(CLOTH.getTypeId(), ClothSoftBodyRenderer::new);
-        api.registerSoftRenderer(ROPE.getTypeId(), RopeSoftBodyRenderer::new);
+        api.registerRendererFactory(BLOCK.getTypeId(), BlockRenderer::new);
+        api.registerRendererFactory(SPHERE.getTypeId(), SphereRenderer::new);
+        api.registerRendererFactory(BOX.getTypeId(), BoxRenderer::new);
+        api.registerRendererFactory(CLOTH.getTypeId(), ClothSoftBodyRenderer::new);
+        api.registerRendererFactory(ROPE.getTypeId(), RopeSoftBodyRenderer::new);
     }
 }
