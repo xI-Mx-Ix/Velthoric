@@ -13,7 +13,7 @@ It uses Jolt Physics via [JoltJNI](https://github.com/stephengold/jolt-jni) for 
 
 ## Thanks
 
-Special thanks to [Stephen Gold](https://github.com/stephengold/jolt-jni) for creating JoltJNI, which makes this mod possible.
+Special thanks to [Stephen Gold](https://github.com/stephengold) for creating JoltJNI, which makes this mod possible.
 
 ## License
 
