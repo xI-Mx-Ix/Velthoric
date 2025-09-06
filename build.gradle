@@ -68,10 +68,6 @@ subprojects {
         minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-MacOSX64:${jolt_jni_version}:DebugDp")
         minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-MacOSX_ARM64:${jolt_jni_version}:DebugDp")
 
-        implementation("io.github.electrostat-lab:snaploader:1.1.1-stable")
-        minecraftRuntimeLibraries("io.github.electrostat-lab:snaploader:1.1.1-stable")
-        include("io.github.electrostat-lab:snaploader:1.1.1-stable")
-
         /**
          implementation(name: 'jolt-jni-2.2.1-SNAPSHOT', ext: 'jar')
          implementation(name: 'jolt-jni-2.2.1-SNAPSHOT-DebugSp', ext: 'jar')

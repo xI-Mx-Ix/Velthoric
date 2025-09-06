@@ -2,13 +2,11 @@ package net.xmx.velthoric.natives;
 
 import com.github.stephengold.joltjni.*;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.natives.loader.*;
 import net.xmx.velthoric.physics.world.VxLayers;
 
 public class VxNativeJolt {
 
     private static volatile boolean isInitialized = false;
-    private static final Object lock = new Object();
 
     private static BroadPhaseLayerInterface broadPhaseLayerInterface;
     private static ObjectVsBroadPhaseLayerFilter objectVsBroadPhaseLayerFilter;
@@ -18,28 +16,24 @@ public class VxNativeJolt {
         if (isInitialized) {
             return;
         }
-        synchronized (lock) {
-            if (isInitialized) {
-                return;
-            }
-            VxMainClass.LOGGER.debug("Performing global physics Physics initialization...");
 
-            NativeJoltLibraryLoader.load();
+        VxMainClass.LOGGER.debug("Performing Physics initialization...");
 
-            Jolt.registerDefaultAllocator();
-            Jolt.installDefaultAssertCallback();
-            Jolt.installDefaultTraceCallback();
+        VxNativeLibraryLoader.load();
 
-            if (!Jolt.newFactory()) {
-                throw new IllegalStateException("Global Jolt Factory could not be created.");
-            }
-            Jolt.registerTypes();
+        Jolt.registerDefaultAllocator();
+        Jolt.installDefaultAssertCallback();
+        Jolt.installDefaultTraceCallback();
 
-            initializeCollisionFilters();
-
-            isInitialized = true;
-            VxMainClass.LOGGER.debug("Global physics initialization complete.");
+        if (!Jolt.newFactory()) {
+            throw new IllegalStateException("Jolt Factory could not be created.");
         }
+        Jolt.registerTypes();
+
+        initializeCollisionFilters();
+
+        isInitialized = true;
+        VxMainClass.LOGGER.debug("Physics initialization complete.");
     }
 
     private static void initializeCollisionFilters() {
@@ -67,20 +61,16 @@ public class VxNativeJolt {
         if (!isInitialized) {
             return;
         }
-        synchronized (lock) {
-            if (!isInitialized) {
-                return;
-            }
-            VxMainClass.LOGGER.debug("Performing global physics shutdown...");
 
-            if (objectVsBroadPhaseLayerFilter != null) objectVsBroadPhaseLayerFilter.close();
-            if (objectLayerPairFilter != null) objectLayerPairFilter.close();
-            if (broadPhaseLayerInterface != null) broadPhaseLayerInterface.close();
+        VxMainClass.LOGGER.debug("Performing Physics shutdown...");
 
-            Jolt.destroyFactory();
-            isInitialized = false;
-            VxMainClass.LOGGER.debug("Global physics shutdown complete.");
-        }
+        if (objectVsBroadPhaseLayerFilter != null) objectVsBroadPhaseLayerFilter.close();
+        if (objectLayerPairFilter != null) objectLayerPairFilter.close();
+        if (broadPhaseLayerInterface != null) broadPhaseLayerInterface.close();
+
+        Jolt.destroyFactory();
+        isInitialized = false;
+        VxMainClass.LOGGER.debug("Physics shutdown complete.");
     }
 
     public static boolean isInitialized() {
