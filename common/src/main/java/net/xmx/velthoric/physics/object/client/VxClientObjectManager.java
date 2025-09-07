@@ -38,6 +38,7 @@ public class VxClientObjectManager {
     private final List<Long> clockOffsetSamples = Collections.synchronizedList(new ArrayList<>());
     private final ConcurrentLinkedQueue<List<PhysicsObjectState>> stateUpdateQueue = new ConcurrentLinkedQueue<>();
     private final VxTransform tempTransform = new VxTransform();
+    private long lastRenderTimestamp = 0L;
 
     private VxClientObjectManager() {}
 
@@ -226,6 +227,7 @@ public class VxClientObjectManager {
         isClockOffsetInitialized = false;
         clockOffsetNanos = 0L;
         clockOffsetSamples.clear();
+        lastRenderTimestamp = 0L;
     }
 
     public void clientTick() {
@@ -233,6 +235,15 @@ public class VxClientObjectManager {
         synchronizeClock();
         if (isClockOffsetInitialized) {
             long renderTimestamp = clock.getGameTimeNanos() + this.clockOffsetNanos - INTERPOLATION_DELAY_NANOS;
+
+            if (lastRenderTimestamp == 0L) {
+                lastRenderTimestamp = renderTimestamp;
+            }
+            if (renderTimestamp < lastRenderTimestamp) {
+                renderTimestamp = lastRenderTimestamp;
+            }
+            lastRenderTimestamp = renderTimestamp;
+
             interpolator.updateInterpolationTargets(store, renderTimestamp);
         }
     }
