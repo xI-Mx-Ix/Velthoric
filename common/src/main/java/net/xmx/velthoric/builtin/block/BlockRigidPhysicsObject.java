@@ -62,7 +62,6 @@ public class BlockRigidPhysicsObject extends VxRigidBody {
                 this.getGameTransform().getRotation(),
                 EMotionType.Dynamic,
                 VxLayers.DYNAMIC);
-        bcs.setMotionQuality(EMotionQuality.LinearCast);
         return bcs;
     }
 
