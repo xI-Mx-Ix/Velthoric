@@ -55,7 +55,7 @@ public class VxObjectNetworkDispatcher {
         }
     }
 
-    public void tick() {
+    public void onGameTick() {
         processPendingRemovals();
         processPendingSpawns();
     }

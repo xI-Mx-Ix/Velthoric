@@ -149,7 +149,7 @@ public class RidingManager {
         playerToEject.ifPresent(this::stopRiding);
     }
 
-    public void tick() {
+    public void onGameTick() {
         List<ServerPlayer> playersToStopRiding = new ArrayList<>();
         Set<UUID> objectIds = Sets.newHashSet(objectToRidersMap.keySet());
 

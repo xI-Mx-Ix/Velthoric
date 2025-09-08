@@ -173,7 +173,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             this.timeAccumulator -= FIXED_TIME_STEP;
         }
 
-        this.objectManager.onPhysicsUpdate(System.nanoTime());
+        this.objectManager.onPhysicsTick(System.nanoTime());
     }
 
     private void processCommandQueue() {

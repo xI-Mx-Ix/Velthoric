@@ -3,6 +3,7 @@ package net.xmx.velthoric.physics.object.manager;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.minecraft.core.SectionPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
@@ -57,9 +58,15 @@ public class VxObjectManager {
         objectStorage.shutdown();
     }
 
-    public void onPhysicsUpdate(long timestampNanos) {
+    public void onPhysicsTick(long timestampNanos) {
         tickPendingActivations();
         physicsUpdater.update(timestampNanos, this.world);
+    }
+
+    public void onGameTick() {
+        networkDispatcher.onGameTick();
+        objectContainer.getAllObjects().forEach(obj -> obj.gameTick(world.getLevel()));
+
     }
 
     void addRigidBodyToPhysicsWorld(VxRigidBody body, EActivation activation, boolean usePendingActivation) {

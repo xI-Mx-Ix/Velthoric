@@ -22,7 +22,6 @@ public class ObjectLifecycleEvents {
         VxChunkEvent.Load.EVENT.register(ObjectLifecycleEvents::onChunkLoad);
         VxChunkEvent.Unload.EVENT.register(ObjectLifecycleEvents::onChunkUnload);
         VxLevelEvent.Save.EVENT.register(ObjectLifecycleEvents::onLevelSave);
-        TickEvent.SERVER_POST.register(ObjectLifecycleEvents::onServerTick);
         PlayerEvent.PLAYER_QUIT.register(ObjectLifecycleEvents::onPlayerQuit);
     }
 
@@ -52,17 +51,13 @@ public class ObjectLifecycleEvents {
 
     private static void onChunkUnload(VxChunkEvent.Unload event) {
         getObjectManager(event.getLevel()).ifPresent(manager -> {
-
             manager.getObjectContainer().getAllObjects().forEach(obj -> {
-
                 VxTransform gameTransform = obj.getGameTransform();
                 var translation = gameTransform.getTranslation();
-
                 ChunkPos currentChunkPos = new ChunkPos(
                         SectionPos.posToSectionCoord(translation.xx()),
                         SectionPos.posToSectionCoord(translation.zz())
                 );
-
                 if (currentChunkPos.equals(event.getChunkPos())) {
                     manager.removeObject(obj.getPhysicsId(), VxRemovalReason.SAVE);
                 }
@@ -71,24 +66,10 @@ public class ObjectLifecycleEvents {
     }
 
     private static void onLevelSave(VxLevelEvent.Save event) {
-
         getObjectManager(event.getLevel()).ifPresent(manager -> {
-
             manager.getObjectContainer().getAllObjects()
                     .forEach(manager.getObjectStorage()::storeObject);
-
             manager.getObjectStorage().saveDirtyRegions();
-        });
-    }
-
-    private static void onServerTick(MinecraftServer server) {
-        VxPhysicsWorld.getAll().forEach(world -> {
-            VxObjectManager manager = world.getObjectManager();
-            if (manager != null) {
-                manager.getNetworkDispatcher().tick();
-                world.getRidingManager().tick();
-                manager.getObjectContainer().getAllObjects().forEach(obj -> obj.gameTick(manager.getPhysicsWorld().getLevel()));
-            }
         });
     }
 }
