@@ -144,19 +144,6 @@ public class VxClientObjectManager {
 
         float velX = 0, velY = 0, velZ = 0;
 
-        if (objType == EBodyType.RigidBody) {
-            if (data.readableBytes() >= 12) {
-                velX = data.readFloat();
-                velY = data.readFloat();
-                velZ = data.readFloat();
-            }
-            if (data.readableBytes() >= 12) {
-                data.readFloat();
-                data.readFloat();
-                data.readFloat();
-            }
-        }
-
         store.state0_timestamp[index] = serverTimestamp;
         store.state1_timestamp[index] = serverTimestamp;
         store.state0_posX[index] = store.state1_posX[index] = pos.x();
