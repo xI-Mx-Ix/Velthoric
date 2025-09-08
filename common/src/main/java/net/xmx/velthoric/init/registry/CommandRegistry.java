@@ -15,6 +15,8 @@ public class CommandRegistry {
         SpawnBoxCommand.register(dispatcher);
         SpawnConnectedBoxesCommand.register(dispatcher);
         CreateRopeCommand.register(dispatcher);
+        SpawnMarbleCommand.register(dispatcher);
+        VxSummonCommand.register(dispatcher);
     }
 
     public static void registerClient(CommandDispatcher<CommandSourceStack> dispatcher) {
