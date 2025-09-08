@@ -1,20 +1,58 @@
-# Velthoric
+<p align="center">
+  <img src="./assets/velthoric_icon.png" alt="Velthoric Icon" width="128" height="128">
+</p>
 
-**Velthoric** is a lightweight physics mod for Minecraft that provides a full physics API and serialization system.
-It uses Jolt Physics via [JoltJNI](https://github.com/stephengold/jolt-jni) for efficient handling of soft bodies, rigid bodies, and constraints.
+<h1 align="center">Velthoric Physics Mod</h1>
 
-## Features
+<p align="center">
+  <img src="https://img.shields.io/badge/Environment-Client%20%26%20Server-blue" alt="Environment">
+</p>
 
-- Lightweight and optimized for performance
-- API for creating and manipulating physics objects
-- Serialization support for soft bodies, rigid bodies, and constraints
-- Fully extensible for custom physics implementations
-- Integrates seamlessly with Minecraft mechanics
+---
 
-## Thanks
+**💥 What’s this mod all about?**
 
-Special thanks to [Stephen Gold](https://github.com/stephengold) for creating JoltJNI, which makes this mod possible.
+Velthoric brings **high-performance physics** to Minecraft using the full Jolt Physics engine via JoltJNI. Move, collide, and interact with rigid and soft bodies, ropes, and cloth, all with persistent worlds and a powerful developer API.
 
-## License
+### ⚡ **Core Features**
 
-Velthoric is licensed under **LGPL 3**. See LICENSE file for details.
+* **Rigid & Soft Bodies** – Full simulation of solid and deformable objects.
+* **Narrow & Broad Phase Collisions** – Efficient collision detection for all objects.
+* **Constraints** – Support for joints and other physics constraints.
+* **Shapes** – Various collision shapes supported.
+* **Raycasting** – Detect and interact with objects using rays.
+* **World Persistence** – Physics objects stay exactly where you left them.
+
+### 🛠️ **Developer API**
+
+Create custom physics objects, control rendering, manipulate bodies, and extend the system.  
+*(Documentation coming soon!)*
+
+### 🎯 **Spawning Objects**
+
+Use `/vxsummon` to spawn built-in and custom physics objects:
+
+- `velthoric:box_obj`
+- `velthoric:cloth_obj`
+- `velthoric:marble_obj`
+- `velthoric:rope_obj`
+- `velthoric:sphere_obj`
+- Any custom objects registered via the API also appear here
+
+
+### 🔧 **Included Tools**
+
+* **PhysicsGun** – Pick up, move, rotate, and fling objects.
+* **Magnetizer** – Pull or push objects where you aim.
+* **BoxThrower** – Spawn and launch boxes instantly.
+
+### ⚠️ **Bug Reports & Mod Compatibility**
+
+Found a bug, crash, or an incompatible mod? Please **report it** on the [GitHub Issue Tracker](https://github.com/xI-Mx-Ix/Velthoric/issues) so we can fix it!
+
+---
+
+### 🌟 **Credits**
+
+* **Stephen Gold** – JoltJNI, bridging Java and Jolt Physics. [GitHub](https://github.com/stephengold/joltjni)
+* **Jolt Physics Team** – The engine behind the simulations.  [GitHub](https://github.com/jrouwe/JoltPhysics)
