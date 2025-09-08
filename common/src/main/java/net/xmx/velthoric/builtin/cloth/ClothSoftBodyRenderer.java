@@ -12,7 +12,7 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.physics.object.client.RenderState;
+import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
@@ -27,7 +27,7 @@ public class ClothSoftBodyRenderer implements VxSoftBody.Renderer {
     private static final ResourceLocation BLUE_WOOL_TEXTURE = new ResourceLocation("minecraft:block/blue_wool");
 
     @Override
-    public void render(UUID id, RenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
+    public void render(UUID id, VxRenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
         float[] renderVertexData = renderState.vertexData;
         if (renderVertexData == null || renderVertexData.length < 12) {
             return;

@@ -14,7 +14,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.xmx.velthoric.physics.object.client.RenderState;
+import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
@@ -28,7 +28,7 @@ public class MarbleRenderer implements VxRigidBody.Renderer {
     private static final ItemStack MARBLE_ITEM_STACK = new ItemStack(Items.MAGMA_CREAM);
 
     @Override
-    public void render(UUID id, RenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
+    public void render(UUID id, VxRenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
         if (customData == null || customData.remaining() < 4) {
             return;
         }

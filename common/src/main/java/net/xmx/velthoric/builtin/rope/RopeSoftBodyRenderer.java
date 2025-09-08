@@ -15,7 +15,7 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.physics.object.client.RenderState;
+import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,7 +31,7 @@ public class RopeSoftBodyRenderer implements VxSoftBody.Renderer {
     private static final Vec3 JOLT_UNIT_Y = new Vec3(0, 1, 0);
 
     @Override
-    public void render(UUID id, RenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
+    public void render(UUID id, VxRenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
         float[] renderVertexData = renderState.vertexData;
         if (renderVertexData == null || renderVertexData.length < 6) {
             return;

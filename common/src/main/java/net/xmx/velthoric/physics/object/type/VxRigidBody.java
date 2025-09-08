@@ -6,7 +6,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
-import net.xmx.velthoric.physics.object.client.RenderState;
+import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.raycasting.click.Clickable;
 import net.xmx.velthoric.physics.riding.Rideable;
 import net.xmx.velthoric.physics.riding.seat.Seat;
@@ -26,7 +26,7 @@ public abstract class VxRigidBody extends VxAbstractBody implements Rideable, Cl
     public abstract BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef);
 
     public interface Renderer extends VxAbstractBody.Renderer {
-        void render(UUID id, RenderState renderState, ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTick, int packedLight);
+        void render(UUID id, VxRenderState renderState, ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTick, int packedLight);
     }
 
     // ---- Rideable ---- //

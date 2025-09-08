@@ -16,13 +16,14 @@ import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class VxClientObjectManager {
     private static final VxClientObjectManager INSTANCE = new VxClientObjectManager();
-    private static final long INTERPOLATION_DELAY_NANOS = 100_000_000L;
+    private static final long INTERPOLATION_DELAY_NANOS = 220_000_000L;
 
     private final VxClientObjectStore store = new VxClientObjectStore();
     private final VxClientObjectRegistry registry = new VxClientObjectRegistry();
@@ -34,7 +35,6 @@ public class VxClientObjectManager {
     private final List<Long> clockOffsetSamples = new ArrayList<>();
     private final ConcurrentLinkedQueue<PhysicsObjectState> stateUpdateQueue = new ConcurrentLinkedQueue<>();
     private final VxTransform tempTransform = new VxTransform();
-    private long lastRenderTimestamp = 0L;
 
     private VxClientObjectManager() {}
 
@@ -59,24 +59,34 @@ public class VxClientObjectManager {
     }
 
     private void synchronizeClock() {
-        if (!isClockOffsetInitialized && clockOffsetSamples.isEmpty()) return;
-
-        long averageOffset;
         synchronized (clockOffsetSamples) {
-            if (clockOffsetSamples.isEmpty()) return;
+            if (clockOffsetSamples.size() < 20) {
+                return;
+            }
+
+            Collections.sort(clockOffsetSamples);
+
+            int trimCount = clockOffsetSamples.size() / 4;
+            List<Long> trimmedSamples = clockOffsetSamples.subList(trimCount, clockOffsetSamples.size() - trimCount);
+
+            if (trimmedSamples.isEmpty()) {
+                clockOffsetSamples.clear();
+                return;
+            }
+
             long sum = 0L;
-            for (Long sample : clockOffsetSamples) {
+            for (Long sample : trimmedSamples) {
                 sum += sample;
             }
-            averageOffset = sum / clockOffsetSamples.size();
+            long averageOffset = sum / trimmedSamples.size();
             clockOffsetSamples.clear();
-        }
 
-        if (!isClockOffsetInitialized) {
-            this.clockOffsetNanos = averageOffset;
-            this.isClockOffsetInitialized = true;
-        } else {
-            this.clockOffsetNanos = (long) (this.clockOffsetNanos * 0.95 + averageOffset * 0.05);
+            if (!isClockOffsetInitialized) {
+                this.clockOffsetNanos = averageOffset;
+                this.isClockOffsetInitialized = true;
+            } else {
+                this.clockOffsetNanos = (long) (this.clockOffsetNanos * 0.95 + averageOffset * 0.05);
+            }
         }
     }
 
@@ -114,11 +124,7 @@ public class VxClientObjectManager {
         store.state1_velZ[index] = linVel.getZ();
 
         float[] newVertices = state.getSoftBodyVertices();
-        if (newVertices != null) {
-            store.state1_vertexData[index] = newVertices;
-        } else {
-            store.state1_vertexData[index] = store.state0_vertexData[index];
-        }
+        store.state1_vertexData[index] = newVertices;
 
         if (store.lastKnownPosition[index] == null) {
             store.lastKnownPosition[index] = new RVec3();
@@ -234,7 +240,6 @@ public class VxClientObjectManager {
         synchronized(clockOffsetSamples) {
             clockOffsetSamples.clear();
         }
-        lastRenderTimestamp = 0L;
     }
 
     public void clientTick() {
@@ -242,15 +247,6 @@ public class VxClientObjectManager {
         synchronizeClock();
         if (isClockOffsetInitialized) {
             long renderTimestamp = clock.getGameTimeNanos() + this.clockOffsetNanos - INTERPOLATION_DELAY_NANOS;
-
-            if (lastRenderTimestamp == 0L) {
-                lastRenderTimestamp = renderTimestamp;
-            }
-            if (renderTimestamp < lastRenderTimestamp) {
-                renderTimestamp = lastRenderTimestamp;
-            }
-            lastRenderTimestamp = renderTimestamp;
-
             interpolator.updateInterpolationTargets(store, renderTimestamp);
         }
     }

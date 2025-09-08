@@ -13,7 +13,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.event.api.VxRenderEvent;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.client.RenderState;
+import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
@@ -27,7 +27,7 @@ import java.util.UUID;
 public class VxPhysicsRenderer {
 
     private static final float CULLING_BOUNDS_INFLATION = 2.0f;
-    private static final RenderState finalRenderState = new RenderState();
+    private static final VxRenderState finalRenderState = new VxRenderState();
     private static final RVec3 interpolatedPosition = new RVec3();
     private static final Quat interpolatedRotation = new Quat();
 

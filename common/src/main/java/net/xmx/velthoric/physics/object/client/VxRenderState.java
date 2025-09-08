@@ -3,11 +3,11 @@ package net.xmx.velthoric.physics.object.client;
 import net.xmx.velthoric.math.VxTransform;
 import org.jetbrains.annotations.Nullable;
 
-public class RenderState {
+public class VxRenderState {
     public final VxTransform transform = new VxTransform();
     public float @Nullable [] vertexData = null;
 
-    public void set(RenderState other) {
+    public void set(VxRenderState other) {
         this.transform.set(other.transform);
         if (other.vertexData != null) {
             if (this.vertexData == null || this.vertexData.length != other.vertexData.length) {
