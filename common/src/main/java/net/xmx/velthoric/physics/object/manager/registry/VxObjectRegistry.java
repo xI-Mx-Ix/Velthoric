@@ -14,7 +14,22 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class VxObjectRegistry {
 
+    private static volatile VxObjectRegistry instance;
+
     private final Map<ResourceLocation, VxObjectType<?>> registeredTypes = new ConcurrentHashMap<>();
+
+    private VxObjectRegistry() {}
+
+    public static VxObjectRegistry getInstance() {
+        if (instance == null) {
+            synchronized (VxObjectRegistry.class) {
+                if (instance == null) {
+                    instance = new VxObjectRegistry();
+                }
+            }
+        }
+        return instance;
+    }
 
     public void register(VxObjectType<?> type) {
         if (registeredTypes.containsKey(type.getTypeId())) {

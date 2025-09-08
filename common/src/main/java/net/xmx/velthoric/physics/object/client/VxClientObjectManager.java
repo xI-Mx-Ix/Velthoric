@@ -13,8 +13,6 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.client.time.VxClientClock;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectState;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
-import net.xmx.velthoric.physics.object.type.VxRigidBody;
-import net.xmx.velthoric.physics.object.type.VxSoftBody;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -22,7 +20,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Supplier;
 
 public class VxClientObjectManager {
     private static final VxClientObjectManager INSTANCE = new VxClientObjectManager();
@@ -44,14 +41,6 @@ public class VxClientObjectManager {
 
     public static VxClientObjectManager getInstance() {
         return INSTANCE;
-    }
-
-    public void registerRigidRendererFactory(ResourceLocation identifier, Supplier<VxRigidBody.Renderer> factory) {
-        registry.registerRigidRendererFactory(identifier, factory);
-    }
-
-    public void registerSoftRendererFactory(ResourceLocation identifier, Supplier<VxSoftBody.Renderer> factory) {
-        registry.registerSoftRendererFactory(identifier, factory);
     }
 
     public void scheduleStatesForUpdate(List<PhysicsObjectState> states) {
@@ -259,5 +248,9 @@ public class VxClientObjectManager {
 
     public VxClientObjectInterpolator getInterpolator() {
         return interpolator;
+    }
+
+    public VxClientObjectRegistry getRegistry() {
+        return registry;
     }
 }

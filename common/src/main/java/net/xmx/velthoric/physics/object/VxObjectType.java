@@ -8,10 +8,12 @@ public final class VxObjectType<T extends VxAbstractBody> {
 
     private final ResourceLocation typeId;
     private final Factory<T> factory;
+    private final boolean summonable;
 
-    private VxObjectType(ResourceLocation typeId, Factory<T> factory) {
+    private VxObjectType(ResourceLocation typeId, Factory<T> factory, boolean summonable) {
         this.typeId = typeId;
         this.factory = factory;
+        this.summonable = summonable;
     }
 
     public T create(VxPhysicsWorld world, UUID id) {
@@ -22,6 +24,10 @@ public final class VxObjectType<T extends VxAbstractBody> {
         return typeId;
     }
 
+    public boolean isSummonable() {
+        return summonable;
+    }
+
     @FunctionalInterface
     public interface Factory<T extends VxAbstractBody> {
         T create(VxObjectType<T> type, VxPhysicsWorld world, UUID id);
@@ -29,6 +35,7 @@ public final class VxObjectType<T extends VxAbstractBody> {
 
     public static class Builder<T extends VxAbstractBody> {
         private final Factory<T> factory;
+        private boolean summonable = true;
 
         private Builder(Factory<T> factory) {
             this.factory = factory;
@@ -38,8 +45,13 @@ public final class VxObjectType<T extends VxAbstractBody> {
             return new Builder<>(factory);
         }
 
+        public Builder<T> noSummon() {
+            this.summonable = false;
+            return this;
+        }
+
         public VxObjectType<T> build(ResourceLocation typeId) {
-            return new VxObjectType<>(typeId, factory);
+            return new VxObjectType<>(typeId, factory, summonable);
         }
     }
 }

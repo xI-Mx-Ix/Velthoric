@@ -4,13 +4,11 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
-import net.xmx.velthoric.api.VelthoricAPI;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.persistence.VxObjectStorage;
-import net.xmx.velthoric.physics.object.manager.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
@@ -27,7 +25,6 @@ import java.util.function.Consumer;
 public class VxObjectManager {
 
     private final VxPhysicsWorld world;
-    private final VxObjectRegistry objectRegistry;
     private final VxObjectStorage objectStorage;
     private final VxObjectContainer objectContainer;
     private final VxPhysicsUpdater physicsUpdater;
@@ -39,7 +36,6 @@ public class VxObjectManager {
 
     public VxObjectManager(VxPhysicsWorld world) {
         this.world = world;
-        this.objectRegistry = new VxObjectRegistry();
         this.objectContainer = new VxObjectContainer(world);
         this.objectStorage = new VxObjectStorage(world.getLevel(), this);
         this.physicsUpdater = new VxPhysicsUpdater(this);
@@ -49,7 +45,6 @@ public class VxObjectManager {
     public void initialize() {
         objectStorage.initialize();
         networkDispatcher.start();
-        VelthoricAPI.getInstance().getQueuedRegistrations().values().forEach(this.objectRegistry::register);
     }
 
     public void shutdown() {
@@ -127,6 +122,15 @@ public class VxObjectManager {
         }
     }
 
+    public void addConstructedBody(VxAbstractBody body) {
+        world.execute(() -> {
+            if (body instanceof VxRigidBody rigidBody) {
+                addRigidBodyToPhysicsWorld(rigidBody, EActivation.DontActivate, true);
+            } else if (body instanceof VxSoftBody softBody) {
+                addSoftBodyToPhysicsWorld(softBody, EActivation.DontActivate, true);
+            }
+        });
+    }
 
     public void reAddObjectToWorld(VxAbstractBody body) {
         world.execute(() -> {
@@ -280,10 +284,6 @@ public class VxObjectManager {
 
     public VxObjectStorage getObjectStorage() {
         return objectStorage;
-    }
-
-    public VxObjectRegistry getObjectRegistry() {
-        return objectRegistry;
     }
 
     public VxObjectNetworkDispatcher getNetworkDispatcher() {

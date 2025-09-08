@@ -12,6 +12,7 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.object.manager.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 
@@ -166,7 +167,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         VxByteBuf buf = new VxByteBuf(Unpooled.wrappedBuffer(data));
         try {
             ResourceLocation typeId = new ResourceLocation(buf.readUtf());
-            VxAbstractBody obj = objectManager.getObjectRegistry().create(typeId, objectManager.getPhysicsWorld(), id);
+            VxAbstractBody obj = VxObjectRegistry.getInstance().create(typeId, objectManager.getPhysicsWorld(), id);
             if (obj == null) {
                 VxMainClass.LOGGER.error("Failed to create object of type {} with ID {} during deserialization.", typeId, id);
                 return null;
