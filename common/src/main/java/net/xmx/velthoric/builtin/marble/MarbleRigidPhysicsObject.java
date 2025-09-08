@@ -1,10 +1,12 @@
 package net.xmx.velthoric.builtin.marble;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
+import com.github.stephengold.joltjni.MassProperties;
 import com.github.stephengold.joltjni.ShapeRefC;
 import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.SphereShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
+import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
@@ -16,6 +18,8 @@ import java.util.UUID;
 public class MarbleRigidPhysicsObject extends VxRigidBody {
 
     private float radius;
+
+    private static final float DENSITY = 6700f;
 
     public MarbleRigidPhysicsObject(VxObjectType<MarbleRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
@@ -46,7 +50,15 @@ public class MarbleRigidPhysicsObject extends VxRigidBody {
                 VxLayers.DYNAMIC);
 
         settings.setRestitution(0.6f);
-        settings.setFriction(0.4f);
+        settings.setFriction(0.6f);
+
+        MassProperties massProperties = new MassProperties();
+        float volume = (float) ( (4.0 / 3.0) * Math.PI * radius * radius * radius );
+        massProperties.setMassAndInertiaOfSolidBox(shapeRef.getLocalBounds().getExtent(), DENSITY * volume);
+
+        settings.setOverrideMassProperties(EOverrideMassProperties.MassAndInertiaProvided);
+        settings.setMassPropertiesOverride(massProperties);
+
         return settings;
     }
 
