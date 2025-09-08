@@ -67,8 +67,8 @@ public class VxConstraintManager {
     @SuppressWarnings("unchecked")
     protected void activateConstraint(VxConstraint constraint) {
         world.execute(() -> {
-            Optional<VxAbstractBody> optBody1 = objectManager.getObjectContainer().get(constraint.getBody1Id());
-            Optional<VxAbstractBody> optBody2 = objectManager.getObjectContainer().get(constraint.getBody2Id());
+            Optional<VxAbstractBody> optBody1 = objectManager.getObject(constraint.getBody1Id());
+            Optional<VxAbstractBody> optBody2 = objectManager.getObject(constraint.getBody2Id());
 
             if (optBody1.isEmpty() || optBody2.isEmpty() || optBody1.get().getBodyId() == 0 || optBody2.get().getBodyId() == 0) {
                 dataSystem.addPendingConstraint(constraint);

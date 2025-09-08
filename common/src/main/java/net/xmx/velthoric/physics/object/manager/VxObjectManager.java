@@ -2,42 +2,50 @@ package net.xmx.velthoric.physics.object.manager;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.SectionPos;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.xmx.velthoric.annotation.VxUnsafe;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.persistence.VxObjectStorage;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 public class VxObjectManager {
 
     private final VxPhysicsWorld world;
     private final VxObjectStorage objectStorage;
-    private final VxObjectContainer objectContainer;
+    private final VxObjectDataStore dataStore;
     private final VxPhysicsUpdater physicsUpdater;
     private final VxObjectNetworkDispatcher networkDispatcher;
+
+    private final Map<UUID, VxAbstractBody> managedObjects = new ConcurrentHashMap<>();
+    private final Int2ObjectMap<UUID> bodyIdToUuidMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
 
     private final ConcurrentHashMap<UUID, VxAbstractBody> pendingActivations = new ConcurrentHashMap<>();
     private final List<UUID> uuidsToRemove = new ArrayList<>();
     private final List<Integer> bodyIdsToActivate = new ArrayList<>();
+    private final Long2ObjectMap<List<VxAbstractBody>> objectsByChunk = new Long2ObjectOpenHashMap<>();
 
     public VxObjectManager(VxPhysicsWorld world) {
         this.world = world;
-        this.objectContainer = new VxObjectContainer(world);
+        this.dataStore = new VxObjectDataStore();
         this.objectStorage = new VxObjectStorage(world.getLevel(), this);
         this.physicsUpdater = new VxPhysicsUpdater(this);
         this.networkDispatcher = new VxObjectNetworkDispatcher(world.getLevel(), this);
@@ -50,12 +58,77 @@ public class VxObjectManager {
 
     public void shutdown() {
         networkDispatcher.stop();
-        objectContainer.getAllObjects().forEach(objectStorage::storeObject);
+        getAllObjects().forEach(objectStorage::storeObject);
         pendingActivations.values().forEach(objectStorage::storeObject);
         objectStorage.saveDirtyRegions();
-        objectContainer.clear();
+        clear();
         pendingActivations.clear();
         objectStorage.shutdown();
+    }
+
+    @VxUnsafe("Direct manipulation of internal physics objects. Use with caution.")
+    public void add(VxAbstractBody obj) {
+        if (obj == null) return;
+        managedObjects.computeIfAbsent(obj.getPhysicsId(), id -> {
+            EBodyType type = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
+            int index = dataStore.addObject(id, type);
+            obj.setDataStoreIndex(index);
+
+            if (obj.getBodyId() != 0) {
+                linkBodyId(obj.getBodyId(), id);
+            }
+            world.getConstraintManager().getDataSystem().onDependencyLoaded(id);
+            return obj;
+        });
+    }
+
+    @VxUnsafe("Direct manipulation of internal physics objects. Use with caution.")
+    public VxAbstractBody remove(UUID id) {
+        VxAbstractBody obj = managedObjects.remove(id);
+        if (obj != null) {
+            dataStore.removeObject(id);
+            obj.setDataStoreIndex(-1);
+            if (obj.getBodyId() != 0) {
+                unlinkBodyId(obj.getBodyId());
+            }
+        }
+        return obj;
+    }
+
+    private void clear() {
+        managedObjects.clear();
+        bodyIdToUuidMap.clear();
+        dataStore.clear();
+    }
+
+    @VxUnsafe("Direct manipulation of internal physics objects. Use with caution.")
+    public void linkBodyId(int bodyId, UUID objectId) {
+        if (bodyId == 0) {
+            new Throwable("Attempted to link invalid Body ID 0").printStackTrace();
+            return;
+        }
+        this.bodyIdToUuidMap.put(bodyId, objectId);
+    }
+
+    @VxUnsafe("Direct manipulation of internal physics objects. Use with caution.")
+    public void unlinkBodyId(int bodyId) {
+        if (bodyId == 0) {
+            new Throwable("Attempted to unlink invalid Body ID 0").printStackTrace();
+            return;
+        }
+        this.bodyIdToUuidMap.remove(bodyId);
+    }
+
+    public Optional<VxAbstractBody> getByBodyId(int bodyId) {
+        UUID objectId = bodyIdToUuidMap.get(bodyId);
+        if (objectId == null) {
+            return Optional.empty();
+        }
+        return getObject(objectId);
+    }
+
+    public Collection<VxAbstractBody> getAllObjects() {
+        return managedObjects.values();
     }
 
     public void onPhysicsTick(long timestampNanos) {
@@ -65,8 +138,69 @@ public class VxObjectManager {
 
     public void onGameTick() {
         networkDispatcher.onGameTick();
-        objectContainer.getAllObjects().forEach(obj -> obj.gameTick(world.getLevel()));
+        updateObjectChunkPositions();
+        getAllObjects().forEach(obj -> obj.gameTick(world.getLevel()));
+    }
 
+    private void updateObjectChunkPositions() {
+        for (VxAbstractBody body : getAllObjects()) {
+            long lastKey = body.getLastKnownChunkKey();
+            long currentKey = getObjectChunkPos(body).toLong();
+
+            if (lastKey != currentKey) {
+                updateObjectTracking(body, lastKey, currentKey);
+                body.setLastKnownChunkKey(currentKey);
+            }
+        }
+    }
+
+    private void updateObjectTracking(VxAbstractBody body, long fromKey, long toKey) {
+        if (fromKey != Long.MAX_VALUE) {
+            synchronized (objectsByChunk) {
+                List<VxAbstractBody> fromList = objectsByChunk.get(fromKey);
+                if (fromList != null) {
+                    fromList.remove(body);
+                    if (fromList.isEmpty()) {
+                        objectsByChunk.remove(fromKey);
+                    }
+                }
+            }
+        }
+        synchronized (objectsByChunk) {
+            objectsByChunk.computeIfAbsent(toKey, k -> new CopyOnWriteArrayList<>()).add(body);
+        }
+        networkDispatcher.onObjectMoved(body, new ChunkPos(fromKey), new ChunkPos(toKey));
+    }
+
+    public void startTracking(VxAbstractBody body) {
+        long key = getObjectChunkPos(body).toLong();
+        body.setLastKnownChunkKey(key);
+        synchronized (objectsByChunk) {
+            objectsByChunk.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>()).add(body);
+        }
+        networkDispatcher.onObjectAdded(body);
+    }
+
+    public void stopTracking(VxAbstractBody body) {
+        long key = body.getLastKnownChunkKey();
+        if (key != Long.MAX_VALUE) {
+            synchronized (objectsByChunk) {
+                List<VxAbstractBody> list = objectsByChunk.get(key);
+                if (list != null) {
+                    list.remove(body);
+                    if (list.isEmpty()) {
+                        objectsByChunk.remove(key);
+                    }
+                }
+            }
+        }
+        networkDispatcher.onObjectRemoved(body);
+    }
+
+    public List<VxAbstractBody> getObjectsInChunk(ChunkPos pos) {
+        synchronized (objectsByChunk) {
+            return objectsByChunk.getOrDefault(pos.toLong(), Collections.emptyList());
+        }
     }
 
     void addRigidBodyToPhysicsWorld(VxRigidBody body, EActivation activation, boolean usePendingActivation) {
@@ -87,7 +221,8 @@ public class VxObjectManager {
                             return;
                         }
                         body.setBodyId(bodyId);
-                        objectContainer.add(body);
+                        add(body);
+                        startTracking(body);
                         body.onBodyAdded(world);
 
                         if (activation == EActivation.DontActivate && usePendingActivation) {
@@ -116,7 +251,8 @@ public class VxObjectManager {
                     return;
                 }
                 body.setBodyId(bodyId);
-                objectContainer.add(body);
+                add(body);
+                startTracking(body);
                 body.onBodyAdded(world);
 
                 if (activation == EActivation.DontActivate && usePendingActivation) {
@@ -231,7 +367,7 @@ public class VxObjectManager {
     }
 
     public void removeObject(UUID id, VxRemovalReason reason) {
-        final VxAbstractBody obj = objectContainer.remove(id);
+        final VxAbstractBody obj = this.remove(id);
         if (obj == null) {
             VxMainClass.LOGGER.warn("Attempted to remove non-existent body: {}", id);
             if (reason == VxRemovalReason.DISCARD) {
@@ -240,6 +376,7 @@ public class VxObjectManager {
             world.getConstraintManager().removeConstraintsForObject(id, reason == VxRemovalReason.DISCARD);
             return;
         }
+        stopTracking(obj);
         obj.onBodyRemoved(world, reason);
         physicsUpdater.clearStateFor(id);
 
@@ -267,7 +404,7 @@ public class VxObjectManager {
     }
 
     public Optional<VxAbstractBody> getObject(UUID id) {
-        return objectContainer.get(id);
+        return Optional.ofNullable(managedObjects.get(id));
     }
 
     public CompletableFuture<VxAbstractBody> getOrLoadObject(UUID id) {
@@ -285,8 +422,8 @@ public class VxObjectManager {
         return world;
     }
 
-    public VxObjectContainer getObjectContainer() {
-        return objectContainer;
+    public VxObjectDataStore getDataStore() {
+        return dataStore;
     }
 
     public VxObjectStorage getObjectStorage() {

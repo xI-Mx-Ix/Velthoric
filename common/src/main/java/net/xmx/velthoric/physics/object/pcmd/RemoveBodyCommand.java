@@ -23,7 +23,7 @@ public record RemoveBodyCommand(VxAbstractBody body) implements ICommand {
             bodyInterface.destroyBody(bodyId);
         }
 
-        world.getObjectManager().getObjectContainer().unlinkBodyId(bodyId);
+        world.getObjectManager().unlinkBodyId(bodyId);
         body.setBodyId(0);
     }
 }

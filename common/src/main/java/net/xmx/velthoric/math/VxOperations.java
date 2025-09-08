@@ -11,21 +11,6 @@ import net.minecraft.util.Mth;
 
 public class VxOperations {
 
-    public static RVec3 interpolateLinear(RVec3Arg v1, RVec3Arg v2, float alpha, RVec3 store) {
-        return lerp(v1, v2, alpha, store);
-    }
-
-    public static Vec3 interpolateLinear(Vec3Arg v1, Vec3Arg v2, float alpha, Vec3 store) {
-        if (store == null) {
-            store = new Vec3();
-        }
-        float x = Mth.lerp(alpha, v1.getX(), v2.getX());
-        float y = Mth.lerp(alpha, v1.getY(), v2.getY());
-        float z = Mth.lerp(alpha, v1.getZ(), v2.getZ());
-        store.set(x, y, z);
-        return store;
-    }
-
     public static RVec3 lerp(RVec3Arg v1, RVec3Arg v2, float alpha, RVec3 store) {
         if (store == null) {
             store = new RVec3();

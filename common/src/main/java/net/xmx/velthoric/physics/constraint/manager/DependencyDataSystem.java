@@ -42,8 +42,8 @@ public class DependencyDataSystem {
             }
 
             VxObjectManager objectManager = constraintManager.getObjectManager();
-            boolean body1Loaded = objectManager.getObjectContainer().hasObject(constraint.getBody1Id());
-            boolean body2Loaded = objectManager.getObjectContainer().hasObject(constraint.getBody2Id());
+            boolean body1Loaded = objectManager.getObject(constraint.getBody1Id()).isPresent();
+            boolean body2Loaded = objectManager.getObject(constraint.getBody2Id()).isPresent();
 
             if (body1Loaded && body2Loaded) {
                 if (pendingConstraints.remove(constraintId) != null) {

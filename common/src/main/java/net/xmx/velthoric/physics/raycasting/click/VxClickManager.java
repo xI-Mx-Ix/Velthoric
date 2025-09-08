@@ -38,7 +38,7 @@ public final class VxClickManager {
             Optional<VxHitResult> hitResultOpt = VxRaytracing.raycast(level, context);
 
             hitResultOpt.ifPresent(hitResult -> hitResult.getPhysicsHit().ifPresent(physicsHit ->
-                    physicsWorld.getObjectManager().getObjectContainer().getByBodyId(physicsHit.bodyId())
+                    physicsWorld.getObjectManager().getByBodyId(physicsHit.bodyId())
                             .ifPresent(targetObject -> sender.getServer().execute(() -> {
                                 if (msg.isRightClick()) {
                                     if (hitResult.isSeatHit() && targetObject instanceof Rideable rideable) {

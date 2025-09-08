@@ -112,7 +112,7 @@ public class PhysicsGunServerManager {
 
             VxRaytracing.raycastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHitResult -> {
                 VxHitResult.PhysicsHit physicsHit = physicsHitResult.getPhysicsHit().orElseThrow();
-                Optional<VxAbstractBody> physicsObjectOpt = physicsWorld.getObjectManager().getObjectContainer().getByBodyId(physicsHit.bodyId());
+                Optional<VxAbstractBody> physicsObjectOpt = physicsWorld.getObjectManager().getByBodyId(physicsHit.bodyId());
                 if (physicsObjectOpt.isEmpty()) return;
 
                 VxAbstractBody physicsObject = physicsObjectOpt.get();

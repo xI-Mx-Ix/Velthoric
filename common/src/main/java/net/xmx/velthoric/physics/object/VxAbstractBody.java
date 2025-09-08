@@ -21,6 +21,8 @@ public abstract class VxAbstractBody {
     protected int bodyId = 0;
     protected final VxTransform gameTransform = new VxTransform();
     protected boolean isDataDirty = false;
+    private long lastKnownChunkKey = Long.MAX_VALUE;
+    protected int dataStoreIndex = -1;
 
     protected VxAbstractBody(VxObjectType<? extends VxAbstractBody> type, VxPhysicsWorld world, UUID id) {
         this.type = type;
@@ -57,7 +59,7 @@ public abstract class VxAbstractBody {
         if (bodyId == 0) {
             return null;
         }
-        Optional<? extends VxAbstractBody> found = world.getObjectManager().getObjectContainer().getByBodyId(bodyId);
+        Optional<VxAbstractBody> found = world.getObjectManager().getByBodyId(bodyId);
         if (found.isPresent() && found.get() == this) {
             try (BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), bodyId)) {
                 if (lock.succeededAndIsInBroadPhase()) {
@@ -103,6 +105,22 @@ public abstract class VxAbstractBody {
 
     public void clearDataDirty() {
         this.isDataDirty = false;
+    }
+
+    public long getLastKnownChunkKey() {
+        return this.lastKnownChunkKey;
+    }
+
+    public void setLastKnownChunkKey(long key) {
+        this.lastKnownChunkKey = key;
+    }
+
+    public int getDataStoreIndex() {
+        return dataStoreIndex;
+    }
+
+    public void setDataStoreIndex(int dataStoreIndex) {
+        this.dataStoreIndex = dataStoreIndex;
     }
 
     public interface Renderer {

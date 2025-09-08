@@ -50,7 +50,7 @@ public final class CreateRopeCommand {
                         if (bodyId == Jolt.cInvalidBodyId) return null;
 
                         body.setBodyId(bodyId);
-                        objectManager.getObjectContainer().add(body);
+                        objectManager.add(body);
                         world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
                         return body;
                     }

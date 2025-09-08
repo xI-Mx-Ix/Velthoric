@@ -106,7 +106,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         if (idsToLoad == null || idsToLoad.isEmpty()) return;
 
         for (UUID id : List.copyOf(idsToLoad)) {
-            if (objectManager.getObjectContainer().hasObject(id) || pendingLoads.containsKey(id)) {
+            if (objectManager.getObject(id).isPresent() || pendingLoads.containsKey(id)) {
                 continue;
             }
             loadObject(id);
@@ -114,8 +114,8 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     public CompletableFuture<VxAbstractBody> loadObject(UUID id) {
-        if (objectManager.getObjectContainer().hasObject(id)) {
-            return CompletableFuture.completedFuture(objectManager.getObjectContainer().get(id).orElse(null));
+        if (objectManager.getObject(id).isPresent()) {
+            return CompletableFuture.completedFuture(objectManager.getObject(id).orElse(null));
         }
         return pendingLoads.computeIfAbsent(id, this::loadObjectAsync);
     }

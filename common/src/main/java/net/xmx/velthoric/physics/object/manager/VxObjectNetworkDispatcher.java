@@ -1,14 +1,18 @@
 package net.xmx.velthoric.physics.object.manager;
 
+import com.github.stephengold.joltjni.Vec3;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.*;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.NetworkHandler;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.packet.SpawnData;
@@ -17,31 +21,38 @@ import net.xmx.velthoric.physics.object.packet.batch.SpawnPhysicsObjectBatchPack
 import net.xmx.velthoric.physics.object.packet.batch.SyncAllPhysicsObjectsPacket;
 import net.xmx.velthoric.physics.object.packet.SyncPhysicsObjectDataPacket;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectState;
+import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
 
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class VxObjectNetworkDispatcher {
 
     private final ServerLevel level;
     private final VxObjectManager manager;
+    private final VxObjectDataStore dataStore;
     private static final int MAX_PACKET_PAYLOAD_SIZE = 128 * 1024;
     private static final int NETWORK_THREAD_TICK_RATE_MS = 10;
 
-    private final Object2ObjectMap<UUID, ObjectSet<UUID>> playerTrackedObjects = new Object2ObjectOpenHashMap<>();
+    private final Map<UUID, Set<UUID>> playerTrackedObjects = new ConcurrentHashMap<>();
+    private final Map<UUID, ChunkPos> playerChunkPositions = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> playerViewDistances = new ConcurrentHashMap<>();
     private final Object2ObjectMap<ServerPlayer, ObjectArrayList<SpawnData>> pendingSpawns = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<ServerPlayer, ObjectArrayList<UUID>> pendingRemovals = new Object2ObjectOpenHashMap<>();
     private final ObjectArrayList<SpawnData> spawnBatch = new ObjectArrayList<>();
     private final ObjectArrayList<UUID> removalBatch = new ObjectArrayList<>();
 
-    private final ConcurrentLinkedQueue<PhysicsObjectState> stateUpdateQueue = new ConcurrentLinkedQueue<>();
     private ExecutorService networkSyncExecutor;
+    private final ThreadLocal<VxTransform> tempTransform = ThreadLocal.withInitial(VxTransform::new);
+    private final ThreadLocal<Vec3> tempLinVel = ThreadLocal.withInitial(Vec3::new);
+    private final ThreadLocal<Vec3> tempAngVel = ThreadLocal.withInitial(Vec3::new);
 
     public VxObjectNetworkDispatcher(ServerLevel level, VxObjectManager manager) {
         this.level = level;
         this.manager = manager;
+        this.dataStore = manager.getDataStore();
     }
 
     public void start() {
@@ -78,39 +89,98 @@ public class VxObjectNetworkDispatcher {
         }
     }
 
-    public void queueStateUpdates(List<PhysicsObjectState> states) {
-        this.stateUpdateQueue.addAll(states);
+    public void onObjectAdded(VxAbstractBody body) {
+        ChunkPos bodyChunk = VxObjectManager.getObjectChunkPos(body);
+        for (ServerPlayer player : level.players()) {
+            if (isChunkVisible(player, bodyChunk)) {
+                startTracking(player, body);
+            }
+        }
     }
 
-    public void updatePlayerTracking(ServerPlayer player, Set<VxAbstractBody> visibleObjects) {
-        long timestamp = System.nanoTime();
-        UUID playerUUID = player.getUUID();
-        ObjectSet<UUID> previouslyTracked = this.playerTrackedObjects.computeIfAbsent(playerUUID, k -> new ObjectOpenHashSet<>());
-        ObjectSet<UUID> currentlyVisibleIds = new ObjectOpenHashSet<>(visibleObjects.size());
-        for (VxAbstractBody obj : visibleObjects) {
-            currentlyVisibleIds.add(obj.getPhysicsId());
+    public void onObjectRemoved(VxAbstractBody body) {
+        for (ServerPlayer player : level.players()) {
+            stopTracking(player, body.getPhysicsId());
         }
+    }
 
-        ObjectArrayList<UUID> removalsForPlayer = pendingRemovals.computeIfAbsent(player, k -> new ObjectArrayList<>());
-        ObjectIterator<UUID> iter = previouslyTracked.iterator();
-        while (iter.hasNext()) {
-            UUID trackedId = iter.next();
-            if (!currentlyVisibleIds.contains(trackedId)) {
-                removalsForPlayer.add(trackedId);
-                iter.remove();
+    public void onObjectMoved(VxAbstractBody body, ChunkPos from, ChunkPos to) {
+        for (ServerPlayer player : level.players()) {
+            boolean wasVisible = isChunkVisible(player, from);
+            boolean isVisible = isChunkVisible(player, to);
+            if (wasVisible && !isVisible) {
+                stopTracking(player, body.getPhysicsId());
+            } else if (!wasVisible && isVisible) {
+                startTracking(player, body);
+            }
+        }
+    }
+
+    public void updatePlayerTracking(ServerPlayer player) {
+        playerChunkPositions.put(player.getUUID(), player.chunkPosition());
+        playerViewDistances.put(player.getUUID(), player.server.getPlayerList().getViewDistance());
+
+        Set<UUID> previouslyTracked = playerTrackedObjects.computeIfAbsent(player.getUUID(), k -> new HashSet<>());
+        Set<UUID> newlyVisible = new HashSet<>();
+
+        int viewDistance = playerViewDistances.getOrDefault(player.getUUID(), 0);
+        ChunkPos playerChunkPos = playerChunkPositions.getOrDefault(player.getUUID(), new ChunkPos(0, 0));
+
+        for (int cz = playerChunkPos.z - viewDistance; cz <= playerChunkPos.z + viewDistance; ++cz) {
+            for (int cx = playerChunkPos.x - viewDistance; cx <= playerChunkPos.x + viewDistance; ++cx) {
+                for (VxAbstractBody body : manager.getObjectsInChunk(new ChunkPos(cx, cz))) {
+                    newlyVisible.add(body.getPhysicsId());
+                }
             }
         }
 
-        ObjectArrayList<SpawnData> spawnsForPlayer = pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>());
-        for (VxAbstractBody obj : visibleObjects) {
-            if (previouslyTracked.add(obj.getPhysicsId())) {
-                spawnsForPlayer.add(new SpawnData(obj, timestamp));
+        for (UUID trackedId : new ArrayList<>(previouslyTracked)) {
+            if (!newlyVisible.contains(trackedId)) {
+                stopTracking(player, trackedId);
             }
         }
+
+        for (UUID visibleId : newlyVisible) {
+            if (!previouslyTracked.contains(visibleId)) {
+                manager.getObject(visibleId).ifPresent(body -> startTracking(player, body));
+            }
+        }
+    }
+
+    private void startTracking(ServerPlayer player, VxAbstractBody body) {
+        Set<UUID> tracked = playerTrackedObjects.computeIfAbsent(player.getUUID(), k -> new HashSet<>());
+        if (tracked.add(body.getPhysicsId())) {
+            pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>())
+                    .add(new SpawnData(body, System.nanoTime()));
+        }
+    }
+
+    private void stopTracking(ServerPlayer player, UUID bodyId) {
+        Set<UUID> tracked = playerTrackedObjects.get(player.getUUID());
+        if (tracked != null && tracked.remove(bodyId)) {
+            pendingRemovals.computeIfAbsent(player, k -> new ObjectArrayList<>())
+                    .add(bodyId);
+        }
+    }
+
+    private boolean isChunkVisible(ServerPlayer player, ChunkPos chunkPos) {
+        Integer viewDistance = playerViewDistances.get(player.getUUID());
+        ChunkPos playerChunkPos = playerChunkPositions.get(player.getUUID());
+        if (viewDistance == null || playerChunkPos == null) {
+            return false;
+        }
+        return Math.abs(chunkPos.x - playerChunkPos.x) <= viewDistance &&
+                Math.abs(chunkPos.z - playerChunkPos.z) <= viewDistance;
+    }
+
+    public void onPlayerJoin(ServerPlayer player) {
+        updatePlayerTracking(player);
     }
 
     public void onPlayerDisconnect(ServerPlayer player) {
         this.playerTrackedObjects.remove(player.getUUID());
+        this.playerChunkPositions.remove(player.getUUID());
+        this.playerViewDistances.remove(player.getUUID());
         this.pendingSpawns.remove(player);
         this.pendingRemovals.remove(player);
     }
@@ -161,14 +231,33 @@ public class VxObjectNetworkDispatcher {
     }
 
     private void processStateUpdates() {
-        if (stateUpdateQueue.isEmpty()) {
-            return;
-        }
-
         ObjectArrayList<PhysicsObjectState> statesToProcess = new ObjectArrayList<>();
-        PhysicsObjectState state;
-        while ((state = stateUpdateQueue.poll()) != null) {
-            statesToProcess.add(state);
+
+        for (int i = 0; i < dataStore.getCapacity(); i++) {
+            if (dataStore.isDirty[i]) {
+                UUID id = dataStore.getIdForIndex(i);
+                if (id == null) {
+                    dataStore.isDirty[i] = false;
+                    continue;
+                }
+
+                PhysicsObjectState state = PhysicsObjectStatePool.acquire();
+
+                VxTransform transform = tempTransform.get();
+                transform.getTranslation().set(dataStore.posX[i], dataStore.posY[i], dataStore.posZ[i]);
+                transform.getRotation().set(dataStore.rotX[i], dataStore.rotY[i], dataStore.rotZ[i], dataStore.rotW[i]);
+
+                Vec3 linVel = tempLinVel.get();
+                linVel.set(dataStore.velX[i], dataStore.velY[i], dataStore.velZ[i]);
+
+                Vec3 angVel = tempAngVel.get();
+                angVel.set(dataStore.angVelX[i], dataStore.angVelY[i], dataStore.angVelZ[i]);
+
+                state.from(id, dataStore.bodyType[i], transform, linVel, angVel, dataStore.vertexData[i], dataStore.lastUpdateTimestamp[i], dataStore.isActive[i]);
+                statesToProcess.add(state);
+
+                dataStore.isDirty[i] = false;
+            }
         }
 
         if (statesToProcess.isEmpty()) {
@@ -181,7 +270,6 @@ public class VxObjectNetworkDispatcher {
             long chunkKey = ChunkPos.asLong(SectionPos.posToSectionCoord(transform.getTranslation().x()), SectionPos.posToSectionCoord(transform.getTranslation().z()));
             statesByChunk.computeIfAbsent(chunkKey, k -> new ObjectArrayList<>()).add(s);
         }
-        statesToProcess.clear();
 
         statesByChunk.forEach((chunkKey, statesInChunk) -> {
             if (statesInChunk.isEmpty()) {
@@ -205,6 +293,8 @@ public class VxObjectNetworkDispatcher {
                 sendUpdateBatch(chunkPos, dispatchChunkBatch);
             }
         });
+
+        statesToProcess.forEach(PhysicsObjectStatePool::release);
     }
 
     private void sendUpdateBatch(ChunkPos chunkPos, ObjectArrayList<PhysicsObjectState> batch) {

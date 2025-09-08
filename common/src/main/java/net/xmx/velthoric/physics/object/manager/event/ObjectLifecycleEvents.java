@@ -1,19 +1,14 @@
 package net.xmx.velthoric.physics.object.manager.event;
 
-import dev.architectury.event.events.common.PlayerEvent;
-import dev.architectury.event.events.common.TickEvent;
-import net.minecraft.core.SectionPos;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.event.api.VxChunkEvent;
 import net.xmx.velthoric.event.api.VxLevelEvent;
-import net.xmx.velthoric.math.VxTransform;
+import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
+import java.util.List;
 import java.util.Optional;
 
 public class ObjectLifecycleEvents {
@@ -22,13 +17,6 @@ public class ObjectLifecycleEvents {
         VxChunkEvent.Load.EVENT.register(ObjectLifecycleEvents::onChunkLoad);
         VxChunkEvent.Unload.EVENT.register(ObjectLifecycleEvents::onChunkUnload);
         VxLevelEvent.Save.EVENT.register(ObjectLifecycleEvents::onLevelSave);
-        PlayerEvent.PLAYER_QUIT.register(ObjectLifecycleEvents::onPlayerQuit);
-    }
-
-    private static void onPlayerQuit(ServerPlayer player) {
-        getObjectManager(player.level()).ifPresent(manager ->
-                manager.getNetworkDispatcher().onPlayerDisconnect(player)
-        );
     }
 
     private static Optional<VxObjectManager> getObjectManager(Level level) {
@@ -51,23 +39,16 @@ public class ObjectLifecycleEvents {
 
     private static void onChunkUnload(VxChunkEvent.Unload event) {
         getObjectManager(event.getLevel()).ifPresent(manager -> {
-            manager.getObjectContainer().getAllObjects().forEach(obj -> {
-                VxTransform gameTransform = obj.getGameTransform();
-                var translation = gameTransform.getTranslation();
-                ChunkPos currentChunkPos = new ChunkPos(
-                        SectionPos.posToSectionCoord(translation.xx()),
-                        SectionPos.posToSectionCoord(translation.zz())
-                );
-                if (currentChunkPos.equals(event.getChunkPos())) {
-                    manager.removeObject(obj.getPhysicsId(), VxRemovalReason.SAVE);
-                }
-            });
+            List<VxAbstractBody> objectsInChunk = manager.getObjectsInChunk(event.getChunkPos());
+            for (VxAbstractBody obj : objectsInChunk) {
+                manager.removeObject(obj.getPhysicsId(), VxRemovalReason.SAVE);
+            }
         });
     }
 
     private static void onLevelSave(VxLevelEvent.Save event) {
         getObjectManager(event.getLevel()).ifPresent(manager -> {
-            manager.getObjectContainer().getAllObjects()
+            manager.getAllObjects()
                     .forEach(manager.getObjectStorage()::storeObject);
             manager.getObjectStorage().saveDirtyRegions();
         });

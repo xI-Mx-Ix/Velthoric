@@ -405,7 +405,7 @@ public class VxTerrainSystem implements Runnable {
     }
 
     private void updateTrackers() {
-        Collection<VxAbstractBody> currentObjects = physicsWorld.getObjectManager().getObjectContainer().getAllObjects();
+        Collection<VxAbstractBody> currentObjects = physicsWorld.getObjectManager().getAllObjects();
         Set<UUID> currentObjectIds = currentObjects.stream()
                 .map(VxAbstractBody::getPhysicsId)
                 .collect(Collectors.toSet());
