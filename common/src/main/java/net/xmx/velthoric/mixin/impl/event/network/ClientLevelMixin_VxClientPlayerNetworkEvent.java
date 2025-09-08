@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientLevel.class)
-public class VxClientPlayerNetworkEvent_ClientLevelMixin {
+public class ClientLevelMixin_VxClientPlayerNetworkEvent {
 
     @Inject(method = "disconnect()V", at = @At("HEAD"))
     private void velthoric_fireClientLoggingOutEvent(CallbackInfo ci) {

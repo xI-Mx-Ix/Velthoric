@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ChunkMap.class)
-public class VxChunkWatchEvent_ChunkMapMixin {
+public class ChunkMapMixin_VxChunkWatchEvent {
 
     @Shadow @Final
     ServerLevel level;

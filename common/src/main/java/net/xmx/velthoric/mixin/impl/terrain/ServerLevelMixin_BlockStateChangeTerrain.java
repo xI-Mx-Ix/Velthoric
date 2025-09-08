@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerLevel.class)
-public abstract class ServerLevelMixin {
+public abstract class ServerLevelMixin_BlockStateChangeTerrain {
 
     @Inject(method = "onBlockStateChange", at = @At("HEAD"))
     private void onBlockStateChangeHook(BlockPos pos, BlockState oldState, BlockState newState, CallbackInfo ci) {

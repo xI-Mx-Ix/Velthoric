@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(MinecraftServer.class)
-public abstract class VxServerLifecylceEvent_MinecraftServerMixin {
+public abstract class MinecraftServerMixin_VxServerLifecylceEvent {
 
     @Inject(method = "runServer", at = @At(value = "HEAD"))
     private void vx$runServerStart(CallbackInfo ci) {

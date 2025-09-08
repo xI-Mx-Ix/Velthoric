@@ -15,25 +15,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.concurrent.CompletableFuture;
 
 @Mixin(ChunkHolder.class)
-public abstract class ChunkHolderMixin {
+public abstract class ChunkHolderMixin_ChunkLoadTerrain {
 
     @Shadow
     private volatile CompletableFuture<Either<LevelChunk, ChunkHolder.ChunkLoadingFailure>> fullChunkFuture;
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void onVelthoricChunkLoad(CallbackInfo ci) {
-
         this.fullChunkFuture.thenAccept(either -> {
-
             either.ifLeft(levelChunk -> {
-
                 if (levelChunk != null && levelChunk.getLevel() instanceof ServerLevel serverLevel) {
-
                     serverLevel.getServer().execute(() -> {
-
                         VxTerrainSystem terrainSystem = VxPhysicsWorld.getTerrainSystem(serverLevel.dimension());
                         if (terrainSystem != null) {
-
                             terrainSystem.onChunkLoadedFromVanilla(levelChunk);
                         }
                     });

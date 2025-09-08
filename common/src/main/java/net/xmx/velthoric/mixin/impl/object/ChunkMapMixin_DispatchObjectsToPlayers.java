@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ChunkMap.class)
-public abstract class DispatchObjects_ChunkMapMixin {
+public abstract class ChunkMapMixin_DispatchObjectsToPlayers {
 
     @Shadow @Final
     ServerLevel level;

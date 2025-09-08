@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Explosion.class)
-public abstract class ExplosionMixin {
+public abstract class ExplosionMixin_TriggerExplosion {
 
     @Unique
     private final VxExplosionUtil velthoric$explosionUtil = new VxExplosionUtil();

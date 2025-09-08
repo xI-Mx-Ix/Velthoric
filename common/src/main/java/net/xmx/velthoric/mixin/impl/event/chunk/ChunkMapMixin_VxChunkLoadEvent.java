@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.concurrent.CompletableFuture;
 
 @Mixin(ChunkMap.class)
-public class VxChunkLoadEvent_ChunkMapMixin {
+public class ChunkMapMixin_VxChunkLoadEvent {
 
     @Inject(method = "protoChunkToFullChunk", at = @At("RETURN"), cancellable = true)
     private void onProtoChunkToFullChunk(ChunkHolder holder, CallbackInfoReturnable<CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>>> cir) {

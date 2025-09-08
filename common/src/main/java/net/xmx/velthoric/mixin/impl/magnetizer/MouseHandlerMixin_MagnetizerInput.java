@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(MouseHandler.class)
-public class MagnetizerInput_MouseHandlerMixin {
+public class MouseHandlerMixin_MagnetizerInput {
 
     @Shadow @Final private Minecraft minecraft;
 

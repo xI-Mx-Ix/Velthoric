@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ServerLevel.class)
-public class VxLevelEvent_ServerLevelMixin {
+public class ServerLevelMixin_VxLevelEvent {
 
     @Inject(method = "save", at = @At("RETURN"))
     private void onSave(CallbackInfo ci) {

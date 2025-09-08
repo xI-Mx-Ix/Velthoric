@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPacketListener.class)
-public abstract class VxClientPlayerNetworkEvent_ClientPacketListenerMixin {
+public abstract class ClientPacketListenerMixin_VxClientPlayerNetworkEvent {
 
     @Shadow @Final private Minecraft minecraft;
     @Shadow @Final private Connection connection;

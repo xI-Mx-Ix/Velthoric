@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.concurrent.CompletableFuture;
 
 @Mixin(ChunkMap.class)
-public class VxChunkUnloadEvent_ChunkMapMixin {
+public class ChunkMapMixin_VxChunkUnloadEvent {
 
     @Shadow @Final private ServerLevel level;
 

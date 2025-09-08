@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(KeyboardHandler.class)
-public abstract class PhysicsGunHandling_KeyboardHandlerMixin {
+public abstract class KeyboardHandlerMixin_PhysicsGunHandling {
 
     @Shadow @Final private Minecraft minecraft;
 
