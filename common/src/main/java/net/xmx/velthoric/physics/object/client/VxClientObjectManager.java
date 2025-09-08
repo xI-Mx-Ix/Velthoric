@@ -16,7 +16,6 @@ import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -32,8 +31,8 @@ public class VxClientObjectManager {
 
     private long clockOffsetNanos = 0L;
     private boolean isClockOffsetInitialized = false;
-    private final List<Long> clockOffsetSamples = Collections.synchronizedList(new ArrayList<>());
-    private final ConcurrentLinkedQueue<List<PhysicsObjectState>> stateUpdateQueue = new ConcurrentLinkedQueue<>();
+    private final List<Long> clockOffsetSamples = new ArrayList<>();
+    private final ConcurrentLinkedQueue<PhysicsObjectState> stateUpdateQueue = new ConcurrentLinkedQueue<>();
     private final VxTransform tempTransform = new VxTransform();
     private long lastRenderTimestamp = 0L;
 
@@ -44,28 +43,35 @@ public class VxClientObjectManager {
     }
 
     public void scheduleStatesForUpdate(List<PhysicsObjectState> states) {
-        stateUpdateQueue.offer(states);
+        stateUpdateQueue.addAll(states);
     }
 
     private void processStateUpdates() {
-        List<PhysicsObjectState> states;
-        while ((states = stateUpdateQueue.poll()) != null) {
-            long clientReceiptTime = clock.getGameTimeNanos();
-            for (PhysicsObjectState state : states) {
+        PhysicsObjectState state;
+        long clientReceiptTime = clock.getGameTimeNanos();
+        while ((state = stateUpdateQueue.poll()) != null) {
+            synchronized (clockOffsetSamples) {
                 this.clockOffsetSamples.add(state.getTimestamp() - clientReceiptTime);
-                updateObjectState(state);
-                PhysicsObjectStatePool.release(state);
             }
+            updateObjectState(state);
+            PhysicsObjectStatePool.release(state);
         }
     }
 
     private void synchronizeClock() {
-        if (clockOffsetSamples.isEmpty()) return;
+        if (!isClockOffsetInitialized && clockOffsetSamples.isEmpty()) return;
+
         long averageOffset;
         synchronized (clockOffsetSamples) {
-            averageOffset = clockOffsetSamples.stream().mapToLong(Long::longValue).sum() / clockOffsetSamples.size();
+            if (clockOffsetSamples.isEmpty()) return;
+            long sum = 0L;
+            for (Long sample : clockOffsetSamples) {
+                sum += sample;
+            }
+            averageOffset = sum / clockOffsetSamples.size();
             clockOffsetSamples.clear();
         }
+
         if (!isClockOffsetInitialized) {
             this.clockOffsetNanos = averageOffset;
             this.isClockOffsetInitialized = true;
@@ -114,6 +120,9 @@ public class VxClientObjectManager {
             store.state1_vertexData[index] = store.state0_vertexData[index];
         }
 
+        if (store.lastKnownPosition[index] == null) {
+            store.lastKnownPosition[index] = new RVec3();
+        }
         store.lastKnownPosition[index].set(pos);
     }
 
@@ -130,11 +139,12 @@ public class VxClientObjectManager {
         float velX = 0, velY = 0, velZ = 0;
 
         if (objType == EBodyType.RigidBody) {
-            if (data.readableBytes() >= 24) {
+            if (data.readableBytes() >= 12) {
                 velX = data.readFloat();
                 velY = data.readFloat();
                 velZ = data.readFloat();
-
+            }
+            if (data.readableBytes() >= 12) {
                 data.readFloat();
                 data.readFloat();
                 data.readFloat();
@@ -171,6 +181,10 @@ public class VxClientObjectManager {
         store.prev_rotW[index] = rot.getW();
 
         store.render_isInitialized[index] = true;
+
+        if (store.lastKnownPosition[index] == null) {
+            store.lastKnownPosition[index] = new RVec3();
+        }
         store.lastKnownPosition[index].set(pos);
 
         if (objType == EBodyType.RigidBody) {
@@ -186,7 +200,9 @@ public class VxClientObjectManager {
         }
 
         long initialOffset = serverTimestamp - clock.getGameTimeNanos();
-        this.clockOffsetSamples.add(initialOffset);
+        synchronized (clockOffsetSamples) {
+            this.clockOffsetSamples.add(initialOffset);
+        }
         if (!isClockOffsetInitialized) synchronizeClock();
 
         if (data.readableBytes() > 0) {
@@ -215,7 +231,9 @@ public class VxClientObjectManager {
         stateUpdateQueue.clear();
         isClockOffsetInitialized = false;
         clockOffsetNanos = 0L;
-        clockOffsetSamples.clear();
+        synchronized(clockOffsetSamples) {
+            clockOffsetSamples.clear();
+        }
         lastRenderTimestamp = 0L;
     }
 
