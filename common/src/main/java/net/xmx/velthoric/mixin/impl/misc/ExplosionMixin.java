@@ -34,7 +34,7 @@ public abstract class ExplosionMixin {
 
                 float physicsRadius = this.radius * 2.5f;
 
-                float explosionStrength = physicsRadius * physicsRadius * 500.0f;
+                float explosionStrength = physicsRadius * physicsRadius * 100.0f;
 
                 Vec3 explosionCenter = new Vec3((float)this.x, (float)this.y, (float)this.z);
 
