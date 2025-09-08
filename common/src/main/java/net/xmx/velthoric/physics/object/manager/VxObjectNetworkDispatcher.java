@@ -1,5 +1,6 @@
 package net.xmx.velthoric.physics.object.manager;
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.level.ServerChunkCache;
@@ -246,36 +247,38 @@ public class VxObjectNetworkDispatcher {
             return;
         }
 
-        Map<ServerPlayer, ObjectArrayList<Integer>> playerUpdateMap = new HashMap<>();
-        List<ServerPlayer> players = level.players();
-
+        Long2ObjectOpenHashMap<ObjectArrayList<Integer>> updatesByChunk = new Long2ObjectOpenHashMap<>();
         for (int dirtyIndex : dirtyIndices) {
-            ChunkPos chunkPos = new ChunkPos(
+            long chunkKey = new ChunkPos(
                     (int) Math.floor(dataStore.posX[dirtyIndex] / 16.0),
                     (int) Math.floor(dataStore.posZ[dirtyIndex] / 16.0)
-            );
-            for (ServerPlayer player : players) {
-                if (isChunkVisible(player, chunkPos)) {
-                    playerUpdateMap.computeIfAbsent(player, k -> new ObjectArrayList<>()).add(dirtyIndex);
-                }
-            }
+            ).toLong();
+            updatesByChunk.computeIfAbsent(chunkKey, k -> new ObjectArrayList<>()).add(dirtyIndex);
         }
 
-        if (playerUpdateMap.isEmpty()) {
+        if (updatesByChunk.isEmpty()) {
             return;
         }
 
         level.getServer().execute(() -> {
-            for (Map.Entry<ServerPlayer, ObjectArrayList<Integer>> entry : playerUpdateMap.entrySet()) {
-                ServerPlayer player = entry.getKey();
-                ObjectArrayList<Integer> indices = entry.getValue();
+            ServerChunkCache chunkSource = level.getChunkSource();
+            updatesByChunk.forEach((chunkKey, indices) -> {
+                ChunkPos chunkPos = new ChunkPos(chunkKey);
+                List<ServerPlayer> playersInChunk = chunkSource.chunkMap.getPlayers(chunkPos, false);
+
+                if (playersInChunk.isEmpty()) {
+                    return;
+                }
 
                 for (int i = 0; i < indices.size(); i += MAX_UPDATES_PER_PACKET) {
                     int end = Math.min(i + MAX_UPDATES_PER_PACKET, indices.size());
                     List<Integer> sublist = indices.subList(i, end);
-                    NetworkHandler.sendToPlayer(new SyncAllPhysicsObjectsPacket(sublist, dataStore), player);
+                    SyncAllPhysicsObjectsPacket packet = new SyncAllPhysicsObjectsPacket(sublist, dataStore);
+                    for (ServerPlayer player : playersInChunk) {
+                        NetworkHandler.sendToPlayer(packet, player);
+                    }
                 }
-            }
+            });
         });
     }
 

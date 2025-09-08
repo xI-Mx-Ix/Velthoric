@@ -6,6 +6,8 @@ import net.minecraft.util.Mth;
 import net.xmx.velthoric.math.VxOperations;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.UUID;
+
 public class VxClientObjectInterpolator {
 
     private static final float MAX_EXTRAPOLATION_SECONDS = 0.25f;
@@ -15,9 +17,10 @@ public class VxClientObjectInterpolator {
     private final Quat tempRenderRot = new Quat();
 
     public void updateInterpolationTargets(VxClientObjectStore store, long renderTimestamp) {
-        final int objectCount = store.getObjectCount();
+        for (UUID id : store.getAllObjectIds()) {
+            Integer i = store.getIndexForId(id);
+            if (i == null) continue;
 
-        for (int i = 0; i < objectCount; i++) {
             if (store.state1_timestamp[i] == 0) continue;
 
             store.prev_posX[i] = store.render_posX[i];

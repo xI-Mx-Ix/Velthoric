@@ -38,7 +38,7 @@ public class VxObjectManager {
     private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue = new ConcurrentLinkedQueue<>();
 
     private final Map<UUID, VxAbstractBody> managedObjects = new ConcurrentHashMap<>();
-    private final Int2ObjectMap<UUID> bodyIdToUuidMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
+    private final Int2ObjectMap<VxAbstractBody> bodyIdToObjectMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
 
     private final ConcurrentHashMap<UUID, VxAbstractBody> pendingActivations = new ConcurrentHashMap<>();
     private final List<UUID> uuidsToRemove = new ArrayList<>();
@@ -77,7 +77,7 @@ public class VxObjectManager {
             obj.setDataStoreIndex(index);
 
             if (obj.getBodyId() != 0) {
-                linkBodyId(obj.getBodyId(), id);
+                linkBodyId(obj.getBodyId(), obj);
             }
             world.getConstraintManager().getDataSystem().onDependencyLoaded(id);
             return obj;
@@ -99,17 +99,17 @@ public class VxObjectManager {
 
     private void clear() {
         managedObjects.clear();
-        bodyIdToUuidMap.clear();
+        bodyIdToObjectMap.clear();
         dataStore.clear();
     }
 
     @VxUnsafe("Direct manipulation of internal physics objects. Use with caution.")
-    public void linkBodyId(int bodyId, UUID objectId) {
+    public void linkBodyId(int bodyId, VxAbstractBody object) {
         if (bodyId == 0) {
             new Throwable("Attempted to link invalid Body ID 0").printStackTrace();
             return;
         }
-        this.bodyIdToUuidMap.put(bodyId, objectId);
+        this.bodyIdToObjectMap.put(bodyId, object);
     }
 
     @VxUnsafe("Direct manipulation of internal physics objects. Use with caution.")
@@ -118,15 +118,11 @@ public class VxObjectManager {
             new Throwable("Attempted to unlink invalid Body ID 0").printStackTrace();
             return;
         }
-        this.bodyIdToUuidMap.remove(bodyId);
+        this.bodyIdToObjectMap.remove(bodyId);
     }
 
     public Optional<VxAbstractBody> getByBodyId(int bodyId) {
-        UUID objectId = bodyIdToUuidMap.get(bodyId);
-        if (objectId == null) {
-            return Optional.empty();
-        }
-        return getObject(objectId);
+        return Optional.ofNullable(bodyIdToObjectMap.get(bodyId));
     }
 
     public Collection<VxAbstractBody> getAllObjects() {
