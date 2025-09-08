@@ -17,6 +17,7 @@ import net.xmx.velthoric.physics.object.packet.SyncPhysicsObjectDataPacket;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -25,6 +26,7 @@ public class VxObjectNetworkDispatcher {
     private final ServerLevel level;
     private final VxObjectManager manager;
     private final VxObjectDataStore dataStore;
+    private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue;
     private static final int MAX_PACKET_PAYLOAD_SIZE = 128 * 1024;
     private static final int NETWORK_THREAD_TICK_RATE_MS = 10;
     private static final int MAX_UPDATES_PER_PACKET = 256;
@@ -37,10 +39,11 @@ public class VxObjectNetworkDispatcher {
 
     private ExecutorService networkSyncExecutor;
 
-    public VxObjectNetworkDispatcher(ServerLevel level, VxObjectManager manager) {
+    public VxObjectNetworkDispatcher(ServerLevel level, VxObjectManager manager, ConcurrentLinkedQueue<Integer> dirtyIndicesQueue) {
         this.level = level;
         this.manager = manager;
         this.dataStore = manager.getDataStore();
+        this.dirtyIndicesQueue = dirtyIndicesQueue;
     }
 
     public void start() {
@@ -231,10 +234,11 @@ public class VxObjectNetworkDispatcher {
 
     private void sendStateUpdates() {
         ObjectArrayList<Integer> dirtyIndices = new ObjectArrayList<>();
-        for (int i = 0; i < dataStore.getCapacity(); i++) {
-            if (dataStore.isDirty[i] && dataStore.getIdForIndex(i) != null) {
-                dirtyIndices.add(i);
-                dataStore.isDirty[i] = false;
+        Integer index;
+        while ((index = dirtyIndicesQueue.poll()) != null) {
+            if (dataStore.getIdForIndex(index) != null) {
+                dirtyIndices.add(index);
+                dataStore.isDirty[index] = false;
             }
         }
 
@@ -245,14 +249,14 @@ public class VxObjectNetworkDispatcher {
         Map<ServerPlayer, ObjectArrayList<Integer>> playerUpdateMap = new HashMap<>();
         List<ServerPlayer> players = level.players();
 
-        for (int index : dirtyIndices) {
+        for (int dirtyIndex : dirtyIndices) {
             ChunkPos chunkPos = new ChunkPos(
-                    (int) Math.floor(dataStore.posX[index] / 16.0),
-                    (int) Math.floor(dataStore.posZ[index] / 16.0)
+                    (int) Math.floor(dataStore.posX[dirtyIndex] / 16.0),
+                    (int) Math.floor(dataStore.posZ[dirtyIndex] / 16.0)
             );
             for (ServerPlayer player : players) {
                 if (isChunkVisible(player, chunkPos)) {
-                    playerUpdateMap.computeIfAbsent(player, k -> new ObjectArrayList<>()).add(index);
+                    playerUpdateMap.computeIfAbsent(player, k -> new ObjectArrayList<>()).add(dirtyIndex);
                 }
             }
         }

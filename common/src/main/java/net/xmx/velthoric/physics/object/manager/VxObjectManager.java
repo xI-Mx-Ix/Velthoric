@@ -24,6 +24,7 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -34,6 +35,7 @@ public class VxObjectManager {
     private final VxObjectDataStore dataStore;
     private final VxPhysicsUpdater physicsUpdater;
     private final VxObjectNetworkDispatcher networkDispatcher;
+    private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue = new ConcurrentLinkedQueue<>();
 
     private final Map<UUID, VxAbstractBody> managedObjects = new ConcurrentHashMap<>();
     private final Int2ObjectMap<UUID> bodyIdToUuidMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
@@ -47,8 +49,8 @@ public class VxObjectManager {
         this.world = world;
         this.dataStore = new VxObjectDataStore();
         this.objectStorage = new VxObjectStorage(world.getLevel(), this);
-        this.physicsUpdater = new VxPhysicsUpdater(this);
-        this.networkDispatcher = new VxObjectNetworkDispatcher(world.getLevel(), this);
+        this.physicsUpdater = new VxPhysicsUpdater(this, dirtyIndicesQueue);
+        this.networkDispatcher = new VxObjectNetworkDispatcher(world.getLevel(), this, dirtyIndicesQueue);
     }
 
     public void initialize() {
@@ -138,23 +140,10 @@ public class VxObjectManager {
 
     public void onGameTick() {
         networkDispatcher.onGameTick();
-        updateObjectChunkPositions();
         getAllObjects().forEach(obj -> obj.gameTick(world.getLevel()));
     }
 
-    private void updateObjectChunkPositions() {
-        for (VxAbstractBody body : getAllObjects()) {
-            long lastKey = body.getLastKnownChunkKey();
-            long currentKey = getObjectChunkPos(body).toLong();
-
-            if (lastKey != currentKey) {
-                updateObjectTracking(body, lastKey, currentKey);
-                body.setLastKnownChunkKey(currentKey);
-            }
-        }
-    }
-
-    private void updateObjectTracking(VxAbstractBody body, long fromKey, long toKey) {
+    void updateObjectTracking(VxAbstractBody body, long fromKey, long toKey) {
         if (fromKey != Long.MAX_VALUE) {
             synchronized (objectsByChunk) {
                 List<VxAbstractBody> fromList = objectsByChunk.get(fromKey);

@@ -1,9 +1,12 @@
 package net.xmx.velthoric.physics.object.manager;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceLocking;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.core.SectionPos;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -11,11 +14,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class VxPhysicsUpdater {
 
     private final VxObjectManager manager;
     private final VxObjectDataStore dataStore;
+    private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue;
 
     private static final double POSITION_THRESHOLD_SQUARED = 0.01 * 0.01;
     private static final float ROTATION_THRESHOLD = 0.99999f;
@@ -24,24 +29,24 @@ public class VxPhysicsUpdater {
     private final ThreadLocal<Vec3> tempLinVel = ThreadLocal.withInitial(Vec3::new);
     private final ThreadLocal<Vec3> tempAngVel = ThreadLocal.withInitial(Vec3::new);
     private final ThreadLocal<Quat> tempRot = ThreadLocal.withInitial(Quat::new);
-
     private final ThreadLocal<RVec3> tempPos = ThreadLocal.withInitial(RVec3::new);
-    private final ThreadLocal<BodyIdVector> localBodyIdVector = ThreadLocal.withInitial(BodyIdVector::new);
+    private final ThreadLocal<BodyIdVector> localActiveBodyIdVector = ThreadLocal.withInitial(BodyIdVector::new);
 
-    public VxPhysicsUpdater(VxObjectManager manager) {
+    public VxPhysicsUpdater(VxObjectManager manager, ConcurrentLinkedQueue<Integer> dirtyIndicesQueue) {
         this.manager = manager;
         this.dataStore = manager.getDataStore();
+        this.dirtyIndicesQueue = dirtyIndicesQueue;
     }
 
     public void update(long timestampNanos, VxPhysicsWorld world) {
         final BodyInterface bodyInterface = world.getBodyInterface();
         final PhysicsSystem physicsSystem = world.getPhysicsSystem();
 
-        BodyIdVector allBodiesVector = localBodyIdVector.get();
-        physicsSystem.getBodies(allBodiesVector);
+        BodyIdVector activeBodiesVector = localActiveBodyIdVector.get();
+        physicsSystem.getActiveBodies(EBodyType.RigidBody, activeBodiesVector);
 
-        for (int i = 0; i < allBodiesVector.size(); i++) {
-            int bodyId = allBodiesVector.get(i);
+        for (int i = 0; i < activeBodiesVector.size(); i++) {
+            int bodyId = activeBodiesVector.get(i);
             manager.getByBodyId(bodyId).ifPresent(obj -> {
                 obj.physicsTick(world);
                 updateObjectState(obj, timestampNanos, bodyInterface, world.getBodyLockInterface());
@@ -60,6 +65,13 @@ public class VxPhysicsUpdater {
         Quat rot = tempRot.get();
 
         bodyInterface.getPositionAndRotation(bodyId, pos, rot);
+
+        long lastKey = obj.getLastKnownChunkKey();
+        long currentKey = new ChunkPos(SectionPos.posToSectionCoord(pos.x()), SectionPos.posToSectionCoord(pos.z())).toLong();
+        if (lastKey != currentKey) {
+            manager.updateObjectTracking(obj, lastKey, currentKey);
+            obj.setLastKnownChunkKey(currentKey);
+        }
 
         obj.getGameTransform().getTranslation().set(pos.x(), pos.y(), pos.z());
         obj.getGameTransform().getRotation().set(rot);
@@ -100,6 +112,7 @@ public class VxPhysicsUpdater {
             dataStore.isActive[index] = isActive;
             dataStore.lastUpdateTimestamp[index] = timestampNanos;
             dataStore.isDirty[index] = true;
+            dirtyIndicesQueue.offer(index);
         }
 
         if (obj.isDataDirty()) {
