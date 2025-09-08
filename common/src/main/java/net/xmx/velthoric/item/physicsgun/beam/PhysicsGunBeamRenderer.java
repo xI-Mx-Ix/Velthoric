@@ -119,9 +119,11 @@ public class PhysicsGunBeamRenderer {
 
             Vec3 startPoint = getGunTipPosition(player, partialTicks);
             Vec3 playerLookVec = getPlayerLookVector(player, partialTicks);
-            Vec3 traceEnd = startPoint.add(playerLookVec.scale(BEAM_MAX_LENGTH));
 
-            ClipContext clipContext = new ClipContext(startPoint, traceEnd, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player);
+            Vec3 traceStart = camera.getPosition();
+            Vec3 traceEnd = traceStart.add(playerLookVec.scale(BEAM_MAX_LENGTH));
+
+            ClipContext clipContext = new ClipContext(traceStart, traceEnd, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player);
             BlockHitResult hitResult = mc.level.clip(clipContext);
 
             Vec3 endPoint = (hitResult.getType() == HitResult.Type.MISS) ? traceEnd : hitResult.getLocation();
