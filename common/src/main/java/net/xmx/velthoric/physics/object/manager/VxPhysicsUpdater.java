@@ -43,8 +43,17 @@ public class VxPhysicsUpdater {
         final PhysicsSystem physicsSystem = world.getPhysicsSystem();
 
         BodyIdVector activeBodiesVector = localActiveBodyIdVector.get();
-        physicsSystem.getActiveBodies(EBodyType.RigidBody, activeBodiesVector);
 
+        physicsSystem.getActiveBodies(EBodyType.RigidBody, activeBodiesVector);
+        for (int i = 0; i < activeBodiesVector.size(); i++) {
+            int bodyId = activeBodiesVector.get(i);
+            manager.getByBodyId(bodyId).ifPresent(obj -> {
+                obj.physicsTick(world);
+                updateObjectState(obj, timestampNanos, bodyInterface, world.getBodyLockInterface());
+            });
+        }
+
+        physicsSystem.getActiveBodies(EBodyType.SoftBody, activeBodiesVector);
         for (int i = 0; i < activeBodiesVector.size(); i++) {
             int bodyId = activeBodiesVector.get(i);
             manager.getByBodyId(bodyId).ifPresent(obj -> {
