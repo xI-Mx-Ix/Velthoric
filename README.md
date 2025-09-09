@@ -8,12 +8,20 @@
   <img src="https://img.shields.io/badge/Environment-Client%20%26%20Server-blue" alt="Environment">
 </p>
 
-<div align="center" style="display: flex; justify-content: center; flex-wrap: wrap; gap: 12px;">
+<div align="center" style="display: flex; justify-content: center; flex-wrap: wrap; gap: 16px; margin-bottom: 12px;">
   <a href="https://fabricmc.net/"><img src="./assets/fabric_badge.png" alt="Fabric"></a>
   <a href="https://files.minecraftforge.net/"><img src="./assets/forge_badge.png" alt="Forge"></a>
   <a href="https://neoforged.net/"><img src="./assets/neoforge_badge.png" alt="NeoForge"></a>
   <a href="https://quiltmc.org/"><img src="./assets/quilt_badge.png" alt="Quilt"></a>
 </div>
+
+<div align="center" style="margin-bottom: 24px;">
+  <a href="https://docs.architectury.dev/api/introduction/">
+    <img src="./assets/architectury_api_badge.png" alt="Architectury API">
+  </a>
+</div>
+
+
 
 
 ---
@@ -56,7 +64,11 @@ Use `/vxsummon` to spawn built-in and custom physics objects:
 
 ### ⚠️ **Bug Reports & Mod Compatibility**
 
-Found a bug, crash, or an incompatible mod? Please **report it** on the [GitHub Issue Tracker](https://github.com/xI-Mx-Ix/Velthoric/issues) so we can fix it!
+Found a bug, crash, or an incompatible mod? Please **report it**.
+
+<a href="https://github.com/xI-Mx-Ix/Velthoric/issues">
+  <img src="./assets/issues_badge.png" alt="GitHub Issues">
+</a>
 
 ---
 
