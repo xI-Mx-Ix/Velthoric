@@ -19,69 +19,91 @@ import java.util.function.Supplier;
 public class SyncAllPhysicsObjectsPacket {
 
     private final List<PhysicsObjectState> decodedStates;
-    private final FriendlyByteBuf buffer;
+
+    private final FriendlyByteBuf dataBuffer;
 
     public SyncAllPhysicsObjectsPacket(List<Integer> indices, VxObjectStore dataStore) {
         this.decodedStates = null;
-        this.buffer = new FriendlyByteBuf(Unpooled.buffer(indices.size() * 80));
-        encode(this.buffer, indices, dataStore);
+        this.dataBuffer = buildPacketBuffer(indices, dataStore);
     }
 
     public SyncAllPhysicsObjectsPacket(FriendlyByteBuf buf) {
-        this.buffer = null;
+        this.dataBuffer = null;
         this.decodedStates = decode(buf);
     }
 
-    public void encode(FriendlyByteBuf buf) {
-        buf.writeBytes(this.buffer);
-    }
+    private static FriendlyByteBuf buildPacketBuffer(List<Integer> indices, VxObjectStore dataStore) {
+        FriendlyByteBuf tempPayloadBuffer = new FriendlyByteBuf(Unpooled.buffer());
+        int validObjectCount = 0;
 
-    private static void encode(FriendlyByteBuf buf, List<Integer> indices, VxObjectStore dataStore) {
-        buf.writeVarInt(indices.size());
         for (int index : indices) {
             UUID id = dataStore.getIdForIndex(index);
-            if (id == null) continue;
 
-            buf.writeUUID(id);
-            buf.writeLong(dataStore.lastUpdateTimestamp[index]);
+            if (id == null) {
+                continue;
+            }
+
+            validObjectCount++;
+            tempPayloadBuffer.writeUUID(id);
+            tempPayloadBuffer.writeLong(dataStore.lastUpdateTimestamp[index]);
             boolean isActive = dataStore.isActive[index];
-            buf.writeBoolean(isActive);
-            buf.writeEnum(dataStore.bodyType[index]);
+            tempPayloadBuffer.writeBoolean(isActive);
+            tempPayloadBuffer.writeEnum(dataStore.bodyType[index]);
 
-            buf.writeDouble(dataStore.posX[index]);
-            buf.writeDouble(dataStore.posY[index]);
-            buf.writeDouble(dataStore.posZ[index]);
-            buf.writeFloat(dataStore.rotX[index]);
-            buf.writeFloat(dataStore.rotY[index]);
-            buf.writeFloat(dataStore.rotZ[index]);
-            buf.writeFloat(dataStore.rotW[index]);
+            tempPayloadBuffer.writeDouble(dataStore.posX[index]);
+            tempPayloadBuffer.writeDouble(dataStore.posY[index]);
+            tempPayloadBuffer.writeDouble(dataStore.posZ[index]);
+            tempPayloadBuffer.writeFloat(dataStore.rotX[index]);
+            tempPayloadBuffer.writeFloat(dataStore.rotY[index]);
+            tempPayloadBuffer.writeFloat(dataStore.rotZ[index]);
+            tempPayloadBuffer.writeFloat(dataStore.rotW[index]);
 
             if (isActive) {
-
-                buf.writeFloat(dataStore.velX[index]);
-                buf.writeFloat(dataStore.velY[index]);
-                buf.writeFloat(dataStore.velZ[index]);
-
-                buf.writeFloat(dataStore.angVelX[index]);
-                buf.writeFloat(dataStore.angVelY[index]);
-                buf.writeFloat(dataStore.angVelZ[index]);
+                tempPayloadBuffer.writeFloat(dataStore.velX[index]);
+                tempPayloadBuffer.writeFloat(dataStore.velY[index]);
+                tempPayloadBuffer.writeFloat(dataStore.velZ[index]);
+                tempPayloadBuffer.writeFloat(dataStore.angVelX[index]);
+                tempPayloadBuffer.writeFloat(dataStore.angVelY[index]);
+                tempPayloadBuffer.writeFloat(dataStore.angVelZ[index]);
 
                 if (dataStore.bodyType[index] == EBodyType.SoftBody) {
                     float[] vertices = dataStore.vertexData[index];
                     boolean hasVertices = vertices != null && vertices.length > 0;
-                    buf.writeBoolean(hasVertices);
+                    tempPayloadBuffer.writeBoolean(hasVertices);
                     if (hasVertices) {
-                        buf.writeVarInt(vertices.length);
+                        tempPayloadBuffer.writeVarInt(vertices.length);
                         for (float v : vertices) {
-                            buf.writeFloat(v);
+                            tempPayloadBuffer.writeFloat(v);
                         }
                     }
                 }
             }
         }
+
+        if (validObjectCount > 0) {
+            FriendlyByteBuf finalBuffer = new FriendlyByteBuf(Unpooled.buffer());
+            finalBuffer.writeVarInt(validObjectCount);
+            finalBuffer.writeBytes(tempPayloadBuffer);
+            tempPayloadBuffer.release();
+            return finalBuffer;
+        } else {
+            tempPayloadBuffer.release();
+            return null;
+        }
+    }
+
+    public void encode(FriendlyByteBuf buf) {
+
+        if (this.dataBuffer != null && this.dataBuffer.isReadable()) {
+            buf.writeBytes(this.dataBuffer);
+        }
     }
 
     private static List<PhysicsObjectState> decode(FriendlyByteBuf buf) {
+
+        if (!buf.isReadable()) {
+            return new ArrayList<>();
+        }
         int size = buf.readVarInt();
         List<PhysicsObjectState> states = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
@@ -125,5 +147,15 @@ public class SyncAllPhysicsObjectsPacket {
                 VxClientObjectManager.getInstance().scheduleStatesForUpdate(msg.decodedStates);
             }
         });
+    }
+
+    public boolean hasData() {
+        return this.dataBuffer != null;
+    }
+
+    public void release() {
+        if (this.dataBuffer != null && this.dataBuffer.refCnt() > 0) {
+            this.dataBuffer.release();
+        }
     }
 }

@@ -1,6 +1,5 @@
 package net.xmx.velthoric.physics.object.manager;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.level.ServerChunkCache;
@@ -247,36 +246,43 @@ public class VxObjectNetworkDispatcher {
             return;
         }
 
-        Long2ObjectOpenHashMap<ObjectArrayList<Integer>> updatesByChunk = new Long2ObjectOpenHashMap<>();
+        Map<ServerPlayer, ObjectArrayList<Integer>> updatesByPlayer = new Object2ObjectOpenHashMap<>();
+
         for (int dirtyIndex : dirtyIndices) {
-            long chunkKey = new ChunkPos(
-                    (int) Math.floor(dataStore.posX[dirtyIndex] / 16.0),
-                    (int) Math.floor(dataStore.posZ[dirtyIndex] / 16.0)
-            ).toLong();
-            updatesByChunk.computeIfAbsent(chunkKey, k -> new ObjectArrayList<>()).add(dirtyIndex);
+            UUID objectId = dataStore.getIdForIndex(dirtyIndex);
+            if (objectId == null) {
+                continue;
+            }
+
+            for (ServerPlayer player : level.players()) {
+                Set<UUID> trackedByPlayer = playerTrackedObjects.get(player.getUUID());
+                if (trackedByPlayer != null && trackedByPlayer.contains(objectId)) {
+                    updatesByPlayer.computeIfAbsent(player, k -> new ObjectArrayList<>()).add(dirtyIndex);
+                }
+            }
         }
 
-        if (updatesByChunk.isEmpty()) {
+        if (updatesByPlayer.isEmpty()) {
             return;
         }
 
         level.getServer().execute(() -> {
-            ServerChunkCache chunkSource = level.getChunkSource();
-            updatesByChunk.forEach((chunkKey, indices) -> {
-                ChunkPos chunkPos = new ChunkPos(chunkKey);
-                List<ServerPlayer> playersInChunk = chunkSource.chunkMap.getPlayers(chunkPos, false);
-
-                if (playersInChunk.isEmpty()) {
+            updatesByPlayer.forEach((player, indices) -> {
+                if (player.connection == null || indices.isEmpty()) {
                     return;
                 }
 
                 for (int i = 0; i < indices.size(); i += MAX_UPDATES_PER_PACKET) {
                     int end = Math.min(i + MAX_UPDATES_PER_PACKET, indices.size());
                     List<Integer> sublist = indices.subList(i, end);
+
                     SyncAllPhysicsObjectsPacket packet = new SyncAllPhysicsObjectsPacket(sublist, dataStore);
-                    for (ServerPlayer player : playersInChunk) {
+
+                    if (packet.hasData()) {
                         NetworkHandler.sendToPlayer(packet, player);
                     }
+
+                    packet.release();
                 }
             });
         });
