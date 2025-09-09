@@ -64,7 +64,7 @@ Use `/vxsummon` to spawn built-in and custom physics objects:
 
 ### ⚠️ **Bug Reports & Mod Compatibility**
 
-Found a bug, crash, or an incompatible mod? Please **report it**.
+Found a bug, crash, or an incompatible mod? Please report it on the **issue tracker**:
 
 <a href="https://github.com/xI-Mx-Ix/Velthoric/issues">
   <img src="./assets/issues_badge.png" alt="GitHub Issues">
