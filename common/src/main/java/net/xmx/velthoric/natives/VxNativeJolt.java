@@ -24,6 +24,7 @@ public class VxNativeJolt {
         Jolt.registerDefaultAllocator();
         Jolt.installDefaultAssertCallback();
         Jolt.installDefaultTraceCallback();
+        JoltPhysicsObject.startCleaner();
 
         if (!Jolt.newFactory()) {
             throw new IllegalStateException("Jolt Factory could not be created.");
