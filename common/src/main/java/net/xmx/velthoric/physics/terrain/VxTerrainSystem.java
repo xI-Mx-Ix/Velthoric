@@ -15,10 +15,10 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.terrain.cache.TerrainShapeCache;
 import net.xmx.velthoric.physics.terrain.cache.TerrainStorage;
-import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
-import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.physics.terrain.chunk.ChunkSnapshot;
 import net.xmx.velthoric.physics.terrain.chunk.TerrainGenerator;
+import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
+import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.NotNull;
@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class VxTerrainSystem implements Runnable {
 
@@ -65,6 +66,12 @@ public class VxTerrainSystem implements Runnable {
     private static final int PRELOAD_RADIUS_CHUNKS = 3;
     private static final int ACTIVATION_RADIUS_CHUNKS = 1;
     private static final float PREDICTION_SECONDS = 0.5f;
+
+    private int objectUpdateIndex = 0;
+
+    private static final int OBJECT_PRELOAD_UPDATE_STRIDE = 250;
+
+    private static final int OBJECT_ACTIVATION_BATCH_SIZE = 100;
 
     public VxTerrainSystem(VxPhysicsWorld physicsWorld, ServerLevel level) {
         this.physicsWorld = physicsWorld;
@@ -405,18 +412,15 @@ public class VxTerrainSystem implements Runnable {
     }
 
     private void updateTrackers() {
-        Collection<VxAbstractBody> currentObjects = physicsWorld.getObjectManager().getAllObjects();
+
+        List<VxAbstractBody> currentObjects = new ArrayList<>(physicsWorld.getObjectManager().getAllObjects());
         Set<UUID> currentObjectIds = currentObjects.stream()
                 .map(VxAbstractBody::getPhysicsId)
                 .collect(Collectors.toSet());
 
         objectTrackedChunks.keySet().removeIf(id -> {
             if (!currentObjectIds.contains(id)) {
-                Set<VxSectionPos> chunksToRelease = objectTrackedChunks.get(id);
-                if (chunksToRelease != null) {
-                    chunksToRelease.forEach(this::releaseChunk);
-                }
-                objectUpdateCooldowns.remove(id);
+                removeObjectTracking(id);
                 return true;
             }
             return false;
@@ -430,90 +434,85 @@ public class VxTerrainSystem implements Runnable {
             return;
         }
 
-        List<CompletableFuture<Map<UUID, Set<VxSectionPos>>>> futures = new ArrayList<>();
-        List<VxAbstractBody> batch = new ArrayList<>();
-        for (VxAbstractBody obj : currentObjects) {
+        int objectsToUpdate = Math.min(currentObjects.size(), OBJECT_PRELOAD_UPDATE_STRIDE);
+        for (int i = 0; i < objectsToUpdate; ++i) {
+            if (objectUpdateIndex >= currentObjects.size()) {
+                objectUpdateIndex = 0;
+            }
+            VxAbstractBody obj = currentObjects.get(objectUpdateIndex++);
             if (obj.getBodyId() != 0) {
-                batch.add(obj);
-                if (batch.size() >= 100) {
-                    List<VxAbstractBody> finalBatch = new ArrayList<>(batch);
-                    futures.add(CompletableFuture.supplyAsync(() -> updateTrackerBatch(finalBatch), jobSystem.getExecutor()));
-                    batch.clear();
-                }
+                updatePreloadForObject(obj);
             } else {
                 removeObjectTracking(obj.getPhysicsId());
             }
         }
-        if (!batch.isEmpty()) {
-            List<VxAbstractBody> finalBatch = new ArrayList<>(batch);
-            futures.add(CompletableFuture.supplyAsync(() -> updateTrackerBatch(finalBatch), jobSystem.getExecutor()));
+
+        List<List<VxAbstractBody>> batches = partitionList(currentObjects, OBJECT_ACTIVATION_BATCH_SIZE);
+        List<CompletableFuture<Set<VxSectionPos>>> futures = new ArrayList<>();
+
+        for (List<VxAbstractBody> batch : batches) {
+            futures.add(CompletableFuture.supplyAsync(() -> {
+                Set<VxSectionPos> required = new HashSet<>();
+                for (VxAbstractBody obj : batch) {
+                    var body = obj.getBody();
+                    if (body != null) {
+                        calculateActivationChunksForObject(body.getWorldSpaceBounds(), body.getLinearVelocity(), required);
+                    }
+                }
+                return required;
+            }, jobSystem.getExecutor()));
         }
 
-        Map<VxSectionPos, VxTaskPriority> allRequiredChunks = new HashMap<>();
-
-        futures.stream()
+        Set<VxSectionPos> activeSet = futures.stream()
                 .map(CompletableFuture::join)
-                .forEach(resultMap -> {
-                    resultMap.forEach((id, required) -> {
-                        Set<VxSectionPos> previouslyTracked = objectTrackedChunks.computeIfAbsent(id, k -> new HashSet<>());
+                .flatMap(Set::stream)
+                .collect(Collectors.toSet());
 
-                        Set<VxSectionPos> toRelease = new HashSet<>(previouslyTracked);
-                        toRelease.removeAll(required);
-                        toRelease.forEach(this::releaseChunk);
-
-                        Set<VxSectionPos> toRequest = new HashSet<>(required);
-                        toRequest.removeAll(previouslyTracked);
-                        toRequest.forEach(this::requestChunk);
-
-                        previouslyTracked.clear();
-                        previouslyTracked.addAll(required);
-                    });
-                });
-
-        Map<VxSectionPos, VxTaskPriority> criticalChunks = new HashMap<>();
-        for (VxAbstractBody obj : currentObjects) {
-            var body = obj.getBody();
-            if (body != null) {
-                calculatePrioritiesForObject(body.getWorldSpaceBounds(), body.getLinearVelocity(), criticalChunks);
-            }
-        }
-
-        criticalChunks.forEach((pos, priority) -> prioritizeChunk(pos, priority));
-
-        Set<VxSectionPos> activeSet = criticalChunks.keySet();
+        activeSet.forEach(pos -> prioritizeChunk(pos, VxTaskPriority.CRITICAL));
 
         chunkStates.forEach((pos, state) -> {
             if (state.get() == STATE_READY_ACTIVE && !activeSet.contains(pos)) {
                 deactivateChunk(pos);
             }
         });
+
         activeSet.forEach(this::activateChunk);
     }
 
-    private Map<UUID, Set<VxSectionPos>> updateTrackerBatch(List<VxAbstractBody> objects) {
-        Map<UUID, Set<VxSectionPos>> results = new HashMap<>();
-        for(VxAbstractBody obj : objects) {
-            UUID id = obj.getPhysicsId();
-            int cooldown = objectUpdateCooldowns.getOrDefault(id, 0);
-            var body = obj.getBody();
-            if (body == null) {
-                removeObjectTracking(id);
-                continue;
-            }
-
-            Vec3 vel = body.getLinearVelocity();
-            if (cooldown > 0 && vel.lengthSq() < MAX_SPEED_FOR_COOLDOWN_SQR) {
-                objectUpdateCooldowns.put(id, cooldown - 1);
-                results.put(id, objectTrackedChunks.getOrDefault(id, Collections.emptySet()));
-                continue;
-            }
-            objectUpdateCooldowns.put(id, UPDATE_INTERVAL_TICKS);
-
-            Set<VxSectionPos> required = new HashSet<>();
-            calculateRequiredChunksForObject(body.getWorldSpaceBounds(), body.getLinearVelocity(), required);
-            results.put(id, required);
+    private void updatePreloadForObject(VxAbstractBody obj) {
+        UUID id = obj.getPhysicsId();
+        int cooldown = objectUpdateCooldowns.getOrDefault(id, 0);
+        var body = obj.getBody();
+        if (body == null) {
+            removeObjectTracking(id);
+            return;
         }
-        return results;
+
+        Vec3 vel = body.getLinearVelocity();
+        if (cooldown > 0 && vel.lengthSq() < MAX_SPEED_FOR_COOLDOWN_SQR) {
+            objectUpdateCooldowns.put(id, cooldown - 1);
+            return;
+        }
+        objectUpdateCooldowns.put(id, UPDATE_INTERVAL_TICKS);
+
+        Set<VxSectionPos> required = new HashSet<>();
+        calculateRequiredChunksForObject(body.getWorldSpaceBounds(), body.getLinearVelocity(), required);
+
+        Set<VxSectionPos> previouslyTracked = objectTrackedChunks.computeIfAbsent(id, k -> new HashSet<>());
+
+        previouslyTracked.removeIf(pos -> {
+            if (!required.contains(pos)) {
+                releaseChunk(pos);
+                return true;
+            }
+            return false;
+        });
+
+        for (VxSectionPos pos : required) {
+            if (previouslyTracked.add(pos)) {
+                requestChunk(pos);
+            }
+        }
     }
 
     private void removeObjectTracking(UUID id) {
@@ -546,8 +545,8 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
-    private void calculatePrioritiesForObject(ConstAaBox currentAabb, Vec3 velocity, Map<VxSectionPos, VxTaskPriority> outPriorities) {
-        addChunksForAabbWithPriority(currentAabb, ACTIVATION_RADIUS_CHUNKS, VxTaskPriority.CRITICAL, outPriorities);
+    private void calculateActivationChunksForObject(ConstAaBox currentAabb, Vec3 velocity, Set<VxSectionPos> outChunks) {
+        addChunksForAabb(currentAabb, ACTIVATION_RADIUS_CHUNKS, outChunks);
 
         Vec3 tempDisplacement = new Vec3(velocity);
         RVec3 tempRVec3Min = new RVec3(currentAabb.getMin());
@@ -564,7 +563,7 @@ public class VxTerrainSystem implements Runnable {
             predictedAabb.setMin(tempVec3Min);
             predictedAabb.setMax(tempVec3Max);
 
-            addChunksForAabbWithPriority(predictedAabb, ACTIVATION_RADIUS_CHUNKS, VxTaskPriority.CRITICAL, outPriorities);
+            addChunksForAabb(predictedAabb, ACTIVATION_RADIUS_CHUNKS, outChunks);
         }
     }
 
@@ -607,6 +606,16 @@ public class VxTerrainSystem implements Runnable {
                 }
             }
         }
+    }
+
+    private static <T> List<List<T>> partitionList(List<T> list, int batchSize) {
+        if (list.isEmpty()) {
+            return Collections.emptyList();
+        }
+        int numBatches = (int) Math.ceil((double) list.size() / (double) batchSize);
+        return IntStream.range(0, numBatches)
+                .mapToObj(i -> list.subList(i * batchSize, Math.min((i + 1) * batchSize, list.size())))
+                .collect(Collectors.toList());
     }
 
     private AtomicInteger getState(VxSectionPos pos) {
