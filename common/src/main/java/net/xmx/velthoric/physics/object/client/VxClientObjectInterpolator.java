@@ -63,6 +63,11 @@ public class VxClientObjectInterpolator {
     }
 
     private void calculateInterpolatedState(VxClientObjectStore store, int i, long renderTimestamp) {
+        if (!store.state1_isActive[i]) {
+            setRenderStateToLatest(store, i);
+            return;
+        }
+
         long fromTime = store.state0_timestamp[i];
         long toTime = store.state1_timestamp[i];
 

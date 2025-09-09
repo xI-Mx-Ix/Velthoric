@@ -21,12 +21,14 @@ public class VxClientObjectStore extends AbstractDataStore {
     public float[] state0_posX, state0_posY, state0_posZ;
     public float[] state0_rotX, state0_rotY, state0_rotZ, state0_rotW;
     public float[] state0_velX, state0_velY, state0_velZ;
+    public boolean[] state0_isActive;
     public float[] @Nullable [] state0_vertexData;
 
     public long[] state1_timestamp;
     public float[] state1_posX, state1_posY, state1_posZ;
     public float[] state1_rotX, state1_rotY, state1_rotZ, state1_rotW;
     public float[] state1_velX, state1_velY, state1_velZ;
+    public boolean[] state1_isActive;
     public float[] @Nullable [] state1_vertexData;
 
     public float[] prev_posX, prev_posY, prev_posZ;
@@ -59,6 +61,7 @@ public class VxClientObjectStore extends AbstractDataStore {
         state0_velX = grow(state0_velX, newCapacity);
         state0_velY = grow(state0_velY, newCapacity);
         state0_velZ = grow(state0_velZ, newCapacity);
+        state0_isActive = grow(state0_isActive, newCapacity);
         state0_vertexData = grow(state0_vertexData, newCapacity);
 
         state1_timestamp = grow(state1_timestamp, newCapacity);
@@ -72,6 +75,7 @@ public class VxClientObjectStore extends AbstractDataStore {
         state1_velX = grow(state1_velX, newCapacity);
         state1_velY = grow(state1_velY, newCapacity);
         state1_velZ = grow(state1_velZ, newCapacity);
+        state1_isActive = grow(state1_isActive, newCapacity);
         state1_vertexData = grow(state1_vertexData, newCapacity);
 
         prev_posX = grow(prev_posX, newCapacity);
@@ -154,6 +158,8 @@ public class VxClientObjectStore extends AbstractDataStore {
         state0_timestamp[index] = 0;
         state1_timestamp[index] = 0;
         render_isInitialized[index] = false;
+        state0_isActive[index] = false;
+        state1_isActive[index] = false;
         state0_vertexData[index] = null;
         state1_vertexData[index] = null;
         prev_vertexData[index] = null;

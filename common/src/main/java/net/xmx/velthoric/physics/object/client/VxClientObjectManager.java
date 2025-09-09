@@ -105,6 +105,7 @@ public class VxClientObjectManager {
         store.state0_velX[index] = store.state1_velX[index];
         store.state0_velY[index] = store.state1_velY[index];
         store.state0_velZ[index] = store.state1_velZ[index];
+        store.state0_isActive[index] = store.state1_isActive[index];
         store.state0_vertexData[index] = store.state1_vertexData[index];
 
         store.state1_timestamp[index] = state.getTimestamp();
@@ -118,10 +119,18 @@ public class VxClientObjectManager {
         store.state1_rotZ[index] = rot.getZ();
         store.state1_rotW[index] = rot.getW();
 
-        com.github.stephengold.joltjni.Vec3 linVel = state.getLinearVelocity();
-        store.state1_velX[index] = linVel.getX();
-        store.state1_velY[index] = linVel.getY();
-        store.state1_velZ[index] = linVel.getZ();
+        store.state1_isActive[index] = state.isActive();
+
+        if (store.state1_isActive[index]) {
+            com.github.stephengold.joltjni.Vec3 linVel = state.getLinearVelocity();
+            store.state1_velX[index] = linVel.getX();
+            store.state1_velY[index] = linVel.getY();
+            store.state1_velZ[index] = linVel.getZ();
+        } else {
+            store.state1_velX[index] = 0.0f;
+            store.state1_velY[index] = 0.0f;
+            store.state1_velZ[index] = 0.0f;
+        }
 
         float[] newVertices = state.getSoftBodyVertices();
         store.state1_vertexData[index] = newVertices;
@@ -156,6 +165,7 @@ public class VxClientObjectManager {
         store.state0_velX[index] = store.state1_velX[index] = velX;
         store.state0_velY[index] = store.state1_velY[index] = velY;
         store.state0_velZ[index] = store.state1_velZ[index] = velZ;
+        store.state0_isActive[index] = store.state1_isActive[index] = true;
 
         store.render_posX[index] = pos.x();
         store.render_posY[index] = pos.y();
