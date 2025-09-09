@@ -8,20 +8,12 @@
   <img src="https://img.shields.io/badge/Environment-Client%20%26%20Server-blue" alt="Environment">
 </p>
 
-<p align="center">
-  <a href="https://fabricmc.net/">
-    <img src="./assets/fabric_badge.png" alt="Fabric">
-  </a>&nbsp;&nbsp;&nbsp;
-  <a href="https://files.minecraftforge.net/">
-    <img src="./assets/forge_badge.png" alt="Forge">
-  </a>&nbsp;&nbsp;&nbsp;
-  <a href="https://neoforged.net/">
-    <img src="./assets/neoforge_badge.png" alt="NeoForge">
-  </a>&nbsp;&nbsp;&nbsp;
-  <a href="https://quiltmc.org/">
-    <img src="./assets/quilt_badge.png" alt="Quilt">
-  </a>
-</p>
+<div align="center" style="display: flex; justify-content: center; flex-wrap: wrap; gap: 12px;">
+  <a href="https://fabricmc.net/"><img src="./assets/fabric_badge.png" alt="Fabric"></a>
+  <a href="https://files.minecraftforge.net/"><img src="./assets/forge_badge.png" alt="Forge"></a>
+  <a href="https://neoforged.net/"><img src="./assets/neoforge_badge.png" alt="NeoForge"></a>
+  <a href="https://quiltmc.org/"><img src="./assets/quilt_badge.png" alt="Quilt"></a>
+</div>
 
 
 ---
