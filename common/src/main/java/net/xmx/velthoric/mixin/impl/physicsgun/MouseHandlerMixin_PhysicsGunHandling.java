@@ -45,16 +45,16 @@ public class MouseHandlerMixin_PhysicsGunHandling {
 
         if (!isHoldingGun) {
             if (clientManager.isTryingToGrab(player)) {
-                clientManager.stopGrabAttempt(player);
+                clientManager.stopGrabAttempt();
             }
             return;
         }
 
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             if (action == GLFW.GLFW_PRESS) {
-                clientManager.startGrabAttempt(player);
+                clientManager.startGrabAttempt();
             } else if (action == GLFW.GLFW_RELEASE) {
-                clientManager.stopGrabAttempt(player);
+                clientManager.stopGrabAttempt();
             }
         }
 

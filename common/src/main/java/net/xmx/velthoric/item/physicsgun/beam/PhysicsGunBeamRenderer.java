@@ -21,6 +21,7 @@ import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
 import org.joml.Matrix4f;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -42,9 +43,7 @@ public class PhysicsGunBeamRenderer {
         if (event.getStage() != VxRenderEvent.ClientRenderLevelStageEvent.Stage.AFTER_ENTITIES) return;
         Minecraft mc = Minecraft.getInstance();
         Player localPlayer = mc.player;
-        if (localPlayer == null || mc.level == null) {
-            return;
-        }
+        if (localPlayer == null || mc.level == null) return;
 
         var poseStack = event.getPoseStack();
         float partialTicks = event.getPartialTick();
@@ -80,9 +79,7 @@ public class PhysicsGunBeamRenderer {
             if (player == null) continue;
 
             Integer index = store.getIndexForId(objectUuid);
-            if (index == null || !store.render_isInitialized[index] || store.objectType[index] != EBodyType.RigidBody) {
-                continue;
-            }
+            if (index == null || !store.render_isInitialized[index] || store.objectType[index] != EBodyType.RigidBody) continue;
 
             interpolator.interpolateFrame(store, index, partialTicks, INTERPOLATED_POSITION, INTERPOLATED_ROTATION);
 
@@ -92,9 +89,7 @@ public class PhysicsGunBeamRenderer {
             Vec3 localHitPoint = grabData.localHitPoint();
 
             com.github.stephengold.joltjni.Vec3 localHitJolt = new com.github.stephengold.joltjni.Vec3(
-                    (float) localHitPoint.x(),
-                    (float) localHitPoint.y(),
-                    (float) localHitPoint.z()
+                    (float) localHitPoint.x(), (float) localHitPoint.y(), (float) localHitPoint.z()
             );
 
             com.github.stephengold.joltjni.Vec3 rotatedOffset = com.github.stephengold.joltjni.operator.Op.star(rotation, localHitJolt);
@@ -110,23 +105,26 @@ public class PhysicsGunBeamRenderer {
 
         Set<UUID> playersTryingToGrab = clientManager.getPlayersTryingToGrab();
         for (UUID playerUuid : playersTryingToGrab) {
-            if (activeGrabs.containsKey(playerUuid)) {
-                continue;
-            }
+            if (activeGrabs.containsKey(playerUuid)) continue;
 
             Player player = mc.level.getPlayerByUUID(playerUuid);
             if (player == null) continue;
 
             Vec3 startPoint = getGunTipPosition(player, partialTicks);
             Vec3 playerLookVec = getPlayerLookVector(player, partialTicks);
+            Vec3 traceStart = player.getEyePosition(partialTicks);
 
-            Vec3 traceStart = camera.getPosition();
-            Vec3 traceEnd = traceStart.add(playerLookVec.scale(BEAM_MAX_LENGTH));
+            Optional<Vec3> physicsHitPoint = raycastClientPhysicsObjects(traceStart, playerLookVec, BEAM_MAX_LENGTH, store, interpolator, partialTicks);
 
-            ClipContext clipContext = new ClipContext(traceStart, traceEnd, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player);
-            BlockHitResult hitResult = mc.level.clip(clipContext);
-
-            Vec3 endPoint = (hitResult.getType() == HitResult.Type.MISS) ? traceEnd : hitResult.getLocation();
+            Vec3 endPoint;
+            if (physicsHitPoint.isPresent()) {
+                endPoint = physicsHitPoint.get();
+            } else {
+                Vec3 traceEnd = traceStart.add(playerLookVec.scale(BEAM_MAX_LENGTH));
+                ClipContext clipContext = new ClipContext(traceStart, traceEnd, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player);
+                BlockHitResult blockHitResult = mc.level.clip(clipContext);
+                endPoint = (blockHitResult.getType() == HitResult.Type.MISS) ? traceEnd : blockHitResult.getLocation();
+            }
 
             bufferBuilder.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
             drawThickCurvedBeam(bufferBuilder, matrix, camPos, startPoint, endPoint, playerLookVec);
@@ -136,6 +134,44 @@ public class PhysicsGunBeamRenderer {
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
         poseStack.popPose();
+    }
+
+    private static Optional<Vec3> raycastClientPhysicsObjects(Vec3 rayOrigin, Vec3 rayDirection, float maxDistance, VxClientObjectStore store, VxClientObjectInterpolator interpolator, float partialTicks) {
+        double closestHitDist = maxDistance;
+        Vec3 hitPoint = null;
+
+        final double OBJECT_RADIUS = 1.5;
+        final double OBJECT_RADIUS_SQR = OBJECT_RADIUS * OBJECT_RADIUS;
+
+        RVec3 tempPos = new RVec3();
+        Quat tempRot = new Quat();
+
+        for (UUID id : store.getAllObjectIds()) {
+            Integer i = store.getIndexForId(id);
+            if (i == null || !store.render_isInitialized[i]) {
+                continue;
+            }
+
+            interpolator.interpolateFrame(store, i, partialTicks, tempPos, tempRot);
+            Vec3 objectCenter = new Vec3(tempPos.xx(), tempPos.yy(), tempPos.zz());
+            Vec3 originToCenter = objectCenter.subtract(rayOrigin);
+            double t = originToCenter.dot(rayDirection);
+
+            if (t < 0 || t > closestHitDist) {
+                continue;
+            }
+
+            double d2 = originToCenter.lengthSqr() - t * t;
+
+            if (d2 < OBJECT_RADIUS_SQR) {
+                double t_hit = t - Math.sqrt(OBJECT_RADIUS_SQR - d2);
+                if (t_hit < closestHitDist && t_hit >= 0) {
+                    closestHitDist = t_hit;
+                    hitPoint = rayOrigin.add(rayDirection.scale(closestHitDist));
+                }
+            }
+        }
+        return Optional.ofNullable(hitPoint);
     }
 
     private static void drawThickCurvedBeam(BufferBuilder bufferBuilder, Matrix4f matrix, Vec3 camPos, Vec3 start, Vec3 end, Vec3 playerLookVec) {
@@ -161,9 +197,8 @@ public class PhysicsGunBeamRenderer {
                 segmentDir = playerLookVec;
             }
             Vec3 side = segmentDir.cross(viewDir).normalize().scale(BEAM_WIDTH / 2.0);
-            float alpha = baseAlpha;
-            bufferBuilder.vertex(matrix, (float) (currentPos.x + side.x), (float) (currentPos.y + side.y), (float) (currentPos.z + side.z)).color(r, g, b, alpha).endVertex();
-            bufferBuilder.vertex(matrix, (float) (currentPos.x - side.x), (float) (currentPos.y - side.y), (float) (currentPos.z - side.z)).color(r, g, b, alpha).endVertex();
+            bufferBuilder.vertex(matrix, (float) (currentPos.x + side.x), (float) (currentPos.y + side.y), (float) (currentPos.z + side.z)).color(r, g, b, baseAlpha).endVertex();
+            bufferBuilder.vertex(matrix, (float) (currentPos.x - side.x), (float) (currentPos.y - side.y), (float) (currentPos.z - side.z)).color(r, g, b, baseAlpha).endVertex();
             lastPos = currentPos;
         }
     }
@@ -183,10 +218,7 @@ public class PhysicsGunBeamRenderer {
 
     private static Vec3 getPlayerLookVector(Player player, float partialTicks) {
         Minecraft mc = Minecraft.getInstance();
-        boolean isLocalPlayer = player.is(mc.player);
-        boolean isFirstPerson = mc.options.getCameraType().isFirstPerson();
-
-        if (isLocalPlayer && isFirstPerson) {
+        if (player.is(mc.player) && mc.options.getCameraType().isFirstPerson()) {
             Camera camera = mc.gameRenderer.getMainCamera();
             org.joml.Vector3f lookVector = camera.getLookVector();
             return new Vec3(lookVector.x(), lookVector.y(), lookVector.z());
@@ -197,20 +229,13 @@ public class PhysicsGunBeamRenderer {
 
     private static Vec3 getGunTipPosition(Player player, float partialTicks) {
         Minecraft mc = Minecraft.getInstance();
-        boolean isLocalPlayer = player.is(mc.player);
-        boolean isFirstPerson = mc.options.getCameraType().isFirstPerson();
-
-        if (isLocalPlayer && isFirstPerson) {
+        if (player.is(mc.player) && mc.options.getCameraType().isFirstPerson()) {
             Camera camera = mc.gameRenderer.getMainCamera();
-
             org.joml.Vector3f lookVector = camera.getLookVector();
             Vec3 camForward = new Vec3(lookVector.x(), lookVector.y(), lookVector.z());
-
             org.joml.Vector3f upVector = camera.getUpVector();
             Vec3 camUp = new Vec3(upVector.x(), upVector.y(), upVector.z());
-
             Vec3 camRight = camForward.cross(camUp).normalize();
-
             return camera.getPosition()
                     .add(camForward.scale(0.5))
                     .add(camRight.scale(0.3))
@@ -220,7 +245,6 @@ public class PhysicsGunBeamRenderer {
             Vec3 lookVec = player.getViewVector(partialTicks);
             Vec3 upVec = player.getUpVector(partialTicks);
             Vec3 rightVec = lookVec.cross(upVec).normalize();
-
             return eyePos
                     .add(lookVec.scale(0.3))
                     .add(rightVec.scale(-0.35))

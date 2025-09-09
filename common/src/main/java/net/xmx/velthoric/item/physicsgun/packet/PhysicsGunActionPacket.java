@@ -43,32 +43,22 @@ public class PhysicsGunActionPacket {
 
     public static void encode(PhysicsGunActionPacket msg, FriendlyByteBuf buf) {
         buf.writeEnum(msg.actionType);
-        switch (msg.actionType) {
-            case UPDATE_SCROLL:
-                buf.writeFloat(msg.value1);
-                break;
-            case UPDATE_ROTATION:
-                buf.writeFloat(msg.value1);
-                buf.writeFloat(msg.value2);
-                break;
-            default:
-                break;
+        if (msg.actionType == ActionType.UPDATE_SCROLL) {
+            buf.writeFloat(msg.value1);
+        } else if (msg.actionType == ActionType.UPDATE_ROTATION) {
+            buf.writeFloat(msg.value1);
+            buf.writeFloat(msg.value2);
         }
     }
 
     public static PhysicsGunActionPacket decode(FriendlyByteBuf buf) {
         ActionType actionType = buf.readEnum(ActionType.class);
         float value1 = 0, value2 = 0;
-        switch (actionType) {
-            case UPDATE_SCROLL:
-                value1 = buf.readFloat();
-                break;
-            case UPDATE_ROTATION:
-                value1 = buf.readFloat();
-                value2 = buf.readFloat();
-                break;
-            default:
-                break;
+        if (actionType == ActionType.UPDATE_SCROLL) {
+            value1 = buf.readFloat();
+        } else if (actionType == ActionType.UPDATE_ROTATION) {
+            value1 = buf.readFloat();
+            value2 = buf.readFloat();
         }
         return new PhysicsGunActionPacket(actionType, value1, value2);
     }
@@ -80,7 +70,6 @@ public class PhysicsGunActionPacket {
             if (player == null) return;
 
             PhysicsGunServerManager manager = PhysicsGunServerManager.getInstance();
-
             switch (msg.actionType) {
                 case START_GRAB_ATTEMPT -> manager.startGrabAttempt(player);
                 case STOP_GRAB_ATTEMPT -> manager.stopGrabAttempt(player);

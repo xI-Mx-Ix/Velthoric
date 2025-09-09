@@ -3,18 +3,8 @@ package net.xmx.velthoric.item.physicsgun.event;
 import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.init.registry.ItemRegistry;
-import net.xmx.velthoric.item.physicsgun.GrabbedObjectInfo;
-import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunClientManager;
 import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunServerManager;
-import net.xmx.velthoric.item.physicsgun.packet.SyncAllPhysicsGunGrabsPacket;
-import net.xmx.velthoric.item.physicsgun.packet.SyncPlayersTryingToGrabPacket;
-import net.xmx.velthoric.network.NetworkHandler;
-
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 public class PhysicsGunEvents {
 
@@ -38,38 +28,21 @@ public class PhysicsGunEvents {
                     manager.startGrab(player);
                 }
             } else {
-                manager.stopGrabAttempt(player);
+
+                if (manager.isTryingToGrab(player) || manager.isGrabbing(player)) {
+                    manager.stopGrabAttempt(player);
+                }
             }
         }
     }
 
     private static void onPlayerJoin(ServerPlayer newPlayer) {
-        PhysicsGunServerManager manager = PhysicsGunServerManager.getInstance();
 
-        Map<UUID, PhysicsGunClientManager.ClientGrabData> grabsForPacket = manager.getGrabbedObjects().entrySet().stream()
-                .collect(Collectors.toConcurrentMap(
-                        Map.Entry::getKey,
-                        entry -> {
-                            GrabbedObjectInfo info = entry.getValue();
-                            Vec3 localHitPoint = new Vec3(
-                                    info.grabPointLocal().getX(),
-                                    info.grabPointLocal().getY(),
-                                    info.grabPointLocal().getZ()
-                            );
-                            return new PhysicsGunClientManager.ClientGrabData(info.objectId(), localHitPoint);
-                        }
-                ));
-
-        if (!grabsForPacket.isEmpty()) {
-            NetworkHandler.sendToPlayer(new SyncAllPhysicsGunGrabsPacket(grabsForPacket), newPlayer);
-        }
-
-        if (!manager.getPlayersTryingToGrab().isEmpty()) {
-            NetworkHandler.sendToPlayer(new SyncPlayersTryingToGrabPacket(manager.getPlayersTryingToGrab()), newPlayer);
-        }
+        PhysicsGunServerManager.getInstance().syncStateForNewPlayer(newPlayer);
     }
 
     private static void onPlayerQuit(ServerPlayer player) {
+
         PhysicsGunServerManager.getInstance().stopGrabAttempt(player);
     }
 }

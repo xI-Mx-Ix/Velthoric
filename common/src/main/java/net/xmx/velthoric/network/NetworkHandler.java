@@ -44,31 +44,10 @@ public class NetworkHandler {
         );
 
         registerPacket(
-                PlayerTryingStatePacket.class,
-                PlayerTryingStatePacket::encode,
-                PlayerTryingStatePacket::decode,
-                PlayerTryingStatePacket::handle
-        );
-
-        registerPacket(
-                SyncPlayersTryingToGrabPacket.class,
-                SyncPlayersTryingToGrabPacket::encode,
-                SyncPlayersTryingToGrabPacket::decode,
-                SyncPlayersTryingToGrabPacket::handle
-        );
-
-        registerPacket(
-                PhysicsGunStatePacket.class,
-                PhysicsGunStatePacket::encode,
-                PhysicsGunStatePacket::decode,
-                PhysicsGunStatePacket::handle
-        );
-
-        registerPacket(
-                SyncAllPhysicsGunGrabsPacket.class,
-                SyncAllPhysicsGunGrabsPacket::encode,
-                SyncAllPhysicsGunGrabsPacket::decode,
-                SyncAllPhysicsGunGrabsPacket::handle
+                PhysicsGunSyncPacket.class,
+                PhysicsGunSyncPacket::encode,
+                PhysicsGunSyncPacket::decode,
+                PhysicsGunSyncPacket::handle
         );
 
         registerPacket(

@@ -4,7 +4,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.item.physicsgun.packet.PhysicsGunActionPacket;
 import net.xmx.velthoric.network.NetworkHandler;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.Set;
@@ -19,7 +18,6 @@ public class PhysicsGunClientManager {
 
     private final Map<UUID, ClientGrabData> activeGrabs = new ConcurrentHashMap<>();
     private final Set<UUID> playersTryingToGrab = ConcurrentHashMap.newKeySet();
-
     private boolean rotationMode = false;
 
     private PhysicsGunClientManager() {}
@@ -28,43 +26,37 @@ public class PhysicsGunClientManager {
         return INSTANCE;
     }
 
-    public void startGrabAttempt(Player player) {
+    public void startGrabAttempt() {
         NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.START_GRAB_ATTEMPT));
     }
 
-    public void stopGrabAttempt(Player player) {
+    public void stopGrabAttempt() {
         NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_GRAB_ATTEMPT));
         this.setRotationMode(false);
     }
 
-    public boolean isTryingToGrab(Player player) {
-        return playersTryingToGrab.contains(player.getUUID());
-    }
-
-    public Set<UUID> getPlayersTryingToGrab() {
-        return playersTryingToGrab;
-    }
-
-    public void updateGrabState(UUID playerUuid, @Nullable UUID objectUuid, @Nullable Vec3 localHitPoint) {
-        if (objectUuid == null || localHitPoint == null) {
-            activeGrabs.remove(playerUuid);
-        } else {
-            activeGrabs.put(playerUuid, new ClientGrabData(objectUuid, localHitPoint));
-            playersTryingToGrab.remove(playerUuid);
-        }
-    }
-
-    public void setFullGrabState(Map<UUID, ClientGrabData> allGrabs) {
+    public void updateState(Map<UUID, ClientGrabData> newActiveGrabs, Set<UUID> newPlayersTryingToGrab) {
         activeGrabs.clear();
-        activeGrabs.putAll(allGrabs);
+        activeGrabs.putAll(newActiveGrabs);
+
+        playersTryingToGrab.clear();
+        playersTryingToGrab.addAll(newPlayersTryingToGrab);
     }
 
     public boolean isGrabbing(Player player) {
         return activeGrabs.containsKey(player.getUUID());
     }
 
+    public boolean isTryingToGrab(Player player) {
+        return playersTryingToGrab.contains(player.getUUID());
+    }
+
     public Map<UUID, ClientGrabData> getActiveGrabs() {
         return activeGrabs;
+    }
+
+    public Set<UUID> getPlayersTryingToGrab() {
+        return playersTryingToGrab;
     }
 
     public boolean isRotationMode() {
