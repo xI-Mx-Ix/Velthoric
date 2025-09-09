@@ -26,7 +26,7 @@ public class VxObjectNetworkDispatcher {
 
     private final ServerLevel level;
     private final VxObjectManager manager;
-    private final VxObjectDataStore dataStore;
+    private final VxObjectStore dataStore;
     private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue;
     private static final int MAX_PACKET_PAYLOAD_SIZE = 128 * 1024;
     private static final int NETWORK_THREAD_TICK_RATE_MS = 10;

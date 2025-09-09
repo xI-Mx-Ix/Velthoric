@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class VxPhysicsUpdater {
 
     private final VxObjectManager manager;
-    private final VxObjectDataStore dataStore;
+    private final VxObjectStore dataStore;
     private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue;
 
     private static final double POSITION_THRESHOLD_SQUARED = 0.01 * 0.01;

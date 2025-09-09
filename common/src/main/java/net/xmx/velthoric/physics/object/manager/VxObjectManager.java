@@ -32,7 +32,7 @@ public class VxObjectManager {
 
     private final VxPhysicsWorld world;
     private final VxObjectStorage objectStorage;
-    private final VxObjectDataStore dataStore;
+    private final VxObjectStore dataStore;
     private final VxPhysicsUpdater physicsUpdater;
     private final VxObjectNetworkDispatcher networkDispatcher;
     private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue = new ConcurrentLinkedQueue<>();
@@ -47,7 +47,7 @@ public class VxObjectManager {
 
     public VxObjectManager(VxPhysicsWorld world) {
         this.world = world;
-        this.dataStore = new VxObjectDataStore();
+        this.dataStore = new VxObjectStore();
         this.objectStorage = new VxObjectStorage(world.getLevel(), this);
         this.physicsUpdater = new VxPhysicsUpdater(this, dirtyIndicesQueue);
         this.networkDispatcher = new VxObjectNetworkDispatcher(world.getLevel(), this, dirtyIndicesQueue);
@@ -407,7 +407,7 @@ public class VxObjectManager {
         return world;
     }
 
-    public VxObjectDataStore getDataStore() {
+    public VxObjectStore getDataStore() {
         return dataStore;
     }
 

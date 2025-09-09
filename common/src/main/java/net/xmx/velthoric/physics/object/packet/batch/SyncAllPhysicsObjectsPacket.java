@@ -7,7 +7,7 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
+import net.xmx.velthoric.physics.object.manager.VxObjectStore;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectState;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
 
@@ -21,7 +21,7 @@ public class SyncAllPhysicsObjectsPacket {
     private final List<PhysicsObjectState> decodedStates;
     private final FriendlyByteBuf buffer;
 
-    public SyncAllPhysicsObjectsPacket(List<Integer> indices, VxObjectDataStore dataStore) {
+    public SyncAllPhysicsObjectsPacket(List<Integer> indices, VxObjectStore dataStore) {
         this.decodedStates = null;
         this.buffer = new FriendlyByteBuf(Unpooled.buffer(indices.size() * 80));
         encode(this.buffer, indices, dataStore);
@@ -36,7 +36,7 @@ public class SyncAllPhysicsObjectsPacket {
         buf.writeBytes(this.buffer);
     }
 
-    private static void encode(FriendlyByteBuf buf, List<Integer> indices, VxObjectDataStore dataStore) {
+    private static void encode(FriendlyByteBuf buf, List<Integer> indices, VxObjectStore dataStore) {
         buf.writeVarInt(indices.size());
         for (int index : indices) {
             UUID id = dataStore.getIdForIndex(index);

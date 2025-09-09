@@ -1,11 +1,12 @@
 package net.xmx.velthoric.physics.object.manager;
 
 import com.github.stephengold.joltjni.enumerate.EBodyType;
+import net.xmx.velthoric.physics.object.AbstractDataStore;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-public class VxObjectDataStore {
+public class VxObjectStore extends AbstractDataStore {
     private static final int INITIAL_CAPACITY = 256;
 
     private final Map<UUID, Integer> uuidToIndex = new HashMap<>();
@@ -27,7 +28,7 @@ public class VxObjectDataStore {
     public boolean[] isDirty;
     public long[] lastUpdateTimestamp;
 
-    public VxObjectDataStore() {
+    public VxObjectStore() {
         allocate(INITIAL_CAPACITY);
     }
 
@@ -67,7 +68,7 @@ public class VxObjectDataStore {
         } else {
             indexToUuid.set(index, id);
         }
-        
+
         bodyType[index] = type;
         return index;
     }
@@ -95,7 +96,7 @@ public class VxObjectDataStore {
     public Integer getIndexForId(UUID id) {
         return uuidToIndex.get(id);
     }
-    
+
     @Nullable
     public UUID getIdForIndex(int index) {
         if (index < 0 || index >= indexToUuid.size()) {
@@ -107,7 +108,7 @@ public class VxObjectDataStore {
     public int getObjectCount() {
         return this.count - freeIndices.size();
     }
-    
+
     public int getCapacity() {
         return this.capacity;
     }
@@ -123,30 +124,5 @@ public class VxObjectDataStore {
         bodyType[index] = null;
         isDirty[index] = false;
         lastUpdateTimestamp[index] = 0L;
-    }
-
-    private long[] grow(long[] src, int size) {
-        if (src == null) return new long[size];
-        return Arrays.copyOf(src, size);
-    }
-
-    private float[] grow(float[] src, int size) {
-        if (src == null) return new float[size];
-        return Arrays.copyOf(src, size);
-    }
-
-    private boolean[] grow(boolean[] src, int size) {
-        if (src == null) return new boolean[size];
-        return Arrays.copyOf(src, size);
-    }
-
-    private float[][] grow(float[][] src, int size) {
-        if (src == null) return new float[size][];
-        return Arrays.copyOf(src, size);
-    }
-
-    private EBodyType[] grow(EBodyType[] src, int size) {
-        if (src == null) return new EBodyType[size];
-        return Arrays.copyOf(src, size);
     }
 }
