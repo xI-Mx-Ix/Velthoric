@@ -13,6 +13,7 @@ import java.util.UUID;
 public class BoxRigidPhysicsObject extends VxRigidBody {
 
     private Vec3 halfExtents;
+    private int color = 0xFFFFFFFF;
 
     public BoxRigidPhysicsObject(VxObjectType<BoxRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
@@ -26,6 +27,15 @@ public class BoxRigidPhysicsObject extends VxRigidBody {
 
     public Vec3 getHalfExtents() {
         return halfExtents;
+    }
+
+    public void setColor(int color) {
+        this.color = color;
+        this.markDataDirty();
+    }
+
+    public int getColor() {
+        return color;
     }
 
     @Override
@@ -49,10 +59,12 @@ public class BoxRigidPhysicsObject extends VxRigidBody {
     @Override
     public void writeCreationData(VxByteBuf buf) {
         buf.writeVec3(halfExtents);
+        buf.writeInt(color);
     }
 
     @Override
     public void readCreationData(VxByteBuf buf) {
         this.halfExtents = buf.readVec3();
+        this.color = buf.readInt();
     }
 }

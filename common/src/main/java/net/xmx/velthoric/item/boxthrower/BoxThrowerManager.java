@@ -1,16 +1,15 @@
 package net.xmx.velthoric.item.boxthrower;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.builtin.VxRegisteredObjects;
-import net.xmx.velthoric.builtin.box.BoxRigidPhysicsObject;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -20,12 +19,11 @@ public class BoxThrowerManager {
     private static final BoxThrowerManager INSTANCE = new BoxThrowerManager();
     private final Map<UUID, Boolean> shootingPlayers = new ConcurrentHashMap<>();
 
-    private static final int BOXES_PER_TICK = 10;
-    private static final float SPREAD_AMOUNT = 0.8f;
-
-    private static final float BOX_SIZE = 0.75f;
-    private static final float SHOOT_SPEED = 10f;
+    private static final int BOXES_PER_TICK = 5;
+    private static final float SHOOT_SPEED = 40f;
     private static final float SPAWN_OFFSET = 1.5f;
+    private static final float MIN_BOX_SIZE = 0.4f;
+    private static final float MAX_BOX_SIZE = 1.2f;
 
     private BoxThrowerManager() {}
 
@@ -38,7 +36,7 @@ public class BoxThrowerManager {
     }
 
     public void stopShooting(ServerPlayer player) {
-        shootingPlayers.put(player.getUUID(), false);
+        shootingPlayers.remove(player.getUUID());
     }
 
     public boolean isShooting(ServerPlayer player) {
@@ -52,70 +50,46 @@ public class BoxThrowerManager {
             return;
         }
 
-        for (int i = 0; i < BOXES_PER_TICK; i++) {
-            spawnSingleBox(player, physicsWorld);
-        }
+        physicsWorld.execute(() -> {
+            for (int i = 0; i < BOXES_PER_TICK; i++) {
+                spawnAndLaunchSingleBox(player, physicsWorld);
+            }
+        });
     }
 
-    private void spawnSingleBox(ServerPlayer player, VxPhysicsWorld physicsWorld) {
-
-        Vec3 eyePos = player.getEyePosition();
-        Vec3 lookVec = player.getLookAngle();
+    private void spawnAndLaunchSingleBox(ServerPlayer player, VxPhysicsWorld physicsWorld) {
+        net.minecraft.world.phys.Vec3 eyePos = player.getEyePosition();
+        net.minecraft.world.phys.Vec3 lookVec = player.getLookAngle();
         var random = ThreadLocalRandom.current();
 
-        double randomOffsetX = (random.nextDouble() - 0.5) * SPREAD_AMOUNT;
-        double randomOffsetY = (random.nextDouble() - 0.5) * SPREAD_AMOUNT;
-        double randomOffsetZ = (random.nextDouble() - 0.5) * SPREAD_AMOUNT;
+        net.minecraft.world.phys.Vec3 spawnPosMc = eyePos.add(lookVec.scale(SPAWN_OFFSET));
+        VxTransform transform = new VxTransform(new RVec3((float)spawnPosMc.x, (float)spawnPosMc.y, (float)spawnPosMc.z), Quat.sIdentity());
 
-        Vec3 spawnPosMc = eyePos.add(lookVec.scale(SPAWN_OFFSET))
-                .add(randomOffsetX, randomOffsetY, randomOffsetZ);
+        float randomSize = random.nextFloat(MIN_BOX_SIZE, MAX_BOX_SIZE);
+        Vec3 halfExtents = new Vec3(randomSize / 2.0f, randomSize / 2.0f, randomSize / 2.0f);
+        int randomColor = 0xFF000000 | random.nextInt(0x01000000);
 
-        float halfExtent = BOX_SIZE / 2.0f;
-        com.github.stephengold.joltjni.Vec3 halfExtents = new com.github.stephengold.joltjni.Vec3(halfExtent, halfExtent, halfExtent);
+        Vec3 launchVelocity = new Vec3(
+                (float) lookVec.x,
+                (float) lookVec.y,
+                (float) lookVec.z
+        );
+        launchVelocity.scaleInPlace(SHOOT_SPEED);
 
         VxObjectManager manager = physicsWorld.getObjectManager();
-        VxTransform transform = new VxTransform(new RVec3(spawnPosMc.x, spawnPosMc.y, spawnPosMc.z), Quat.sIdentity());
 
-        Optional<BoxRigidPhysicsObject> spawnedObjectOpt = manager.createRigidBody(
+        var spawnedObjectOpt = manager.createRigidBody(
                 VxRegisteredObjects.BOX,
                 transform,
-                box -> box.setHalfExtents(halfExtents)
+                box -> {
+                    box.setHalfExtents(halfExtents);
+                    box.setColor(randomColor);
+                }
         );
 
-        spawnedObjectOpt.ifPresent(spawnedObject -> {
-            physicsWorld.execute(() -> {
-                int bodyId = spawnedObject.getBodyId();
-                PhysicsSystem physicsSystem = physicsWorld.getPhysicsSystem();
-                if (physicsSystem == null) return;
-
-                physicsSystem.getBodyInterface().activateBody(bodyId);
-
-                try (var lock = new BodyLockWrite(physicsSystem.getBodyLockInterface(), bodyId)) {
-                    if (lock.succeededAndIsInBroadPhase()) {
-                        Body body = lock.getBody();
-                        if (body.isDynamic()) {
-
-                            Vec3 spreadVec = new Vec3(
-                                    (random.nextDouble() - 0.5),
-                                    (random.nextDouble() - 0.5),
-                                    (random.nextDouble() - 0.5)
-                            ).scale(SPREAD_AMOUNT * 0.2);
-
-                            Vec3 finalLookVec = lookVec.add(spreadVec).normalize();
-
-                            com.github.stephengold.joltjni.Vec3 velocity = new com.github.stephengold.joltjni.Vec3(
-                                    (float) finalLookVec.x,
-                                    (float) finalLookVec.y,
-                                    (float) finalLookVec.z
-                            );
-
-                            velocity.scaleInPlace(SHOOT_SPEED);
-
-                            body.setLinearVelocity(velocity);
-                        }
-                    }
-                }
-            });
-        });
+        var bodyId = spawnedObjectOpt.get().getBodyId();
+        var bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
+        bodyInterface.activateBody(bodyId);
+        bodyInterface.setLinearVelocity(bodyId, launchVelocity);
     }
 }
