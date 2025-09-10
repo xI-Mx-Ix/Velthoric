@@ -9,12 +9,14 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.SectionPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.annotation.VxUnsafe;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.manager.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.object.persistence.VxObjectStorage;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
@@ -250,45 +252,67 @@ public class VxObjectManager {
         }
     }
 
-    public void addConstructedBody(VxAbstractBody body) {
-        world.execute(() -> {
-            if (body instanceof VxRigidBody rigidBody) {
-                addRigidBodyToPhysicsWorld(rigidBody, EActivation.DontActivate, true);
-            } else if (body instanceof VxSoftBody softBody) {
-                addSoftBodyToPhysicsWorld(softBody, EActivation.DontActivate, true);
-            }
-        });
+    /**
+     * Adds a constructed body to the physics world.
+     * <p>
+     * This method must be called on the Physics thread.
+     * <p>
+     * <b>Important:</b> Do <b>not</b> create your own instance of {@link VxAbstractBody} and pass it here.
+     * The body should be created and managed via a {@link VxObjectType}, for example using
+     * {@link VxObjectRegistry#getInstance()#create(ResourceLocation, VxPhysicsWorld, UUID)},
+     * and it is assumed that both the server and client have properly registered this object type.
+     *
+     * @param body                  the body to add, either a {@link VxRigidBody} or {@link VxSoftBody}
+     * @param usePendingActivation  whether to use pending activation when adding the body
+     */
+    public void addConstructedBody(VxAbstractBody body, boolean usePendingActivation) {
+        if (body instanceof VxRigidBody rigidBody) {
+            addRigidBodyToPhysicsWorld(rigidBody, EActivation.DontActivate, usePendingActivation);
+        } else if (body instanceof VxSoftBody softBody) {
+            addSoftBodyToPhysicsWorld(softBody, EActivation.DontActivate, usePendingActivation);
+        }
     }
 
-    public void reAddObjectToWorld(VxAbstractBody body) {
-        world.execute(() -> {
-            if (body instanceof VxRigidBody rigidBody) {
-                addRigidBodyToPhysicsWorld(rigidBody, EActivation.DontActivate, false);
-            } else if (body instanceof VxSoftBody softBody) {
-                addSoftBodyToPhysicsWorld(softBody, EActivation.DontActivate, false);
-            }
-        });
-    }
-
+    /**
+     * Creates a new rigid body of the specified type, applies the configurator,
+     * and adds it to the physics world.
+     * <p>
+     * Must be called on the Physics thread.
+     *
+     * @param type        the type of rigid body to create
+     * @param transform   the initial transform of the body
+     * @param configurator a {@link Consumer} that further configures the body
+     * @param <T>         the type of rigid body
+     * @return an {@link Optional} containing the created body
+     */
     public <T extends VxRigidBody> Optional<T> createRigidBody(VxObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
         T body = type.create(world, UUID.randomUUID());
         body.getGameTransform().set(transform);
         configurator.accept(body);
-        world.execute(() ->
-                addRigidBodyToPhysicsWorld(body, EActivation.DontActivate, true)
-        );
+        addRigidBodyToPhysicsWorld(body, EActivation.DontActivate, true);
         return Optional.of(body);
     }
 
+    /**
+     * Creates a new soft body of the specified type, applies the configurator,
+     * and adds it to the physics world.
+     * <p>
+     * Must be called on the Physics thread.
+     *
+     * @param type        the type of soft body to create
+     * @param transform   the initial transform of the body
+     * @param configurator a {@link Consumer} that further configures the body
+     * @param <T>         the type of soft body
+     * @return an {@link Optional} containing the created body
+     */
     public <T extends VxSoftBody> Optional<T> createSoftBody(VxObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
         T body = type.create(world, UUID.randomUUID());
         body.getGameTransform().set(transform);
         configurator.accept(body);
-        world.execute(() ->
-                addSoftBodyToPhysicsWorld(body, EActivation.DontActivate, true)
-        );
+        addSoftBodyToPhysicsWorld(body, EActivation.DontActivate, true);
         return Optional.of(body);
     }
+
 
     private void tickPendingActivations() {
         if (pendingActivations.isEmpty()) {

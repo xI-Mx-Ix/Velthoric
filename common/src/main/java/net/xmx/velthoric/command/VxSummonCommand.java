@@ -86,7 +86,7 @@ public final class VxSummonCommand {
         }
         body.getGameTransform().set(transform);
 
-        manager.addConstructedBody(body);
+        manager.addConstructedBody(body, true);
 
         source.sendSuccess(() -> Component.literal(String.format("Successfully summoned physics object '%s' with ID: %s", typeId, body.getPhysicsId())), true);
         return 1;

@@ -137,7 +137,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                 }, loaderExecutor)
                 .thenApplyAsync(obj -> {
                     if (obj != null) {
-                        objectManager.reAddObjectToWorld(obj);
+                        objectManager.addConstructedBody(obj, false);
                     }
                     return obj;
                 }, level.getServer())
