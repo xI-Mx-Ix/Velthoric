@@ -111,7 +111,7 @@ public class VxObjectNetworkDispatcher {
         playerChunkPositions.put(player.getUUID(), player.chunkPosition());
         playerViewDistances.put(player.getUUID(), player.server.getPlayerList().getViewDistance());
 
-        Set<UUID> previouslyTracked = playerTrackedObjects.computeIfAbsent(player.getUUID(), k -> new HashSet<>());
+        Set<UUID> previouslyTracked = playerTrackedObjects.computeIfAbsent(player.getUUID(), k -> ConcurrentHashMap.newKeySet());
         Set<UUID> newlyVisible = new HashSet<>();
 
         int viewDistance = playerViewDistances.getOrDefault(player.getUUID(), 0);
@@ -139,7 +139,8 @@ public class VxObjectNetworkDispatcher {
     }
 
     private void startTracking(ServerPlayer player, VxAbstractBody body) {
-        Set<UUID> tracked = playerTrackedObjects.computeIfAbsent(player.getUUID(), k -> new HashSet<>());
+
+        Set<UUID> tracked = playerTrackedObjects.computeIfAbsent(player.getUUID(), k -> ConcurrentHashMap.newKeySet());
         if (tracked.add(body.getPhysicsId())) {
             synchronized (pendingSpawns) {
                 pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>())
