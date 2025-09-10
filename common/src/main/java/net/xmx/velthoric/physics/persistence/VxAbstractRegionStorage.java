@@ -8,7 +8,6 @@ import net.minecraft.world.level.storage.LevelResource;
 import net.xmx.velthoric.init.VxMainClass;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,6 +49,7 @@ public abstract class VxAbstractRegionStorage<K, V> {
     public static class RegionData<K, V> {
         public final ConcurrentHashMap<K, V> entries = new ConcurrentHashMap<>();
         public final AtomicBoolean dirty = new AtomicBoolean(false);
+        public final AtomicBoolean saving = new AtomicBoolean(false);
     }
 
     protected final Path storagePath;
@@ -94,12 +94,22 @@ public abstract class VxAbstractRegionStorage<K, V> {
 
     public void saveDirtyRegions() {
         loadedRegions.forEach((pos, future) -> {
-
             if (future.isDone() && !future.isCompletedExceptionally()) {
                 RegionData<K, V> data = future.getNow(null);
-                if (data != null && data.dirty.compareAndSet(true, false)) {
-
-                    CompletableFuture.runAsync(() -> saveRegionToFile(pos, data), ioExecutor);
+                if (data != null && data.dirty.get() && data.saving.compareAndSet(false, true)) {
+                    CompletableFuture.runAsync(() -> {
+                        try {
+                            if (data.dirty.compareAndSet(true, false)) {
+                                saveRegionToFile(pos, data);
+                            }
+                        } finally {
+                            data.saving.set(false);
+                        }
+                    }, ioExecutor).exceptionally(ex -> {
+                        data.saving.set(false);
+                        VxMainClass.LOGGER.error("Exception in save task for region {}", pos, ex);
+                        return null;
+                    });
                 }
             }
         });
@@ -128,10 +138,10 @@ public abstract class VxAbstractRegionStorage<K, V> {
             return regionData;
         }
 
-        try (FileChannel channel = FileChannel.open(regionFile, StandardOpenOption.READ)) {
-            if (channel.size() > 0) {
-                ByteBuffer buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, channel.size());
-                ByteBuf byteBuf = Unpooled.wrappedBuffer(buffer);
+        try {
+            byte[] fileBytes = Files.readAllBytes(regionFile);
+            if (fileBytes.length > 0) {
+                ByteBuf byteBuf = Unpooled.wrappedBuffer(fileBytes);
                 readRegionData(byteBuf, regionData);
             }
         } catch (IOException e) {
@@ -163,11 +173,11 @@ public abstract class VxAbstractRegionStorage<K, V> {
             }
         } catch (IOException e) {
             VxMainClass.LOGGER.error("Failed to save region file {}", regionFile, e);
+            data.dirty.set(true);
         } finally {
             if (buffer.refCnt() > 0) {
                 buffer.release();
             }
-            data.dirty.set(false);
         }
     }
 }

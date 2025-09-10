@@ -13,10 +13,15 @@ import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import java.util.zip.DataFormatException;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
 public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage.ShapeEntry> {
 
@@ -61,12 +66,24 @@ public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage
         while (buffer.readableBytes() > 0) {
             long packedPos = buffer.readLong();
             int hash = buffer.readInt();
-            int dataLength = buffer.readInt();
+            int compressedDataLength = buffer.readInt();
+            int uncompressedDataLength = buffer.readInt();
 
-            if (dataLength > 0 && buffer.isReadable(dataLength)) {
-                byte[] data = new byte[dataLength];
-                buffer.readBytes(data);
-                regionData.entries.put(packedPos, new ShapeEntry(hash, data));
+            if (compressedDataLength > 0 && buffer.isReadable(compressedDataLength)) {
+                byte[] compressedData = new byte[compressedDataLength];
+                buffer.readBytes(compressedData);
+
+                Inflater inflater = new Inflater();
+                inflater.setInput(compressedData);
+                byte[] uncompressedData = new byte[uncompressedDataLength];
+                try {
+                    inflater.inflate(uncompressedData);
+                    regionData.entries.put(packedPos, new ShapeEntry(hash, uncompressedData));
+                } catch (DataFormatException e) {
+                    VxMainClass.LOGGER.error("Failed to decompress shape data for {}", packedPos, e);
+                } finally {
+                    inflater.end();
+                }
             }
         }
     }
@@ -74,10 +91,29 @@ public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage
     @Override
     protected void writeRegionData(ByteBuf buffer, Map<Long, ShapeEntry> entries) {
         entries.forEach((packedPos, entry) -> {
+            Deflater deflater = new Deflater();
+            deflater.setInput(entry.data());
+            deflater.finish();
+
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream(entry.data().length);
+            byte[] bufferArray = new byte[1024];
+            while (!deflater.finished()) {
+                int count = deflater.deflate(bufferArray);
+                outputStream.write(bufferArray, 0, count);
+            }
+            try {
+                outputStream.close();
+            } catch (IOException e) {
+                VxMainClass.LOGGER.error("Error closing ByteArrayOutputStream", e);
+            }
+            byte[] compressedData = outputStream.toByteArray();
+            deflater.end();
+
             buffer.writeLong(packedPos);
             buffer.writeInt(entry.hash());
+            buffer.writeInt(compressedData.length);
             buffer.writeInt(entry.data().length);
-            buffer.writeBytes(entry.data());
+            buffer.writeBytes(compressedData);
         });
     }
 

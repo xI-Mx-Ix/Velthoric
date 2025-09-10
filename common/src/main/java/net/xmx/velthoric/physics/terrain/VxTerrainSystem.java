@@ -93,8 +93,6 @@ public class VxTerrainSystem implements Runnable {
 
     public void shutdown() {
         if (isInitialized.compareAndSet(true, false)) {
-
-            jobSystem.shutdown();
             workerThread.interrupt();
             try {
                 workerThread.join(5000);
@@ -102,12 +100,11 @@ public class VxTerrainSystem implements Runnable {
                 Thread.currentThread().interrupt();
             }
 
+            jobSystem.shutdown();
             this.terrainStorage.shutdown();
 
             physicsWorld.execute(() -> {
-
                 new HashSet<>(chunkStates.keySet()).forEach(this::unloadChunkPhysicsInternal);
-
                 chunkStates.clear();
                 chunkBodyIds.clear();
                 chunkShapes.clear();
@@ -412,6 +409,9 @@ public class VxTerrainSystem implements Runnable {
     }
 
     private void updateTrackers() {
+        if (!isInitialized.get()) {
+            return;
+        }
 
         List<VxAbstractBody> currentObjects = new ArrayList<>(physicsWorld.getObjectManager().getAllObjects());
         Set<UUID> currentObjectIds = currentObjects.stream()
