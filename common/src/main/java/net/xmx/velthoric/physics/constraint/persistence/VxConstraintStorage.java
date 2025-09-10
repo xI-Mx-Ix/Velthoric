@@ -87,41 +87,52 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             byte[] data = serializeConstraintData(constraint, chunkPos);
             RegionPos regionPos = getRegionPos(chunkPos);
 
-            RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
-            region.entries.put(constraint.getConstraintId(), data);
-            region.dirty.set(true);
-            regionIndex.put(constraint.getConstraintId(), regionPos);
-            indexConstraintData(constraint.getConstraintId(), data);
+            getRegion(regionPos).thenAcceptAsync(region -> {
+                region.entries.put(constraint.getConstraintId(), data);
+                region.dirty.set(true);
+                regionIndex.put(constraint.getConstraintId(), regionPos);
+                indexConstraintData(constraint.getConstraintId(), data);
+            }, loaderExecutor).exceptionally(ex -> {
+                VxMainClass.LOGGER.error("Failed to store constraint {}", constraint.getConstraintId(), ex);
+                return null;
+            });
         });
     }
 
     public void loadConstraintsInChunk(ChunkPos chunkPos) {
         RegionPos regionPos = getRegionPos(chunkPos);
-        loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
-
-        List<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
-        if (idsToLoad == null || idsToLoad.isEmpty()) return;
-        for (UUID id : List.copyOf(idsToLoad)) {
-            if (constraintManager.hasActiveConstraint(id) || constraintManager.getDataSystem().isPending(id)) continue;
-            loadConstraint(id);
-        }
+        getRegion(regionPos).thenRunAsync(() -> {
+            List<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
+            if (idsToLoad == null || idsToLoad.isEmpty()) return;
+            for (UUID id : List.copyOf(idsToLoad)) {
+                if (constraintManager.hasActiveConstraint(id) || constraintManager.getDataSystem().isPending(id)) continue;
+                loadConstraint(id);
+            }
+        }, loaderExecutor).exceptionally(ex -> {
+            VxMainClass.LOGGER.error("Failed to load constraints in chunk {}", chunkPos, ex);
+            return null;
+        });
     }
 
     public void loadConstraint(UUID id) {
-        CompletableFuture.runAsync(() -> {
+        CompletableFuture.supplyAsync(() -> {
             RegionPos regionPos = regionIndex.get(id);
-            if (regionPos == null) return;
+            if (regionPos == null) return null;
 
-            RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
-            byte[] data = region.entries.remove(id);
-
+            RegionData<UUID, byte[]> region = getRegion(regionPos).join();
+            byte[] data = region.entries.get(id);
             if (data != null) {
-                region.dirty.set(true);
-                deIndexConstraint(id, data);
-                VxConstraint c = deserializeConstraint(id, data);
-                level.getServer().execute(() -> constraintManager.addConstraintFromStorage(c));
+
+                return deserializeConstraint(id, data);
             }
-        }, loaderExecutor).exceptionally(ex -> {
+            return null;
+        }, loaderExecutor).thenAcceptAsync(constraint -> {
+            if (constraint != null) {
+                constraintManager.addConstraintFromStorage(constraint);
+
+                removeData(id);
+            }
+        }, level.getServer()).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Exception loading physics constraint {}", id, ex);
             return null;
         });
@@ -131,14 +142,17 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         RegionPos regionPos = regionIndex.get(id);
         if (regionPos == null) return;
 
-        RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
-        byte[] data = region.entries.remove(id);
-
-        if (data != null) {
-            region.dirty.set(true);
-            deIndexConstraint(id, data);
-            regionIndex.remove(id);
-        }
+        getRegion(regionPos).thenAcceptAsync(region -> {
+            byte[] data = region.entries.remove(id);
+            if (data != null) {
+                region.dirty.set(true);
+                deIndexConstraint(id, data);
+                regionIndex.remove(id);
+            }
+        }, loaderExecutor).exceptionally(ex -> {
+            VxMainClass.LOGGER.error("Failed to remove data for constraint {}", id, ex);
+            return null;
+        });
     }
 
     private VxConstraint deserializeConstraint(UUID id, byte[] data) {

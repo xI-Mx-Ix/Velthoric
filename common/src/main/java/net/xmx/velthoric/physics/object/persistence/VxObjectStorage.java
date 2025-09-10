@@ -90,27 +90,34 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         byte[] data = serializeObjectData(object);
         ChunkPos chunkPos = VxObjectManager.getObjectChunkPos(object);
         RegionPos regionPos = getRegionPos(chunkPos);
-        RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
 
-        region.entries.put(object.getPhysicsId(), data);
-        region.dirty.set(true);
-        regionIndex.put(object.getPhysicsId(), regionPos);
-        indexObjectData(object.getPhysicsId(), data);
+        getRegion(regionPos).thenAcceptAsync(region -> {
+            region.entries.put(object.getPhysicsId(), data);
+            region.dirty.set(true);
+            regionIndex.put(object.getPhysicsId(), regionPos);
+            indexObjectData(object.getPhysicsId(), data);
+        }, loaderExecutor).exceptionally(ex -> {
+            VxMainClass.LOGGER.error("Failed to store object {}", object.getPhysicsId(), ex);
+            return null;
+        });
     }
 
     public void loadObjectsInChunk(ChunkPos chunkPos) {
         RegionPos regionPos = getRegionPos(chunkPos);
-        loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
+        getRegion(regionPos).thenRunAsync(() -> {
+            List<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
+            if (idsToLoad == null || idsToLoad.isEmpty()) return;
 
-        List<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
-        if (idsToLoad == null || idsToLoad.isEmpty()) return;
-
-        for (UUID id : List.copyOf(idsToLoad)) {
-            if (objectManager.getObject(id).isPresent() || pendingLoads.containsKey(id)) {
-                continue;
+            for (UUID id : List.copyOf(idsToLoad)) {
+                if (objectManager.getObject(id).isPresent() || pendingLoads.containsKey(id)) {
+                    continue;
+                }
+                loadObject(id);
             }
-            loadObject(id);
-        }
+        }, loaderExecutor).exceptionally(ex -> {
+            VxMainClass.LOGGER.error("Failed to load objects in chunk {}", chunkPos, ex);
+            return null;
+        });
     }
 
     public CompletableFuture<VxAbstractBody> loadObject(UUID id) {
@@ -125,12 +132,12 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                     RegionPos regionPos = regionIndex.get(id);
                     if (regionPos == null) return null;
 
-                    RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
-                    byte[] data = region.entries.remove(id);
-
+                    RegionData<UUID, byte[]> region = getRegion(regionPos).join();
+                    return region.entries.get(id);
+                }, loaderExecutor)
+                .thenApplyAsync(data -> {
                     if (data != null) {
-                        region.dirty.set(true);
-                        deIndexObject(id, data);
+
                         return deserializeObject(id, data);
                     }
                     return null;
@@ -153,14 +160,18 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         RegionPos regionPos = regionIndex.get(id);
         if (regionPos == null) return;
 
-        RegionData<UUID, byte[]> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
-        byte[] data = region.entries.remove(id);
+        getRegion(regionPos).thenAcceptAsync(region -> {
+            byte[] data = region.entries.remove(id);
 
-        if (data != null) {
-            region.dirty.set(true);
-            deIndexObject(id, data);
-            regionIndex.remove(id);
-        }
+            if (data != null) {
+                region.dirty.set(true);
+                deIndexObject(id, data);
+                regionIndex.remove(id);
+            }
+        }, loaderExecutor).exceptionally(ex -> {
+            VxMainClass.LOGGER.error("Failed to remove data for object {}", id, ex);
+            return null;
+        });
     }
 
     private VxAbstractBody deserializeObject(UUID id, byte[] data) {

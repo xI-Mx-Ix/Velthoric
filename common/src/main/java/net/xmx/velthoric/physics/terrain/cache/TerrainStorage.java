@@ -10,11 +10,13 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
+import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
 
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 
 public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage.ShapeEntry> {
 
@@ -37,6 +39,11 @@ public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage
 
     public TerrainStorage(ServerLevel level) {
         super(level, "terrain", "terrain");
+    }
+
+    @Override
+    protected VxRegionIndex createRegionIndex() {
+        return null;
     }
 
     private RegionPos getRegionPos(VxSectionPos pos) {
@@ -76,32 +83,37 @@ public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage
 
     public ShapeRefC getShape(VxSectionPos pos, int contentHash) {
         RegionPos regionPos = getRegionPos(pos);
-        RegionData<Long, ShapeEntry> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
         long packedPos = pack(pos);
 
-        ShapeEntry entry = region.entries.get(packedPos);
-        if (entry == null || entry.hash() != contentHash) {
-            return null;
-        }
+        try {
 
-        try (StringStream stringStream = new StringStream(new String(entry.data()));
-             StreamInWrapper streamIn = new StreamInWrapper(stringStream)) {
-            try (ShapeResult result = Shape.sRestoreFromBinaryState(streamIn)) {
-                if (result.isValid()) {
-                    return result.get();
-                } else {
-                    VxMainClass.LOGGER.warn("Failed to deserialize shape from storage for {}: {}", pos, result.getError());
-                    region.entries.remove(packedPos);
-                    region.dirty.set(true);
+            RegionData<Long, ShapeEntry> region = getRegion(regionPos).get();
+            ShapeEntry entry = region.entries.get(packedPos);
+            if (entry == null || entry.hash() != contentHash) {
+                return null;
+            }
+
+            try (StringStream stringStream = new StringStream(new String(entry.data()));
+                 StreamInWrapper streamIn = new StreamInWrapper(stringStream)) {
+                try (ShapeResult result = Shape.sRestoreFromBinaryState(streamIn)) {
+                    if (result.isValid()) {
+                        return result.get();
+                    } else {
+                        VxMainClass.LOGGER.warn("Failed to deserialize shape from storage for {}: {}", pos, result.getError());
+                        region.entries.remove(packedPos);
+                        region.dirty.set(true);
+                    }
                 }
             }
+        } catch (InterruptedException | ExecutionException e) {
+            VxMainClass.LOGGER.error("Failed to get shape region for {}", pos, e);
+            Thread.currentThread().interrupt();
         }
         return null;
     }
 
     public void storeShape(VxSectionPos pos, int contentHash, ShapeRefC shape) {
         RegionPos regionPos = getRegionPos(pos);
-        RegionData<Long, ShapeEntry> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
 
         byte[] shapeData;
         try (StringStream stringStream = new StringStream();
@@ -112,18 +124,21 @@ public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage
 
         if (shapeData.length > 0) {
             ShapeEntry newEntry = new ShapeEntry(contentHash, shapeData);
-            ShapeEntry oldEntry = region.entries.put(pack(pos), newEntry);
-            if (!newEntry.equals(oldEntry)) {
-                region.dirty.set(true);
-            }
+            getRegion(regionPos).thenAccept(region -> {
+                ShapeEntry oldEntry = region.entries.put(pack(pos), newEntry);
+                if (!newEntry.equals(oldEntry)) {
+                    region.dirty.set(true);
+                }
+            });
         }
     }
 
     public void removeShape(VxSectionPos pos) {
         RegionPos regionPos = getRegionPos(pos);
-        RegionData<Long, ShapeEntry> region = loadedRegions.computeIfAbsent(regionPos, this::loadRegion);
-        if (region.entries.remove(pack(pos)) != null) {
-            region.dirty.set(true);
-        }
+        getRegion(regionPos).thenAccept(region -> {
+            if (region.entries.remove(pack(pos)) != null) {
+                region.dirty.set(true);
+            }
+        });
     }
 }

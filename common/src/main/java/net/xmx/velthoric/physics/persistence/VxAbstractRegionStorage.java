@@ -14,10 +14,36 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class VxAbstractRegionStorage<K, V> {
+
+    private static ExecutorService ioExecutor;
+    private static final AtomicInteger instanceCounter = new AtomicInteger(0);
+
+    private static synchronized void initializeExecutor() {
+        if (instanceCounter.getAndIncrement() == 0) {
+            int threadCount = Math.max(1, Runtime.getRuntime().availableProcessors() / 4);
+            ioExecutor = Executors.newFixedThreadPool(threadCount, r -> new Thread(r, "Velthoric-Persistence-IO"));
+        }
+    }
+
+    private static synchronized void shutdownExecutor() {
+        if (instanceCounter.decrementAndGet() == 0 && ioExecutor != null) {
+            ioExecutor.shutdown();
+            try {
+                if (!ioExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    ioExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                ioExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+            ioExecutor = null;
+        }
+    }
 
     public record RegionPos(int x, int z) {}
 
@@ -28,9 +54,10 @@ public abstract class VxAbstractRegionStorage<K, V> {
 
     protected final Path storagePath;
     private final String filePrefix;
-    protected final ConcurrentHashMap<RegionPos, RegionData<K, V>> loadedRegions = new ConcurrentHashMap<>();
+
+    protected final ConcurrentHashMap<RegionPos, CompletableFuture<RegionData<K, V>>> loadedRegions = new ConcurrentHashMap<>();
     protected final ServerLevel level;
-    protected final VxRegionIndex regionIndex;
+    protected VxRegionIndex regionIndex;
 
     public VxAbstractRegionStorage(ServerLevel level, String storageSubFolder, String filePrefix) {
         this.level = level;
@@ -38,14 +65,14 @@ public abstract class VxAbstractRegionStorage<K, V> {
         Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
         Path dimensionRoot = DimensionType.getStorageFolder(level.dimension(), worldRoot);
         this.storagePath = dimensionRoot.resolve("velthoric").resolve(storageSubFolder);
-        this.regionIndex = createRegionIndex();
+
     }
 
-    protected VxRegionIndex createRegionIndex() {
-        return null;
-    }
+    protected abstract VxRegionIndex createRegionIndex();
 
     public void initialize() {
+        this.regionIndex = createRegionIndex();
+        initializeExecutor();
         try {
             Files.createDirectories(storagePath);
             if (regionIndex != null) {
@@ -62,12 +89,20 @@ public abstract class VxAbstractRegionStorage<K, V> {
             regionIndex.save();
         }
         loadedRegions.clear();
+        shutdownExecutor();
     }
 
     public void saveDirtyRegions() {
-        loadedRegions.entrySet().parallelStream()
-                .filter(entry -> entry.getValue().dirty.get())
-                .forEach(entry -> saveRegion(entry.getKey(), entry.getValue()));
+        loadedRegions.forEach((pos, future) -> {
+
+            if (future.isDone() && !future.isCompletedExceptionally()) {
+                RegionData<K, V> data = future.getNow(null);
+                if (data != null && data.dirty.compareAndSet(true, false)) {
+
+                    CompletableFuture.runAsync(() -> saveRegionToFile(pos, data), ioExecutor);
+                }
+            }
+        });
         if (regionIndex != null) {
             regionIndex.save();
         }
@@ -80,7 +115,13 @@ public abstract class VxAbstractRegionStorage<K, V> {
         return storagePath.resolve(String.format("%s.%d.%d.vxdat", filePrefix, pos.x(), pos.z()));
     }
 
-    protected RegionData<K, V> loadRegion(RegionPos pos) {
+    protected CompletableFuture<RegionData<K, V>> getRegion(RegionPos pos) {
+        return loadedRegions.computeIfAbsent(pos, p ->
+                CompletableFuture.supplyAsync(() -> loadRegionFromFile(p), ioExecutor)
+        );
+    }
+
+    private RegionData<K, V> loadRegionFromFile(RegionPos pos) {
         Path regionFile = getRegionFile(pos);
         RegionData<K, V> regionData = new RegionData<>();
         if (!Files.exists(regionFile)) {
@@ -99,17 +140,12 @@ public abstract class VxAbstractRegionStorage<K, V> {
         return regionData;
     }
 
-    protected void saveRegion(RegionPos pos, RegionData<K, V> data) {
-        if (!data.dirty.get()) {
-            return;
-        }
-
+    private void saveRegionToFile(RegionPos pos, RegionData<K, V> data) {
         Path regionFile = getRegionFile(pos);
 
         if (data.entries.isEmpty()) {
             try {
                 Files.deleteIfExists(regionFile);
-                data.dirty.set(false);
             } catch (IOException e) {
                 VxMainClass.LOGGER.error("Failed to delete empty region file {}", regionFile, e);
             }
@@ -124,7 +160,6 @@ public abstract class VxAbstractRegionStorage<K, V> {
                 try (FileChannel channel = FileChannel.open(regionFile, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
                     channel.write(buffer.nioBuffer());
                 }
-                data.dirty.set(false);
             }
         } catch (IOException e) {
             VxMainClass.LOGGER.error("Failed to save region file {}", regionFile, e);
@@ -132,6 +167,7 @@ public abstract class VxAbstractRegionStorage<K, V> {
             if (buffer.refCnt() > 0) {
                 buffer.release();
             }
+            data.dirty.set(false);
         }
     }
 }
