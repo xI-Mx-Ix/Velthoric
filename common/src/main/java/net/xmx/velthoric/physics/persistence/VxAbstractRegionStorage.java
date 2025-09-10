@@ -15,34 +15,10 @@ import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class VxAbstractRegionStorage<K, V> {
 
-    private static ExecutorService ioExecutor;
-    private static final AtomicInteger instanceCounter = new AtomicInteger(0);
-
-    private static synchronized void initializeExecutor() {
-        if (instanceCounter.getAndIncrement() == 0) {
-            int threadCount = Math.max(1, Runtime.getRuntime().availableProcessors() / 4);
-            ioExecutor = Executors.newFixedThreadPool(threadCount, r -> new Thread(r, "Velthoric-Persistence-IO"));
-        }
-    }
-
-    private static synchronized void shutdownExecutor() {
-        if (instanceCounter.decrementAndGet() == 0 && ioExecutor != null) {
-            ioExecutor.shutdown();
-            try {
-                if (!ioExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    ioExecutor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                ioExecutor.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-            ioExecutor = null;
-        }
-    }
+    private ExecutorService ioExecutor;
 
     public record RegionPos(int x, int z) {}
 
@@ -65,14 +41,15 @@ public abstract class VxAbstractRegionStorage<K, V> {
         Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
         Path dimensionRoot = DimensionType.getStorageFolder(level.dimension(), worldRoot);
         this.storagePath = dimensionRoot.resolve("velthoric").resolve(storageSubFolder);
-
     }
 
     protected abstract VxRegionIndex createRegionIndex();
 
     public void initialize() {
         this.regionIndex = createRegionIndex();
-        initializeExecutor();
+        int threadCount = Math.max(1, Runtime.getRuntime().availableProcessors() / 4);
+        this.ioExecutor = Executors.newFixedThreadPool(threadCount, r -> new Thread(r, "Velthoric-Persistence-IO-" + filePrefix));
+
         try {
             Files.createDirectories(storagePath);
             if (regionIndex != null) {
@@ -89,7 +66,18 @@ public abstract class VxAbstractRegionStorage<K, V> {
             regionIndex.save();
         }
         loadedRegions.clear();
-        shutdownExecutor();
+
+        if (ioExecutor != null) {
+            ioExecutor.shutdown();
+            try {
+                if (!ioExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    ioExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                ioExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     public void saveDirtyRegions() {
