@@ -13,11 +13,12 @@ import java.util.UUID;
 public class BoxRigidPhysicsObject extends VxRigidBody {
 
     private Vec3 halfExtents;
-    private int color = 0xFFFFFFFF;
+    private int color;
 
     public BoxRigidPhysicsObject(VxObjectType<BoxRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.halfExtents = new Vec3(0.5f, 0.5f, 0.5f);
+        this.color = 0xFFFF0000;
     }
 
     public void setHalfExtents(Vec3 halfExtents) {
