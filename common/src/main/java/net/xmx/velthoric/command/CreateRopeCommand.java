@@ -14,7 +14,7 @@ import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.builtin.VxRegisteredObjects;
-import net.xmx.velthoric.builtin.box.BoxRigidPhysicsObject;
+import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
@@ -36,8 +36,8 @@ public final class CreateRopeCommand {
         );
     }
 
-    private static BoxRigidPhysicsObject createRopeSegment(VxPhysicsWorld world, VxObjectManager objectManager, RVec3 position, Vec3 halfExtents, EMotionType bodyType) {
-        BoxRigidPhysicsObject body = VxRegisteredObjects.BOX.create(world, UUID.randomUUID());
+    private static BoxRigidBody createRopeSegment(VxPhysicsWorld world, VxObjectManager objectManager, RVec3 position, Vec3 halfExtents, EMotionType bodyType) {
+        BoxRigidBody body = VxRegisteredObjects.BOX.create(world, UUID.randomUUID());
         body.getGameTransform().set(new VxTransform(position, Quat.sIdentity()));
         body.setHalfExtents(halfExtents);
 
@@ -80,14 +80,14 @@ public final class CreateRopeCommand {
             Vec3 segmentHalfExtents = new Vec3(segmentRadius, segmentLength / 2.0f, segmentRadius);
             
             RVec3 anchorPosition = new RVec3(startPos.x, startPos.y, startPos.z);
-            BoxRigidPhysicsObject anchorBody = createRopeSegment(physicsWorld, objectManager, anchorPosition, segmentHalfExtents, EMotionType.Kinematic);
+            BoxRigidBody anchorBody = createRopeSegment(physicsWorld, objectManager, anchorPosition, segmentHalfExtents, EMotionType.Kinematic);
 
             if (anchorBody == null) {
                 source.sendFailure(Component.literal("Failed to create rope anchor."));
                 return;
             }
 
-            BoxRigidPhysicsObject previousBody = anchorBody;
+            BoxRigidBody previousBody = anchorBody;
 
             for (int i = 1; i < numSegments; ++i) {
                 RVec3 currentPosition = new RVec3(
@@ -96,7 +96,7 @@ public final class CreateRopeCommand {
                         startPos.z
                 );
 
-                BoxRigidPhysicsObject currentBody = createRopeSegment(physicsWorld, objectManager, currentPosition, segmentHalfExtents, EMotionType.Dynamic);
+                BoxRigidBody currentBody = createRopeSegment(physicsWorld, objectManager, currentPosition, segmentHalfExtents, EMotionType.Dynamic);
                 if (currentBody == null) {
                     source.sendFailure(Component.literal("Failed to create a rope segment. Aborting."));
                     return;

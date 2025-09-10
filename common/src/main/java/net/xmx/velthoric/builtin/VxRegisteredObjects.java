@@ -4,47 +4,47 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.builtin.block.BlockRenderer;
-import net.xmx.velthoric.builtin.block.BlockRigidPhysicsObject;
+import net.xmx.velthoric.builtin.block.BlockRigidBody;
 import net.xmx.velthoric.builtin.box.BoxRenderer;
-import net.xmx.velthoric.builtin.box.BoxRigidPhysicsObject;
+import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.builtin.cloth.ClothSoftBody;
 import net.xmx.velthoric.builtin.cloth.ClothSoftBodyRenderer;
 import net.xmx.velthoric.builtin.marble.MarbleRenderer;
-import net.xmx.velthoric.builtin.marble.MarbleRigidPhysicsObject;
+import net.xmx.velthoric.builtin.marble.MarbleRigidBody;
 import net.xmx.velthoric.builtin.rope.RopeSoftBody;
 import net.xmx.velthoric.builtin.rope.RopeSoftBodyRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRenderer;
-import net.xmx.velthoric.builtin.sphere.SphereRigidPhysicsObject;
+import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.manager.registry.VxObjectRegistry;
 
 public class VxRegisteredObjects {
 
-    public static final VxObjectType<BlockRigidPhysicsObject> BLOCK = VxObjectType.Builder
-            .create(BlockRigidPhysicsObject::new)
+    public static final VxObjectType<BlockRigidBody> BLOCK = VxObjectType.Builder
+            .create(BlockRigidBody::new)
             .noSummon()
-            .build(new ResourceLocation("velthoric", "block_obj"));
+            .build(new ResourceLocation("velthoric", "block"));
 
-    public static final VxObjectType<SphereRigidPhysicsObject> SPHERE = VxObjectType.Builder
-            .create(SphereRigidPhysicsObject::new)
-            .build(new ResourceLocation("velthoric", "sphere_obj"));
+    public static final VxObjectType<SphereRigidBody> SPHERE = VxObjectType.Builder
+            .create(SphereRigidBody::new)
+            .build(new ResourceLocation("velthoric", "sphere"));
 
-    public static final VxObjectType<BoxRigidPhysicsObject> BOX = VxObjectType.Builder
-            .create(BoxRigidPhysicsObject::new)
-            .build(new ResourceLocation("velthoric", "box_obj"));
+    public static final VxObjectType<BoxRigidBody> BOX = VxObjectType.Builder
+            .create(BoxRigidBody::new)
+            .build(new ResourceLocation("velthoric", "box"));
 
-    public static final VxObjectType<MarbleRigidPhysicsObject> MARBLE = VxObjectType.Builder
-            .create(MarbleRigidPhysicsObject::new)
-            .build(new ResourceLocation("velthoric", "marble_obj"));
+    public static final VxObjectType<MarbleRigidBody> MARBLE = VxObjectType.Builder
+            .create(MarbleRigidBody::new)
+            .build(new ResourceLocation("velthoric", "marble"));
 
     public static final VxObjectType<ClothSoftBody> CLOTH = VxObjectType.Builder
             .create(ClothSoftBody::new)
-            .build(new ResourceLocation("velthoric", "cloth_obj"));
+            .build(new ResourceLocation("velthoric", "cloth"));
 
     public static final VxObjectType<RopeSoftBody> ROPE = VxObjectType.Builder
             .create(RopeSoftBody::new)
-            .build(new ResourceLocation("velthoric", "rope_obj"));
+            .build(new ResourceLocation("velthoric", "rope"));
 
     public static void register() {
         var registry = VxObjectRegistry.getInstance();

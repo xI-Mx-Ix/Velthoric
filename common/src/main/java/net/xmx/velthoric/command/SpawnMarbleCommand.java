@@ -13,7 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.builtin.VxRegisteredObjects;
-import net.xmx.velthoric.builtin.marble.MarbleRigidPhysicsObject;
+import net.xmx.velthoric.builtin.marble.MarbleRigidBody;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -57,7 +57,7 @@ public class SpawnMarbleCommand {
         VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
-        Optional<MarbleRigidPhysicsObject> spawnedMarble = manager.createRigidBody(
+        Optional<MarbleRigidBody> spawnedMarble = manager.createRigidBody(
                 VxRegisteredObjects.MARBLE,
                 transform,
                 marble -> marble.setRadius(radius)

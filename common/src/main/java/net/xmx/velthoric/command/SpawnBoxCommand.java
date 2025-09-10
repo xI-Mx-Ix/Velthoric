@@ -14,7 +14,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.builtin.VxRegisteredObjects;
-import net.xmx.velthoric.builtin.box.BoxRigidPhysicsObject;
+import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -127,7 +127,7 @@ public final class SpawnBoxCommand {
         VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(spawnPosMc.x, spawnPosMc.y, spawnPosMc.z), Quat.sIdentity());
 
-        Optional<BoxRigidPhysicsObject> spawnedObject = manager.createRigidBody(
+        Optional<BoxRigidBody> spawnedObject = manager.createRigidBody(
                 VxRegisteredObjects.BOX,
                 transform,
                 box -> box.setHalfExtents(halfExtents)

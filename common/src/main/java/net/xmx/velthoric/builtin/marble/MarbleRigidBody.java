@@ -15,13 +15,13 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
-public class MarbleRigidPhysicsObject extends VxRigidBody {
+public class MarbleRigidBody extends VxRigidBody {
 
     private float radius;
 
     private static final float DENSITY = 6700f;
 
-    public MarbleRigidPhysicsObject(VxObjectType<MarbleRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
+    public MarbleRigidBody(VxObjectType<MarbleRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.radius = 0.15f;
     }

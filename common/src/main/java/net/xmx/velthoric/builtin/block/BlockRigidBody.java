@@ -4,7 +4,6 @@ import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.ShapeRefC;
 import com.github.stephengold.joltjni.ShapeSettings;
-import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Block;
@@ -21,11 +20,11 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
-public class BlockRigidPhysicsObject extends VxRigidBody {
+public class BlockRigidBody extends VxRigidBody {
 
     private BlockState representedBlockState;
 
-    public BlockRigidPhysicsObject(VxObjectType<BlockRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
+    public BlockRigidBody(VxObjectType<BlockRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.representedBlockState = Blocks.STONE.defaultBlockState();
     }

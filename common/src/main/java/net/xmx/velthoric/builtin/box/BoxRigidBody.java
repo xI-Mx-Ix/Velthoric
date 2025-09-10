@@ -1,4 +1,4 @@
-package net.xmx.velthoric.builtin.sphere;
+package net.xmx.velthoric.builtin.box;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
@@ -10,46 +10,62 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
-public class SphereRigidPhysicsObject extends VxRigidBody {
+public class BoxRigidBody extends VxRigidBody {
 
-    private float radius;
+    private Vec3 halfExtents;
+    private int color;
 
-    public SphereRigidPhysicsObject(VxObjectType<SphereRigidPhysicsObject> type, VxPhysicsWorld world, UUID id) {
+    public BoxRigidBody(VxObjectType<BoxRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
-        this.radius = 0.5f;
+        this.halfExtents = new Vec3(0.5f, 0.5f, 0.5f);
+        this.color = 0xFFFF0000;
     }
 
-    public void setRadius(float radius) {
-        this.radius = radius > 0 ? radius : 0.5f;
+    public void setHalfExtents(Vec3 halfExtents) {
+        this.halfExtents = halfExtents;
         this.markDataDirty();
     }
 
-    public float getRadius() {
-        return radius;
+    public Vec3 getHalfExtents() {
+        return halfExtents;
+    }
+
+    public void setColor(int color) {
+        this.color = color;
+        this.markDataDirty();
+    }
+
+    public int getColor() {
+        return color;
     }
 
     @Override
     public ShapeSettings createShapeSettings() {
-        return new SphereShapeSettings(this.radius);
+        return new BoxShapeSettings(this.halfExtents);
     }
 
     @Override
     public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
-        return new BodyCreationSettings(
+        var settings = new BodyCreationSettings(
                 shapeRef,
                 this.getGameTransform().getTranslation(),
                 this.getGameTransform().getRotation(),
                 EMotionType.Dynamic,
                 VxLayers.DYNAMIC);
+
+        settings.setRestitution(0.4f);
+        return settings;
     }
 
     @Override
     public void writeCreationData(VxByteBuf buf) {
-        buf.writeFloat(this.radius);
+        buf.writeVec3(halfExtents);
+        buf.writeInt(color);
     }
 
     @Override
     public void readCreationData(VxByteBuf buf) {
-        this.radius = buf.readFloat();
+        this.halfExtents = buf.readVec3();
+        this.color = buf.readInt();
     }
 }

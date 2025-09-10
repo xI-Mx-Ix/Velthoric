@@ -14,7 +14,7 @@ import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.builtin.VxRegisteredObjects;
-import net.xmx.velthoric.builtin.box.BoxRigidPhysicsObject;
+import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
@@ -56,7 +56,7 @@ public final class SpawnConnectedBoxesCommand {
             Vec3 halfExtents = new Vec3(halfExtent, halfExtent, halfExtent);
 
             RVec3 pos1 = new RVec3(centerPos.x - halfExtent - spacing, centerPos.y, centerPos.z);
-            Optional<BoxRigidPhysicsObject> box1Opt = objectManager.createRigidBody(
+            Optional<BoxRigidBody> box1Opt = objectManager.createRigidBody(
                     VxRegisteredObjects.BOX,
                     new VxTransform(pos1, Quat.sIdentity()),
                     box -> box.setHalfExtents(halfExtents)
@@ -68,7 +68,7 @@ public final class SpawnConnectedBoxesCommand {
             }
 
             RVec3 pos2 = new RVec3(centerPos.x + halfExtent + spacing, centerPos.y, centerPos.z);
-            Optional<BoxRigidPhysicsObject> box2Opt = objectManager.createRigidBody(
+            Optional<BoxRigidBody> box2Opt = objectManager.createRigidBody(
                     VxRegisteredObjects.BOX,
                     new VxTransform(pos2, Quat.sIdentity()),
                     box -> box.setHalfExtents(halfExtents)
@@ -80,8 +80,8 @@ public final class SpawnConnectedBoxesCommand {
                 return;
             }
 
-            BoxRigidPhysicsObject box1 = box1Opt.get();
-            BoxRigidPhysicsObject box2 = box2Opt.get();
+            BoxRigidBody box1 = box1Opt.get();
+            BoxRigidBody box2 = box2Opt.get();
 
             try (HingeConstraintSettings settings = new HingeConstraintSettings()) {
                 settings.setSpace(EConstraintSpace.WorldSpace);
