@@ -89,8 +89,11 @@ public class MagnetizerManager {
 
         if (level instanceof ServerLevel serverLevel) {
             var particleType = mode == MagnetMode.ATTRACT ? ParticleTypes.END_ROD : ParticleTypes.FLAME;
+
             serverLevel.sendParticles(
+                    player,
                     particleType,
+                    true,
                     targetPointRVec.x(),
                     targetPointRVec.y(),
                     targetPointRVec.z(),
