@@ -1,3 +1,7 @@
+/*
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.physics.object.manager;
 
 import com.github.stephengold.joltjni.*;
@@ -5,8 +9,8 @@ import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceLocking;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.core.SectionPos;
+import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -16,10 +20,17 @@ import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+/**
+ * Responsible for reading the state from the Jolt physics simulation
+ * and writing it into the VxObjectDataStore. It detects changes to minimize
+ * network updates.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxPhysicsUpdater {
 
     private final VxObjectManager manager;
-    private final VxObjectStore dataStore;
+    private final VxObjectDataStore dataStore;
     private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue;
 
     private static final double POSITION_THRESHOLD_SQUARED = 0.01 * 0.01;
@@ -38,12 +49,19 @@ public class VxPhysicsUpdater {
         this.dirtyIndicesQueue = dirtyIndicesQueue;
     }
 
+    /**
+     * Updates the state of all active physics bodies for a single physics tick.
+     *
+     * @param timestampNanos The current time in nanoseconds.
+     * @param world The physics world.
+     */
     public void update(long timestampNanos, VxPhysicsWorld world) {
         final BodyInterface bodyInterface = world.getBodyInterface();
         final PhysicsSystem physicsSystem = world.getPhysicsSystem();
 
         BodyIdVector activeBodiesVector = localActiveBodyIdVector.get();
 
+        // Update Rigid Bodies
         physicsSystem.getActiveBodies(EBodyType.RigidBody, activeBodiesVector);
         for (int i = 0; i < activeBodiesVector.size(); i++) {
             int bodyId = activeBodiesVector.get(i);
@@ -54,6 +72,7 @@ public class VxPhysicsUpdater {
             }
         }
 
+        // Update Soft Bodies
         physicsSystem.getActiveBodies(EBodyType.SoftBody, activeBodiesVector);
         for (int i = 0; i < activeBodiesVector.size(); i++) {
             int bodyId = activeBodiesVector.get(i);
@@ -74,9 +93,9 @@ public class VxPhysicsUpdater {
 
         RVec3 pos = tempPos.get();
         Quat rot = tempRot.get();
-
         bodyInterface.getPositionAndRotation(bodyId, pos, rot);
 
+        // Update chunk tracking if the object moved across a chunk border
         long lastKey = obj.getLastKnownChunkKey();
         long currentKey = new ChunkPos(SectionPos.posToSectionCoord(pos.x()), SectionPos.posToSectionCoord(pos.z())).toLong();
         if (lastKey != currentKey) {
@@ -84,27 +103,19 @@ public class VxPhysicsUpdater {
             obj.setLastKnownChunkKey(currentKey);
         }
 
+        // Update game-side transform
         obj.getGameTransform().getTranslation().set(pos.x(), pos.y(), pos.z());
         obj.getGameTransform().getRotation().set(rot);
 
-        Vec3 linVel;
-        Vec3 angVel;
-
-        if (isActive) {
-            linVel = bodyInterface.getLinearVelocity(bodyId);
-            angVel = bodyInterface.getAngularVelocity(bodyId);
-        } else {
-            linVel = tempLinVel.get();
-            linVel.loadZero();
-            angVel = tempAngVel.get();
-            angVel.loadZero();
-        }
+        Vec3 linVel = isActive ? bodyInterface.getLinearVelocity(bodyId) : Vec3.sZero();
+        Vec3 angVel = isActive ? bodyInterface.getAngularVelocity(bodyId) : Vec3.sZero();
 
         float[] vertexData = null;
         if (obj instanceof VxSoftBody) {
             vertexData = getSoftBodyVertices(lockInterface, bodyId);
         }
 
+        // Check if state has changed significantly enough to warrant a network update
         if (hasStateChanged(index, pos, rot, linVel, angVel, vertexData, isActive)) {
             dataStore.posX[index] = pos.x();
             dataStore.posY[index] = pos.y();
@@ -122,8 +133,11 @@ public class VxPhysicsUpdater {
             dataStore.vertexData[index] = vertexData;
             dataStore.isActive[index] = isActive;
             dataStore.lastUpdateTimestamp[index] = timestampNanos;
-            dataStore.isDirty[index] = true;
-            dirtyIndicesQueue.offer(index);
+
+            if (!dataStore.isDirty[index]) {
+                dataStore.isDirty[index] = true;
+                dirtyIndicesQueue.offer(index);
+            }
         }
 
         if (obj.isDataDirty()) {
@@ -134,6 +148,7 @@ public class VxPhysicsUpdater {
     private boolean hasStateChanged(int index, RVec3 pos, Quat rot, Vec3 linVel, Vec3 angVel, float[] vertices, boolean isActive) {
         if (dataStore.isActive[index] != isActive) return true;
 
+        // Only check velocity for active bodies, as inactive ones should have zero velocity
         if (isActive) {
             if (squaredDifference(dataStore.velX[index], dataStore.velY[index], dataStore.velZ[index], linVel) > VELOCITY_THRESHOLD_SQUARED ||
                     squaredDifference(dataStore.angVelX[index], dataStore.angVelY[index], dataStore.angVelZ[index], angVel) > VELOCITY_THRESHOLD_SQUARED) {
@@ -168,7 +183,7 @@ public class VxPhysicsUpdater {
     }
 
     public void clearStateFor(UUID id) {
-
+        // This can be used to clear cached states if necessary, currently not needed.
     }
 
     private float @Nullable [] getSoftBodyVertices(ConstBodyLockInterfaceLocking lockInterface, int bodyId) {

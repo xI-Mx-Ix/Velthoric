@@ -7,7 +7,7 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.manager.VxObjectStore;
+import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectState;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
 
@@ -22,7 +22,7 @@ public class SyncAllPhysicsObjectsPacket {
 
     private final FriendlyByteBuf dataBuffer;
 
-    public SyncAllPhysicsObjectsPacket(List<Integer> indices, VxObjectStore dataStore) {
+    public SyncAllPhysicsObjectsPacket(List<Integer> indices, VxObjectDataStore dataStore) {
         this.decodedStates = null;
         this.dataBuffer = buildPacketBuffer(indices, dataStore);
     }
@@ -32,7 +32,7 @@ public class SyncAllPhysicsObjectsPacket {
         this.decodedStates = decode(buf);
     }
 
-    private static FriendlyByteBuf buildPacketBuffer(List<Integer> indices, VxObjectStore dataStore) {
+    private static FriendlyByteBuf buildPacketBuffer(List<Integer> indices, VxObjectDataStore dataStore) {
         FriendlyByteBuf tempPayloadBuffer = new FriendlyByteBuf(Unpooled.buffer());
         int validObjectCount = 0;
 

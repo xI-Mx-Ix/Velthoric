@@ -1,3 +1,7 @@
+/*
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.physics.object.manager;
 
 import com.github.stephengold.joltjni.enumerate.EBodyType;
@@ -6,7 +10,17 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
-public class VxObjectStore extends AbstractDataStore {
+/**
+ * A data-oriented store for the live state of all physics objects.
+ * <p>
+ * This class uses a "Structure of Arrays" (SoA) layout, where each property of an object
+ * is stored in a separate array. This is highly efficient for the physics update loop,
+ * as it improves CPU cache locality when iterating over a single property (e.g., position)
+ * for all objects.
+ *
+ * @author xI-Mx-Ix
+ */
+public class VxObjectDataStore extends AbstractDataStore {
     private static final int INITIAL_CAPACITY = 256;
 
     private final Map<UUID, Integer> uuidToIndex = new HashMap<>();
@@ -15,20 +29,20 @@ public class VxObjectStore extends AbstractDataStore {
     private int count = 0;
     private int capacity = 0;
 
-    // Physics State Data
+    // --- Physics State Data (SoA) ---
     public float[] posX, posY, posZ;
     public float[] rotX, rotY, rotZ, rotW;
     public float[] velX, velY, velZ;
     public float[] angVelX, angVelY, angVelZ;
-    public float[] @Nullable [] vertexData;
+    public float[] @Nullable [] vertexData; // For soft bodies
     public boolean[] isActive;
     public EBodyType[] bodyType;
 
-    // Sync & Management Data
+    // --- Sync & Management Data ---
     public boolean[] isDirty;
     public long[] lastUpdateTimestamp;
 
-    public VxObjectStore() {
+    public VxObjectDataStore() {
         allocate(INITIAL_CAPACITY);
     }
 
@@ -56,7 +70,18 @@ public class VxObjectStore extends AbstractDataStore {
         this.capacity = newCapacity;
     }
 
+    /**
+     * Reserves a new index for a physics object and sets its type.
+     *
+     * @param id The UUID of the object.
+     * @param type The EBodyType of the object.
+     * @return The data store index for the new object.
+     */
     public int addObject(UUID id, EBodyType type) {
+        if (uuidToIndex.containsKey(id)) {
+            return uuidToIndex.get(id);
+        }
+
         if (count == capacity) {
             allocate(capacity * 2);
         }
@@ -73,6 +98,12 @@ public class VxObjectStore extends AbstractDataStore {
         return index;
     }
 
+    /**
+     * Releases the index for a given object UUID, making it available for reuse.
+     *
+     * @param id The UUID of the object to remove.
+     * @return The released index, or null if the object was not found.
+     */
     @Nullable
     public Integer removeObject(UUID id) {
         Integer index = uuidToIndex.remove(id);
@@ -85,6 +116,9 @@ public class VxObjectStore extends AbstractDataStore {
         return null;
     }
 
+    /**
+     * Clears all data and resets the store to its initial state.
+     */
     public void clear() {
         uuidToIndex.clear();
         indexToUuid.clear();

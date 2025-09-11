@@ -2,6 +2,7 @@ package net.xmx.velthoric.command;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -86,7 +87,7 @@ public final class VxSummonCommand {
         }
         body.getGameTransform().set(transform);
 
-        manager.addConstructedBody(body, true);
+        manager.addConstructedBody(body, EActivation.Activate);
 
         source.sendSuccess(() -> Component.literal(String.format("Successfully summoned physics object '%s' with ID: %s", typeId, body.getPhysicsId())), true);
         return 1;
