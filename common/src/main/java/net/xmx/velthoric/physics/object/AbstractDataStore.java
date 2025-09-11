@@ -5,6 +5,7 @@
 package net.xmx.velthoric.physics.object;
 
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.ShapeRefC;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 
 import java.nio.ByteBuffer;
@@ -108,10 +109,31 @@ public abstract class AbstractDataStore {
         int oldSize = (src == null) ? 0 : src.length;
         RVec3[] dest = Arrays.copyOf(src != null ? src : new RVec3[0], size);
 
-        // Initialize new elements to prevent NullPointerExceptions.
         for (int i = oldSize; i < size; i++) {
             dest[i] = new RVec3();
         }
         return dest;
+    }
+
+    /**
+     * Grows an int array, preserving its contents.
+     *
+     * @param src  The source array (can be null).
+     * @param size The desired new size.
+     * @return A new array of the specified size.
+     */
+    protected int[] grow(int[] src, int size) {
+        return src == null ? new int[size] : Arrays.copyOf(src, size);
+    }
+
+    /**
+     * Grows a ShapeRefC array, preserving its contents.
+     *
+     * @param src  The source array (can be null).
+     * @param size The desired new size.
+     * @return A new array of the specified size.
+     */
+    protected ShapeRefC[] grow(ShapeRefC[] src, int size) {
+        return src == null ? new ShapeRefC[size] : Arrays.copyOf(src, size);
     }
 }
