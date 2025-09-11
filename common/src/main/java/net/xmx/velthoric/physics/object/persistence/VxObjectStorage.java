@@ -176,12 +176,21 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                     return region.entries.get(id);
                 }, loaderExecutor)
                 .thenApplyAsync(this::deserializeObject, loaderExecutor)
-                .thenApplyAsync(data -> {
-                    if (data != null) {
-                        return objectManager.addSerializedBody(data);
+                .thenComposeAsync(data -> {
+                    if (data == null) {
+                        return CompletableFuture.completedFuture(null);
                     }
-                    return null;
-                }, level.getServer())
+                    CompletableFuture<VxAbstractBody> bodyFuture = new CompletableFuture<>();
+                    objectManager.getPhysicsWorld().execute(() -> {
+                        try {
+                            VxAbstractBody body = objectManager.addSerializedBody(data);
+                            bodyFuture.complete(body);
+                        } catch (Exception e) {
+                            bodyFuture.completeExceptionally(e);
+                        }
+                    });
+                    return bodyFuture;
+                })
                 .whenComplete((obj, ex) -> {
                     if (ex != null) {
                         VxMainClass.LOGGER.error("Exception loading physics object {}", id, ex);
