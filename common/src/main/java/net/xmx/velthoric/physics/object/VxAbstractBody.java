@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.UUID;
 
 /**
- * The abstract base class for all physics objects in the Velthoric engine.
+ * The abstract base class for all physics objects in Velthoric.
  * It defines the core properties and behaviors common to all physics bodies,
  * such as their ID, type, and lifecycle callbacks.
  *
@@ -131,7 +131,7 @@ public abstract class VxAbstractBody {
         }
         // Sanity check to ensure this object instance still corresponds to the bodyId.
         VxAbstractBody found = world.getObjectManager().getByBodyId(bodyId);
-        if (found != null && found == this) {
+        if (found == this) {
             try (BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), bodyId)) {
                 if (lock.succeededAndIsInBroadPhase()) {
                     return lock.getBody();
