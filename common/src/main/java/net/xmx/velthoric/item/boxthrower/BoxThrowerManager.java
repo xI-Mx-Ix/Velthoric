@@ -65,8 +65,12 @@ public class BoxThrowerManager {
         net.minecraft.world.phys.Vec3 spawnPosMc = eyePos.add(lookVec.scale(SPAWN_OFFSET));
         VxTransform transform = new VxTransform(new RVec3((float)spawnPosMc.x, (float)spawnPosMc.y, (float)spawnPosMc.z), Quat.sIdentity());
 
-        float randomSize = random.nextFloat(MIN_BOX_SIZE, MAX_BOX_SIZE);
-        Vec3 halfExtents = new Vec3(randomSize / 2.0f, randomSize / 2.0f, randomSize / 2.0f);
+        float randomWidth = random.nextFloat(MIN_BOX_SIZE, MAX_BOX_SIZE);
+        float randomHeight = random.nextFloat(MIN_BOX_SIZE, MAX_BOX_SIZE);
+        float randomDepth = random.nextFloat(MIN_BOX_SIZE, MAX_BOX_SIZE);
+
+        Vec3 halfExtents = new Vec3(randomWidth / 2.0f, randomHeight / 2.0f, randomDepth / 2.0f);
+
         int randomColor = 0xFF000000 | random.nextInt(0x01000000);
 
         Vec3 launchVelocity = new Vec3(
