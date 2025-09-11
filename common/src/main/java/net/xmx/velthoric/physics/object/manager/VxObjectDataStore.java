@@ -16,7 +16,7 @@ import java.util.*;
  * This class uses a "Structure of Arrays" (SoA) layout, where each property of an object
  * is stored in a separate array. This is highly efficient for the physics update loop,
  * as it improves CPU cache locality when iterating over a single property (e.g., position)
- * for all objects.
+ * for all objects. This class is thread-safe.
  *
  * @author xI-Mx-Ix
  */
@@ -77,7 +77,7 @@ public class VxObjectDataStore extends AbstractDataStore {
      * @param type The EBodyType of the object.
      * @return The data store index for the new object.
      */
-    public int addObject(UUID id, EBodyType type) {
+    public synchronized int addObject(UUID id, EBodyType type) {
         if (uuidToIndex.containsKey(id)) {
             return uuidToIndex.get(id);
         }
@@ -105,7 +105,7 @@ public class VxObjectDataStore extends AbstractDataStore {
      * @return The released index, or null if the object was not found.
      */
     @Nullable
-    public Integer removeObject(UUID id) {
+    public synchronized Integer removeObject(UUID id) {
         Integer index = uuidToIndex.remove(id);
         if (index != null) {
             resetIndex(index);
@@ -119,7 +119,7 @@ public class VxObjectDataStore extends AbstractDataStore {
     /**
      * Clears all data and resets the store to its initial state.
      */
-    public void clear() {
+    public synchronized void clear() {
         uuidToIndex.clear();
         indexToUuid.clear();
         freeIndices.clear();
@@ -128,19 +128,19 @@ public class VxObjectDataStore extends AbstractDataStore {
     }
 
     @Nullable
-    public Integer getIndexForId(UUID id) {
+    public synchronized Integer getIndexForId(UUID id) {
         return uuidToIndex.get(id);
     }
 
     @Nullable
-    public UUID getIdForIndex(int index) {
+    public synchronized UUID getIdForIndex(int index) {
         if (index < 0 || index >= indexToUuid.size()) {
             return null;
         }
         return indexToUuid.get(index);
     }
 
-    public int getObjectCount() {
+    public synchronized int getObjectCount() {
         return this.count - freeIndices.size();
     }
 
