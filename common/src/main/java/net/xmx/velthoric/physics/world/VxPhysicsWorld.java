@@ -197,10 +197,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         final int numPositionIterations = 4;
         final int numVelocityIterations = 8;
         final float speculativeContactDistance = 0.02f;
-        final float baumgarteFactor = 0.3f;
-        final float penetrationSlop = 0.0001f;
-        final float timeBeforeSleep = 1.0f;
-        final float pointVelocitySleepThreshold = 0.00005f;
+        final float baumgarteFactor = 0.2f;
+        final float penetrationSlop = 0.001f;
+        final float timeBeforeSleep = 0.4f;
+        final float pointVelocitySleepThreshold = 0.005f;
         final float gravityY = -9.81f;
 
         this.tempAllocator = new TempAllocatorImpl(64 * 1024 * 1024);
