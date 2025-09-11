@@ -90,31 +90,31 @@ public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage
 
     @Override
     protected void writeRegionData(ByteBuf buffer, Map<Long, ShapeEntry> entries) {
-        entries.forEach((packedPos, entry) -> {
-            Deflater deflater = new Deflater();
-            deflater.setInput(entry.data());
-            deflater.finish();
+        Deflater deflater = new Deflater();
+        byte[] compressionBuffer = new byte[4096];
 
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream(entry.data().length);
-            byte[] bufferArray = new byte[1024];
-            while (!deflater.finished()) {
-                int count = deflater.deflate(bufferArray);
-                outputStream.write(bufferArray, 0, count);
-            }
-            try {
-                outputStream.close();
-            } catch (IOException e) {
-                VxMainClass.LOGGER.error("Error closing ByteArrayOutputStream", e);
-            }
-            byte[] compressedData = outputStream.toByteArray();
+        try {
+            entries.forEach((packedPos, entry) -> {
+                deflater.setInput(entry.data());
+                deflater.finish();
+
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream(entry.data().length);
+                while (!deflater.finished()) {
+                    int count = deflater.deflate(compressionBuffer);
+                    outputStream.write(compressionBuffer, 0, count);
+                }
+                byte[] compressedData = outputStream.toByteArray();
+                deflater.reset();
+
+                buffer.writeLong(packedPos);
+                buffer.writeInt(entry.hash());
+                buffer.writeInt(compressedData.length);
+                buffer.writeInt(entry.data().length);
+                buffer.writeBytes(compressedData);
+            });
+        } finally {
             deflater.end();
-
-            buffer.writeLong(packedPos);
-            buffer.writeInt(entry.hash());
-            buffer.writeInt(compressedData.length);
-            buffer.writeInt(entry.data().length);
-            buffer.writeBytes(compressedData);
-        });
+        }
     }
 
     public ShapeRefC getShape(VxSectionPos pos, int contentHash) {

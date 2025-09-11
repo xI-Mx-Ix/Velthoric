@@ -12,6 +12,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -61,7 +62,13 @@ public abstract class VxAbstractRegionStorage<K, V> {
     }
 
     public void shutdown() {
-        saveDirtyRegions();
+        CompletableFuture<Void> saveFuture = saveDirtyRegions();
+        try {
+            saveFuture.join();
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Error waiting for dirty regions to save during shutdown", e);
+        }
+
         if (regionIndex != null) {
             regionIndex.save();
         }
@@ -70,7 +77,7 @@ public abstract class VxAbstractRegionStorage<K, V> {
         if (ioExecutor != null) {
             ioExecutor.shutdown();
             try {
-                if (!ioExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                if (!ioExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
                     ioExecutor.shutdownNow();
                 }
             } catch (InterruptedException e) {
@@ -80,12 +87,13 @@ public abstract class VxAbstractRegionStorage<K, V> {
         }
     }
 
-    public void saveDirtyRegions() {
+    public CompletableFuture<Void> saveDirtyRegions() {
+        List<CompletableFuture<Void>> saveFutures = new CopyOnWriteArrayList<>();
         loadedRegions.forEach((pos, future) -> {
             if (future.isDone() && !future.isCompletedExceptionally()) {
                 RegionData<K, V> data = future.getNow(null);
                 if (data != null && data.dirty.get() && data.saving.compareAndSet(false, true)) {
-                    CompletableFuture.runAsync(() -> {
+                    CompletableFuture<Void> saveTask = CompletableFuture.runAsync(() -> {
                         try {
                             if (data.dirty.compareAndSet(true, false)) {
                                 saveRegionToFile(pos, data);
@@ -98,12 +106,15 @@ public abstract class VxAbstractRegionStorage<K, V> {
                         VxMainClass.LOGGER.error("Exception in save task for region {}", pos, ex);
                         return null;
                     });
+                    saveFutures.add(saveTask);
                 }
             }
         });
+
         if (regionIndex != null) {
             regionIndex.save();
         }
+        return CompletableFuture.allOf(saveFutures.toArray(new CompletableFuture[0]));
     }
 
     protected abstract void readRegionData(ByteBuf buffer, RegionData<K, V> regionData);
