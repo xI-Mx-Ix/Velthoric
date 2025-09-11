@@ -1,3 +1,7 @@
+/*
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.physics.object.client;
 
 import com.github.stephengold.joltjni.RVec3;
@@ -8,15 +12,32 @@ import org.jetbrains.annotations.Nullable;
 import java.nio.ByteBuffer;
 import java.util.*;
 
+/**
+ * A client-side data store for physics objects using a Structure of Arrays (SoA) layout.
+ * This approach improves cache performance by keeping related data for a specific operation
+ * (e.g., all X positions) contiguous in memory. It manages object states required for
+ * interpolation and rendering.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxClientObjectDataStore extends AbstractDataStore {
+    /** The initial capacity of the data arrays. */
     private static final int INITIAL_CAPACITY = 256;
 
+    // --- Core Mappings ---
+    /** Maps a physics object's UUID to its integer index in the data arrays. */
     private final Map<UUID, Integer> uuidToIndex = new HashMap<>();
+    /** Maps an integer index back to the corresponding UUID. */
     private final List<UUID> indexToUuid = new ArrayList<>();
+    /** A queue of recycled indices from removed objects to be reused. */
     private final Deque<Integer> freeIndices = new ArrayDeque<>();
+    /** The number of active objects currently in the store. */
     private int count = 0;
+    /** The current allocated size of the data arrays. */
     private int capacity = 0;
 
+    // --- State Buffers for Interpolation ---
+    /** State 0: The "from" state for interpolation. */
     public long[] state0_timestamp;
     public float[] state0_posX, state0_posY, state0_posZ;
     public float[] state0_rotX, state0_rotY, state0_rotZ, state0_rotW;
@@ -24,6 +45,7 @@ public class VxClientObjectDataStore extends AbstractDataStore {
     public boolean[] state0_isActive;
     public float[] @Nullable [] state0_vertexData;
 
+    /** State 1: The "to" state for interpolation. This is the most recent state from the server. */
     public long[] state1_timestamp;
     public float[] state1_posX, state1_posY, state1_posZ;
     public float[] state1_rotX, state1_rotY, state1_rotZ, state1_rotW;
@@ -31,24 +53,40 @@ public class VxClientObjectDataStore extends AbstractDataStore {
     public boolean[] state1_isActive;
     public float[] @Nullable [] state1_vertexData;
 
+    // --- Render State Buffers ---
+    /** The state from the *previous render frame*, used for frame-to-frame interpolation. */
     public float[] prev_posX, prev_posY, prev_posZ;
     public float[] prev_rotX, prev_rotY, prev_rotZ, prev_rotW;
     public float[] @Nullable [] prev_vertexData;
 
+    /** The target render state for the *current render frame*, calculated each tick. */
     public float[] render_posX, render_posY, render_posZ;
     public float[] render_rotX, render_rotY, render_rotZ, render_rotW;
     public float[] @Nullable [] render_vertexData;
     public boolean[] render_isInitialized;
 
+    // --- Static and Metadata ---
+    /** The type of body (e.g., RigidBody, SoftBody). */
     public EBodyType[] objectType;
+    /** The client-side renderer instance for the object. */
     public Object[] renderer;
+    /** Buffer for custom data sent from the server. */
     public ByteBuffer[] customData;
+    /** The last known position of the object, used for frustum culling. */
     public RVec3[] lastKnownPosition;
 
+    /**
+     * Constructs the data store and allocates initial memory.
+     */
     public VxClientObjectDataStore() {
         allocate(INITIAL_CAPACITY);
     }
 
+    /**
+     * Reallocates all data arrays to a new capacity.
+     *
+     * @param newCapacity The new size for the arrays.
+     */
     private void allocate(int newCapacity) {
         state0_timestamp = grow(state0_timestamp, newCapacity);
         state0_posX = grow(state0_posX, newCapacity);
@@ -105,10 +143,18 @@ public class VxClientObjectDataStore extends AbstractDataStore {
         this.capacity = newCapacity;
     }
 
+    /**
+     * Adds a new object to the data store and returns its assigned index.
+     *
+     * @param id The UUID of the object to add.
+     * @return The index assigned to the new object.
+     */
     public int addObject(UUID id) {
+        // Grow the arrays if capacity is reached.
         if (count == capacity) {
             allocate(capacity * 2);
         }
+        // Reuse an old index if available, otherwise use a new one.
         int index = freeIndices.isEmpty() ? count++ : freeIndices.pop();
 
         uuidToIndex.put(id, index);
@@ -120,6 +166,11 @@ public class VxClientObjectDataStore extends AbstractDataStore {
         return index;
     }
 
+    /**
+     * Removes an object from the data store, freeing its index for reuse.
+     *
+     * @param id The UUID of the object to remove.
+     */
     public void removeObject(UUID id) {
         Integer index = uuidToIndex.remove(id);
         if (index != null) {
@@ -129,31 +180,58 @@ public class VxClientObjectDataStore extends AbstractDataStore {
         }
     }
 
+    /**
+     * Clears all data from the store and resets it to its initial state.
+     */
     public void clear() {
         uuidToIndex.clear();
         indexToUuid.clear();
         freeIndices.clear();
         count = 0;
+        // Reallocate with initial capacity to free up memory.
         allocate(INITIAL_CAPACITY);
     }
 
+    /**
+     * Gets the index for a given object UUID.
+     *
+     * @param id The UUID of the object.
+     * @return The integer index, or null if the object is not in the store.
+     */
     @Nullable
     public Integer getIndexForId(UUID id) {
         return uuidToIndex.get(id);
     }
 
+    /**
+     * @return The total number of active objects in the store.
+     */
     public int getObjectCount() {
         return this.count;
     }
 
+    /**
+     * @return An unmodifiable collection of all active object UUIDs.
+     */
     public Collection<UUID> getAllObjectIds() {
         return Collections.unmodifiableSet(uuidToIndex.keySet());
     }
 
+    /**
+     * Checks if an object with the given UUID exists in the store.
+     *
+     * @param id The UUID to check.
+     * @return True if the object exists, false otherwise.
+     */
     public boolean hasObject(UUID id) {
         return uuidToIndex.containsKey(id);
     }
 
+    /**
+     * Resets all data at a specific index to default values.
+     *
+     * @param index The index to reset.
+     */
     private void resetIndex(int index) {
         state0_timestamp[index] = 0;
         state1_timestamp[index] = 0;

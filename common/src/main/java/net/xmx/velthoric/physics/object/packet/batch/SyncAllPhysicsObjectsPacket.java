@@ -1,3 +1,7 @@
+/*
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.physics.object.packet.batch;
 
 import com.github.stephengold.joltjni.Vec3;
@@ -16,32 +20,56 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
+/**
+ * A network packet for synchronizing the state of multiple physics objects at once.
+ * This is the primary packet for sending continuous updates (position, rotation, velocity)
+ * from the server to the client.
+ *
+ * @author xI-Mx-Ix
+ */
 public class SyncAllPhysicsObjectsPacket {
 
+    /** On the client, this holds the list of decoded states. Null on the server. */
     private final List<PhysicsObjectState> decodedStates;
 
+    /** On the server, this holds the raw, encoded packet data. Null on the client. */
     private final FriendlyByteBuf dataBuffer;
 
+    /**
+     * Server-side constructor. Builds the packet data from a list of object indices.
+     *
+     * @param indices   The list of indices of dirty objects in the data store.
+     * @param dataStore The server's data store to read the states from.
+     */
     public SyncAllPhysicsObjectsPacket(List<Integer> indices, VxObjectDataStore dataStore) {
         this.decodedStates = null;
         this.dataBuffer = buildPacketBuffer(indices, dataStore);
     }
 
+    /**
+     * Client-side constructor. Decodes the packet data from the network buffer.
+     *
+     * @param buf The buffer received from the network.
+     */
     public SyncAllPhysicsObjectsPacket(FriendlyByteBuf buf) {
         this.dataBuffer = null;
         this.decodedStates = decode(buf);
     }
 
+    /**
+     * A static helper method to build the packet's payload on the server.
+     *
+     * @param indices   The indices of objects to include.
+     * @param dataStore The data store to read from.
+     * @return A buffer containing the encoded data, or null if no valid objects were processed.
+     */
     private static FriendlyByteBuf buildPacketBuffer(List<Integer> indices, VxObjectDataStore dataStore) {
         FriendlyByteBuf tempPayloadBuffer = new FriendlyByteBuf(Unpooled.buffer());
         int validObjectCount = 0;
 
         for (int index : indices) {
             UUID id = dataStore.getIdForIndex(index);
-
-            if (id == null) {
-                continue;
-            }
+            if (id == null) continue; // Skip if the object was removed before sending.
 
             validObjectCount++;
             tempPayloadBuffer.writeUUID(id);
@@ -50,6 +78,7 @@ public class SyncAllPhysicsObjectsPacket {
             tempPayloadBuffer.writeBoolean(isActive);
             tempPayloadBuffer.writeEnum(dataStore.bodyType[index]);
 
+            // Always send transform data.
             tempPayloadBuffer.writeDouble(dataStore.posX[index]);
             tempPayloadBuffer.writeDouble(dataStore.posY[index]);
             tempPayloadBuffer.writeDouble(dataStore.posZ[index]);
@@ -58,6 +87,7 @@ public class SyncAllPhysicsObjectsPacket {
             tempPayloadBuffer.writeFloat(dataStore.rotZ[index]);
             tempPayloadBuffer.writeFloat(dataStore.rotW[index]);
 
+            // Only send velocity and vertex data if the object is active.
             if (isActive) {
                 tempPayloadBuffer.writeFloat(dataStore.velX[index]);
                 tempPayloadBuffer.writeFloat(dataStore.velY[index]);
@@ -80,6 +110,7 @@ public class SyncAllPhysicsObjectsPacket {
             }
         }
 
+        // Only create a final buffer if there's actually data to send.
         if (validObjectCount > 0) {
             FriendlyByteBuf finalBuffer = new FriendlyByteBuf(Unpooled.buffer());
             finalBuffer.writeVarInt(validObjectCount);
@@ -92,21 +123,31 @@ public class SyncAllPhysicsObjectsPacket {
         }
     }
 
+    /**
+     * Encodes the packet for network transmission.
+     *
+     * @param buf The target buffer.
+     */
     public void encode(FriendlyByteBuf buf) {
-
         if (this.dataBuffer != null && this.dataBuffer.isReadable()) {
             buf.writeBytes(this.dataBuffer);
         }
     }
 
+    /**
+     * A static helper method to decode the packet's payload on the client.
+     *
+     * @param buf The buffer to read from.
+     * @return A list of {@link PhysicsObjectState} objects.
+     */
     private static List<PhysicsObjectState> decode(FriendlyByteBuf buf) {
-
         if (!buf.isReadable()) {
             return new ArrayList<>();
         }
         int size = buf.readVarInt();
         List<PhysicsObjectState> states = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
+            // Acquire a reusable state object from the pool.
             PhysicsObjectState state = PhysicsObjectStatePool.acquire();
 
             UUID id = buf.readUUID();
@@ -140,19 +181,33 @@ public class SyncAllPhysicsObjectsPacket {
         return states;
     }
 
+    /**
+     * Handles the packet on the client side.
+     *
+     * @param msg            The received packet.
+     * @param contextSupplier A supplier for the network context.
+     */
     public static void handle(SyncAllPhysicsObjectsPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
+            // Schedule the decoded states to be processed by the client manager.
             if (msg.decodedStates != null && !msg.decodedStates.isEmpty()) {
                 VxClientObjectManager.getInstance().scheduleStatesForUpdate(msg.decodedStates);
             }
         });
     }
 
+    /**
+     * @return True if the packet has data to send, false otherwise.
+     */
     public boolean hasData() {
         return this.dataBuffer != null;
     }
 
+    /**
+     * Releases the underlying data buffer to prevent memory leaks.
+     * This must be called on the server after the packet has been sent.
+     */
     public void release() {
         if (this.dataBuffer != null && this.dataBuffer.refCnt() > 0) {
             this.dataBuffer.release();
