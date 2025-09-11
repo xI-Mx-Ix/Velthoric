@@ -18,8 +18,6 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.util.Optional;
-
 public class SpawnMarbleCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -57,13 +55,13 @@ public class SpawnMarbleCommand {
         VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
-        Optional<MarbleRigidBody> spawnedMarble = manager.createRigidBody(
+        MarbleRigidBody spawnedMarble = manager.createRigidBody(
                 VxRegisteredObjects.MARBLE,
                 transform,
                 marble -> marble.setRadius(radius)
         );
 
-        if (spawnedMarble.isPresent()) {
+        if (spawnedMarble != null) {
             source.sendSuccess(() -> Component.literal("Successfully spawned a marble with radius " + radius + "."), true);
             return 1;
         } else {

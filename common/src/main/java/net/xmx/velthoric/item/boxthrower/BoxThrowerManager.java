@@ -5,6 +5,7 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.builtin.VxRegisteredObjects;
+import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -82,7 +83,7 @@ public class BoxThrowerManager {
 
         VxObjectManager manager = physicsWorld.getObjectManager();
 
-        var spawnedObjectOpt = manager.createRigidBody(
+        BoxRigidBody spawnedObject = manager.createRigidBody(
                 VxRegisteredObjects.BOX,
                 transform,
                 box -> {
@@ -91,9 +92,11 @@ public class BoxThrowerManager {
                 }
         );
 
-        var bodyId = spawnedObjectOpt.get().getBodyId();
-        var bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
-        bodyInterface.activateBody(bodyId);
-        bodyInterface.setLinearVelocity(bodyId, launchVelocity);
+        if (spawnedObject != null) {
+            var bodyId = spawnedObject.getBodyId();
+            var bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
+            bodyInterface.activateBody(bodyId);
+            bodyInterface.setLinearVelocity(bodyId, launchVelocity);
+        }
     }
 }

@@ -19,8 +19,6 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.util.Optional;
-
 public class SpawnClothCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -60,13 +58,13 @@ public class SpawnClothCommand {
         VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
-        Optional<ClothSoftBody> spawnedCloth = manager.createSoftBody(
+        ClothSoftBody spawnedCloth = manager.createSoftBody(
                 VxRegisteredObjects.CLOTH,
                 transform,
                 cloth -> cloth.setConfiguration(segmentsWidth, segmentsHeight, width, height, mass, 0.001f)
         );
 
-        if (spawnedCloth.isPresent()) {
+        if (spawnedCloth != null) {
             source.sendSuccess(() -> Component.literal("Successfully spawned cloth."), true);
             return 1;
         } else {

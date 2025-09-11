@@ -15,6 +15,7 @@ import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.object.manager.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Map;
@@ -109,7 +110,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             if (idsToLoad == null || idsToLoad.isEmpty()) return;
 
             for (UUID id : List.copyOf(idsToLoad)) {
-                if (objectManager.getObject(id).isPresent() || pendingLoads.containsKey(id)) {
+                if (objectManager.getObject(id) != null || pendingLoads.containsKey(id)) {
                     continue;
                 }
                 loadObject(id);
@@ -121,8 +122,9 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     public CompletableFuture<VxAbstractBody> loadObject(UUID id) {
-        if (objectManager.getObject(id).isPresent()) {
-            return CompletableFuture.completedFuture(objectManager.getObject(id).orElse(null));
+        VxAbstractBody existingObject = objectManager.getObject(id);
+        if (existingObject != null) {
+            return CompletableFuture.completedFuture(existingObject);
         }
         return pendingLoads.computeIfAbsent(id, this::loadObjectAsync);
     }
@@ -174,6 +176,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         });
     }
 
+    @Nullable
     private VxAbstractBody deserializeObject(UUID id, byte[] data) {
         VxByteBuf buf = new VxByteBuf(Unpooled.wrappedBuffer(data));
         try {

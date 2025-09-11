@@ -12,6 +12,7 @@ import net.xmx.velthoric.physics.constraint.serializer.IVxConstraintSerializer;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.Optional;
@@ -50,14 +51,15 @@ public class VxConstraintManager {
         constraintStorage.shutdown();
     }
 
-    public Optional<VxConstraint> createConstraint(TwoBodyConstraintSettings settings, UUID body1Id, UUID body2Id) {
+    @Nullable
+    public VxConstraint createConstraint(TwoBodyConstraintSettings settings, UUID body1Id, UUID body2Id) {
         if (settings == null || body1Id == null || body2Id == null) {
-            return Optional.empty();
+            return null;
         }
         UUID constraintId = UUID.randomUUID();
         VxConstraint constraint = new VxConstraint(constraintId, body1Id, body2Id, settings);
         dataSystem.addPendingConstraint(constraint);
-        return Optional.of(constraint);
+        return constraint;
     }
 
     public void addConstraintFromStorage(VxConstraint constraint) {
@@ -67,16 +69,13 @@ public class VxConstraintManager {
     @SuppressWarnings("unchecked")
     protected void activateConstraint(VxConstraint constraint) {
         world.execute(() -> {
-            Optional<VxAbstractBody> optBody1 = objectManager.getObject(constraint.getBody1Id());
-            Optional<VxAbstractBody> optBody2 = objectManager.getObject(constraint.getBody2Id());
+            VxAbstractBody body1 = objectManager.getObject(constraint.getBody1Id());
+            VxAbstractBody body2 = objectManager.getObject(constraint.getBody2Id());
 
-            if (optBody1.isEmpty() || optBody2.isEmpty() || optBody1.get().getBodyId() == 0 || optBody2.get().getBodyId() == 0) {
+            if (body1 == null || body2 == null || body1.getBodyId() == 0 || body2.getBodyId() == 0) {
                 dataSystem.addPendingConstraint(constraint);
                 return;
             }
-
-            VxAbstractBody body1 = optBody1.get();
-            VxAbstractBody body2 = optBody2.get();
 
             Optional<IVxConstraintSerializer<?>> rawSerializerOpt = ConstraintSerializerRegistry.get(constraint.getSubType());
             if (rawSerializerOpt.isEmpty()) {

@@ -10,7 +10,6 @@ import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Optional;
 import java.util.UUID;
 
 public abstract class VxAbstractBody {
@@ -41,17 +40,18 @@ public abstract class VxAbstractBody {
 
     public void readCreationData(VxByteBuf buf) {}
 
-    public Optional<VxTransform> getTransform(VxPhysicsWorld world) {
-        if (bodyId == 0) return Optional.empty();
+    @Nullable
+    public VxTransform getTransform(VxPhysicsWorld world) {
+        if (bodyId == 0) return null;
 
         try (BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), this.bodyId)) {
             if (lock.succeededAndIsInBroadPhase()) {
                 VxTransform transform = new VxTransform();
                 lock.getBody().getPositionAndRotation(transform.getTranslation(), transform.getRotation());
-                return Optional.of(transform);
+                return transform;
             }
         }
-        return Optional.empty();
+        return null;
     }
 
     @Nullable
@@ -59,8 +59,8 @@ public abstract class VxAbstractBody {
         if (bodyId == 0) {
             return null;
         }
-        Optional<VxAbstractBody> found = world.getObjectManager().getByBodyId(bodyId);
-        if (found.isPresent() && found.get() == this) {
+        VxAbstractBody found = world.getObjectManager().getByBodyId(bodyId);
+        if (found != null && found == this) {
             try (BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), bodyId)) {
                 if (lock.succeededAndIsInBroadPhase()) {
                     return lock.getBody();

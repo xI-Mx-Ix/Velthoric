@@ -22,8 +22,6 @@ import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.util.Optional;
-
 public final class SpawnConnectedBoxesCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -56,32 +54,29 @@ public final class SpawnConnectedBoxesCommand {
             Vec3 halfExtents = new Vec3(halfExtent, halfExtent, halfExtent);
 
             RVec3 pos1 = new RVec3(centerPos.x - halfExtent - spacing, centerPos.y, centerPos.z);
-            Optional<BoxRigidBody> box1Opt = objectManager.createRigidBody(
+            BoxRigidBody box1 = objectManager.createRigidBody(
                     VxRegisteredObjects.BOX,
                     new VxTransform(pos1, Quat.sIdentity()),
                     box -> box.setHalfExtents(halfExtents)
             );
 
-            if (box1Opt.isEmpty()) {
+            if (box1 == null) {
                 source.sendFailure(Component.literal("Failed to spawn the first box."));
                 return;
             }
 
             RVec3 pos2 = new RVec3(centerPos.x + halfExtent + spacing, centerPos.y, centerPos.z);
-            Optional<BoxRigidBody> box2Opt = objectManager.createRigidBody(
+            BoxRigidBody box2 = objectManager.createRigidBody(
                     VxRegisteredObjects.BOX,
                     new VxTransform(pos2, Quat.sIdentity()),
                     box -> box.setHalfExtents(halfExtents)
             );
 
-            if (box2Opt.isEmpty()) {
+            if (box2 == null) {
                 source.sendFailure(Component.literal("Failed to spawn the second box."));
-                box1Opt.ifPresent(box -> objectManager.removeObject(box.getPhysicsId(), VxRemovalReason.DISCARD));
+                objectManager.removeObject(box1.getPhysicsId(), VxRemovalReason.DISCARD);
                 return;
             }
-
-            BoxRigidBody box1 = box1Opt.get();
-            BoxRigidBody box2 = box2Opt.get();
 
             try (HingeConstraintSettings settings = new HingeConstraintSettings()) {
                 settings.setSpace(EConstraintSpace.WorldSpace);
@@ -97,13 +92,13 @@ public final class SpawnConnectedBoxesCommand {
                 settings.setHingeAxis2(worldHingeAxis);
                 settings.setNormalAxis2(worldNormalAxis);
 
-                Optional<VxConstraint> constraintOpt = constraintManager.createConstraint(settings, box1.getPhysicsId(), box2.getPhysicsId());
+                VxConstraint constraint = constraintManager.createConstraint(settings, box1.getPhysicsId(), box2.getPhysicsId());
 
-                if (constraintOpt.isPresent()) {
+                if (constraint != null) {
                     source.sendSuccess(() -> Component.literal(String.format("Spawned two boxes (%s, %s) connected by a hinge constraint (%s).",
                             box1.getPhysicsId().toString().substring(0, 8),
                             box2.getPhysicsId().toString().substring(0, 8),
-                            constraintOpt.get().getConstraintId().toString().substring(0, 8))), true);
+                            constraint.getConstraintId().toString().substring(0, 8))), true);
                 } else {
                     source.sendFailure(Component.literal("Failed to create the hinge constraint."));
                 }

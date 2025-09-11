@@ -19,8 +19,6 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.util.Optional;
-
 public final class SpawnRopeCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -58,17 +56,17 @@ public final class SpawnRopeCommand {
         VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
-        Optional<RopeSoftBody> spawnedRope = manager.createSoftBody(
+        RopeSoftBody spawnedRope = manager.createSoftBody(
                 VxRegisteredObjects.ROPE,
                 transform,
                 rope -> rope.setConfiguration(length, segments, radius, mass, 0.001f)
         );
 
 
-        if (spawnedRope.isPresent()) {
+        if (spawnedRope != null) {
             source.sendSuccess(() -> Component.literal(
                     String.format("Successfully spawned rope with ID %s at %.2f, %.2f, %.2f",
-                            spawnedRope.get().getPhysicsId().toString().substring(0, 8),
+                            spawnedRope.getPhysicsId().toString().substring(0, 8),
                             pos.x(), pos.y(), pos.z())
             ), true);
             return 1;

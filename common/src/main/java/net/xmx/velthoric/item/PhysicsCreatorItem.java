@@ -14,6 +14,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.xmx.velthoric.builtin.VxRegisteredObjects;
+import net.xmx.velthoric.builtin.block.BlockRigidBody;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
@@ -64,11 +65,15 @@ public class PhysicsCreatorItem extends Item {
             Quat rotation = Quat.sIdentity();
             VxTransform transform = new VxTransform(position, rotation);
 
-            objectManager.createRigidBody(
+            BlockRigidBody body = objectManager.createRigidBody(
                     VxRegisteredObjects.BLOCK,
                     transform,
-                    body -> body.setRepresentedBlockState(originalState)
-            ).orElseThrow(() -> new IllegalStateException("Body creation returned an empty Optional."));
+                    b -> b.setRepresentedBlockState(originalState)
+            );
+
+            if (body == null) {
+                throw new IllegalStateException("Body creation returned null.");
+            }
 
             return InteractionResult.SUCCESS;
         } catch (Exception e) {

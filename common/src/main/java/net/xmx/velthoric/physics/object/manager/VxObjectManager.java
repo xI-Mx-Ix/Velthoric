@@ -22,6 +22,7 @@ import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -87,6 +88,7 @@ public class VxObjectManager {
     }
 
     @VxUnsafe("Direct manipulation of internal physics objects. Use with caution.")
+    @Nullable
     public VxAbstractBody remove(UUID id) {
         VxAbstractBody obj = managedObjects.remove(id);
         if (obj != null) {
@@ -123,8 +125,9 @@ public class VxObjectManager {
         this.bodyIdToObjectMap.remove(bodyId);
     }
 
-    public Optional<VxAbstractBody> getByBodyId(int bodyId) {
-        return Optional.ofNullable(bodyIdToObjectMap.get(bodyId));
+    @Nullable
+    public VxAbstractBody getByBodyId(int bodyId) {
+        return bodyIdToObjectMap.get(bodyId);
     }
 
     public Collection<VxAbstractBody> getAllObjects() {
@@ -283,14 +286,16 @@ public class VxObjectManager {
      * @param transform   the initial transform of the body
      * @param configurator a {@link Consumer} that further configures the body
      * @param <T>         the type of rigid body
-     * @return an {@link Optional} containing the created body
+     * @return the created body, or null if creation failed
      */
-    public <T extends VxRigidBody> Optional<T> createRigidBody(VxObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
+    @Nullable
+    public <T extends VxRigidBody> T createRigidBody(VxObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
         T body = type.create(world, UUID.randomUUID());
+        if (body == null) return null;
         body.getGameTransform().set(transform);
         configurator.accept(body);
         addRigidBodyToPhysicsWorld(body, EActivation.DontActivate, true);
-        return Optional.of(body);
+        return body;
     }
 
     /**
@@ -303,14 +308,16 @@ public class VxObjectManager {
      * @param transform   the initial transform of the body
      * @param configurator a {@link Consumer} that further configures the body
      * @param <T>         the type of soft body
-     * @return an {@link Optional} containing the created body
+     * @return the created body, or null if creation failed
      */
-    public <T extends VxSoftBody> Optional<T> createSoftBody(VxObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
+    @Nullable
+    public <T extends VxSoftBody> T createSoftBody(VxObjectType<T> type, VxTransform transform, Consumer<T> configurator) {
         T body = type.create(world, UUID.randomUUID());
+        if (body == null) return null;
         body.getGameTransform().set(transform);
         configurator.accept(body);
         addSoftBodyToPhysicsWorld(body, EActivation.DontActivate, true);
-        return Optional.of(body);
+        return body;
     }
 
 
@@ -390,7 +397,10 @@ public class VxObjectManager {
         physicsUpdater.clearStateFor(id);
 
         if (reason == VxRemovalReason.SAVE) {
-            obj.getTransform(world).ifPresent(t -> obj.getGameTransform().set(t));
+            VxTransform transform = obj.getTransform(world);
+            if (transform != null) {
+                obj.getGameTransform().set(transform);
+            }
             objectStorage.storeObject(obj);
         } else if (reason == VxRemovalReason.DISCARD) {
             objectStorage.removeData(id);
@@ -412,17 +422,18 @@ public class VxObjectManager {
         }
     }
 
-    public Optional<VxAbstractBody> getObject(UUID id) {
-        return Optional.ofNullable(managedObjects.get(id));
+    @Nullable
+    public VxAbstractBody getObject(UUID id) {
+        return managedObjects.get(id);
     }
 
     public CompletableFuture<VxAbstractBody> getOrLoadObject(UUID id) {
         if (id == null) {
             return CompletableFuture.completedFuture(null);
         }
-        Optional<VxAbstractBody> loadedObject = getObject(id);
-        if (loadedObject.isPresent()) {
-            return CompletableFuture.completedFuture(loadedObject.get());
+        VxAbstractBody loadedObject = getObject(id);
+        if (loadedObject != null) {
+            return CompletableFuture.completedFuture(loadedObject);
         }
         return objectStorage.loadObject(id);
     }

@@ -73,15 +73,16 @@ public class VxObjectStore extends AbstractDataStore {
         return index;
     }
 
-    public Optional<Integer> removeObject(UUID id) {
+    @Nullable
+    public Integer removeObject(UUID id) {
         Integer index = uuidToIndex.remove(id);
         if (index != null) {
             resetIndex(index);
             freeIndices.push(index);
             indexToUuid.set(index, null);
-            return Optional.of(index);
+            return index;
         }
-        return Optional.empty();
+        return null;
     }
 
     public void clear() {

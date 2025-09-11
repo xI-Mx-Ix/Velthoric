@@ -15,7 +15,6 @@ import net.xmx.velthoric.physics.raycasting.VxRaytracing;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -114,10 +113,9 @@ public class PhysicsGunServerManager {
 
             VxRaytracing.raycastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHitResult -> {
                 VxHitResult.PhysicsHit physicsHit = physicsHitResult.getPhysicsHit().orElseThrow();
-                Optional<VxAbstractBody> physicsObjectOpt = physicsWorld.getObjectManager().getByBodyId(physicsHit.bodyId());
-                if (physicsObjectOpt.isEmpty()) return;
+                VxAbstractBody physicsObject = physicsWorld.getObjectManager().getByBodyId(physicsHit.bodyId());
+                if (physicsObject == null) return;
 
-                VxAbstractBody physicsObject = physicsObjectOpt.get();
                 UUID objectId = physicsObject.getPhysicsId();
 
                 var bodyInterface = physicsWorld.getBodyInterface();

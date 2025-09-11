@@ -9,6 +9,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
+import net.xmx.velthoric.physics.object.VxAbstractBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
@@ -82,7 +83,8 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     public void storeConstraint(VxConstraint constraint) {
         if (constraint == null) return;
-        constraintManager.getObjectManager().getObject(constraint.getBody1Id()).ifPresent(body1 -> {
+        VxAbstractBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
+        if (body1 != null) {
             ChunkPos chunkPos = VxObjectManager.getObjectChunkPos(body1);
             byte[] data = serializeConstraintData(constraint, chunkPos);
             RegionPos regionPos = getRegionPos(chunkPos);
@@ -96,7 +98,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                 VxMainClass.LOGGER.error("Failed to store constraint {}", constraint.getConstraintId(), ex);
                 return null;
             });
-        });
+        }
     }
 
     public void loadConstraintsInChunk(ChunkPos chunkPos) {

@@ -133,7 +133,10 @@ public class VxObjectNetworkDispatcher {
 
         for (UUID visibleId : newlyVisible) {
             if (!previouslyTracked.contains(visibleId)) {
-                manager.getObject(visibleId).ifPresent(body -> startTracking(player, body));
+                VxAbstractBody body = manager.getObject(visibleId);
+                if (body != null) {
+                    startTracking(player, body);
+                }
             }
         }
     }

@@ -122,11 +122,12 @@ public class RidingManager {
                     objectToRidersMap.remove(objectId);
                 }
             }
-            world.getObjectManager().getObject(objectId).ifPresent(object -> {
+            VxAbstractBody object = world.getObjectManager().getObject(objectId);
+            if (object != null) {
                 if (object instanceof Rideable rideable) {
                     rideable.onStopRiding(player);
                 }
-            });
+            }
         }
         Entity vehicle = player.getVehicle();
         if (vehicle instanceof RidingProxyEntity) {
@@ -157,13 +158,12 @@ public class RidingManager {
             Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
             if (riders == null) continue;
 
-            Optional<VxAbstractBody> physObjectOpt = world.getObjectManager().getObject(objectId);
-            if (physObjectOpt.isEmpty()) {
+            VxAbstractBody physObject = world.getObjectManager().getObject(objectId);
+            if (physObject == null) {
                 playersToStopRiding.addAll(riders.values());
                 continue;
             }
 
-            VxAbstractBody physObject = physObjectOpt.get();
             var trans = physObject.getGameTransform();
             var pos = trans.getTranslation();
             var rot = trans.getRotation();

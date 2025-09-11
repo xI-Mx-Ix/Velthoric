@@ -19,8 +19,6 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.util.Optional;
-
 public final class SpawnBoxCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -127,16 +125,16 @@ public final class SpawnBoxCommand {
         VxObjectManager manager = physicsWorld.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(spawnPosMc.x, spawnPosMc.y, spawnPosMc.z), Quat.sIdentity());
 
-        Optional<BoxRigidBody> spawnedObject = manager.createRigidBody(
+        BoxRigidBody spawnedObject = manager.createRigidBody(
                 VxRegisteredObjects.BOX,
                 transform,
                 box -> box.setHalfExtents(halfExtents)
         );
 
-        if (spawnedObject.isPresent()) {
+        if (spawnedObject != null) {
             source.sendSuccess(() -> Component.literal(
                     String.format("Successfully spawned box (%.2f x %.2f x %.2f) with ID: %s",
-                            halfExtents.getX() * 2, halfExtents.getY() * 2, halfExtents.getZ() * 2, spawnedObject.get().getPhysicsId())
+                            halfExtents.getX() * 2, halfExtents.getY() * 2, halfExtents.getZ() * 2, spawnedObject.getPhysicsId())
             ), true);
             return 1;
         } else {

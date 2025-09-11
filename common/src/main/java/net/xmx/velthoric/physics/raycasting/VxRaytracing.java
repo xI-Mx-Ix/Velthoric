@@ -126,10 +126,9 @@ public final class VxRaytracing {
             Map<String, Seat> seats = entry.getValue();
             if (seats.isEmpty()) continue;
 
-            Optional<VxAbstractBody> objOpt = physicsWorld.getObjectManager().getObject(objectId);
-            if (objOpt.isEmpty()) continue;
+            VxAbstractBody obj = physicsWorld.getObjectManager().getObject(objectId);
+            if (obj == null) continue;
 
-            VxAbstractBody obj = objOpt.get();
             VxTransform transform = obj.getGameTransform();
             Quaternionf worldRot = transform.getRotation(new Quaternionf());
             Vector3f worldPos = transform.getTranslation(new Vector3f());
