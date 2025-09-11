@@ -15,9 +15,9 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.event.api.VxRenderEvent;
 import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunClientManager;
+import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
 import org.joml.Matrix4f;
 
 import java.util.Map;
@@ -50,7 +50,7 @@ public class PhysicsGunBeamRenderer {
 
         PhysicsGunClientManager clientManager = PhysicsGunClientManager.getInstance();
         VxClientObjectManager objectManager = VxClientObjectManager.getInstance();
-        VxClientObjectStore store = objectManager.getStore();
+        VxClientObjectDataStore store = objectManager.getStore();
         VxClientObjectInterpolator interpolator = objectManager.getInterpolator();
 
         Camera camera = mc.gameRenderer.getMainCamera();
@@ -136,7 +136,7 @@ public class PhysicsGunBeamRenderer {
         poseStack.popPose();
     }
 
-    private static Optional<Vec3> raycastClientPhysicsObjects(Vec3 rayOrigin, Vec3 rayDirection, float maxDistance, VxClientObjectStore store, VxClientObjectInterpolator interpolator, float partialTicks) {
+    private static Optional<Vec3> raycastClientPhysicsObjects(Vec3 rayOrigin, Vec3 rayDirection, float maxDistance, VxClientObjectDataStore store, VxClientObjectInterpolator interpolator, float partialTicks) {
         double closestHitDist = maxDistance;
         Vec3 hitPoint = null;
 

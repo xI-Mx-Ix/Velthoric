@@ -7,9 +7,9 @@ import com.mojang.math.Axis;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.util.Mth;
+import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
 import net.xmx.velthoric.physics.riding.RidingProxyEntity;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -36,7 +36,7 @@ public abstract class PlayerRendererMixin {
 
         proxy.getPhysicsObjectId().ifPresent(id -> {
             VxClientObjectManager manager = VxClientObjectManager.getInstance();
-            VxClientObjectStore store = manager.getStore();
+            VxClientObjectDataStore store = manager.getStore();
             VxClientObjectInterpolator interpolator = manager.getInterpolator();
             Integer index = store.getIndexForId(id);
 

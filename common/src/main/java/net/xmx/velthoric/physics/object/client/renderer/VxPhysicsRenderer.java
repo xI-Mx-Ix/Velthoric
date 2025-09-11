@@ -16,7 +16,7 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
+import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import org.joml.Matrix4f;
@@ -42,7 +42,7 @@ public class VxPhysicsRenderer {
         if (mc.level == null || mc.getCameraEntity() == null) return;
 
         VxClientObjectManager manager = VxClientObjectManager.getInstance();
-        VxClientObjectStore store = manager.getStore();
+        VxClientObjectDataStore store = manager.getStore();
         VxClientObjectInterpolator interpolator = manager.getInterpolator();
 
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
@@ -94,7 +94,7 @@ public class VxPhysicsRenderer {
         bufferSource.endBatch();
     }
 
-    private static void renderRigidBody(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, UUID id, int index, VxClientObjectStore store) {
+    private static void renderRigidBody(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, UUID id, int index, VxClientObjectDataStore store) {
         VxRigidBody.Renderer renderer = (VxRigidBody.Renderer) store.renderer[index];
         if (renderer == null) return;
 
@@ -105,7 +105,7 @@ public class VxPhysicsRenderer {
         renderer.render(id, finalRenderState, customData, poseStack, bufferSource, partialTicks, packedLight);
     }
 
-    private static void renderSoftBody(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, UUID id, int index, VxClientObjectStore store) {
+    private static void renderSoftBody(Minecraft mc, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, UUID id, int index, VxClientObjectDataStore store) {
         VxSoftBody.Renderer renderer = (VxSoftBody.Renderer) store.renderer[index];
         if (renderer == null) return;
 

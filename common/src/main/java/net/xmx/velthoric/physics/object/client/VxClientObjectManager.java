@@ -25,7 +25,7 @@ public class VxClientObjectManager {
     private static final VxClientObjectManager INSTANCE = new VxClientObjectManager();
     private static final long INTERPOLATION_DELAY_NANOS = 220_000_000L;
 
-    private final VxClientObjectStore store = new VxClientObjectStore();
+    private final VxClientObjectDataStore store = new VxClientObjectDataStore();
     private final VxClientObjectRegistry registry = new VxClientObjectRegistry();
     private final VxClientObjectInterpolator interpolator = new VxClientObjectInterpolator();
     private final VxClientClock clock = VxClientClock.getInstance();
@@ -253,7 +253,7 @@ public class VxClientObjectManager {
         VxClientPlayerNetworkEvent.LoggingOut.EVENT.register(event -> INSTANCE.clearAll());
     }
 
-    public VxClientObjectStore getStore() {
+    public VxClientObjectDataStore getStore() {
         return store;
     }
 

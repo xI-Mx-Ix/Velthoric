@@ -16,7 +16,7 @@ public class VxClientObjectInterpolator {
     private final Quat tempToRot = new Quat();
     private final Quat tempRenderRot = new Quat();
 
-    public void updateInterpolationTargets(VxClientObjectStore store, long renderTimestamp) {
+    public void updateInterpolationTargets(VxClientObjectDataStore store, long renderTimestamp) {
         for (UUID id : store.getAllObjectIds()) {
             Integer i = store.getIndexForId(id);
             if (i == null) continue;
@@ -62,7 +62,7 @@ public class VxClientObjectInterpolator {
         }
     }
 
-    private void calculateInterpolatedState(VxClientObjectStore store, int i, long renderTimestamp) {
+    private void calculateInterpolatedState(VxClientObjectDataStore store, int i, long renderTimestamp) {
         if (!store.state1_isActive[i]) {
             setRenderStateToLatest(store, i);
             return;
@@ -129,7 +129,7 @@ public class VxClientObjectInterpolator {
         }
     }
 
-    private void setRenderStateToLatest(VxClientObjectStore store, int i) {
+    private void setRenderStateToLatest(VxClientObjectDataStore store, int i) {
         store.render_posX[i] = store.state1_posX[i];
         store.render_posY[i] = store.state1_posY[i];
         store.render_posZ[i] = store.state1_posZ[i];
@@ -140,7 +140,7 @@ public class VxClientObjectInterpolator {
         store.render_vertexData[i] = store.state1_vertexData[i] != null ? store.state1_vertexData[i] : store.state0_vertexData[i];
     }
 
-    public void interpolateFrame(VxClientObjectStore store, int i, float partialTicks, RVec3 outPos, Quat outRot) {
+    public void interpolateFrame(VxClientObjectDataStore store, int i, float partialTicks, RVec3 outPos, Quat outRot) {
         outPos.set(
                 Mth.lerp(partialTicks, store.prev_posX[i], store.render_posX[i]),
                 Mth.lerp(partialTicks, store.prev_posY[i], store.render_posY[i]),
@@ -152,7 +152,7 @@ public class VxClientObjectInterpolator {
         VxOperations.slerp(tempFromRot, tempToRot, partialTicks, outRot);
     }
 
-    public float @Nullable [] getInterpolatedVertexData(VxClientObjectStore store, int i, float partialTicks) {
+    public float @Nullable [] getInterpolatedVertexData(VxClientObjectDataStore store, int i, float partialTicks) {
         float[] prevVerts = store.prev_vertexData[i];
         float[] currVerts = store.render_vertexData[i];
 

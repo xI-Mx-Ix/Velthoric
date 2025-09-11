@@ -5,9 +5,9 @@ import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
+import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
 import net.xmx.velthoric.physics.riding.RidingProxyEntity;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
@@ -35,7 +35,7 @@ public abstract class EntityMixin {
         if (getVehicle() instanceof RidingProxyEntity proxy) {
             proxy.getPhysicsObjectId().ifPresent(id -> {
                 VxClientObjectManager manager = VxClientObjectManager.getInstance();
-                VxClientObjectStore store = manager.getStore();
+                VxClientObjectDataStore store = manager.getStore();
                 VxClientObjectInterpolator interpolator = manager.getInterpolator();
                 Integer index = store.getIndexForId(id);
 
@@ -74,7 +74,7 @@ public abstract class EntityMixin {
         if (getVehicle() instanceof RidingProxyEntity proxy) {
             proxy.getPhysicsObjectId().ifPresent(id -> {
                 VxClientObjectManager manager = VxClientObjectManager.getInstance();
-                VxClientObjectStore store = manager.getStore();
+                VxClientObjectDataStore store = manager.getStore();
                 Integer index = store.getIndexForId(id);
 
                 if (index == null || !store.render_isInitialized[index]) {

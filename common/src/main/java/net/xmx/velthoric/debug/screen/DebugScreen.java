@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.xmx.velthoric.event.api.VxDebugEvent;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.client.VxClientObjectStore;
+import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,7 +39,7 @@ public class DebugScreen {
 
     private static void addClientInfo(List<String> left) {
         VxClientObjectManager clientManager = VxClientObjectManager.getInstance();
-        VxClientObjectStore store = clientManager.getStore();
+        VxClientObjectDataStore store = clientManager.getStore();
 
         long clientRigidCount = 0;
         long clientSoftCount = 0;

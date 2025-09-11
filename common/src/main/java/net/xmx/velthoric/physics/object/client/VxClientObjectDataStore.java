@@ -8,7 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import java.nio.ByteBuffer;
 import java.util.*;
 
-public class VxClientObjectStore extends AbstractDataStore {
+public class VxClientObjectDataStore extends AbstractDataStore {
     private static final int INITIAL_CAPACITY = 256;
 
     private final Map<UUID, Integer> uuidToIndex = new HashMap<>();
@@ -45,7 +45,7 @@ public class VxClientObjectStore extends AbstractDataStore {
     public ByteBuffer[] customData;
     public RVec3[] lastKnownPosition;
 
-    public VxClientObjectStore() {
+    public VxClientObjectDataStore() {
         allocate(INITIAL_CAPACITY);
     }
 
