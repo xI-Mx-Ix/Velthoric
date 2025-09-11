@@ -454,6 +454,10 @@ public class VxTerrainSystem implements Runnable {
         List<List<VxAbstractBody>> batches = partitionList(currentObjects, OBJECT_ACTIVATION_BATCH_SIZE);
         List<CompletableFuture<Set<VxSectionPos>>> futures = new ArrayList<>();
 
+        if (jobSystem.isShutdown()) {
+            return;
+        }
+
         for (List<VxAbstractBody> batch : batches) {
             futures.add(CompletableFuture.supplyAsync(() -> {
                 Set<VxSectionPos> required = new HashSet<>();
