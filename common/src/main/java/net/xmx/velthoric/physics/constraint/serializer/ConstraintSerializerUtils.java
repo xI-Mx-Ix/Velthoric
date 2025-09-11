@@ -1,3 +1,7 @@
+/*
+This file is part of Velthoric.
+Licensed under LGPL 3.0.
+*/
 package net.xmx.velthoric.physics.constraint.serializer;
 
 import com.github.stephengold.joltjni.*;
@@ -93,7 +97,7 @@ public final class ConstraintSerializerUtils {
 
             try (PathResult result = PathConstraintPath.sRestoreFromBinaryState(streamIn)) {
                 if (result.hasError()) {
-                    System.err.println("Fehler beim Wiederherstellen des Pfades aus dem Binärzustand: " + result.getError());
+                    System.err.println("Fehler beim Wiederherstellen des Pfades aus dem BinÃ¤rzustand: " + result.getError());
                     return new PathConstraintPathHermite();
                 }
 

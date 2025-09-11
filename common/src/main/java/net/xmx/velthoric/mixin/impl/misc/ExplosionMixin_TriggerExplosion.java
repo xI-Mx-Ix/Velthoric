@@ -1,3 +1,7 @@
+/*
+This file is part of Velthoric.
+Licensed under LGPL 3.0.
+*/
 package net.xmx.velthoric.mixin.impl.misc;
 
 import com.github.stephengold.joltjni.Vec3;

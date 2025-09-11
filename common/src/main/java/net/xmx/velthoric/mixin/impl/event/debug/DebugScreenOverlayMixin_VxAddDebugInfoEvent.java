@@ -1,3 +1,7 @@
+/*
+This file is part of Velthoric.
+Licensed under LGPL 3.0.
+*/
 package net.xmx.velthoric.mixin.impl.event.debug;
 
 import net.minecraft.client.gui.components.DebugScreenOverlay;

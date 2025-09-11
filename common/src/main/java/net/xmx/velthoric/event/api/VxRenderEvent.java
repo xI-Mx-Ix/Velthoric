@@ -1,3 +1,7 @@
+/*
+This file is part of Velthoric.
+Licensed under LGPL 3.0.
+*/
 package net.xmx.velthoric.event.api;
 
 import com.mojang.blaze3d.vertex.PoseStack;

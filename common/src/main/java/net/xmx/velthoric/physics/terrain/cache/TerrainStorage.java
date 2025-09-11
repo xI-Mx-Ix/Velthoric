@@ -1,3 +1,7 @@
+/*
+This file is part of Velthoric.
+Licensed under LGPL 3.0.
+*/
 package net.xmx.velthoric.physics.terrain.cache;
 
 import com.github.stephengold.joltjni.Shape;
