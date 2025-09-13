@@ -12,3 +12,5 @@ rootProject.name = 'Velthoric'
 include 'common'
 include 'fabric'
 include 'forge'
+
+include 'VxNativeUtil'

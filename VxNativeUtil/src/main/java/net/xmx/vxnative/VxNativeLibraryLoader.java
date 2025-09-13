@@ -2,9 +2,8 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.natives;
+package net.xmx.vxnative;
 
-import dev.architectury.platform.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,14 +16,13 @@ import java.nio.file.StandardCopyOption;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Locale;
 
 public class VxNativeLibraryLoader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("Velthoric Native Loader");
     private static volatile boolean loaded = false;
 
-    public static void load() {
+    public static void load(Path extractionPath) {
         if (loaded) return;
 
         try {
@@ -34,7 +32,6 @@ public class VxNativeLibraryLoader {
                         System.getProperty("os.name") + " (" + System.getProperty("os.arch") + ")");
             }
 
-            Path extractionPath = Platform.getGameFolder().resolve("velthoric").resolve("natives");
             String libFileName = resourcePath.substring(resourcePath.lastIndexOf('/') + 1);
             Path targetFile = extractionPath.resolve(libFileName);
             LOGGER.debug("Native library target path: {}", targetFile.toAbsolutePath());
@@ -54,7 +51,9 @@ public class VxNativeLibraryLoader {
             if (needsExtraction) {
                 LOGGER.debug("Extracting native library '{}' to '{}'", resourcePath, targetFile);
                 Files.createDirectories(extractionPath);
-                try (InputStream source = VxNativeLibraryLoader.class.getResourceAsStream(resourcePath)) {
+
+                String pathForClassLoader = resourcePath.substring(1);
+                try (InputStream source = Thread.currentThread().getContextClassLoader().getResourceAsStream(pathForClassLoader)) {
                     if (source == null) throw new IOException("Native library '" + resourcePath + "' not found in classpath.");
                     Files.copy(source, targetFile, StandardCopyOption.REPLACE_EXISTING);
                 }
@@ -77,6 +76,7 @@ public class VxNativeLibraryLoader {
         if (os == null || arch == null) return null;
 
         String libName = System.mapLibraryName("joltjni");
+
         return String.format("/%s/%s/com/github/stephengold/%s", os.folder, arch.folder, libName);
     }
 
@@ -96,10 +96,11 @@ public class VxNativeLibraryLoader {
     }
 
     private static String calculateResourceHash(String resourcePath) throws IOException, NoSuchAlgorithmException {
-        try (InputStream in = VxNativeLibraryLoader.class.getResourceAsStream(resourcePath)) {
+
+        String pathForClassLoader = resourcePath.substring(1);
+        try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(pathForClassLoader)) {
             if (in == null) throw new IOException("Resource '" + resourcePath + "' not found in classpath.");
             return calculateHash(in);
         }
     }
 }
-

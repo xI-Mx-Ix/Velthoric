@@ -5,8 +5,12 @@
 package net.xmx.velthoric.natives;
 
 import com.github.stephengold.joltjni.*;
+import dev.architectury.platform.Platform;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.world.VxLayers;
+import net.xmx.vxnative.VxNativeLibraryLoader;
+
+import java.nio.file.Path;
 
 public class VxNativeJolt {
 
@@ -23,7 +27,8 @@ public class VxNativeJolt {
 
         VxMainClass.LOGGER.debug("Performing Physics initialization...");
 
-        VxNativeLibraryLoader.load();
+        Path extractionPath = Platform.getGameFolder().resolve("velthoric").resolve("natives");
+        VxNativeLibraryLoader.load(extractionPath);
 
         Jolt.registerDefaultAllocator();
         Jolt.installDefaultAssertCallback();
