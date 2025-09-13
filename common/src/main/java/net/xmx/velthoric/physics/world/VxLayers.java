@@ -11,10 +11,9 @@ package net.xmx.velthoric.physics.world;
  * @author xI-Mx-Ix
  */
 public class VxLayers {
-    /** The layer for immovable objects like terrain and static geometry. */
     public static final short STATIC = 0;
-    /** The layer for movable objects that are affected by forces, like vehicles or debris. */
     public static final short DYNAMIC = 1;
-    /** The total number of defined layers. */
-    public static final short NUM_LAYERS = 2;
+    public static final short KINEMATIC = 2;
+    public static final short TERRAIN = 3;
+    public static final short NUM_LAYERS = 4;
 }

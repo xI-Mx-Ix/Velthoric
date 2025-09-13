@@ -46,14 +46,30 @@ public class VxNativeJolt {
         final int numBroadPhaseLayers = VxLayers.NUM_LAYERS;
 
         ObjectLayerPairFilterTable olpfTable = new ObjectLayerPairFilterTable(numObjectLayers);
+
         olpfTable.disableCollision(VxLayers.STATIC, VxLayers.STATIC);
-        olpfTable.enableCollision(VxLayers.DYNAMIC, VxLayers.DYNAMIC);
+        olpfTable.disableCollision(VxLayers.STATIC, VxLayers.TERRAIN);
         olpfTable.enableCollision(VxLayers.STATIC, VxLayers.DYNAMIC);
+        olpfTable.enableCollision(VxLayers.STATIC, VxLayers.KINEMATIC);
+
+        olpfTable.enableCollision(VxLayers.DYNAMIC, VxLayers.DYNAMIC);
+        olpfTable.enableCollision(VxLayers.DYNAMIC, VxLayers.KINEMATIC);
+        olpfTable.enableCollision(VxLayers.DYNAMIC, VxLayers.TERRAIN);
+
+        olpfTable.enableCollision(VxLayers.KINEMATIC, VxLayers.KINEMATIC);
+        olpfTable.enableCollision(VxLayers.KINEMATIC, VxLayers.DYNAMIC);
+        olpfTable.enableCollision(VxLayers.KINEMATIC, VxLayers.TERRAIN);
+
+        olpfTable.enableCollision(VxLayers.TERRAIN, VxLayers.DYNAMIC);
+        olpfTable.enableCollision(VxLayers.TERRAIN, VxLayers.KINEMATIC);
+
         objectLayerPairFilter = olpfTable;
 
         BroadPhaseLayerInterfaceTable bpliTable = new BroadPhaseLayerInterfaceTable(numObjectLayers, numBroadPhaseLayers);
         bpliTable.mapObjectToBroadPhaseLayer(VxLayers.STATIC, VxLayers.STATIC);
         bpliTable.mapObjectToBroadPhaseLayer(VxLayers.DYNAMIC, VxLayers.DYNAMIC);
+        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.KINEMATIC, VxLayers.KINEMATIC);
+        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.TERRAIN, VxLayers.TERRAIN);
         broadPhaseLayerInterface = bpliTable;
 
         objectVsBroadPhaseLayerFilter = new ObjectVsBroadPhaseLayerFilterTable(

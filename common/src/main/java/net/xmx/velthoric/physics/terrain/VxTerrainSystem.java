@@ -280,7 +280,7 @@ public class VxTerrainSystem implements Runnable {
             }
         } else if (shape != null) {
             RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
-            try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxLayers.STATIC)) {
+            try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxLayers.TERRAIN)) {
                 Body body = bodyInterface.createBody(bcs);
                 if (body != null) {
                     chunkDataStore.bodyIds[index] = body.getId();
