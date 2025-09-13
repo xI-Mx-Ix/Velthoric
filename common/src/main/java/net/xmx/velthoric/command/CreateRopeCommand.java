@@ -55,7 +55,6 @@ public final class CreateRopeCommand {
 
                         body.setBodyId(bodyId);
                         objectManager.add(body);
-                        world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
                         return body;
                     }
                 }

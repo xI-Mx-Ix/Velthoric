@@ -92,18 +92,7 @@ public class VxObjectManager {
     @VxUnsafe("Direct manipulation of internal physics objects. Use with caution.")
     public void add(VxAbstractBody obj) {
         if (obj == null) return;
-        managedObjects.computeIfAbsent(obj.getPhysicsId(), id -> {
-            EBodyType type = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
-            int index = dataStore.addObject(id, type);
-            obj.setDataStoreIndex(index);
-
-            if (obj.getBodyId() != 0) {
-                linkBodyId(obj.getBodyId(), obj);
-            }
-            startTracking(obj);
-            world.getConstraintManager().getDataSystem().onDependencyLoaded(id);
-            return obj;
-        });
+        addInternal(obj);
     }
 
     /**
@@ -120,15 +109,7 @@ public class VxObjectManager {
     @VxUnsafe("Direct manipulation of internal physics objects. Use with caution.")
     @Nullable
     public VxAbstractBody remove(UUID id) {
-        VxAbstractBody obj = managedObjects.remove(id);
-        if (obj != null) {
-            dataStore.removeObject(id);
-            obj.setDataStoreIndex(-1);
-            if (obj.getBodyId() != 0) {
-                unlinkBodyId(obj.getBodyId());
-            }
-        }
-        return obj;
+        return removeInternal(id);
     }
 
     /**
