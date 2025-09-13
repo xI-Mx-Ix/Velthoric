@@ -1,7 +1,7 @@
 /*
-This file is part of Velthoric.
-Licensed under LGPL 3.0.
-*/
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.builtin.box;
 
 import com.github.stephengold.joltjni.*;
@@ -17,12 +17,12 @@ import java.util.UUID;
 public class BoxRigidBody extends VxRigidBody {
 
     private Vec3 halfExtents;
-    private int color;
+    private BoxColor color;
 
     public BoxRigidBody(VxObjectType<BoxRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.halfExtents = new Vec3(0.5f, 0.5f, 0.5f);
-        this.color = 0xFFFF0000;
+        this.color = BoxColor.RED;
     }
 
     public void setHalfExtents(Vec3 halfExtents) {
@@ -34,12 +34,12 @@ public class BoxRigidBody extends VxRigidBody {
         return halfExtents;
     }
 
-    public void setColor(int color) {
+    public void setColor(BoxColor color) {
         this.color = color;
         this.markDataDirty();
     }
 
-    public int getColor() {
+    public BoxColor getColor() {
         return color;
     }
 
@@ -64,12 +64,12 @@ public class BoxRigidBody extends VxRigidBody {
     @Override
     public void writeCreationData(VxByteBuf buf) {
         buf.writeVec3(halfExtents);
-        buf.writeInt(color);
+        buf.writeInt(color.ordinal());
     }
 
     @Override
     public void readCreationData(VxByteBuf buf) {
         this.halfExtents = buf.readVec3();
-        this.color = buf.readInt();
+        this.color = BoxColor.values()[buf.readInt()];
     }
 }

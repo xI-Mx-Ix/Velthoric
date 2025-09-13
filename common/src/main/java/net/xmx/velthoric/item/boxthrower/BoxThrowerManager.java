@@ -1,7 +1,7 @@
 /*
-This file is part of Velthoric.
-Licensed under LGPL 3.0.
-*/
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.item.boxthrower;
 
 import com.github.stephengold.joltjni.Quat;
@@ -9,6 +9,7 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.builtin.VxRegisteredObjects;
+import net.xmx.velthoric.builtin.box.BoxColor;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
@@ -76,8 +77,6 @@ public class BoxThrowerManager {
 
         Vec3 halfExtents = new Vec3(randomWidth / 2.0f, randomHeight / 2.0f, randomDepth / 2.0f);
 
-        int randomColor = 0xFF000000 | random.nextInt(0x01000000);
-
         Vec3 launchVelocity = new Vec3(
                 (float) lookVec.x,
                 (float) lookVec.y,
@@ -92,7 +91,7 @@ public class BoxThrowerManager {
                 transform,
                 box -> {
                     box.setHalfExtents(halfExtents);
-                    box.setColor(randomColor);
+                    box.setColor(BoxColor.getRandom());
                 }
         );
 
