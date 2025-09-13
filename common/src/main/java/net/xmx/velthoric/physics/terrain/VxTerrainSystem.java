@@ -91,14 +91,13 @@ public class VxTerrainSystem implements Runnable {
     public void shutdown() {
         if (isInitialized.compareAndSet(true, false)) {
             workerThread.interrupt();
+            jobSystem.shutdown();
             try {
                 workerThread.join(5000);
             } catch (InterruptedException e) {
+                VxMainClass.LOGGER.warn("Terrain tracker thread did not terminate gracefully.");
                 Thread.currentThread().interrupt();
             }
-
-            jobSystem.shutdown();
-            this.terrainStorage.shutdown();
 
             physicsWorld.execute(() -> {
                 chunkDataStore.getManagedPositions().forEach(this::unloadChunkPhysicsInternal);
@@ -108,6 +107,8 @@ public class VxTerrainSystem implements Runnable {
                 objectUpdateCooldowns.clear();
                 shapeCache.clear();
             });
+
+            this.terrainStorage.shutdown();
         }
     }
 

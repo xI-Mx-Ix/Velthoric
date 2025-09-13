@@ -73,7 +73,7 @@ public final class TerrainGenerator {
         }
     }
 
-    private static final ThreadLocal<MeshingContext> MESHING_CONTEXT = ThreadLocal.withInitial(MeshingContext::new);
+    private final ThreadLocal<MeshingContext> MESHING_CONTEXT = ThreadLocal.withInitial(MeshingContext::new);
 
     public TerrainGenerator(TerrainShapeCache shapeCache, TerrainStorage terrainStorage) {
         this.shapeCache = shapeCache;
@@ -103,8 +103,13 @@ public final class TerrainGenerator {
 
         if (generatedShape != null) {
             terrainStorage.storeShape(snapshot.pos(), contentHash, generatedShape);
-            shapeCache.put(contentHash, generatedShape);
-            return generatedShape.getPtr().toRefC();
+
+            shapeCache.put(contentHash, generatedShape.getPtr().toRefC());
+            ShapeRefC returnShape = generatedShape.getPtr().toRefC();
+
+            generatedShape.close();
+
+            return returnShape;
         } else {
             terrainStorage.removeShape(snapshot.pos());
         }
@@ -144,8 +149,11 @@ public final class TerrainGenerator {
             return null;
         }
 
+        ShapeRefC resultShape = null;
+
         VertexList vlist = new VertexList();
         try (IndexedTriangleList ilist = new IndexedTriangleList()) {
+
             vlist.resize(context.vertexCount);
             for (int i = 0; i < context.vertexCount; i++) {
                 int baseIndex = i * 3;
@@ -164,13 +172,14 @@ public final class TerrainGenerator {
             try (MeshShapeSettings mss = new MeshShapeSettings(vlist, ilist);
                  ShapeResult res = mss.create()) {
                 if (res.isValid()) {
-                    return res.get();
+                    resultShape = res.get();
                 } else {
                     VxMainClass.LOGGER.error("Failed to create terrain mesh for {}: {}", snapshot.pos(), res.getError());
                 }
             }
         }
-        return null;
+
+        return resultShape;
     }
 
     private void extractFacesToMasks(BlockPos localPos, AABB aabb, Map<Integer, BitSet>[] facesByAxis) {
