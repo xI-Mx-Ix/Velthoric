@@ -1,7 +1,7 @@
 /*
-This file is part of Velthoric.
-Licensed under LGPL 3.0.
-*/
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.init.registry;
 
 import dev.architectury.registry.CreativeTabRegistry;
@@ -30,3 +30,4 @@ public class TabRegistry {
 		ModRegistries.CREATIVE_MODE_TABS.register();
 	}
 }
+

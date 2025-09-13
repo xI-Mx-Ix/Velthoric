@@ -1,7 +1,7 @@
 /*
-This file is part of Velthoric.
-Licensed under LGPL 3.0.
-*/
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.mixin.impl.event.server;
 
 import net.minecraft.server.MinecraftServer;
@@ -24,3 +24,4 @@ public abstract class MinecraftServerMixin_VxServerLifecylceEvent {
         VxServerLifecycleEvent.Stopping.EVENT.invoker().onServerStopping(new VxServerLifecycleEvent.Stopping((MinecraftServer)(Object)this));
     }
 }
+

@@ -1,7 +1,7 @@
 /*
-This file is part of Velthoric.
-Licensed under LGPL 3.0.
-*/
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.fabric;
 
 import dev.architectury.platform.Platform;
@@ -19,3 +19,4 @@ public final class VxFabric implements ModInitializer {
         }
     }
 }
+

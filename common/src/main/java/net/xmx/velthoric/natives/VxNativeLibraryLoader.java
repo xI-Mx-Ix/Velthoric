@@ -1,7 +1,7 @@
 /*
-This file is part of Velthoric.
-Licensed under LGPL 3.0.
-*/
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.natives;
 
 import dev.architectury.platform.Platform;
@@ -102,3 +102,4 @@ public class VxNativeLibraryLoader {
         }
     }
 }
+

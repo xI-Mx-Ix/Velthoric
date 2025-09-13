@@ -1,7 +1,7 @@
 /*
-This file is part of Velthoric.
-Licensed under LGPL 3.0.
-*/
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.mixin.impl.event.level;
 
 import net.minecraft.server.MinecraftServer;
@@ -35,3 +35,4 @@ public class MinecraftServerMixin_VxLevelEvent {
         }
     }
 }
+

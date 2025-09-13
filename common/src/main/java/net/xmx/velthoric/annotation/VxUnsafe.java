@@ -1,7 +1,7 @@
 /*
-This file is part of Velthoric.
-Licensed under LGPL 3.0.
-*/
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.annotation;
 
 import java.lang.annotation.ElementType;
@@ -17,3 +17,4 @@ import java.lang.annotation.Target;
 public @interface VxUnsafe {
     String value() default "This method is unsafe. Use at your own risk.";
 }
+

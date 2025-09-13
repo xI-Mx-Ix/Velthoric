@@ -1,7 +1,7 @@
 /*
-This file is part of Velthoric.
-Licensed under LGPL 3.0.
-*/
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.physics;
 
 import dev.architectury.event.events.common.TickEvent;
@@ -45,3 +45,4 @@ public final class VxLifecycleEvents {
         });
     }
 }
+
