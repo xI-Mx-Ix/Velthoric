@@ -54,13 +54,6 @@ subprojects {
         implementation("com.github.stephengold:jolt-jni-MacOSX64:${jolt_jni_version}:DebugDp")
         implementation("com.github.stephengold:jolt-jni-MacOSX_ARM64:${jolt_jni_version}:DebugDp")
 
-        include("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}")
-        include("com.github.stephengold:jolt-jni-Windows64:${jolt_jni_version}:ReleaseDp")
-        include("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}:ReleaseDp")
-        include("com.github.stephengold:jolt-jni-Linux_ARM64:${jolt_jni_version}:ReleaseDp")
-        include("com.github.stephengold:jolt-jni-MacOSX64:${jolt_jni_version}:ReleaseDp")
-        include("com.github.stephengold:jolt-jni-MacOSX_ARM64:${jolt_jni_version}:ReleaseDp")
-
         minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}")
         minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Windows64:${jolt_jni_version}:DebugDp")
         minecraftRuntimeLibraries("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}:DebugDp")

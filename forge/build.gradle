@@ -49,8 +49,15 @@ dependencies {
     modImplementation "dev.architectury:architectury-forge:$rootProject.architectury_api_version"
 
     implementation project(path: ":VxNativeUtil", configuration: "namedElements")
-    include project(path: ":VxNativeUtil", configuration: "namedElements")
+    shadowBundle project(path: ":VxNativeUtil", configuration: "namedElements")
     minecraftRuntimeLibraries project(path: ":VxNativeUtil", configuration: "namedElements")
+
+    shadowBundle("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}")
+    shadowBundle("com.github.stephengold:jolt-jni-Windows64:${jolt_jni_version}:ReleaseDp")
+    shadowBundle("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}:ReleaseDp")
+    shadowBundle("com.github.stephengold:jolt-jni-Linux_ARM64:${jolt_jni_version}:ReleaseDp")
+    shadowBundle("com.github.stephengold:jolt-jni-MacOSX64:${jolt_jni_version}:ReleaseDp")
+    shadowBundle("com.github.stephengold:jolt-jni-MacOSX_ARM64:${jolt_jni_version}:ReleaseDp")
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionForge')
