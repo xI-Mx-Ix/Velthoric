@@ -2,14 +2,14 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.command;
+package net.xmx.velthoric.command.test;
 
 import com.github.stephengold.joltjni.HingeConstraintSettings;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
-import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
@@ -26,19 +26,21 @@ import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-public final class SpawnConnectedBoxesCommand {
+public final class SpawnConnectedBoxesTest implements IVxTestCommand {
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(
-                Commands.literal("spawnconnectedboxes")
-                        .requires(source -> source.hasPermission(2))
-                        .then(Commands.argument("position", Vec3Argument.vec3(true))
-                                .executes(SpawnConnectedBoxesCommand::execute)
-                        )
+    @Override
+    public String getName() {
+        return "spawnConnectedBoxes";
+    }
+
+    @Override
+    public void registerArguments(LiteralArgumentBuilder<CommandSourceStack> builder) {
+        builder.then(Commands.argument("position", Vec3Argument.vec3(true))
+                .executes(this::execute)
         );
     }
 
-    private static int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+    private int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         CommandSourceStack source = context.getSource();
         ServerLevel serverLevel = source.getLevel();
         net.minecraft.world.phys.Vec3 centerPos = Vec3Argument.getVec3(context, "position");

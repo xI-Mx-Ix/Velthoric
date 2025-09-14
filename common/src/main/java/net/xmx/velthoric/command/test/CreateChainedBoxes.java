@@ -2,14 +2,14 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.command;
+package net.xmx.velthoric.command.test;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
@@ -23,24 +23,25 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
-
 import java.util.UUID;
 
-public final class CreateRopeCommand {
+public final class CreateChainedBoxes implements IVxTestCommand {
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(
-                Commands.literal("createrope")
-                        .requires(source -> source.hasPermission(2))
-                        .then(Commands.argument("start_position", Vec3Argument.vec3(true))
-                                .then(Commands.argument("segments", IntegerArgumentType.integer(2, 1000))
-                                        .executes(CreateRopeCommand::execute)
-                                )
-                        )
+    @Override
+    public String getName() {
+        return "createChainedBoxes";
+    }
+
+    @Override
+    public void registerArguments(LiteralArgumentBuilder<CommandSourceStack> builder) {
+        builder.then(Commands.argument("start_position", Vec3Argument.vec3(true))
+                .then(Commands.argument("segments", IntegerArgumentType.integer(2, 1000))
+                        .executes(this::execute)
+                )
         );
     }
 
-    private static BoxRigidBody createRopeSegment(VxPhysicsWorld world, VxObjectManager objectManager, RVec3 position, Vec3 halfExtents, EMotionType bodyType) {
+    private BoxRigidBody createRopeSegment(VxPhysicsWorld world, VxObjectManager objectManager, RVec3 position, Vec3 halfExtents, EMotionType bodyType) {
         BoxRigidBody body = VxRegisteredObjects.BOX.create(world, UUID.randomUUID());
         body.getGameTransform().set(new VxTransform(position, Quat.sIdentity()));
         body.setHalfExtents(halfExtents);
@@ -62,7 +63,7 @@ public final class CreateRopeCommand {
         }
     }
 
-    private static int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+    private int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         CommandSourceStack source = context.getSource();
         ServerLevel serverLevel = source.getLevel();
         net.minecraft.world.phys.Vec3 startPos = Vec3Argument.getVec3(context, "start_position");
@@ -81,7 +82,7 @@ public final class CreateRopeCommand {
             float segmentLength = 0.5f;
             float segmentRadius = 0.25f;
             Vec3 segmentHalfExtents = new Vec3(segmentRadius, segmentLength / 2.0f, segmentRadius);
-            
+
             RVec3 anchorPosition = new RVec3(startPos.x, startPos.y, startPos.z);
             BoxRigidBody anchorBody = createRopeSegment(physicsWorld, objectManager, anchorPosition, segmentHalfExtents, EMotionType.Kinematic);
 
@@ -107,7 +108,6 @@ public final class CreateRopeCommand {
 
                 try (PointConstraintSettings settings = new PointConstraintSettings()) {
                     settings.setSpace(EConstraintSpace.LocalToBodyCom);
-                    
                     settings.setNumPositionStepsOverride(4);
                     settings.setNumVelocityStepsOverride(4);
 
@@ -116,7 +116,7 @@ public final class CreateRopeCommand {
 
                     settings.setPoint1(pivotOnPrevious);
                     settings.setPoint2(pivotOnCurrent);
-                    
+
                     constraintManager.createConstraint(settings, previousBody.getPhysicsId(), currentBody.getPhysicsId());
                 }
                 previousBody = currentBody;

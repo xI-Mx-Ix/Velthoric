@@ -2,13 +2,13 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.command;
+package net.xmx.velthoric.command.test;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
@@ -23,27 +23,29 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-public final class SpawnRopeCommand {
+public final class SpawnRopeTest implements IVxTestCommand {
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(
-                Commands.literal("spawnrope")
-                        .requires(source -> source.hasPermission(2))
-                        .then(Commands.argument("position", Vec3Argument.vec3(true))
-                                .then(Commands.argument("length", FloatArgumentType.floatArg(0.1f))
-                                        .then(Commands.argument("radius", FloatArgumentType.floatArg(0.01f))
-                                                .then(Commands.argument("mass", FloatArgumentType.floatArg(0.1f))
-                                                        .then(Commands.argument("segments", IntegerArgumentType.integer(2, 100))
-                                                                .executes(SpawnRopeCommand::execute)
-                                                        )
-                                                )
+    @Override
+    public String getName() {
+        return "spawnRope";
+    }
+
+    @Override
+    public void registerArguments(LiteralArgumentBuilder<CommandSourceStack> builder) {
+        builder.then(Commands.argument("position", Vec3Argument.vec3(true))
+                .then(Commands.argument("length", FloatArgumentType.floatArg(0.1f))
+                        .then(Commands.argument("radius", FloatArgumentType.floatArg(0.01f))
+                                .then(Commands.argument("mass", FloatArgumentType.floatArg(0.1f))
+                                        .then(Commands.argument("segments", IntegerArgumentType.integer(2, 100))
+                                                .executes(this::execute)
                                         )
                                 )
                         )
+                )
         );
     }
 
-    private static int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+    private int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         CommandSourceStack source = context.getSource();
         ServerLevel level = source.getLevel();
         Vec3 pos = Vec3Argument.getVec3(context, "position");
@@ -65,7 +67,6 @@ public final class SpawnRopeCommand {
                 transform,
                 rope -> rope.setConfiguration(length, segments, radius, mass, 0.001f)
         );
-
 
         if (spawnedRope != null) {
             source.sendSuccess(() -> Component.literal(

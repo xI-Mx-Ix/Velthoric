@@ -14,12 +14,7 @@ import net.xmx.velthoric.command.*;
 public class CommandRegistry {
 
     public static void registerCommon(CommandDispatcher<CommandSourceStack> dispatcher) {
-        SpawnClothCommand.register(dispatcher);
-        SpawnRopeCommand.register(dispatcher);
-        SpawnBoxCommand.register(dispatcher);
-        SpawnConnectedBoxesCommand.register(dispatcher);
-        CreateRopeCommand.register(dispatcher);
-        SpawnMarbleCommand.register(dispatcher);
+        VxTestCommand.register(dispatcher);
         VxSummonCommand.register(dispatcher);
     }
 

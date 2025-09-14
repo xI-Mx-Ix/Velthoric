@@ -2,13 +2,13 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.command;
+package net.xmx.velthoric.command.test;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
@@ -23,19 +23,22 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-public class SpawnClothCommand {
+public class SpawnClothTest implements IVxTestCommand {
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(Commands.literal("spawncloth")
-                .requires(source -> source.hasPermission(2))
-                .then(Commands.argument("pos", Vec3Argument.vec3(true))
-                        .then(Commands.argument("width", FloatArgumentType.floatArg(0.1f))
-                                .then(Commands.argument("height", FloatArgumentType.floatArg(0.1f))
-                                        .then(Commands.argument("mass", FloatArgumentType.floatArg(0.1f))
-                                                .then(Commands.argument("segmentsWidth", IntegerArgumentType.integer(2, 50))
-                                                        .then(Commands.argument("segmentsHeight", IntegerArgumentType.integer(2, 50))
-                                                                .executes(SpawnClothCommand::execute)
-                                                        )
+    @Override
+    public String getName() {
+        return "spawnCloth";
+    }
+
+    @Override
+    public void registerArguments(LiteralArgumentBuilder<CommandSourceStack> builder) {
+        builder.then(Commands.argument("pos", Vec3Argument.vec3(true))
+                .then(Commands.argument("width", FloatArgumentType.floatArg(0.1f))
+                        .then(Commands.argument("height", FloatArgumentType.floatArg(0.1f))
+                                .then(Commands.argument("mass", FloatArgumentType.floatArg(0.1f))
+                                        .then(Commands.argument("segmentsWidth", IntegerArgumentType.integer(2, 50))
+                                                .then(Commands.argument("segmentsHeight", IntegerArgumentType.integer(2, 50))
+                                                        .executes(this::execute)
                                                 )
                                         )
                                 )
@@ -44,7 +47,7 @@ public class SpawnClothCommand {
         );
     }
 
-    private static int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+    private int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         CommandSourceStack source = context.getSource();
         ServerLevel level = source.getLevel();
         Vec3 pos = Vec3Argument.getVec3(context, "pos");
