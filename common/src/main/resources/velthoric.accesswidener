@@ -1,3 +1,9 @@
 accessWidener v2 named
-
+accessible class net/minecraft/client/multiplayer/ClientChunkCache$Storage
 accessible class net/minecraft/client/renderer/LevelRenderer$RenderChunkInfo
+accessible class net/minecraft/client/renderer/chunk/ChunkRenderDispatcher$RenderChunk$ChunkCompileTask
+accessible method net/minecraft/client/renderer/ViewArea getRenderChunkAt (Lnet/minecraft/core/BlockPos;)Lnet/minecraft/client/renderer/chunk/ChunkRenderDispatcher$RenderChunk;
+accessible class net/minecraft/server/level/ChunkMap$TrackedEntity
+accessible class net/minecraft/server/level/ChunkMap$DistanceManager
+accessible field net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket sectionPos Lnet/minecraft/core/SectionPos;
+accessible method net/minecraft/server/level/ChunkMap updateChunkTracking (Lnet/minecraft/server/level/ServerPlayer;Lnet/minecraft/world/level/ChunkPos;Lorg/apache/commons/lang3/mutable/MutableObject;ZZ)V

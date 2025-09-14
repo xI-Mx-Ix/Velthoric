@@ -21,6 +21,7 @@ import net.xmx.velthoric.physics.object.packet.batch.SpawnPhysicsObjectBatchPack
 import net.xmx.velthoric.physics.object.packet.batch.SyncAllPhysicsObjectsPacket;
 import net.xmx.velthoric.physics.object.packet.SyncPhysicsObjectDataPacket;
 import net.xmx.velthoric.physics.raycasting.click.packet.VxClickPacket;
+import net.xmx.velthoric.ship.packet.UpdateShipPlotDataPacket;
 
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -45,6 +46,13 @@ public class NetworkHandler {
                 SyncPhysicsObjectDataPacket::encode,
                 SyncPhysicsObjectDataPacket::new,
                 SyncPhysicsObjectDataPacket::handle
+        );
+
+        registerPacket(
+                UpdateShipPlotDataPacket.class,
+                UpdateShipPlotDataPacket::encode,
+                UpdateShipPlotDataPacket::new,
+                UpdateShipPlotDataPacket::handle
         );
 
         registerPacket(

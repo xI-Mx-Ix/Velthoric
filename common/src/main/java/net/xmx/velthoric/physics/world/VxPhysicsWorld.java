@@ -20,6 +20,7 @@ import net.xmx.velthoric.physics.riding.RidingManager;
 import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.pcmd.ICommand;
 import net.xmx.velthoric.physics.world.pcmd.RunTaskCommand;
+import net.xmx.velthoric.ship.plot.VxPlotManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -59,6 +60,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxConstraintManager constraintManager;
     private final VxTerrainSystem terrainSystem;
     private final RidingManager ridingManager;
+    private final VxPlotManager plotManager;
 
     private PhysicsSystem physicsSystem;
     private JobSystemThreadPool jobSystem;
@@ -81,6 +83,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.constraintManager = new VxConstraintManager(this.objectManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
         this.ridingManager = new RidingManager(this);
+        this.plotManager = new VxPlotManager(this.level);
     }
 
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
@@ -302,6 +305,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public RidingManager getRidingManager() {
         return this.ridingManager;
+    }
+
+    public VxPlotManager getPlotManager() {
+        return this.plotManager;
     }
 
     public ServerLevel getLevel() {

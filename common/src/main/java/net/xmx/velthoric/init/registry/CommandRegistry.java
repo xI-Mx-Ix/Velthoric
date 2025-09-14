@@ -10,6 +10,7 @@ import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
 import net.minecraft.commands.CommandSourceStack;
 import net.xmx.velthoric.command.*;
+import net.xmx.velthoric.ship.assembly.VxAssembleCommand;
 
 public class CommandRegistry {
 
@@ -21,6 +22,7 @@ public class CommandRegistry {
         CreateRopeCommand.register(dispatcher);
         SpawnMarbleCommand.register(dispatcher);
         VxSummonCommand.register(dispatcher);
+        VxAssembleCommand.register(dispatcher);
     }
 
     public static void registerClient(CommandDispatcher<CommandSourceStack> dispatcher) {

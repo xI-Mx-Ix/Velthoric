@@ -22,6 +22,8 @@ import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.manager.registry.VxObjectRegistry;
+import net.xmx.velthoric.ship.body.VxShipBody;
+import net.xmx.velthoric.ship.body.VxShipBodyRenderer;
 
 public class VxRegisteredObjects {
 
@@ -50,6 +52,10 @@ public class VxRegisteredObjects {
             .create(RopeSoftBody::new)
             .build(new ResourceLocation("velthoric", "rope"));
 
+    public static final VxObjectType<VxShipBody> SHIP = VxObjectType.Builder
+            .create(VxShipBody::new)
+            .build(new ResourceLocation("velthoric", "ship"));
+
     public static void register() {
         var registry = VxObjectRegistry.getInstance();
 
@@ -59,6 +65,7 @@ public class VxRegisteredObjects {
         registry.register(MARBLE);
         registry.register(CLOTH);
         registry.register(ROPE);
+        registry.register(SHIP);
     }
 
     @Environment(EnvType.CLIENT)
@@ -71,5 +78,6 @@ public class VxRegisteredObjects {
         registry.registerRendererFactory(MARBLE.getTypeId(), MarbleRenderer::new);
         registry.registerRendererFactory(CLOTH.getTypeId(), ClothSoftBodyRenderer::new);
         registry.registerRendererFactory(ROPE.getTypeId(), RopeSoftBodyRenderer::new);
+        registry.registerRendererFactory(SHIP.getTypeId(), VxShipBodyRenderer::new);
     }
 }
