@@ -39,32 +39,32 @@ public class VxObjectNetworkDispatcher {
     private final VxObjectManager manager;
     private final VxObjectDataStore dataStore;
 
-    /** A queue of indices for objects whose state has changed and needs to be synchronized with clients. */
+    // A queue of indices for objects whose state has changed and needs to be synchronized with clients.
     private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue;
 
     // --- Constants for network tuning ---
-    /** The maximum size of a packet payload in bytes to avoid exceeding network limits. */
+    // The maximum size of a packet payload in bytes to avoid exceeding network limits.
     private static final int MAX_PACKET_PAYLOAD_SIZE = 128 * 1024;
-    /** The target tick rate for the network synchronization thread in milliseconds. */
+    // The target tick rate for the network synchronization thread in milliseconds.
     private static final int NETWORK_THREAD_TICK_RATE_MS = 10;
-    /** The maximum number of object state updates to include in a single synchronization packet. */
+    // The maximum number of object state updates to include in a single synchronization packet.
     private static final int MAX_UPDATES_PER_PACKET = 256;
 
     // --- Player tracking data structures ---
-    /** Maps each player's UUID to the set of physics object UUIDs they are currently tracking. */
+    // Maps each player's UUID to the set of physics object UUIDs they are currently tracking.
     private final Map<UUID, Set<UUID>> playerTrackedObjects = new ConcurrentHashMap<>();
-    /** Caches the last known chunk position for each player to determine visibility. */
+    // Caches the last known chunk position for each player to determine visibility.
     private final Map<UUID, ChunkPos> playerChunkPositions = new ConcurrentHashMap<>();
-    /** Caches the view distance for each player. */
+    // Caches the view distance for each player.
     private final Map<UUID, Integer> playerViewDistances = new ConcurrentHashMap<>();
 
     // --- Pending packet batches ---
-    /** A map to queue physics objects that need to be spawned on a player's client. */
+    // A map to queue physics objects that need to be spawned on a player's client.
     private final Object2ObjectOpenHashMap<ServerPlayer, ObjectArrayList<SpawnData>> pendingSpawns = new Object2ObjectOpenHashMap<>();
-    /** A map to queue physics object UUIDs that need to be removed from a player's client. */
+    // A map to queue physics object UUIDs that need to be removed from a player's client.
     private final Object2ObjectOpenHashMap<ServerPlayer, ObjectArrayList<UUID>> pendingRemovals = new Object2ObjectOpenHashMap<>();
 
-    /** The dedicated executor service for handling network synchronization tasks. */
+    // The dedicated executor service for handling network synchronization tasks.
     private ExecutorService networkSyncExecutor;
 
     public VxObjectNetworkDispatcher(ServerLevel level, VxObjectManager manager, ConcurrentLinkedQueue<Integer> dirtyIndicesQueue) {

@@ -21,7 +21,7 @@ import java.util.List;
  */
 public final class VxVoxelShapeUtil {
 
-    /** Private constructor to prevent instantiation. */
+    // Private constructor to prevent instantiation.
     private VxVoxelShapeUtil() {}
 
     /**

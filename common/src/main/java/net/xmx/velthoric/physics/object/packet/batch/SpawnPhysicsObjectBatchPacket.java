@@ -21,7 +21,7 @@ import java.util.function.Supplier;
  */
 public class SpawnPhysicsObjectBatchPacket {
 
-    /** The list of spawn data objects. */
+    // The list of spawn data objects.
     private final List<SpawnData> spawnDataList;
 
     /**

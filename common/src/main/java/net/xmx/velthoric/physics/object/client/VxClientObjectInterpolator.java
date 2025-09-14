@@ -21,7 +21,7 @@ import java.util.UUID;
  */
 public class VxClientObjectInterpolator {
 
-    /** The maximum time in seconds to extrapolate an object's position forward if no new state has arrived. */
+    // The maximum time in seconds to extrapolate an object's position forward if no new state has arrived.
     private static final float MAX_EXTRAPOLATION_SECONDS = 0.25f;
 
     // Temporary quaternion objects to avoid allocations during calculations.

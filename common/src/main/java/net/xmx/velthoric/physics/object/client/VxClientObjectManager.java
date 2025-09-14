@@ -37,37 +37,35 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author xI-Mx-Ix
  */
 public class VxClientObjectManager {
-    /** The singleton instance of the manager. */
+    // The singleton instance of the manager.
     private static final VxClientObjectManager INSTANCE = new VxClientObjectManager();
 
-    /**
-     * The delay applied to rendering to allow for interpolation. A larger value
-     * can smooth over more network jitter but increases perceived latency.
-     * Value is in nanoseconds.
-     */
+    // The delay applied to rendering to allow for interpolation. A larger value
+    // can smooth over more network jitter but increases perceived latency.
+    // Value is in nanoseconds.
     private static final long INTERPOLATION_DELAY_NANOS = 220_000_000L;
 
-    /** The data store holding all object states in a Structure of Arrays format. */
+    // The data store holding all object states in a Structure of Arrays format.
     private final VxClientObjectDataStore store = new VxClientObjectDataStore();
-    /** The registry for client-side object renderers. */
+    // The registry for client-side object renderers.
     private final VxClientObjectRegistry registry = new VxClientObjectRegistry();
-    /** The interpolator responsible for calculating smooth object transforms. */
+    // The interpolator responsible for calculating smooth object transforms.
     private final VxClientObjectInterpolator interpolator = new VxClientObjectInterpolator();
-    /** The client-side clock, which can be paused. */
+    // The client-side clock, which can be paused.
     private final VxClientClock clock = VxClientClock.getInstance();
 
-    /** The calculated time offset between the client and server clocks. */
+    // The calculated time offset between the client and server clocks.
     private long clockOffsetNanos = 0L;
-    /** Flag indicating if the initial clock synchronization has completed. */
+    // Flag indicating if the initial clock synchronization has completed.
     private boolean isClockOffsetInitialized = false;
-    /** A list of recent clock offset samples used for calculating an average. */
+    // A list of recent clock offset samples used for calculating an average.
     private final List<Long> clockOffsetSamples = new ArrayList<>();
-    /** A queue for incoming state updates to be processed on the client thread. */
+    // A queue for incoming state updates to be processed on the client thread.
     private final ConcurrentLinkedQueue<PhysicsObjectState> stateUpdateQueue = new ConcurrentLinkedQueue<>();
-    /** A temporary transform object to avoid repeated allocations. */
+    // A temporary transform object to avoid repeated allocations.
     private final VxTransform tempTransform = new VxTransform();
 
-    /** Private constructor to enforce singleton pattern. */
+    // Private constructor to enforce singleton pattern.
     private VxClientObjectManager() {}
 
     /**

@@ -22,9 +22,9 @@ import java.util.function.Supplier;
  */
 public class SyncPhysicsObjectDataPacket {
 
-    /** The UUID of the object whose data is being synchronized. */
+    // The UUID of the object whose data is being synchronized.
     private final UUID id;
-    /** The raw byte array of the custom data. */
+    // The raw byte array of the custom data.
     private final byte[] data;
 
     /**

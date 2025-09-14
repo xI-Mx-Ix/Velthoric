@@ -18,7 +18,7 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
  */
 public class ClientPhysicsPauseHandler {
 
-    /** Tracks the pause state from the previous tick to detect changes. */
+    // Tracks the pause state from the previous tick to detect changes.
     private static boolean wasPaused = false;
 
     /**

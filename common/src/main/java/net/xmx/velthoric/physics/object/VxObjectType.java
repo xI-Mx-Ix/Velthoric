@@ -19,16 +19,14 @@ import java.util.UUID;
  */
 public final class VxObjectType<T extends VxAbstractBody> {
 
-    /** The unique identifier for this object type (e.g., "my_mod:my_car"). */
+    // The unique identifier for this object type (e.g., "my_mod:my_car").
     private final ResourceLocation typeId;
-    /** The factory function used to create new instances of this object type. */
+    // The factory function used to create new instances of this object type.
     private final Factory<T> factory;
-    /** Whether this object type can be summoned via commands. */
+    // Whether this object type can be summoned via commands.
     private final boolean summonable;
 
-    /**
-     * Private constructor, use the {@link Builder} to create instances.
-     */
+    // Private constructor, use the Builder to create instances.
     private VxObjectType(ResourceLocation typeId, Factory<T> factory, boolean summonable) {
         this.typeId = typeId;
         this.factory = factory;

@@ -21,15 +21,15 @@ import java.util.UUID;
  * @author xI-Mx-Ix
  */
 public class SpawnData {
-    /** The unique identifier of the object. */
+    // The unique identifier of the object.
     public final UUID id;
-    /** The resource location identifying the object's type. */
+    // The resource location identifying the object's type.
     public final ResourceLocation typeIdentifier;
-    /** The type of the physics body (e.g., Rigid or Soft). */
+    // The type of the physics body (e.g., Rigid or Soft).
     public final EBodyType objectType;
-    /** The server-side timestamp when the object was spawned. */
+    // The server-side timestamp when the object was spawned.
     public final long timestamp;
-    /** A raw byte array containing the initial transform and any custom creation data. */
+    // A raw byte array containing the initial transform and any custom creation data.
     public final byte[] data;
 
     /**

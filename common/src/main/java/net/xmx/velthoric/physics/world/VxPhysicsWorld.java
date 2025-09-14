@@ -42,15 +42,10 @@ import java.util.concurrent.Executor;
  * @author xI-Mx-Ix
  */
 public final class VxPhysicsWorld implements Runnable, Executor {
-
     private static final int SIMULATION_HZ = 60;
-
     private static final float FIXED_TIME_STEP = 1.0f / SIMULATION_HZ;
-
     private static final float MAX_ACCUMULATED_TIME = 5.0f * FIXED_TIME_STEP;
-
-    private static final int MAX_COMMANDS_PER_TICK = 1024;
-
+    private static final int MAX_COMMANDS_PER_TICK = 4096;
     private static final Map<ResourceKey<Level>, VxPhysicsWorld> worlds = new ConcurrentHashMap<>();
 
     private final ServerLevel level;

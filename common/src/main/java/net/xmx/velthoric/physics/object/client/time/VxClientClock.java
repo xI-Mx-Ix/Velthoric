@@ -18,17 +18,17 @@ import net.fabricmc.api.Environment;
 @Environment(EnvType.CLIENT)
 public class VxClientClock {
 
-    /** The singleton instance of the clock. */
+    // The singleton instance of the clock.
     private static final VxClientClock INSTANCE = new VxClientClock();
 
-    /** Flag indicating if the clock is currently paused. Volatile for thread safety. */
+    // Flag indicating if the clock is currently paused. Volatile for thread safety.
     private volatile boolean isPaused = false;
-    /** The timestamp (from System.nanoTime()) when the clock was last paused. */
+    // The timestamp (from System.nanoTime()) when the clock was last paused.
     private long pauseStartTimeNanos = 0L;
-    /** The total accumulated time the clock has been paused. */
+    // The total accumulated time the clock has been paused.
     private long totalAccumulatedPauseTimeNanos = 0L;
 
-    /** Private constructor to enforce singleton pattern. */
+    // Private constructor to enforce singleton pattern.
     private VxClientClock() {}
 
     /**

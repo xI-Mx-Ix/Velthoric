@@ -21,9 +21,9 @@ import java.util.function.Supplier;
  * @author xI-Mx-Ix
  */
 public class VxClientObjectRegistry {
-    /** A map of rigid body type identifiers to their corresponding renderer factories. */
+    // A map of rigid body type identifiers to their corresponding renderer factories.
     private final Map<ResourceLocation, Supplier<VxRigidBody.Renderer>> rigidRendererFactories = new ConcurrentHashMap<>();
-    /** A map of soft body type identifiers to their corresponding renderer factories. */
+    // A map of soft body type identifiers to their corresponding renderer factories.
     private final Map<ResourceLocation, Supplier<VxSoftBody.Renderer>> softRendererFactories = new ConcurrentHashMap<>();
 
     /**

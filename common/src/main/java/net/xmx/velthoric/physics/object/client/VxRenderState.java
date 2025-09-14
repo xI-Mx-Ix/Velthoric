@@ -15,9 +15,9 @@ import org.jetbrains.annotations.Nullable;
  * @author xI-Mx-Ix
  */
 public class VxRenderState {
-    /** The interpolated transform (position and rotation) of the object for the current frame. */
+    // The interpolated transform (position and rotation) of the object for the current frame.
     public final VxTransform transform = new VxTransform();
-    /** The interpolated vertex data for soft bodies. Null for rigid bodies. */
+    // The interpolated vertex data for soft bodies. Null for rigid bodies.
     public float @Nullable [] vertexData = null;
 
     /**

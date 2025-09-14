@@ -21,23 +21,23 @@ import java.util.*;
  * @author xI-Mx-Ix
  */
 public class VxClientObjectDataStore extends AbstractDataStore {
-    /** The initial capacity of the data arrays. */
+    // The initial capacity of the data arrays.
     private static final int INITIAL_CAPACITY = 256;
 
     // --- Core Mappings ---
-    /** Maps a physics object's UUID to its integer index in the data arrays. */
+    // Maps a physics object's UUID to its integer index in the data arrays.
     private final Map<UUID, Integer> uuidToIndex = new HashMap<>();
-    /** Maps an integer index back to the corresponding UUID. */
+    // Maps an integer index back to the corresponding UUID.
     private final List<UUID> indexToUuid = new ArrayList<>();
-    /** A queue of recycled indices from removed objects to be reused. */
+    // A queue of recycled indices from removed objects to be reused.
     private final Deque<Integer> freeIndices = new ArrayDeque<>();
-    /** The number of active objects currently in the store. */
+    // The number of active objects currently in the store.
     private int count = 0;
-    /** The current allocated size of the data arrays. */
+    // The current allocated size of the data arrays.
     private int capacity = 0;
 
     // --- State Buffers for Interpolation ---
-    /** State 0: The "from" state for interpolation. */
+    // State 0: The "from" state for interpolation.
     public long[] state0_timestamp;
     public float[] state0_posX, state0_posY, state0_posZ;
     public float[] state0_rotX, state0_rotY, state0_rotZ, state0_rotW;
@@ -45,7 +45,7 @@ public class VxClientObjectDataStore extends AbstractDataStore {
     public boolean[] state0_isActive;
     public float[] @Nullable [] state0_vertexData;
 
-    /** State 1: The "to" state for interpolation. This is the most recent state from the server. */
+    // State 1: The "to" state for interpolation. This is the most recent state from the server.
     public long[] state1_timestamp;
     public float[] state1_posX, state1_posY, state1_posZ;
     public float[] state1_rotX, state1_rotY, state1_rotZ, state1_rotW;
@@ -54,25 +54,25 @@ public class VxClientObjectDataStore extends AbstractDataStore {
     public float[] @Nullable [] state1_vertexData;
 
     // --- Render State Buffers ---
-    /** The state from the *previous render frame*, used for frame-to-frame interpolation. */
+    // The state from the *previous render frame*, used for frame-to-frame interpolation.
     public float[] prev_posX, prev_posY, prev_posZ;
     public float[] prev_rotX, prev_rotY, prev_rotZ, prev_rotW;
     public float[] @Nullable [] prev_vertexData;
 
-    /** The target render state for the *current render frame*, calculated each tick. */
+    // The target render state for the *current render frame*, calculated each tick.
     public float[] render_posX, render_posY, render_posZ;
     public float[] render_rotX, render_rotY, render_rotZ, render_rotW;
     public float[] @Nullable [] render_vertexData;
     public boolean[] render_isInitialized;
 
     // --- Static and Metadata ---
-    /** The type of body (e.g., RigidBody, SoftBody). */
+    // The type of body (e.g., RigidBody, SoftBody).
     public EBodyType[] objectType;
-    /** The client-side renderer instance for the object. */
+    // The client-side renderer instance for the object.
     public Object[] renderer;
-    /** Buffer for custom data sent from the server. */
+    // Buffer for custom data sent from the server.
     public ByteBuffer[] customData;
-    /** The last known position of the object, used for frustum culling. */
+    // The last known position of the object, used for frustum culling.
     public RVec3[] lastKnownPosition;
 
     /**

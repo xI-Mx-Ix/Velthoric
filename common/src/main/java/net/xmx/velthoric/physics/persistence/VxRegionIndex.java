@@ -28,11 +28,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class VxRegionIndex {
 
-    /** The path to the index file on disk. */
+    // The path to the index file on disk.
     private final Path indexPath;
-    /** The in-memory representation of the index. */
+    // The in-memory representation of the index.
     private final ConcurrentHashMap<UUID, RegionPos> index = new ConcurrentHashMap<>();
-    /** A flag indicating if the in-memory index has changes that need to be saved to disk. */
+    // A flag indicating if the in-memory index has changes that need to be saved to disk.
     private final AtomicBoolean dirty = new AtomicBoolean(false);
 
     /**

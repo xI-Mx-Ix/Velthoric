@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public abstract class VxAbstractRegionStorage<K, V> {
 
-    /** A dedicated executor for handling all file I/O operations asynchronously. */
+    // A dedicated executor for handling all file I/O operations asynchronously.
     private ExecutorService ioExecutor;
 
     /**
@@ -51,23 +51,23 @@ public abstract class VxAbstractRegionStorage<K, V> {
      * @param <V> The value type.
      */
     public static class RegionData<K, V> {
-        /** The actual data entries stored in this region. */
+        // The actual data entries stored in this region.
         public final ConcurrentHashMap<K, V> entries = new ConcurrentHashMap<>();
-        /** A flag indicating if this region has unsaved changes. */
+        // A flag indicating if this region has unsaved changes.
         public final AtomicBoolean dirty = new AtomicBoolean(false);
-        /** A lock to prevent concurrent save operations on the same region. */
+        // A lock to prevent concurrent save operations on the same region.
         public final AtomicBoolean saving = new AtomicBoolean(false);
     }
 
-    /** The file system path to the directory where region files are stored. */
+    // The file system path to the directory where region files are stored.
     protected final Path storagePath;
-    /** A prefix for the region filenames (e.g., "body"). */
+    // A prefix for the region filenames (e.g., "body").
     private final String filePrefix;
 
-    /** A cache of loaded regions, mapping a position to a future that will complete with the region's data. */
+    // A cache of loaded regions, mapping a position to a future that will complete with the region's data.
     protected final ConcurrentHashMap<RegionPos, CompletableFuture<RegionData<K, V>>> loadedRegions = new ConcurrentHashMap<>();
     protected final ServerLevel level;
-    /** An index that maps individual entry keys to the region they are stored in. */
+    // An index that maps individual entry keys to the region they are stored in.
     protected VxRegionIndex regionIndex;
 
     public VxAbstractRegionStorage(ServerLevel level, String storageSubFolder, String filePrefix) {

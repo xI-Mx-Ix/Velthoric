@@ -26,7 +26,7 @@ import java.util.UUID;
  */
 public abstract class VxSoftBody extends VxAbstractBody {
 
-    /** Caches the last vertex data that was synchronized to clients. */
+    // Caches the last vertex data that was synchronized to clients.
     protected float @Nullable [] lastSyncedVertexData;
 
     /**

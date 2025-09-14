@@ -21,7 +21,7 @@ import java.util.function.Supplier;
  */
 public class RemovePhysicsObjectBatchPacket {
 
-    /** The list of object UUIDs to be removed. */
+    // The list of object UUIDs to be removed.
     private final List<UUID> ids;
 
     /**

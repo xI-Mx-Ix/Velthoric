@@ -29,10 +29,10 @@ import java.util.function.Supplier;
  */
 public class SyncAllPhysicsObjectsPacket {
 
-    /** On the client, this holds the list of decoded states. Null on the server. */
+    // On the client, this holds the list of decoded states. Null on the server.
     private final List<PhysicsObjectState> decodedStates;
 
-    /** On the server, this holds the raw, encoded packet data. Null on the client. */
+    // On the server, this holds the raw, encoded packet data. Null on the client.
     private final FriendlyByteBuf dataBuffer;
 
     /**

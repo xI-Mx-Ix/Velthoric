@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public final class PhysicsObjectStatePool {
 
-    /** A thread-safe queue to hold the available (pooled) state objects. */
+    // A thread-safe queue to hold the available (pooled) state objects.
     private static final ConcurrentLinkedQueue<PhysicsObjectState> POOL = new ConcurrentLinkedQueue<>();
 
     /**

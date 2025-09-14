@@ -25,21 +25,21 @@ import java.util.UUID;
  */
 public abstract class VxAbstractBody {
 
-    /** The unique, persistent identifier for this physics object instance. */
+    // The unique, persistent identifier for this physics object instance.
     protected final UUID physicsId;
-    /** The type definition for this object, containing its factory and type ID. */
+    // The type definition for this object, containing its factory and type ID.
     protected final VxObjectType<? extends VxAbstractBody> type;
-    /** The physics world this object belongs to. */
+    // The physics world this object belongs to.
     protected final VxPhysicsWorld world;
-    /** The ID of the body in the Jolt physics system. 0 if not added to the simulation. */
+    // The ID of the body in the Jolt physics system. 0 if not added to the simulation.
     protected int bodyId = 0;
-    /** The object's transform in the game world, used as the source of truth for spawning and saving. */
+    // The object's transform in the game world, used as the source of truth for spawning and saving.
     protected final VxTransform gameTransform = new VxTransform();
-    /** A flag indicating that this object's custom data needs to be synchronized to clients. */
+    // A flag indicating that this object's custom data needs to be synchronized to clients.
     protected boolean isDataDirty = false;
-    /** Caches the long-form key of the chunk this object is in, to efficiently detect chunk movements. */
+    // Caches the long-form key of the chunk this object is in, to efficiently detect chunk movements.
     private long lastKnownChunkKey = Long.MAX_VALUE;
-    /** The index of this object within the server-side data store for efficient state updates. */
+    // The index of this object within the server-side data store for efficient state updates.
     protected int dataStoreIndex = -1;
 
     /**
@@ -239,9 +239,7 @@ public abstract class VxAbstractBody {
         this.dataStoreIndex = dataStoreIndex;
     }
 
-    /**
-     * A marker interface for client-side renderer classes.
-     */
+    // A marker interface for client-side renderer classes.
     public interface Renderer {
     }
 }
