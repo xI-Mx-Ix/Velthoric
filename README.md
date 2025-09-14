@@ -43,16 +43,15 @@ Velthoric brings **high-performance physics** to Minecraft using the full Jolt P
 Create custom physics objects, control rendering, manipulate bodies, and extend the system.  
 *(Documentation coming soon!)*
 
-### 🎯 **Spawning Objects**
+### 🎯 **Testing Commands**
 
-Use `/vxsummon` to spawn built-in and custom physics objects:
+- **`/vxsummon`**  
+  Spawn built-in and custom objects: boxes, ropes, cloth, marbles and more.  
+  Also works with any objects registered via the API.
 
-- `velthoric:box`
-- `velthoric:cloth`
-- `velthoric:marble`
-- `velthoric:rope`
-- `velthoric:sphere`
-- Any custom objects registered via the API also appear here
+- **`/vxtest`**  
+  Quickly create predefined setups for dev & debugging.  
+  Includes chained boxes, configurable soft bodies, box grids, and more.
 
 ### 🔧 **Included Tools**
 
