@@ -71,7 +71,8 @@ public class ObjectLifecycleEvents {
     private static void onChunkUnload(VxChunkEvent.Unload event) {
         getObjectManager(event.getLevel()).ifPresent(manager -> {
             List<VxAbstractBody> objectsInChunk = manager.getObjectsInChunk(event.getChunkPos());
-            for (VxAbstractBody obj : objectsInChunk) {
+            // Create a copy to avoid ConcurrentModificationException
+            for (VxAbstractBody obj : List.copyOf(objectsInChunk)) {
                 // Remove the object with the SAVE reason, which ensures it gets stored before being removed.
                 manager.removeObject(obj.getPhysicsId(), VxRemovalReason.SAVE);
             }
@@ -80,17 +81,22 @@ public class ObjectLifecycleEvents {
 
     /**
      * Called when the level is being saved. Triggers the saving of all active physics objects
-     * and any dirty region files.
+     * and any dirty region files. This is dispatched to the physics thread for safety.
      *
      * @param event The level save event data.
      */
     private static void onLevelSave(VxLevelEvent.Save event) {
         getObjectManager(event.getLevel()).ifPresent(manager -> {
-            // Explicitly store all currently loaded objects.
-            manager.getAllObjects()
-                    .forEach(manager.getObjectStorage()::storeObject);
-            // Save any region files that have pending changes.
-            manager.getObjectStorage().saveDirtyRegions();
+            VxPhysicsWorld world = manager.getPhysicsWorld();
+            // Ensure the world is actually running and queue the save operation
+            // to be executed on the physics thread for thread safety.
+            if (world != null && world.isRunning()) {
+                world.execute(() -> {
+                    // Now we are on the physics thread, it is safe to access physics data
+                    manager.getAllObjects().forEach(manager.getObjectStorage()::storeObject);
+                    manager.getObjectStorage().saveDirtyRegions();
+                });
+            }
         });
     }
 }

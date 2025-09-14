@@ -236,6 +236,12 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             Vec3 linearVelocity = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
             Vec3 angularVelocity = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
 
+            if (!linearVelocity.isFinite() || linearVelocity.isNan() || angularVelocity.isNan() || !angularVelocity.isFinite()) {
+                VxMainClass.LOGGER.warn("Deserialized invalid velocity for object {}. Resetting to zero.", id);
+                linearVelocity.set(0, 0, 0);
+                angularVelocity.set(0, 0, 0);
+            }
+
             // The rest of the buffer is custom data
             VxByteBuf customData = new VxByteBuf(buf.readBytes(buf.readableBytes()));
 

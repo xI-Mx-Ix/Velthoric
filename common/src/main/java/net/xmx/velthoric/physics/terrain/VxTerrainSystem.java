@@ -90,25 +90,47 @@ public class VxTerrainSystem implements Runnable {
 
     public void shutdown() {
         if (isInitialized.compareAndSet(true, false)) {
-            workerThread.interrupt();
             jobSystem.shutdown();
+            workerThread.interrupt();
+
+            VxMainClass.LOGGER.debug("Shutting down Terrain Tracker for '{}'. Waiting up to 30 seconds for worker thread to exit...", level.dimension().location());
+
             try {
-                workerThread.join(5000);
+                workerThread.join(30000);
             } catch (InterruptedException e) {
-                VxMainClass.LOGGER.warn("Terrain tracker thread did not terminate gracefully.");
                 Thread.currentThread().interrupt();
+                VxMainClass.LOGGER.warn("Interrupted while waiting for terrain tracker thread to stop. Proceeding with forced shutdown.");
             }
 
-            physicsWorld.execute(() -> {
-                chunkDataStore.getManagedPositions().forEach(this::unloadChunkPhysicsInternal);
-                chunkDataStore.clear();
-                chunksToRebuild.clear();
-                objectTrackedChunks.clear();
-                objectUpdateCooldowns.clear();
-                shapeCache.clear();
-            });
+            if (workerThread.isAlive()) {
+                VxMainClass.LOGGER.fatal(
+                        "Terrain tracker thread for '{}' did not terminate in 30 seconds and is likely deadlocked. " +
+                                "Forcing shutdown to prevent a server hang. Some terrain data might not have been handled correctly.",
+                        level.dimension().location()
+                );
+            } else {
+                VxMainClass.LOGGER.debug("Terrain tracker for '{}' shut down gracefully.", level.dimension().location());
+            }
 
+            VxMainClass.LOGGER.debug("Cleaning up terrain physics bodies for '{}'...", level.dimension().location());
+            BodyInterface bi = physicsWorld.getBodyInterface();
+            if (bi != null) {
+                chunkDataStore.getManagedPositions().forEach(pos -> {
+                    Integer index = chunkDataStore.getIndexForPos(pos);
+                    if (index != null) {
+                        removeBodyAndShape(index, bi);
+                    }
+                });
+            }
+
+            chunkDataStore.clear();
+            chunksToRebuild.clear();
+            objectTrackedChunks.clear();
+            objectUpdateCooldowns.clear();
+            shapeCache.clear();
             this.terrainStorage.shutdown();
+
+            VxMainClass.LOGGER.debug("Terrain system for '{}' has been fully shut down.", level.dimension().location());
         }
     }
 
