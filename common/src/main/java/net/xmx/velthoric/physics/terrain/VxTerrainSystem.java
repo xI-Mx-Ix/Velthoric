@@ -103,10 +103,22 @@ public class VxTerrainSystem implements Runnable {
             }
 
             if (workerThread.isAlive()) {
+
+                StringBuilder stackTraceBuilder = new StringBuilder();
+                stackTraceBuilder.append("Stack trace of deadlocked thread '").append(workerThread.getName()).append("':\n");
+
+                StackTraceElement[] stackTrace = workerThread.getStackTrace();
+                for (StackTraceElement ste : stackTrace) {
+
+                    stackTraceBuilder.append("\tat ").append(ste).append("\n");
+                }
+
                 VxMainClass.LOGGER.fatal(
+
                         "Terrain tracker thread for '{}' did not terminate in 30 seconds and is likely deadlocked. " +
-                                "Forcing shutdown to prevent a server hang. Some terrain data might not have been handled correctly.",
-                        level.dimension().location()
+                                "Forcing shutdown to prevent a server hang. Some terrain data might not have been handled correctly.\n{}",
+                        level.dimension().location(),
+                        stackTraceBuilder.toString()
                 );
             } else {
                 VxMainClass.LOGGER.debug("Terrain tracker for '{}' shut down gracefully.", level.dimension().location());
@@ -230,6 +242,10 @@ public class VxTerrainSystem implements Runnable {
             return;
         }
 
+        if (!isInitialized.get() || jobSystem.isShutdown()) {
+            return;
+        }
+
         int currentState = chunkDataStore.states[index];
         if (currentState == STATE_REMOVING || currentState == STATE_LOADING_SCHEDULED || currentState == STATE_GENERATING_SHAPE) {
             return;
@@ -267,6 +283,9 @@ public class VxTerrainSystem implements Runnable {
         }
 
         try {
+            if (!isInitialized.get()) {
+                return;
+            }
             ShapeRefC generatedShape = terrainGenerator.generateShape(level, snapshot);
             physicsWorld.execute(() -> applyGeneratedShape(pos, index, version, generatedShape, isInitialBuild));
         } catch (Exception e) {
