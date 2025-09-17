@@ -30,12 +30,6 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
-/**
- * Parses a string representation of a physics object selector (e.g., "@x[type=velthoric:box,limit=1]").
- * This class handles the logic for parsing the selector and its arguments, as well as providing
- * context-aware command suggestions. It is designed to mimic the behavior of Minecraft's vanilla
- * {@link net.minecraft.commands.arguments.selector.EntitySelectorParser}.
- */
 public class VxObjectSelectorParser {
 
     public static final SimpleCommandExceptionType ERROR_MISSING_SELECTOR_TYPE = new SimpleCommandExceptionType(Component.literal("Missing selector type"));
@@ -46,7 +40,6 @@ public class VxObjectSelectorParser {
     public static final DynamicCommandExceptionType ERROR_INVALID_BODY_TYPE = new DynamicCommandExceptionType((obj) -> Component.literal("Unknown body type '" + obj + "'"));
     public static final DynamicCommandExceptionType ERROR_INVALID_SORT_TYPE = new DynamicCommandExceptionType((obj) -> Component.literal("Unknown sort type '" + obj + "'"));
 
-    // A list of all valid option keys for providing suggestions.
     private static final List<String> OPTION_KEYS = Arrays.asList("limit", "distance", "type", "bodytype", "sort");
 
     public static final BiConsumer<Vec3, List<VxAbstractBody>> ORDER_NEAREST_VX = (sourcePos, list) ->
@@ -78,12 +71,6 @@ public class VxObjectSelectorParser {
         this.reader = reader;
     }
 
-    /**
-     * Parses the input from the StringReader into a complete {@link VxObjectSelector}.
-     *
-     * @return The parsed selector.
-     * @throws CommandSyntaxException if the selector syntax is invalid.
-     */
     public VxObjectSelector parse() throws CommandSyntaxException {
         this.suggestions = this::suggestSelector;
         if (!reader.canRead() || reader.peek() != '@') {
@@ -111,7 +98,6 @@ public class VxObjectSelectorParser {
         return new VxObjectSelector(limit, distance, type, typeInverse, bodyType, order);
     }
 
-    // Main loop for parsing key-value options within square brackets.
     private void parseOptions() throws CommandSyntaxException {
         this.suggestions = this::suggestOptionsKey;
         reader.skipWhitespace();
@@ -120,13 +106,13 @@ public class VxObjectSelectorParser {
             reader.skipWhitespace();
             int cursorBeforeOption = reader.getCursor();
             String optionName = reader.readString();
-            this.suggestions = this::suggestEquals;
-            reader.skipWhitespace();
 
+            reader.skipWhitespace();
             if (!reader.canRead() || reader.peek() != '=') {
                 reader.setCursor(cursorBeforeOption);
                 throw ERROR_EXPECTED_OPTION_VALUE.createWithContext(reader, optionName);
             }
+            this.suggestions = this::suggestEquals;
             reader.skip();
             reader.skipWhitespace();
 
@@ -139,17 +125,16 @@ public class VxObjectSelectorParser {
                 reader.skip();
                 this.suggestions = this::suggestOptionsKey;
             } else {
-                break; // Exit loop if no comma is found, expecting ']'
+                break;
             }
         }
 
         if (!reader.canRead() || reader.read() != ']') {
             throw ERROR_EXPECTED_END_OF_OPTIONS.createWithContext(reader);
         }
-        this.suggestions = (b, c) -> Suggestions.empty();
+        this.suggestions = (b, c) -> b.buildFuture();
     }
 
-    // Parses the value for a given option key.
     private void parseOptionValue(String name) throws CommandSyntaxException {
         int cursor = reader.getCursor();
         switch (name) {
@@ -194,40 +179,25 @@ public class VxObjectSelectorParser {
         }
     }
 
-    /**
-     * Fills the suggestion builder with context-aware suggestions.
-     * The actual suggestions are provided by the current `suggestions` function,
-     * which is updated as parsing progresses.
-     *
-     * @param builder The suggestions builder.
-     * @param consumer A consumer for the builder.
-     * @return A future that will complete with the suggestions.
-     */
     public CompletableFuture<Suggestions> fillSuggestions(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         return this.suggestions.apply(builder.createOffset(this.reader.getCursor()), consumer);
     }
 
-    // Provides suggestions for the selector type itself, e.g., "@x".
     private CompletableFuture<Suggestions> suggestSelector(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         builder.suggest("@x");
         return builder.buildFuture();
     }
 
-    // Suggests the character 'x' after the '@'.
     private CompletableFuture<Suggestions> suggestSelectorType(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         builder.suggest("x");
         return builder.buildFuture();
     }
 
-    // Suggests the opening bracket '[' for options.
     private CompletableFuture<Suggestions> suggestOpenOptions(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
-        if (!reader.canRead() || reader.peek() != '[') {
-            builder.suggest("[");
-        }
+        builder.suggest("[");
         return builder.buildFuture();
     }
 
-    // Suggests the available option keys, filtering based on the current input.
     private void suggestOptionKeys(SuggestionsBuilder builder) {
         String remaining = builder.getRemaining().toLowerCase();
         for (String key : OPTION_KEYS) {
@@ -237,38 +207,33 @@ public class VxObjectSelectorParser {
         }
     }
 
-    // Suggests option keys or the closing bracket ']'.
     private CompletableFuture<Suggestions> suggestOptionsKeyOrClose(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         builder.suggest("]");
         suggestOptionKeys(builder);
         return builder.buildFuture();
     }
 
-    // Suggests option keys.
     private CompletableFuture<Suggestions> suggestOptionsKey(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         suggestOptionKeys(builder);
         return builder.buildFuture();
     }
 
-    // Suggests the next option via a comma ',' or the end of options via ']'.
     private CompletableFuture<Suggestions> suggestOptionsNextOrClose(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         builder.suggest(",");
         builder.suggest("]");
         return builder.buildFuture();
     }
 
-    // Suggests the equals sign '=' after an option key.
     private CompletableFuture<Suggestions> suggestEquals(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         builder.suggest("=");
         return builder.buildFuture();
     }
 
-    // Provides suggestions for the values of a specific option.
     private CompletableFuture<Suggestions> suggestOptionValues(String option, SuggestionsBuilder builder) {
         switch (option) {
             case "type" -> {
                 builder.suggest("!");
-                // This now correctly accesses the common registry, which is populated on the client.
+
                 SharedSuggestionProvider.suggestResource(VxObjectRegistry.getInstance().getRegisteredTypes().keySet(), builder);
             }
             case "bodytype" -> SharedSuggestionProvider.suggest(Arrays.stream(EBodyType.values()).map(e -> e.name().toLowerCase()), builder);
