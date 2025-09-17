@@ -20,8 +20,7 @@ import net.xmx.velthoric.builtin.rope.RopeSoftBodyRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.manager.registry.VxObjectRegistry;
+import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 
 public class VxRegisteredObjects {
 
@@ -63,7 +62,7 @@ public class VxRegisteredObjects {
 
     @Environment(EnvType.CLIENT)
     public static void registerClientRenderers() {
-        var registry = VxClientObjectManager.getInstance().getRegistry();
+        var registry = VxObjectRegistry.getInstance();
 
         registry.registerRendererFactory(BLOCK.getTypeId(), BlockRenderer::new);
         registry.registerRendererFactory(SPHERE.getTypeId(), SphereRenderer::new);

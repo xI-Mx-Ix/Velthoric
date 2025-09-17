@@ -2,38 +2,43 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.object.manager.registry;
+package net.xmx.velthoric.physics.object.registry;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.type.VxRigidBody;
+import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
- * A thread-safe singleton registry for managing physics object types.
- * This class holds mappings from a unique {@link ResourceLocation} to a corresponding
- * {@link VxObjectType}, which contains the factory for creating instances of that object type.
- *
- * @author xI-Mx-Ix
+ * A thread-safe, common singleton registry for managing physics object types and their client-side renderers.
+ * This class serves both the server and the client, holding mappings from a {@link ResourceLocation}
+ * to a {@link VxObjectType} for object creation, and also to client-side renderer factories.
  */
 public class VxObjectRegistry {
 
-    /** The singleton instance of the registry. Volatile to ensure visibility across threads. */
+    // The singleton instance of the registry.
     private static volatile VxObjectRegistry instance;
 
-    /** A concurrent map storing the registered object types against their unique identifiers. */
+    // Stores the object type definitions, used on both server and client.
     private final Map<ResourceLocation, VxObjectType<?>> registeredTypes = new ConcurrentHashMap<>();
 
-    /**
-     * Private constructor to enforce the singleton pattern.
-     */
+    // Stores client-side renderer factories.
+    @Environment(EnvType.CLIENT)
+    private final Map<ResourceLocation, Supplier<? extends VxAbstractBody.Renderer>> rendererFactories = new ConcurrentHashMap<>();
+
+    // Private constructor to enforce the singleton pattern.
     private VxObjectRegistry() {}
 
     /**
@@ -54,8 +59,8 @@ public class VxObjectRegistry {
     }
 
     /**
-     * Registers a new physics object type. If a type with the same ID is already registered,
-     * it will be overwritten and a warning will be logged.
+     * Registers a new physics object type. This method is called on both server and client.
+     * If a type with the same ID is already registered, it will be overwritten.
      *
      * @param type The {@link VxObjectType} to register.
      */
@@ -72,7 +77,7 @@ public class VxObjectRegistry {
      * @param typeId The unique identifier of the object type to create.
      * @param world  The physics world the object will belong to.
      * @param id     The unique UUID for the new object instance.
-     * @return A new {@link VxAbstractBody} instance, or null if the type ID is not registered or creation fails.
+     * @return A new {@link VxAbstractBody} instance, or null if the type ID is not registered.
      */
     @Nullable
     public VxAbstractBody create(ResourceLocation typeId, VxPhysicsWorld world, UUID id) {
@@ -101,11 +106,9 @@ public class VxObjectRegistry {
     @Nullable
     public VxAbstractBody createAndDeserialize(ResourceLocation typeId, UUID id, VxPhysicsWorld world, VxByteBuf data) {
         VxAbstractBody obj = create(typeId, world, id);
-        if (obj != null) {
-            if (data != null) {
-                data.resetReaderIndex();
-                obj.readCreationData(data);
-            }
+        if (obj != null && data != null) {
+            data.resetReaderIndex();
+            obj.readCreationData(data);
         }
         return obj;
     }
@@ -123,10 +126,69 @@ public class VxObjectRegistry {
 
     /**
      * Gets an immutable copy of all registered object types.
+     * This is safe to use for command suggestions on the client.
      *
      * @return An immutable map of all registered types.
      */
     public Map<ResourceLocation, VxObjectType<?>> getRegisteredTypes() {
         return Map.copyOf(registeredTypes);
+    }
+
+    /**
+     * Registers a factory for creating a client-side renderer.
+     *
+     * @param typeIdentifier The unique ID of the physics object type.
+     * @param factory        A supplier that creates a new renderer instance.
+     */
+    @Environment(EnvType.CLIENT)
+    public void registerRendererFactory(ResourceLocation typeIdentifier, Supplier<? extends VxAbstractBody.Renderer> factory) {
+        rendererFactories.put(typeIdentifier, factory);
+    }
+
+    /**
+     * Creates a new rigid body renderer instance for the given type identifier.
+     *
+     * @param identifier The unique ID of the rigid body type.
+     * @return A new {@link VxRigidBody.Renderer} instance, or null if no matching factory is registered.
+     */
+    @Nullable
+    @Environment(EnvType.CLIENT)
+    public VxRigidBody.Renderer createRigidRenderer(ResourceLocation identifier) {
+        Supplier<? extends VxAbstractBody.Renderer> factory = rendererFactories.get(identifier);
+        if (factory != null) {
+            VxAbstractBody.Renderer renderer = factory.get();
+            if (renderer instanceof VxRigidBody.Renderer) {
+                return (VxRigidBody.Renderer) renderer;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Creates a new soft body renderer instance for the given type identifier.
+     *
+     * @param identifier The unique ID of the soft body type.
+     * @return A new {@link VxSoftBody.Renderer} instance, or null if no matching factory is registered.
+     */
+    @Nullable
+    @Environment(EnvType.CLIENT)
+    public VxSoftBody.Renderer createSoftRenderer(ResourceLocation identifier) {
+        Supplier<? extends VxAbstractBody.Renderer> factory = rendererFactories.get(identifier);
+        if (factory != null) {
+            VxAbstractBody.Renderer renderer = factory.get();
+            if (renderer instanceof VxSoftBody.Renderer) {
+                return (VxSoftBody.Renderer) renderer;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Clears all registries. This should be called when the client disconnects from a world
+     * to prevent data leakage between sessions.
+     */
+    public void clear() {
+        registeredTypes.clear();
+        rendererFactories.clear();
     }
 }

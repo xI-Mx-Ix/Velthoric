@@ -15,6 +15,7 @@ import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.client.time.VxClientClock;
+import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectState;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
 
@@ -47,8 +48,6 @@ public class VxClientObjectManager {
 
     // The data store holding all object states in a Structure of Arrays format.
     private final VxClientObjectDataStore store = new VxClientObjectDataStore();
-    // The registry for client-side object renderers.
-    private final VxClientObjectRegistry registry = new VxClientObjectRegistry();
     // The interpolator responsible for calculating smooth object transforms.
     private final VxClientObjectInterpolator interpolator = new VxClientObjectInterpolator();
     // The client-side clock, which can be paused.
@@ -261,9 +260,9 @@ public class VxClientObjectManager {
 
         // Create and store the appropriate renderer.
         if (objType == EBodyType.RigidBody) {
-            store.renderer[index] = registry.createRigidRenderer(typeId);
+            store.renderer[index] = VxObjectRegistry.getInstance().createRigidRenderer(typeId);
         } else if (objType == EBodyType.SoftBody) {
-            store.renderer[index] = registry.createSoftRenderer(typeId);
+            store.renderer[index] = VxObjectRegistry.getInstance().createSoftRenderer(typeId);
             store.state0_vertexData[index] = null;
             store.state1_vertexData[index] = null;
         }
@@ -359,12 +358,5 @@ public class VxClientObjectManager {
      */
     public VxClientObjectInterpolator getInterpolator() {
         return interpolator;
-    }
-
-    /**
-     * @return The client-side renderer registry.
-     */
-    public VxClientObjectRegistry getRegistry() {
-        return registry;
     }
 }

@@ -18,19 +18,24 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
-import net.xmx.velthoric.physics.object.manager.registry.VxObjectRegistry;
+import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.Optional;
 
+/**
+ * Parses a string representation of a physics object selector (e.g., "@x[type=velthoric:box,limit=1]").
+ * This class handles the logic for parsing the selector and its arguments, as well as providing
+ * context-aware command suggestions. It is designed to mimic the behavior of Minecraft's vanilla
+ * {@link net.minecraft.commands.arguments.selector.EntitySelectorParser}.
+ */
 public class VxObjectSelectorParser {
 
     public static final SimpleCommandExceptionType ERROR_MISSING_SELECTOR_TYPE = new SimpleCommandExceptionType(Component.literal("Missing selector type"));
@@ -41,6 +46,8 @@ public class VxObjectSelectorParser {
     public static final DynamicCommandExceptionType ERROR_INVALID_BODY_TYPE = new DynamicCommandExceptionType((obj) -> Component.literal("Unknown body type '" + obj + "'"));
     public static final DynamicCommandExceptionType ERROR_INVALID_SORT_TYPE = new DynamicCommandExceptionType((obj) -> Component.literal("Unknown sort type '" + obj + "'"));
 
+    // A list of all valid option keys for providing suggestions.
+    private static final List<String> OPTION_KEYS = Arrays.asList("limit", "distance", "type", "bodytype", "sort");
 
     public static final BiConsumer<Vec3, List<VxAbstractBody>> ORDER_NEAREST_VX = (sourcePos, list) ->
             list.sort((a, b) -> {
@@ -71,6 +78,12 @@ public class VxObjectSelectorParser {
         this.reader = reader;
     }
 
+    /**
+     * Parses the input from the StringReader into a complete {@link VxObjectSelector}.
+     *
+     * @return The parsed selector.
+     * @throws CommandSyntaxException if the selector syntax is invalid.
+     */
     public VxObjectSelector parse() throws CommandSyntaxException {
         this.suggestions = this::suggestSelector;
         if (!reader.canRead() || reader.peek() != '@') {
@@ -85,7 +98,7 @@ public class VxObjectSelectorParser {
         char selectorChar = reader.read();
         if (selectorChar != 'x') {
             reader.setCursor(reader.getCursor() - 1);
-            throw ERROR_UNKNOWN_SELECTOR_TYPE.createWithContext(reader, "@" + String.valueOf(selectorChar));
+            throw ERROR_UNKNOWN_SELECTOR_TYPE.createWithContext(reader, "@" + selectorChar);
         }
 
         this.suggestions = this::suggestOpenOptions;
@@ -98,6 +111,7 @@ public class VxObjectSelectorParser {
         return new VxObjectSelector(limit, distance, type, typeInverse, bodyType, order);
     }
 
+    // Main loop for parsing key-value options within square brackets.
     private void parseOptions() throws CommandSyntaxException {
         this.suggestions = this::suggestOptionsKey;
         reader.skipWhitespace();
@@ -125,7 +139,7 @@ public class VxObjectSelectorParser {
                 reader.skip();
                 this.suggestions = this::suggestOptionsKey;
             } else {
-                break; // Exit loop if no comma is found
+                break; // Exit loop if no comma is found, expecting ']'
             }
         }
 
@@ -135,6 +149,7 @@ public class VxObjectSelectorParser {
         this.suggestions = (b, c) -> Suggestions.empty();
     }
 
+    // Parses the value for a given option key.
     private void parseOptionValue(String name) throws CommandSyntaxException {
         int cursor = reader.getCursor();
         switch (name) {
@@ -179,20 +194,32 @@ public class VxObjectSelectorParser {
         }
     }
 
+    /**
+     * Fills the suggestion builder with context-aware suggestions.
+     * The actual suggestions are provided by the current `suggestions` function,
+     * which is updated as parsing progresses.
+     *
+     * @param builder The suggestions builder.
+     * @param consumer A consumer for the builder.
+     * @return A future that will complete with the suggestions.
+     */
     public CompletableFuture<Suggestions> fillSuggestions(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         return this.suggestions.apply(builder.createOffset(this.reader.getCursor()), consumer);
     }
 
+    // Provides suggestions for the selector type itself, e.g., "@x".
     private CompletableFuture<Suggestions> suggestSelector(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         builder.suggest("@x");
         return builder.buildFuture();
     }
 
+    // Suggests the character 'x' after the '@'.
     private CompletableFuture<Suggestions> suggestSelectorType(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         builder.suggest("x");
         return builder.buildFuture();
     }
 
+    // Suggests the opening bracket '[' for options.
     private CompletableFuture<Suggestions> suggestOpenOptions(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         if (!reader.canRead() || reader.peek() != '[') {
             builder.suggest("[");
@@ -200,43 +227,48 @@ public class VxObjectSelectorParser {
         return builder.buildFuture();
     }
 
+    // Suggests the available option keys, filtering based on the current input.
     private void suggestOptionKeys(SuggestionsBuilder builder) {
-        builder.suggest("limit=");
-        builder.suggest("distance=");
-        builder.suggest("type=");
-        builder.suggest("bodytype=");
-        builder.suggest("sort=");
+        String remaining = builder.getRemaining().toLowerCase();
+        for (String key : OPTION_KEYS) {
+            if (key.toLowerCase().startsWith(remaining)) {
+                builder.suggest(key + "=");
+            }
+        }
     }
 
-
-
-    private CompletableFuture<Suggestions> suggestOptionsKey(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
-        suggestOptionKeys(builder);
-        return builder.buildFuture();
-    }
-
+    // Suggests option keys or the closing bracket ']'.
     private CompletableFuture<Suggestions> suggestOptionsKeyOrClose(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         builder.suggest("]");
         suggestOptionKeys(builder);
         return builder.buildFuture();
     }
 
+    // Suggests option keys.
+    private CompletableFuture<Suggestions> suggestOptionsKey(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
+        suggestOptionKeys(builder);
+        return builder.buildFuture();
+    }
+
+    // Suggests the next option via a comma ',' or the end of options via ']'.
     private CompletableFuture<Suggestions> suggestOptionsNextOrClose(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         builder.suggest(",");
         builder.suggest("]");
         return builder.buildFuture();
     }
 
+    // Suggests the equals sign '=' after an option key.
     private CompletableFuture<Suggestions> suggestEquals(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         builder.suggest("=");
         return builder.buildFuture();
     }
 
+    // Provides suggestions for the values of a specific option.
     private CompletableFuture<Suggestions> suggestOptionValues(String option, SuggestionsBuilder builder) {
         switch (option) {
             case "type" -> {
                 builder.suggest("!");
-                // Make sure VxObjectRegistry is thread-safe if accessed asynchronously
+                // This now correctly accesses the common registry, which is populated on the client.
                 SharedSuggestionProvider.suggestResource(VxObjectRegistry.getInstance().getRegisteredTypes().keySet(), builder);
             }
             case "bodytype" -> SharedSuggestionProvider.suggest(Arrays.stream(EBodyType.values()).map(e -> e.name().toLowerCase()), builder);
