@@ -16,6 +16,7 @@ public class CommandRegistry {
     public static void registerCommon(CommandDispatcher<CommandSourceStack> dispatcher) {
         VxTestCommand.register(dispatcher);
         VxSummonCommand.register(dispatcher);
+        VxKillCommand.register(dispatcher);
     }
 
     public static void registerClient(CommandDispatcher<CommandSourceStack> dispatcher) {

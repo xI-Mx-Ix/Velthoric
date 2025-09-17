@@ -4,6 +4,7 @@
   "package": "net.xmx.velthoric.mixin.impl",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
+    "command.MixinArgumentTypeInfos",
     "event.chunk.ChunkMapMixin_VxChunkLoadEvent",
     "event.chunk.ChunkMapMixin_VxChunkUnloadEvent",
     "event.chunk.ChunkMapMixin_VxChunkWatchEvent",
@@ -24,9 +25,9 @@
     "event.network.ClientPacketListenerMixin_VxClientPlayerNetworkEvent",
     "event.render.LevelRendererMixin_VxRenderEvent",
     "magnetizer.MouseHandlerMixin_MagnetizerInput",
-    "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
     "physicsgun.KeyboardHandlerMixin_PhysicsGunHandling",
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
+    "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
     "raytracing.MouseHandlerMixin_ClickNotifier",
     "riding.CameraMixin",
     "riding.GameRendererMixin",
