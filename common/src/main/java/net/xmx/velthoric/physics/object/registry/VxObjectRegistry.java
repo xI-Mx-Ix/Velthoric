@@ -182,13 +182,4 @@ public class VxObjectRegistry {
         }
         return null;
     }
-
-    /**
-     * Clears all registries. This should be called when the client disconnects from a world
-     * to prevent data leakage between sessions.
-     */
-    public void clear() {
-        registeredTypes.clear();
-        rendererFactories.clear();
-    }
 }
