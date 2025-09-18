@@ -145,7 +145,20 @@ public class VxObjectSelectorParser {
                     typeInverse = true;
                     reader.skip();
                 }
-                type = ResourceLocation.read(reader);
+                int valueStartCursor = reader.getCursor();
+                ResourceLocation parsedLocation = ResourceLocation.read(reader);
+
+                if (parsedLocation.getPath().isEmpty()) {
+                    reader.setCursor(valueStartCursor);
+                    throw ERROR_EXPECTED_OPTION_VALUE.createWithContext(reader, name);
+                }
+
+                if (!reader.canRead()) {
+                    reader.setCursor(valueStartCursor);
+                    throw ERROR_EXPECTED_OPTION_VALUE.createWithContext(reader, name);
+                }
+
+                this.type = parsedLocation;
             }
             case "bodytype" -> {
                 String bodyTypeName = reader.readString();
@@ -232,9 +245,17 @@ public class VxObjectSelectorParser {
     private CompletableFuture<Suggestions> suggestOptionValues(String option, SuggestionsBuilder builder) {
         switch (option) {
             case "type" -> {
-                builder.suggest("!");
+                if (builder.getRemaining().isEmpty()) {
+                    builder.suggest("!");
+                }
+                var keys = VxObjectRegistry.getInstance().getRegisteredTypes().keySet().stream().map(ResourceLocation::toString);
+                if (builder.getRemaining().startsWith("!")) {
+                    SuggestionsBuilder subBuilder = builder.createOffset(builder.getStart() + 1);
+                    SharedSuggestionProvider.suggest(keys, subBuilder);
+                } else {
 
-                SharedSuggestionProvider.suggestResource(VxObjectRegistry.getInstance().getRegisteredTypes().keySet(), builder);
+                    SharedSuggestionProvider.suggest(keys, builder);
+                }
             }
             case "bodytype" -> SharedSuggestionProvider.suggest(Arrays.stream(EBodyType.values()).map(e -> e.name().toLowerCase()), builder);
             case "sort" -> SharedSuggestionProvider.suggest(new String[]{"nearest", "furthest", "random"}, builder);

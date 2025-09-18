@@ -35,7 +35,6 @@ public class VxObjectRegistry {
     private final Map<ResourceLocation, VxObjectType<?>> registeredTypes = new ConcurrentHashMap<>();
 
     // Stores client-side renderer factories.
-    @Environment(EnvType.CLIENT)
     private final Map<ResourceLocation, Supplier<? extends VxAbstractBody.Renderer>> rendererFactories = new ConcurrentHashMap<>();
 
     // Private constructor to enforce the singleton pattern.
