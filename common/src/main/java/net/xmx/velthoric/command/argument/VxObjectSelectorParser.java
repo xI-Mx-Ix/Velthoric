@@ -39,6 +39,7 @@ public class VxObjectSelectorParser {
     public static final DynamicCommandExceptionType ERROR_UNKNOWN_OPTION = new DynamicCommandExceptionType((obj) -> Component.literal("Unknown option '" + obj + "'"));
     public static final DynamicCommandExceptionType ERROR_INVALID_BODY_TYPE = new DynamicCommandExceptionType((obj) -> Component.literal("Unknown body type '" + obj + "'"));
     public static final DynamicCommandExceptionType ERROR_INVALID_SORT_TYPE = new DynamicCommandExceptionType((obj) -> Component.literal("Unknown sort type '" + obj + "'"));
+    public static final DynamicCommandExceptionType ERROR_UNKNOWN_OBJECT_TYPE = new DynamicCommandExceptionType((obj) -> Component.literal("Unknown object type '" + obj + "'"));
 
     private static final List<String> OPTION_KEYS = Arrays.asList("limit", "distance", "type", "bodytype", "sort");
 
@@ -153,9 +154,9 @@ public class VxObjectSelectorParser {
                     throw ERROR_EXPECTED_OPTION_VALUE.createWithContext(reader, name);
                 }
 
-                if (!reader.canRead()) {
+                if (!VxObjectRegistry.getInstance().getRegisteredTypes().containsKey(parsedLocation)) {
                     reader.setCursor(valueStartCursor);
-                    throw ERROR_EXPECTED_OPTION_VALUE.createWithContext(reader, name);
+                    throw ERROR_UNKNOWN_OBJECT_TYPE.createWithContext(reader, parsedLocation.toString());
                 }
 
                 this.type = parsedLocation;
@@ -245,15 +246,18 @@ public class VxObjectSelectorParser {
     private CompletableFuture<Suggestions> suggestOptionValues(String option, SuggestionsBuilder builder) {
         switch (option) {
             case "type" -> {
-                if (builder.getRemaining().isEmpty()) {
+                var keys = VxObjectRegistry.getInstance().getRegisteredTypes().keySet().stream().map(ResourceLocation::toString);
+                String remaining = builder.getRemaining();
+
+                if (remaining.isEmpty()) {
                     builder.suggest("!");
                 }
-                var keys = VxObjectRegistry.getInstance().getRegisteredTypes().keySet().stream().map(ResourceLocation::toString);
-                if (builder.getRemaining().startsWith("!")) {
+
+                if (remaining.startsWith("!")) {
                     SuggestionsBuilder subBuilder = builder.createOffset(builder.getStart() + 1);
                     SharedSuggestionProvider.suggest(keys, subBuilder);
+                    return builder.add(subBuilder).buildFuture();
                 } else {
-
                     SharedSuggestionProvider.suggest(keys, builder);
                 }
             }
