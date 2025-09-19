@@ -17,7 +17,7 @@ public interface Rideable {
 
     VxPhysicsWorld getWorld();
 
-    VxTransform getGameTransform();
+    VxTransform getTransform();
 
     void onStartRiding(ServerPlayer player, Seat seat);
 

@@ -57,7 +57,7 @@ public class VxObjectSelector {
 
         if (!distance.isAny()) {
             predicate = predicate.and(obj -> {
-                var objPos = obj.getGameTransform().getTranslation();
+                var objPos = obj.getTransform().getTranslation();
                 return distance.matchesSqr(sourcePos.distanceToSqr(objPos.x(), objPos.y(), objPos.z()));
             });
         }

@@ -89,9 +89,8 @@ public final class VxSummonCommand {
             source.sendFailure(Component.literal("Failed to create an instance of " + typeId));
             return 0;
         }
-        body.getGameTransform().set(transform);
 
-        manager.addConstructedBody(body, EActivation.Activate);
+        manager.addConstructedBody(body, EActivation.Activate, transform);
 
         source.sendSuccess(() -> Component.literal(String.format("Successfully summoned physics object '%s' with ID: %s", typeId, body.getPhysicsId())), true);
         return 1;

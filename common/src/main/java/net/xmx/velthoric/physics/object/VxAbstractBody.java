@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
@@ -18,28 +19,23 @@ import java.util.UUID;
 
 /**
  * The abstract base class for all physics objects in Velthoric.
- * It defines the core properties and behaviors common to all physics bodies,
- * such as their ID, type, and lifecycle callbacks.
+ * This class acts as a lightweight handle or wrapper for a physics body.
+ * Most of its state is stored in a data-oriented {@link net.xmx.velthoric.physics.object.manager.VxObjectDataStore}
+ * for efficient processing.
  *
  * @author xI-Mx-Ix
  */
 public abstract class VxAbstractBody {
 
-    // The unique, persistent identifier for this physics object instance.
+    /** The unique, persistent identifier for this physics object instance. */
     protected final UUID physicsId;
-    // The type definition for this object, containing its factory and type ID.
+    /** The type definition for this object, containing its factory and type ID. */
     protected final VxObjectType<? extends VxAbstractBody> type;
-    // The physics world this object belongs to.
+    /** The physics world this object belongs to. */
     protected final VxPhysicsWorld world;
-    // The ID of the body in the Jolt physics system. 0 if not added to the simulation.
+    /** The ID of the body in the Jolt physics system. 0 if not added to the simulation. */
     protected int bodyId = 0;
-    // The object's transform in the game world, used as the source of truth for spawning and saving.
-    protected final VxTransform gameTransform = new VxTransform();
-    // A flag indicating that this object's custom data needs to be synchronized to clients.
-    protected boolean isDataDirty = false;
-    // Caches the long-form key of the chunk this object is in, to efficiently detect chunk movements.
-    private long lastKnownChunkKey = Long.MAX_VALUE;
-    // The index of this object within the server-side data store for efficient state updates.
+    /** The index of this object within the server-side data store for efficient state access. */
     protected int dataStoreIndex = -1;
 
     /**
@@ -86,7 +82,7 @@ public abstract class VxAbstractBody {
 
     /**
      * Subclasses can override this to write custom data that is sent to the client on spawn
-     * and when {@link #markDataDirty()} is called.
+     * and when {@link #markCustomDataDirty()} is called.
      *
      * @param buf The buffer to write to.
      */
@@ -100,21 +96,30 @@ public abstract class VxAbstractBody {
     public void readCreationData(VxByteBuf buf) {}
 
     /**
-     * Safely gets the current transform of the body from the physics simulation.
+     * Retrieves the current transform of the body from the central data store.
      *
-     * @param world The physics world.
-     * @return A new {@link VxTransform} with the body's current state, or null if the body is not in the simulation.
+     * @param outTransform The {@link VxTransform} object to populate with the result.
      */
-    @Nullable
-    public VxTransform getTransform(VxPhysicsWorld world) {
-        if (bodyId == 0) return null;
+    public void getTransform(VxTransform outTransform) {
+        if (this.dataStoreIndex != -1) {
+            this.world.getObjectManager().getTransform(this.dataStoreIndex, outTransform);
+        }
+    }
 
-        try (BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), this.bodyId)) {
-            if (lock.succeededAndIsInBroadPhase()) {
-                VxTransform transform = new VxTransform();
-                lock.getBody().getPositionAndRotation(transform.getTranslation(), transform.getRotation());
-                return transform;
-            }
+    /**
+     * Retrieves the current transform of the body from the central data store.
+     * <p>
+     * This method creates a new {@link VxTransform} instance, fills it with the
+     * transform data from the {@code ObjectManager}, and returns it.
+     *
+     * @return a new {@link VxTransform} containing the current transform of this body,
+     *         or {@code null} if the body does not have a valid data store index.
+     */
+    public VxTransform getTransform() {
+        if (this.dataStoreIndex != -1) {
+            VxTransform transform = new VxTransform();
+            this.world.getObjectManager().getTransform(this.dataStoreIndex, transform);
+            return transform;
         }
         return null;
     }
@@ -143,7 +148,7 @@ public abstract class VxAbstractBody {
     }
 
     /**
-     * Sets the Jolt body ID for this object. This is typically called by the {@code VxObjectManager}.
+     * Sets the Jolt body ID for this object. This is typically called by the {@link VxObjectManager}.
      *
      * @param bodyId The new body ID.
      */
@@ -173,13 +178,6 @@ public abstract class VxAbstractBody {
     }
 
     /**
-     * @return The game-side transform of this object.
-     */
-    public VxTransform getGameTransform() {
-        return this.gameTransform;
-    }
-
-    /**
      * @return The physics world this object belongs to.
      */
     public VxPhysicsWorld getWorld() {
@@ -189,38 +187,30 @@ public abstract class VxAbstractBody {
     /**
      * Marks this object's custom data as dirty, queuing it for synchronization to clients.
      */
-    public void markDataDirty() {
-        this.isDataDirty = true;
+    public void markCustomDataDirty() {
+        if (this.dataStoreIndex != -1) {
+            this.world.getObjectManager().getDataStore().isCustomDataDirty[this.dataStoreIndex] = true;
+        }
     }
 
     /**
+     * Checks if the object's custom data is dirty.
      * @return True if the object's custom data is dirty.
      */
-    public boolean isDataDirty() {
-        return this.isDataDirty;
+    public boolean isCustomDataDirty() {
+        if (this.dataStoreIndex != -1) {
+            return this.world.getObjectManager().getDataStore().isCustomDataDirty[this.dataStoreIndex];
+        }
+        return false;
     }
 
     /**
      * Clears the dirty flag for custom data.
      */
-    public void clearDataDirty() {
-        this.isDataDirty = false;
-    }
-
-    /**
-     * @return The cached chunk key for this object.
-     */
-    public long getLastKnownChunkKey() {
-        return this.lastKnownChunkKey;
-    }
-
-    /**
-     * Updates the cached chunk key.
-     *
-     * @param key The new chunk key.
-     */
-    public void setLastKnownChunkKey(long key) {
-        this.lastKnownChunkKey = key;
+    public void clearCustomDataDirty() {
+        if (this.dataStoreIndex != -1) {
+            this.world.getObjectManager().getDataStore().isCustomDataDirty[this.dataStoreIndex] = false;
+        }
     }
 
     /**
@@ -239,7 +229,8 @@ public abstract class VxAbstractBody {
         this.dataStoreIndex = dataStoreIndex;
     }
 
-    // A marker interface for client-side renderer classes.
-    public interface Renderer {
-    }
+    /**
+     * A marker interface for client-side renderer classes.
+     */
+    public interface Renderer {}
 }

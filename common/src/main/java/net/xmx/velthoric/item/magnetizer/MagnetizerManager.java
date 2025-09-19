@@ -15,7 +15,6 @@ import net.minecraft.world.level.Level;
 import net.xmx.velthoric.physics.raycasting.VxClipContext;
 import net.xmx.velthoric.physics.raycasting.VxHitResult;
 import net.xmx.velthoric.physics.raycasting.VxRaytracing;
-import net.xmx.velthoric.physics.object.pcmd.ActivateBodyCommand;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Map;
@@ -120,7 +119,7 @@ public class MagnetizerManager {
             int[] hitBodyIds = collector.getHits();
 
             for (int bodyId : hitBodyIds) {
-                physicsWorld.queueCommand(new ActivateBodyCommand(bodyId));
+                physicsWorld.getBodyInterface().activateBody(bodyId);
 
                 try (var lock = new BodyLockWrite(physicsSystem.getBodyLockInterface(), bodyId)) {
                     if (lock.succeededAndIsInBroadPhase() && lock.getBody().isDynamic()) {

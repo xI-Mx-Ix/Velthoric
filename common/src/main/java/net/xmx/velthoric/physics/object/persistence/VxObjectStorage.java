@@ -16,6 +16,7 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
@@ -47,6 +48,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     ) {}
 
     private final VxObjectManager objectManager;
+    private final VxObjectDataStore dataStore;
     private final ConcurrentMap<Long, List<UUID>> chunkToUuidIndex = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, CompletableFuture<VxAbstractBody>> pendingLoads = new ConcurrentHashMap<>();
     private ExecutorService loaderExecutor;
@@ -54,6 +56,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     public VxObjectStorage(ServerLevel level, VxObjectManager objectManager) {
         super(level, "body", "body");
         this.objectManager = objectManager;
+        this.dataStore = objectManager.getDataStore();
     }
 
     @Override
@@ -115,8 +118,11 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      */
     public void storeObject(VxAbstractBody object) {
         if (object == null) return;
-        byte[] data = serializeObjectData(object);
-        ChunkPos chunkPos = VxObjectManager.getObjectChunkPos(object);
+        int index = object.getDataStoreIndex();
+        if (index == -1) return;
+
+        byte[] data = serializeObjectData(object, index);
+        ChunkPos chunkPos = objectManager.getObjectChunkPos(index);
         RegionPos regionPos = getRegionPos(chunkPos);
 
         getRegion(regionPos).thenAcceptAsync(region -> {
@@ -256,22 +262,29 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
-    private byte[] serializeObjectData(VxAbstractBody object) {
+    private byte[] serializeObjectData(VxAbstractBody object, int index) {
         ByteBuf buffer = Unpooled.buffer();
         VxByteBuf friendlyBuf = new VxByteBuf(buffer);
         try {
             friendlyBuf.writeUUID(object.getPhysicsId());
             friendlyBuf.writeUtf(object.getType().getTypeId().toString());
-            object.getGameTransform().toBuffer(friendlyBuf);
 
-            // Write velocities
-            int index = object.getDataStoreIndex();
-            friendlyBuf.writeFloat(index >= 0 ? objectManager.getDataStore().velX[index] : 0f);
-            friendlyBuf.writeFloat(index >= 0 ? objectManager.getDataStore().velY[index] : 0f);
-            friendlyBuf.writeFloat(index >= 0 ? objectManager.getDataStore().velZ[index] : 0f);
-            friendlyBuf.writeFloat(index >= 0 ? objectManager.getDataStore().angVelX[index] : 0f);
-            friendlyBuf.writeFloat(index >= 0 ? objectManager.getDataStore().angVelY[index] : 0f);
-            friendlyBuf.writeFloat(index >= 0 ? objectManager.getDataStore().angVelZ[index] : 0f);
+            // Write transform from data store
+            friendlyBuf.writeDouble(dataStore.posX[index]);
+            friendlyBuf.writeDouble(dataStore.posY[index]);
+            friendlyBuf.writeDouble(dataStore.posZ[index]);
+            friendlyBuf.writeFloat(dataStore.rotX[index]);
+            friendlyBuf.writeFloat(dataStore.rotY[index]);
+            friendlyBuf.writeFloat(dataStore.rotZ[index]);
+            friendlyBuf.writeFloat(dataStore.rotW[index]);
+
+            // Write velocities from data store
+            friendlyBuf.writeFloat(dataStore.velX[index]);
+            friendlyBuf.writeFloat(dataStore.velY[index]);
+            friendlyBuf.writeFloat(dataStore.velZ[index]);
+            friendlyBuf.writeFloat(dataStore.angVelX[index]);
+            friendlyBuf.writeFloat(dataStore.angVelY[index]);
+            friendlyBuf.writeFloat(dataStore.angVelZ[index]);
 
             object.writeCreationData(friendlyBuf);
             byte[] data = new byte[buffer.readableBytes()];

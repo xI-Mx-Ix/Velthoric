@@ -32,7 +32,7 @@ public class MarbleRigidBody extends VxRigidBody {
 
     public void setRadius(float radius) {
         this.radius = radius;
-        this.markDataDirty();
+        this.markCustomDataDirty();
     }
 
     public float getRadius() {
@@ -46,12 +46,11 @@ public class MarbleRigidBody extends VxRigidBody {
 
     @Override
     public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
-        var settings = new BodyCreationSettings(
-                shapeRef,
-                this.getGameTransform().getTranslation(),
-                this.getGameTransform().getRotation(),
-                EMotionType.Dynamic,
-                VxLayers.DYNAMIC);
+        var settings = new BodyCreationSettings();
+        settings.setShape(shapeRef);
+        settings.setMotionType(EMotionType.Dynamic);
+        settings.setObjectLayer(VxLayers.DYNAMIC);
+        // The VxObjectManager will set the final position and rotation from the data store.
 
         settings.setRestitution(0.6f);
         settings.setFriction(0.6f);

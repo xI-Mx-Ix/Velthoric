@@ -37,9 +37,11 @@ public class VxObjectDataStore extends AbstractDataStore {
     public float[] @Nullable [] vertexData; // For soft bodies
     public boolean[] isActive;
     public EBodyType[] bodyType;
+    public long[] chunkKey;
 
     // --- Sync & Management Data ---
-    public boolean[] isDirty;
+    public boolean[] isPhysicsStateDirty;
+    public boolean[] isCustomDataDirty;
     public long[] lastUpdateTimestamp;
 
     public VxObjectDataStore() {
@@ -63,8 +65,10 @@ public class VxObjectDataStore extends AbstractDataStore {
         vertexData = grow(vertexData, newCapacity);
         isActive = grow(isActive, newCapacity);
         bodyType = grow(bodyType, newCapacity);
+        chunkKey = grow(chunkKey, newCapacity);
 
-        isDirty = grow(isDirty, newCapacity);
+        isPhysicsStateDirty = grow(isPhysicsStateDirty, newCapacity);
+        isCustomDataDirty = grow(isCustomDataDirty, newCapacity);
         lastUpdateTimestamp = grow(lastUpdateTimestamp, newCapacity);
 
         this.capacity = newCapacity;
@@ -95,6 +99,7 @@ public class VxObjectDataStore extends AbstractDataStore {
         }
 
         bodyType[index] = type;
+        chunkKey[index] = Long.MAX_VALUE; // Initialize with an invalid key
         return index;
     }
 
@@ -157,7 +162,9 @@ public class VxObjectDataStore extends AbstractDataStore {
         vertexData[index] = null;
         isActive[index] = false;
         bodyType[index] = null;
-        isDirty[index] = false;
+        chunkKey[index] = Long.MAX_VALUE;
+        isPhysicsStateDirty[index] = false;
+        isCustomDataDirty[index] = false;
         lastUpdateTimestamp[index] = 0L;
     }
 }

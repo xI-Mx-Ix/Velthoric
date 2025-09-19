@@ -130,7 +130,7 @@ public class VxObjectNetworkDispatcher {
      * @param body The physics object that was added.
      */
     public void onObjectAdded(VxAbstractBody body) {
-        ChunkPos bodyChunk = VxObjectManager.getObjectChunkPos(body);
+        ChunkPos bodyChunk = manager.getObjectChunkPos(body.getDataStoreIndex());
         for (ServerPlayer player : level.players()) {
             if (isChunkVisible(player, bodyChunk)) {
                 startTracking(player, body);
@@ -362,7 +362,7 @@ public class VxObjectNetworkDispatcher {
         while ((index = dirtyIndicesQueue.poll()) != null) {
             if (dataStore.getIdForIndex(index) != null) {
                 dirtyIndices.add(index);
-                dataStore.isDirty[index] = false; // Reset dirty flag
+                dataStore.isPhysicsStateDirty[index] = false; // Reset dirty flag
             }
         }
 
@@ -423,9 +423,9 @@ public class VxObjectNetworkDispatcher {
      * @param obj The object whose custom data has changed.
      */
     public void dispatchDataUpdate(VxAbstractBody obj) {
-        if (obj.isDataDirty()) {
+        if (obj.isCustomDataDirty()) {
             SyncPhysicsObjectDataPacket packet = new SyncPhysicsObjectDataPacket(obj);
-            ChunkPos chunkPos = VxObjectManager.getObjectChunkPos(obj);
+            ChunkPos chunkPos = manager.getObjectChunkPos(obj.getDataStoreIndex());
             // Send to all players who have the object's chunk loaded
             level.getServer().execute(() -> {
                 ServerChunkCache chunkSource = level.getChunkSource();
@@ -433,7 +433,7 @@ public class VxObjectNetworkDispatcher {
                     NetworkHandler.sendToPlayer(packet, player);
                 }
             });
-            obj.clearDataDirty();
+            obj.clearCustomDataDirty();
         }
     }
 }

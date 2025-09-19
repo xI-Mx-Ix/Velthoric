@@ -82,7 +82,7 @@ public class RidingManager {
         Vector3f rideOffsetJoml = new Vector3f(seat.getRiderOffset());
         proxy.setFollowInfo(rideable.getPhysicsId(), rideOffsetJoml);
 
-        var initialTransform = rideable.getGameTransform();
+        var initialTransform = rideable.getTransform();
         var initialPos = initialTransform.getTranslation();
         var initialRot = initialTransform.getRotation();
         Quaternionf initialQuat = new Quaternionf(initialRot.getX(), initialRot.getY(), initialRot.getZ(), initialRot.getW());
@@ -168,7 +168,7 @@ public class RidingManager {
                 continue;
             }
 
-            var trans = physObject.getGameTransform();
+            var trans = physObject.getTransform();
             var pos = trans.getTranslation();
             var rot = trans.getRotation();
             Quaternionf jomlQuat = new Quaternionf(rot.getX(), rot.getY(), rot.getZ(), rot.getW());

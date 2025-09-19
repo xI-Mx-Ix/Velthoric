@@ -96,16 +96,11 @@ public class VxPhysicsUpdater {
         bodyInterface.getPositionAndRotation(bodyId, pos, rot);
 
         // Update chunk tracking if the object moved across a chunk border
-        long lastKey = obj.getLastKnownChunkKey();
+        long lastKey = dataStore.chunkKey[index];
         long currentKey = new ChunkPos(SectionPos.posToSectionCoord(pos.x()), SectionPos.posToSectionCoord(pos.z())).toLong();
         if (lastKey != currentKey) {
             manager.updateObjectTracking(obj, lastKey, currentKey);
-            obj.setLastKnownChunkKey(currentKey);
         }
-
-        // Update game-side transform
-        obj.getGameTransform().getTranslation().set(pos.x(), pos.y(), pos.z());
-        obj.getGameTransform().getRotation().set(rot);
 
         Vec3 linVel = isActive ? bodyInterface.getLinearVelocity(bodyId) : Vec3.sZero();
         Vec3 angVel = isActive ? bodyInterface.getAngularVelocity(bodyId) : Vec3.sZero();
@@ -134,13 +129,13 @@ public class VxPhysicsUpdater {
             dataStore.isActive[index] = isActive;
             dataStore.lastUpdateTimestamp[index] = timestampNanos;
 
-            if (!dataStore.isDirty[index]) {
-                dataStore.isDirty[index] = true;
+            if (!dataStore.isPhysicsStateDirty[index]) {
+                dataStore.isPhysicsStateDirty[index] = true;
                 dirtyIndicesQueue.offer(index);
             }
         }
 
-        if (obj.isDataDirty()) {
+        if (obj.isCustomDataDirty()) {
             manager.getNetworkDispatcher().dispatchDataUpdate(obj);
         }
     }

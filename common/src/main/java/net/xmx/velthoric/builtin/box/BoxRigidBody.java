@@ -27,7 +27,7 @@ public class BoxRigidBody extends VxRigidBody {
 
     public void setHalfExtents(Vec3 halfExtents) {
         this.halfExtents = halfExtents;
-        this.markDataDirty();
+        this.markCustomDataDirty();
     }
 
     public Vec3 getHalfExtents() {
@@ -36,7 +36,7 @@ public class BoxRigidBody extends VxRigidBody {
 
     public void setColor(BoxColor color) {
         this.color = color;
-        this.markDataDirty();
+        this.markCustomDataDirty();
     }
 
     public BoxColor getColor() {
@@ -50,14 +50,12 @@ public class BoxRigidBody extends VxRigidBody {
 
     @Override
     public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
-        var settings = new BodyCreationSettings(
-                shapeRef,
-                this.getGameTransform().getTranslation(),
-                this.getGameTransform().getRotation(),
-                EMotionType.Dynamic,
-                VxLayers.DYNAMIC);
-
+        var settings = new BodyCreationSettings();
+        settings.setShape(shapeRef);
+        settings.setMotionType(EMotionType.Dynamic);
+        settings.setObjectLayer(VxLayers.DYNAMIC);
         settings.setRestitution(0.4f);
+        // The VxObjectManager will set the final position and rotation from the data store.
         return settings;
     }
 

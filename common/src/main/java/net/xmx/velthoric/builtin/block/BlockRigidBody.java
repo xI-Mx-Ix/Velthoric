@@ -35,7 +35,7 @@ public class BlockRigidBody extends VxRigidBody {
 
     public void setRepresentedBlockState(BlockState blockState) {
         this.representedBlockState = (blockState != null && !blockState.isAir()) ? blockState : Blocks.STONE.defaultBlockState();
-        this.markDataDirty();
+        this.markCustomDataDirty();
     }
 
     public BlockState getRepresentedBlockState() {
@@ -59,12 +59,11 @@ public class BlockRigidBody extends VxRigidBody {
 
     @Override
     public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
-        var bcs = new BodyCreationSettings(
-                shapeRef,
-                this.getGameTransform().getTranslation(),
-                this.getGameTransform().getRotation(),
-                EMotionType.Dynamic,
-                VxLayers.DYNAMIC);
+        var bcs = new BodyCreationSettings();
+        bcs.setShape(shapeRef);
+        bcs.setMotionType(EMotionType.Dynamic);
+        bcs.setObjectLayer(VxLayers.DYNAMIC);
+        // The VxObjectManager will set the final position and rotation from the data store.
         return bcs;
     }
 

@@ -25,7 +25,7 @@ public class SphereRigidBody extends VxRigidBody {
 
     public void setRadius(float radius) {
         this.radius = radius > 0 ? radius : 0.5f;
-        this.markDataDirty();
+        this.markCustomDataDirty();
     }
 
     public float getRadius() {
@@ -39,12 +39,12 @@ public class SphereRigidBody extends VxRigidBody {
 
     @Override
     public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
-        return new BodyCreationSettings(
-                shapeRef,
-                this.getGameTransform().getTranslation(),
-                this.getGameTransform().getRotation(),
-                EMotionType.Dynamic,
-                VxLayers.DYNAMIC);
+        var settings = new BodyCreationSettings();
+        settings.setShape(shapeRef);
+        settings.setMotionType(EMotionType.Dynamic);
+        settings.setObjectLayer(VxLayers.DYNAMIC);
+        // The VxObjectManager will set the final position and rotation from the data store.
+        return settings;
     }
 
     @Override

@@ -14,7 +14,6 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.object.VxAbstractBody;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 
@@ -89,7 +88,9 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         if (constraint == null) return;
         VxAbstractBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
         if (body1 != null) {
-            ChunkPos chunkPos = VxObjectManager.getObjectChunkPos(body1);
+            int index = body1.getDataStoreIndex();
+            if (index == -1) return;
+            ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(index);
             byte[] data = serializeConstraintData(constraint, chunkPos);
             RegionPos regionPos = getRegionPos(chunkPos);
 

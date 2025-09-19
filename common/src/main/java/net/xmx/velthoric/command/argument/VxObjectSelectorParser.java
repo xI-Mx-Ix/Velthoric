@@ -45,15 +45,15 @@ public class VxObjectSelectorParser {
 
     public static final BiConsumer<Vec3, List<VxAbstractBody>> ORDER_NEAREST_VX = (sourcePos, list) ->
             list.sort((a, b) -> {
-                var posA = a.getGameTransform().getTranslation();
-                var posB = b.getGameTransform().getTranslation();
+                var posA = a.getTransform().getTranslation();
+                var posB = b.getTransform().getTranslation();
                 return Doubles.compare(sourcePos.distanceToSqr(posA.x(), posA.y(), posA.z()), sourcePos.distanceToSqr(posB.x(), posB.y(), posB.z()));
             });
 
     public static final BiConsumer<Vec3, List<VxAbstractBody>> ORDER_FURTHEST_VX = (sourcePos, list) ->
             list.sort((a, b) -> {
-                var posA = a.getGameTransform().getTranslation();
-                var posB = b.getGameTransform().getTranslation();
+                var posA = a.getTransform().getTranslation();
+                var posB = b.getTransform().getTranslation();
                 return Doubles.compare(sourcePos.distanceToSqr(posB.x(), posB.y(), posB.z()), sourcePos.distanceToSqr(posA.x(), posA.y(), posA.z()));
             });
 

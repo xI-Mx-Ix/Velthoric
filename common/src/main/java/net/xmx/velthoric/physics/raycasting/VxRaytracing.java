@@ -133,7 +133,7 @@ public final class VxRaytracing {
             VxAbstractBody obj = physicsWorld.getObjectManager().getObject(objectId);
             if (obj == null) continue;
 
-            VxTransform transform = obj.getGameTransform();
+            VxTransform transform = obj.getTransform();
             Quaternionf worldRot = transform.getRotation(new Quaternionf());
             Vector3f worldPos = transform.getTranslation(new Vector3f());
             Quaternionf invRot = worldRot.conjugate(new Quaternionf());

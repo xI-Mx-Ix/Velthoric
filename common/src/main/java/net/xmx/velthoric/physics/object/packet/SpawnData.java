@@ -47,7 +47,7 @@ public class SpawnData {
         // Serialize the initial transform and custom data into the byte array.
         VxByteBuf buf = new VxByteBuf(Unpooled.buffer());
         try {
-            obj.getGameTransform().toBuffer(buf);
+            obj.getTransform().toBuffer(buf);
             obj.writeCreationData(buf);
             this.data = new byte[buf.readableBytes()];
             buf.readBytes(this.data);

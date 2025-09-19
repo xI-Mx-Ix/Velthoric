@@ -4,7 +4,10 @@
  */
 package net.xmx.velthoric.command.test;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.PointConstraintSettings;
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
@@ -23,7 +26,6 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
-import java.util.UUID;
 
 public final class CreateChainedBoxes implements IVxTestCommand {
 
@@ -39,28 +41,6 @@ public final class CreateChainedBoxes implements IVxTestCommand {
                         .executes(this::execute)
                 )
         );
-    }
-
-    private BoxRigidBody createRopeSegment(VxPhysicsWorld world, VxObjectManager objectManager, RVec3 position, Vec3 halfExtents, EMotionType bodyType) {
-        BoxRigidBody body = VxRegisteredObjects.BOX.create(world, UUID.randomUUID());
-        body.getGameTransform().set(new VxTransform(position, Quat.sIdentity()));
-        body.setHalfExtents(halfExtents);
-
-        try (ShapeSettings shapeSettings = body.createShapeSettings()) {
-            try (ShapeResult shapeResult = shapeSettings.create()) {
-                if (shapeResult.hasError()) return null;
-                try (ShapeRefC shapeRef = shapeResult.get()) {
-                    try (BodyCreationSettings bcs = body.createBodyCreationSettings(shapeRef)) {
-                        int bodyId = world.getBodyInterface().createAndAddBody(bcs, EActivation.Activate);
-                        if (bodyId == Jolt.cInvalidBodyId) return null;
-
-                        body.setBodyId(bodyId);
-                        objectManager.add(body);
-                        return body;
-                    }
-                }
-            }
-        }
     }
 
     private int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -84,12 +64,20 @@ public final class CreateChainedBoxes implements IVxTestCommand {
             Vec3 segmentHalfExtents = new Vec3(segmentRadius, segmentLength / 2.0f, segmentRadius);
 
             RVec3 anchorPosition = new RVec3(startPos.x, startPos.y, startPos.z);
-            BoxRigidBody anchorBody = createRopeSegment(physicsWorld, objectManager, anchorPosition, segmentHalfExtents, EMotionType.Kinematic);
+
+            BoxRigidBody anchorBody = objectManager.createRigidBody(
+                    VxRegisteredObjects.BOX,
+                    new VxTransform(anchorPosition, Quat.sIdentity()),
+                    body -> body.setHalfExtents(segmentHalfExtents)
+            );
 
             if (anchorBody == null) {
                 source.sendFailure(Component.literal("Failed to create rope anchor."));
                 return;
             }
+
+            // Set the anchor body to be kinematic so it doesn't move
+            physicsWorld.getBodyInterface().setMotionType(anchorBody.getBodyId(), EMotionType.Kinematic, EActivation.DontActivate);
 
             BoxRigidBody previousBody = anchorBody;
 
@@ -100,7 +88,12 @@ public final class CreateChainedBoxes implements IVxTestCommand {
                         startPos.z
                 );
 
-                BoxRigidBody currentBody = createRopeSegment(physicsWorld, objectManager, currentPosition, segmentHalfExtents, EMotionType.Dynamic);
+                BoxRigidBody currentBody = objectManager.createRigidBody(
+                        VxRegisteredObjects.BOX,
+                        new VxTransform(currentPosition, Quat.sIdentity()),
+                        body -> body.setHalfExtents(segmentHalfExtents)
+                );
+
                 if (currentBody == null) {
                     source.sendFailure(Component.literal("Failed to create a rope segment. Aborting."));
                     return;

@@ -40,7 +40,7 @@ public class RopeSoftBody extends VxSoftBody {
         this.ropeRadius = ropeRadius;
         this.mass = mass;
         this.compliance = compliance;
-        this.markDataDirty();
+        this.markCustomDataDirty();
     }
 
     @Override
