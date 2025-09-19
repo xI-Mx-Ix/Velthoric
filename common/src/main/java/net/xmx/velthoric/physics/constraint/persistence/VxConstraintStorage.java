@@ -136,8 +136,6 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }, loaderExecutor).thenAcceptAsync(constraint -> {
             if (constraint != null) {
                 constraintManager.addConstraintFromStorage(constraint);
-
-                removeData(id);
             }
         }, level.getServer()).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Exception loading physics constraint {}", id, ex);

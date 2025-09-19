@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.constraint.manager;
 
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.object.type.VxBody;
 
 import java.util.Map;
 import java.util.Set;
@@ -16,6 +17,7 @@ public class DependencyDataSystem {
 
     private final VxConstraintManager constraintManager;
     private final Map<UUID, VxConstraint> pendingConstraints = new ConcurrentHashMap<>();
+
     private final Map<UUID, Set<UUID>> bodyToConstraintMap = new ConcurrentHashMap<>();
 
     public DependencyDataSystem(VxConstraintManager constraintManager) {
@@ -25,6 +27,7 @@ public class DependencyDataSystem {
     public void addPendingConstraint(VxConstraint constraint) {
         UUID constraintId = constraint.getConstraintId();
         pendingConstraints.put(constraintId, constraint);
+
         bodyToConstraintMap.computeIfAbsent(constraint.getBody1Id(), k -> ConcurrentHashMap.newKeySet()).add(constraintId);
         bodyToConstraintMap.computeIfAbsent(constraint.getBody2Id(), k -> ConcurrentHashMap.newKeySet()).add(constraintId);
 
@@ -46,10 +49,13 @@ public class DependencyDataSystem {
             }
 
             VxObjectManager objectManager = constraintManager.getObjectManager();
-            boolean body1Loaded = objectManager.getObject(constraint.getBody1Id()) != null;
-            boolean body2Loaded = objectManager.getObject(constraint.getBody2Id()) != null;
+            VxBody body1 = objectManager.getObject(constraint.getBody1Id());
+            VxBody body2 = objectManager.getObject(constraint.getBody2Id());
 
-            if (body1Loaded && body2Loaded) {
+            boolean body1Ready = body1 != null && body1.getBodyId() != 0;
+            boolean body2Ready = body2 != null && body2.getBodyId() != 0;
+
+            if (body1Ready && body2Ready) {
                 if (pendingConstraints.remove(constraintId) != null) {
                     cleanup(constraintId);
                     constraintManager.activateConstraint(constraint);
@@ -59,7 +65,7 @@ public class DependencyDataSystem {
     }
 
     public void removeForBody(UUID bodyId) {
-        Set<UUID> affectedConstraints = bodyToConstraintMap.get(bodyId);
+        Set<UUID> affectedConstraints = bodyToConstraintMap.remove(bodyId);
         if (affectedConstraints != null) {
             for (UUID constraintId : Set.copyOf(affectedConstraints)) {
                 pendingConstraints.remove(constraintId);

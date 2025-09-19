@@ -274,6 +274,7 @@ public class VxObjectManager {
                         body.setBodyId(bodyId);
                         bodyIdToObjectMap.put(bodyId, body);
                         body.onBodyAdded(world);
+                        world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
                     }
                 }
             }
@@ -304,6 +305,7 @@ public class VxObjectManager {
                 body.setBodyId(bodyId);
                 bodyIdToObjectMap.put(bodyId, body);
                 body.onBodyAdded(world);
+                world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
             }
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to create/add soft body {}", body.getPhysicsId(), e);
@@ -325,7 +327,6 @@ public class VxObjectManager {
             int index = dataStore.addObject(id, type);
             obj.setDataStoreIndex(index);
             startTracking(obj); // Manages server-side chunk lists for visibility checks.
-            world.getConstraintManager().getDataSystem().onDependencyLoaded(id);
             return obj;
         });
     }
