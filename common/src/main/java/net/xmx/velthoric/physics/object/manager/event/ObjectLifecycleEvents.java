@@ -7,7 +7,7 @@ package net.xmx.velthoric.physics.object.manager.event;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.event.api.VxChunkEvent;
 import net.xmx.velthoric.event.api.VxLevelEvent;
-import net.xmx.velthoric.physics.object.VxBody;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;

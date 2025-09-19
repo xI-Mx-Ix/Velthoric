@@ -9,7 +9,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.xmx.velthoric.command.argument.VxObjectArgument;
-import net.xmx.velthoric.physics.object.VxBody;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 
 import java.util.List;

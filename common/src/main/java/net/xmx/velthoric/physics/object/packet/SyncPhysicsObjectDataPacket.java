@@ -8,7 +8,7 @@ import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.VxBody;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 
 import java.util.UUID;

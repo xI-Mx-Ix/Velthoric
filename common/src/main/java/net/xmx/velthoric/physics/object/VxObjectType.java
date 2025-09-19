@@ -5,6 +5,7 @@
 package net.xmx.velthoric.physics.object;
 
 import net.minecraft.resources.ResourceLocation;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import java.util.UUID;
 

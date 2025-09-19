@@ -13,7 +13,7 @@ import net.minecraft.world.entity.player.Player;
 import net.xmx.velthoric.item.physicsgun.GrabbedObjectInfo;
 import net.xmx.velthoric.item.physicsgun.packet.PhysicsGunSyncPacket;
 import net.xmx.velthoric.network.NetworkHandler;
-import net.xmx.velthoric.physics.object.VxBody;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.raycasting.VxHitResult;
 import net.xmx.velthoric.physics.raycasting.VxRaytracing;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
