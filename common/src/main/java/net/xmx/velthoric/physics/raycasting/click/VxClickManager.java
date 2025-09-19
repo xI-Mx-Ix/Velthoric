@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ClipContext;
 import net.xmx.velthoric.init.registry.ItemRegistry;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.riding.Rideable;
 import net.xmx.velthoric.physics.raycasting.VxClipContext;
@@ -43,7 +43,7 @@ public final class VxClickManager {
             Optional<VxHitResult> hitResultOpt = VxRaytracing.raycast(level, context);
 
             hitResultOpt.ifPresent(hitResult -> hitResult.getPhysicsHit().ifPresent(physicsHit -> {
-                VxAbstractBody targetObject = physicsWorld.getObjectManager().getByBodyId(physicsHit.bodyId());
+                VxBody targetObject = physicsWorld.getObjectManager().getByBodyId(physicsHit.bodyId());
                 if (targetObject != null) {
                     sender.getServer().execute(() -> {
                         if (msg.isRightClick()) {

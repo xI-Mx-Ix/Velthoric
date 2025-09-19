@@ -9,7 +9,7 @@ import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.xmx.velthoric.physics.object.VxObjectType;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
@@ -24,7 +24,7 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public abstract class VxSoftBody extends VxAbstractBody {
+public abstract class VxSoftBody extends VxBody {
 
     // Caches the last vertex data that was synchronized to clients.
     protected float @Nullable [] lastSyncedVertexData;
@@ -74,7 +74,7 @@ public abstract class VxSoftBody extends VxAbstractBody {
     /**
      * A nested interface for client-side renderers specific to soft bodies.
      */
-    public interface Renderer extends VxAbstractBody.Renderer {
+    public interface Renderer extends VxBody.Renderer {
         /**
          * Renders the soft body.
          *

@@ -11,7 +11,7 @@ import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceLocking;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
@@ -65,7 +65,7 @@ public class VxPhysicsUpdater {
         physicsSystem.getActiveBodies(EBodyType.RigidBody, activeBodiesVector);
         for (int i = 0; i < activeBodiesVector.size(); i++) {
             int bodyId = activeBodiesVector.get(i);
-            VxAbstractBody obj = manager.getByBodyId(bodyId);
+            VxBody obj = manager.getByBodyId(bodyId);
             if (obj != null) {
                 obj.physicsTick(world);
                 updateObjectState(obj, timestampNanos, bodyInterface, world.getBodyLockInterface());
@@ -76,7 +76,7 @@ public class VxPhysicsUpdater {
         physicsSystem.getActiveBodies(EBodyType.SoftBody, activeBodiesVector);
         for (int i = 0; i < activeBodiesVector.size(); i++) {
             int bodyId = activeBodiesVector.get(i);
-            VxAbstractBody obj = manager.getByBodyId(bodyId);
+            VxBody obj = manager.getByBodyId(bodyId);
             if (obj != null) {
                 obj.physicsTick(world);
                 updateObjectState(obj, timestampNanos, bodyInterface, world.getBodyLockInterface());
@@ -84,7 +84,7 @@ public class VxPhysicsUpdater {
         }
     }
 
-    private void updateObjectState(VxAbstractBody obj, long timestampNanos, BodyInterface bodyInterface, ConstBodyLockInterfaceLocking lockInterface) {
+    private void updateObjectState(VxBody obj, long timestampNanos, BodyInterface bodyInterface, ConstBodyLockInterfaceLocking lockInterface) {
         final int bodyId = obj.getBodyId();
         final int index = obj.getDataStoreIndex();
         if (index < 0) return;

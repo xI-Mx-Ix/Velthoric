@@ -7,7 +7,7 @@ package net.xmx.velthoric.physics.object.manager.event;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.event.api.VxChunkEvent;
 import net.xmx.velthoric.event.api.VxLevelEvent;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -70,9 +70,9 @@ public class ObjectLifecycleEvents {
      */
     private static void onChunkUnload(VxChunkEvent.Unload event) {
         getObjectManager(event.getLevel()).ifPresent(manager -> {
-            List<VxAbstractBody> objectsInChunk = manager.getObjectsInChunk(event.getChunkPos());
+            List<VxBody> objectsInChunk = manager.getObjectsInChunk(event.getChunkPos());
             // Create a copy to avoid ConcurrentModificationException
-            for (VxAbstractBody obj : List.copyOf(objectsInChunk)) {
+            for (VxBody obj : List.copyOf(objectsInChunk)) {
                 // Remove the object with the SAVE reason, which ensures it gets stored before being removed.
                 manager.removeObject(obj.getPhysicsId(), VxRemovalReason.SAVE);
             }

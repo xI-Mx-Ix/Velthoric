@@ -11,7 +11,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.init.registry.EntityRegistry;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.riding.seat.Seat;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Quaternionf;
@@ -126,7 +126,7 @@ public class RidingManager {
                     objectToRidersMap.remove(objectId);
                 }
             }
-            VxAbstractBody object = world.getObjectManager().getObject(objectId);
+            VxBody object = world.getObjectManager().getObject(objectId);
             if (object != null) {
                 if (object instanceof Rideable rideable) {
                     rideable.onStopRiding(player);
@@ -162,7 +162,7 @@ public class RidingManager {
             Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
             if (riders == null) continue;
 
-            VxAbstractBody physObject = world.getObjectManager().getObject(objectId);
+            VxBody physObject = world.getObjectManager().getObject(objectId);
             if (physObject == null) {
                 playersToStopRiding.addAll(riders.values());
                 continue;

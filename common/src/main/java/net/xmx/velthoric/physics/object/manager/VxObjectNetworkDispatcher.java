@@ -12,7 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.NetworkHandler;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.packet.SpawnData;
 import net.xmx.velthoric.physics.object.packet.batch.RemovePhysicsObjectBatchPacket;
 import net.xmx.velthoric.physics.object.packet.batch.SpawnPhysicsObjectBatchPacket;
@@ -129,7 +129,7 @@ public class VxObjectNetworkDispatcher {
      *
      * @param body The physics object that was added.
      */
-    public void onObjectAdded(VxAbstractBody body) {
+    public void onObjectAdded(VxBody body) {
         ChunkPos bodyChunk = manager.getObjectChunkPos(body.getDataStoreIndex());
         for (ServerPlayer player : level.players()) {
             if (isChunkVisible(player, bodyChunk)) {
@@ -144,7 +144,7 @@ public class VxObjectNetworkDispatcher {
      *
      * @param body The physics object that was removed.
      */
-    public void onObjectRemoved(VxAbstractBody body) {
+    public void onObjectRemoved(VxBody body) {
         for (ServerPlayer player : level.players()) {
             stopTracking(player, body.getPhysicsId());
         }
@@ -158,7 +158,7 @@ public class VxObjectNetworkDispatcher {
      * @param from The chunk the object moved from.
      * @param to   The chunk the object moved to.
      */
-    public void onObjectMoved(VxAbstractBody body, ChunkPos from, ChunkPos to) {
+    public void onObjectMoved(VxBody body, ChunkPos from, ChunkPos to) {
         for (ServerPlayer player : level.players()) {
             boolean wasVisible = isChunkVisible(player, from);
             boolean isVisible = isChunkVisible(player, to);
@@ -190,7 +190,7 @@ public class VxObjectNetworkDispatcher {
         // Find all objects within the player's view distance
         for (int cz = playerChunkPos.z - viewDistance; cz <= playerChunkPos.z + viewDistance; ++cz) {
             for (int cx = playerChunkPos.x - viewDistance; cx <= playerChunkPos.x + viewDistance; ++cx) {
-                for (VxAbstractBody body : manager.getObjectsInChunk(new ChunkPos(cx, cz))) {
+                for (VxBody body : manager.getObjectsInChunk(new ChunkPos(cx, cz))) {
                     newlyVisible.add(body.getPhysicsId());
                 }
             }
@@ -206,7 +206,7 @@ public class VxObjectNetworkDispatcher {
         // Start tracking newly visible objects
         for (UUID visibleId : newlyVisible) {
             if (!previouslyTracked.contains(visibleId)) {
-                VxAbstractBody body = manager.getObject(visibleId);
+                VxBody body = manager.getObject(visibleId);
                 if (body != null) {
                     startTracking(player, body);
                 }
@@ -220,7 +220,7 @@ public class VxObjectNetworkDispatcher {
      * @param player The player who will start tracking the object.
      * @param body   The object to be tracked.
      */
-    private void startTracking(ServerPlayer player, VxAbstractBody body) {
+    private void startTracking(ServerPlayer player, VxBody body) {
         Set<UUID> tracked = playerTrackedObjects.computeIfAbsent(player.getUUID(), k -> ConcurrentHashMap.newKeySet());
         if (tracked.add(body.getPhysicsId())) {
             synchronized (pendingSpawns) {
@@ -422,7 +422,7 @@ public class VxObjectNetworkDispatcher {
      *
      * @param obj The object whose custom data has changed.
      */
-    public void dispatchDataUpdate(VxAbstractBody obj) {
+    public void dispatchDataUpdate(VxBody obj) {
         if (obj.isCustomDataDirty()) {
             SyncPhysicsObjectDataPacket packet = new SyncPhysicsObjectDataPacket(obj);
             ChunkPos chunkPos = manager.getObjectChunkPos(obj.getDataStoreIndex());

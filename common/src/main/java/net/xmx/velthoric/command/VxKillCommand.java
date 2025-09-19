@@ -9,7 +9,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.xmx.velthoric.command.argument.VxObjectArgument;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 
 import java.util.List;
@@ -21,9 +21,9 @@ public class VxKillCommand {
                 .requires(source -> source.hasPermission(2))
                 .then(Commands.argument("selector", VxObjectArgument.instance())
                         .executes(context -> {
-                            List<VxAbstractBody> objectsToRemove = VxObjectArgument.getObjects(context, "selector");
+                            List<VxBody> objectsToRemove = VxObjectArgument.getObjects(context, "selector");
 
-                            for (VxAbstractBody obj : objectsToRemove) {
+                            for (VxBody obj : objectsToRemove) {
                                 obj.getWorld().getObjectManager().removeObject(obj.getPhysicsId(), VxRemovalReason.DISCARD);
                             }
 

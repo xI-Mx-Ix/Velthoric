@@ -13,7 +13,7 @@ import net.minecraft.world.entity.player.Player;
 import net.xmx.velthoric.item.physicsgun.GrabbedObjectInfo;
 import net.xmx.velthoric.item.physicsgun.packet.PhysicsGunSyncPacket;
 import net.xmx.velthoric.network.NetworkHandler;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.raycasting.VxHitResult;
 import net.xmx.velthoric.physics.raycasting.VxRaytracing;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -117,7 +117,7 @@ public class PhysicsGunServerManager {
 
             VxRaytracing.raycastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHitResult -> {
                 VxHitResult.PhysicsHit physicsHit = physicsHitResult.getPhysicsHit().orElseThrow();
-                VxAbstractBody physicsObject = physicsWorld.getObjectManager().getByBodyId(physicsHit.bodyId());
+                VxBody physicsObject = physicsWorld.getObjectManager().getByBodyId(physicsHit.bodyId());
                 if (physicsObject == null) return;
 
                 UUID objectId = physicsObject.getPhysicsId();

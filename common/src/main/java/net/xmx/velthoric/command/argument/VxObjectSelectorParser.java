@@ -17,7 +17,7 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 import org.jetbrains.annotations.Nullable;
 
@@ -43,21 +43,21 @@ public class VxObjectSelectorParser {
 
     private static final List<String> OPTION_KEYS = Arrays.asList("limit", "distance", "type", "bodytype", "sort");
 
-    public static final BiConsumer<Vec3, List<VxAbstractBody>> ORDER_NEAREST_VX = (sourcePos, list) ->
+    public static final BiConsumer<Vec3, List<VxBody>> ORDER_NEAREST_VX = (sourcePos, list) ->
             list.sort((a, b) -> {
                 var posA = a.getTransform().getTranslation();
                 var posB = b.getTransform().getTranslation();
                 return Doubles.compare(sourcePos.distanceToSqr(posA.x(), posA.y(), posA.z()), sourcePos.distanceToSqr(posB.x(), posB.y(), posB.z()));
             });
 
-    public static final BiConsumer<Vec3, List<VxAbstractBody>> ORDER_FURTHEST_VX = (sourcePos, list) ->
+    public static final BiConsumer<Vec3, List<VxBody>> ORDER_FURTHEST_VX = (sourcePos, list) ->
             list.sort((a, b) -> {
                 var posA = a.getTransform().getTranslation();
                 var posB = b.getTransform().getTranslation();
                 return Doubles.compare(sourcePos.distanceToSqr(posB.x(), posB.y(), posB.z()), sourcePos.distanceToSqr(posA.x(), posA.y(), posA.z()));
             });
 
-    public static final BiConsumer<Vec3, List<VxAbstractBody>> ORDER_RANDOM_VX = (sourcePos, list) -> Collections.shuffle(list);
+    public static final BiConsumer<Vec3, List<VxBody>> ORDER_RANDOM_VX = (sourcePos, list) -> Collections.shuffle(list);
 
     private final StringReader reader;
     private int limit = Integer.MAX_VALUE;
@@ -65,7 +65,7 @@ public class VxObjectSelectorParser {
     @Nullable private ResourceLocation type;
     private boolean typeInverse = false;
     @Nullable private EBodyType bodyType;
-    private BiConsumer<Vec3, List<VxAbstractBody>> order = (pos, list) -> {};
+    private BiConsumer<Vec3, List<VxBody>> order = (pos, list) -> {};
     private BiFunction<SuggestionsBuilder, Consumer<SuggestionsBuilder>, CompletableFuture<Suggestions>> suggestions = (b, c) -> b.buildFuture();
 
     public VxObjectSelectorParser(StringReader reader) {

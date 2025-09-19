@@ -9,7 +9,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
@@ -35,7 +35,7 @@ public class VxObjectRegistry {
     private final Map<ResourceLocation, VxObjectType<?>> registeredTypes = new ConcurrentHashMap<>();
 
     // Stores client-side renderer factories.
-    private final Map<ResourceLocation, Supplier<? extends VxAbstractBody.Renderer>> rendererFactories = new ConcurrentHashMap<>();
+    private final Map<ResourceLocation, Supplier<? extends VxBody.Renderer>> rendererFactories = new ConcurrentHashMap<>();
 
     // Private constructor to enforce the singleton pattern.
     private VxObjectRegistry() {}
@@ -76,10 +76,10 @@ public class VxObjectRegistry {
      * @param typeId The unique identifier of the object type to create.
      * @param world  The physics world the object will belong to.
      * @param id     The unique UUID for the new object instance.
-     * @return A new {@link VxAbstractBody} instance, or null if the type ID is not registered.
+     * @return A new {@link VxBody} instance, or null if the type ID is not registered.
      */
     @Nullable
-    public VxAbstractBody create(ResourceLocation typeId, VxPhysicsWorld world, UUID id) {
+    public VxBody create(ResourceLocation typeId, VxPhysicsWorld world, UUID id) {
         VxObjectType<?> type = registeredTypes.get(typeId);
         if (type == null) {
             VxMainClass.LOGGER.error("No VxObjectType registered for ID: {}", typeId);
@@ -100,11 +100,11 @@ public class VxObjectRegistry {
      * @param id     The unique UUID for the new object instance.
      * @param world  The physics world the object will belong to.
      * @param data   A buffer containing the creation data to be read by the new object.
-     * @return A new, deserialized {@link VxAbstractBody} instance, or null if creation fails.
+     * @return A new, deserialized {@link VxBody} instance, or null if creation fails.
      */
     @Nullable
-    public VxAbstractBody createAndDeserialize(ResourceLocation typeId, UUID id, VxPhysicsWorld world, VxByteBuf data) {
-        VxAbstractBody obj = create(typeId, world, id);
+    public VxBody createAndDeserialize(ResourceLocation typeId, UUID id, VxPhysicsWorld world, VxByteBuf data) {
+        VxBody obj = create(typeId, world, id);
         if (obj != null && data != null) {
             data.resetReaderIndex();
             obj.readCreationData(data);
@@ -140,7 +140,7 @@ public class VxObjectRegistry {
      * @param factory        A supplier that creates a new renderer instance.
      */
     @Environment(EnvType.CLIENT)
-    public void registerRendererFactory(ResourceLocation typeIdentifier, Supplier<? extends VxAbstractBody.Renderer> factory) {
+    public void registerRendererFactory(ResourceLocation typeIdentifier, Supplier<? extends VxBody.Renderer> factory) {
         rendererFactories.put(typeIdentifier, factory);
     }
 
@@ -153,9 +153,9 @@ public class VxObjectRegistry {
     @Nullable
     @Environment(EnvType.CLIENT)
     public VxRigidBody.Renderer createRigidRenderer(ResourceLocation identifier) {
-        Supplier<? extends VxAbstractBody.Renderer> factory = rendererFactories.get(identifier);
+        Supplier<? extends VxBody.Renderer> factory = rendererFactories.get(identifier);
         if (factory != null) {
-            VxAbstractBody.Renderer renderer = factory.get();
+            VxBody.Renderer renderer = factory.get();
             if (renderer instanceof VxRigidBody.Renderer) {
                 return (VxRigidBody.Renderer) renderer;
             }
@@ -172,9 +172,9 @@ public class VxObjectRegistry {
     @Nullable
     @Environment(EnvType.CLIENT)
     public VxSoftBody.Renderer createSoftRenderer(ResourceLocation identifier) {
-        Supplier<? extends VxAbstractBody.Renderer> factory = rendererFactories.get(identifier);
+        Supplier<? extends VxBody.Renderer> factory = rendererFactories.get(identifier);
         if (factory != null) {
-            VxAbstractBody.Renderer renderer = factory.get();
+            VxBody.Renderer renderer = factory.get();
             if (renderer instanceof VxSoftBody.Renderer) {
                 return (VxSoftBody.Renderer) renderer;
             }

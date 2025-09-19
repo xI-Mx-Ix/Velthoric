@@ -16,7 +16,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.riding.RidingManager;
 import net.xmx.velthoric.physics.riding.seat.Seat;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -130,7 +130,7 @@ public final class VxRaytracing {
             Map<String, Seat> seats = entry.getValue();
             if (seats.isEmpty()) continue;
 
-            VxAbstractBody obj = physicsWorld.getObjectManager().getObject(objectId);
+            VxBody obj = physicsWorld.getObjectManager().getObject(objectId);
             if (obj == null) continue;
 
             VxTransform transform = obj.getTransform();

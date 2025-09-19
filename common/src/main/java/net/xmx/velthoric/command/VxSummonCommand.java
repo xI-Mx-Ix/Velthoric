@@ -20,7 +20,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
@@ -84,7 +84,7 @@ public final class VxSummonCommand {
         VxObjectManager manager = world.getObjectManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x, pos.y, pos.z), Quat.sIdentity());
 
-        VxAbstractBody body = type.create(world, UUID.randomUUID());
+        VxBody body = type.create(world, UUID.randomUUID());
         if (body == null) {
             source.sendFailure(Component.literal("Failed to create an instance of " + typeId));
             return 0;

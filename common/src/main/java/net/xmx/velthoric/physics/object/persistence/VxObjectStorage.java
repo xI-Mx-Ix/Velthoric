@@ -15,7 +15,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
@@ -50,7 +50,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     private final VxObjectManager objectManager;
     private final VxObjectDataStore dataStore;
     private final ConcurrentMap<Long, List<UUID>> chunkToUuidIndex = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, CompletableFuture<VxAbstractBody>> pendingLoads = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, CompletableFuture<VxBody>> pendingLoads = new ConcurrentHashMap<>();
     private ExecutorService loaderExecutor;
 
     public VxObjectStorage(ServerLevel level, VxObjectManager objectManager) {
@@ -116,7 +116,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      *
      * @param object The object to store.
      */
-    public void storeObject(VxAbstractBody object) {
+    public void storeObject(VxBody object) {
         if (object == null) return;
         int index = object.getDataStoreIndex();
         if (index == -1) return;
@@ -165,15 +165,15 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      * @param id The UUID of the object to load.
      * @return A CompletableFuture that will complete with the loaded object, or null if not found.
      */
-    public CompletableFuture<VxAbstractBody> loadObject(UUID id) {
-        VxAbstractBody existingObject = objectManager.getObject(id);
+    public CompletableFuture<VxBody> loadObject(UUID id) {
+        VxBody existingObject = objectManager.getObject(id);
         if (existingObject != null) {
             return CompletableFuture.completedFuture(existingObject);
         }
         return pendingLoads.computeIfAbsent(id, this::loadObjectAsync);
     }
 
-    private CompletableFuture<VxAbstractBody> loadObjectAsync(UUID id) {
+    private CompletableFuture<VxBody> loadObjectAsync(UUID id) {
         return CompletableFuture.supplyAsync(() -> {
                     RegionPos regionPos = regionIndex.get(id);
                     if (regionPos == null) return null;
@@ -186,10 +186,10 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                     if (data == null) {
                         return CompletableFuture.completedFuture(null);
                     }
-                    CompletableFuture<VxAbstractBody> bodyFuture = new CompletableFuture<>();
+                    CompletableFuture<VxBody> bodyFuture = new CompletableFuture<>();
                     objectManager.getPhysicsWorld().execute(() -> {
                         try {
-                            VxAbstractBody body = objectManager.addSerializedBody(data);
+                            VxBody body = objectManager.addSerializedBody(data);
                             bodyFuture.complete(body);
                         } catch (Exception e) {
                             bodyFuture.completeExceptionally(e);
@@ -262,7 +262,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
-    private byte[] serializeObjectData(VxAbstractBody object, int index) {
+    private byte[] serializeObjectData(VxBody object, int index) {
         ByteBuf buffer = Unpooled.buffer();
         VxByteBuf friendlyBuf = new VxByteBuf(buffer);
         try {

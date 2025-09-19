@@ -9,7 +9,7 @@ import net.minecraft.advancements.critereon.MinMaxBounds;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,9 +26,9 @@ public class VxObjectSelector {
     @Nullable private final ResourceLocation type;
     private final boolean typeInverse;
     @Nullable private final EBodyType bodyType;
-    private final BiConsumer<Vec3, List<VxAbstractBody>> order;
+    private final BiConsumer<Vec3, List<VxBody>> order;
 
-    public VxObjectSelector(int limit, MinMaxBounds.Doubles distance, @Nullable ResourceLocation type, boolean typeInverse, @Nullable EBodyType bodyType, BiConsumer<Vec3, List<VxAbstractBody>> order) {
+    public VxObjectSelector(int limit, MinMaxBounds.Doubles distance, @Nullable ResourceLocation type, boolean typeInverse, @Nullable EBodyType bodyType, BiConsumer<Vec3, List<VxBody>> order) {
         this.limit = limit;
         this.distance = distance;
         this.type = type;
@@ -37,9 +37,9 @@ public class VxObjectSelector {
         this.order = order;
     }
 
-    private Predicate<VxAbstractBody> buildPredicate(CommandSourceStack source) {
+    private Predicate<VxBody> buildPredicate(CommandSourceStack source) {
         Vec3 sourcePos = source.getPosition();
-        Predicate<VxAbstractBody> predicate = (obj) -> true;
+        Predicate<VxBody> predicate = (obj) -> true;
 
         if (type != null) {
             predicate = predicate.and(obj -> (obj.getType().getTypeId().equals(type)) != typeInverse);
@@ -65,17 +65,17 @@ public class VxObjectSelector {
         return predicate;
     }
 
-    public List<VxAbstractBody> select(CommandSourceStack source) {
+    public List<VxBody> select(CommandSourceStack source) {
         VxPhysicsWorld world = VxPhysicsWorld.get(source.getLevel().dimension());
         if (world == null) {
             return Collections.emptyList();
         }
 
-        Predicate<VxAbstractBody> predicate = buildPredicate(source);
-        List<VxAbstractBody> allObjects = new ArrayList<>(world.getObjectManager().getAllObjects());
-        List<VxAbstractBody> filteredObjects = new ArrayList<>();
+        Predicate<VxBody> predicate = buildPredicate(source);
+        List<VxBody> allObjects = new ArrayList<>(world.getObjectManager().getAllObjects());
+        List<VxBody> filteredObjects = new ArrayList<>();
 
-        for (VxAbstractBody obj : allObjects) {
+        for (VxBody obj : allObjects) {
             if (predicate.test(obj)) {
                 filteredObjects.add(obj);
             }

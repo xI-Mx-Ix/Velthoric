@@ -9,7 +9,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.physics.object.VxObjectType;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.raycasting.click.Clickable;
 import net.xmx.velthoric.physics.riding.Rideable;
@@ -27,7 +27,7 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public abstract class VxRigidBody extends VxAbstractBody implements Rideable, Clickable {
+public abstract class VxRigidBody extends VxBody implements Rideable, Clickable {
 
     /**
      * Constructor for a rigid body.
@@ -58,7 +58,7 @@ public abstract class VxRigidBody extends VxAbstractBody implements Rideable, Cl
     /**
      * A nested interface for client-side renderers specific to rigid bodies.
      */
-    public interface Renderer extends VxAbstractBody.Renderer {
+    public interface Renderer extends VxBody.Renderer {
         /**
          * Renders the rigid body.
          *

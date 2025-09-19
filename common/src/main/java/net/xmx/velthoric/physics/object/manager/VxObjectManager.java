@@ -16,7 +16,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.persistence.VxObjectStorage;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
@@ -51,13 +51,13 @@ public class VxObjectManager {
     private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue = new ConcurrentLinkedQueue<>();
 
     // Main map for tracking all active object instances by their unique persistent ID.
-    private final Map<UUID, VxAbstractBody> managedObjects = new ConcurrentHashMap<>();
+    private final Map<UUID, VxBody> managedObjects = new ConcurrentHashMap<>();
 
     // A fast lookup map from the Jolt physics body ID to the corresponding object wrapper.
-    private final Int2ObjectMap<VxAbstractBody> bodyIdToObjectMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
+    private final Int2ObjectMap<VxBody> bodyIdToObjectMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
 
     // A spatial map that groups objects by the chunk they are in for efficient proximity queries.
-    private final Long2ObjectMap<List<VxAbstractBody>> objectsByChunk = new Long2ObjectOpenHashMap<>();
+    private final Long2ObjectMap<List<VxBody>> objectsByChunk = new Long2ObjectOpenHashMap<>();
 
     public VxObjectManager(VxPhysicsWorld world) {
         this.world = world;
@@ -99,19 +99,19 @@ public class VxObjectManager {
      * Retrieves a physics object by its Jolt body ID.
      *
      * @param bodyId The Jolt body ID.
-     * @return The corresponding {@link VxAbstractBody}, or null if not found.
+     * @return The corresponding {@link VxBody}, or null if not found.
      */
     @Nullable
-    public VxAbstractBody getByBodyId(int bodyId) {
+    public VxBody getByBodyId(int bodyId) {
         return bodyIdToObjectMap.get(bodyId);
     }
 
     /**
      * Gets a collection of all managed physics objects.
      *
-     * @return A collection view of all {@link VxAbstractBody} instances.
+     * @return A collection view of all {@link VxBody} instances.
      */
-    public Collection<VxAbstractBody> getAllObjects() {
+    public Collection<VxBody> getAllObjects() {
         return managedObjects.values();
     }
 
@@ -176,7 +176,7 @@ public class VxObjectManager {
      * @param activation The initial activation state for the Jolt body.
      * @param transform  The initial transform to set in the data store.
      */
-    public void addConstructedBody(VxAbstractBody body, EActivation activation, VxTransform transform) {
+    public void addConstructedBody(VxBody body, EActivation activation, VxTransform transform) {
         // Step 1: Reserve a slot in the data store and add to internal tracking maps.
         addInternal(body);
         int index = body.getDataStoreIndex();
@@ -209,11 +209,11 @@ public class VxObjectManager {
      * Adds a body from serialized data, typically when loading from storage.
      *
      * @param data The deserialized data container.
-     * @return The created and added {@link VxAbstractBody}, or null on failure.
+     * @return The created and added {@link VxBody}, or null on failure.
      */
     @Nullable
-    public VxAbstractBody addSerializedBody(VxObjectStorage.SerializedBodyData data) {
-        VxAbstractBody obj = VxObjectRegistry.getInstance().create(data.typeId(), world, data.id());
+    public VxBody addSerializedBody(VxObjectStorage.SerializedBodyData data) {
+        VxBody obj = VxObjectRegistry.getInstance().create(data.typeId(), world, data.id());
         if (obj == null) {
             VxMainClass.LOGGER.error("Failed to create object of type {} with ID {} from storage.", data.typeId(), data.id());
             return null;
@@ -318,7 +318,7 @@ public class VxObjectManager {
      *
      * @param obj The object to register.
      */
-    private void addInternal(VxAbstractBody obj) {
+    private void addInternal(VxBody obj) {
         if (obj == null) return;
         managedObjects.computeIfAbsent(obj.getPhysicsId(), id -> {
             EBodyType type = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
@@ -338,8 +338,8 @@ public class VxObjectManager {
      * @return The removed object, or null if it was not found.
      */
     @Nullable
-    private VxAbstractBody removeInternal(UUID id) {
-        VxAbstractBody obj = managedObjects.remove(id);
+    private VxBody removeInternal(UUID id) {
+        VxBody obj = managedObjects.remove(id);
         if (obj != null) {
             dataStore.removeObject(id);
             obj.setDataStoreIndex(-1);
@@ -359,7 +359,7 @@ public class VxObjectManager {
      */
     public void removeObject(UUID id, VxRemovalReason reason) {
         // Step 1: Remove from internal data structures.
-        final VxAbstractBody obj = this.removeInternal(id);
+        final VxBody obj = this.removeInternal(id);
         if (obj == null) {
             VxMainClass.LOGGER.warn("Attempted to remove non-existent body: {}", id);
             if (reason == VxRemovalReason.DISCARD) {
@@ -407,7 +407,7 @@ public class VxObjectManager {
      * @param fromKey The long-encoded key of the chunk it moved from.
      * @param toKey   The long-encoded key of the chunk it moved to.
      */
-    void updateObjectTracking(VxAbstractBody body, long fromKey, long toKey) {
+    void updateObjectTracking(VxBody body, long fromKey, long toKey) {
         int index = body.getDataStoreIndex();
         if (index != -1) {
             dataStore.chunkKey[index] = toKey;
@@ -416,7 +416,7 @@ public class VxObjectManager {
         // Remove from the old chunk's list.
         if (fromKey != Long.MAX_VALUE) {
             synchronized (objectsByChunk) {
-                List<VxAbstractBody> fromList = objectsByChunk.get(fromKey);
+                List<VxBody> fromList = objectsByChunk.get(fromKey);
                 if (fromList != null) {
                     fromList.remove(body);
                     if (fromList.isEmpty()) {
@@ -438,7 +438,7 @@ public class VxObjectManager {
      *
      * @param body The object to start tracking.
      */
-    public void startTracking(VxAbstractBody body) {
+    public void startTracking(VxBody body) {
         int index = body.getDataStoreIndex();
         if (index == -1) return;
         long key = getObjectChunkPos(index).toLong();
@@ -453,13 +453,13 @@ public class VxObjectManager {
      *
      * @param body The object to stop tracking.
      */
-    public void stopTracking(VxAbstractBody body) {
+    public void stopTracking(VxBody body) {
         int index = body.getDataStoreIndex();
         if (index == -1) return;
         long key = dataStore.chunkKey[index];
         if (key != Long.MAX_VALUE) {
             synchronized (objectsByChunk) {
-                List<VxAbstractBody> list = objectsByChunk.get(key);
+                List<VxBody> list = objectsByChunk.get(key);
                 if (list != null) {
                     list.remove(body);
                     if (list.isEmpty()) {
@@ -476,7 +476,7 @@ public class VxObjectManager {
      * @param pos The position of the chunk.
      * @return A list of objects in that chunk, or an empty list if none exist.
      */
-    public List<VxAbstractBody> getObjectsInChunk(ChunkPos pos) {
+    public List<VxBody> getObjectsInChunk(ChunkPos pos) {
         synchronized (objectsByChunk) {
             return objectsByChunk.getOrDefault(pos.toLong(), Collections.emptyList());
         }
@@ -486,10 +486,10 @@ public class VxObjectManager {
      * Gets a loaded physics object by its UUID.
      *
      * @param id The UUID of the object.
-     * @return The {@link VxAbstractBody} instance, or null if not currently loaded.
+     * @return The {@link VxBody} instance, or null if not currently loaded.
      */
     @Nullable
-    public VxAbstractBody getObject(UUID id) {
+    public VxBody getObject(UUID id) {
         return managedObjects.get(id);
     }
 
@@ -499,11 +499,11 @@ public class VxObjectManager {
      * @param id The UUID of the object.
      * @return A {@link CompletableFuture} that will complete with the object, or null if it cannot be found or loaded.
      */
-    public CompletableFuture<VxAbstractBody> getOrLoadObject(UUID id) {
+    public CompletableFuture<VxBody> getOrLoadObject(UUID id) {
         if (id == null) {
             return CompletableFuture.completedFuture(null);
         }
-        VxAbstractBody loadedObject = getObject(id);
+        VxBody loadedObject = getObject(id);
         if (loadedObject != null) {
             return CompletableFuture.completedFuture(loadedObject);
         }

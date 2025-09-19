@@ -14,10 +14,10 @@ import java.util.UUID;
  * for creating instances of the object, and metadata such as whether it can be
  * summoned by a command.
  *
- * @param <T> The class of the {@link VxAbstractBody} this type represents.
+ * @param <T> The class of the {@link VxBody} this type represents.
  * @author xI-Mx-Ix
  */
-public final class VxObjectType<T extends VxAbstractBody> {
+public final class VxObjectType<T extends VxBody> {
 
     // The unique identifier for this object type (e.g., "my_mod:my_car").
     private final ResourceLocation typeId;
@@ -64,7 +64,7 @@ public final class VxObjectType<T extends VxAbstractBody> {
      * @param <T> The type of object to create.
      */
     @FunctionalInterface
-    public interface Factory<T extends VxAbstractBody> {
+    public interface Factory<T extends VxBody> {
         /**
          * Creates a new instance.
          *
@@ -79,9 +79,9 @@ public final class VxObjectType<T extends VxAbstractBody> {
     /**
      * A builder for creating {@link VxObjectType} instances with a fluent API.
      *
-     * @param <T> The class of the {@link VxAbstractBody}.
+     * @param <T> The class of the {@link VxBody}.
      */
-    public static class Builder<T extends VxAbstractBody> {
+    public static class Builder<T extends VxBody> {
         private final Factory<T> factory;
         private boolean summonable = true;
 
@@ -93,10 +93,10 @@ public final class VxObjectType<T extends VxAbstractBody> {
          * Creates a new builder.
          *
          * @param factory The factory function for this type.
-         * @param <T>     The class of the {@link VxAbstractBody}.
+         * @param <T>     The class of the {@link VxBody}.
          * @return A new Builder instance.
          */
-        public static <T extends VxAbstractBody> Builder<T> create(Factory<T> factory) {
+        public static <T extends VxBody> Builder<T> create(Factory<T> factory) {
             return new Builder<>(factory);
         }
 

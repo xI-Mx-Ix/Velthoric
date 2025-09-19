@@ -13,7 +13,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 
@@ -86,7 +86,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     public void storeConstraint(VxConstraint constraint) {
         if (constraint == null) return;
-        VxAbstractBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
+        VxBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
         if (body1 != null) {
             int index = body1.getDataStoreIndex();
             if (index == -1) return;

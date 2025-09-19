@@ -9,7 +9,7 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 
 import java.util.UUID;
@@ -38,7 +38,7 @@ public class SpawnData {
      * @param obj       The object to create spawn data for.
      * @param timestamp The server-side timestamp of the spawn event.
      */
-    public SpawnData(VxAbstractBody obj, long timestamp) {
+    public SpawnData(VxBody obj, long timestamp) {
         this.id = obj.getPhysicsId();
         this.typeIdentifier = obj.getType().getTypeId();
         this.objectType = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;

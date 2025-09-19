@@ -25,12 +25,12 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public abstract class VxAbstractBody {
+public abstract class VxBody {
 
     /** The unique, persistent identifier for this physics object instance. */
     protected final UUID physicsId;
     /** The type definition for this object, containing its factory and type ID. */
-    protected final VxObjectType<? extends VxAbstractBody> type;
+    protected final VxObjectType<? extends VxBody> type;
     /** The physics world this object belongs to. */
     protected final VxPhysicsWorld world;
     /** The ID of the body in the Jolt physics system. 0 if not added to the simulation. */
@@ -45,7 +45,7 @@ public abstract class VxAbstractBody {
      * @param world The physics world this body will belong to.
      * @param id    The unique UUID for this instance.
      */
-    protected VxAbstractBody(VxObjectType<? extends VxAbstractBody> type, VxPhysicsWorld world, UUID id) {
+    protected VxBody(VxObjectType<? extends VxBody> type, VxPhysicsWorld world, UUID id) {
         this.type = type;
         this.world = world;
         this.physicsId = id;
@@ -135,7 +135,7 @@ public abstract class VxAbstractBody {
             return null;
         }
         // Sanity check to ensure this object instance still corresponds to the bodyId.
-        VxAbstractBody found = world.getObjectManager().getByBodyId(bodyId);
+        VxBody found = world.getObjectManager().getByBodyId(bodyId);
         if (found == this) {
             try (BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), bodyId)) {
                 if (lock.succeededAndIsInBroadPhase()) {
@@ -173,7 +173,7 @@ public abstract class VxAbstractBody {
     /**
      * @return The {@link VxObjectType} definition for this object.
      */
-    public VxObjectType<? extends VxAbstractBody> getType() {
+    public VxObjectType<? extends VxBody> getType() {
         return type;
     }
 

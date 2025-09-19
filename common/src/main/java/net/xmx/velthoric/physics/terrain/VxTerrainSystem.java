@@ -16,7 +16,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.terrain.cache.TerrainShapeCache;
 import net.xmx.velthoric.physics.terrain.cache.TerrainStorage;
 import net.xmx.velthoric.physics.terrain.chunk.ChunkSnapshot;
@@ -430,9 +430,9 @@ public class VxTerrainSystem implements Runnable {
             return;
         }
 
-        List<VxAbstractBody> currentObjects = new ArrayList<>(physicsWorld.getObjectManager().getAllObjects());
+        List<VxBody> currentObjects = new ArrayList<>(physicsWorld.getObjectManager().getAllObjects());
         Set<UUID> currentObjectIds = currentObjects.stream()
-                .map(VxAbstractBody::getPhysicsId)
+                .map(VxBody::getPhysicsId)
                 .collect(Collectors.toSet());
 
         objectTrackedChunks.keySet().removeIf(id -> {
@@ -457,7 +457,7 @@ public class VxTerrainSystem implements Runnable {
             if (objectUpdateIndex >= currentObjects.size()) {
                 objectUpdateIndex = 0;
             }
-            VxAbstractBody obj = currentObjects.get(objectUpdateIndex++);
+            VxBody obj = currentObjects.get(objectUpdateIndex++);
             if (obj.getBodyId() != 0) {
                 updatePreloadForObject(obj);
             } else {
@@ -465,17 +465,17 @@ public class VxTerrainSystem implements Runnable {
             }
         }
 
-        List<List<VxAbstractBody>> batches = partitionList(currentObjects, OBJECT_ACTIVATION_BATCH_SIZE);
+        List<List<VxBody>> batches = partitionList(currentObjects, OBJECT_ACTIVATION_BATCH_SIZE);
         List<CompletableFuture<Set<VxSectionPos>>> futures = new ArrayList<>();
 
         if (jobSystem.isShutdown()) {
             return;
         }
 
-        for (List<VxAbstractBody> batch : batches) {
+        for (List<VxBody> batch : batches) {
             futures.add(CompletableFuture.supplyAsync(() -> {
                 Set<VxSectionPos> required = new HashSet<>();
-                for (VxAbstractBody obj : batch) {
+                for (VxBody obj : batch) {
                     var body = obj.getBody();
                     if (body != null) {
                         calculateActivationChunksForObject(body.getWorldSpaceBounds(), body.getLinearVelocity(), required);
@@ -509,7 +509,7 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
-    private void updatePreloadForObject(VxAbstractBody obj) {
+    private void updatePreloadForObject(VxBody obj) {
         UUID id = obj.getPhysicsId();
         int cooldown = objectUpdateCooldowns.getOrDefault(id, 0);
         var body = obj.getBody();

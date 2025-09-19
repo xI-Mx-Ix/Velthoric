@@ -12,7 +12,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,7 +55,7 @@ public class VxObjectArgument implements ArgumentType<VxObjectSelector> {
         return EXAMPLES;
     }
 
-    public static List<VxAbstractBody> getObjects(CommandContext<CommandSourceStack> context, String name) {
+    public static List<VxBody> getObjects(CommandContext<CommandSourceStack> context, String name) {
         VxObjectSelector selector = context.getArgument(name, VxObjectSelector.class);
         return selector.select(context.getSource());
     }

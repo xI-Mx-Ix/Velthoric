@@ -13,7 +13,7 @@ import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.persistence.VxConstraintStorage;
 import net.xmx.velthoric.physics.constraint.serializer.ConstraintSerializerRegistry;
 import net.xmx.velthoric.physics.constraint.serializer.IVxConstraintSerializer;
-import net.xmx.velthoric.physics.object.VxAbstractBody;
+import net.xmx.velthoric.physics.object.VxBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
@@ -73,8 +73,8 @@ public class VxConstraintManager {
     @SuppressWarnings("unchecked")
     protected void activateConstraint(VxConstraint constraint) {
         world.execute(() -> {
-            VxAbstractBody body1 = objectManager.getObject(constraint.getBody1Id());
-            VxAbstractBody body2 = objectManager.getObject(constraint.getBody2Id());
+            VxBody body1 = objectManager.getObject(constraint.getBody1Id());
+            VxBody body2 = objectManager.getObject(constraint.getBody2Id());
 
             if (body1 == null || body2 == null || body1.getBodyId() == 0 || body2.getBodyId() == 0) {
                 dataSystem.addPendingConstraint(constraint);
