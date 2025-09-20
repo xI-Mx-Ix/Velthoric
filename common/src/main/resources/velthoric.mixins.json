@@ -11,6 +11,8 @@
     "event.level.MinecraftServerMixin_VxLevelEvent",
     "event.level.ServerLevelMixin_VxLevelEvent",
     "event.server.MinecraftServerMixin_VxServerLifecylceEvent",
+    "joltjni.BodyAccessor",
+    "joltjni.PhysicsSystemMixin",
     "misc.ExplosionMixin_TriggerExplosion",
     "object.ChunkMapMixin_DispatchObjectsToPlayers",
     "riding.EntityMixin",
