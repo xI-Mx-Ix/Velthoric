@@ -377,7 +377,6 @@ public class VxObjectManager {
 
         // Step 4: Fire the removal callback on the object.
         obj.onBodyRemoved(world, reason);
-        physicsUpdater.clearStateFor(id);
 
         // Step 5: Handle persistence based on the removal reason.
         if (reason == VxRemovalReason.SAVE) {
