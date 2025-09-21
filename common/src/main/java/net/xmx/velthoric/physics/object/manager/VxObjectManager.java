@@ -194,7 +194,6 @@ public class VxObjectManager {
             return null;
         }
 
-        // Follow the same safe order as addConstructedBody.
         addInternal(obj);
         int index = obj.getDataStoreIndex();
         if (index != -1) {
@@ -207,8 +206,8 @@ public class VxObjectManager {
             dataStore.rotW[index] = data.transform().getRotation().getW();
         }
 
-        obj.readCreationData(data.customData());
-        data.customData().release();
+        obj.readPersistenceData(data.persistenceData());
+        data.persistenceData().release();
 
         networkDispatcher.onObjectAdded(obj);
 
@@ -503,6 +502,18 @@ public class VxObjectManager {
     @Nullable
     public VxBody getObject(UUID id) {
         return managedObjects.get(id);
+    }
+
+    /**
+     * Marks an object's custom data as dirty and queues it for network synchronization.
+     *
+     * @param body The body to update.
+     */
+    public void markCustomDataDirty(VxBody body) {
+        if (body.getDataStoreIndex() != -1) {
+            getDataStore().isCustomDataDirty[body.getDataStoreIndex()] = true;
+            networkDispatcher.queueCustomDataUpdate(body);
+        }
     }
 
     /**

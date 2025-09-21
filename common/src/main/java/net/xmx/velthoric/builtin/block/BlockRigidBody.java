@@ -66,12 +66,17 @@ public class BlockRigidBody extends VxRigidBody {
     }
 
     @Override
-    public void writeCreationData(VxByteBuf buf) {
+    public void writeSyncData(VxByteBuf buf) {
         buf.writeVarInt(Block.getId(this.representedBlockState));
     }
 
     @Override
-    public void readCreationData(VxByteBuf buf) {
+    public void writePersistenceData(VxByteBuf buf) {
+        buf.writeVarInt(Block.getId(this.representedBlockState));
+    }
+
+    @Override
+    public void readPersistenceData(VxByteBuf buf) {
         int blockStateId = buf.readVarInt();
         this.representedBlockState = Block.stateById(blockStateId);
         if (this.representedBlockState.isAir()) {

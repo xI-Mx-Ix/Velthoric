@@ -160,10 +160,6 @@ public class VxPhysicsUpdater {
                 dirtyIndicesQueue.offer(index);
             }
         }
-
-        if (obj.isCustomDataDirty()) {
-            manager.getNetworkDispatcher().dispatchDataUpdate(obj);
-        }
     }
 
     private boolean hasStateChanged(int index, RVec3 pos, Quat rot, Vec3 linVel, Vec3 angVel, float[] vertices, boolean isActive) {

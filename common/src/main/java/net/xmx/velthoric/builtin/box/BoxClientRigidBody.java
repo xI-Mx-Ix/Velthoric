@@ -6,41 +6,43 @@ package net.xmx.velthoric.builtin.box;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.mojang.blaze3d.vertex.PoseStack;
-import io.netty.buffer.Unpooled;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.state.BlockState;
+import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.type.VxRigidBody;
-import org.jetbrains.annotations.Nullable;
+import net.xmx.velthoric.physics.object.client.body.VxClientRigidBody;
 import org.joml.Quaternionf;
 
-import java.nio.ByteBuffer;
 import java.util.UUID;
 
-public class BoxRenderer implements VxRigidBody.Renderer {
+public class BoxClientRigidBody extends VxClientRigidBody {
+
+    private float hx = 0.5f, hy = 0.5f, hz = 0.5f;
+    private BoxColor color = BoxColor.RED;
+
+    public BoxClientRigidBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
+        super(id, manager, dataStoreIndex, objectType);
+    }
 
     @Override
-    public void render(UUID id, VxRenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
-        if (customData == null || customData.remaining() < 16) {
-            return;
-        }
-
-        customData.rewind();
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(customData));
-        float hx = buf.readFloat();
-        float hy = buf.readFloat();
-        float hz = buf.readFloat();
+    public void readSyncData(VxByteBuf buf) {
+        this.hx = buf.readFloat();
+        this.hy = buf.readFloat();
+        this.hz = buf.readFloat();
         int colorOrdinal = buf.readInt();
-
-        if (colorOrdinal < 0 || colorOrdinal >= BoxColor.values().length) {
-            return;
+        if (colorOrdinal >= 0 && colorOrdinal < BoxColor.values().length) {
+            this.color = BoxColor.values()[colorOrdinal];
         }
-        BoxColor boxColor = BoxColor.values()[colorOrdinal];
-        BlockState blockState = boxColor.getBlock().defaultBlockState();
+    }
+
+    @Override
+    public void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+        BlockState blockState = color.getBlock().defaultBlockState();
 
         float fullWidth = hx * 2.0f;
         float fullHeight = hy * 2.0f;

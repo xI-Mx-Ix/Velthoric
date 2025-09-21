@@ -43,18 +43,22 @@ public class SphereRigidBody extends VxRigidBody {
         ) {
             bcs.setMotionType(EMotionType.Dynamic);
             bcs.setObjectLayer(VxLayers.DYNAMIC);
-
             return factory.create(shapeSettings, bcs);
         }
     }
 
     @Override
-    public void writeCreationData(VxByteBuf buf) {
+    public void writeSyncData(VxByteBuf buf) {
         buf.writeFloat(this.radius);
     }
 
     @Override
-    public void readCreationData(VxByteBuf buf) {
+    public void writePersistenceData(VxByteBuf buf) {
+        writeSyncData(buf);
+    }
+
+    @Override
+    public void readPersistenceData(VxByteBuf buf) {
         this.radius = buf.readFloat();
     }
 }

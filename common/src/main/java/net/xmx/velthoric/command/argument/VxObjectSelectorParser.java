@@ -17,8 +17,8 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
@@ -154,7 +154,7 @@ public class VxObjectSelectorParser {
                     throw ERROR_EXPECTED_OPTION_VALUE.createWithContext(reader, name);
                 }
 
-                if (!VxObjectRegistry.getInstance().getRegisteredTypes().containsKey(parsedLocation)) {
+                if (VxObjectRegistry.getInstance().getRegistrationData(parsedLocation) == null) {
                     reader.setCursor(valueStartCursor);
                     throw ERROR_UNKNOWN_OBJECT_TYPE.createWithContext(reader, parsedLocation.toString());
                 }

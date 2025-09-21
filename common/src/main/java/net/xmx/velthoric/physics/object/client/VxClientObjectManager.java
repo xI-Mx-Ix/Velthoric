@@ -9,22 +9,18 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import dev.architectury.event.events.client.ClientTickEvent;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.client.body.VxClientBody;
-import net.xmx.velthoric.physics.object.client.body.VxClientRigidBody;
-import net.xmx.velthoric.physics.object.client.body.VxClientSoftBody;
 import net.xmx.velthoric.physics.object.client.time.VxClientClock;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectState;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
-import net.xmx.velthoric.physics.object.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -67,8 +63,6 @@ public class VxClientObjectManager {
     private final List<Long> clockOffsetSamples = new ArrayList<>();
     // A queue for incoming state updates to be processed on the client thread.
     private final ConcurrentLinkedQueue<PhysicsObjectState> stateUpdateQueue = new ConcurrentLinkedQueue<>();
-    // A temporary transform object to avoid repeated allocations.
-    private final VxTransform tempTransform = new VxTransform();
 
     // Private constructor to enforce singleton pattern.
     private VxClientObjectManager() {}
@@ -207,27 +201,55 @@ public class VxClientObjectManager {
     }
 
     /**
-     * Spawns a new physics object on the client.
+     * Spawns a new physics object on the client based on data from a spawn packet.
      *
-     * @param id              The UUID of the new object.
-     * @param typeId          The type identifier for creating the correct renderer.
-     * @param objType         The body type (Rigid or Soft).
-     * @param data            A buffer containing initial transform and custom creation data.
-     * @param serverTimestamp The server-side timestamp of the spawn event.
+     * @param id          The UUID of the new object.
+     * @param typeId      The ResourceLocation identifying the object's type.
+     * @param objectType  The EBodyType of the object (Rigid, Soft, etc.).
+     * @param data        A buffer containing the initial transform and custom sync data.
+     * @param timestamp   The server-side timestamp of the spawn event.
      */
-    public void spawnObject(UUID id, ResourceLocation typeId, EBodyType objType, FriendlyByteBuf data, long serverTimestamp) {
-        if (store.hasObject(id)) return;
+    public void spawnObject(UUID id, ResourceLocation typeId, EBodyType objectType, VxByteBuf data, long timestamp) {
+        if (store.hasObject(id)) {
+            VxMainClass.LOGGER.warn("Client received spawn request for already existing object: {}", id);
+            return;
+        }
 
         int index = store.addObject(id);
-        store.objectType[index] = objType;
-        tempTransform.fromBuffer(data);
+        store.objectType[index] = objectType;
 
-        RVec3 pos = tempTransform.getTranslation();
-        Quat rot = tempTransform.getRotation();
+        VxClientBody body = VxObjectRegistry.getInstance().createClientBody(typeId, id, this, index, objectType);
 
-        // Initialize all state buffers to the initial spawn state to prevent interpolation from a zeroed state.
-        store.state0_timestamp[index] = serverTimestamp;
-        store.state1_timestamp[index] = serverTimestamp;
+        if (body == null) {
+            store.removeObject(id);
+            VxMainClass.LOGGER.error("Could not spawn client object with type ID '{}', factory not found or failed.", typeId);
+            return;
+        }
+
+        managedObjects.put(id, body);
+
+        VxTransform transform = new VxTransform();
+        transform.fromBuffer(data);
+
+        body.readSyncData(data);
+
+        initializeState(index, transform, timestamp);
+    }
+
+    /**
+     * Initializes the state buffers for a newly spawned object.
+     * Both state0 and state1 are set to the initial spawn state to prevent interpolation from zero.
+     *
+     * @param index The data store index of the object.
+     * @param transform The initial transform.
+     * @param timestamp The spawn timestamp.
+     */
+    private void initializeState(int index, VxTransform transform, long timestamp) {
+        RVec3 pos = transform.getTranslation();
+        Quat rot = transform.getRotation();
+
+        store.state0_timestamp[index] = timestamp;
+        store.state1_timestamp[index] = timestamp;
         store.state0_posX[index] = store.state1_posX[index] = pos.x();
         store.state0_posY[index] = store.state1_posY[index] = pos.y();
         store.state0_posZ[index] = store.state1_posZ[index] = pos.z();
@@ -235,12 +257,8 @@ public class VxClientObjectManager {
         store.state0_rotY[index] = store.state1_rotY[index] = rot.getY();
         store.state0_rotZ[index] = store.state1_rotZ[index] = rot.getZ();
         store.state0_rotW[index] = store.state1_rotW[index] = rot.getW();
-        store.state0_velX[index] = store.state1_velX[index] = 0f;
-        store.state0_velY[index] = store.state1_velY[index] = 0f;
-        store.state0_velZ[index] = store.state1_velZ[index] = 0f;
         store.state0_isActive[index] = store.state1_isActive[index] = true;
 
-        // Initialize render and previous-render states as well.
         store.render_posX[index] = pos.x();
         store.render_posY[index] = pos.y();
         store.render_posZ[index] = pos.z();
@@ -263,43 +281,6 @@ public class VxClientObjectManager {
             store.lastKnownPosition[index] = new RVec3();
         }
         store.lastKnownPosition[index].set(pos);
-
-        // Create the renderer and the client body handle.
-        VxBody.Renderer renderer = null;
-        VxClientBody body;
-        if (objType == EBodyType.RigidBody) {
-            renderer = VxObjectRegistry.getInstance().createRigidRenderer(typeId);
-            body = new VxClientRigidBody(id, this, index, objType, renderer);
-        } else if (objType == EBodyType.SoftBody) {
-            renderer = VxObjectRegistry.getInstance().createSoftRenderer(typeId);
-            body = new VxClientSoftBody(id, this, index, objType, renderer);
-            store.state0_vertexData[index] = null;
-            store.state1_vertexData[index] = null;
-        } else {
-            VxMainClass.LOGGER.error("Client: Unknown body type for spawning: {}", objType);
-            store.removeObject(id);
-            return;
-        }
-        managedObjects.put(id, body);
-
-        if (renderer == null) {
-            VxMainClass.LOGGER.warn("Client: No renderer for body type '{}'.", typeId);
-        }
-
-        // Add an initial clock sample from the spawn packet.
-        long initialOffset = serverTimestamp - clock.getGameTimeNanos();
-        synchronized (clockOffsetSamples) {
-            this.clockOffsetSamples.add(initialOffset);
-        }
-        if (!isClockOffsetInitialized) synchronizeClock();
-
-        // Store any custom data that came with the spawn packet.
-        if (data.readableBytes() > 0) {
-            ByteBuffer offHeapBuffer = ByteBuffer.allocateDirect(data.readableBytes());
-            data.readBytes(offHeapBuffer);
-            offHeapBuffer.flip();
-            store.customData[index] = offHeapBuffer;
-        }
     }
 
     /**
@@ -313,18 +294,31 @@ public class VxClientObjectManager {
     }
 
     /**
-     * Updates the custom data for a specific object.
+     * Updates the custom data for a specific object by finding its handle and calling its readSyncData method.
      *
      * @param id   The UUID of the object to update.
      * @param data The buffer containing the new custom data.
      */
     public void updateCustomObjectData(UUID id, ByteBuf data) {
-        Integer index = store.getIndexForId(id);
-        if (index == null) return;
-        ByteBuffer offHeapBuffer = ByteBuffer.allocateDirect(data.readableBytes());
-        data.readBytes(offHeapBuffer);
-        offHeapBuffer.flip();
-        store.customData[index] = offHeapBuffer;
+        VxClientBody body = managedObjects.get(id);
+        if (body != null) {
+            try {
+                // The body's specific implementation will read the data it expects.
+                body.readSyncData(new VxByteBuf(data));
+            } catch (Exception e) {
+                VxMainClass.LOGGER.error("Failed to read custom sync data for object {}", id, e);
+            } finally {
+                // Ensure the buffer is released after use to prevent memory leaks.
+                if (data.refCnt() > 0) {
+                    data.release();
+                }
+            }
+        } else {
+            // If the body doesn't exist, we must still release the buffer.
+            if (data.refCnt() > 0) {
+                data.release();
+            }
+        }
     }
 
     /**

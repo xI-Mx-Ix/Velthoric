@@ -15,27 +15,23 @@ import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import java.util.UUID;
 
 /**
- * A data-transfer object that encapsulates all the information needed to spawn
- * a physics object on the client. This is used in spawn packets.
+ * A data transfer object that encapsulates all necessary information to spawn a physics object on the client.
+ * This includes the object's identity, type, initial state, and custom creation data.
  *
  * @author xI-Mx-Ix
  */
 public class SpawnData {
-    // The unique identifier of the object.
     public final UUID id;
-    // The resource location identifying the object's type.
     public final ResourceLocation typeIdentifier;
-    // The type of the physics body (e.g., Rigid or Soft).
     public final EBodyType objectType;
-    // The server-side timestamp when the object was spawned.
     public final long timestamp;
-    // A raw byte array containing the initial transform and any custom creation data.
     public final byte[] data;
 
     /**
-     * Constructs spawn data from a server-side physics object.
+     * Constructs spawn data from a server-side {@link VxBody}.
+     * This serializes the object's initial transform and custom sync data.
      *
-     * @param obj       The object to create spawn data for.
+     * @param obj       The physics object to create spawn data for.
      * @param timestamp The server-side timestamp of the spawn event.
      */
     public SpawnData(VxBody obj, long timestamp) {
@@ -44,11 +40,11 @@ public class SpawnData {
         this.objectType = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
         this.timestamp = timestamp;
 
-        // Serialize the initial transform and custom data into the byte array.
+        // Serialize the transform and custom sync data into a single byte array.
         VxByteBuf buf = new VxByteBuf(Unpooled.buffer());
         try {
             obj.getTransform().toBuffer(buf);
-            obj.writeCreationData(buf);
+            obj.writeSyncData(buf);
             this.data = new byte[buf.readableBytes()];
             buf.readBytes(this.data);
         } finally {
@@ -59,7 +55,7 @@ public class SpawnData {
     }
 
     /**
-     * Constructs spawn data by decoding it from a network buffer.
+     * Constructs spawn data by deserializing it from a network buffer.
      *
      * @param buf The buffer to read from.
      */
@@ -72,7 +68,7 @@ public class SpawnData {
     }
 
     /**
-     * Encodes the spawn data into a network buffer for sending.
+     * Serializes this spawn data into a network buffer.
      *
      * @param buf The buffer to write to.
      */
@@ -85,14 +81,13 @@ public class SpawnData {
     }
 
     /**
-     * Estimates the size of the encoded data in bytes. This is used for packet batching
-     * to avoid exceeding payload size limits.
+     * Estimates the size of this spawn data in bytes for network packet batching.
      *
      * @return The estimated size in bytes.
      */
     public int estimateSize() {
         String typeStr = typeIdentifier.toString();
-        // UUID (16) + Type ID (varint len + string) + Enum (4) + Timestamp (8) + Data (varint len + byte array)
+        // Calculate size: UUID (16) + RL (varint + string) + Enum (4) + Timestamp (8) + Data (varint + bytes)
         return 16 + FriendlyByteBuf.getVarIntSize(typeStr.length()) + typeStr.length() + 4 + 8 + FriendlyByteBuf.getVarIntSize(data.length) + data.length;
     }
 }

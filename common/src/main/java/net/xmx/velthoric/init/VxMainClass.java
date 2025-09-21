@@ -19,12 +19,9 @@ public class VxMainClass {
 
     public static void onInit() {
         ModRegistries.register();
-
         VxRegisteredObjects.register();
         NetworkHandler.register();
-
         RegisterEvents.register();
-
         try {
             VxNativeJolt.initialize();
         } catch (Exception e) {
@@ -34,8 +31,7 @@ public class VxMainClass {
 
     @Environment(EnvType.CLIENT)
     public static void onClientInit() {
-        VxRegisteredObjects.registerClientRenderers();
-
+        VxRegisteredObjects.registerClientFactories();
         RegisterEvents.registerClient();
     }
 }

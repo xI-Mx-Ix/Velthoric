@@ -19,7 +19,7 @@ import net.xmx.velthoric.item.physicsgun.packet.*;
 import net.xmx.velthoric.physics.object.packet.batch.RemovePhysicsObjectBatchPacket;
 import net.xmx.velthoric.physics.object.packet.batch.SpawnPhysicsObjectBatchPacket;
 import net.xmx.velthoric.physics.object.packet.batch.SyncAllPhysicsObjectsPacket;
-import net.xmx.velthoric.physics.object.packet.SyncPhysicsObjectDataPacket;
+import net.xmx.velthoric.physics.object.packet.batch.SyncCustomDataBatchPacket;
 import net.xmx.velthoric.physics.raycasting.click.packet.VxClickPacket;
 
 import java.util.function.BiConsumer;
@@ -41,10 +41,10 @@ public class NetworkHandler {
 
     public static void register() {
         registerPacket(
-                SyncPhysicsObjectDataPacket.class,
-                SyncPhysicsObjectDataPacket::encode,
-                SyncPhysicsObjectDataPacket::new,
-                SyncPhysicsObjectDataPacket::handle
+                SyncCustomDataBatchPacket.class,
+                SyncCustomDataBatchPacket::encode,
+                SyncCustomDataBatchPacket::new,
+                SyncCustomDataBatchPacket::handle
         );
 
         registerPacket(

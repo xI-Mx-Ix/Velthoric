@@ -4,20 +4,22 @@
  */
 package net.xmx.velthoric.physics.object.manager;
 
+import io.netty.buffer.Unpooled;
+import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.NetworkHandler;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.packet.SpawnData;
 import net.xmx.velthoric.physics.object.packet.batch.RemovePhysicsObjectBatchPacket;
 import net.xmx.velthoric.physics.object.packet.batch.SpawnPhysicsObjectBatchPacket;
 import net.xmx.velthoric.physics.object.packet.batch.SyncAllPhysicsObjectsPacket;
-import net.xmx.velthoric.physics.object.packet.SyncPhysicsObjectDataPacket;
+import net.xmx.velthoric.physics.object.packet.batch.SyncCustomDataBatchPacket;
+import net.xmx.velthoric.physics.object.type.VxBody;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,33 +40,34 @@ public class VxObjectNetworkDispatcher {
     private final ServerLevel level;
     private final VxObjectManager manager;
     private final VxObjectDataStore dataStore;
-
-    // A queue of indices for objects whose state has changed and needs to be synchronized with clients.
+    /** A queue of data store indices for objects whose physics state has changed and needs to be synced. */
     private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue;
+    /** A queue for objects whose custom data has changed and needs to be synced. */
+    private final ConcurrentLinkedQueue<VxBody> customDataDirtyQueue = new ConcurrentLinkedQueue<>();
 
     // --- Constants for network tuning ---
-    // The maximum size of a packet payload in bytes to avoid exceeding network limits.
+    /** The maximum size of a packet payload in bytes to avoid exceeding network limits. */
     private static final int MAX_PACKET_PAYLOAD_SIZE = 128 * 1024;
-    // The target tick rate for the network synchronization thread in milliseconds.
+    /** The target tick rate for the network synchronization thread in milliseconds. */
     private static final int NETWORK_THREAD_TICK_RATE_MS = 10;
-    // The maximum number of object state updates to include in a single synchronization packet.
+    /** The maximum number of object state updates to include in a single synchronization packet. */
     private static final int MAX_UPDATES_PER_PACKET = 256;
 
     // --- Player tracking data structures ---
-    // Maps each player's UUID to the set of physics object UUIDs they are currently tracking.
+    /** Maps each player's UUID to the set of physics object UUIDs they are currently tracking. */
     private final Map<UUID, Set<UUID>> playerTrackedObjects = new ConcurrentHashMap<>();
-    // Caches the last known chunk position for each player to determine visibility.
+    /** Caches the last known chunk position for each player to determine visibility. */
     private final Map<UUID, ChunkPos> playerChunkPositions = new ConcurrentHashMap<>();
-    // Caches the view distance for each player.
+    /** Caches the view distance for each player. */
     private final Map<UUID, Integer> playerViewDistances = new ConcurrentHashMap<>();
 
     // --- Pending packet batches ---
-    // A map to queue physics objects that need to be spawned on a player's client.
+    /** A map to queue physics objects that need to be spawned on a player's client. */
     private final Object2ObjectOpenHashMap<ServerPlayer, ObjectArrayList<SpawnData>> pendingSpawns = new Object2ObjectOpenHashMap<>();
-    // A map to queue physics object UUIDs that need to be removed from a player's client.
+    /** A map to queue physics object UUIDs that need to be removed from a player's client. */
     private final Object2ObjectOpenHashMap<ServerPlayer, ObjectArrayList<UUID>> pendingRemovals = new Object2ObjectOpenHashMap<>();
 
-    // The dedicated executor service for handling network synchronization tasks.
+    /** The dedicated executor service for handling network synchronization tasks. */
     private ExecutorService networkSyncExecutor;
 
     public VxObjectNetworkDispatcher(ServerLevel level, VxObjectManager manager, ConcurrentLinkedQueue<Integer> dirtyIndicesQueue) {
@@ -92,11 +95,12 @@ public class VxObjectNetworkDispatcher {
     }
 
     /**
-     * Called every game tick from the main server thread to process pending spawns and removals.
+     * Called every game tick from the main server thread to process pending spawns, removals, and custom data updates.
      */
     public void onGameTick() {
         processPendingRemovals();
         processPendingSpawns();
+        processPendingCustomDataUpdates();
     }
 
     /**
@@ -177,7 +181,7 @@ public class VxObjectNetworkDispatcher {
      * @param player The player whose tracking information should be updated.
      */
     public void updatePlayerTracking(ServerPlayer player) {
-        // Update cached player data
+        // Update cached player data.
         playerChunkPositions.put(player.getUUID(), player.chunkPosition());
         playerViewDistances.put(player.getUUID(), player.server.getPlayerList().getViewDistance());
 
@@ -187,7 +191,7 @@ public class VxObjectNetworkDispatcher {
         int viewDistance = playerViewDistances.getOrDefault(player.getUUID(), 0);
         ChunkPos playerChunkPos = playerChunkPositions.getOrDefault(player.getUUID(), new ChunkPos(0, 0));
 
-        // Find all objects within the player's view distance
+        // Find all objects within the player's view distance.
         for (int cz = playerChunkPos.z - viewDistance; cz <= playerChunkPos.z + viewDistance; ++cz) {
             for (int cx = playerChunkPos.x - viewDistance; cx <= playerChunkPos.x + viewDistance; ++cx) {
                 for (VxBody body : manager.getObjectsInChunk(new ChunkPos(cx, cz))) {
@@ -196,14 +200,14 @@ public class VxObjectNetworkDispatcher {
             }
         }
 
-        // Stop tracking objects that are no longer visible
+        // Stop tracking objects that are no longer visible.
         for (UUID trackedId : new ArrayList<>(previouslyTracked)) {
             if (!newlyVisible.contains(trackedId)) {
                 stopTracking(player, trackedId);
             }
         }
 
-        // Start tracking newly visible objects
+        // Start tracking newly visible objects.
         for (UUID visibleId : newlyVisible) {
             if (!previouslyTracked.contains(visibleId)) {
                 VxBody body = manager.getObject(visibleId);
@@ -302,13 +306,13 @@ public class VxObjectNetworkDispatcher {
                     ObjectArrayList<UUID> batch = new ObjectArrayList<>();
                     for (UUID id : removalList) {
                         batch.add(id);
-                        // Send a batch when it reaches a certain size
+                        // Send a batch when it reaches a certain size.
                         if (batch.size() >= 512) {
                             NetworkHandler.sendToPlayer(new RemovePhysicsObjectBatchPacket(batch), player);
                             batch.clear();
                         }
                     }
-                    // Send any remaining items in the last batch
+                    // Send any remaining items in the last batch.
                     if (!batch.isEmpty()) {
                         NetworkHandler.sendToPlayer(new RemovePhysicsObjectBatchPacket(batch), player);
                     }
@@ -332,7 +336,7 @@ public class VxObjectNetworkDispatcher {
                     int currentBatchSizeBytes = 0;
                     for (SpawnData data : spawnDataList) {
                         int dataSize = data.estimateSize();
-                        // Send the current batch if adding the next item would exceed the payload limit
+                        // Send the current batch if adding the next item would exceed the payload limit.
                         if (!batch.isEmpty() && currentBatchSizeBytes + dataSize > MAX_PACKET_PAYLOAD_SIZE) {
                             NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(batch), player);
                             batch.clear();
@@ -341,7 +345,7 @@ public class VxObjectNetworkDispatcher {
                         batch.add(data);
                         currentBatchSizeBytes += dataSize;
                     }
-                    // Send the final batch
+                    // Send the final batch.
                     if (!batch.isEmpty()) {
                         NetworkHandler.sendToPlayer(new SpawnPhysicsObjectBatchPacket(batch), player);
                     }
@@ -356,13 +360,13 @@ public class VxObjectNetworkDispatcher {
      * This method runs on the dedicated network sync thread.
      */
     private void sendStateUpdates() {
-        // 1. Collect all dirty indices from the concurrent queue
+        // 1. Collect all dirty indices from the concurrent queue.
         ObjectArrayList<Integer> dirtyIndices = new ObjectArrayList<>();
         Integer index;
         while ((index = dirtyIndicesQueue.poll()) != null) {
             if (dataStore.getIdForIndex(index) != null) {
                 dirtyIndices.add(index);
-                dataStore.isPhysicsStateDirty[index] = false; // Reset dirty flag
+                dataStore.isPhysicsStateDirty[index] = false; // Reset dirty flag.
             }
         }
 
@@ -370,7 +374,7 @@ public class VxObjectNetworkDispatcher {
             return;
         }
 
-        // 2. Group updates by player
+        // 2. Group updates by player.
         Map<ServerPlayer, ObjectArrayList<Integer>> updatesByPlayer = new Object2ObjectOpenHashMap<>();
         for (int dirtyIndex : dirtyIndices) {
             UUID objectId = dataStore.getIdForIndex(dirtyIndex);
@@ -378,7 +382,7 @@ public class VxObjectNetworkDispatcher {
                 continue;
             }
 
-            // Find all players tracking this object
+            // Find all players tracking this object.
             for (ServerPlayer player : level.players()) {
                 Set<UUID> trackedByPlayer = playerTrackedObjects.get(player.getUUID());
                 if (trackedByPlayer != null && trackedByPlayer.contains(objectId)) {
@@ -391,14 +395,14 @@ public class VxObjectNetworkDispatcher {
             return;
         }
 
-        // 3. Schedule packet sending on the main server thread
+        // 3. Schedule packet sending on the main server thread to ensure thread safety.
         level.getServer().execute(() -> {
             updatesByPlayer.forEach((player, indices) -> {
                 if (player.connection == null || indices.isEmpty()) {
                     return;
                 }
 
-                // Split updates into multiple packets if they exceed the max count per packet
+                // Split updates into multiple packets if they exceed the max count per packet.
                 for (int i = 0; i < indices.size(); i += MAX_UPDATES_PER_PACKET) {
                     int end = Math.min(i + MAX_UPDATES_PER_PACKET, indices.size());
                     List<Integer> sublist = indices.subList(i, end);
@@ -409,7 +413,7 @@ public class VxObjectNetworkDispatcher {
                         NetworkHandler.sendToPlayer(packet, player);
                     }
 
-                    // Release the underlying buffer
+                    // Release the underlying buffer.
                     packet.release();
                 }
             });
@@ -417,23 +421,56 @@ public class VxObjectNetworkDispatcher {
     }
 
     /**
-     * Dispatches an immediate update for an object's custom data.
-     * This is used for data that is not part of the regular state synchronization.
+     * Queues an object's custom data for synchronization.
      *
-     * @param obj The object whose custom data has changed.
+     * @param body The body whose custom data needs to be sent.
      */
-    public void dispatchDataUpdate(VxBody obj) {
-        if (obj.isCustomDataDirty()) {
-            SyncPhysicsObjectDataPacket packet = new SyncPhysicsObjectDataPacket(obj);
-            ChunkPos chunkPos = manager.getObjectChunkPos(obj.getDataStoreIndex());
-            // Send to all players who have the object's chunk loaded
-            level.getServer().execute(() -> {
-                ServerChunkCache chunkSource = level.getChunkSource();
-                for (ServerPlayer player : chunkSource.chunkMap.getPlayers(chunkPos, false)) {
-                    NetworkHandler.sendToPlayer(packet, player);
-                }
-            });
-            obj.clearCustomDataDirty();
+    public void queueCustomDataUpdate(VxBody body) {
+        customDataDirtyQueue.offer(body);
+    }
+
+    /**
+     * Processes and sends batched custom data updates for all players.
+     * This is called from the main game tick.
+     */
+    private void processPendingCustomDataUpdates() {
+        if (customDataDirtyQueue.isEmpty()) {
+            return;
         }
+
+        Map<ServerPlayer, Map<UUID, byte[]>> updatesByPlayer = new Object2ObjectOpenHashMap<>();
+        VxBody body;
+        // Process all bodies in the queue for this tick.
+        while ((body = customDataDirtyQueue.poll()) != null) {
+            VxByteBuf buf = new VxByteBuf(Unpooled.buffer());
+            byte[] syncData;
+            try {
+                // Serialize the custom data into a byte array.
+                body.writeSyncData(buf);
+                syncData = new byte[buf.readableBytes()];
+                buf.readBytes(syncData);
+            } finally {
+                buf.release();
+            }
+
+            // Distribute the data to all players tracking this object.
+            UUID objectId = body.getPhysicsId();
+            for (ServerPlayer player : level.players()) {
+                Set<UUID> trackedByPlayer = playerTrackedObjects.get(player.getUUID());
+                if (trackedByPlayer != null && trackedByPlayer.contains(objectId)) {
+                    updatesByPlayer.computeIfAbsent(player, p -> new Object2ObjectArrayMap<>())
+                            .put(objectId, syncData);
+                }
+            }
+            // Clear the dirty flag after queuing the update.
+            body.setCustomDataDirty(false);
+        }
+
+        // Send a single batch packet per player containing all their custom data updates.
+        updatesByPlayer.forEach((player, updates) -> {
+            if (!updates.isEmpty()) {
+                NetworkHandler.sendToPlayer(new SyncCustomDataBatchPacket(updates), player);
+            }
+        });
     }
 }

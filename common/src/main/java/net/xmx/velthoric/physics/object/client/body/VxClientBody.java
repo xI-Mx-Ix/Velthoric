@@ -10,10 +10,10 @@ import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.phys.AABB;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.type.VxBody;
 
 import java.util.UUID;
 
@@ -21,7 +21,8 @@ import java.util.UUID;
  * An abstract representation of a physics object on the client side.
  * This class acts as a lightweight handle for accessing the object's data,
  * which is stored in the {@link VxClientObjectDataStore} for performance.
- * It encapsulates logic for state calculation, culling, and rendering.
+ * It encapsulates logic for state calculation and culling.
+ * The rendering and data handling logic must be implemented by subclasses.
  *
  * @author xI-Mx-Ix
  */
@@ -31,63 +32,22 @@ public abstract class VxClientBody {
     protected final VxClientObjectManager manager;
     protected final int dataStoreIndex;
     protected final EBodyType objectType;
-    protected final VxBody.Renderer renderer;
 
-    /**
-     * Constructs a new client-side body handle.
-     *
-     * @param id             The unique identifier of the physics object.
-     * @param manager        The manager that oversees all client-side objects.
-     * @param dataStoreIndex The index of this object's data in the data store arrays.
-     * @param objectType     The type of the body (e.g., RigidBody, SoftBody).
-     * @param renderer       The client-side renderer instance for this object.
-     */
-    protected VxClientBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType, VxBody.Renderer renderer) {
+    protected VxClientBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
         this.id = id;
         this.manager = manager;
         this.dataStoreIndex = dataStoreIndex;
         this.objectType = objectType;
-        this.renderer = renderer;
     }
 
     /**
-     * @return The unique identifier of this object.
-     */
-    public UUID getId() {
-        return id;
-    }
-
-    /**
-     * @return The index of this object in the {@link VxClientObjectDataStore}.
-     */
-    public int getDataStoreIndex() {
-        return dataStoreIndex;
-    }
-
-    /**
-     * Checks if the object has been fully initialized with at least one state update,
-     * making it ready for rendering.
+     * Reads synchronization data sent from the server.
+     * This is called on spawn and when custom data is updated.
+     * Must be implemented by the final concrete class.
      *
-     * @return {@code true} if the object is initialized, {@code false} otherwise.
+     * @param buf The buffer containing the data.
      */
-    public boolean isInitialized() {
-        return manager.getStore().render_isInitialized[dataStoreIndex];
-    }
-
-    /**
-     * Creates an Axis-Aligned Bounding Box (AABB) based on the object's last known position.
-     * This is used for frustum culling to avoid rendering objects that are off-screen.
-     *
-     * @param inflation The amount to inflate the bounding box by, to prevent culling at screen edges.
-     * @return A new {@link AABB} for the object.
-     */
-    public AABB getCullingAABB(float inflation) {
-        RVec3 lastPos = manager.getStore().lastKnownPosition[dataStoreIndex];
-        return new AABB(
-                lastPos.xx() - inflation, lastPos.yy() - inflation, lastPos.zz() - inflation,
-                lastPos.xx() + inflation, lastPos.yy() + inflation, lastPos.zz() + inflation
-        );
-    }
+    public abstract void readSyncData(VxByteBuf buf);
 
     /**
      * Calculates the final, interpolated render state for the object for the current frame.
@@ -101,7 +61,8 @@ public abstract class VxClientBody {
     public abstract void calculateRenderState(float partialTicks, VxRenderState outState, RVec3 tempPos, Quat tempRot);
 
     /**
-     * Dispatches the render call to this object's specific renderer.
+     * Renders the object in the world.
+     * Must be implemented by the final concrete class.
      *
      * @param poseStack    The current pose stack for transformations.
      * @param bufferSource The buffer source for drawing.
@@ -110,4 +71,24 @@ public abstract class VxClientBody {
      * @param renderState  The final interpolated state to be rendered.
      */
     public abstract void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState);
+
+    public UUID getId() {
+        return id;
+
+    }
+    public int getDataStoreIndex() {
+        return dataStoreIndex;
+    }
+
+    public boolean isInitialized() {
+        return manager.getStore().render_isInitialized[dataStoreIndex];
+    }
+
+    public AABB getCullingAABB(float inflation) {
+        RVec3 lastPos = manager.getStore().lastKnownPosition[dataStoreIndex];
+        return new AABB(
+                lastPos.xx() - inflation, lastPos.yy() - inflation, lastPos.zz() - inflation,
+                lastPos.xx() + inflation, lastPos.yy() + inflation, lastPos.zz() + inflation
+        );
+    }
 }

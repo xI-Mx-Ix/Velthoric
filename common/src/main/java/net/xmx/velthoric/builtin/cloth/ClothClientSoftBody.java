@@ -4,52 +4,46 @@
  */
 package net.xmx.velthoric.builtin.cloth;
 
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import io.netty.buffer.Unpooled;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.type.VxSoftBody;
-import org.jetbrains.annotations.Nullable;
+import net.xmx.velthoric.physics.object.client.body.VxClientSoftBody;
 import org.joml.Vector3f;
 
-import java.nio.ByteBuffer;
 import java.util.UUID;
 import java.util.function.BiFunction;
 
-@Environment(EnvType.CLIENT)
-public class ClothSoftBodyRenderer implements VxSoftBody.Renderer {
+public class ClothClientSoftBody extends VxClientSoftBody {
 
+    private int widthSegments = 15;
+    private int heightSegments = 15;
     private static final ResourceLocation BLUE_WOOL_TEXTURE = new ResourceLocation("minecraft:block/blue_wool");
 
+    public ClothClientSoftBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
+        super(id, manager, dataStoreIndex, objectType);
+    }
+
     @Override
-    public void render(UUID id, VxRenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
+    public void readSyncData(VxByteBuf buf) {
+        this.widthSegments = buf.readInt();
+        this.heightSegments = buf.readInt();
+    }
+
+    @Override
+    public void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         float[] renderVertexData = renderState.vertexData;
         if (renderVertexData == null || renderVertexData.length < 12) {
             return;
         }
-
-        int widthSegments = 15;
-        int heightSegments = 15;
-
-        if (customData != null && customData.remaining() >= 8) {
-            customData.rewind();
-            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(customData));
-            try {
-                widthSegments = buf.readInt();
-                heightSegments = buf.readInt();
-            } catch (Exception ignored) {
-            }
-        }
-
         if (widthSegments <= 0 || heightSegments <= 0) {
             return;
         }

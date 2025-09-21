@@ -86,7 +86,12 @@ public class RopeSoftBody extends VxSoftBody {
     }
 
     @Override
-    public void writeCreationData(VxByteBuf buf) {
+    public void writeSyncData(VxByteBuf buf) {
+        buf.writeFloat(this.ropeRadius);
+    }
+
+    @Override
+    public void writePersistenceData(VxByteBuf buf) {
         buf.writeFloat(this.ropeLength);
         buf.writeInt(this.numSegments);
         buf.writeFloat(this.ropeRadius);
@@ -95,7 +100,7 @@ public class RopeSoftBody extends VxSoftBody {
     }
 
     @Override
-    public void readCreationData(VxByteBuf buf) {
+    public void readPersistenceData(VxByteBuf buf) {
         this.ropeLength = buf.readFloat();
         this.numSegments = buf.readInt();
         this.ropeRadius = buf.readFloat();

@@ -4,17 +4,11 @@
  */
 package net.xmx.velthoric.physics.object.type;
 
-import com.github.stephengold.joltjni.SoftBodyCreationSettings;
-import com.github.stephengold.joltjni.SoftBodySharedSettings;
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.xmx.velthoric.physics.object.VxObjectType;
-import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.type.factory.VxSoftBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
-import java.nio.ByteBuffer;
 import java.util.UUID;
 
 /**
@@ -64,22 +58,4 @@ public abstract class VxSoftBody extends VxBody {
      * @return The body ID assigned by Jolt.
      */
     public abstract int createJoltBody(VxSoftBodyFactory factory);
-
-    /**
-     * A nested interface for client-side renderers specific to soft bodies.
-     */
-    public interface Renderer extends VxBody.Renderer {
-        /**
-         * Renders the soft body.
-         *
-         * @param id           The UUID of the object being rendered.
-         * @param renderState  The interpolated state for the current frame, including vertex data.
-         * @param customData   A buffer with custom data from the server.
-         * @param poseStack    The current pose stack for transformations.
-         * @param bufferSource The buffer source for drawing.
-         * @param partialTick  The fraction of the current tick.
-         * @param packedLight  The calculated light value at the object's position.
-         */
-        void render(UUID id, VxRenderState renderState, ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTick, int packedLight);
-    }
 }

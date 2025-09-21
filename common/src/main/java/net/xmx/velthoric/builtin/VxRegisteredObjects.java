@@ -7,20 +7,20 @@ package net.xmx.velthoric.builtin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.builtin.block.BlockRenderer;
 import net.xmx.velthoric.builtin.block.BlockRigidBody;
-import net.xmx.velthoric.builtin.box.BoxRenderer;
+import net.xmx.velthoric.builtin.box.BoxClientRigidBody;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
+import net.xmx.velthoric.builtin.cloth.ClothClientSoftBody;
 import net.xmx.velthoric.builtin.cloth.ClothSoftBody;
-import net.xmx.velthoric.builtin.cloth.ClothSoftBodyRenderer;
-import net.xmx.velthoric.builtin.marble.MarbleRenderer;
+import net.xmx.velthoric.builtin.marble.MarbleClientRigidBody;
 import net.xmx.velthoric.builtin.marble.MarbleRigidBody;
+import net.xmx.velthoric.builtin.rope.RopeClientSoftBody;
 import net.xmx.velthoric.builtin.rope.RopeSoftBody;
-import net.xmx.velthoric.builtin.rope.RopeSoftBodyRenderer;
-import net.xmx.velthoric.builtin.sphere.SphereRenderer;
+import net.xmx.velthoric.builtin.sphere.SphereClientRigidBody;
 import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
+import net.xmx.velthoric.builtin.block.BlockClientRigidBody;
 
 public class VxRegisteredObjects {
 
@@ -51,7 +51,6 @@ public class VxRegisteredObjects {
 
     public static void register() {
         var registry = VxObjectRegistry.getInstance();
-
         registry.register(BLOCK);
         registry.register(SPHERE);
         registry.register(BOX);
@@ -61,14 +60,13 @@ public class VxRegisteredObjects {
     }
 
     @Environment(EnvType.CLIENT)
-    public static void registerClientRenderers() {
+    public static void registerClientFactories() {
         var registry = VxObjectRegistry.getInstance();
-
-        registry.registerRendererFactory(BLOCK.getTypeId(), BlockRenderer::new);
-        registry.registerRendererFactory(SPHERE.getTypeId(), SphereRenderer::new);
-        registry.registerRendererFactory(BOX.getTypeId(), BoxRenderer::new);
-        registry.registerRendererFactory(MARBLE.getTypeId(), MarbleRenderer::new);
-        registry.registerRendererFactory(CLOTH.getTypeId(), ClothSoftBodyRenderer::new);
-        registry.registerRendererFactory(ROPE.getTypeId(), RopeSoftBodyRenderer::new);
+        registry.registerClientFactory(BLOCK.getTypeId(), BlockClientRigidBody::new);
+        registry.registerClientFactory(SPHERE.getTypeId(), SphereClientRigidBody::new);
+        registry.registerClientFactory(BOX.getTypeId(), BoxClientRigidBody::new);
+        registry.registerClientFactory(MARBLE.getTypeId(), MarbleClientRigidBody::new);
+        registry.registerClientFactory(CLOTH.getTypeId(), ClothClientSoftBody::new);
+        registry.registerClientFactory(ROPE.getTypeId(), RopeClientSoftBody::new);
     }
 }

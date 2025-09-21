@@ -1,7 +1,3 @@
-/*
- * This file is part of Velthoric.
- * Licensed under LGPL 3.0.
- */
 package net.xmx.velthoric.physics.object.persistence;
 
 import com.github.stephengold.joltjni.Vec3;
@@ -15,9 +11,9 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 import org.jetbrains.annotations.Nullable;
@@ -29,15 +25,22 @@ import java.util.UUID;
 import java.util.concurrent.*;
 
 /**
- * Handles the serialization and file I/O for physics objects.
- * It stores objects in a region-based format for efficient chunk loading/unloading.
+ * Manages the persistent storage of physics objects on disk using a region-based file system.
+ * This class handles serialization, deserialization, and asynchronous loading/saving of object data.
  *
  * @author xI-Mx-Ix
  */
 public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     /**
-     * A data-transfer object holding the complete state of a deserialized body.
+     * A record representing the fully deserialized data of a physics body from storage.
+     *
+     * @param typeId            The {@link ResourceLocation} identifying the object's type.
+     * @param id                The unique ID of the object instance.
+     * @param transform         The last known transform (position and rotation).
+     * @param linearVelocity    The last known linear velocity.
+     * @param angularVelocity   The last known angular velocity.
+     * @param persistenceData   A buffer containing custom implementation-specific data.
      */
     public record SerializedBodyData(
             ResourceLocation typeId,
@@ -45,13 +48,16 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             VxTransform transform,
             Vec3 linearVelocity,
             Vec3 angularVelocity,
-            VxByteBuf customData
+            VxByteBuf persistenceData
     ) {}
 
     private final VxObjectManager objectManager;
     private final VxObjectDataStore dataStore;
+    /** A spatial index mapping chunk keys to the UUIDs of objects within them. */
     private final ConcurrentMap<Long, List<UUID>> chunkToUuidIndex = new ConcurrentHashMap<>();
+    /** A map to track ongoing asynchronous load operations to prevent duplicate loads. */
     private final ConcurrentMap<UUID, CompletableFuture<VxBody>> pendingLoads = new ConcurrentHashMap<>();
+    /** A dedicated thread pool for handling I/O-intensive loading operations. */
     private ExecutorService loaderExecutor;
 
     public VxObjectStorage(ServerLevel level, VxObjectManager objectManager) {
@@ -72,6 +78,8 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         this.loaderExecutor = Executors.newFixedThreadPool(threadCount, r -> new Thread(r, "Velthoric Object Loader"));
     }
 
+
+
     @Override
     public void shutdown() {
         super.shutdown();
@@ -88,6 +96,12 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
+    /**
+     * Calculates the region file position for a given chunk position.
+     *
+     * @param chunkPos The chunk position.
+     * @return The corresponding region position.
+     */
     private RegionPos getRegionPos(ChunkPos chunkPos) {
         return new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
     }
@@ -113,10 +127,9 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     /**
-     * Serializes and stores a collection of physics objects.
-     * This method iterates through the collection and calls {@link #storeObject(VxBody)} for each.
+     * Stores a collection of physics objects to disk asynchronously.
      *
-     * @param objects The collection of objects to store.
+     * @param objects The objects to store.
      */
     public void storeObjects(Collection<VxBody> objects) {
         for (VxBody object : objects) {
@@ -125,19 +138,20 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     /**
-     * Serializes and stores a physics object to its corresponding region file.
+     * Stores a single physics object to disk asynchronously.
      *
      * @param object The object to store.
      */
     public void storeObject(VxBody object) {
         if (object == null) return;
         int index = object.getDataStoreIndex();
-        if (index == -1) return;
+        if (index == -1) return; // Cannot store an object not in the data store.
 
         byte[] data = serializeObjectData(object, index);
         ChunkPos chunkPos = objectManager.getObjectChunkPos(index);
         RegionPos regionPos = getRegionPos(chunkPos);
 
+        // Asynchronously get the region, then write the data.
         getRegion(regionPos).thenAcceptAsync(region -> {
             region.entries.put(object.getPhysicsId(), data);
             region.dirty.set(true);
@@ -150,9 +164,9 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     /**
-     * Initiates loading for all objects within a specific chunk.
+     * Initiates the loading of all stored physics objects within a specific chunk.
      *
-     * @param chunkPos The position of the chunk to load objects from.
+     * @param chunkPos The position of the chunk to load objects for.
      */
     public void loadObjectsInChunk(ChunkPos chunkPos) {
         RegionPos regionPos = getRegionPos(chunkPos);
@@ -161,6 +175,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             if (idsToLoad == null || idsToLoad.isEmpty()) return;
 
             for (UUID id : List.copyOf(idsToLoad)) {
+                // Skip objects that are already loaded or are in the process of loading.
                 if (objectManager.getObject(id) != null || pendingLoads.containsKey(id)) {
                     continue;
                 }
@@ -174,31 +189,42 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     /**
      * Asynchronously loads a single physics object by its UUID.
+     * If the object is already loaded, returns a completed future.
      *
      * @param id The UUID of the object to load.
-     * @return A CompletableFuture that will complete with the loaded object, or null if not found.
+     * @return A {@link CompletableFuture} that will complete with the loaded object, or null if not found.
      */
     public CompletableFuture<VxBody> loadObject(UUID id) {
         VxBody existingObject = objectManager.getObject(id);
         if (existingObject != null) {
             return CompletableFuture.completedFuture(existingObject);
         }
+        // computeIfAbsent ensures that the load operation is only started once per ID.
         return pendingLoads.computeIfAbsent(id, this::loadObjectAsync);
     }
 
+    /**
+     * The asynchronous loading pipeline for a single object.
+     *
+     * @param id The UUID of the object.
+     * @return A future that completes with the loaded {@link VxBody}.
+     */
     private CompletableFuture<VxBody> loadObjectAsync(UUID id) {
         return CompletableFuture.supplyAsync(() -> {
+                    // Find the region file where the object is stored.
                     RegionPos regionPos = regionIndex.get(id);
                     if (regionPos == null) return null;
 
+                    // Load the region data and get the raw byte array for the object.
                     RegionData<UUID, byte[]> region = getRegion(regionPos).join();
                     return region.entries.get(id);
                 }, loaderExecutor)
-                .thenApplyAsync(this::deserializeObject, loaderExecutor)
+                .thenApplyAsync(this::deserializeObject, loaderExecutor) // Deserialize on loader thread.
                 .thenComposeAsync(data -> {
                     if (data == null) {
                         return CompletableFuture.completedFuture(null);
                     }
+                    // Schedule the final addition to the world on the main physics thread.
                     CompletableFuture<VxBody> bodyFuture = new CompletableFuture<>();
                     objectManager.getPhysicsWorld().execute(() -> {
                         try {
@@ -214,12 +240,13 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                     if (ex != null) {
                         VxMainClass.LOGGER.error("Exception loading physics object {}", id, ex);
                     }
+                    // Remove from pending loads map regardless of success or failure.
                     pendingLoads.remove(id);
                 });
     }
 
     /**
-     * Removes an object's data from the storage.
+     * Removes an object's data from the storage files asynchronously.
      *
      * @param id The UUID of the object to remove.
      */
@@ -241,6 +268,12 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         });
     }
 
+    /**
+     * Deserializes a raw byte array into a structured {@link SerializedBodyData} object.
+     *
+     * @param data The raw byte data from storage.
+     * @return The deserialized data, or null on failure.
+     */
     @Nullable
     private SerializedBodyData deserializeObject(byte[] data) {
         if (data == null) return null;
@@ -255,16 +288,17 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             Vec3 linearVelocity = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
             Vec3 angularVelocity = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
 
+            // Sanity check for corrupt velocity data.
             if (!linearVelocity.isFinite() || linearVelocity.isNan() || angularVelocity.isNan() || !angularVelocity.isFinite()) {
                 VxMainClass.LOGGER.warn("Deserialized invalid velocity for object {}. Resetting to zero.", id);
                 linearVelocity.set(0, 0, 0);
                 angularVelocity.set(0, 0, 0);
             }
 
-            // The rest of the buffer is custom data
-            VxByteBuf customData = new VxByteBuf(buf.readBytes(buf.readableBytes()));
+            // The rest of the buffer contains the custom persistence data.
+            VxByteBuf persistenceData = new VxByteBuf(buf.readBytes(buf.readableBytes()));
 
-            return new SerializedBodyData(typeId, id, transform, linearVelocity, angularVelocity, customData);
+            return new SerializedBodyData(typeId, id, transform, linearVelocity, angularVelocity, persistenceData);
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to deserialize physics object from data", e);
             return null;
@@ -275,6 +309,13 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
+    /**
+     * Serializes a {@link VxBody} and its current physics state into a byte array for storage.
+     *
+     * @param object The object to serialize.
+     * @param index  The object's index in the data store.
+     * @return The serialized byte array.
+     */
     private byte[] serializeObjectData(VxBody object, int index) {
         ByteBuf buffer = Unpooled.buffer();
         VxByteBuf friendlyBuf = new VxByteBuf(buffer);
@@ -282,7 +323,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             friendlyBuf.writeUUID(object.getPhysicsId());
             friendlyBuf.writeUtf(object.getType().getTypeId().toString());
 
-            // Write transform from data store
+            // Write transform from data store.
             friendlyBuf.writeDouble(dataStore.posX[index]);
             friendlyBuf.writeDouble(dataStore.posY[index]);
             friendlyBuf.writeDouble(dataStore.posZ[index]);
@@ -291,7 +332,7 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             friendlyBuf.writeFloat(dataStore.rotZ[index]);
             friendlyBuf.writeFloat(dataStore.rotW[index]);
 
-            // Write velocities from data store
+            // Write velocities from data store.
             friendlyBuf.writeFloat(dataStore.velX[index]);
             friendlyBuf.writeFloat(dataStore.velY[index]);
             friendlyBuf.writeFloat(dataStore.velZ[index]);
@@ -299,7 +340,8 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             friendlyBuf.writeFloat(dataStore.angVelY[index]);
             friendlyBuf.writeFloat(dataStore.angVelZ[index]);
 
-            object.writeCreationData(friendlyBuf);
+            // Let the object write its custom persistence data.
+            object.writePersistenceData(friendlyBuf);
             byte[] data = new byte[buffer.readableBytes()];
             buffer.readBytes(data);
             return data;
@@ -310,11 +352,23 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
+    /**
+     * Adds an entry to the chunk-to-UUID spatial index.
+     *
+     * @param id   The object's UUID.
+     * @param data The object's serialized data, used to extract its position.
+     */
     private void indexObjectData(UUID id, byte[] data) {
         long chunkKey = getChunkKeyFromData(data);
         chunkToUuidIndex.computeIfAbsent(chunkKey, k -> new CopyOnWriteArrayList<>()).add(id);
     }
 
+    /**
+     * Removes an entry from the chunk-to-UUID spatial index.
+     *
+     * @param id   The object's UUID.
+     * @param data The object's serialized data, used to extract its position.
+     */
     private void deIndexObject(UUID id, byte[] data) {
         long chunkKey = getChunkKeyFromData(data);
         List<UUID> idList = chunkToUuidIndex.get(chunkKey);
@@ -326,11 +380,19 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
+    /**
+     * Quickly reads the chunk position from serialized object data without fully deserializing it.
+     *
+     * @param data The serialized byte array.
+     * @return The long-encoded chunk key.
+     */
     private long getChunkKeyFromData(byte[] data) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
         try {
-            buf.readUUID(); // Skip UUID
-            buf.readUtf(); // Skip typeId
+            // Skip UUID and type ID string.
+            buf.readUUID();
+            buf.readUtf();
+            // Read just the transform.
             VxTransform tempTransform = new VxTransform();
             tempTransform.fromBuffer(buf);
             var translation = tempTransform.getTranslation();

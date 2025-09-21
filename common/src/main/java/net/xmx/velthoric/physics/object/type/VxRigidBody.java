@@ -4,19 +4,15 @@
  */
 package net.xmx.velthoric.physics.object.type;
 
-import com.github.stephengold.joltjni.*;
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.MultiBufferSource;
+import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.physics.object.VxObjectType;
-import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.raycasting.click.Clickable;
 import net.xmx.velthoric.physics.riding.Rideable;
 import net.xmx.velthoric.physics.riding.seat.Seat;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.nio.ByteBuffer;
 import java.util.UUID;
 
 /**
@@ -50,24 +46,6 @@ public abstract class VxRigidBody extends VxBody implements Rideable, Clickable 
      * @return The body ID assigned by Jolt.
      */
     public abstract int createJoltBody(VxRigidBodyFactory factory);
-
-    /**
-     * A nested interface for client-side renderers specific to rigid bodies.
-     */
-    public interface Renderer extends VxBody.Renderer {
-        /**
-         * Renders the rigid body.
-         *
-         * @param id           The UUID of the object being rendered.
-         * @param renderState  The interpolated state for the current frame.
-         * @param customData   A buffer with custom data from the server.
-         * @param poseStack    The current pose stack for transformations.
-         * @param bufferSource The buffer source for drawing.
-         * @param partialTick  The fraction of the current tick.
-         * @param packedLight  The calculated light value at the object's position.
-         */
-        void render(UUID id, VxRenderState renderState, ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTick, int packedLight);
-    }
 
     // ---- Rideable Interface (Default Implementations) ---- //
 

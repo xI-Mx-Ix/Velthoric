@@ -6,42 +6,40 @@ package net.xmx.velthoric.builtin.sphere;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import io.netty.buffer.Unpooled;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.type.VxRigidBody;
-import org.jetbrains.annotations.Nullable;
+import net.xmx.velthoric.physics.object.client.body.VxClientRigidBody;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-import java.nio.ByteBuffer;
 import java.util.UUID;
 
-public class SphereRenderer implements VxRigidBody.Renderer {
+public class SphereClientRigidBody extends VxClientRigidBody {
 
+    private float radius = 0.5f;
     private static final int STACKS = 16;
     private static final int SECTORS = 32;
 
+    public SphereClientRigidBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
+        super(id, manager, dataStoreIndex, objectType);
+    }
+
     @Override
-    public void render(UUID id, VxRenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
-        float radius = 0.5f;
+    public void readSyncData(VxByteBuf buf) {
+        this.radius = buf.readFloat();
+    }
 
-        if (customData != null && customData.remaining() >= 4) {
-            customData.rewind();
-            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(customData));
-            try {
-                radius = buf.readFloat();
-            } catch (Exception ignored) {
-            }
-        }
-
+    @Override
+    public void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         RVec3 renderPosition = renderState.transform.getTranslation();
@@ -54,7 +52,6 @@ public class SphereRenderer implements VxRigidBody.Renderer {
         Matrix3f normalMatrix = lastPose.normal();
 
         VertexConsumer consumer = bufferSource.getBuffer(RenderType.solid());
-
         int r = 200, g = 50, b = 50, a = 255;
 
         for (int i = 0; i < STACKS; ++i) {

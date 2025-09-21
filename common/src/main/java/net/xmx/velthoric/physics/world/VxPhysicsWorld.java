@@ -218,13 +218,13 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         final int maxBodies = 65536;
         final int maxBodyPairs = 65536;
         final int maxContactConstraints = 65536;
-        final int numPositionIterations = 2;
-        final int numVelocityIterations = 10;
+        final int numPositionIterations = 3;
+        final int numVelocityIterations = 8;
         final float speculativeContactDistance = 0.02f;
         final float baumgarteFactor = 0.2f;
         final float penetrationSlop = 0.001f;
         final float timeBeforeSleep = 1.0f;
-        final float pointVelocitySleepThreshold = 0.0005f;
+        final float pointVelocitySleepThreshold = 0.005f;
         final float gravityY = -9.81f;
 
         this.tempAllocator = new TempAllocatorImpl(64 * 1024 * 1024);
@@ -249,6 +249,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             settings.setDeterministicSimulation(false);
             this.physicsSystem.setPhysicsSettings(settings);
         }
+
 
         this.physicsSystem.setContactListener(this.contactListener);
         this.physicsSystem.setGravity(0f, gravityY, 0f);

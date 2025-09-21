@@ -55,21 +55,27 @@ public class BoxRigidBody extends VxRigidBody {
         ) {
             bcs.setMotionType(EMotionType.Dynamic);
             bcs.setObjectLayer(VxLayers.DYNAMIC);
-            bcs.setRestitution(0.4f);
-
+            bcs.setRestitution(0.01f);
             return factory.create(shapeSettings, bcs);
         }
     }
 
     @Override
-    public void writeCreationData(VxByteBuf buf) {
-        buf.writeVec3(halfExtents);
+    public void writeSyncData(VxByteBuf buf) {
+        buf.writeFloat(halfExtents.getX());
+        buf.writeFloat(halfExtents.getY());
+        buf.writeFloat(halfExtents.getZ());
         buf.writeInt(color.ordinal());
     }
 
     @Override
-    public void readCreationData(VxByteBuf buf) {
-        this.halfExtents = buf.readVec3();
+    public void writePersistenceData(VxByteBuf buf) {
+        writeSyncData(buf);
+    }
+
+    @Override
+    public void readPersistenceData(VxByteBuf buf) {
+        this.halfExtents = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
         this.color = BoxColor.values()[buf.readInt()];
     }
 }

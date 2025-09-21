@@ -122,7 +122,13 @@ public class ClothSoftBody extends VxSoftBody {
     }
 
     @Override
-    public void writeCreationData(VxByteBuf buf) {
+    public void writeSyncData(VxByteBuf buf) {
+        buf.writeInt(this.widthSegments);
+        buf.writeInt(this.heightSegments);
+    }
+
+    @Override
+    public void writePersistenceData(VxByteBuf buf) {
         buf.writeInt(this.widthSegments);
         buf.writeInt(this.heightSegments);
         buf.writeFloat(this.clothWidth);
@@ -132,7 +138,7 @@ public class ClothSoftBody extends VxSoftBody {
     }
 
     @Override
-    public void readCreationData(VxByteBuf buf) {
+    public void readPersistenceData(VxByteBuf buf) {
         this.widthSegments = buf.readInt();
         this.heightSegments = buf.readInt();
         this.clothWidth = buf.readFloat();

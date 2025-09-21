@@ -5,47 +5,47 @@
 package net.xmx.velthoric.builtin.marble;
 
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import io.netty.buffer.Unpooled;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.type.VxRigidBody;
-import org.jetbrains.annotations.Nullable;
+import net.xmx.velthoric.physics.object.client.body.VxClientRigidBody;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
-import java.nio.ByteBuffer;
 import java.util.UUID;
 
-public class MarbleRenderer implements VxRigidBody.Renderer {
+public class MarbleClientRigidBody extends VxClientRigidBody {
 
+    private float radius = 0.15f;
     private static final ItemStack MARBLE_ITEM_STACK = new ItemStack(Items.MAGMA_CREAM);
 
+    public MarbleClientRigidBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
+        super(id, manager, dataStoreIndex, objectType);
+    }
+
     @Override
-    public void render(UUID id, VxRenderState renderState, @Nullable ByteBuffer customData, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
-        if (customData == null || customData.remaining() < 4) {
-            return;
-        }
+    public void readSyncData(VxByteBuf buf) {
+        this.radius = buf.readFloat();
+    }
 
-        customData.rewind();
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(customData));
-        float radius = buf.readFloat();
-
+    @Override
+    public void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         RVec3 renderPosition = renderState.transform.getTranslation();
         poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
-
         poseStack.mulPose(Minecraft.getInstance().gameRenderer.getMainCamera().rotation());
 
         BakedModel itemModel = Minecraft.getInstance().getItemRenderer().getItemModelShaper().getItemModel(MARBLE_ITEM_STACK);

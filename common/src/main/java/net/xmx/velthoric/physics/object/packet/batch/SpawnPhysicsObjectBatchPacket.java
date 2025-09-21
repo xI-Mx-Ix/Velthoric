@@ -3,10 +3,12 @@
  * Licensed under LGPL 3.0.
  */
 package net.xmx.velthoric.physics.object.packet.batch;
+
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.packet.SpawnData;
 
@@ -14,27 +16,26 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * A network packet that contains a batch of {@link SpawnData} for new physics objects
- * to be created on the client. Batching reduces network overhead.
+ * A network packet that contains a batch of physics objects to be spawned on the client.
+ * This is more efficient than sending a separate packet for each individual object.
  *
  * @author xI-Mx-Ix
  */
 public class SpawnPhysicsObjectBatchPacket {
 
-    // The list of spawn data objects.
     private final List<SpawnData> spawnDataList;
 
     /**
-     * Constructs a new packet with a list of spawn data to send.
+     * Constructs a new batch packet with a list of objects to spawn.
      *
-     * @param spawnDataList The list of {@link SpawnData}.
+     * @param spawnDataList The list of {@link SpawnData} for each object.
      */
     public SpawnPhysicsObjectBatchPacket(List<SpawnData> spawnDataList) {
         this.spawnDataList = spawnDataList;
     }
 
     /**
-     * Constructs a packet by decoding it from a network buffer.
+     * Constructs the packet by deserializing data from a network buffer.
      *
      * @param buf The buffer to read from.
      */
@@ -47,7 +48,7 @@ public class SpawnPhysicsObjectBatchPacket {
     }
 
     /**
-     * Encodes the packet's data into a network buffer for sending.
+     * Serializes the packet's data into a network buffer.
      *
      * @param buf The buffer to write to.
      */
@@ -61,21 +62,21 @@ public class SpawnPhysicsObjectBatchPacket {
     /**
      * Handles the packet on the client side.
      *
-     * @param msg            The received packet message.
-     * @param contextSupplier A supplier for the network context.
+     * @param msg             The received packet.
+     * @param contextSupplier A supplier for the network packet context.
      */
     public static void handle(SpawnPhysicsObjectBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            // Executed on the client thread.
             VxClientObjectManager manager = VxClientObjectManager.getInstance();
+            // Iterate through each spawn data object and spawn it on the client.
             for (SpawnData data : msg.spawnDataList) {
-                // Wrap the raw byte data in a buffer for the manager to read.
-                FriendlyByteBuf dataBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data.data));
+                // Wrap the raw byte data into a buffer for the manager to read.
+                VxByteBuf dataBuf = new VxByteBuf(Unpooled.wrappedBuffer(data.data));
                 try {
                     manager.spawnObject(data.id, data.typeIdentifier, data.objectType, dataBuf, data.timestamp);
                 } finally {
-                    // Ensure the temporary buffer is released.
+                    // Ensure the buffer is released to prevent memory leaks.
                     if (dataBuf.refCnt() > 0) {
                         dataBuf.release();
                     }
