@@ -13,6 +13,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.SectionPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
@@ -97,41 +98,13 @@ public class VxObjectManager {
         dataStore.clear();
     }
 
-    /**
-     * Retrieves a physics object by its Jolt body ID.
-     *
-     * @param bodyId The Jolt body ID.
-     * @return The corresponding {@link VxBody}, or null if not found.
-     */
-    @Nullable
-    public VxBody getByBodyId(int bodyId) {
-        return bodyIdToObjectMap.get(bodyId);
+    public void onPhysicsTick(VxPhysicsWorld world) {
+        physicsUpdater.onPhysicsTick(world);
     }
 
-    /**
-     * Gets a collection of all managed physics objects.
-     *
-     * @return A collection view of all {@link VxBody} instances.
-     */
-    public Collection<VxBody> getAllObjects() {
-        return managedObjects.values();
-    }
-
-    /**
-     * Called once per physics simulation step to update the state of all objects.
-     *
-     * @param timestampNanos The current high-resolution time in nanoseconds.
-     */
-    public void onPhysicsTick(long timestampNanos) {
-        physicsUpdater.update(timestampNanos, this.world);
-    }
-
-    /**
-     * Called once per Minecraft game tick to perform game-thread-related updates.
-     */
-    public void onGameTick() {
+    public void onGameTick(ServerLevel level) {
         networkDispatcher.onGameTick();
-        getAllObjects().forEach(obj -> obj.gameTick(world.getLevel()));
+        physicsUpdater.onGameTick(level);
     }
 
     /**
@@ -499,6 +472,26 @@ public class VxObjectManager {
         synchronized (objectsByChunk) {
             return objectsByChunk.getOrDefault(pos.toLong(), Collections.emptyList());
         }
+    }
+
+    /**
+     * Retrieves a physics object by its Jolt body ID.
+     *
+     * @param bodyId The Jolt body ID.
+     * @return The corresponding {@link VxBody}, or null if not found.
+     */
+    @Nullable
+    public VxBody getByBodyId(int bodyId) {
+        return bodyIdToObjectMap.get(bodyId);
+    }
+
+    /**
+     * Gets a collection of all managed physics objects.
+     *
+     * @return A collection view of all {@link VxBody} instances.
+     */
+    public Collection<VxBody> getAllObjects() {
+        return managedObjects.values();
     }
 
     /**

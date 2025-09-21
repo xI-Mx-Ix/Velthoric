@@ -5,7 +5,6 @@
 package net.xmx.velthoric.physics;
 
 import dev.architectury.event.events.common.TickEvent;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.event.api.VxLevelEvent;
 import net.xmx.velthoric.event.api.VxServerLifecycleEvent;
@@ -17,7 +16,7 @@ public final class VxLifecycleEvents {
         VxLevelEvent.Load.EVENT.register(VxLifecycleEvents::onLevelLoad);
         VxLevelEvent.Unload.EVENT.register(VxLifecycleEvents::onLevelUnload);
         VxServerLifecycleEvent.Stopping.EVENT.register(VxLifecycleEvents::onServerStopping);
-        TickEvent.SERVER_PRE.register(VxLifecycleEvents::onServerTick);
+        TickEvent.SERVER_LEVEL_PRE.register(VxLifecycleEvents::onLevelTick);
     }
 
     private static void onServerStopping(VxServerLifecycleEvent.Stopping event) {
@@ -38,11 +37,11 @@ public final class VxLifecycleEvents {
         }
     }
 
-    private static void onServerTick(MinecraftServer server) {
-        VxPhysicsWorld.getAll().forEach(world -> {
-            world.getObjectManager().onGameTick();
-            world.getRidingManager().onGameTick();
-        });
+    private static void onLevelTick(ServerLevel level) {
+        VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level.dimension());
+        if (physicsWorld != null && physicsWorld.isRunning()) {
+            physicsWorld.onGameTick(level);
+        }
     }
 }
 

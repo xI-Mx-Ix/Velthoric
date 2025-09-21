@@ -8,6 +8,7 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.readonly.*;
 import net.minecraft.core.SectionPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
@@ -46,6 +47,15 @@ public class VxPhysicsUpdater {
         this.manager = manager;
         this.dataStore = manager.getDataStore();
         this.dirtyIndicesQueue = dirtyIndicesQueue;
+    }
+
+    public void onPhysicsTick(VxPhysicsWorld world) {
+        this.update(System.nanoTime(), world);
+    }
+
+    public void onGameTick(ServerLevel level) {
+        this.manager.getAllObjects().forEach(
+                obj -> obj.gameTick(level));
     }
 
     /**

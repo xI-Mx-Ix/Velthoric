@@ -147,12 +147,11 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             long lastTimeNanos = System.nanoTime();
 
             while (this.isRunning) {
-
                 long currentTimeNanos = System.nanoTime();
                 float deltaTime = (currentTimeNanos - lastTimeNanos) / 1_000_000_000.0f;
                 lastTimeNanos = currentTimeNanos;
 
-                this.update(deltaTime);
+                this.updatePhysicsLoop(deltaTime);
 
                 Thread.sleep(1);
             }
@@ -162,13 +161,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             VxMainClass.LOGGER.fatal("Fatal error in physics loop for dimension {}", dimensionKey.location(), t);
             this.isRunning = false;
         } finally {
-
             shutdownInternalSystems();
             cleanupJolt();
         }
     }
 
-    private void update(float deltaTime) {
+    private void updatePhysicsLoop(float deltaTime) {
         processCommandQueue();
 
         if (this.isPaused || !this.isRunning || this.physicsSystem == null) {
@@ -176,7 +174,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
 
         this.timeAccumulator += deltaTime;
-
         if (this.timeAccumulator > MAX_ACCUMULATED_TIME) {
             this.timeAccumulator = MAX_ACCUMULATED_TIME;
         }
@@ -188,10 +185,19 @@ public final class VxPhysicsWorld implements Runnable, Executor {
                 this.isRunning = false;
                 return;
             }
+
+            this.onPhysicsTick();
             this.timeAccumulator -= FIXED_TIME_STEP;
         }
+    }
 
-        this.objectManager.onPhysicsTick(System.nanoTime());
+    public void onPhysicsTick() {
+        this.objectManager.onPhysicsTick(this);
+    }
+
+    public void onGameTick(ServerLevel level) {
+        this.objectManager.onGameTick(level);
+        this.ridingManager.onGameTick();
     }
 
     private void processCommandQueue() {
