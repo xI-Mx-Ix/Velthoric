@@ -22,6 +22,7 @@ import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -108,6 +109,18 @@ public class VxObjectStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         for (Map.Entry<UUID, byte[]> entry : entries.entrySet()) {
             friendlyBuf.writeUUID(entry.getKey());
             friendlyBuf.writeByteArray(entry.getValue());
+        }
+    }
+
+    /**
+     * Serializes and stores a collection of physics objects.
+     * This method iterates through the collection and calls {@link #storeObject(VxBody)} for each.
+     *
+     * @param objects The collection of objects to store.
+     */
+    public void storeObjects(Collection<VxBody> objects) {
+        for (VxBody object : objects) {
+            storeObject(object);
         }
     }
 

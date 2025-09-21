@@ -7,18 +7,15 @@ package net.xmx.velthoric.physics.object.manager.event;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.event.api.VxChunkEvent;
 import net.xmx.velthoric.event.api.VxLevelEvent;
-import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
-import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
- * Handles game lifecycle events to manage physics objects accordingly.
- * This class listens for chunk loads/unloads and level saves to trigger
- * loading, saving, and removal of physics objects from the world.
+ * Handles game lifecycle events to trigger physics object management.
+ * This class acts as a simple bridge between game events and the VxObjectManager,
+ * delegating all logic to the manager itself.
  *
  * @author xI-Mx-Ix
  */
@@ -43,16 +40,12 @@ public class ObjectLifecycleEvents {
         if (level.isClientSide()) {
             return Optional.empty();
         }
-
         VxPhysicsWorld world = VxPhysicsWorld.get(level.dimension());
-        if (world != null && world.getObjectManager() != null) {
-            return Optional.of(world.getObjectManager());
-        }
-        return Optional.empty();
+        return (world != null) ? Optional.ofNullable(world.getObjectManager()) : Optional.empty();
     }
 
     /**
-     * Called when a chunk is loaded. Initiates the loading of all physics objects within that chunk.
+     * Called when a chunk is loaded. Delegates to the object storage to load objects.
      *
      * @param event The chunk load event data.
      */
@@ -63,40 +56,22 @@ public class ObjectLifecycleEvents {
     }
 
     /**
-     * Called when a chunk is unloaded. Removes all physics objects within that chunk from the active
-     * simulation and queues them for saving.
+     * Called when a chunk is unloaded. Delegates to the object manager to handle the unloading.
      *
      * @param event The chunk unload event data.
      */
     private static void onChunkUnload(VxChunkEvent.Unload event) {
-        getObjectManager(event.getLevel()).ifPresent(manager -> {
-            List<VxBody> objectsInChunk = manager.getObjectsInChunk(event.getChunkPos());
-            // Create a copy to avoid ConcurrentModificationException
-            for (VxBody obj : List.copyOf(objectsInChunk)) {
-                // Remove the object with the SAVE reason, which ensures it gets stored before being removed.
-                manager.removeObject(obj.getPhysicsId(), VxRemovalReason.SAVE);
-            }
-        });
+        getObjectManager(event.getLevel()).ifPresent(manager ->
+                manager.onChunkUnload(event.getChunkPos())
+        );
     }
 
     /**
-     * Called when the level is being saved. Triggers the saving of all active physics objects
-     * and any dirty region files. This is dispatched to the physics thread for safety.
+     * Called when the level is being saved. Delegates to the object manager to save all data.
      *
      * @param event The level save event data.
      */
     private static void onLevelSave(VxLevelEvent.Save event) {
-        getObjectManager(event.getLevel()).ifPresent(manager -> {
-            VxPhysicsWorld world = manager.getPhysicsWorld();
-            // Ensure the world is actually running and queue the save operation
-            // to be executed on the physics thread for thread safety.
-            if (world != null && world.isRunning()) {
-                world.execute(() -> {
-                    // Now we are on the physics thread, it is safe to access physics data
-                    manager.getAllObjects().forEach(manager.getObjectStorage()::storeObject);
-                    manager.getObjectStorage().saveDirtyRegions();
-                });
-            }
-        });
+        getObjectManager(event.getLevel()).ifPresent(VxObjectManager::saveAll);
     }
 }

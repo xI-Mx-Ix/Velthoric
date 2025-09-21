@@ -523,6 +523,46 @@ public class VxObjectManager {
     }
 
     /**
+     * Handles the unloading of all physics objects within a specific chunk.
+     * The objects are removed from the active simulation and queued for saving.
+     *
+     * @param chunkPos The position of the chunk being unloaded.
+     */
+    public void onChunkUnload(ChunkPos chunkPos) {
+        List<VxBody> objectsInChunk = getObjectsInChunk(chunkPos);
+        if (objectsInChunk.isEmpty()) {
+            return;
+        }
+        // Create a copy to avoid ConcurrentModificationException, as removeObject
+        // will modify the underlying list via stopTracking.
+        for (VxBody obj : List.copyOf(objectsInChunk)) {
+            // The SAVE reason ensures the object is persisted before being removed from the simulation.
+            removeObject(obj.getPhysicsId(), VxRemovalReason.SAVE);
+        }
+    }
+
+    /**
+     * Schedules a task on the physics thread to save all currently managed objects
+     * and any modified region files to disk. This ensures thread-safe access to physics data.
+     */
+    public void saveAll() {
+        VxPhysicsWorld physicsWorld = getPhysicsWorld();
+        if (physicsWorld != null && physicsWorld.isRunning()) {
+            // The save operation is dispatched to the physics thread for thread safety.
+            physicsWorld.execute(() -> {
+                // Now safely on the physics thread.
+                Collection<VxBody> allObjects = getAllObjects();
+                if (!allObjects.isEmpty()) {
+                    // The storage system handles persisting each object.
+                    objectStorage.storeObjects(allObjects);
+                }
+                // Finally, write any pending region file changes to disk.
+                objectStorage.saveDirtyRegions();
+            });
+        }
+    }
+
+    /**
      * Populates a {@link VxTransform} object with the current position and rotation from the data store.
      *
      * @param dataStoreIndex The index of the object in the data store.
