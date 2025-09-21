@@ -14,16 +14,19 @@ import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
+import net.xmx.velthoric.physics.object.client.body.VxClientBody;
+import net.xmx.velthoric.physics.object.client.body.VxClientRigidBody;
+import net.xmx.velthoric.physics.object.client.body.VxClientSoftBody;
 import net.xmx.velthoric.physics.object.client.time.VxClientClock;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectState;
 import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
+import net.xmx.velthoric.physics.object.type.VxBody;
+import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -33,7 +36,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * - Processing incoming state update packets from the server.
  * - Synchronizing the client-side clock with the server's clock.
  * - Triggering the interpolation of object states for smooth rendering.
- * - Handling the spawning and removal of objects.
+ * - Handling the spawning and removal of objects via {@link VxClientBody} handles.
  *
  * @author xI-Mx-Ix
  */
@@ -52,6 +55,9 @@ public class VxClientObjectManager {
     private final VxClientObjectInterpolator interpolator = new VxClientObjectInterpolator();
     // The client-side clock, which can be paused.
     private final VxClientClock clock = VxClientClock.getInstance();
+
+    // Map of all active client-side physics object handles.
+    private final Map<UUID, VxClientBody> managedObjects = new ConcurrentHashMap<>();
 
     // The calculated time offset between the client and server clocks.
     private long clockOffsetNanos = 0L;
@@ -258,16 +264,25 @@ public class VxClientObjectManager {
         }
         store.lastKnownPosition[index].set(pos);
 
-        // Create and store the appropriate renderer.
+        // Create the renderer and the client body handle.
+        VxBody.Renderer renderer = null;
+        VxClientBody body;
         if (objType == EBodyType.RigidBody) {
-            store.renderer[index] = VxObjectRegistry.getInstance().createRigidRenderer(typeId);
+            renderer = VxObjectRegistry.getInstance().createRigidRenderer(typeId);
+            body = new VxClientRigidBody(id, this, index, objType, renderer);
         } else if (objType == EBodyType.SoftBody) {
-            store.renderer[index] = VxObjectRegistry.getInstance().createSoftRenderer(typeId);
+            renderer = VxObjectRegistry.getInstance().createSoftRenderer(typeId);
+            body = new VxClientSoftBody(id, this, index, objType, renderer);
             store.state0_vertexData[index] = null;
             store.state1_vertexData[index] = null;
+        } else {
+            VxMainClass.LOGGER.error("Client: Unknown body type for spawning: {}", objType);
+            store.removeObject(id);
+            return;
         }
+        managedObjects.put(id, body);
 
-        if (store.renderer[index] == null) {
+        if (renderer == null) {
             VxMainClass.LOGGER.warn("Client: No renderer for body type '{}'.", typeId);
         }
 
@@ -293,6 +308,7 @@ public class VxClientObjectManager {
      * @param id The UUID of the object to remove.
      */
     public void removeObject(UUID id) {
+        managedObjects.remove(id);
         store.removeObject(id);
     }
 
@@ -316,6 +332,7 @@ public class VxClientObjectManager {
      */
     public void clearAll() {
         store.clear();
+        managedObjects.clear();
         stateUpdateQueue.clear();
         isClockOffsetInitialized = false;
         clockOffsetNanos = 0L;
@@ -358,5 +375,25 @@ public class VxClientObjectManager {
      */
     public VxClientObjectInterpolator getInterpolator() {
         return interpolator;
+    }
+
+    /**
+     * Gets a collection of all managed client-side physics object handles.
+     *
+     * @return A collection view of all {@link VxClientBody} instances.
+     */
+    public Collection<VxClientBody> getAllObjects() {
+        return managedObjects.values();
+    }
+
+    /**
+     * Gets a client-side physics object handle by its UUID.
+     *
+     * @param id The UUID of the object.
+     * @return The {@link VxClientBody} instance, or null if not currently managed.
+     */
+    @Nullable
+    public VxClientBody getObject(UUID id) {
+        return managedObjects.get(id);
     }
 }

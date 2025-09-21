@@ -68,8 +68,6 @@ public class VxClientObjectDataStore extends AbstractDataStore {
     // --- Static and Metadata ---
     // The type of body (e.g., RigidBody, SoftBody).
     public EBodyType[] objectType;
-    // The client-side renderer instance for the object.
-    public Object[] renderer;
     // Buffer for custom data sent from the server.
     public ByteBuffer[] customData;
     // The last known position of the object, used for frustum culling.
@@ -136,7 +134,6 @@ public class VxClientObjectDataStore extends AbstractDataStore {
         render_isInitialized = grow(render_isInitialized, newCapacity);
 
         objectType = grow(objectType, newCapacity);
-        renderer = grow(renderer, newCapacity);
         customData = grow(customData, newCapacity);
         lastKnownPosition = grow(lastKnownPosition, newCapacity);
 
@@ -242,7 +239,6 @@ public class VxClientObjectDataStore extends AbstractDataStore {
         state1_vertexData[index] = null;
         prev_vertexData[index] = null;
         render_vertexData[index] = null;
-        renderer[index] = null;
         customData[index] = null;
         objectType[index] = null;
         if (lastKnownPosition != null && lastKnownPosition[index] != null) {
