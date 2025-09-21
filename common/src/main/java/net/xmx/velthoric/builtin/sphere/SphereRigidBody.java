@@ -4,11 +4,14 @@
  */
 package net.xmx.velthoric.builtin.sphere;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.BodyCreationSettings;
+import com.github.stephengold.joltjni.ShapeSettings;
+import com.github.stephengold.joltjni.SphereShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
+import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
@@ -33,18 +36,16 @@ public class SphereRigidBody extends VxRigidBody {
     }
 
     @Override
-    public ShapeSettings createShapeSettings() {
-        return new SphereShapeSettings(this.radius);
-    }
+    public int createJoltBody(VxRigidBodyFactory factory) {
+        try (
+                ShapeSettings shapeSettings = new SphereShapeSettings(this.radius);
+                BodyCreationSettings bcs = new BodyCreationSettings()
+        ) {
+            bcs.setMotionType(EMotionType.Dynamic);
+            bcs.setObjectLayer(VxLayers.DYNAMIC);
 
-    @Override
-    public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
-        var settings = new BodyCreationSettings();
-        settings.setShape(shapeRef);
-        settings.setMotionType(EMotionType.Dynamic);
-        settings.setObjectLayer(VxLayers.DYNAMIC);
-        // The VxObjectManager will set the final position and rotation from the data store.
-        return settings;
+            return factory.create(shapeSettings, bcs);
+        }
     }
 
     @Override

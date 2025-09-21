@@ -12,6 +12,7 @@ import com.github.stephengold.joltjni.Vertex;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
+import net.xmx.velthoric.physics.object.type.factory.VxSoftBodyFactory;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
@@ -44,6 +45,47 @@ public class RopeSoftBody extends VxSoftBody {
     }
 
     @Override
+    public int createJoltBody(VxSoftBodyFactory factory) {
+        try (
+                SoftBodySharedSettings sharedSettings = new SoftBodySharedSettings();
+                SoftBodyCreationSettings creationSettings = new SoftBodyCreationSettings()
+        ) {
+            int safeNumSegments = Math.max(1, this.numSegments);
+            float safeMass = Math.max(0.001f, this.mass);
+            float safeRopeLength = Math.max(0.1f, this.ropeLength);
+            int numNodes = safeNumSegments + 1;
+
+            float segmentLength = safeRopeLength / (float) safeNumSegments;
+            float invMassPerNode = (safeMass > 0) ? numNodes / safeMass : 0f;
+
+            for (int i = 0; i < numNodes; i++) {
+                Vec3 localPos = new Vec3(0, -i * segmentLength, 0);
+                Vertex v = new Vertex();
+                v.setPosition(localPos);
+                v.setInvMass(invMassPerNode);
+                sharedSettings.addVertex(v);
+            }
+
+            for (int i = 0; i < numNodes - 1; i++) {
+                Edge edge = new Edge();
+                edge.setVertex(0, i);
+                edge.setVertex(1, i + 1);
+                edge.setCompliance(this.compliance);
+                edge.setRestLength(segmentLength);
+                sharedSettings.addEdgeConstraint(edge);
+            }
+
+            sharedSettings.optimize();
+
+            creationSettings.setSettings(sharedSettings);
+            creationSettings.setObjectLayer(VxLayers.DYNAMIC);
+            creationSettings.setVertexRadius(this.ropeRadius);
+
+            return factory.create(sharedSettings, creationSettings);
+        }
+    }
+
+    @Override
     public void writeCreationData(VxByteBuf buf) {
         buf.writeFloat(this.ropeLength);
         buf.writeInt(this.numSegments);
@@ -59,45 +101,5 @@ public class RopeSoftBody extends VxSoftBody {
         this.ropeRadius = buf.readFloat();
         this.mass = buf.readFloat();
         this.compliance = buf.readFloat();
-    }
-
-    @Override
-    public SoftBodyCreationSettings createSoftBodyCreationSettings(SoftBodySharedSettings sharedSettings) {
-        SoftBodyCreationSettings settings = new SoftBodyCreationSettings();
-        settings.setSettings(sharedSettings);
-        settings.setObjectLayer(VxLayers.DYNAMIC);
-        settings.setVertexRadius(this.ropeRadius);
-        return settings;
-    }
-
-    @Override
-    public SoftBodySharedSettings createSoftBodySharedSettings() {
-        int safeNumSegments = Math.max(1, this.numSegments);
-        float safeMass = Math.max(0.001f, this.mass);
-        float safeRopeLength = Math.max(0.1f, this.ropeLength);
-        int numNodes = safeNumSegments + 1;
-        SoftBodySharedSettings settings = new SoftBodySharedSettings();
-        float segmentLength = safeRopeLength / (float) safeNumSegments;
-        float invMassPerNode = (safeMass > 0) ? numNodes / safeMass : 0f;
-
-        for (int i = 0; i < numNodes; i++) {
-            Vec3 localPos = new Vec3(0, -i * segmentLength, 0);
-            Vertex v = new Vertex();
-            v.setPosition(localPos);
-            v.setInvMass(invMassPerNode);
-            settings.addVertex(v);
-        }
-
-        for (int i = 0; i < numNodes - 1; i++) {
-            Edge edge = new Edge();
-            edge.setVertex(0, i);
-            edge.setVertex(1, i + 1);
-            edge.setCompliance(this.compliance);
-            edge.setRestLength(segmentLength);
-            settings.addEdgeConstraint(edge);
-        }
-
-        settings.optimize();
-        return settings;
     }
 }

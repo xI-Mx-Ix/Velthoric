@@ -4,11 +4,15 @@
  */
 package net.xmx.velthoric.builtin.box;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.BodyCreationSettings;
+import com.github.stephengold.joltjni.BoxShapeSettings;
+import com.github.stephengold.joltjni.ShapeSettings;
+import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
+import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
@@ -44,19 +48,17 @@ public class BoxRigidBody extends VxRigidBody {
     }
 
     @Override
-    public ShapeSettings createShapeSettings() {
-        return new BoxShapeSettings(this.halfExtents);
-    }
+    public int createJoltBody(VxRigidBodyFactory factory) {
+        try (
+                ShapeSettings shapeSettings = new BoxShapeSettings(this.halfExtents);
+                BodyCreationSettings bcs = new BodyCreationSettings()
+        ) {
+            bcs.setMotionType(EMotionType.Dynamic);
+            bcs.setObjectLayer(VxLayers.DYNAMIC);
+            bcs.setRestitution(0.4f);
 
-    @Override
-    public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
-        var settings = new BodyCreationSettings();
-        settings.setShape(shapeRef);
-        settings.setMotionType(EMotionType.Dynamic);
-        settings.setObjectLayer(VxLayers.DYNAMIC);
-        settings.setRestitution(0.4f);
-        // The VxObjectManager will set the final position and rotation from the data store.
-        return settings;
+            return factory.create(shapeSettings, bcs);
+        }
     }
 
     @Override

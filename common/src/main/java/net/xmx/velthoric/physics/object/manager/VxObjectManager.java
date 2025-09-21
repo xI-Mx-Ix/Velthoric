@@ -22,6 +22,8 @@ import net.xmx.velthoric.physics.object.persistence.VxObjectStorage;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
+import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.physics.object.type.factory.VxSoftBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -252,32 +254,42 @@ public class VxObjectManager {
      * Internal helper to create and add a rigid body to the Jolt physics system.
      */
     private void addRigidBodyToPhysicsWorld(VxRigidBody body, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation) {
-        try (ShapeSettings shapeSettings = body.createShapeSettings()) {
-            if (shapeSettings == null) throw new IllegalStateException("createShapeSettings returned null for type: " + body.getType().getTypeId());
-            try (ShapeResult shapeResult = shapeSettings.create()) {
-                if (shapeResult.hasError()) throw new IllegalStateException("Shape creation failed: " + shapeResult.getError());
-                try (ShapeRefC shapeRef = shapeResult.get()) {
-                    try (BodyCreationSettings bcs = body.createBodyCreationSettings(shapeRef)) {
+        try {
+            // Define the factory implementation as a lambda. This lambda encapsulates the
+            // complex resource management and direct interaction with the Jolt world.
+            VxRigidBodyFactory factory = (shapeSettings, bcs) -> {
+                try (ShapeResult shapeResult = shapeSettings.create()) {
+                    if (shapeResult.hasError()) {
+                        throw new IllegalStateException("Shape creation failed: " + shapeResult.getError());
+                    }
+                    try (ShapeRefC shapeRef = shapeResult.get()) {
+                        // Complete the BodyCreationSettings with data the manager is responsible for.
+                        bcs.setShape(shapeRef);
+
                         int index = body.getDataStoreIndex();
-                        // Set initial state from the data store.
                         bcs.setPosition(dataStore.posX[index], dataStore.posY[index], dataStore.posZ[index]);
                         bcs.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
                         if (linearVelocity != null) bcs.setLinearVelocity(linearVelocity);
                         if (angularVelocity != null) bcs.setAngularVelocity(angularVelocity);
 
-                        int bodyId = world.getBodyInterface().createAndAddBody(bcs, activation);
-                        if (bodyId == Jolt.cInvalidBodyId) {
-                            VxMainClass.LOGGER.error("Jolt failed to create/add rigid body for {}", body.getPhysicsId());
-                            removeInternal(body.getPhysicsId()); // Clean up failed addition.
-                            return;
-                        }
-                        body.setBodyId(bodyId);
-                        bodyIdToObjectMap.put(bodyId, body);
-                        body.onBodyAdded(world);
-                        world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
+                        return world.getBodyInterface().createAndAddBody(bcs, activation);
                     }
                 }
+            };
+
+            // Delegate the configuration to the body and create it using our factory.
+            int bodyId = body.createJoltBody(factory);
+
+            if (bodyId == Jolt.cInvalidBodyId) {
+                VxMainClass.LOGGER.error("Jolt failed to create/add rigid body for {}", body.getPhysicsId());
+                removeInternal(body.getPhysicsId()); // Clean up failed addition.
+                return;
             }
+            body.setBodyId(bodyId);
+            bodyIdToObjectMap.put(bodyId, body);
+            body.onBodyAdded(world);
+            world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
+
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to create/add rigid body {}", body.getPhysicsId(), e);
             removeInternal(body.getPhysicsId()); // Clean up on exception.
@@ -288,25 +300,32 @@ public class VxObjectManager {
      * Internal helper to create and add a soft body to the Jolt physics system.
      */
     private void addSoftBodyToPhysicsWorld(VxSoftBody body, EActivation activation) {
-        try (SoftBodySharedSettings sharedSettings = body.createSoftBodySharedSettings()) {
-            if (sharedSettings == null) throw new IllegalStateException("createSoftBodySharedSettings returned null for type: " + body.getType().getTypeId());
-            try (SoftBodyCreationSettings settings = body.createSoftBodyCreationSettings(sharedSettings)) {
-                int index = body.getDataStoreIndex();
-                // Set initial state from the data store.
-                settings.setPosition(dataStore.posX[index], dataStore.posY[index], dataStore.posZ[index]);
-                settings.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
+        try {
+            // Define the factory implementation for soft bodies.
+            VxSoftBodyFactory factory = (sharedSettings, creationSettings) -> {
+                // The body provides both settings objects, the manager just needs to use them.
+                // The factory is responsible for closing them.
+                try (sharedSettings; creationSettings) {
+                    int index = body.getDataStoreIndex();
+                    creationSettings.setPosition(dataStore.posX[index], dataStore.posY[index], dataStore.posZ[index]);
+                    creationSettings.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
 
-                int bodyId = world.getBodyInterface().createAndAddSoftBody(settings, activation);
-                if (bodyId == Jolt.cInvalidBodyId) {
-                    VxMainClass.LOGGER.error("Jolt failed to create/add soft body for {}", body.getPhysicsId());
-                    removeInternal(body.getPhysicsId()); // Clean up failed addition.
-                    return;
+                    return world.getBodyInterface().createAndAddSoftBody(creationSettings, activation);
                 }
-                body.setBodyId(bodyId);
-                bodyIdToObjectMap.put(bodyId, body);
-                body.onBodyAdded(world);
-                world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
+            };
+
+            // Delegate creation to the body via the factory.
+            int bodyId = body.createJoltBody(factory);
+
+            if (bodyId == Jolt.cInvalidBodyId) {
+                VxMainClass.LOGGER.error("Jolt failed to create/add soft body for {}", body.getPhysicsId());
+                removeInternal(body.getPhysicsId()); // Clean up failed addition.
+                return;
             }
+            body.setBodyId(bodyId);
+            bodyIdToObjectMap.put(bodyId, body);
+            body.onBodyAdded(world);
+            world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to create/add soft body {}", body.getPhysicsId(), e);
             removeInternal(body.getPhysicsId()); // Clean up on exception.

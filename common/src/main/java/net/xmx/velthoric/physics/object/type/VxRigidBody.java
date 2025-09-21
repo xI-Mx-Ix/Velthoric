@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
+import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.raycasting.click.Clickable;
 import net.xmx.velthoric.physics.riding.Rideable;
 import net.xmx.velthoric.physics.riding.seat.Seat;
@@ -40,19 +41,15 @@ public abstract class VxRigidBody extends VxBody implements Rideable, Clickable 
     }
 
     /**
-     * Subclasses must implement this to define the shape of the rigid body.
+     * Defines and creates the Jolt physics body using the provided factory.
+     * This method encapsulates the entire creation logic for this body type.
+     * The implementation should create and configure the necessary settings objects
+     * and pass them to the factory for instantiation in the Jolt world.
      *
-     * @return A {@link ShapeSettings} object describing the geometry.
+     * @param factory The factory provided by the VxObjectManager to create the body.
+     * @return The body ID assigned by Jolt.
      */
-    public abstract ShapeSettings createShapeSettings();
-
-    /**
-     * Subclasses must implement this to define the physical properties of the body.
-     *
-     * @param shapeRef A reference to the created shape.
-     * @return A {@link BodyCreationSettings} object with properties like mass, friction, etc.
-     */
-    public abstract BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef);
+    public abstract int createJoltBody(VxRigidBodyFactory factory);
 
     /**
      * A nested interface for client-side renderers specific to rigid bodies.

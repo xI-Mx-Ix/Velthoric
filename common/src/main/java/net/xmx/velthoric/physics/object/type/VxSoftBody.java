@@ -10,6 +10,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
+import net.xmx.velthoric.physics.object.type.factory.VxSoftBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,21 +41,6 @@ public abstract class VxSoftBody extends VxBody {
     }
 
     /**
-     * Subclasses must implement this to define the shared physical properties of the soft body material.
-     *
-     * @return A {@link SoftBodySharedSettings} object.
-     */
-    public abstract SoftBodySharedSettings createSoftBodySharedSettings();
-
-    /**
-     * Subclasses must implement this to define the initial shape and settings of the soft body instance.
-     *
-     * @param sharedSettings The shared settings created by {@link #createSoftBodySharedSettings()}.
-     * @return A {@link SoftBodyCreationSettings} object.
-     */
-    public abstract SoftBodyCreationSettings createSoftBodyCreationSettings(SoftBodySharedSettings sharedSettings);
-
-    /**
      * @return The last vertex data that was sent to clients.
      */
     public float @Nullable [] getLastSyncedVertexData() {
@@ -69,6 +55,15 @@ public abstract class VxSoftBody extends VxBody {
     public void setLastSyncedVertexData(float @Nullable [] data) {
         this.lastSyncedVertexData = data;
     }
+
+    /**
+     * Defines and creates the Jolt soft body using the provided factory.
+     * This method encapsulates the entire creation logic for this body type.
+     *
+     * @param factory The factory provided by the VxObjectManager to create the body.
+     * @return The body ID assigned by Jolt.
+     */
+    public abstract int createJoltBody(VxSoftBodyFactory factory);
 
     /**
      * A nested interface for client-side renderers specific to soft bodies.

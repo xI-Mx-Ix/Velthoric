@@ -6,7 +6,6 @@ package net.xmx.velthoric.builtin.block;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.BoxShapeSettings;
-import com.github.stephengold.joltjni.ShapeRefC;
 import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.core.BlockPos;
@@ -18,6 +17,7 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
+import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.object.util.VxVoxelShapeUtil;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -43,28 +43,26 @@ public class BlockRigidBody extends VxRigidBody {
     }
 
     @Override
-    public ShapeSettings createShapeSettings() {
+    public int createJoltBody(VxRigidBodyFactory factory) {
         BlockState stateForShape = getRepresentedBlockState();
         VoxelShape voxelShape = stateForShape.getCollisionShape(this.world.getLevel(), BlockPos.ZERO);
 
-        ShapeSettings convertedShapeSettings = VxVoxelShapeUtil.toMutableCompoundShape(voxelShape);
+        ShapeSettings shapeSettings = VxVoxelShapeUtil.toMutableCompoundShape(voxelShape);
 
-        if (convertedShapeSettings != null) {
-            return convertedShapeSettings;
-        } else {
+        if (shapeSettings == null) {
             VxMainClass.LOGGER.warn("VoxelShape conversion for BlockState {} failed. Using BoxShape as fallback.", stateForShape);
-            return new BoxShapeSettings(0.5f, 0.5f, 0.5f);
+            shapeSettings = new BoxShapeSettings(0.5f, 0.5f, 0.5f);
         }
-    }
 
-    @Override
-    public BodyCreationSettings createBodyCreationSettings(ShapeRefC shapeRef) {
-        var bcs = new BodyCreationSettings();
-        bcs.setShape(shapeRef);
-        bcs.setMotionType(EMotionType.Dynamic);
-        bcs.setObjectLayer(VxLayers.DYNAMIC);
-        // The VxObjectManager will set the final position and rotation from the data store.
-        return bcs;
+        try (
+                ShapeSettings finalShapeSettings = shapeSettings;
+                BodyCreationSettings bcs = new BodyCreationSettings()
+        ) {
+            bcs.setMotionType(EMotionType.Dynamic);
+            bcs.setObjectLayer(VxLayers.DYNAMIC);
+
+            return factory.create(finalShapeSettings, bcs);
+        }
     }
 
     @Override
