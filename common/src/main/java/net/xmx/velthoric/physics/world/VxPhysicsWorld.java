@@ -14,7 +14,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.natives.VxNativeJolt;
-import net.xmx.velthoric.physics.cd.VxContactListener;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.riding.RidingManager;
@@ -56,8 +55,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxTerrainSystem terrainSystem;
     private final RidingManager ridingManager;
 
-    private ContactListenerList contactListener;
-
     private PhysicsSystem physicsSystem;
     private JobSystemThreadPool jobSystem;
     private TempAllocator tempAllocator;
@@ -79,7 +76,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.constraintManager = new VxConstraintManager(this.objectManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
         this.ridingManager = new RidingManager(this);
-        this.contactListener = new ContactListenerList();
     }
 
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
@@ -250,8 +246,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             this.physicsSystem.setPhysicsSettings(settings);
         }
 
-
-        this.physicsSystem.setContactListener(this.contactListener);
         this.physicsSystem.setGravity(0f, gravityY, 0f);
         this.physicsSystem.optimizeBroadPhase();
     }
@@ -269,10 +263,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     private void cleanupJolt() {
-        if (this.contactListener != null) {
-            this.contactListener.close();
-            this.contactListener = null;
-        }
         if (this.physicsSystem != null) {
             this.physicsSystem.close();
             this.physicsSystem = null;
@@ -292,33 +282,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         if (command != null && this.isRunning) {
             this.commandQueue.offer(command);
         }
-    }
-
-    /**
-     * Adds a custom contact listener to the physics simulation.
-     * The listener must be instantiated with this world's {@link VxObjectManager}.
-     *
-     * @param listener The listener to add.
-     */
-    public void addContactListener(VxContactListener listener) {
-        if (listener != null) {
-            this.contactListener.pushBack(listener);
-        }
-    }
-
-    /**
-     * Removes a previously added contact listener from the physics simulation.
-     *
-     * @param listener The listener instance to remove.
-     */
-    public void removeContactListener(VxContactListener listener) {
-        if (listener != null) {
-            this.contactListener.remove(listener);
-        }
-    }
-
-    public ContactListenerList getContactListener() {
-        return this.contactListener;
     }
 
     @Override
