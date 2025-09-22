@@ -9,6 +9,7 @@ import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.ConstAaBox;
+import com.github.stephengold.joltjni.readonly.ConstBody;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
@@ -16,6 +17,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.terrain.cache.TerrainShapeCache;
 import net.xmx.velthoric.physics.terrain.cache.TerrainStorage;
@@ -47,6 +49,7 @@ public class VxTerrainSystem implements Runnable {
     private final VxPhysicsWorld physicsWorld;
     private final ServerLevel level;
     private final TerrainGenerator terrainGenerator;
+    private final VxObjectDataStore objectDataStore;
     private final TerrainShapeCache shapeCache;
     private final TerrainStorage terrainStorage;
     private final VxTerrainJobSystem jobSystem;
@@ -58,6 +61,8 @@ public class VxTerrainSystem implements Runnable {
     private final Set<VxSectionPos> chunksToRebuild = ConcurrentHashMap.newKeySet();
     private final Map<UUID, Set<VxSectionPos>> objectTrackedChunks = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> objectUpdateCooldowns = new ConcurrentHashMap<>();
+
+    private static final ThreadLocal<UpdateContext> updateContext = ThreadLocal.withInitial(UpdateContext::new);
 
     private static final int UPDATE_INTERVAL_TICKS = 10;
     private static final float MAX_SPEED_FOR_COOLDOWN_SQR = 100f * 100f;
@@ -73,6 +78,7 @@ public class VxTerrainSystem implements Runnable {
     public VxTerrainSystem(VxPhysicsWorld physicsWorld, ServerLevel level) {
         this.physicsWorld = physicsWorld;
         this.level = level;
+        this.objectDataStore = physicsWorld.getObjectManager().getDataStore();
         this.shapeCache = new TerrainShapeCache(1024);
         this.terrainStorage = new TerrainStorage(this.level);
         this.terrainGenerator = new TerrainGenerator(this.shapeCache, this.terrainStorage);
@@ -186,16 +192,14 @@ public class VxTerrainSystem implements Runnable {
             BodyInterface bi = physicsWorld.getBodyInterface();
             if (bi == null) return;
 
-            RVec3 min = new RVec3(worldPos.getX() - 2.0, worldPos.getY() - 2.0, worldPos.getZ() - 2.0);
-            RVec3 max = new RVec3(worldPos.getX() + 3.0, worldPos.getY() + 3.0, worldPos.getZ() + 3.0);
+            UpdateContext ctx = updateContext.get();
+            ctx.vec3_1.set(worldPos.getX() - 2.0f, worldPos.getY() - 2.0f, worldPos.getZ() - 2.0f);
+            ctx.vec3_2.set(worldPos.getX() + 3.0f, worldPos.getY() + 3.0f, worldPos.getZ() + 3.0f);
 
-            try (
-                    AaBox aabox = new AaBox(min, max);
-                    BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
-                    ObjectLayerFilter olFilter = new ObjectLayerFilter()
-            ) {
-                bi.activateBodiesInAaBox(aabox, bplFilter, olFilter);
-            }
+            ctx.aabox_1.setMin(ctx.vec3_1);
+            ctx.aabox_1.setMax(ctx.vec3_2);
+
+            bi.activateBodiesInAaBox(ctx.aabox_1, ctx.bplFilter, ctx.olFilter);
         });
     }
 
@@ -431,9 +435,10 @@ public class VxTerrainSystem implements Runnable {
         }
 
         List<VxBody> currentObjects = new ArrayList<>(physicsWorld.getObjectManager().getAllObjects());
-        Set<UUID> currentObjectIds = currentObjects.stream()
-                .map(VxBody::getPhysicsId)
-                .collect(Collectors.toSet());
+        Set<UUID> currentObjectIds = new HashSet<>(currentObjects.size());
+        for (VxBody obj : currentObjects) {
+            currentObjectIds.add(obj.getPhysicsId());
+        }
 
         objectTrackedChunks.keySet().removeIf(id -> {
             if (!currentObjectIds.contains(id)) {
@@ -476,9 +481,15 @@ public class VxTerrainSystem implements Runnable {
             futures.add(CompletableFuture.supplyAsync(() -> {
                 Set<VxSectionPos> required = new HashSet<>();
                 for (VxBody obj : batch) {
-                    var body = obj.getBody();
+                    ConstBody body = obj.getBody();
                     if (body != null) {
-                        calculateActivationChunksForObject(body.getWorldSpaceBounds(), body.getLinearVelocity(), required);
+                        ConstAaBox bounds = body.getWorldSpaceBounds();
+                        calculateRequiredChunks(
+                                bounds.getMin(), bounds.getMax(),
+                                body.getLinearVelocity(),
+                                ACTIVATION_RADIUS_CHUNKS,
+                                required
+                        );
                     }
                 }
                 return required;
@@ -511,22 +522,33 @@ public class VxTerrainSystem implements Runnable {
 
     private void updatePreloadForObject(VxBody obj) {
         UUID id = obj.getPhysicsId();
-        int cooldown = objectUpdateCooldowns.getOrDefault(id, 0);
-        var body = obj.getBody();
-        if (body == null) {
+        int dataIndex = obj.getDataStoreIndex();
+        if (dataIndex == -1) {
             removeObjectTracking(id);
             return;
         }
 
-        Vec3 vel = body.getLinearVelocity();
-        if (cooldown > 0 && vel.lengthSq() < MAX_SPEED_FOR_COOLDOWN_SQR) {
+        int cooldown = objectUpdateCooldowns.getOrDefault(id, 0);
+        float velX = objectDataStore.velX[dataIndex];
+        float velY = objectDataStore.velY[dataIndex];
+        float velZ = objectDataStore.velZ[dataIndex];
+        float velSq = velX * velX + velY * velY + velZ * velZ;
+
+        if (cooldown > 0 && velSq < MAX_SPEED_FOR_COOLDOWN_SQR) {
             objectUpdateCooldowns.put(id, cooldown - 1);
             return;
         }
         objectUpdateCooldowns.put(id, UPDATE_INTERVAL_TICKS);
 
         Set<VxSectionPos> required = new HashSet<>();
-        calculateRequiredChunksForObject(body.getWorldSpaceBounds(), body.getLinearVelocity(), required);
+        ConstBody body = obj.getBody();
+        if (body != null) {
+            ConstAaBox bounds = body.getWorldSpaceBounds();
+            calculateRequiredChunks(bounds.getMin(), bounds.getMax(), velX, velY, velZ, PRELOAD_RADIUS_CHUNKS, required);
+        } else {
+            removeObjectTracking(id);
+            return;
+        }
 
         Set<VxSectionPos> previouslyTracked = objectTrackedChunks.computeIfAbsent(id, k -> new HashSet<>());
 
@@ -611,6 +633,44 @@ public class VxTerrainSystem implements Runnable {
             if (y < worldMinY || y >= worldMaxY) continue;
             for (int z = minSection.z() - radiusInChunks; z <= maxSection.z() + radiusInChunks; ++z) {
                 for (int x = minSection.x() - radiusInChunks; x <= maxSection.x() + radiusInChunks; ++x) {
+                    outChunks.add(new VxSectionPos(x, y, z));
+                }
+            }
+        }
+    }
+
+    private void calculateRequiredChunks(Vec3 min, Vec3 max, Vec3 velocity, int radius, Set<VxSectionPos> outChunks) {
+        calculateRequiredChunks(min, max, velocity.getX(), velocity.getY(), velocity.getZ(), radius, outChunks);
+    }
+
+    private void calculateRequiredChunks(Vec3 min, Vec3 max, float velX, float velY, float velZ, int radius, Set<VxSectionPos> outChunks) {
+        addChunksForBounds(min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ(), radius, outChunks);
+
+        double predMinX = min.getX() + velX * PREDICTION_SECONDS;
+        double predMinY = min.getY() + velY * PREDICTION_SECONDS;
+        double predMinZ = min.getZ() + velZ * PREDICTION_SECONDS;
+        double predMaxX = max.getX() + velX * PREDICTION_SECONDS;
+        double predMaxY = max.getY() + velY * PREDICTION_SECONDS;
+        double predMaxZ = max.getZ() + velZ * PREDICTION_SECONDS;
+
+        addChunksForBounds(predMinX, predMinY, predMinZ, predMaxX, predMaxY, predMaxZ, radius, outChunks);
+    }
+
+    private void addChunksForBounds(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, int radiusInChunks, Set<VxSectionPos> outChunks) {
+        int minSectionX = ((int) Math.floor(minX) >> 4) - radiusInChunks;
+        int minSectionY = ((int) Math.floor(minY) >> 4) - radiusInChunks;
+        int minSectionZ = ((int) Math.floor(minZ) >> 4) - radiusInChunks;
+        int maxSectionX = ((int) Math.floor(maxX) >> 4) + radiusInChunks;
+        int maxSectionY = ((int) Math.floor(maxY) >> 4) + radiusInChunks;
+        int maxSectionZ = ((int) Math.floor(maxZ) >> 4) + radiusInChunks;
+
+        final int worldMinY = level.getMinBuildHeight() >> 4;
+        final int worldMaxY = level.getMaxBuildHeight() >> 4;
+
+        for (int y = minSectionY; y <= maxSectionY; ++y) {
+            if (y < worldMinY || y >= worldMaxY) continue;
+            for (int z = minSectionZ; z <= maxSectionZ; ++z) {
+                for (int x = minSectionX; x <= maxSectionX; ++x) {
                     outChunks.add(new VxSectionPos(x, y, z));
                 }
             }
