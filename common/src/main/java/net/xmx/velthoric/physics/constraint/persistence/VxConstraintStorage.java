@@ -22,11 +22,18 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 
+/**
+ * Manages persistent storage for physics constraints.
+ * This class handles serialization, deserialization, and asynchronous loading/saving
+ * of constraint data using a region-based file system.
+ * It uses a shared I/O executor provided by the persistence framework.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     private final VxConstraintManager constraintManager;
     private final ConcurrentMap<Long, List<UUID>> chunkToUuidIndex = new ConcurrentHashMap<>();
-    private ExecutorService loaderExecutor;
 
     public VxConstraintStorage(ServerLevel level, VxConstraintManager constraintManager) {
         super(level, "constraint", "constraint");
@@ -36,32 +43,6 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     @Override
     protected VxRegionIndex createRegionIndex() {
         return new VxRegionIndex(storagePath, "constraint");
-    }
-
-    @Override
-    public void initialize() {
-        super.initialize();
-        this.loaderExecutor = Executors.newSingleThreadExecutor(r -> new Thread(r, "Velthoric Constraint Loader"));
-    }
-
-    @Override
-    public void shutdown() {
-        super.shutdown();
-        if (loaderExecutor != null) {
-            loaderExecutor.shutdown();
-            try {
-                if (!loaderExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    loaderExecutor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                loaderExecutor.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-    private RegionPos getRegionPos(ChunkPos chunkPos) {
-        return new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
     }
 
     @Override
@@ -84,6 +65,12 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
+    /**
+     * Stores a single constraint to disk asynchronously. The constraint's location
+     * is determined by its first body's chunk position.
+     *
+     * @param constraint The constraint to store.
+     */
     public void storeConstraint(VxConstraint constraint) {
         if (constraint == null) return;
         VxBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
@@ -92,22 +79,27 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             if (index == -1) return;
             ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(index);
             byte[] data = serializeConstraintData(constraint, chunkPos);
-            RegionPos regionPos = getRegionPos(chunkPos);
+            RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
 
             getRegion(regionPos).thenAcceptAsync(region -> {
                 region.entries.put(constraint.getConstraintId(), data);
                 region.dirty.set(true);
                 regionIndex.put(constraint.getConstraintId(), regionPos);
                 indexConstraintData(constraint.getConstraintId(), data);
-            }, loaderExecutor).exceptionally(ex -> {
+            }, ioExecutor).exceptionally(ex -> {
                 VxMainClass.LOGGER.error("Failed to store constraint {}", constraint.getConstraintId(), ex);
                 return null;
             });
         }
     }
 
+    /**
+     * Initiates loading for all constraints associated with a given chunk.
+     *
+     * @param chunkPos The position of the chunk to load constraints for.
+     */
     public void loadConstraintsInChunk(ChunkPos chunkPos) {
-        RegionPos regionPos = getRegionPos(chunkPos);
+        RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
         getRegion(regionPos).thenRunAsync(() -> {
             List<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
             if (idsToLoad == null || idsToLoad.isEmpty()) return;
@@ -115,12 +107,17 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                 if (constraintManager.hasActiveConstraint(id) || constraintManager.getDataSystem().isPending(id)) continue;
                 loadConstraint(id);
             }
-        }, loaderExecutor).exceptionally(ex -> {
+        }, ioExecutor).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to load constraints in chunk {}", chunkPos, ex);
             return null;
         });
     }
 
+    /**
+     * Asynchronously loads a single constraint by its UUID.
+     *
+     * @param id The UUID of the constraint to load.
+     */
     public void loadConstraint(UUID id) {
         CompletableFuture.supplyAsync(() -> {
             RegionPos regionPos = regionIndex.get(id);
@@ -129,11 +126,10 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             RegionData<UUID, byte[]> region = getRegion(regionPos).join();
             byte[] data = region.entries.get(id);
             if (data != null) {
-
                 return deserializeConstraint(id, data);
             }
             return null;
-        }, loaderExecutor).thenAcceptAsync(constraint -> {
+        }, ioExecutor).thenAcceptAsync(constraint -> {
             if (constraint != null) {
                 constraintManager.addConstraintFromStorage(constraint);
             }
@@ -143,6 +139,11 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         });
     }
 
+    /**
+     * Removes a constraint's data from storage files asynchronously.
+     *
+     * @param id The UUID of the constraint to remove.
+     */
     public void removeData(UUID id) {
         RegionPos regionPos = regionIndex.get(id);
         if (regionPos == null) return;
@@ -154,7 +155,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                 deIndexConstraint(id, data);
                 regionIndex.remove(id);
             }
-        }, loaderExecutor).exceptionally(ex -> {
+        }, ioExecutor).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to remove data for constraint {}", id, ex);
             return null;
         });
@@ -163,7 +164,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     private VxConstraint deserializeConstraint(UUID id, byte[] data) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
         try {
-            buf.readLong();
+            buf.readLong(); // Skip chunk key
             UUID body1Id = buf.readUUID();
             UUID body2Id = buf.readUUID();
             EConstraintSubType subType = EConstraintSubType.values()[buf.readInt()];

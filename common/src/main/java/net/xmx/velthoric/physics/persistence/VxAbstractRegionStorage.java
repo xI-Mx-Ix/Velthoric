@@ -24,55 +24,39 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * An abstract base class for a region-based file storage system.
  * This system groups data into region files (similar to Minecraft's region format)
- * to optimize disk I/O, especially for chunk-based data like physics objects.
- * It handles asynchronous loading and saving of regions.
+ * to optimize disk I/O. It handles asynchronous loading and saving of regions
+ * using a shared, externally provided I/O executor.
  *
  * @param <K> The type of the key used to identify entries within a region.
  * @param <V> The type of the value to be stored.
+ *
  * @author xI-Mx-Ix
  */
 public abstract class VxAbstractRegionStorage<K, V> {
 
-    // A dedicated executor for handling all file I/O operations asynchronously.
-    private ExecutorService ioExecutor;
+    /** The shared executor for handling all file I/O operations asynchronously. */
+    protected final ExecutorService ioExecutor;
 
-    /**
-     * Represents the coordinates of a region file.
-     *
-     * @param x The X coordinate of the region.
-     * @param z The Z coordinate of the region.
-     */
+    /** Represents the coordinates of a region file. */
     public record RegionPos(int x, int z) {}
 
-    /**
-     * A container for the in-memory data of a single region.
-     *
-     * @param <K> The key type.
-     * @param <V> The value type.
-     */
+    /** A container for the in-memory data of a single region. */
     public static class RegionData<K, V> {
-        // The actual data entries stored in this region.
         public final ConcurrentHashMap<K, V> entries = new ConcurrentHashMap<>();
-        // A flag indicating if this region has unsaved changes.
         public final AtomicBoolean dirty = new AtomicBoolean(false);
-        // A lock to prevent concurrent save operations on the same region.
         public final AtomicBoolean saving = new AtomicBoolean(false);
     }
 
-    // The file system path to the directory where region files are stored.
     protected final Path storagePath;
-    // A prefix for the region filenames (e.g., "body").
     private final String filePrefix;
-
-    // A cache of loaded regions, mapping a position to a future that will complete with the region's data.
     protected final ConcurrentHashMap<RegionPos, CompletableFuture<RegionData<K, V>>> loadedRegions = new ConcurrentHashMap<>();
     protected final ServerLevel level;
-    // An index that maps individual entry keys to the region they are stored in.
     protected VxRegionIndex regionIndex;
 
     public VxAbstractRegionStorage(ServerLevel level, String storageSubFolder, String filePrefix) {
         this.level = level;
         this.filePrefix = filePrefix;
+        this.ioExecutor = VxPersistenceManager.getExecutor();
         Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
         Path dimensionRoot = DimensionType.getStorageFolder(level.dimension(), worldRoot);
         this.storagePath = dimensionRoot.resolve("velthoric").resolve(storageSubFolder);
@@ -80,8 +64,7 @@ public abstract class VxAbstractRegionStorage<K, V> {
 
     /**
      * Subclasses must implement this to create their specific type of region index.
-     *
-     * @return A new {@link VxRegionIndex} instance.
+     * @return A new {@link VxRegionIndex} instance, or null if not used.
      */
     protected abstract VxRegionIndex createRegionIndex();
 
@@ -90,9 +73,6 @@ public abstract class VxAbstractRegionStorage<K, V> {
      */
     public void initialize() {
         this.regionIndex = createRegionIndex();
-        int threadCount = Math.max(1, Runtime.getRuntime().availableProcessors() / 4);
-        this.ioExecutor = Executors.newFixedThreadPool(threadCount, r -> new Thread(r, "Velthoric-Persistence-IO-" + filePrefix));
-
         try {
             Files.createDirectories(storagePath);
             if (regionIndex != null) {
@@ -104,13 +84,13 @@ public abstract class VxAbstractRegionStorage<K, V> {
     }
 
     /**
-     * Shuts down the storage system, saving all pending changes and closing resources.
+     * Shuts down the storage system, saving all pending changes.
+     * This does NOT shut down the shared I/O executor.
      */
     public void shutdown() {
         CompletableFuture<Void> saveFuture = saveDirtyRegions();
         try {
-            // Block until all pending saves are complete.
-            saveFuture.join();
+            saveFuture.join(); // Block until all pending saves for this storage are complete.
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Error waiting for dirty regions to save during shutdown", e);
         }
@@ -119,23 +99,10 @@ public abstract class VxAbstractRegionStorage<K, V> {
             regionIndex.save();
         }
         loadedRegions.clear();
-
-        if (ioExecutor != null) {
-            ioExecutor.shutdown();
-            try {
-                if (!ioExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
-                    ioExecutor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                ioExecutor.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-        }
     }
 
     /**
      * Asynchronously saves all regions that have been marked as dirty.
-     *
      * @return A CompletableFuture that completes when all save operations have finished.
      */
     public CompletableFuture<Void> saveDirtyRegions() {
@@ -143,7 +110,6 @@ public abstract class VxAbstractRegionStorage<K, V> {
         loadedRegions.forEach((pos, future) -> {
             if (future.isDone() && !future.isCompletedExceptionally()) {
                 RegionData<K, V> data = future.getNow(null);
-                // Check if the region is dirty and not already being saved.
                 if (data != null && data.dirty.get() && data.saving.compareAndSet(false, true)) {
                     CompletableFuture<Void> saveTask = CompletableFuture.runAsync(() -> {
                         try {
@@ -151,10 +117,10 @@ public abstract class VxAbstractRegionStorage<K, V> {
                                 saveRegionToFile(pos, data);
                             }
                         } finally {
-                            data.saving.set(false); // Release the save lock.
+                            data.saving.set(false);
                         }
                     }, ioExecutor).exceptionally(ex -> {
-                        data.saving.set(false); // Ensure lock is released on error.
+                        data.saving.set(false);
                         VxMainClass.LOGGER.error("Exception in save task for region {}", pos, ex);
                         return null;
                     });
@@ -163,7 +129,6 @@ public abstract class VxAbstractRegionStorage<K, V> {
             }
         });
 
-        // Also save the main index file.
         if (regionIndex != null) {
             regionIndex.save();
         }
@@ -171,48 +136,19 @@ public abstract class VxAbstractRegionStorage<K, V> {
     }
 
     /**
-     * Subclasses must implement this to read region data from a buffer.
-     *
-     * @param buffer     The buffer containing the file data.
-     * @param regionData The region data object to populate.
-     */
-    protected abstract void readRegionData(ByteBuf buffer, RegionData<K, V> regionData);
-
-    /**
-     * Subclasses must implement this to write region data to a buffer.
-     *
-     * @param buffer  The buffer to write to.
-     * @param entries The map of entries to serialize.
-     */
-    protected abstract void writeRegionData(ByteBuf buffer, Map<K, V> entries);
-
-    /**
-     * Constructs the file path for a given region position.
-     *
-     * @param pos The position of the region.
-     * @return The Path to the region file.
-     */
-    private Path getRegionFile(RegionPos pos) {
-        return storagePath.resolve(String.format("%s.%d.%d.vxdat", filePrefix, pos.x(), pos.z()));
-    }
-
-    /**
      * Gets a future for the data of a specific region. If the region is not in the cache,
      * it will be loaded from disk asynchronously.
-     *
      * @param pos The position of the region to get.
      * @return A CompletableFuture that will complete with the region's data.
      */
     protected CompletableFuture<RegionData<K, V>> getRegion(RegionPos pos) {
-        // computeIfAbsent ensures that the loading operation is only ever started once per region.
         return loadedRegions.computeIfAbsent(pos, p ->
                 CompletableFuture.supplyAsync(() -> loadRegionFromFile(p), ioExecutor)
         );
     }
 
     /**
-     * Loads a single region file from disk. This is the synchronous part of the loading process.
-     *
+     * Loads a single region file from disk.
      * @param pos The position of the region to load.
      * @return The loaded RegionData.
      */
@@ -220,7 +156,7 @@ public abstract class VxAbstractRegionStorage<K, V> {
         Path regionFile = getRegionFile(pos);
         RegionData<K, V> regionData = new RegionData<>();
         if (!Files.exists(regionFile)) {
-            return regionData; // Return empty data for a non-existent file.
+            return regionData;
         }
 
         try {
@@ -236,15 +172,12 @@ public abstract class VxAbstractRegionStorage<K, V> {
     }
 
     /**
-     * Saves a single region's data to a file. This is the synchronous part of the saving process.
-     *
+     * Saves a single region's data to a file.
      * @param pos  The position of the region to save.
      * @param data The data to be saved.
      */
     private void saveRegionToFile(RegionPos pos, RegionData<K, V> data) {
         Path regionFile = getRegionFile(pos);
-
-        // If a region becomes empty, delete its file to save space.
         if (data.entries.isEmpty()) {
             try {
                 Files.deleteIfExists(regionFile);
@@ -265,12 +198,19 @@ public abstract class VxAbstractRegionStorage<K, V> {
             }
         } catch (IOException e) {
             VxMainClass.LOGGER.error("Failed to save region file {}", regionFile, e);
-            // If saving fails, mark the region as dirty again to retry later.
-            data.dirty.set(true);
+            data.dirty.set(true); // Retry later
         } finally {
             if (buffer.refCnt() > 0) {
                 buffer.release();
             }
         }
     }
+
+    private Path getRegionFile(RegionPos pos) {
+        return storagePath.resolve(String.format("%s.%d.%d.vxdat", filePrefix, pos.x(), pos.z()));
+    }
+
+    protected abstract void readRegionData(ByteBuf buffer, RegionData<K, V> regionData);
+
+    protected abstract void writeRegionData(ByteBuf buffer, Map<K, V> entries);
 }

@@ -12,13 +12,20 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.terrain.cache.TerrainShapeCache;
 import net.xmx.velthoric.physics.terrain.cache.TerrainStorage;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public final class TerrainGenerator {
 
     private final TerrainShapeCache shapeCache;
     private final TerrainStorage terrainStorage;
+    private final Executor jobExecutor;
     private static final int SUBDIVISIONS = 16;
     private static final int MASK_DIM = 16 * SUBDIVISIONS;
     private static final float VOXEL_SIZE = 1.0f / SUBDIVISIONS;
@@ -75,58 +82,80 @@ public final class TerrainGenerator {
 
     private final ThreadLocal<MeshingContext> MESHING_CONTEXT = ThreadLocal.withInitial(MeshingContext::new);
 
-    public TerrainGenerator(TerrainShapeCache shapeCache, TerrainStorage terrainStorage) {
+    public TerrainGenerator(TerrainShapeCache shapeCache, TerrainStorage terrainStorage, Executor jobExecutor) {
         this.shapeCache = shapeCache;
         this.terrainStorage = terrainStorage;
+        this.jobExecutor = jobExecutor;
     }
 
-    public ShapeRefC generateShape(ServerLevel level, ChunkSnapshot snapshot) {
+    /**
+     * Asynchronously generates or retrieves a physics shape for a chunk snapshot.
+     * This process is fully non-blocking and follows a cache hierarchy:
+     * 1. In-memory LRU cache (fastest)
+     * 2. On-disk storage
+     * 3. Full mesh generation (slowest)
+     *
+     * @param level    The server level, used for context.
+     * @param snapshot The chunk data to process.
+     * @return A CompletableFuture that will complete with the ShapeRefC, or null if the chunk is empty.
+     */
+    public CompletableFuture<@Nullable ShapeRefC> generateShape(ServerLevel level, ChunkSnapshot snapshot) {
         if (snapshot.shapes().isEmpty()) {
             terrainStorage.removeShape(snapshot.pos());
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
 
         int contentHash = computeContentHash(snapshot);
 
+        // 1. Check in-memory cache
         ShapeRefC cached = shapeCache.get(contentHash);
         if (cached != null) {
-            return cached;
+            return CompletableFuture.completedFuture(cached);
         }
 
-        ShapeRefC storedShape = terrainStorage.getShape(snapshot.pos(), contentHash);
-        if (storedShape != null) {
-            shapeCache.put(contentHash, storedShape.getPtr().toRefC());
-            return storedShape;
-        }
-
-        ShapeRefC generatedShape = generateShapeFromVoxels(level, snapshot);
-
-        if (generatedShape != null) {
-            terrainStorage.storeShape(snapshot.pos(), contentHash, generatedShape);
-
-            shapeCache.put(contentHash, generatedShape.getPtr().toRefC());
-            ShapeRefC returnShape = generatedShape.getPtr().toRefC();
-
-            generatedShape.close();
-
-            return returnShape;
-        } else {
-            terrainStorage.removeShape(snapshot.pos());
-        }
-
-        return null;
+        // 2. Asynchronously check disk storage and chain the next step
+        return terrainStorage.getShape(snapshot.pos(), contentHash)
+                .thenComposeAsync(storedShape -> {
+                    if (storedShape != null) {
+                        // Found on disk, put it in memory cache and return
+                        shapeCache.put(contentHash, storedShape.getPtr().toRefC());
+                        return CompletableFuture.completedFuture(storedShape);
+                    } else {
+                        // Not on disk, must generate a new one
+                        return generateAndStoreShape(level, snapshot, contentHash);
+                    }
+                }, jobExecutor); // Continue the composition on the job system thread
     }
+
+    /**
+     * Generates a new shape, stores it to disk, caches it in memory, and returns it.
+     */
+    private CompletableFuture<@Nullable ShapeRefC> generateAndStoreShape(ServerLevel level, ChunkSnapshot snapshot, int contentHash) {
+        return CompletableFuture.supplyAsync(() -> generateShapeFromVoxels(level, snapshot), jobExecutor)
+                .thenApply(generatedShape -> {
+                    if (generatedShape != null) {
+                        // Store on disk (fire-and-forget)
+                        terrainStorage.storeShape(snapshot.pos(), contentHash, generatedShape);
+                        // Put in memory cache
+                        shapeCache.put(contentHash, generatedShape.getPtr().toRefC());
+                        // Return a new reference for the caller, and close the one we created
+                        ShapeRefC returnShape = generatedShape.getPtr().toRefC();
+                        generatedShape.close();
+                        return returnShape;
+                    } else {
+                        terrainStorage.removeShape(snapshot.pos());
+                        return null;
+                    }
+                });
+    }
+
+    // --- Meshing logic (unchanged) ---
 
     private ShapeRefC generateShapeFromVoxels(ServerLevel level, ChunkSnapshot snapshot) {
         MeshingContext context = MESHING_CONTEXT.get();
         context.reset();
-
-        @SuppressWarnings("unchecked")
-        Map<Integer, BitSet>[] facesByAxisAndDir = new Map[3];
-        for (int i = 0; i < 3; i++) {
-            facesByAxisAndDir[i] = new HashMap<>();
-        }
-
+        @SuppressWarnings("unchecked") Map<Integer, BitSet>[] facesByAxisAndDir = new Map[3];
+        for (int i = 0; i < 3; i++) facesByAxisAndDir[i] = new HashMap<>();
         for (ChunkSnapshot.ShapeInfo info : snapshot.shapes()) {
             BlockPos worldPos = snapshot.pos().getOrigin().offset(info.localPos());
             VoxelShape voxelShape = info.state().getCollisionShape(level, worldPos);
@@ -134,51 +163,29 @@ public final class TerrainGenerator {
                 extractFacesToMasks(info.localPos(), aabb, facesByAxisAndDir);
             }
         }
-
         for (int axis = 0; axis < 3; axis++) {
             for (Map.Entry<Integer, BitSet> entry : facesByAxisAndDir[axis].entrySet()) {
-                int packedPosAndDir = entry.getKey();
-                BitSet mask = entry.getValue();
-                int dir = (packedPosAndDir & 1) == 0 ? -1 : 1;
-                int pos = packedPosAndDir >> 1;
-                greedyMeshMask(mask, axis, dir, pos, context);
+                greedyMeshMask(entry.getValue(), axis, (entry.getKey() & 1) == 0 ? -1 : 1, entry.getKey() >> 1, context);
             }
         }
-
-        if (context.vertexCount == 0 || context.triangleIndexCount == 0) {
-            return null;
-        }
-
+        if (context.vertexCount == 0 || context.triangleIndexCount == 0) return null;
         ShapeRefC resultShape = null;
-
         VertexList vlist = new VertexList();
         try (IndexedTriangleList ilist = new IndexedTriangleList()) {
-
             vlist.resize(context.vertexCount);
-            for (int i = 0; i < context.vertexCount; i++) {
-                int baseIndex = i * 3;
-                vlist.set(i, context.vertices[baseIndex], context.vertices[baseIndex + 1], context.vertices[baseIndex + 2]);
-            }
-
+            for (int i = 0; i < context.vertexCount; i++) vlist.set(i, context.vertices[i * 3], context.vertices[i * 3 + 1], context.vertices[i * 3 + 2]);
             int triangleCount = context.triangleIndexCount / 3;
             ilist.resize(triangleCount);
             for (int i = 0; i < triangleCount; i++) {
-                int baseIndex = i * 3;
-                try (IndexedTriangle tri = new IndexedTriangle(context.triangles[baseIndex], context.triangles[baseIndex + 1], context.triangles[baseIndex + 2])) {
+                try (IndexedTriangle tri = new IndexedTriangle(context.triangles[i * 3], context.triangles[i * 3 + 1], context.triangles[i * 3 + 2])) {
                     ilist.set(i, tri);
                 }
             }
-
-            try (MeshShapeSettings mss = new MeshShapeSettings(vlist, ilist);
-                 ShapeResult res = mss.create()) {
-                if (res.isValid()) {
-                    resultShape = res.get();
-                } else {
-                    VxMainClass.LOGGER.error("Failed to create terrain mesh for {}: {}", snapshot.pos(), res.getError());
-                }
+            try (MeshShapeSettings mss = new MeshShapeSettings(vlist, ilist); ShapeResult res = mss.create()) {
+                if (res.isValid()) resultShape = res.get();
+                else VxMainClass.LOGGER.error("Failed to create terrain mesh for {}: {}", snapshot.pos(), res.getError());
             }
         }
-
         return resultShape;
     }
 

@@ -4,11 +4,7 @@
  */
 package net.xmx.velthoric.physics.terrain.cache;
 
-import com.github.stephengold.joltjni.Shape;
-import com.github.stephengold.joltjni.ShapeRefC;
-import com.github.stephengold.joltjni.ShapeResult;
-import com.github.stephengold.joltjni.StreamInWrapper;
-import com.github.stephengold.joltjni.StreamOutWrapper;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.std.StringStream;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.server.level.ServerLevel;
@@ -16,18 +12,31 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletableFuture;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
+/**
+ * Manages the persistent storage of compressed terrain shape data on disk.
+ * It uses the region-based file system to efficiently store and retrieve shape
+ * data for chunk sections. All disk operations are performed asynchronously.
+ *
+ * @author xI-Mx-Ix
+ */
 public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage.ShapeEntry> {
 
+    /**
+     * A record representing a stored shape entry, containing its content hash and serialized data.
+     * @param hash The hash of the chunk content used to generate this shape.
+     * @param data The serialized, uncompressed binary data of the shape.
+     */
     public record ShapeEntry(int hash, byte[] data) {
         @Override
         public boolean equals(Object o) {
@@ -51,7 +60,7 @@ public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage
 
     @Override
     protected VxRegionIndex createRegionIndex() {
-        return null;
+        return null; // Terrain storage does not use a global UUID-based index.
     }
 
     private RegionPos getRegionPos(VxSectionPos pos) {
@@ -93,8 +102,8 @@ public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage
 
     @Override
     protected void writeRegionData(ByteBuf buffer, Map<Long, ShapeEntry> entries) {
-        Deflater deflater = new Deflater();
-        byte[] compressionBuffer = new byte[4096];
+        Deflater deflater = new Deflater(Deflater.BEST_SPEED);
+        byte[] compressionBuffer = new byte[8192];
 
         try {
             entries.forEach((packedPos, entry) -> {
@@ -120,16 +129,22 @@ public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage
         }
     }
 
-    public ShapeRefC getShape(VxSectionPos pos, int contentHash) {
+    /**
+     * Asynchronously retrieves a shape from storage if its hash matches.
+     * This method is non-blocking and returns a future that will complete with the shape.
+     *
+     * @param pos The position of the chunk section.
+     * @param contentHash The hash of the chunk content to match against.
+     * @return A CompletableFuture that will contain the deserialized ShapeRefC, or null if not found or hash mismatch.
+     */
+    public CompletableFuture<@Nullable ShapeRefC> getShape(VxSectionPos pos, int contentHash) {
         RegionPos regionPos = getRegionPos(pos);
         long packedPos = pack(pos);
 
-        try {
-
-            RegionData<Long, ShapeEntry> region = getRegion(regionPos).get();
+        return getRegion(regionPos).thenApplyAsync(region -> {
             ShapeEntry entry = region.entries.get(packedPos);
             if (entry == null || entry.hash() != contentHash) {
-                return null;
+                return null; // Not found or hash mismatch.
             }
 
             try (StringStream stringStream = new StringStream(new String(entry.data()));
@@ -139,18 +154,26 @@ public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage
                         return result.get();
                     } else {
                         VxMainClass.LOGGER.warn("Failed to deserialize shape from storage for {}: {}", pos, result.getError());
+                        // Schedule a write to remove the corrupted entry.
                         region.entries.remove(packedPos);
                         region.dirty.set(true);
+                        return null;
                     }
                 }
+            } catch (Exception e) {
+                VxMainClass.LOGGER.error("Exception during shape deserialization for {}", pos, e);
+                return null;
             }
-        } catch (InterruptedException | ExecutionException e) {
-            VxMainClass.LOGGER.error("Failed to get shape region for {}", pos, e);
-            Thread.currentThread().interrupt();
-        }
-        return null;
+        }, ioExecutor); // Execute deserialization on the shared I/O thread.
     }
 
+    /**
+     * Asynchronously stores a generated shape to disk. This is a fire-and-forget operation.
+     *
+     * @param pos The position of the chunk section.
+     * @param contentHash The hash of the content that generated the shape.
+     * @param shape The shape to store.
+     */
     public void storeShape(VxSectionPos pos, int contentHash, ShapeRefC shape) {
         RegionPos regionPos = getRegionPos(pos);
 
@@ -163,21 +186,26 @@ public class TerrainStorage extends VxAbstractRegionStorage<Long, TerrainStorage
 
         if (shapeData.length > 0) {
             ShapeEntry newEntry = new ShapeEntry(contentHash, shapeData);
-            getRegion(regionPos).thenAccept(region -> {
+            getRegion(regionPos).thenAcceptAsync(region -> {
                 ShapeEntry oldEntry = region.entries.put(pack(pos), newEntry);
                 if (!newEntry.equals(oldEntry)) {
                     region.dirty.set(true);
                 }
-            });
+            }, ioExecutor);
         }
     }
 
+    /**
+     * Asynchronously removes a shape from disk. This is a fire-and-forget operation.
+     *
+     * @param pos The position of the chunk section to remove.
+     */
     public void removeShape(VxSectionPos pos) {
         RegionPos regionPos = getRegionPos(pos);
-        getRegion(regionPos).thenAccept(region -> {
+        getRegion(regionPos).thenAcceptAsync(region -> {
             if (region.entries.remove(pack(pos)) != null) {
                 region.dirty.set(true);
             }
-        });
+        }, ioExecutor);
     }
 }
