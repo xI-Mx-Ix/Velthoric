@@ -48,7 +48,6 @@ public class VxObjectRegistry {
     /**
      * Stores factories for creating client-side body instances. This map is only populated and used on the client.
      */
-    @Environment(EnvType.CLIENT)
     private final Map<ResourceLocation, ClientFactory> clientFactories = new ConcurrentHashMap<>();
 
     /**
