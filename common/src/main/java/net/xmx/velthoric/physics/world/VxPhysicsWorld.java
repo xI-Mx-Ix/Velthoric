@@ -11,6 +11,7 @@ import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceNoLock;
 import com.github.stephengold.joltjni.readonly.ConstNarrowPhaseQuery;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.FrameTimer;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.natives.VxNativeJolt;
@@ -55,18 +56,16 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxTerrainSystem terrainSystem;
     private final RidingManager ridingManager;
 
+    private final FrameTimer physicsFrameTimer = new FrameTimer();
+
     private PhysicsSystem physicsSystem;
     private JobSystemThreadPool jobSystem;
     private TempAllocator tempAllocator;
 
     private final Queue<ICommand> commandQueue = new ConcurrentLinkedQueue<>();
-
     private volatile Thread physicsThreadExecutor;
-
     private volatile boolean isRunning = false;
-
     private volatile boolean isPaused = false;
-
     private float timeAccumulator = 0.0f;
 
     private VxPhysicsWorld(ServerLevel level) {
@@ -175,6 +174,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
 
         if (this.timeAccumulator >= FIXED_TIME_STEP) {
+            long startTime = System.nanoTime();
+
             int error = this.physicsSystem.update(FIXED_TIME_STEP, 1, this.tempAllocator, this.jobSystem);
             if (error != EPhysicsUpdateError.None) {
                 VxMainClass.LOGGER.error("Jolt physics update failed with error code: {}. Shutting down world.", error);
@@ -183,9 +184,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             }
 
             this.onPhysicsTick();
+
+            this.physicsFrameTimer.logFrameDuration(System.nanoTime() - startTime);
             this.timeAccumulator -= FIXED_TIME_STEP;
         }
     }
+
 
     public void onPhysicsTick() {
         this.objectManager.onPhysicsTick(this);
@@ -336,6 +340,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     @Nullable
     public PhysicsSystem getPhysicsSystem() {
         return this.physicsSystem;
+    }
+
+    public FrameTimer getPhysicsFrameTimer() {
+        return this.physicsFrameTimer;
     }
 
     @Nullable

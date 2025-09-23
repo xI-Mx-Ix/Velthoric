@@ -25,6 +25,7 @@
     "event.network.ClientPacketListenerMixin_VxClientPlayerNetworkEvent",
     "event.render.LevelRendererMixin_VxRenderEvent",
     "magnetizer.MouseHandlerMixin_MagnetizerInput",
+    "misc.MixinDebugScreenOverlay",
     "physicsgun.KeyboardHandlerMixin_PhysicsGunHandling",
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
     "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
