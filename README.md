@@ -36,7 +36,7 @@ Velthoric brings **high-performance physics** to Minecraft using the full Jolt P
 * **Constraints** – Support for joints and other physics constraints.
 * **Shapes** – Various collision shapes supported.
 * **Raycasting** – Detect and interact with objects using rays.
-* **World Persistence** – Physics objects stay exactly where you left them.
+* **Region-Based Persistence** – Terrain and physics objects are saved per region, keeping their state consistent when you reload the area.
 
 ### 🛠️ **Developer API**
 
@@ -45,13 +45,28 @@ Create custom physics objects, control rendering, manipulate bodies, and extend 
 
 ### 🎯 **Testing Commands**
 
-- **`/vxsummon`**  
-  Spawn built-in and custom objects: boxes, ropes, cloth, marbles and more.  
-  Also works with any objects registered via the API.
+---
 
-- **`/vxtest`**  
-  Quickly create predefined setups for dev & debugging.  
-  Includes chained boxes, configurable soft bodies, box grids, and more.
+**`/vxsummon`**  
+Spawn built-in and custom objects: boxes, ropes, cloth, marbles and more.  
+Also works with any objects registered via the API.
+
+---
+
+**`/vxtest`**  
+Quickly create predefined setups for dev & debugging.  
+Includes chained boxes, configurable soft bodies, box grids, and more.
+
+---
+
+**`/vxkill @x[...]`**  
+Remove physics objects matching a selector.  
+You can target objects by `type`, `bodytype`, `distance`, `limit`, and `sort`.
+
+**Example:**
+```
+/vxkill @x[type=velthoric:box,limit=5,sort=nearest]
+```
 
 ### 🔧 **Included Tools**
 
@@ -69,7 +84,7 @@ Found a bug, crash, or an incompatible mod? Please report it on the **issue trac
 
 ---
 
-### 🌟 **Credits**
+### 🙏 Acknowledgments
 
-* **Stephen Gold** – JoltJNI, bridging Java and Jolt Physics. [GitHub](https://github.com/stephengold/joltjni)
-* **Jolt Physics Team** – The engine behind the simulations.  [GitHub](https://github.com/jrouwe/JoltPhysics)
+* [Stephen Gold](https://github.com/stephengold) - JoltJNI
+* [Jolt Physics](https://github.com/jrouwe/JoltPhysics) - physics engine
