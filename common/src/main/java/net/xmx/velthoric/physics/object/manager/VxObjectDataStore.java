@@ -40,7 +40,11 @@ public class VxObjectDataStore extends AbstractDataStore {
     public long[] chunkKey;
 
     // --- Sync & Management Data ---
+    /** Flag indicating that the game logic has modified this object's state, requiring a sync to Jolt. */
+    public boolean[] isGameStateDirty;
+    /** Flag indicating that the physics simulation has modified this object's state, requiring a network sync. */
     public boolean[] isPhysicsStateDirty;
+    /** Flag indicating that the object's custom data has changed, requiring a network sync. */
     public boolean[] isCustomDataDirty;
     public long[] lastUpdateTimestamp;
 
@@ -67,6 +71,7 @@ public class VxObjectDataStore extends AbstractDataStore {
         bodyType = grow(bodyType, newCapacity);
         chunkKey = grow(chunkKey, newCapacity);
 
+        isGameStateDirty = grow(isGameStateDirty, newCapacity);
         isPhysicsStateDirty = grow(isPhysicsStateDirty, newCapacity);
         isCustomDataDirty = grow(isCustomDataDirty, newCapacity);
         lastUpdateTimestamp = grow(lastUpdateTimestamp, newCapacity);
@@ -163,6 +168,7 @@ public class VxObjectDataStore extends AbstractDataStore {
         isActive[index] = false;
         bodyType[index] = null;
         chunkKey[index] = Long.MAX_VALUE;
+        isGameStateDirty[index] = false;
         isPhysicsStateDirty[index] = false;
         isCustomDataDirty[index] = false;
         lastUpdateTimestamp[index] = 0L;
