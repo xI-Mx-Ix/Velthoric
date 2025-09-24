@@ -15,7 +15,6 @@ import net.xmx.velthoric.physics.VxLifecycleEvents;
 import net.xmx.velthoric.physics.constraint.manager.event.ConstraintLifecycleEvents;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.renderer.VxPhysicsRenderer;
-import net.xmx.velthoric.physics.object.client.time.ClientPhysicsPauseHandler;
 import net.xmx.velthoric.physics.object.manager.event.ObjectLifecycleEvents;
 import net.xmx.velthoric.physics.terrain.event.TerrainLifecycleEvents;
 
@@ -37,7 +36,6 @@ public class RegisterEvents {
 
         VxClientObjectManager.registerEvents();
 
-        ClientPhysicsPauseHandler.registerEvents();
         DebugScreen.registerEvents();
 
         VxPhysicsRenderer.registerEvents();

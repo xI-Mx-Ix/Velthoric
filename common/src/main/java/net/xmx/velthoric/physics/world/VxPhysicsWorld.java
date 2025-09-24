@@ -67,6 +67,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private volatile boolean isRunning = false;
     private volatile boolean isPaused = false;
     private float timeAccumulator = 0.0f;
+    private long lastTimeNanos = 0L;
 
     private VxPhysicsWorld(ServerLevel level) {
         this.level = level;
@@ -139,12 +140,20 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             VxNativeJolt.initialize();
             initializePhysicsSystem();
 
-            long lastTimeNanos = System.nanoTime();
+            this.lastTimeNanos = System.nanoTime();
 
             while (this.isRunning) {
+                processCommandQueue();
+
                 long currentTimeNanos = System.nanoTime();
-                float deltaTime = (currentTimeNanos - lastTimeNanos) / 1_000_000_000.0f;
-                lastTimeNanos = currentTimeNanos;
+                if (this.isPaused) {
+                    this.lastTimeNanos = currentTimeNanos;
+                    Thread.sleep(10);
+                    continue;
+                }
+
+                float deltaTime = (currentTimeNanos - this.lastTimeNanos) / 1_000_000_000.0f;
+                this.lastTimeNanos = currentTimeNanos;
 
                 this.updatePhysicsLoop(deltaTime);
 
@@ -162,8 +171,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     private void updatePhysicsLoop(float deltaTime) {
-        processCommandQueue();
-
         if (this.isPaused || !this.isRunning || this.physicsSystem == null) {
             return;
         }

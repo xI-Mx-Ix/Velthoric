@@ -26,6 +26,7 @@
     "event.render.LevelRendererMixin_VxRenderEvent",
     "magnetizer.MouseHandlerMixin_MagnetizerInput",
     "misc.MixinDebugScreenOverlay",
+    "misc.MixinMinecraft",
     "physicsgun.KeyboardHandlerMixin_PhysicsGunHandling",
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
     "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
