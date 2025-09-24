@@ -17,10 +17,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.persistence.VxObjectStorage;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
@@ -31,7 +31,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -50,9 +49,6 @@ public class VxObjectManager {
     private final VxPhysicsUpdater physicsUpdater;
     private final VxObjectNetworkDispatcher networkDispatcher;
 
-    // A queue of data store indices for objects whose physics state has changed and needs to be synced.
-    private final ConcurrentLinkedQueue<Integer> dirtyIndicesQueue = new ConcurrentLinkedQueue<>();
-
     // Main map for tracking all active object instances by their unique persistent ID.
     private final Map<UUID, VxBody> managedObjects = new ConcurrentHashMap<>();
 
@@ -66,8 +62,10 @@ public class VxObjectManager {
         this.world = world;
         this.dataStore = new VxObjectDataStore();
         this.objectStorage = new VxObjectStorage(world.getLevel(), this);
-        this.physicsUpdater = new VxPhysicsUpdater(this, dirtyIndicesQueue);
-        this.networkDispatcher = new VxObjectNetworkDispatcher(world.getLevel(), this, dirtyIndicesQueue);
+        // The physics updater is now responsible for setting the correct dirty flags in the data store.
+        this.physicsUpdater = new VxPhysicsUpdater(this);
+        // The network dispatcher reads directly from the data store's dirty flags.
+        this.networkDispatcher = new VxObjectNetworkDispatcher(world.getLevel(), this);
     }
 
     /**
@@ -512,7 +510,9 @@ public class VxObjectManager {
     public void markCustomDataDirty(VxBody body) {
         if (body.getDataStoreIndex() != -1) {
             getDataStore().isCustomDataDirty[body.getDataStoreIndex()] = true;
-            networkDispatcher.queueCustomDataUpdate(body);
+            // The network dispatcher doesn't need a queue for this anymore, but you might have a similar
+            // process for custom data if it's sent separately. This example assumes it might be batched differently.
+            // For simplicity, we assume the dispatcher will also poll for this flag.
         }
     }
 

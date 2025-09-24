@@ -21,7 +21,7 @@ import java.util.function.Supplier;
  *
  * @author xI-Mx-Ix
  */
-public class SpawnPhysicsObjectBatchPacket {
+public class S2CSpawnBodyBatchPacket {
 
     private final List<SpawnData> spawnDataList;
 
@@ -30,7 +30,7 @@ public class SpawnPhysicsObjectBatchPacket {
      *
      * @param spawnDataList The list of {@link SpawnData} for each object.
      */
-    public SpawnPhysicsObjectBatchPacket(List<SpawnData> spawnDataList) {
+    public S2CSpawnBodyBatchPacket(List<SpawnData> spawnDataList) {
         this.spawnDataList = spawnDataList;
     }
 
@@ -39,7 +39,7 @@ public class SpawnPhysicsObjectBatchPacket {
      *
      * @param buf The buffer to read from.
      */
-    public SpawnPhysicsObjectBatchPacket(FriendlyByteBuf buf) {
+    public S2CSpawnBodyBatchPacket(FriendlyByteBuf buf) {
         int size = buf.readVarInt();
         this.spawnDataList = new ObjectArrayList<>(size);
         for (int i = 0; i < size; i++) {
@@ -65,7 +65,7 @@ public class SpawnPhysicsObjectBatchPacket {
      * @param msg             The received packet.
      * @param contextSupplier A supplier for the network packet context.
      */
-    public static void handle(SpawnPhysicsObjectBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
+    public static void handle(S2CSpawnBodyBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             VxClientObjectManager manager = VxClientObjectManager.getInstance();

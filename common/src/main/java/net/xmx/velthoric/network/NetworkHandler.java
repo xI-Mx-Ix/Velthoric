@@ -16,10 +16,7 @@ import net.minecraft.world.level.Level;
 import net.xmx.velthoric.item.boxthrower.packet.BoxThrowerActionPacket;
 import net.xmx.velthoric.item.magnetizer.packet.MagnetizerActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.*;
-import net.xmx.velthoric.physics.object.packet.batch.RemovePhysicsObjectBatchPacket;
-import net.xmx.velthoric.physics.object.packet.batch.SpawnPhysicsObjectBatchPacket;
-import net.xmx.velthoric.physics.object.packet.batch.SyncAllPhysicsObjectsPacket;
-import net.xmx.velthoric.physics.object.packet.batch.SyncCustomDataBatchPacket;
+import net.xmx.velthoric.physics.object.packet.batch.*;
 import net.xmx.velthoric.physics.raycasting.click.packet.VxClickPacket;
 
 import java.util.function.BiConsumer;
@@ -41,10 +38,38 @@ public class NetworkHandler {
 
     public static void register() {
         registerPacket(
-                SyncCustomDataBatchPacket.class,
-                SyncCustomDataBatchPacket::encode,
-                SyncCustomDataBatchPacket::new,
-                SyncCustomDataBatchPacket::handle
+                S2CSCustomDataBatchPacket.class,
+                S2CSCustomDataBatchPacket::encode,
+                S2CSCustomDataBatchPacket::new,
+                S2CSCustomDataBatchPacket::handle
+        );
+
+        registerPacket(
+                S2CSpawnBodyBatchPacket.class,
+                S2CSpawnBodyBatchPacket::encode,
+                S2CSpawnBodyBatchPacket::new,
+                S2CSpawnBodyBatchPacket::handle
+        );
+
+        registerPacket(
+                S2CRemoveBodyBatchPacket.class,
+                S2CRemoveBodyBatchPacket::encode,
+                S2CRemoveBodyBatchPacket::new,
+                S2CRemoveBodyBatchPacket::handle
+        );
+
+        registerPacket(
+                S2CUpdateBodyStateBatchPacket.class,
+                S2CUpdateBodyStateBatchPacket::encode,
+                S2CUpdateBodyStateBatchPacket::new,
+                S2CUpdateBodyStateBatchPacket::handle
+        );
+
+        registerPacket(
+                S2CUpdateVerticesBatchPacket.class,
+                S2CUpdateVerticesBatchPacket::encode,
+                S2CUpdateVerticesBatchPacket::new,
+                S2CUpdateVerticesBatchPacket::handle
         );
 
         registerPacket(
@@ -52,13 +77,6 @@ public class NetworkHandler {
                 PhysicsGunSyncPacket::encode,
                 PhysicsGunSyncPacket::decode,
                 PhysicsGunSyncPacket::handle
-        );
-
-        registerPacket(
-                SyncAllPhysicsObjectsPacket.class,
-                SyncAllPhysicsObjectsPacket::encode,
-                SyncAllPhysicsObjectsPacket::new,
-                SyncAllPhysicsObjectsPacket::handle
         );
 
         registerPacket(
@@ -80,20 +98,6 @@ public class NetworkHandler {
                 VxClickPacket::encode,
                 VxClickPacket::decode,
                 VxClickPacket::handle
-        );
-
-        registerPacket(
-                RemovePhysicsObjectBatchPacket.class,
-                RemovePhysicsObjectBatchPacket::encode,
-                RemovePhysicsObjectBatchPacket::new,
-                RemovePhysicsObjectBatchPacket::handle
-        );
-
-        registerPacket(
-                SpawnPhysicsObjectBatchPacket.class,
-                SpawnPhysicsObjectBatchPacket::encode,
-                SpawnPhysicsObjectBatchPacket::new,
-                SpawnPhysicsObjectBatchPacket::handle
         );
 
         registerPacket(

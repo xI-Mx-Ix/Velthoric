@@ -11,8 +11,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 /**
- * A data-oriented store for the live state of all physics objects.
- * <p>
+ * A data-oriented store for the live state of all physics objects on the server.
  * This class uses a "Structure of Arrays" (SoA) layout, where each property of an object
  * is stored in a separate array. This is highly efficient for the physics update loop,
  * as it improves CPU cache locality when iterating over a single property (e.g., position)
@@ -21,6 +20,7 @@ import java.util.*;
  * @author xI-Mx-Ix
  */
 public class VxObjectDataStore extends AbstractDataStore {
+    // The initial capacity for the data arrays.
     private static final int INITIAL_CAPACITY = 256;
 
     private final Map<UUID, Integer> uuidToIndex = new HashMap<>();
@@ -40,12 +40,15 @@ public class VxObjectDataStore extends AbstractDataStore {
     public long[] chunkKey;
 
     // --- Sync & Management Data ---
-    /** Flag indicating that the game logic has modified this object's state, requiring a sync to Jolt. */
+    // Flag indicating that the game logic has modified this object's state, requiring a sync to Jolt.
     public boolean[] isGameStateDirty;
-    /** Flag indicating that the physics simulation has modified this object's state, requiring a network sync. */
-    public boolean[] isPhysicsStateDirty;
-    /** Flag indicating that the object's custom data has changed, requiring a network sync. */
+    // Flag indicating that the object's transform (pos/rot/vel) has changed, requiring a network sync.
+    public boolean[] isTransformDirty;
+    // Flag indicating that the object's vertex data (for soft bodies) has changed, requiring a network sync.
+    public boolean[] isVertexDataDirty;
+    // Flag indicating that the object's custom data has changed, requiring a network sync.
     public boolean[] isCustomDataDirty;
+    // The server timestamp of the last physics update for this object.
     public long[] lastUpdateTimestamp;
 
     public VxObjectDataStore() {
@@ -72,7 +75,8 @@ public class VxObjectDataStore extends AbstractDataStore {
         chunkKey = grow(chunkKey, newCapacity);
 
         isGameStateDirty = grow(isGameStateDirty, newCapacity);
-        isPhysicsStateDirty = grow(isPhysicsStateDirty, newCapacity);
+        isTransformDirty = grow(isTransformDirty, newCapacity);
+        isVertexDataDirty = grow(isVertexDataDirty, newCapacity);
         isCustomDataDirty = grow(isCustomDataDirty, newCapacity);
         lastUpdateTimestamp = grow(lastUpdateTimestamp, newCapacity);
 
@@ -169,7 +173,8 @@ public class VxObjectDataStore extends AbstractDataStore {
         bodyType[index] = null;
         chunkKey[index] = Long.MAX_VALUE;
         isGameStateDirty[index] = false;
-        isPhysicsStateDirty[index] = false;
+        isTransformDirty[index] = false;
+        isVertexDataDirty[index] = false;
         isCustomDataDirty[index] = false;
         lastUpdateTimestamp[index] = 0L;
     }

@@ -20,8 +20,8 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.FloatBuffer;
+import java.util.Arrays;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Responsible for the bi-directional synchronization between the game state
@@ -37,7 +37,6 @@ public class VxPhysicsUpdater {
 
     private final VxObjectManager manager;
     private final VxObjectDataStore dataStore;
-    private final ConcurrentLinkedQueue<Integer> dirtyPhysicsIndicesQueue;
 
     // Thread-local temporary objects to avoid GC pressure in the update loop.
     private final ThreadLocal<RVec3> tempPos = ThreadLocal.withInitial(RVec3::new);
@@ -46,10 +45,9 @@ public class VxPhysicsUpdater {
     private final ThreadLocal<Vec3> tempAngVel = ThreadLocal.withInitial(Vec3::new);
     private final ThreadLocal<BodyIdVector> localBodyIdVector = ThreadLocal.withInitial(BodyIdVector::new);
 
-    public VxPhysicsUpdater(VxObjectManager manager, ConcurrentLinkedQueue<Integer> dirtyPhysicsIndicesQueue) {
+    public VxPhysicsUpdater(VxObjectManager manager) {
         this.manager = manager;
         this.dataStore = manager.getDataStore();
-        this.dirtyPhysicsIndicesQueue = dirtyPhysicsIndicesQueue;
     }
 
     /**
@@ -167,7 +165,6 @@ public class VxPhysicsUpdater {
                 if (index < 0) continue;
 
                 // --- Unconditionally read from Jolt and write to DataStore ---
-                // This is the core of the "simple" update. No expensive state comparison here.
                 // We trust that if Jolt says a body is active, its state is worth syncing.
                 final RVec3 pos = tempPos.get();
                 final Quat rot = tempRot.get();
@@ -193,8 +190,14 @@ public class VxPhysicsUpdater {
                 dataStore.angVelY[index] = angVel.getY();
                 dataStore.angVelZ[index] = angVel.getZ();
 
-                if (obj instanceof VxSoftBody) {
-                    dataStore.vertexData[index] = getSoftBodyVertices(world.getBodyLockInterfaceNoLock(), bodyId, pos);
+                if (obj instanceof VxSoftBody softBody) {
+                    float[] newVertexData = getSoftBodyVertices(world.getBodyLockInterfaceNoLock(), bodyId, pos);
+                    // Only mark as dirty if the vertex data has actually changed.
+                    if (newVertexData != null && !Arrays.equals(newVertexData, dataStore.vertexData[index])) {
+                        dataStore.vertexData[index] = newVertexData;
+                        dataStore.isVertexDataDirty[index] = true;
+                        softBody.setLastSyncedVertexData(newVertexData); // Update cache on the body
+                    }
                 }
 
                 dataStore.isActive[index] = bodyInterface.isActive(bodyId);
@@ -207,15 +210,20 @@ public class VxPhysicsUpdater {
                     manager.updateObjectTracking(obj, lastKey, currentKey);
                 }
 
-                // Mark for network sync
-                if (!dataStore.isPhysicsStateDirty[index]) {
-                    dataStore.isPhysicsStateDirty[index] = true;
-                    dirtyPhysicsIndicesQueue.offer(index);
-                }
+                // Mark the transform as dirty for the network dispatcher.
+                // This is done for all active bodies.
+                dataStore.isTransformDirty[index] = true;
             }
         }
     }
 
+    /**
+     * Extracts the vertex positions of a soft body from Jolt.
+     * @param lockInterface Jolt's body lock interface.
+     * @param bodyId The ID of the soft body.
+     * @param bodyPosition The current position of the body's center of mass.
+     * @return An array of vertex coordinates [x1, y1, z1, x2, y2, z2, ...], or null on failure.
+     */
     private float @Nullable [] getSoftBodyVertices(ConstBodyLockInterfaceNoLock lockInterface, int bodyId, RVec3Arg bodyPosition) {
         try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {
             if (lock.succeededAndIsInBroadPhase()) {
@@ -225,11 +233,12 @@ public class VxPhysicsUpdater {
                     int numVertices = motionProps.getSettings().countVertices();
                     if (numVertices > 0) {
                         int bufferSize = numVertices * 3;
+                        // Use a direct buffer for efficient JNI transfer.
                         FloatBuffer vertexBuffer = Jolt.newDirectFloatBuffer(bufferSize);
                         motionProps.putVertexLocations(bodyPosition, vertexBuffer);
-                        vertexBuffer.flip();
+                        vertexBuffer.flip(); // Prepare buffer for reading
                         float[] vertexArray = new float[bufferSize];
-                        vertexBuffer.get(vertexArray);
+                        vertexBuffer.get(vertexArray); // Copy data to a heap array
                         return vertexArray;
                     }
                 }

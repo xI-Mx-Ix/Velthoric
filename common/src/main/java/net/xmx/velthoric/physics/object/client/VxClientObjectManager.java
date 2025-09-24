@@ -17,13 +17,10 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.client.body.VxClientBody;
 import net.xmx.velthoric.physics.object.client.time.VxClientClock;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
-import net.xmx.velthoric.physics.object.state.PhysicsObjectState;
-import net.xmx.velthoric.physics.object.state.PhysicsObjectStatePool;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * The main singleton manager for all client-side physics objects.
@@ -43,7 +40,7 @@ public class VxClientObjectManager {
     // The delay applied to rendering to allow for interpolation. A larger value
     // can smooth over more network jitter but increases perceived latency.
     // Value is in nanoseconds.
-    private static final long INTERPOLATION_DELAY_NANOS = 220_000_000L;
+    private static final long INTERPOLATION_DELAY_NANOS = 150_000_000L;
 
     // The data store holding all object states in a Structure of Arrays format.
     private final VxClientObjectDataStore store = new VxClientObjectDataStore();
@@ -61,8 +58,6 @@ public class VxClientObjectManager {
     private boolean isClockOffsetInitialized = false;
     // A list of recent clock offset samples used for calculating an average.
     private final List<Long> clockOffsetSamples = new ArrayList<>();
-    // A queue for incoming state updates to be processed on the client thread.
-    private final ConcurrentLinkedQueue<PhysicsObjectState> stateUpdateQueue = new ConcurrentLinkedQueue<>();
 
     // Private constructor to enforce singleton pattern.
     private VxClientObjectManager() {}
@@ -75,29 +70,13 @@ public class VxClientObjectManager {
     }
 
     /**
-     * Schedules a list of incoming physics states to be processed in the next client tick.
-     * This method is thread-safe.
-     *
-     * @param states The list of states received from the server.
+     * Adds a sample to be used for server-client clock synchronization.
+     * This is called from packet handlers.
+     * @param offsetSample The calculated time offset for a single packet.
      */
-    public void scheduleStatesForUpdate(List<PhysicsObjectState> states) {
-        stateUpdateQueue.addAll(states);
-    }
-
-    /**
-     * Processes all pending state updates from the queue. This should be called on the main client thread.
-     */
-    private void processStateUpdates() {
-        PhysicsObjectState state;
-        long clientReceiptTime = clock.getGameTimeNanos();
-        while ((state = stateUpdateQueue.poll()) != null) {
-            // Add a new sample for clock synchronization.
-            synchronized (clockOffsetSamples) {
-                this.clockOffsetSamples.add(state.getTimestamp() - clientReceiptTime);
-            }
-            updateObjectState(state);
-            // Release the state object back to the pool to be reused.
-            PhysicsObjectStatePool.release(state);
+    public void addClockSyncSample(long offsetSample) {
+        synchronized (clockOffsetSamples) {
+            this.clockOffsetSamples.add(offsetSample);
         }
     }
 
@@ -139,65 +118,6 @@ public class VxClientObjectManager {
                 this.clockOffsetNanos = (long) (this.clockOffsetNanos * 0.95 + averageOffset * 0.05);
             }
         }
-    }
-
-    /**
-     * Updates the state buffers for a single object with a new state from the server.
-     * This involves shifting the previous "to" state to the "from" state and inserting the new state.
-     *
-     * @param state The new {@link PhysicsObjectState} from the server.
-     */
-    private void updateObjectState(PhysicsObjectState state) {
-        Integer index = store.getIndexForId(state.getId());
-        if (index == null) return; // Object might have been removed just before the update arrived.
-
-        // Shift state1 (the previous target state) to state0 (the new source state).
-        store.state0_timestamp[index] = store.state1_timestamp[index];
-        store.state0_posX[index] = store.state1_posX[index];
-        store.state0_posY[index] = store.state1_posY[index];
-        store.state0_posZ[index] = store.state1_posZ[index];
-        store.state0_rotX[index] = store.state1_rotX[index];
-        store.state0_rotY[index] = store.state1_rotY[index];
-        store.state0_rotZ[index] = store.state1_rotZ[index];
-        store.state0_rotW[index] = store.state1_rotW[index];
-        store.state0_velX[index] = store.state1_velX[index];
-        store.state0_velY[index] = store.state1_velY[index];
-        store.state0_velZ[index] = store.state1_velZ[index];
-        store.state0_isActive[index] = store.state1_isActive[index];
-        store.state0_vertexData[index] = store.state1_vertexData[index];
-
-        // Apply the new state data to state1 (the new target state).
-        store.state1_timestamp[index] = state.getTimestamp();
-        RVec3 pos = state.getTransform().getTranslation();
-        store.state1_posX[index] = pos.x();
-        store.state1_posY[index] = pos.y();
-        store.state1_posZ[index] = pos.z();
-        Quat rot = state.getTransform().getRotation();
-        store.state1_rotX[index] = rot.getX();
-        store.state1_rotY[index] = rot.getY();
-        store.state1_rotZ[index] = rot.getZ();
-        store.state1_rotW[index] = rot.getW();
-        store.state1_isActive[index] = state.isActive();
-
-        if (store.state1_isActive[index]) {
-            com.github.stephengold.joltjni.Vec3 linVel = state.getLinearVelocity();
-            store.state1_velX[index] = linVel.getX();
-            store.state1_velY[index] = linVel.getY();
-            store.state1_velZ[index] = linVel.getZ();
-        } else {
-            // If the body is inactive, its velocity is zero.
-            store.state1_velX[index] = 0.0f;
-            store.state1_velY[index] = 0.0f;
-            store.state1_velZ[index] = 0.0f;
-        }
-
-        store.state1_vertexData[index] = state.getSoftBodyVertices();
-
-        // Update the last known position for culling purposes.
-        if (store.lastKnownPosition[index] == null) {
-            store.lastKnownPosition[index] = new RVec3();
-        }
-        store.lastKnownPosition[index].set(pos);
     }
 
     /**
@@ -327,7 +247,6 @@ public class VxClientObjectManager {
     public void clearAll() {
         store.clear();
         managedObjects.clear();
-        stateUpdateQueue.clear();
         isClockOffsetInitialized = false;
         clockOffsetNanos = 0L;
         synchronized(clockOffsetSamples) {
@@ -337,10 +256,9 @@ public class VxClientObjectManager {
 
     /**
      * The main client-side tick method.
-     * Processes updates, synchronizes the clock, and runs interpolation.
+     * Synchronizes the clock, and runs interpolation.
      */
     public void clientTick() {
-        processStateUpdates();
         synchronizeClock();
         if (isClockOffsetInitialized) {
             // Calculate the target render time, accounting for the clock offset and interpolation delay.
@@ -378,6 +296,13 @@ public class VxClientObjectManager {
      */
     public Collection<VxClientBody> getAllObjects() {
         return managedObjects.values();
+    }
+
+    /**
+     * @return The client-side clock.
+     */
+    public VxClientClock getClock() {
+        return clock;
     }
 
     /**

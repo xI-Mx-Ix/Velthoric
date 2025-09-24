@@ -19,7 +19,7 @@ import java.util.function.Supplier;
  *
  * @author xI-Mx-Ix
  */
-public class RemovePhysicsObjectBatchPacket {
+public class S2CRemoveBodyBatchPacket {
 
     // The list of object UUIDs to be removed.
     private final List<UUID> ids;
@@ -29,7 +29,7 @@ public class RemovePhysicsObjectBatchPacket {
      *
      * @param ids The list of UUIDs.
      */
-    public RemovePhysicsObjectBatchPacket(List<UUID> ids) {
+    public S2CRemoveBodyBatchPacket(List<UUID> ids) {
         this.ids = ids;
     }
 
@@ -38,7 +38,7 @@ public class RemovePhysicsObjectBatchPacket {
      *
      * @param buf The buffer to read from.
      */
-    public RemovePhysicsObjectBatchPacket(FriendlyByteBuf buf) {
+    public S2CRemoveBodyBatchPacket(FriendlyByteBuf buf) {
         int size = buf.readVarInt();
         this.ids = new ObjectArrayList<>(size);
         for (int i = 0; i < size; i++) {
@@ -64,7 +64,7 @@ public class RemovePhysicsObjectBatchPacket {
      * @param msg            The received packet message.
      * @param contextSupplier A supplier for the network context.
      */
-    public static void handle(RemovePhysicsObjectBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
+    public static void handle(S2CRemoveBodyBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             // Executed on the client thread.

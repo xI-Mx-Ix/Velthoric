@@ -20,7 +20,7 @@ import java.util.function.Supplier;
  *
  * @author xI-Mx-Ix
  */
-public class SyncCustomDataBatchPacket {
+public class S2CSCustomDataBatchPacket {
 
     private final Map<UUID, byte[]> dataUpdates;
 
@@ -29,7 +29,7 @@ public class SyncCustomDataBatchPacket {
      *
      * @param dataUpdates A map where the key is the object's UUID and the value is the serialized custom data.
      */
-    public SyncCustomDataBatchPacket(Map<UUID, byte[]> dataUpdates) {
+    public S2CSCustomDataBatchPacket(Map<UUID, byte[]> dataUpdates) {
         this.dataUpdates = dataUpdates;
     }
 
@@ -38,7 +38,7 @@ public class SyncCustomDataBatchPacket {
      *
      * @param buf The buffer to read from.
      */
-    public SyncCustomDataBatchPacket(FriendlyByteBuf buf) {
+    public S2CSCustomDataBatchPacket(FriendlyByteBuf buf) {
         int size = buf.readVarInt();
         this.dataUpdates = new Object2ObjectArrayMap<>(size);
         for (int i = 0; i < size; i++) {
@@ -67,7 +67,7 @@ public class SyncCustomDataBatchPacket {
      * @param msg             The received packet.
      * @param contextSupplier A supplier for the network packet context.
      */
-    public static void handle(SyncCustomDataBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
+    public static void handle(S2CSCustomDataBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             VxClientObjectManager manager = VxClientObjectManager.getInstance();
