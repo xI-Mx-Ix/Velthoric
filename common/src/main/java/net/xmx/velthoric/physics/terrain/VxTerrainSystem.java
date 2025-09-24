@@ -84,8 +84,8 @@ public class VxTerrainSystem implements Runnable {
         this.objectDataStore = physicsWorld.getObjectManager().getDataStore();
         this.shapeCache = new TerrainShapeCache(1024);
         this.terrainStorage = new TerrainStorage(this.level);
+        this.terrainGenerator = new TerrainGenerator(this.shapeCache, this.terrainStorage);
         this.jobSystem = new VxTerrainJobSystem();
-        this.terrainGenerator = new TerrainGenerator(this.shapeCache, this.terrainStorage, this.jobSystem.getExecutor());
         this.workerThread = new Thread(this, "Velthoric Terrain Tracker - " + level.dimension().location().getPath());
         this.workerThread.setDaemon(true);
     }
@@ -285,31 +285,20 @@ public class VxTerrainSystem implements Runnable {
 
     private void processShapeGenerationOnWorker(VxSectionPos pos, int index, int version, ChunkSnapshot snapshot, boolean isInitialBuild, int previousState) {
         if (version < chunkDataStore.rebuildVersions[index]) {
-            if (chunkDataStore.states[index] == STATE_GENERATING_SHAPE) {
-                chunkDataStore.states[index] = previousState;
+            if (chunkDataStore.states[index] == STATE_GENERATING_SHAPE) chunkDataStore.states[index] = previousState;
+            return;
+        }
+
+        try {
+            if (!isInitialized.get()) {
+                return;
             }
-            return;
+            ShapeRefC generatedShape = terrainGenerator.generateShape(level, snapshot);
+            physicsWorld.execute(() -> applyGeneratedShape(pos, index, version, generatedShape, isInitialBuild));
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Exception during terrain shape generation for {}", pos, e);
+            chunkDataStore.states[index] = STATE_UNLOADED;
         }
-
-        if (!isInitialized.get()) {
-            return;
-        }
-
-        // Asynchronously generate/load the shape and handle the result when it's ready.
-        // This is now fully non-blocking.
-        terrainGenerator.generateShape(level, snapshot)
-                .thenAccept(generatedShape -> {
-                    // This continuation will run when the shape is available.
-                    // We can now safely schedule the final step (which touches physics world state) on the main server thread.
-                    physicsWorld.execute(() -> applyGeneratedShape(pos, index, version, generatedShape, isInitialBuild));
-                })
-                .exceptionally(ex -> {
-                    // Handle any errors that occurred during the async chain.
-                    VxMainClass.LOGGER.error("Exception during async terrain shape processing for {}", pos, ex);
-                    // Ensure state is reset on the main thread.
-                    physicsWorld.execute(() -> chunkDataStore.states[index] = STATE_UNLOADED);
-                    return null;
-                });
     }
 
     private void applyGeneratedShape(VxSectionPos pos, int index, int version, ShapeRefC shape, boolean isInitialBuild) {

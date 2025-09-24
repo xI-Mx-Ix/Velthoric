@@ -4,6 +4,8 @@
  */
 package net.xmx.velthoric.physics.persistence;
 
+import net.xmx.velthoric.init.VxMainClass;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -38,28 +40,31 @@ public final class VxPersistenceManager {
             return; // Already initialized
         }
 
-        int threadCount = Math.max(2, Runtime.getRuntime().availableProcessors() / 4);
+        // A small, fixed number of threads is ideal for I/O operations.
+        int threadCount = Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors() / 2));
         ioWorker = Executors.newFixedThreadPool(threadCount, new ThreadFactory() {
             private final AtomicInteger threadNumber = new AtomicInteger(1);
             @Override
             public Thread newThread(Runnable r) {
-                Thread t = new Thread(r, "Velthoric IOWorker-" + threadNumber.getAndIncrement());
-                t.setDaemon(true); // Ensure threads do not prevent JVM shutdown
+                Thread t = new Thread(r, "Velthoric-IOWorker-" + threadNumber.getAndIncrement());
+                t.setDaemon(true);
+                t.setPriority(Thread.NORM_PRIORITY - 1); // I/O can be slightly lower priority
                 return t;
             }
         });
+        VxMainClass.LOGGER.info("Initialized Velthoric Persistence Manager with {} I/O threads.", threadCount);
     }
 
     /**
      * Shuts down the shared I/O worker pool, waiting a short period for tasks
-     * to complete. This should be called during server shutdown, after all
-     * save operations have been initiated.
+     * to complete. This should be called during server shutdown.
      */
     public static void shutdown() {
         if (ioWorker != null && !ioWorker.isShutdown()) {
             ioWorker.shutdown();
             try {
                 if (!ioWorker.awaitTermination(10, TimeUnit.SECONDS)) {
+                    VxMainClass.LOGGER.warn("I/O worker did not terminate in 10 seconds, forcing shutdown.");
                     ioWorker.shutdownNow();
                 }
             } catch (InterruptedException e) {
@@ -67,6 +72,7 @@ public final class VxPersistenceManager {
                 Thread.currentThread().interrupt();
             }
             ioWorker = null;
+            VxMainClass.LOGGER.debug("Velthoric Persistence Manager shut down.");
         }
     }
 
@@ -78,7 +84,8 @@ public final class VxPersistenceManager {
      */
     public static ExecutorService getExecutor() {
         if (ioWorker == null || ioWorker.isShutdown()) {
-            throw new IllegalStateException("VxPersistenceManager has not been initialized or is already shut down.");
+            VxMainClass.LOGGER.warn("VxPersistenceManager was requested but was not active. Re-initializing...");
+            initialize();
         }
         return ioWorker;
     }
