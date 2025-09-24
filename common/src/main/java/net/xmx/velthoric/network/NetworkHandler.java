@@ -38,10 +38,10 @@ public class NetworkHandler {
 
     public static void register() {
         registerPacket(
-                S2CSCustomDataBatchPacket.class,
-                S2CSCustomDataBatchPacket::encode,
-                S2CSCustomDataBatchPacket::new,
-                S2CSCustomDataBatchPacket::handle
+                S2CCustomDataBatchPacket.class,
+                S2CCustomDataBatchPacket::encode,
+                S2CCustomDataBatchPacket::new,
+                S2CCustomDataBatchPacket::handle
         );
 
         registerPacket(
