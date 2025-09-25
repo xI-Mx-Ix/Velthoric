@@ -35,9 +35,9 @@ public final class SpawnBoxNet implements IVxTestCommand {
     @Override
     public void registerArguments(LiteralArgumentBuilder<CommandSourceStack> builder) {
         builder.then(Commands.argument("start_position", Vec3Argument.vec3(true))
-                .then(Commands.argument("sizeX", IntegerArgumentType.integer(1, 20))
-                        .then(Commands.argument("sizeY", IntegerArgumentType.integer(1, 20))
-                                .then(Commands.argument("sizeZ", IntegerArgumentType.integer(1, 20))
+                .then(Commands.argument("sizeX", IntegerArgumentType.integer(1, 200))
+                        .then(Commands.argument("sizeY", IntegerArgumentType.integer(1, 200))
+                                .then(Commands.argument("sizeZ", IntegerArgumentType.integer(1, 200))
                                         .executes(this::execute)
                                 )
                         )
