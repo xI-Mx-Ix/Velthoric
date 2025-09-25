@@ -46,8 +46,8 @@ public class MarbleRigidBody extends VxRigidBody {
         ) {
             bcs.setMotionType(EMotionType.Dynamic);
             bcs.setObjectLayer(VxLayers.DYNAMIC);
-            bcs.setRestitution(0.6f);
-            bcs.setFriction(0.6f);
+            bcs.setRestitution(0.3f);
+            bcs.setFriction(0.2f);
 
             try (var shapeResult = shapeSettings.create(); var shapeRef = shapeResult.get()) {
                 try (MassProperties massProperties = new MassProperties()) {
