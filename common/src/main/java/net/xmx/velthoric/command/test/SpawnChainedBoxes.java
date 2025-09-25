@@ -27,11 +27,11 @@ import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-public final class CreateChainedBoxes implements IVxTestCommand {
+public final class SpawnChainedBoxes implements IVxTestCommand {
 
     @Override
     public String getName() {
-        return "createChainedBoxes";
+        return "spawnChainedBoxes";
     }
 
     @Override
