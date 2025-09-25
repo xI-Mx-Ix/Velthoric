@@ -7,8 +7,8 @@ package net.xmx.velthoric.physics.object.packet.batch;
 import com.github.stephengold.joltjni.RVec3;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -31,9 +31,10 @@ public class S2CUpdateBodyStateBatchPacket {
     private final boolean[] isActive;
 
     /**
-     * Constructs the packet from raw data arrays.
+     * Constructs the packet from raw data arrays. The provided arrays may be larger than
+     * {@code count}; only the first {@code count} elements will be used.
      *
-     * @param count      The number of objects in this batch.
+     * @param count      The number of valid objects in this batch.
      * @param ids        Array of object UUIDs.
      * @param timestamps Array of server-side timestamps for each state.
      * @param posX       Array of X positions.
@@ -107,13 +108,24 @@ public class S2CUpdateBodyStateBatchPacket {
 
     /**
      * Encodes the packet's data into a network buffer for sending.
+     * It only writes the first {@code count} elements from the internal arrays.
      *
      * @param buf The buffer to write to.
      */
     public void encode(FriendlyByteBuf buf) {
         buf.writeVarInt(count);
         for (int i = 0; i < count; i++) {
-            buf.writeUUID(ids[i]);
+            // This now safely handles the case where the ids[i] could be null
+            // if an error happened during packet construction, although the dispatcher
+            // now prevents this. A defensive check is good practice.
+            UUID uuid = ids[i];
+            if (uuid == null) {
+                // This should not happen with the new dispatcher logic, but as a fallback,
+                // write a sentinel UUID to prevent crashing the client. The client should ignore it.
+                buf.writeUUID(new UUID(0, 0));
+            } else {
+                buf.writeUUID(uuid);
+            }
             buf.writeLong(timestamps[i]);
             buf.writeDouble(posX[i]);
             buf.writeDouble(posY[i]);
@@ -145,8 +157,13 @@ public class S2CUpdateBodyStateBatchPacket {
             long clientReceiptTime = manager.getClock().getGameTimeNanos();
 
             for (int i = 0; i < msg.count; i++) {
+                // Ignore sentinel UUIDs from potential encoding fallbacks.
+                if (msg.ids[i].getMostSignificantBits() == 0 && msg.ids[i].getLeastSignificantBits() == 0) {
+                    continue;
+                }
+
                 Integer index = store.getIndexForId(msg.ids[i]);
-                if (index == null) continue; // Object might have been removed.
+                if (index == null) continue; // Object might have been removed client-side.
 
                 // Add a clock sync sample for each received state.
                 manager.addClockSyncSample(msg.timestamps[i] - clientReceiptTime);
@@ -187,12 +204,12 @@ public class S2CUpdateBodyStateBatchPacket {
                     store.state1_velY[index] = 0.0f;
                     store.state1_velZ[index] = 0.0f;
                 }
-                
+
                 // Update the last known position for culling purposes.
                 if (store.lastKnownPosition[index] == null) {
                     store.lastKnownPosition[index] = new RVec3();
                 }
-                store.lastKnownPosition[index].set((float)msg.posX[i], (float)msg.posY[i], (float)msg.posZ[i]);
+                store.lastKnownPosition[index].set((float) msg.posX[i], (float) msg.posY[i], (float) msg.posZ[i]);
             }
         });
     }
