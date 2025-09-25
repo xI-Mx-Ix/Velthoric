@@ -22,9 +22,9 @@ public final class VxTestCommand {
         registerTest(new SpawnBoxGridTest());
         registerTest(new SpawnClothTest());
         registerTest(new SpawnRopeTest());
-        registerTest(new CreateChainedBoxes());
+        registerTest(new SpawnChainedBoxes());
         registerTest(new SpawnMarbleTest());
-        registerTest(new SpawnConnectedBoxesTest());
+        registerTest(new SpawnBoxNet());
     }
 
     private static void registerTest(IVxTestCommand test) {
