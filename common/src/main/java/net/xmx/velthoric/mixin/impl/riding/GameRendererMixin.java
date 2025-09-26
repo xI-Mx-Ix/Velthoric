@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
-import net.xmx.velthoric.physics.riding.RidingProxyEntity;
+import net.xmx.velthoric.physics.riding.VxRidingProxyEntity;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaterniond;
@@ -60,7 +60,7 @@ public abstract class GameRendererMixin {
             PoseStack matrixStack
     ) {
         Entity player = this.minecraft.player;
-        if (player == null || !(player.getVehicle() instanceof RidingProxyEntity proxy)) {
+        if (player == null || !(player.getVehicle() instanceof VxRidingProxyEntity proxy)) {
             prepareCullFrustum.call(instance, matrixStack, vec3, matrix4f);
             return;
         }

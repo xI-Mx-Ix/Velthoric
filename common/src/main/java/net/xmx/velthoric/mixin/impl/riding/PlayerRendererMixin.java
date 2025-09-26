@@ -14,7 +14,7 @@ import net.minecraft.util.Mth;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.riding.RidingProxyEntity;
+import net.xmx.velthoric.physics.riding.VxRidingProxyEntity;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,7 +34,7 @@ public abstract class PlayerRendererMixin {
 
     @Inject(method = "setupRotations", at = @At("HEAD"), cancellable = true)
     private void velthoric_setupPhysicsObjectRotations(AbstractClientPlayer player, PoseStack poseStack, float ageInTicks, float rotationYaw, float partialTicks, CallbackInfo ci) {
-        if (!(player.getVehicle() instanceof RidingProxyEntity proxy)) {
+        if (!(player.getVehicle() instanceof VxRidingProxyEntity proxy)) {
             return;
         }
 

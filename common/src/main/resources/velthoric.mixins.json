@@ -30,10 +30,10 @@
     "physicsgun.KeyboardHandlerMixin_PhysicsGunHandling",
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
     "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
-    "raytracing.MouseHandlerMixin_ClickNotifier",
     "riding.CameraMixin",
     "riding.GameRendererMixin",
-    "riding.PlayerRendererMixin"
+    "riding.PlayerRendererMixin",
+    "riding.input.LocalPlayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

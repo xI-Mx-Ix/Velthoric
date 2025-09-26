@@ -2,18 +2,20 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.riding;
+package net.xmx.velthoric.physics.riding.manager;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.init.registry.EntityRegistry;
 import net.xmx.velthoric.physics.object.type.VxBody;
-import net.xmx.velthoric.physics.riding.seat.Seat;
+import net.xmx.velthoric.physics.riding.VxRideable;
+import net.xmx.velthoric.physics.riding.VxRidingProxyEntity;
+import net.xmx.velthoric.physics.riding.input.VxRideInput;
+import net.xmx.velthoric.physics.riding.seat.VxSeat;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -21,25 +23,24 @@ import org.joml.Vector3f;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class RidingManager {
+public class VxRidingManager {
 
     private final VxPhysicsWorld world;
-    private final Object2ObjectMap<UUID, Map<String, Seat>> objectToSeatsMap = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<UUID, Map<String, VxSeat>> objectToSeatsMap = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<UUID, UUID> playerToObjectIdMap = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<UUID, Map<UUID, ServerPlayer>> objectToRidersMap = new Object2ObjectOpenHashMap<>();
-    private final Object2ObjectMap<UUID, Seat> playerToSeatMap = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<UUID, VxSeat> playerToSeatMap = new Object2ObjectOpenHashMap<>();
 
-    public RidingManager(VxPhysicsWorld world) {
+    public VxRidingManager(VxPhysicsWorld world) {
         this.world = world;
     }
 
-    public void addSeat(UUID objectId, Seat.Properties properties) {
-        Seat seat = new Seat(properties);
-        this.objectToSeatsMap.computeIfAbsent(objectId, k -> new ConcurrentHashMap<>()).put(properties.seatName, seat);
+    public void addSeat(UUID objectId, VxSeat seat) {
+        this.objectToSeatsMap.computeIfAbsent(objectId, k -> new ConcurrentHashMap<>()).put(seat.getName(), seat);
     }
 
     public void removeSeat(UUID objectId, String seatName) {
-        Map<String, Seat> seats = this.objectToSeatsMap.get(objectId);
+        Map<String, VxSeat> seats = this.objectToSeatsMap.get(objectId);
         if (seats != null) {
             seats.remove(seatName);
             if (seats.isEmpty()) {
@@ -48,38 +49,38 @@ public class RidingManager {
         }
     }
 
-    public Optional<Seat> getSeat(UUID objectId, String seatName) {
-        Map<String, Seat> seats = this.objectToSeatsMap.get(objectId);
+    public Optional<VxSeat> getSeat(UUID objectId, String seatName) {
+        Map<String, VxSeat> seats = this.objectToSeatsMap.get(objectId);
         return seats != null ? Optional.ofNullable(seats.get(seatName)) : Optional.empty();
     }
 
-    public Collection<Seat> getSeats(UUID objectId) {
-        Map<String, Seat> seats = this.objectToSeatsMap.get(objectId);
+    public Optional<VxSeat> getSeatForPlayer(ServerPlayer player) {
+        return Optional.ofNullable(playerToSeatMap.get(player.getUUID()));
+    }
+
+    public Optional<VxRideable> getRideableForPlayer(ServerPlayer player) {
+        UUID objectId = playerToObjectIdMap.get(player.getUUID());
+        if (objectId == null) {
+            return Optional.empty();
+        }
+        VxBody body = world.getObjectManager().getObject(objectId);
+        if (body instanceof VxRideable) {
+            return Optional.of((VxRideable) body);
+        }
+        return Optional.empty();
+    }
+
+    public Collection<VxSeat> getSeats(UUID objectId) {
+        Map<String, VxSeat> seats = this.objectToSeatsMap.get(objectId);
         return seats != null ? seats.values() : Collections.emptyList();
     }
 
-    public void lockSeat(UUID objectId, String seatName) {
-        getSeat(objectId, seatName).ifPresent(Seat::lock);
-    }
-
-    public void unlockSeat(UUID objectId, String seatName) {
-        getSeat(objectId, seatName).ifPresent(Seat::unlock);
-    }
-
-    public boolean isSeatLocked(UUID objectId, String seatName) {
-        return getSeat(objectId, seatName).map(Seat::isLocked).orElse(true);
-    }
-
-    public Object2ObjectMap<UUID, Map<String, Seat>> getObjectToSeatsMap() {
-        return this.objectToSeatsMap;
-    }
-
-    public void startRiding(ServerPlayer player, Rideable rideable, Seat seat) {
+    public void startRiding(ServerPlayer player, VxRideable rideable, VxSeat seat) {
         if (player.level().isClientSide() || isRiding(player) || isSeatOccupied(rideable.getPhysicsId(), seat)) {
             return;
         }
 
-        RidingProxyEntity proxy = new RidingProxyEntity(EntityRegistry.RIDING_PROXY.get(), player.level());
+        VxRidingProxyEntity proxy = new VxRidingProxyEntity(EntityRegistry.RIDING_PROXY.get(), player.level());
         Vector3f rideOffsetJoml = new Vector3f(seat.getRiderOffset());
         proxy.setFollowInfo(rideable.getPhysicsId(), rideOffsetJoml);
 
@@ -120,6 +121,7 @@ public class RidingManager {
         playerToSeatMap.remove(playerUuid);
 
         if (objectId != null) {
+            getRideableForPlayer(player).ifPresent(rideable -> rideable.onStopRiding(player));
             Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
             if (riders != null) {
                 riders.remove(playerUuid);
@@ -127,32 +129,12 @@ public class RidingManager {
                     objectToRidersMap.remove(objectId);
                 }
             }
-            VxBody object = world.getObjectManager().getObject(objectId);
-            if (object != null) {
-                if (object instanceof Rideable rideable) {
-                    rideable.onStopRiding(player);
-                }
-            }
         }
         Entity vehicle = player.getVehicle();
-        if (vehicle instanceof RidingProxyEntity) {
+        if (vehicle instanceof VxRidingProxyEntity) {
             player.stopRiding();
             vehicle.discard();
         }
-    }
-
-    public void ejectPassengerFromSeat(UUID objectId, String seatName) {
-        Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
-        if (riders == null) return;
-
-        Optional<ServerPlayer> playerToEject = riders.values().stream()
-                .filter(player -> {
-                    Seat seat = playerToSeatMap.get(player.getUUID());
-                    return seat != null && seat.getName().equals(seatName);
-                })
-                .findFirst();
-
-        playerToEject.ifPresent(this::stopRiding);
     }
 
     public void onGameTick() {
@@ -178,13 +160,12 @@ public class RidingManager {
             float yawDegrees = (float) Math.toDegrees(eulerAngles.y);
 
             for (ServerPlayer rider : Sets.newHashSet(riders.values())) {
-                if (rider.isRemoved() || !rider.isPassenger() || !(rider.getVehicle() instanceof RidingProxyEntity)) {
+                if (rider.isRemoved() || !rider.isPassenger() || !(rider.getVehicle() instanceof VxRidingProxyEntity)) {
                     playersToStopRiding.add(rider);
                 } else {
-                    Seat seat = this.playerToSeatMap.get(rider.getUUID());
+                    VxSeat seat = this.playerToSeatMap.get(rider.getUUID());
                     if (seat != null) {
                         Entity vehicle = rider.getVehicle();
-
                         Vector3f rideOffset = new Vector3f(seat.getRiderOffset());
                         jomlQuat.transform(rideOffset);
 
@@ -206,23 +187,41 @@ public class RidingManager {
         }
     }
 
+    public void handlePlayerInput(ServerPlayer player, VxRideInput input) {
+        if (!isRiding(player)) {
+            return;
+        }
+
+        getSeatForPlayer(player).ifPresent(seat -> {
+            if (seat.isDriverSeat()) {
+                getRideableForPlayer(player).ifPresent(rideable -> {
+                    rideable.handleDriverInput(player, input);
+                });
+            }
+        });
+    }
+
     public void onPlayerDisconnect(ServerPlayer player) {
         if (isRiding(player)) {
             stopRiding(player);
         }
     }
 
+    public Map<UUID, Map<String, VxSeat>> getAllSeatsByObject() {
+        return Collections.unmodifiableMap(this.objectToSeatsMap);
+    }
+
     public boolean isRiding(ServerPlayer player) {
         return playerToObjectIdMap.containsKey(player.getUUID());
     }
 
-    public boolean isSeatOccupied(UUID objectId, Seat seat) {
+    public boolean isSeatOccupied(UUID objectId, VxSeat seat) {
         Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
         if (riders == null || riders.isEmpty()) {
             return false;
         }
         for (UUID riderUuid : riders.keySet()) {
-            Seat occupiedSeat = playerToSeatMap.get(riderUuid);
+            VxSeat occupiedSeat = playerToSeatMap.get(riderUuid);
             if (occupiedSeat != null && occupiedSeat.getName().equals(seat.getName())) {
                 return true;
             }

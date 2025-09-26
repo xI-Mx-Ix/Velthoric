@@ -11,14 +11,14 @@ import dev.architectury.utils.Env;
 import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.xmx.velthoric.physics.riding.RidingProxyEntity;
+import net.xmx.velthoric.physics.riding.VxRidingProxyEntity;
 
 public class EntityRegistry {
 
-    public static final RegistrySupplier<EntityType<RidingProxyEntity>> RIDING_PROXY =
+    public static final RegistrySupplier<EntityType<VxRidingProxyEntity>> RIDING_PROXY =
             ModRegistries.ENTITY_TYPES.register(
                     "riding_proxy",
-                    () -> EntityType.Builder.of(RidingProxyEntity::new, MobCategory.MISC)
+                    () -> EntityType.Builder.of(VxRidingProxyEntity::new, MobCategory.MISC)
                             .sized(0.5F, 0.5F)
                             .noSummon()
                             .fireImmune()

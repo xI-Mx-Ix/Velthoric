@@ -12,7 +12,7 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.riding.RidingProxyEntity;
+import net.xmx.velthoric.physics.riding.VxRidingProxyEntity;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -36,7 +36,7 @@ public abstract class EntityMixin {
 
     @Inject(method = "getEyePosition(F)Lnet/minecraft/world/phys/Vec3;", at = @At("HEAD"), cancellable = true)
     private void velthoric_getEyePositionOnPhysicsObject(float partialTicks, CallbackInfoReturnable<Vec3> cir) {
-        if (getVehicle() instanceof RidingProxyEntity proxy) {
+        if (getVehicle() instanceof VxRidingProxyEntity proxy) {
             proxy.getPhysicsObjectId().ifPresent(id -> {
                 VxClientObjectManager manager = VxClientObjectManager.getInstance();
                 VxClientObjectDataStore store = manager.getStore();
@@ -75,7 +75,7 @@ public abstract class EntityMixin {
 
     @Inject(method = "calculateViewVector", at = @At("HEAD"), cancellable = true)
     private void velthoric_calculateViewVectorOnPhysicsObject(float xRot, float yRot, CallbackInfoReturnable<Vec3> cir) {
-        if (getVehicle() instanceof RidingProxyEntity proxy) {
+        if (getVehicle() instanceof VxRidingProxyEntity proxy) {
             proxy.getPhysicsObjectId().ifPresent(id -> {
                 VxClientObjectManager manager = VxClientObjectManager.getInstance();
                 VxClientObjectDataStore store = manager.getStore();

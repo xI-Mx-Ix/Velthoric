@@ -17,7 +17,7 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.natives.VxNativeJolt;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
-import net.xmx.velthoric.physics.riding.RidingManager;
+import net.xmx.velthoric.physics.riding.manager.VxRidingManager;
 import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.pcmd.ICommand;
 import net.xmx.velthoric.physics.world.pcmd.RunTaskCommand;
@@ -54,7 +54,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxObjectManager objectManager;
     private final VxConstraintManager constraintManager;
     private final VxTerrainSystem terrainSystem;
-    private final RidingManager ridingManager;
+    private final VxRidingManager ridingManager;
 
     private final FrameTimer physicsFrameTimer = new FrameTimer();
 
@@ -75,7 +75,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.objectManager = new VxObjectManager(this);
         this.constraintManager = new VxConstraintManager(this.objectManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
-        this.ridingManager = new RidingManager(this);
+        this.ridingManager = new VxRidingManager(this);
     }
 
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
@@ -312,7 +312,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return this.terrainSystem;
     }
 
-    public RidingManager getRidingManager() {
+    public VxRidingManager getRidingManager() {
         return this.ridingManager;
     }
 
@@ -392,7 +392,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     @Nullable
-    public static RidingManager getRidingManager(ResourceKey<Level> dimensionKey) {
+    public static VxRidingManager getRidingManager(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
         return world != null ? world.getRidingManager() : null;
     }

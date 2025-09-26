@@ -20,16 +20,16 @@ import org.joml.Vector3f;
 import java.util.Optional;
 import java.util.UUID;
 
-public class RidingProxyEntity extends Entity {
+public class VxRidingProxyEntity extends Entity {
 
     private static final EntityDataAccessor<Optional<UUID>> PHYSICS_OBJECT_ID =
-            SynchedEntityData.defineId(RidingProxyEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+            SynchedEntityData.defineId(VxRidingProxyEntity.class, EntityDataSerializers.OPTIONAL_UUID);
     private static final EntityDataAccessor<Vector3f> RIDE_POSITION_OFFSET =
-            SynchedEntityData.defineId(RidingProxyEntity.class, EntityDataSerializers.VECTOR3);
+            SynchedEntityData.defineId(VxRidingProxyEntity.class, EntityDataSerializers.VECTOR3);
 
     private float deltaRotation;
 
-    public RidingProxyEntity(EntityType<?> entityType, Level level) {
+    public VxRidingProxyEntity(EntityType<?> entityType, Level level) {
         super(entityType, level);
         this.noPhysics = true;
     }

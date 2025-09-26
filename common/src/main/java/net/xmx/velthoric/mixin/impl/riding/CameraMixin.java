@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
-import net.xmx.velthoric.physics.riding.RidingProxyEntity;
+import net.xmx.velthoric.physics.riding.VxRidingProxyEntity;
 import org.joml.Quaterniond;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
@@ -105,7 +105,7 @@ public abstract class CameraMixin {
 
     @Inject(method = "setup", at = @At("HEAD"), cancellable = true)
     private void velthoric_followPhysicsObject(BlockGetter area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float partialTick, CallbackInfo ci) {
-        if (focusedEntity.getVehicle() instanceof RidingProxyEntity proxy) {
+        if (focusedEntity.getVehicle() instanceof VxRidingProxyEntity proxy) {
             proxy.getPhysicsObjectId().ifPresent(id -> {
                 VxClientObjectManager manager = VxClientObjectManager.getInstance();
                 VxClientObjectDataStore store = manager.getStore();

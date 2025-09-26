@@ -8,7 +8,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.riding.VxRideable;
-import net.xmx.velthoric.physics.riding.input.RideInput;
+import net.xmx.velthoric.physics.riding.input.VxRideInput;
 import net.xmx.velthoric.physics.riding.seat.VxSeat;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
@@ -53,5 +53,5 @@ public abstract class VxRigidBody extends VxBody implements VxRideable {
     public void onStopRiding(ServerPlayer player) {}
 
     @Override
-    public void handleDriverInput(ServerPlayer player, RideInput input) {}
+    public void handleDriverInput(ServerPlayer player, VxRideInput input) {}
 }
