@@ -8,13 +8,18 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import com.github.stephengold.joltjni.std.StringStream;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.physics.riding.input.VxRideInput;
+import net.xmx.velthoric.physics.riding.seat.VxSeat;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.UUID;
@@ -35,6 +40,7 @@ public class CarRigidBody extends VxVehicle {
         float halfVehicleLength = 1.5f;
         float suspensionMinLength = 0.3f;
         float suspensionMaxLength = 0.5f;
+        float maxSteerAngleRad = (float) Math.toRadians(35.0);
 
         WheelSettingsWv flWheel = new WheelSettingsWv();
         flWheel.setPosition(new Vec3(-halfVehicleWidth, -0.2f, halfVehicleLength));
@@ -42,6 +48,7 @@ public class CarRigidBody extends VxVehicle {
         flWheel.setWidth(wheelWidth);
         flWheel.setSuspensionMinLength(suspensionMinLength);
         flWheel.setSuspensionMaxLength(suspensionMaxLength);
+        flWheel.setMaxSteerAngle(maxSteerAngleRad);
 
         WheelSettingsWv frWheel = new WheelSettingsWv();
         frWheel.setPosition(new Vec3(halfVehicleWidth, -0.2f, halfVehicleLength));
@@ -49,6 +56,7 @@ public class CarRigidBody extends VxVehicle {
         frWheel.setWidth(wheelWidth);
         frWheel.setSuspensionMinLength(suspensionMinLength);
         frWheel.setSuspensionMaxLength(suspensionMaxLength);
+        frWheel.setMaxSteerAngle(maxSteerAngleRad);
 
         WheelSettingsWv rlWheel = new WheelSettingsWv();
         rlWheel.setPosition(new Vec3(-halfVehicleWidth, -0.2f, -halfVehicleLength));
@@ -82,6 +90,20 @@ public class CarRigidBody extends VxVehicle {
         this.constraintSettings.setController(controllerSettings);
 
         this.collisionTester = new VehicleCollisionTesterCastCylinder(VxLayers.DYNAMIC);
+
+        addDriverSeat();
+    }
+
+    private void addDriverSeat() {
+        Vector3f riderOffset = new Vector3f(0.0f, 0.5f, 0.0f);
+        AABB localAABB = new AABB(
+                riderOffset.x - 0.3, riderOffset.y - 0.4, riderOffset.z - 0.3,
+                riderOffset.x + 0.3, riderOffset.y + 0.4, riderOffset.z + 0.3
+        );
+
+        VxSeat driverSeat = new VxSeat("driver_seat", localAABB, riderOffset, true);
+
+        this.getWorld().getRidingManager().addSeat(this.getPhysicsId(), driverSeat);
     }
 
     @Override
@@ -117,7 +139,7 @@ public class CarRigidBody extends VxVehicle {
 
     @Override
     public void writePersistenceData(VxByteBuf buf) {
-        writeSyncData(buf); // In this case, persistence and sync data are the same.
+        writeSyncData(buf);
     }
 
     @Override
@@ -132,5 +154,32 @@ public class CarRigidBody extends VxVehicle {
                 }
             }
         }
+    }
+
+    @Override
+    public void onStopRiding(ServerPlayer player) {
+        if (this.getController() != null) {
+            this.getController().setInput(0.0f, 0.0f, 0.0f, 0.0f);
+        }
+    }
+
+    @Override
+    public void handleDriverInput(ServerPlayer player, VxRideInput input) {
+        if (this.getController() == null) {
+            return;
+        }
+
+        float forward = 0.0f;
+        if (input.isForward()) forward = 1.0f;
+        if (input.isBackward()) forward = -1.0f;
+
+        float right = 0.0f;
+        if (input.isRight()) right = 1.0f;
+        if (input.isLeft()) right = -1.0f;
+
+        float brake = input.isBackward() ? 1.0f : 0.0f;
+        float handBrake = input.isUp() ? 1.0f : 0.0f;
+
+        this.getController().setInput(forward, right, brake, handBrake);
     }
 }
