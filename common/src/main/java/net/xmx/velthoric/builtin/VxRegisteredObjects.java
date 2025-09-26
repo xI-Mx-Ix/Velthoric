@@ -10,6 +10,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.builtin.block.BlockRigidBody;
 import net.xmx.velthoric.builtin.box.BoxClientRigidBody;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
+import net.xmx.velthoric.builtin.car.CarClientRigidBody;
+import net.xmx.velthoric.builtin.car.CarRigidBody;
 import net.xmx.velthoric.builtin.cloth.ClothClientSoftBody;
 import net.xmx.velthoric.builtin.cloth.ClothSoftBody;
 import net.xmx.velthoric.builtin.marble.MarbleClientRigidBody;
@@ -49,6 +51,10 @@ public class VxRegisteredObjects {
             .create(RopeSoftBody::new)
             .build(new ResourceLocation("velthoric", "rope"));
 
+    public static final VxObjectType<CarRigidBody> CAR = VxObjectType.Builder
+            .create(CarRigidBody::new)
+            .build(new ResourceLocation("velthoric", "car"));
+
     public static void register() {
         var registry = VxObjectRegistry.getInstance();
         registry.register(BLOCK);
@@ -57,6 +63,7 @@ public class VxRegisteredObjects {
         registry.register(MARBLE);
         registry.register(CLOTH);
         registry.register(ROPE);
+        registry.register(CAR);
     }
 
     @Environment(EnvType.CLIENT)
@@ -68,5 +75,6 @@ public class VxRegisteredObjects {
         registry.registerClientFactory(MARBLE.getTypeId(), MarbleClientRigidBody::new);
         registry.registerClientFactory(CLOTH.getTypeId(), ClothClientSoftBody::new);
         registry.registerClientFactory(ROPE.getTypeId(), RopeClientSoftBody::new);
+        registry.registerClientFactory(CAR.getTypeId(), CarClientRigidBody::new);
     }
 }

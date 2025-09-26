@@ -4,7 +4,9 @@
  */
 package net.xmx.velthoric.physics.object.type;
 
+import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.BodyLockRead;
+import com.github.stephengold.joltjni.BodyLockWrite;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
@@ -91,13 +93,30 @@ public abstract class VxBody {
     }
 
     @Nullable
-    public ConstBody getBody() {
+    public ConstBody getConstBody() {
         if (bodyId == 0) {
             return null;
         }
         VxBody found = world.getObjectManager().getByBodyId(bodyId);
         if (found == this) {
             try (BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), bodyId)) {
+                if (lock.succeededAndIsInBroadPhase()) {
+                    return lock.getBody();
+                }
+            }
+        }
+        VxMainClass.LOGGER.warn("Returned null ConstBody for bodyId {}", bodyId);
+        return null;
+    }
+
+    @Nullable
+    public Body getBody() {
+        if (bodyId == 0) {
+            return null;
+        }
+        VxBody found = world.getObjectManager().getByBodyId(bodyId);
+        if (found == this) {
+            try (BodyLockWrite lock = new BodyLockWrite(world.getBodyLockInterface(), bodyId)) {
                 if (lock.succeededAndIsInBroadPhase()) {
                     return lock.getBody();
                 }
