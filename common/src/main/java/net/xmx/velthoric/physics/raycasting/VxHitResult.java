@@ -15,27 +15,17 @@ public class VxHitResult extends HitResult {
 
     private final HitResult minecraftHit;
     private final PhysicsHit physicsHit;
-    private final SeatHit seatHit;
 
     public VxHitResult(HitResult minecraftHit) {
         super(minecraftHit.getLocation());
         this.minecraftHit = minecraftHit;
         this.physicsHit = null;
-        this.seatHit = null;
     }
 
     public VxHitResult(net.minecraft.world.phys.Vec3 location, int bodyId, Vec3 hitNormal, float hitFraction) {
         super(location);
         this.minecraftHit = null;
         this.physicsHit = new PhysicsHit(bodyId, hitNormal, hitFraction);
-        this.seatHit = null;
-    }
-
-    public VxHitResult(net.minecraft.world.phys.Vec3 location, int bodyId, String seatName, Vec3 hitNormal, float hitFraction) {
-        super(location);
-        this.minecraftHit = null;
-        this.physicsHit = new PhysicsHit(bodyId, hitNormal, hitFraction);
-        this.seatHit = new SeatHit(seatName);
     }
 
     @Override
@@ -50,16 +40,8 @@ public class VxHitResult extends HitResult {
         return physicsHit != null;
     }
 
-    public boolean isSeatHit() {
-        return seatHit != null;
-    }
-
     public Optional<PhysicsHit> getPhysicsHit() {
         return Optional.ofNullable(physicsHit);
-    }
-
-    public Optional<SeatHit> getSeatHit() {
-        return Optional.ofNullable(seatHit);
     }
 
     public Optional<BlockHitResult> getBlockHit() {
@@ -77,5 +59,4 @@ public class VxHitResult extends HitResult {
     }
 
     public record PhysicsHit(int bodyId, Vec3 hitNormal, float hitFraction) {}
-    public record SeatHit(String seatName) {}
 }

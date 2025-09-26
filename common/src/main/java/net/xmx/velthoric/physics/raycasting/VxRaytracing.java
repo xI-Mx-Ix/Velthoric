@@ -17,8 +17,8 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.type.VxBody;
-import net.xmx.velthoric.physics.riding.RidingManager;
-import net.xmx.velthoric.physics.riding.seat.Seat;
+import net.xmx.velthoric.physics.riding.manager.VxRidingManager;
+import net.xmx.velthoric.physics.riding.seat.VxSeat;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -27,8 +27,6 @@ import java.util.*;
 import java.util.function.Predicate;
 
 public final class VxRaytracing {
-
-    public static final float DEFAULT_MAX_DISTANCE = 7.0f;
 
     private VxRaytracing() {
     }
@@ -49,10 +47,6 @@ public final class VxRaytracing {
             raycastPhysicsInternal(level, rayOrigin, rayDirection, (float) maxDistance).ifPresent(hits::add);
         }
 
-        if (context.isIncludeSeats()) {
-            raycastSeatsInternal(level, from, to).ifPresent(hits::add);
-        }
-
         return hits.stream().min(Comparator.comparingDouble(hit -> hit.getLocation().distanceToSqr(from)));
     }
 
@@ -62,10 +56,6 @@ public final class VxRaytracing {
 
     public static Optional<VxHitResult> raycastPhysics(Level level, RVec3 rayOrigin, com.github.stephengold.joltjni.Vec3 rayDirection, float maxDistance) {
         return raycastPhysicsInternal(level, rayOrigin, rayDirection, maxDistance);
-    }
-
-    public static Optional<VxHitResult> raycastSeats(Level level, Vec3 rayOrigin, Vec3 rayEnd) {
-        return raycastSeatsInternal(level, rayOrigin, rayEnd);
     }
 
     private static Optional<VxHitResult> raycastMinecraftInternal(Level level, VxClipContext context) {
@@ -115,53 +105,6 @@ public final class VxRaytracing {
             VxMainClass.LOGGER.error("Exception during physics raycast", e);
         }
         return Optional.empty();
-    }
-
-    private static Optional<VxHitResult> raycastSeatsInternal(Level level, Vec3 rayOrigin, Vec3 rayEnd) {
-        VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level.dimension());
-        if (physicsWorld == null || !physicsWorld.isRunning() || physicsWorld.getObjectManager() == null) return Optional.empty();
-
-        RidingManager ridingManager = physicsWorld.getRidingManager();
-        VxHitResult closestHit = null;
-        double minFraction = Double.MAX_VALUE;
-
-        for (Map.Entry<UUID, Map<String, Seat>> entry : ridingManager.getObjectToSeatsMap().entrySet()) {
-            UUID objectId = entry.getKey();
-            Map<String, Seat> seats = entry.getValue();
-            if (seats.isEmpty()) continue;
-
-            VxBody obj = physicsWorld.getObjectManager().getObject(objectId);
-            if (obj == null) continue;
-
-            VxTransform transform = obj.getTransform();
-            Quaternionf worldRot = transform.getRotation(new Quaternionf());
-            Vector3f worldPos = transform.getTranslation(new Vector3f());
-            Quaternionf invRot = worldRot.conjugate(new Quaternionf());
-
-            Vec3 localRayStart = transformToLocal(rayOrigin, worldPos, invRot);
-            Vec3 localRayEnd = transformToLocal(rayEnd, worldPos, invRot);
-
-            for (Seat seat : seats.values()) {
-                if (seat.isLocked() || ridingManager.isSeatOccupied(objectId, seat)) continue;
-
-                Optional<Vec3> hitOpt = seat.getLocalAABB().clip(localRayStart, localRayEnd);
-                if (hitOpt.isPresent()) {
-                    Vec3 localHitPoint = hitOpt.get();
-                    double distSq = localHitPoint.distanceToSqr(localRayStart);
-                    double rayLengthSq = localRayStart.distanceToSqr(localRayEnd);
-                    if (rayLengthSq > 1.0E-7) {
-                        double fraction = Math.sqrt(distSq / rayLengthSq);
-                        if (fraction < minFraction) {
-                            minFraction = fraction;
-                            com.github.stephengold.joltjni.Vec3 worldNormal = calculateHitNormal(localHitPoint, seat.getLocalAABB(), worldRot);
-                            Vec3 worldHitPoint = rayOrigin.add(rayEnd.subtract(rayOrigin).scale(fraction));
-                            closestHit = new VxHitResult(worldHitPoint, obj.getBodyId(), seat.getName(), worldNormal, (float) fraction);
-                        }
-                    }
-                }
-            }
-        }
-        return Optional.ofNullable(closestHit);
     }
 
     private static Vec3 transformToLocal(Vec3 worldVec, Vector3f pos, Quaternionf invRot) {
