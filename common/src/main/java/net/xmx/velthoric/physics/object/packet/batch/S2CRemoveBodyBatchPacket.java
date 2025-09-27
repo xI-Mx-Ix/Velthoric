@@ -5,13 +5,17 @@
 package net.xmx.velthoric.physics.object.packet.batch;
 
 import dev.architectury.networking.NetworkManager;
+import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.zip.DataFormatException;
 
 /**
  * A network packet that contains a batch of UUIDs for physics objects to be removed
@@ -39,10 +43,17 @@ public class S2CRemoveBodyBatchPacket {
      * @param buf The buffer to read from.
      */
     public S2CRemoveBodyBatchPacket(FriendlyByteBuf buf) {
-        int size = buf.readVarInt();
-        this.ids = new ObjectArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            this.ids.add(buf.readUUID());
+        byte[] compressedData = buf.readByteArray();
+        try {
+            byte[] decompressedData = VxPacketUtils.decompress(compressedData);
+            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
+            int size = decompressedBuf.readVarInt();
+            this.ids = new ObjectArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                this.ids.add(decompressedBuf.readUUID());
+            }
+        } catch (IOException | DataFormatException e) {
+            throw new IllegalStateException("Failed to decompress remove body batch packet", e);
         }
     }
 
@@ -52,9 +63,21 @@ public class S2CRemoveBodyBatchPacket {
      * @param buf The buffer to write to.
      */
     public void encode(FriendlyByteBuf buf) {
-        buf.writeVarInt(ids.size());
-        for (UUID id : ids) {
-            buf.writeUUID(id);
+        FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            tempBuf.writeVarInt(ids.size());
+            for (UUID id : ids) {
+                tempBuf.writeUUID(id);
+            }
+            byte[] uncompressedData = new byte[tempBuf.readableBytes()];
+            tempBuf.readBytes(uncompressedData);
+
+            byte[] compressedData = VxPacketUtils.compress(uncompressedData);
+            buf.writeByteArray(compressedData);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to compress remove body batch packet", e);
+        } finally {
+            tempBuf.release();
         }
     }
 

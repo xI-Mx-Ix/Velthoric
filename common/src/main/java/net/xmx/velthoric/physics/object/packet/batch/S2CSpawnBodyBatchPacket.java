@@ -9,11 +9,14 @@ import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.packet.SpawnData;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.zip.DataFormatException;
 
 /**
  * A network packet that contains a batch of physics objects to be spawned on the client.
@@ -40,10 +43,17 @@ public class S2CSpawnBodyBatchPacket {
      * @param buf The buffer to read from.
      */
     public S2CSpawnBodyBatchPacket(FriendlyByteBuf buf) {
-        int size = buf.readVarInt();
-        this.spawnDataList = new ObjectArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            this.spawnDataList.add(new SpawnData(buf));
+        byte[] compressedData = buf.readByteArray();
+        try {
+            byte[] decompressedData = VxPacketUtils.decompress(compressedData);
+            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
+            int size = decompressedBuf.readVarInt();
+            this.spawnDataList = new ObjectArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                this.spawnDataList.add(new SpawnData(decompressedBuf));
+            }
+        } catch (IOException | DataFormatException e) {
+            throw new IllegalStateException("Failed to decompress spawn body batch packet", e);
         }
     }
 
@@ -53,9 +63,21 @@ public class S2CSpawnBodyBatchPacket {
      * @param buf The buffer to write to.
      */
     public void encode(FriendlyByteBuf buf) {
-        buf.writeVarInt(spawnDataList.size());
-        for (SpawnData data : spawnDataList) {
-            data.encode(buf);
+        FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            tempBuf.writeVarInt(spawnDataList.size());
+            for (SpawnData data : spawnDataList) {
+                data.encode(tempBuf);
+            }
+            byte[] uncompressedData = new byte[tempBuf.readableBytes()];
+            tempBuf.readBytes(uncompressedData);
+
+            byte[] compressedData = VxPacketUtils.compress(uncompressedData);
+            buf.writeByteArray(compressedData);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to compress spawn body batch packet", e);
+        } finally {
+            tempBuf.release();
         }
     }
 
