@@ -35,7 +35,7 @@
     "riding.render.MixinGameRenderer_SmoothEntityPosition",
     "riding.render.bounds.MixinEntityRenderDispatcher_TransformHitbox",
     "riding.render.bounds.MixinGameRenderer_TranformPick",
-    "riding.render.bounds.MixinPlayerRenderer_TransformPlayer",
+    "riding.render.bounds.MixinLivingEntityRenderer_TransformEntity",
     "riding.render.camera.MixinCamera_CamOnPhysicsObject",
     "riding.render.camera.MixinGameRenderer_InverseViewRotationMatrix",
     "riding.request.MixinMinecraft_RequestRiding"
