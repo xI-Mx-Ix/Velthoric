@@ -449,19 +449,41 @@ public class VxObjectNetworkDispatcher {
     }
 
     /**
-     * Starts tracking a physics object for a player, updating all relevant maps
-     * and queuing a spawn packet.
+     * Starts tracking a physics object for a player.
+     * This method updates the player's set of tracked objects and queues a spawn packet.
+     * It intelligently handles cases where a 'remove' request for the same object is already pending,
+     * cancelling them out to prevent redundant network traffic and client-side race conditions.
      *
      * @param player The player who will start tracking the object.
      * @param body   The object to be tracked.
      */
     private void startTracking(ServerPlayer player, VxBody body) {
+        // Get the set of objects currently tracked by this player.
         Set<UUID> trackedByPlayer = playerTrackedObjects.computeIfAbsent(player.getUUID(), k -> ConcurrentHashMap.newKeySet());
+
+        // Attempt to add the new object's ID to the set.
+        // The add() method returns true only if the ID was not already present.
+        // This acts as a crucial de-duplication step, preventing multiple spawn requests
+        // for an object that is already being tracked or is in the process of being tracked.
         if (trackedByPlayer.add(body.getPhysicsId())) {
-            // Add to the reverse lookup map for efficient updates.
+            // If the object was successfully added, also update the reverse lookup map
+            // which tracks which players are watching which object.
             objectTrackers.computeIfAbsent(body.getPhysicsId(), k -> ConcurrentHashMap.newKeySet()).add(player);
 
+            // Synchronize on a shared lock to ensure atomic operations on both pending packet maps.
             synchronized (pendingSpawns) {
+                // Check if a removal for this exact object is pending for this player.
+                ObjectArrayList<UUID> removals = pendingRemovals.get(player);
+                if (removals != null && removals.remove(body.getPhysicsId())) {
+                    // If a pending removal was found and removed, it means the player became aware
+                    // of the object again before the removal packet was sent. The two actions cancel
+                    // each other out. The client will simply keep the object it already has.
+                    // We return here to avoid sending any packets.
+                    return;
+                }
+
+                // If no pending removal was found, queue a new spawn packet for this object.
+                // This will be processed and sent at the end of the server tick.
                 pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>())
                         .add(new SpawnData(body, System.nanoTime()));
             }
@@ -469,25 +491,49 @@ public class VxObjectNetworkDispatcher {
     }
 
     /**
-     * Stops tracking a physics object for a player, updating all relevant maps
-     * and queuing a removal packet.
+     * Stops tracking a physics object for a player.
+     * This method updates the player's set of tracked objects and queues a removal packet.
+     * It intelligently handles cases where a 'spawn' request for the same object is already pending,
+     * cancelling them out to prevent an object from being spawned and immediately removed on the client.
      *
      * @param player The player who will stop tracking the object.
      * @param bodyId The UUID of the object to stop tracking.
      */
     private void stopTracking(ServerPlayer player, UUID bodyId) {
+        // Get the set of objects currently tracked by this player.
         Set<UUID> trackedByPlayer = playerTrackedObjects.get(player.getUUID());
+
+        // Attempt to remove the object's ID from the set.
+        // The remove() method returns true only if the ID was present and was successfully removed.
         if (trackedByPlayer != null && trackedByPlayer.remove(bodyId)) {
-            // Remove from the reverse lookup map.
+            // If the object was successfully removed from the player's tracking set,
+            // also update the reverse lookup map.
             Set<ServerPlayer> trackers = objectTrackers.get(bodyId);
             if (trackers != null) {
                 trackers.remove(player);
+                // If no players are tracking this object anymore, clean up the entry to save memory.
                 if (trackers.isEmpty()) {
-                    objectTrackers.remove(bodyId); // Clean up to prevent memory leaks.
+                    objectTrackers.remove(bodyId);
                 }
             }
 
-            synchronized (pendingRemovals) {
+            // Synchronize on a shared lock to ensure atomic operations on both pending packet maps.
+            synchronized (pendingSpawns) {
+                // Check if a spawn for this exact object is pending for this player.
+                ObjectArrayList<SpawnData> spawns = pendingSpawns.get(player);
+                if (spawns != null) {
+                    // We must use removeIf because we need to check the ID inside the SpawnData object.
+                    if (spawns.removeIf(spawnData -> spawnData.id.equals(bodyId))) {
+                        // If a pending spawn was found and removed, it means the object became invisible
+                        // again before the spawn packet was even sent. The two actions cancel each other out.
+                        // The client will never be told about this object.
+                        // We return here to avoid sending any packets.
+                        return;
+                    }
+                }
+
+                // If no pending spawn was found, queue a new removal packet for this object.
+                // This will be processed and sent at the end of the server tick.
                 pendingRemovals.computeIfAbsent(player, k -> new ObjectArrayList<>())
                         .add(bodyId);
             }
