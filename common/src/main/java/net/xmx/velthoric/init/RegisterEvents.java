@@ -16,6 +16,7 @@ import net.xmx.velthoric.physics.constraint.manager.event.ConstraintLifecycleEve
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.renderer.VxPhysicsRenderer;
 import net.xmx.velthoric.physics.object.manager.event.ObjectLifecycleEvents;
+import net.xmx.velthoric.physics.riding.manager.VxClientRidingManager;
 import net.xmx.velthoric.physics.terrain.event.TerrainLifecycleEvents;
 
 public class RegisterEvents {
@@ -33,11 +34,9 @@ public class RegisterEvents {
 
     @Environment(EnvType.CLIENT)
     public static void registerClient() {
-
         VxClientObjectManager.registerEvents();
-
+        VxClientRidingManager.registerEvents();
         DebugScreen.registerEvents();
-
         VxPhysicsRenderer.registerEvents();
         PhysicsGunBeamRenderer.registerEvents();
     }

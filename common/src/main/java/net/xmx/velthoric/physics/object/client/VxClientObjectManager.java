@@ -17,6 +17,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.client.body.VxClientBody;
 import net.xmx.velthoric.physics.object.client.time.VxClientClock;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
+import net.xmx.velthoric.physics.riding.manager.VxClientRidingManager;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -152,6 +153,7 @@ public class VxClientObjectManager {
         transform.fromBuffer(data);
 
         body.readSyncData(data);
+        VxClientRidingManager.getInstance().addSeatsFromBuffer(id, data);
 
         initializeState(index, transform, timestamp);
     }
@@ -211,6 +213,7 @@ public class VxClientObjectManager {
     public void removeObject(UUID id) {
         managedObjects.remove(id);
         store.removeObject(id);
+        VxClientRidingManager.getInstance().removeSeatsForObject(id);
     }
 
     /**

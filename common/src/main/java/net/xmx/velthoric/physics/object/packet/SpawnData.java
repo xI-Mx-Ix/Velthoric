@@ -11,12 +11,16 @@ import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
+import net.xmx.velthoric.physics.riding.VxRideable;
+import net.xmx.velthoric.physics.riding.manager.VxRidingManager;
+import net.xmx.velthoric.physics.riding.seat.VxSeat;
 
+import java.util.Collection;
 import java.util.UUID;
 
 /**
  * A data transfer object that encapsulates all necessary information to spawn a physics object on the client.
- * This includes the object's identity, type, initial state, and custom creation data.
+ * This includes the object's identity, type, initial state, custom creation data, and any associated seats.
  *
  * @author xI-Mx-Ix
  */
@@ -29,7 +33,7 @@ public class SpawnData {
 
     /**
      * Constructs spawn data from a server-side {@link VxBody}.
-     * This serializes the object's initial transform and custom sync data.
+     * This serializes the object's initial transform, custom sync data, and seat information.
      *
      * @param obj       The physics object to create spawn data for.
      * @param timestamp The server-side timestamp of the spawn event.
@@ -40,15 +44,27 @@ public class SpawnData {
         this.objectType = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
         this.timestamp = timestamp;
 
-        // Serialize the transform and custom sync data into a single byte array.
+        // Serialize the transform, custom sync data, and seat data into a single byte array.
         VxByteBuf buf = new VxByteBuf(Unpooled.buffer());
         try {
             obj.getTransform().toBuffer(buf);
             obj.writeSyncData(buf);
+
+            if (obj instanceof VxRideable) {
+                VxRidingManager ridingManager = obj.getWorld().getRidingManager();
+                Collection<VxSeat> seats = ridingManager.getSeats(obj.getPhysicsId());
+                buf.writeVarInt(seats.size());
+                for (VxSeat seat : seats) {
+                    seat.encode(buf);
+                }
+            } else {
+                buf.writeVarInt(0); // No seats
+            }
+
             this.data = new byte[buf.readableBytes()];
             buf.readBytes(this.data);
         } finally {
-            if(buf.refCnt() > 0) {
+            if (buf.refCnt() > 0) {
                 buf.release();
             }
         }
