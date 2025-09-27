@@ -25,7 +25,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class NetworkHandler {
+public class VxPacketHandler {
 
     public static final NetworkChannel CHANNEL = NetworkChannel.create(
             ResourceLocation.tryBuild("velthoric", "main_channel")

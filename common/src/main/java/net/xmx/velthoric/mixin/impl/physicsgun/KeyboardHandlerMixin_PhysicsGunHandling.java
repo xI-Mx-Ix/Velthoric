@@ -9,7 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.xmx.velthoric.init.registry.ItemRegistry;
 import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunClientManager;
 import net.xmx.velthoric.item.physicsgun.packet.PhysicsGunActionPacket;
-import net.xmx.velthoric.network.NetworkHandler;
+import net.xmx.velthoric.network.VxPacketHandler;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -41,12 +41,12 @@ public abstract class KeyboardHandlerMixin_PhysicsGunHandling {
             if (pAction == GLFW.GLFW_PRESS) {
                 if (!clientManager.isRotationMode()) {
                     clientManager.setRotationMode(true);
-                    NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.START_ROTATION_MODE));
+                    VxPacketHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.START_ROTATION_MODE));
                 }
             } else if (pAction == GLFW.GLFW_RELEASE) {
                 if (clientManager.isRotationMode()) {
                     clientManager.setRotationMode(false);
-                    NetworkHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_ROTATION_MODE));
+                    VxPacketHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_ROTATION_MODE));
                 }
             }
 

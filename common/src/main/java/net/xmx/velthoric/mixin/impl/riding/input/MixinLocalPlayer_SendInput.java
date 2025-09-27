@@ -3,7 +3,7 @@ package net.xmx.velthoric.mixin.impl.riding.input;
 import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
-import net.xmx.velthoric.network.NetworkHandler;
+import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.riding.VxRidingProxyEntity;
 import net.xmx.velthoric.physics.riding.input.C2SRideInputPacket;
 import net.xmx.velthoric.physics.riding.input.VxRideInput;
@@ -39,13 +39,13 @@ public abstract class MixinLocalPlayer_SendInput {
             );
 
             if (!currentInput.equals(this.velthoric_lastRideInput)) {
-                NetworkHandler.CHANNEL.sendToServer(new C2SRideInputPacket(currentInput));
+                VxPacketHandler.CHANNEL.sendToServer(new C2SRideInputPacket(currentInput));
                 this.velthoric_lastRideInput = currentInput;
             }
         } else {
 
             if (this.velthoric_lastRideInput != null && !this.velthoric_lastRideInput.equals(VxRideInput.NEUTRAL)) {
-                NetworkHandler.CHANNEL.sendToServer(new C2SRideInputPacket(VxRideInput.NEUTRAL));
+                VxPacketHandler.CHANNEL.sendToServer(new C2SRideInputPacket(VxRideInput.NEUTRAL));
             }
             this.velthoric_lastRideInput = null;
         }

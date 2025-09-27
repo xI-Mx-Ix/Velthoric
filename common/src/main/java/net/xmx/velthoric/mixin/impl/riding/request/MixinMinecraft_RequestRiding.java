@@ -10,7 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.network.NetworkHandler;
+import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.body.VxClientBody;
@@ -89,7 +89,7 @@ public abstract class MixinMinecraft_RequestRiding {
         }
 
         if (closestBody != null) {
-            NetworkHandler.CHANNEL.sendToServer(new C2SRequestRidePacket(closestBody.getId(), closestSeat.getName()));
+            VxPacketHandler.CHANNEL.sendToServer(new C2SRequestRidePacket(closestBody.getId(), closestSeat.getName()));
             return true;
         }
 

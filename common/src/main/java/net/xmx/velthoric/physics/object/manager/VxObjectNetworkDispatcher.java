@@ -11,7 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.network.NetworkHandler;
+import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.object.packet.SpawnData;
 import net.xmx.velthoric.physics.object.packet.batch.S2CRemoveBodyBatchPacket;
 import net.xmx.velthoric.physics.object.packet.batch.S2CSpawnBodyBatchPacket;
@@ -221,7 +221,7 @@ public class VxObjectNetworkDispatcher {
 
                 // Step 5: Send the packet to every player tracking this vehicle.
                 for (ServerPlayer player : trackers) {
-                    NetworkHandler.sendToPlayer(packet, player);
+                    VxPacketHandler.sendToPlayer(packet, player);
                 }
             }
         });
@@ -301,7 +301,7 @@ public class VxObjectNetworkDispatcher {
             // When the batch is full, send it and reset the counter.
             if (currentBatchCount == MAX_STATES_PER_PACKET) {
                 S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(currentBatchCount, ids, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
-                NetworkHandler.sendToPlayer(packet, player);
+                VxPacketHandler.sendToPlayer(packet, player);
                 currentBatchCount = 0; // Reset for the next batch
             }
         }
@@ -309,7 +309,7 @@ public class VxObjectNetworkDispatcher {
         // Send any remaining items in the last, partially-filled batch.
         if (currentBatchCount > 0) {
             S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(currentBatchCount, ids, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
-            NetworkHandler.sendToPlayer(packet, player);
+            VxPacketHandler.sendToPlayer(packet, player);
         }
     }
 
@@ -346,7 +346,7 @@ public class VxObjectNetworkDispatcher {
 
             if (!idList.isEmpty()) {
                 S2CUpdateVerticesBatchPacket packet = new S2CUpdateVerticesBatchPacket(idList.size(), idList.toArray(new UUID[0]), vertexList.toArray(new float[0][]));
-                NetworkHandler.sendToPlayer(packet, player);
+                VxPacketHandler.sendToPlayer(packet, player);
             }
         }
     }
@@ -608,7 +608,7 @@ public class VxObjectNetworkDispatcher {
                 if (!removalList.isEmpty()) {
                     for (int i = 0; i < removalList.size(); i += MAX_REMOVALS_PER_PACKET) {
                         int end = Math.min(i + MAX_REMOVALS_PER_PACKET, removalList.size());
-                        NetworkHandler.sendToPlayer(new S2CRemoveBodyBatchPacket(removalList.subList(i, end)), player);
+                        VxPacketHandler.sendToPlayer(new S2CRemoveBodyBatchPacket(removalList.subList(i, end)), player);
                     }
                 }
             });
@@ -632,7 +632,7 @@ public class VxObjectNetworkDispatcher {
                         int dataSize = data.estimateSize();
                         // Send the current batch if adding the next item would exceed the payload limit.
                         if (!batch.isEmpty() && currentBatchSizeBytes + dataSize > MAX_PACKET_PAYLOAD_SIZE) {
-                            NetworkHandler.sendToPlayer(new S2CSpawnBodyBatchPacket(batch), player);
+                            VxPacketHandler.sendToPlayer(new S2CSpawnBodyBatchPacket(batch), player);
                             batch.clear();
                             currentBatchSizeBytes = 0;
                         }
@@ -641,7 +641,7 @@ public class VxObjectNetworkDispatcher {
                     }
                     // Send the final batch.
                     if (!batch.isEmpty()) {
-                        NetworkHandler.sendToPlayer(new S2CSpawnBodyBatchPacket(batch), player);
+                        VxPacketHandler.sendToPlayer(new S2CSpawnBodyBatchPacket(batch), player);
                     }
                 }
             });

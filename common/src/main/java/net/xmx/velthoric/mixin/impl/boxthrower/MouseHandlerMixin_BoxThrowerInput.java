@@ -8,7 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.xmx.velthoric.init.registry.ItemRegistry;
 import net.xmx.velthoric.item.boxthrower.packet.BoxThrowerActionPacket;
-import net.xmx.velthoric.network.NetworkHandler;
+import net.xmx.velthoric.network.VxPacketHandler;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -40,10 +40,10 @@ public class MouseHandlerMixin_BoxThrowerInput {
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             if (action == GLFW.GLFW_PRESS) {
 
-                NetworkHandler.sendToServer(new BoxThrowerActionPacket(BoxThrowerActionPacket.ActionType.START_SHOOTING));
+                VxPacketHandler.sendToServer(new BoxThrowerActionPacket(BoxThrowerActionPacket.ActionType.START_SHOOTING));
             } else if (action == GLFW.GLFW_RELEASE) {
 
-                NetworkHandler.sendToServer(new BoxThrowerActionPacket(BoxThrowerActionPacket.ActionType.STOP_SHOOTING));
+                VxPacketHandler.sendToServer(new BoxThrowerActionPacket(BoxThrowerActionPacket.ActionType.STOP_SHOOTING));
             }
 
             ci.cancel();
