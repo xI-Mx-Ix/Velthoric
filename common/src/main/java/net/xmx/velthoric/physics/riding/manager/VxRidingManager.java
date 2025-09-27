@@ -10,6 +10,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.init.registry.EntityRegistry;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.riding.VxRideable;
@@ -23,6 +24,13 @@ import org.joml.Vector3f;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Manages all riding-related logic on the server side for a specific physics world.
+ * This includes tracking which players are riding which objects, handling seat management,
+ * processing player input, and synchronizing the position of riders.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxRidingManager {
 
     private final VxPhysicsWorld world;
@@ -35,10 +43,22 @@ public class VxRidingManager {
         this.world = world;
     }
 
+    /**
+     * Adds a seat to a physics object.
+     *
+     * @param objectId The UUID of the object.
+     * @param seat     The seat to add.
+     */
     public void addSeat(UUID objectId, VxSeat seat) {
         this.objectToSeatsMap.computeIfAbsent(objectId, k -> new ConcurrentHashMap<>()).put(seat.getName(), seat);
     }
 
+    /**
+     * Removes a seat from a physics object.
+     *
+     * @param objectId The UUID of the object.
+     * @param seatName The name of the seat to remove.
+     */
     public void removeSeat(UUID objectId, String seatName) {
         Map<String, VxSeat> seats = this.objectToSeatsMap.get(objectId);
         if (seats != null) {
@@ -49,15 +69,82 @@ public class VxRidingManager {
         }
     }
 
+    /**
+     * Handles a request from a client to start riding an object.
+     * This method validates the request before initiating the ride.
+     *
+     * @param player   The player making the request.
+     * @param objectId The UUID of the target object.
+     * @param seatName The name of the target seat.
+     */
+    public void requestRiding(ServerPlayer player, UUID objectId, String seatName) {
+        VxBody body = world.getObjectManager().getObject(objectId);
+        if (!(body instanceof VxRideable rideable)) {
+            VxMainClass.LOGGER.warn("Player {} requested to ride non-rideable object {}", player.getName().getString(), objectId);
+            return;
+        }
+
+        Optional<VxSeat> seatOpt = getSeat(objectId, seatName);
+        if (seatOpt.isEmpty()) {
+            VxMainClass.LOGGER.warn("Player {} requested to ride non-existent seat '{}' on object {}", player.getName().getString(), seatName, objectId);
+            return;
+        }
+
+        VxSeat seat = seatOpt.get();
+
+        // Server-side validation using the player's actual reach distance.
+        double reachDistance;
+        if (player.isCreative()) {
+            reachDistance = 5.0; // Creative mode reach
+        } else if (player.isSpectator()) {
+            reachDistance = Double.MAX_VALUE; // Spectator mode - unlimited reach
+        } else {
+            reachDistance = 4.5; // Survival/Adventure mode reach
+        }
+
+        double distanceSq = player.getEyePosition().distanceToSqr(
+                body.getTransform().getTranslation().x(),
+                body.getTransform().getTranslation().y(),
+                body.getTransform().getTranslation().z()
+        );
+
+        if (distanceSq > (reachDistance * reachDistance)) {
+            VxMainClass.LOGGER.warn("Player {} is too far to ride object {} (distSq: {}, reach: {})", player.getName().getString(), objectId, distanceSq, reachDistance);
+            return;
+        }
+
+        // If validation passes, start the riding process
+        startRiding(player, rideable, seat);
+    }
+
+    /**
+     * Gets a specific seat from an object by its name.
+     *
+     * @param objectId The UUID of the object.
+     * @param seatName The name of the seat.
+     * @return An Optional containing the seat if found.
+     */
     public Optional<VxSeat> getSeat(UUID objectId, String seatName) {
         Map<String, VxSeat> seats = this.objectToSeatsMap.get(objectId);
         return seats != null ? Optional.ofNullable(seats.get(seatName)) : Optional.empty();
     }
 
+    /**
+     * Gets the seat a specific player is currently occupying.
+     *
+     * @param player The player.
+     * @return An Optional containing the seat if the player is riding.
+     */
     public Optional<VxSeat> getSeatForPlayer(ServerPlayer player) {
         return Optional.ofNullable(playerToSeatMap.get(player.getUUID()));
     }
 
+    /**
+     * Gets the rideable object a specific player is currently on.
+     *
+     * @param player The player.
+     * @return An Optional containing the rideable object.
+     */
     public Optional<VxRideable> getRideableForPlayer(ServerPlayer player) {
         UUID objectId = playerToObjectIdMap.get(player.getUUID());
         if (objectId == null) {
@@ -70,11 +157,24 @@ public class VxRidingManager {
         return Optional.empty();
     }
 
+    /**
+     * Gets all seats associated with a physics object.
+     *
+     * @param objectId The UUID of the object.
+     * @return A collection of all seats for the object.
+     */
     public Collection<VxSeat> getSeats(UUID objectId) {
         Map<String, VxSeat> seats = this.objectToSeatsMap.get(objectId);
         return seats != null ? seats.values() : Collections.emptyList();
     }
 
+    /**
+     * Makes a player start riding a specific seat on a rideable object.
+     *
+     * @param player   The player to start riding.
+     * @param rideable The rideable object.
+     * @param seat     The seat to occupy.
+     */
     public void startRiding(ServerPlayer player, VxRideable rideable, VxSeat seat) {
         if (player.level().isClientSide() || isRiding(player) || isSeatOccupied(rideable.getPhysicsId(), seat)) {
             return;
@@ -112,6 +212,11 @@ public class VxRidingManager {
         rideable.onStartRiding(player, seat);
     }
 
+    /**
+     * Makes a player stop riding their current object.
+     *
+     * @param player The player to stop riding.
+     */
     public void stopRiding(ServerPlayer player) {
         if (!isRiding(player)) {
             return;
@@ -137,6 +242,9 @@ public class VxRidingManager {
         }
     }
 
+    /**
+     * Called every server game tick to update the positions and states of all riders.
+     */
     public void onGameTick() {
         List<ServerPlayer> playersToStopRiding = new ArrayList<>();
         Set<UUID> objectIds = Sets.newHashSet(objectToRidersMap.keySet());
@@ -187,6 +295,12 @@ public class VxRidingManager {
         }
     }
 
+    /**
+     * Handles movement input from a riding player.
+     *
+     * @param player The player providing the input.
+     * @param input  The input state.
+     */
     public void handlePlayerInput(ServerPlayer player, VxRideInput input) {
         if (!isRiding(player)) {
             return;
@@ -201,6 +315,11 @@ public class VxRidingManager {
         });
     }
 
+    /**
+     * Handles cleanup when a player disconnects from the server.
+     *
+     * @param player The player who disconnected.
+     */
     public void onPlayerDisconnect(ServerPlayer player) {
         if (isRiding(player)) {
             stopRiding(player);
@@ -211,10 +330,23 @@ public class VxRidingManager {
         return Collections.unmodifiableMap(this.objectToSeatsMap);
     }
 
+    /**
+     * Checks if a player is currently riding a physics object.
+     *
+     * @param player The player to check.
+     * @return True if the player is riding.
+     */
     public boolean isRiding(ServerPlayer player) {
         return playerToObjectIdMap.containsKey(player.getUUID());
     }
 
+    /**
+     * Checks if a specific seat on an object is occupied.
+     *
+     * @param objectId The UUID of the object.
+     * @param seat     The seat to check.
+     * @return True if the seat is occupied.
+     */
     public boolean isSeatOccupied(UUID objectId, VxSeat seat) {
         Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
         if (riders == null || riders.isEmpty()) {

@@ -6,6 +6,8 @@ package net.xmx.velthoric.physics.riding.seat;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.phys.AABB;
+import net.xmx.velthoric.math.VxTransform;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
@@ -21,14 +23,6 @@ public class VxSeat {
     private final Vector3f riderOffset;
     private final boolean isDriverSeat;
 
-    /**
-     * Constructs a new seat.
-     *
-     * @param seatName     The unique name of the seat.
-     * @param localAABB    The local-space bounding box for interaction.
-     * @param riderOffset  The local-space offset from the object's origin where the rider is positioned.
-     * @param isDriverSeat True if this seat allows the rider to control the object.
-     */
     public VxSeat(String seatName, AABB localAABB, Vector3f riderOffset, boolean isDriverSeat) {
         this.seatName = seatName;
         this.localAABB = localAABB;
@@ -36,11 +30,6 @@ public class VxSeat {
         this.isDriverSeat = isDriverSeat;
     }
 
-    /**
-     * Constructs a seat by deserializing it from a network buffer.
-     *
-     * @param buf The buffer to read from.
-     */
     public VxSeat(FriendlyByteBuf buf) {
         this.seatName = buf.readUtf();
         double minX = buf.readDouble();
@@ -54,11 +43,6 @@ public class VxSeat {
         this.isDriverSeat = buf.readBoolean();
     }
 
-    /**
-     * Serializes this seat's data into a network buffer.
-     *
-     * @param buf The buffer to write to.
-     */
     public void encode(FriendlyByteBuf buf) {
         buf.writeUtf(this.seatName);
         buf.writeDouble(this.localAABB.minX);
@@ -71,6 +55,45 @@ public class VxSeat {
         buf.writeFloat(this.riderOffset.y());
         buf.writeFloat(this.riderOffset.z());
         buf.writeBoolean(this.isDriverSeat);
+    }
+
+    /**
+     * Transforms the seat's local-space AABB into a world-space AABB using the object's transform.
+     *
+     * @param objectTransform The current world transform of the physics object.
+     * @return A new AABB representing the seat's bounds in world space.
+     */
+    public AABB getGlobalAABB(VxTransform objectTransform) {
+        Vector3f[] corners = new Vector3f[8];
+        corners[0] = new Vector3f((float) localAABB.minX, (float) localAABB.minY, (float) localAABB.minZ);
+        corners[1] = new Vector3f((float) localAABB.maxX, (float) localAABB.minY, (float) localAABB.minZ);
+        corners[2] = new Vector3f((float) localAABB.maxX, (float) localAABB.maxY, (float) localAABB.minZ);
+        corners[3] = new Vector3f((float) localAABB.minX, (float) localAABB.maxY, (float) localAABB.minZ);
+        corners[4] = new Vector3f((float) localAABB.minX, (float) localAABB.minY, (float) localAABB.maxZ);
+        corners[5] = new Vector3f((float) localAABB.maxX, (float) localAABB.minY, (float) localAABB.maxZ);
+        corners[6] = new Vector3f((float) localAABB.maxX, (float) localAABB.maxY, (float) localAABB.maxZ);
+        corners[7] = new Vector3f((float) localAABB.minX, (float) localAABB.maxY, (float) localAABB.maxZ);
+
+        Quaternionf rotation = new Quaternionf(objectTransform.getRotation().getX(), objectTransform.getRotation().getY(), objectTransform.getRotation().getZ(), objectTransform.getRotation().getW());
+        Vector3f translation = new Vector3f(objectTransform.getTranslation().x(), objectTransform.getTranslation().y(), objectTransform.getTranslation().z());
+
+        float minX = Float.POSITIVE_INFINITY, minY = Float.POSITIVE_INFINITY, minZ = Float.POSITIVE_INFINITY;
+        float maxX = Float.NEGATIVE_INFINITY, maxY = Float.NEGATIVE_INFINITY, maxZ = Float.NEGATIVE_INFINITY;
+
+        for (Vector3f corner : corners) {
+            // Apply rotation, then translation
+            rotation.transform(corner);
+            corner.add(translation);
+
+            minX = Math.min(minX, corner.x);
+            minY = Math.min(minY, corner.y);
+            minZ = Math.min(minZ, corner.z);
+            maxX = Math.max(maxX, corner.x);
+            maxY = Math.max(maxY, corner.y);
+            maxZ = Math.max(maxZ, corner.z);
+        }
+
+        return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
     }
 
     public String getName() {

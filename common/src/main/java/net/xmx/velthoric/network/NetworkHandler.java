@@ -18,6 +18,7 @@ import net.xmx.velthoric.item.magnetizer.packet.MagnetizerActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.*;
 import net.xmx.velthoric.physics.object.packet.batch.*;
 import net.xmx.velthoric.physics.riding.input.C2SRideInputPacket;
+import net.xmx.velthoric.physics.riding.request.C2SRequestRidePacket;
 import net.xmx.velthoric.physics.vehicle.packet.S2CUpdateWheelsPacket;
 
 import java.util.function.BiConsumer;
@@ -38,6 +39,14 @@ public class NetworkHandler {
     }
 
     public static void register() {
+
+        registerPacket(
+                C2SRequestRidePacket.class,
+                C2SRequestRidePacket::encode,
+                C2SRequestRidePacket::new,
+                C2SRequestRidePacket::handle
+        );
+
         registerPacket(
                 S2CCustomDataBatchPacket.class,
                 S2CCustomDataBatchPacket::encode,
