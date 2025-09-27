@@ -20,6 +20,7 @@
   ],
   "client": [
     "boxthrower.MouseHandlerMixin_BoxThrowerInput",
+    "debug.EntityRenderDispatcherAccessor",
     "event.debug.DebugScreenOverlayMixin_VxAddDebugInfoEvent",
     "event.network.ClientLevelMixin_VxClientPlayerNetworkEvent",
     "event.network.ClientPacketListenerMixin_VxClientPlayerNetworkEvent",
