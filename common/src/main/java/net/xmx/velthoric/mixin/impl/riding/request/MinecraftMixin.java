@@ -1,3 +1,7 @@
+/*
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.mixin.impl.riding.request;
 
 import com.github.stephengold.joltjni.Quat;
@@ -37,10 +41,8 @@ public abstract class MinecraftMixin {
 
     @Inject(method = "handleKeybinds", at = @At("HEAD"), cancellable = true)
     private void velthoric_handleRideInteraction(CallbackInfo ci) {
-
         if (Minecraft.getInstance().options.keyUse.consumeClick()) {
             if (velthoric_performSeatRaycast()) {
-
                 ci.cancel();
             }
         }

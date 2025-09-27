@@ -93,14 +93,7 @@ public class VxRidingManager {
         VxSeat seat = seatOpt.get();
 
         // Server-side validation using the player's actual reach distance.
-        double reachDistance;
-        if (player.isCreative()) {
-            reachDistance = 5.0; // Creative mode reach
-        } else if (player.isSpectator()) {
-            reachDistance = Double.MAX_VALUE; // Spectator mode - unlimited reach
-        } else {
-            reachDistance = 4.5; // Survival/Adventure mode reach
-        }
+        double reachDistance = player.isCreative() ? 5.0 : 4.5;
 
         double distanceSq = player.getEyePosition().distanceToSqr(
                 body.getTransform().getTranslation().x(),
