@@ -20,6 +20,13 @@ import org.joml.Vector3f;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * An invisible entity that acts as a bridge between a Minecraft player
+ * and a physics-based object. The player "rides" this proxy entity. Its sole
+ * purpose is to hold the physics object ID and seat offset for the client.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxRidingProxyEntity extends Entity {
 
     private static final EntityDataAccessor<Optional<UUID>> PHYSICS_OBJECT_ID =
@@ -36,25 +43,17 @@ public class VxRidingProxyEntity extends Entity {
 
     protected void clampRotation(Entity entityToUpdate) {
         entityToUpdate.setYBodyRot(this.getYRot());
-
         float f = Mth.wrapDegrees(entityToUpdate.getYRot() - this.getYRot());
         float g = Mth.clamp(f, -105.0F, 105.0F);
-
         entityToUpdate.yRotO += g - f;
         entityToUpdate.setYRot(entityToUpdate.getYRot() + g - f);
         entityToUpdate.setYHeadRot(entityToUpdate.getYRot());
     }
 
-    //@Override
-    //public void onPassengerTurned(Entity entityToUpdate) {
-    //     this.clampRotation(entityToUpdate);
-    // }
-
     @Override
     protected void positionRider(Entity passenger, MoveFunction callback) {
         super.positionRider(passenger, callback);
-
-        if (this.isControlledByLocalInstance() || !level().isClientSide()) {
+        if (!level().isClientSide()) {
             passenger.setYRot(passenger.getYRot() + this.deltaRotation);
             passenger.setYHeadRot(passenger.getYHeadRot() + this.deltaRotation);
             this.clampRotation(passenger);
@@ -64,14 +63,11 @@ public class VxRidingProxyEntity extends Entity {
     @Override
     public void tick() {
         super.tick();
-
         if (!level().isClientSide) {
-            float currentYaw = this.getYRot();
-            this.deltaRotation = Mth.wrapDegrees(currentYaw - this.yRotO);
-        }
-
-        if (!level().isClientSide && getPassengers().isEmpty()) {
-            discard();
+            this.deltaRotation = Mth.wrapDegrees(this.getYRot() - this.yRotO);
+            if (getPassengers().isEmpty()) {
+                discard();
+            }
         }
     }
 

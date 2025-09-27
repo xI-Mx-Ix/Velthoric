@@ -30,10 +30,11 @@
     "physicsgun.KeyboardHandlerMixin_PhysicsGunHandling",
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
     "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
+    "riding.input.MixinLocalPlayer_SendInput",
     "riding.render.CameraMixin",
     "riding.render.GameRendererMixin",
+    "riding.render.MixinGameRenderer_SmoothPosition",
     "riding.render.PlayerRendererMixin",
-    "riding.input.MixinLocalPlayer_SendInput",
     "riding.request.MixinMinecraft_RequestRiding"
   ],
   "injectors": {
