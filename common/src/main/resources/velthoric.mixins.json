@@ -33,8 +33,8 @@
     "riding.CameraMixin",
     "riding.GameRendererMixin",
     "riding.PlayerRendererMixin",
-    "riding.input.LocalPlayerMixin",
-    "riding.request.MinecraftMixin"
+    "riding.input.MixinLocalPlayer_SendInput",
+    "riding.request.MixinMinecraft_RequestRiding"
   ],
   "injectors": {
     "defaultRequire": 1

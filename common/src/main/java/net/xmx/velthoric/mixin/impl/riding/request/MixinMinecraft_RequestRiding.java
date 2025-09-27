@@ -27,7 +27,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.Optional;
 
 @Mixin(Minecraft.class)
-public abstract class MinecraftMixin {
+public abstract class MixinMinecraft_RequestRiding {
 
     @Shadow
     public LocalPlayer player;
