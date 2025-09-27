@@ -14,20 +14,24 @@ import net.xmx.velthoric.math.VxTransform;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import java.util.UUID;
+
 /**
  * Represents a single seat on a rideable physics object.
- * A seat defines a location where a player can sit, including its collision box,
- * rider offset, and whether it's a driver seat.
+ * A seat defines a location where a player can sit, identified by a unique UUID.
+ * It also includes its collision box, rider offset, and whether it's a driver seat.
  *
  * @author xI-Mx-Ix
  */
 public class VxSeat {
+    private final UUID seatId; // The unique, primary identifier for this seat.
     private final String seatName;
     private final AABB localAABB;
     private final Vector3f riderOffset;
     private final boolean isDriverSeat;
 
-    public VxSeat(String seatName, AABB localAABB, Vector3f riderOffset, boolean isDriverSeat) {
+    public VxSeat(UUID seatId, String seatName, AABB localAABB, Vector3f riderOffset, boolean isDriverSeat) {
+        this.seatId = seatId;
         this.seatName = seatName;
         this.localAABB = localAABB;
         this.riderOffset = riderOffset;
@@ -35,6 +39,7 @@ public class VxSeat {
     }
 
     public VxSeat(FriendlyByteBuf buf) {
+        this.seatId = buf.readUUID();
         this.seatName = buf.readUtf();
         double minX = buf.readDouble();
         double minY = buf.readDouble();
@@ -48,6 +53,7 @@ public class VxSeat {
     }
 
     public void encode(FriendlyByteBuf buf) {
+        buf.writeUUID(this.seatId);
         buf.writeUtf(this.seatName);
         buf.writeDouble(this.localAABB.minX);
         buf.writeDouble(this.localAABB.minY);
@@ -125,18 +131,48 @@ public class VxSeat {
         return new VxOBB(seatTransform, centeredAABB);
     }
 
+    /**
+     * Gets the unique identifier for this seat.
+     * This is the primary key used for all seat-related operations.
+     *
+     * @return The seat's UUID.
+     */
+    public UUID getId() {
+        return this.seatId;
+    }
+
+    /**
+     * Gets the user-friendly, descriptive name of this seat.
+     *
+     * @return The seat's name.
+     */
     public String getName() {
         return this.seatName;
     }
 
+    /**
+     * Gets the un-transformed, local-space bounding box of the seat.
+     *
+     * @return The local AABB.
+     */
     public AABB getLocalAABB() {
         return this.localAABB;
     }
 
+    /**
+     * Gets the local-space offset from the seat's origin where a rider should be positioned.
+     *
+     * @return The rider offset vector.
+     */
     public Vector3f getRiderOffset() {
         return this.riderOffset;
     }
 
+    /**
+     * Checks if this seat is designated as a driver's seat.
+     *
+     * @return True if it is a driver's seat, false otherwise.
+     */
     public boolean isDriverSeat() {
         return this.isDriverSeat;
     }

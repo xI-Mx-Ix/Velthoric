@@ -102,7 +102,7 @@ public abstract class MixinMinecraft_RequestRiding {
         }
 
         if (closestBody != null) {
-            VxPacketHandler.CHANNEL.sendToServer(new C2SRequestRidePacket(closestBody.getId(), closestSeat.getName()));
+            VxPacketHandler.CHANNEL.sendToServer(new C2SRequestRidePacket(closestBody.getId(), closestSeat.getId()));
             return true;
         }
 

@@ -28,13 +28,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * Manages all riding-related logic on the server side for a specific physics world.
  * This includes tracking which players are riding which objects, handling seat management,
  * processing player input, and synchronizing the position of riders.
+ * Seats are managed using their unique UUIDs as primary keys.
  *
  * @author xI-Mx-Ix
  */
 public class VxRidingManager {
 
     private final VxPhysicsWorld world;
-    private final Object2ObjectMap<UUID, Map<String, VxSeat>> objectToSeatsMap = new Object2ObjectOpenHashMap<>();
+    /** Maps a physics object's UUID to a map of its seats, where each seat is keyed by its own UUID. */
+    private final Object2ObjectMap<UUID, Map<UUID, VxSeat>> objectToSeatsMap = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<UUID, UUID> playerToObjectIdMap = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<UUID, Map<UUID, ServerPlayer>> objectToRidersMap = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<UUID, VxSeat> playerToSeatMap = new Object2ObjectOpenHashMap<>();
@@ -44,25 +46,25 @@ public class VxRidingManager {
     }
 
     /**
-     * Adds a seat to a physics object.
+     * Adds a seat to a physics object, indexed by the seat's UUID.
      *
      * @param objectId The UUID of the object.
      * @param seat     The seat to add.
      */
     public void addSeat(UUID objectId, VxSeat seat) {
-        this.objectToSeatsMap.computeIfAbsent(objectId, k -> new ConcurrentHashMap<>()).put(seat.getName(), seat);
+        this.objectToSeatsMap.computeIfAbsent(objectId, k -> new ConcurrentHashMap<>()).put(seat.getId(), seat);
     }
 
     /**
-     * Removes a seat from a physics object.
+     * Removes a seat from a physics object using its UUID.
      *
      * @param objectId The UUID of the object.
-     * @param seatName The name of the seat to remove.
+     * @param seatId The UUID of the seat to remove.
      */
-    public void removeSeat(UUID objectId, String seatName) {
-        Map<String, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+    public void removeSeat(UUID objectId, UUID seatId) {
+        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
         if (seats != null) {
-            seats.remove(seatName);
+            seats.remove(seatId);
             if (seats.isEmpty()) {
                 this.objectToSeatsMap.remove(objectId);
             }
@@ -75,18 +77,18 @@ public class VxRidingManager {
      *
      * @param player   The player making the request.
      * @param objectId The UUID of the target object.
-     * @param seatName The name of the target seat.
+     * @param seatId   The UUID of the target seat.
      */
-    public void requestRiding(ServerPlayer player, UUID objectId, String seatName) {
+    public void requestRiding(ServerPlayer player, UUID objectId, UUID seatId) {
         VxBody body = world.getObjectManager().getObject(objectId);
         if (!(body instanceof VxRideable rideable)) {
             VxMainClass.LOGGER.warn("Player {} requested to ride non-rideable object {}", player.getName().getString(), objectId);
             return;
         }
 
-        Optional<VxSeat> seatOpt = getSeat(objectId, seatName);
+        Optional<VxSeat> seatOpt = getSeat(objectId, seatId);
         if (seatOpt.isEmpty()) {
-            VxMainClass.LOGGER.warn("Player {} requested to ride non-existent seat '{}' on object {}", player.getName().getString(), seatName, objectId);
+            VxMainClass.LOGGER.warn("Player {} requested to ride non-existent seat '{}' on object {}", player.getName().getString(), seatId, objectId);
             return;
         }
 
@@ -111,15 +113,15 @@ public class VxRidingManager {
     }
 
     /**
-     * Gets a specific seat from an object by its name.
+     * Gets a specific seat from an object by its UUID.
      *
      * @param objectId The UUID of the object.
-     * @param seatName The name of the seat.
+     * @param seatId   The UUID of the seat.
      * @return An Optional containing the seat if found.
      */
-    public Optional<VxSeat> getSeat(UUID objectId, String seatName) {
-        Map<String, VxSeat> seats = this.objectToSeatsMap.get(objectId);
-        return seats != null ? Optional.ofNullable(seats.get(seatName)) : Optional.empty();
+    public Optional<VxSeat> getSeat(UUID objectId, UUID seatId) {
+        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+        return seats != null ? Optional.ofNullable(seats.get(seatId)) : Optional.empty();
     }
 
     /**
@@ -157,7 +159,7 @@ public class VxRidingManager {
      * @return A collection of all seats for the object.
      */
     public Collection<VxSeat> getSeats(UUID objectId) {
-        Map<String, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
         return seats != null ? seats.values() : Collections.emptyList();
     }
 
@@ -319,7 +321,7 @@ public class VxRidingManager {
         }
     }
 
-    public Map<UUID, Map<String, VxSeat>> getAllSeatsByObject() {
+    public Map<UUID, Map<UUID, VxSeat>> getAllSeatsByObject() {
         return Collections.unmodifiableMap(this.objectToSeatsMap);
     }
 
@@ -335,6 +337,7 @@ public class VxRidingManager {
 
     /**
      * Checks if a specific seat on an object is occupied.
+     * Compares seats by their unique UUIDs.
      *
      * @param objectId The UUID of the object.
      * @param seat     The seat to check.
@@ -347,7 +350,7 @@ public class VxRidingManager {
         }
         for (UUID riderUuid : riders.keySet()) {
             VxSeat occupiedSeat = playerToSeatMap.get(riderUuid);
-            if (occupiedSeat != null && occupiedSeat.getName().equals(seat.getName())) {
+            if (occupiedSeat != null && occupiedSeat.getId().equals(seat.getId())) {
                 return true;
             }
         }

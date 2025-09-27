@@ -14,25 +14,25 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * A network packet sent from the client to the server to request starting
- * to ride a specific seat on a physics object.
+ * A network packet sent from client to server to request riding a specific seat,
+ * identified by its unique UUID.
  *
  * @author xI-Mx-Ix
  */
 public class C2SRequestRidePacket {
 
     private final UUID objectId;
-    private final String seatName;
+    private final UUID seatId;
 
     /**
      * Constructs a new request to ride packet.
      *
      * @param objectId The UUID of the physics object.
-     * @param seatName The name of the seat to ride.
+     * @param seatId The UUID of the seat to ride.
      */
-    public C2SRequestRidePacket(UUID objectId, String seatName) {
+    public C2SRequestRidePacket(UUID objectId, UUID seatId) {
         this.objectId = objectId;
-        this.seatName = seatName;
+        this.seatId = seatId;
     }
 
     /**
@@ -42,7 +42,7 @@ public class C2SRequestRidePacket {
      */
     public C2SRequestRidePacket(FriendlyByteBuf buf) {
         this.objectId = buf.readUUID();
-        this.seatName = buf.readUtf();
+        this.seatId = buf.readUUID();
     }
 
     /**
@@ -52,7 +52,7 @@ public class C2SRequestRidePacket {
      */
     public void encode(FriendlyByteBuf buf) {
         buf.writeUUID(this.objectId);
-        buf.writeUtf(this.seatName);
+        buf.writeUUID(this.seatId);
     }
 
     /**
@@ -72,7 +72,7 @@ public class C2SRequestRidePacket {
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(player.serverLevel().dimension());
             if (physicsWorld != null) {
                 VxRidingManager ridingManager = physicsWorld.getRidingManager();
-                ridingManager.requestRiding(player, msg.objectId, msg.seatName);
+                ridingManager.requestRiding(player, msg.objectId, msg.seatId);
             }
         });
     }

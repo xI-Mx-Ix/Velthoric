@@ -100,9 +100,7 @@ public class CarRigidBody extends VxVehicle {
                 riderOffset.x - 0.3, riderOffset.y - 0.4, riderOffset.z - 0.3,
                 riderOffset.x + 0.3, riderOffset.y + 0.4, riderOffset.z + 0.3
         );
-
-        VxSeat driverSeat = new VxSeat("driver_seat", localAABB, riderOffset, true);
-
+        VxSeat driverSeat = new VxSeat(UUID.randomUUID(), "driver_seat", localAABB, riderOffset, true);
         this.getWorld().getRidingManager().addSeat(this.getPhysicsId(), driverSeat);
     }
 
