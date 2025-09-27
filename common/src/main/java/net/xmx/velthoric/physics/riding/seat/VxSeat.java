@@ -4,8 +4,12 @@
  */
 package net.xmx.velthoric.physics.riding.seat;
 
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.math.VxTransform;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -59,9 +63,10 @@ public class VxSeat {
 
     /**
      * Transforms the seat's local-space AABB into a world-space AABB using the object's transform.
+     * This creates a bounding box that fully encloses the rotated seat, suitable for broad-phase checks.
      *
      * @param objectTransform The current world transform of the physics object.
-     * @return A new AABB representing the seat's bounds in world space.
+     * @return A new AABB representing the seat's coarse bounds in world space.
      */
     public AABB getGlobalAABB(VxTransform objectTransform) {
         Vector3f[] corners = new Vector3f[8];
@@ -74,14 +79,15 @@ public class VxSeat {
         corners[6] = new Vector3f((float) localAABB.maxX, (float) localAABB.maxY, (float) localAABB.maxZ);
         corners[7] = new Vector3f((float) localAABB.minX, (float) localAABB.maxY, (float) localAABB.maxZ);
 
-        Quaternionf rotation = new Quaternionf(objectTransform.getRotation().getX(), objectTransform.getRotation().getY(), objectTransform.getRotation().getZ(), objectTransform.getRotation().getW());
-        Vector3f translation = new Vector3f(objectTransform.getTranslation().x(), objectTransform.getTranslation().y(), objectTransform.getTranslation().z());
+        Quaternionf rotation = new Quaternionf();
+        objectTransform.getRotation(rotation);
+        Vector3f translation = new Vector3f();
+        objectTransform.getTranslation(translation);
 
         float minX = Float.POSITIVE_INFINITY, minY = Float.POSITIVE_INFINITY, minZ = Float.POSITIVE_INFINITY;
         float maxX = Float.NEGATIVE_INFINITY, maxY = Float.NEGATIVE_INFINITY, maxZ = Float.NEGATIVE_INFINITY;
 
         for (Vector3f corner : corners) {
-            // Apply rotation, then translation
             rotation.transform(corner);
             corner.add(translation);
 
@@ -94,6 +100,29 @@ public class VxSeat {
         }
 
         return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    /**
+     * Creates a world-space Oriented Bounding Box (OBB) for this seat based on the parent object's transform.
+     * This is highly accurate for raycasting and intersection tests, serving as the narrow-phase check.
+     *
+     * @param objectTransform The current world transform of the physics object.
+     * @return A new VxOBB representing the seat's precise bounds and orientation in world space.
+     */
+    public VxOBB getGlobalOBB(VxTransform objectTransform) {
+        Vec3 localCenter = this.localAABB.getCenter();
+        RVec3 localCenterRVec = new RVec3(localCenter.x, localCenter.y, localCenter.z);
+
+        localCenterRVec.rotateInPlace(objectTransform.getRotation());
+        RVec3 worldSeatCenter = Op.plus(objectTransform.getTranslation(), localCenterRVec);
+        VxTransform seatTransform = new VxTransform(worldSeatCenter, objectTransform.getRotation());
+
+        double xSize = this.localAABB.getXsize();
+        double ySize = this.localAABB.getYsize();
+        double zSize = this.localAABB.getZsize();
+        AABB centeredAABB = new AABB(-xSize / 2.0, -ySize / 2.0, -zSize / 2.0, xSize / 2.0, ySize / 2.0, zSize / 2.0);
+
+        return new VxOBB(seatTransform, centeredAABB);
     }
 
     public String getName() {

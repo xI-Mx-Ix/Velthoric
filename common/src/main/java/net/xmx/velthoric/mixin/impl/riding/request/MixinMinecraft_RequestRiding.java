@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
@@ -48,6 +49,13 @@ public abstract class MixinMinecraft_RequestRiding {
         }
     }
 
+    /**
+     * Performs a raycast to find a rideable seat the player is looking at.
+     * This uses a two-phase approach: a fast, coarse AABB check (broad-phase),
+     * followed by a precise OBB check (narrow-phase) if the first check succeeds.
+     *
+     * @return True if a seat was successfully targeted and a ride request was sent.
+     */
     @Unique
     private boolean velthoric_performSeatRaycast() {
         if (this.player == null || this.player.isPassenger()) {
@@ -73,16 +81,21 @@ public abstract class MixinMinecraft_RequestRiding {
             body.calculateRenderState(partialTicks, velthoric_renderState, velthoric_tempPos, velthoric_tempRot);
 
             for (VxSeat seat : ridingManager.getSeats(body.getId())) {
-                AABB worldAABB = seat.getGlobalAABB(velthoric_renderState.transform);
+                // 1. Broad-phase: Fast, coarse check using an axis-aligned bounding box.
+                AABB broadPhaseBox = seat.getGlobalAABB(velthoric_renderState.transform);
+                if (broadPhaseBox.clip(cameraPos, endVec).isPresent()) {
 
-                Optional<Vec3> hitPos = worldAABB.clip(cameraPos, endVec);
+                    // 2. Narrow-phase: If broad-phase hits, perform a precise check using an oriented bounding box.
+                    VxOBB narrowPhaseBox = seat.getGlobalOBB(velthoric_renderState.transform);
+                    Optional<Vec3> hitPos = narrowPhaseBox.clip(cameraPos, endVec);
 
-                if (hitPos.isPresent()) {
-                    double distSq = cameraPos.distanceToSqr(hitPos.get());
-                    if (distSq < closestDistSq) {
-                        closestDistSq = distSq;
-                        closestBody = body;
-                        closestSeat = seat;
+                    if (hitPos.isPresent()) {
+                        double distSq = cameraPos.distanceToSqr(hitPos.get());
+                        if (distSq < closestDistSq) {
+                            closestDistSq = distSq;
+                            closestBody = body;
+                            closestSeat = seat;
+                        }
                     }
                 }
             }
