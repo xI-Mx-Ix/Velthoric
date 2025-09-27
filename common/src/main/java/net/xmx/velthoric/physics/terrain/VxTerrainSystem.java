@@ -332,6 +332,7 @@ public class VxTerrainSystem implements Runnable {
             try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxLayers.TERRAIN)) {
                 Body body = bodyInterface.createBody(bcs);
                 if (body != null) {
+                    body.setFriction(0.65f);
                     chunkDataStore.bodyIds[index] = body.getId();
                     chunkDataStore.setShape(index, shape);
                     chunkDataStore.states[index] = wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE;
