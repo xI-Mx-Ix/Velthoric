@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.riding;
+package net.xmx.velthoric.mixin.impl.riding.render;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;

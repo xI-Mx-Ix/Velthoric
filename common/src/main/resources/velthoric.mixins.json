@@ -13,7 +13,7 @@
     "event.server.MinecraftServerMixin_VxServerLifecylceEvent",
     "misc.ExplosionMixin_TriggerExplosion",
     "object.ChunkMapMixin_DispatchObjectsToPlayers",
-    "riding.EntityMixin",
+    "riding.render.EntityMixin",
     "terrain.ChunkHolderMixin_ChunkLoadTerrain",
     "terrain.ChunkMapMixin_ChunkUnloadTerrain",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
@@ -30,9 +30,9 @@
     "physicsgun.KeyboardHandlerMixin_PhysicsGunHandling",
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
     "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
-    "riding.CameraMixin",
-    "riding.GameRendererMixin",
-    "riding.PlayerRendererMixin",
+    "riding.render.CameraMixin",
+    "riding.render.GameRendererMixin",
+    "riding.render.PlayerRendererMixin",
     "riding.input.MixinLocalPlayer_SendInput",
     "riding.request.MixinMinecraft_RequestRiding"
   ],
