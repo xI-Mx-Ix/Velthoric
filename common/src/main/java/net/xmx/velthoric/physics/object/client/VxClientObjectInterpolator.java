@@ -203,12 +203,35 @@ public class VxClientObjectInterpolator {
      * @param outRot       The Quat object to store the resulting rotation in.
      */
     public void interpolateFrame(VxClientObjectDataStore store, int i, float partialTicks, RVec3 outPos, Quat outRot) {
+        interpolatePosition(store, i, partialTicks, outPos);
+        interpolateRotation(store, i, partialTicks, outRot);
+    }
+
+    /**
+     * Calculates the final, interpolated position for rendering within a single frame.
+     *
+     * @param store        The data store.
+     * @param i            The index of the object.
+     * @param partialTicks The fraction of a tick that has passed since the last full tick.
+     * @param outPos       The RVec3 object to store the resulting position in.
+     */
+    public void interpolatePosition(VxClientObjectDataStore store, int i, float partialTicks, RVec3 outPos) {
         outPos.set(
                 Mth.lerp(partialTicks, store.prev_posX[i], store.render_posX[i]),
                 Mth.lerp(partialTicks, store.prev_posY[i], store.render_posY[i]),
                 Mth.lerp(partialTicks, store.prev_posZ[i], store.render_posZ[i])
         );
+    }
 
+    /**
+     * Calculates the final, interpolated rotation for rendering within a single frame.
+     *
+     * @param store        The data store.
+     * @param i            The index of the object.
+     * @param partialTicks The fraction of a tick that has passed since the last full tick.
+     * @param outRot       The Quat object to store the resulting rotation in.
+     */
+    public void interpolateRotation(VxClientObjectDataStore store, int i, float partialTicks, Quat outRot) {
         tempFromRot.set(store.prev_rotX[i], store.prev_rotY[i], store.prev_rotZ[i], store.prev_rotW[i]);
         tempToRot.set(store.render_rotX[i], store.render_rotY[i], store.render_rotZ[i], store.render_rotW[i]);
         VxOperations.slerp(tempFromRot, tempToRot, partialTicks, outRot);
