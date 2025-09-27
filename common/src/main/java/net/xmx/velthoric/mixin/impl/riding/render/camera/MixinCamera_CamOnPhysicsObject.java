@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.riding.render;
+package net.xmx.velthoric.mixin.impl.riding.render.camera;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
@@ -31,8 +31,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.UUID;
 
+/**
+ * @author xI-Mx-Ix
+ */
 @Mixin(Camera.class)
-public abstract class CameraMixin {
+public abstract class MixinCamera_CamOnPhysicsObject {
 
     @Shadow @Final private Quaternionf rotation;
     @Shadow @Final private Vector3f forwards;

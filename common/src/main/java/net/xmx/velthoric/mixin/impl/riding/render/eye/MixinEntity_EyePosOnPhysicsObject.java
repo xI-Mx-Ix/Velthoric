@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.riding.render;
+package net.xmx.velthoric.mixin.impl.riding.render.eye;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
@@ -23,8 +23,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * @author xI-Mx-Ix
+ */
 @Mixin(Entity.class)
-public abstract class EntityMixin {
+public abstract class MixinEntity_EyePosOnPhysicsObject {
 
     @Shadow public abstract float getEyeHeight();
     @Shadow public abstract Entity getVehicle();

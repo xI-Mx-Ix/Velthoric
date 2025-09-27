@@ -16,6 +16,8 @@ import java.util.Optional;
  * An Oriented Bounding Box (OBB) defined by a local AABB and a VxTransform.
  * This provides a bounding box that can be freely rotated and translated in world space.
  * Methods are designed to be analogous to Minecraft's AABB class.
+ *
+ * @author xI-Mx-Ix
  */
 public class VxOBB {
     private static final double EPSILON = 1.0E-7;
@@ -206,6 +208,25 @@ public class VxOBB {
 
         // No separating axis found, the OBBs must be intersecting.
         return true;
+    }
+
+    /**
+     * Checks if this oriented bounding box (OBB) intersects with a given axis-aligned bounding box (AABB).
+     *
+     * @param aabb the axis-aligned bounding box to test for intersection
+     * @return true if this OBB intersects with the given AABB, false otherwise
+     */
+    public boolean intersectsWith(AABB aabb) {
+        Vec3 center = aabb.getCenter();
+        double hx = aabb.getXsize() / 2.0;
+        double hy = aabb.getYsize() / 2.0;
+        double hz = aabb.getZsize() / 2.0;
+
+        VxTransform aabbTransform = new VxTransform(new RVec3(center.x, center.y, center.z), new Quat());
+        AABB localAABB = new AABB(-hx, -hy, -hz, hx, hy, hz);
+        VxOBB other = new VxOBB(aabbTransform, localAABB);
+
+        return this.intersects(other);
     }
 
     /**

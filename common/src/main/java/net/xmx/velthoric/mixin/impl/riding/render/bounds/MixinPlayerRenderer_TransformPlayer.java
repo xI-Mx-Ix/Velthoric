@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.riding.render;
+package net.xmx.velthoric.mixin.impl.riding.render.bounds;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
@@ -18,17 +18,22 @@ import net.xmx.velthoric.physics.riding.VxRidingProxyEntity;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * @author xI-Mx-Ix
+ */
 @Mixin(PlayerRenderer.class)
-public abstract class PlayerRendererMixin {
+public abstract class MixinPlayerRenderer_TransformPlayer {
 
     private static final RVec3 velthoric_interpolatedPosition_pr = new RVec3();
     private static final Quat velthoric_interpolatedRotation_pr = new Quat();
 
-    private float getFlipDegrees(AbstractClientPlayer player) {
+    @Unique
+    private float velthoric$getFlipDegrees(AbstractClientPlayer player) {
         return 90.0F;
     }
 
@@ -77,7 +82,7 @@ public abstract class PlayerRendererMixin {
                 if (f > 1.0F) {
                     f = 1.0F;
                 }
-                poseStack.mulPose(Axis.ZP.rotationDegrees(f * this.getFlipDegrees(player)));
+                poseStack.mulPose(Axis.ZP.rotationDegrees(f * this.velthoric$getFlipDegrees(player)));
             } else if (player.isAutoSpinAttack()) {
                 poseStack.mulPose(Axis.XP.rotationDegrees(-90.0F - player.getXRot()));
                 poseStack.mulPose(Axis.YP.rotationDegrees(((float)player.tickCount + partialTicks) * -75.0F));

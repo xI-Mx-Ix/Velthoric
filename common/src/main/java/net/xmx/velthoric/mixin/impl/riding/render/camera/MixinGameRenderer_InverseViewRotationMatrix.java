@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.riding.render;
+package net.xmx.velthoric.mixin.impl.riding.render.camera;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -28,8 +28,11 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 
+/**
+ * @author xI-Mx-Ix
+ */
 @Mixin(GameRenderer.class)
-public abstract class GameRendererMixin {
+public abstract class MixinGameRenderer_InverseViewRotationMatrix {
 
     @Shadow @Final Minecraft minecraft;
     @Shadow @Final private Camera mainCamera;

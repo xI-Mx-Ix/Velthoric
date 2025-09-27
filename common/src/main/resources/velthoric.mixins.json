@@ -13,7 +13,7 @@
     "event.server.MinecraftServerMixin_VxServerLifecylceEvent",
     "misc.ExplosionMixin_TriggerExplosion",
     "object.ChunkMapMixin_DispatchObjectsToPlayers",
-    "riding.render.EntityMixin",
+    "riding.render.eye.MixinEntity_EyePosOnPhysicsObject",
     "terrain.ChunkHolderMixin_ChunkLoadTerrain",
     "terrain.ChunkMapMixin_ChunkUnloadTerrain",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
@@ -32,10 +32,12 @@
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
     "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
     "riding.input.MixinLocalPlayer_SendInput",
-    "riding.render.CameraMixin",
-    "riding.render.GameRendererMixin",
-    "riding.render.MixinGameRenderer_SmoothPosition",
-    "riding.render.PlayerRendererMixin",
+    "riding.render.MixinGameRenderer_SmoothEntityPosition",
+    "riding.render.bounds.MixinEntityRenderDispatcher_TransformHitbox",
+    "riding.render.bounds.MixinGameRenderer_TranformPick",
+    "riding.render.bounds.MixinPlayerRenderer_TransformPlayer",
+    "riding.render.camera.MixinCamera_CamOnPhysicsObject",
+    "riding.render.camera.MixinGameRenderer_InverseViewRotationMatrix",
     "riding.request.MixinMinecraft_RequestRiding"
   ],
   "injectors": {
