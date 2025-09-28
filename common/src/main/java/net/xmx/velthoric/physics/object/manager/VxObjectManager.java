@@ -323,15 +323,18 @@ public class VxObjectManager {
     /**
      * Handles the internal deregistration of a physics object, freeing its data store index
      * and removing it from tracking maps. This does not handle Jolt body removal.
+     * This method is synchronized to ensure the entire removal process is atomic.
      *
      * @param id The UUID of the object to remove.
      * @return The removed object, or null if it was not found.
      */
     @Nullable
-    private VxBody removeInternal(UUID id) {
+    private synchronized VxBody removeInternal(UUID id) {
+        // By synchronizing the method, we ensure that the removal from managedObjects
+        // and all other associated data structures happens as a single, atomic operation.
         VxBody obj = managedObjects.remove(id);
         if (obj != null) {
-            dataStore.removeObject(id);
+            dataStore.removeObject(id); // This method is also synchronized, which is fine (re-entrant lock).
             obj.setDataStoreIndex(-1);
             if (obj.getBodyId() != 0) {
                 bodyIdToObjectMap.remove(obj.getBodyId());
