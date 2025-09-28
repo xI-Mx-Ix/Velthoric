@@ -48,7 +48,7 @@ public class SpawnData {
         VxByteBuf buf = new VxByteBuf(Unpooled.buffer());
         try {
             obj.getTransform().toBuffer(buf);
-            obj.writeSyncData(buf);
+            obj.writeInitialSyncData(buf);
 
             if (obj instanceof VxRideable) {
                 VxRidingManager ridingManager = obj.getWorld().getRidingManager();

@@ -73,7 +73,7 @@ public class S2CCustomDataBatchPacket {
             VxClientObjectManager manager = VxClientObjectManager.getInstance();
             // Apply each custom data update to the corresponding client-side object.
             for (Map.Entry<UUID, byte[]> entry : msg.dataUpdates.entrySet()) {
-                manager.updateCustomObjectData(entry.getKey(), Unpooled.wrappedBuffer(entry.getValue()));
+                manager.updateSynchronizedData(entry.getKey(), Unpooled.wrappedBuffer(entry.getValue()));
             }
         });
     }

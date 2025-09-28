@@ -152,7 +152,7 @@ public class VxClientObjectManager {
         VxTransform transform = new VxTransform();
         transform.fromBuffer(data);
 
-        body.readSyncData(data);
+        body.getSynchronizedData().readEntries(data);
         VxClientRidingManager.getInstance().addSeatsFromBuffer(id, data);
 
         initializeState(index, transform, timestamp);
@@ -215,31 +215,19 @@ public class VxClientObjectManager {
         store.removeObject(id);
         VxClientRidingManager.getInstance().removeSeatsForObject(id);
     }
-
     /**
-     * Updates the custom data for a specific object by finding its handle and calling its readSyncData method.
+     * Updates the synchronized data for a specific object.
      *
      * @param id   The UUID of the object to update.
-     * @param data The buffer containing the new custom data.
+     * @param data The buffer containing the new synchronized data.
      */
-    public void updateCustomObjectData(UUID id, ByteBuf data) {
+    public void updateSynchronizedData(UUID id, ByteBuf data) {
         VxClientBody body = managedObjects.get(id);
         if (body != null) {
             try {
-                // The body's specific implementation will read the data it expects.
-                body.readSyncData(new VxByteBuf(data));
+                body.getSynchronizedData().readEntries(new VxByteBuf(data));
             } catch (Exception e) {
-                VxMainClass.LOGGER.error("Failed to read custom sync data for object {}", id, e);
-            } finally {
-                // Ensure the buffer is released after use to prevent memory leaks.
-                if (data.refCnt() > 0) {
-                    data.release();
-                }
-            }
-        } else {
-            // If the body doesn't exist, we must still release the buffer.
-            if (data.refCnt() > 0) {
-                data.release();
+                VxMainClass.LOGGER.error("Failed to read synchronized data for object {}", id, e);
             }
         }
     }

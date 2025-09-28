@@ -8,21 +8,24 @@ import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.fabricmc.api.EnvType;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.world.phys.AABB;
-import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
+import net.xmx.velthoric.physics.object.sync.SynchronizedData;
+import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.object.sync.VxDataSerializer;
 
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * An abstract representation of a physics object on the client side.
  * This class acts as a lightweight handle for accessing the object's data,
  * which is stored in the {@link VxClientObjectDataStore} for performance.
- * It encapsulates logic for state calculation and culling.
- * The rendering and data handling logic must be implemented by subclasses.
+ * It encapsulates logic for state calculation, culling, and synchronized data.
  *
  * @author xI-Mx-Ix
  */
@@ -32,22 +35,43 @@ public abstract class VxClientBody {
     protected final VxClientObjectManager manager;
     protected final int dataStoreIndex;
     protected final EBodyType objectType;
+    protected final SynchronizedData synchronizedData;
+
+    private static final AtomicInteger NEXT_ACCESSOR_ID = new AtomicInteger(0);
 
     protected VxClientBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
         this.id = id;
         this.manager = manager;
         this.dataStoreIndex = dataStoreIndex;
         this.objectType = objectType;
+        this.synchronizedData = new SynchronizedData(EnvType.CLIENT);
+        this.defineSyncData();
     }
 
     /**
-     * Reads synchronization data sent from the server.
-     * This is called on spawn and when custom data is updated.
-     * Must be implemented by the final concrete class.
-     *
-     * @param buf The buffer containing the data.
+     * Creates a new Data Accessor with a unique ID for this body type.
+     * This should be called to initialize static final DataAccessor fields in subclasses.
+     * @param serializer The serializer for the data type.
+     * @return A new {@link VxDataAccessor}.
      */
-    public abstract void readSyncData(VxByteBuf buf);
+    protected static <T> VxDataAccessor<T> createAccessor(VxDataSerializer<T> serializer) {
+        return new VxDataAccessor<>(NEXT_ACCESSOR_ID.getAndIncrement(), serializer);
+    }
+
+    /**
+     * Called in the constructor to define all synchronized data fields for this object type.
+     * Implementations should call {@code synchronizedData.define(ACCESSOR, defaultValue)}.
+     */
+    protected abstract void defineSyncData();
+
+    /**
+     * Gets the value of a synchronized data field.
+     * @param accessor The accessor for the data.
+     * @return The current value.
+     */
+    public <T> T getSyncData(VxDataAccessor<T> accessor) {
+        return this.synchronizedData.get(accessor);
+    }
 
     /**
      * Calculates the final, interpolated render state for the object for the current frame.
@@ -62,7 +86,7 @@ public abstract class VxClientBody {
 
     /**
      * Renders the object in the world.
-     * Must be implemented by the final concrete class.
+     * This must be implemented by the final concrete class.
      *
      * @param poseStack    The current pose stack for transformations.
      * @param bufferSource The buffer source for drawing.
@@ -74,14 +98,18 @@ public abstract class VxClientBody {
 
     public UUID getId() {
         return id;
-
     }
+
     public int getDataStoreIndex() {
         return dataStoreIndex;
     }
 
     public boolean isInitialized() {
         return manager.getStore().render_isInitialized[dataStoreIndex];
+    }
+
+    public SynchronizedData getSynchronizedData() {
+        return synchronizedData;
     }
 
     public AABB getCullingAABB(float inflation) {

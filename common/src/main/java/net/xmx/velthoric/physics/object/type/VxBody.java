@@ -8,16 +8,22 @@ import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.BodyLockRead;
 import com.github.stephengold.joltjni.BodyLockWrite;
 import com.github.stephengold.joltjni.readonly.ConstBody;
+import net.fabricmc.api.EnvType;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
+import net.xmx.velthoric.physics.object.sync.SynchronizedData;
+import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.object.sync.VxDataSerializer;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The abstract base class for all physics objects in Velthoric on the server side.
@@ -32,13 +38,28 @@ public abstract class VxBody {
     protected final UUID physicsId;
     protected final VxObjectType<? extends VxBody> type;
     protected final VxPhysicsWorld world;
+    protected final SynchronizedData synchronizedData;
     protected int bodyId = 0;
     protected int dataStoreIndex = -1;
+
+    private static final AtomicInteger NEXT_ACCESSOR_ID = new AtomicInteger(0);
 
     protected VxBody(VxObjectType<? extends VxBody> type, VxPhysicsWorld world, UUID id) {
         this.type = type;
         this.world = world;
         this.physicsId = id;
+        this.synchronizedData = new SynchronizedData(EnvType.SERVER);
+        this.defineSyncData();
+    }
+
+    /**
+     * Creates a new Data Accessor with a unique ID for this body type.
+     * This should be called to initialize static final DataAccessor fields in subclasses.
+     * @param serializer The serializer for the data type.
+     * @return A new {@link VxDataAccessor}.
+     */
+    protected static <T> VxDataAccessor<T> createAccessor(VxDataSerializer<T> serializer) {
+        return new VxDataAccessor<>(NEXT_ACCESSOR_ID.getAndIncrement(), serializer);
     }
 
     public void onBodyAdded(VxPhysicsWorld world) {}
@@ -47,19 +68,36 @@ public abstract class VxBody {
     public void gameTick(ServerLevel level) {}
 
     /**
-     * Writes data needed by the client for spawning and for custom data updates.
-     * This is sent over the network.
+     * Called in the constructor to define all synchronized data fields for this object type.
+     * Implementations should call {@code synchronizedData.define(ACCESSOR, defaultValue)}.
+     */
+    protected abstract void defineSyncData();
+
+    /**
+     * Writes all defined synchronized data to the buffer. Used for spawning the object on the client.
      *
      * @param buf The buffer to write to.
      */
-    public void writeSyncData(VxByteBuf buf) {}
+    public void writeInitialSyncData(VxByteBuf buf) {
+        List<SynchronizedData.Entry<?>> allEntries = this.synchronizedData.getAllEntries();
+        SynchronizedData.writeEntries(buf, allEntries);
+    }
 
     /**
-     * Reads the data written by {@link #writeSyncData(VxByteBuf)} on the client side.
+     * Writes only the dirty synchronized data entries to the buffer for updates.
      *
-     * @param buf The buffer to read from.
+     * @param buf The buffer to write to.
+     * @return True if any data was written, false otherwise.
      */
-    public void readSyncData(VxByteBuf buf) {}
+    public boolean writeDirtySyncData(VxByteBuf buf) {
+        List<SynchronizedData.Entry<?>> dirtyEntries = this.synchronizedData.getDirtyEntries();
+        if (dirtyEntries == null) {
+            return false;
+        }
+        SynchronizedData.writeEntries(buf, dirtyEntries);
+        this.synchronizedData.clearDirty();
+        return true;
+    }
 
     /**
      * Writes data needed to save this object to disk.
@@ -76,6 +114,27 @@ public abstract class VxBody {
      */
     public void readPersistenceData(VxByteBuf buf) {}
 
+    /**
+     * Gets the value of a synchronized data field.
+     * @param accessor The accessor for the data.
+     * @return The current value.
+     */
+    public <T> T getSyncData(VxDataAccessor<T> accessor) {
+        return this.synchronizedData.get(accessor);
+    }
+
+    /**
+     * Sets the value of a synchronized data field. If the value changes,
+     * the object will automatically be queued for a network update.
+     * @param accessor The accessor for the data.
+     * @param value The new value.
+     */
+    public <T> void setSyncData(VxDataAccessor<T> accessor, T value) {
+        this.synchronizedData.set(accessor, value);
+        if (this.synchronizedData.isDirty()) {
+            this.world.getObjectManager().markCustomDataDirty(this);
+        }
+    }
 
     public void getTransform(VxTransform outTransform) {
         if (this.dataStoreIndex != -1) {
@@ -89,7 +148,8 @@ public abstract class VxBody {
             this.world.getObjectManager().getTransform(this.dataStoreIndex, transform);
             return transform;
         }
-        return null;
+        // Return a default or throw an exception if the object is not yet fully initialized
+        return new VxTransform();
     }
 
     @Nullable
@@ -122,7 +182,7 @@ public abstract class VxBody {
                 }
             }
         }
-        VxMainClass.LOGGER.warn("Returned null ConstBody for bodyId {}", bodyId);
+        VxMainClass.LOGGER.warn("Returned null Body for bodyId {}", bodyId);
         return null;
     }
 
@@ -146,27 +206,8 @@ public abstract class VxBody {
         return this.world;
     }
 
-    /**
-     * Marks this object's custom data as dirty, queuing it for synchronization to clients in the next tick.
-     * The data written in {@link #writeSyncData(VxByteBuf)} will be sent.
-     */
-    public void markCustomDataDirty() {
-        if (this.dataStoreIndex != -1) {
-            this.world.getObjectManager().markCustomDataDirty(this);
-        }
-    }
-
-    public boolean isCustomDataDirty() {
-        if (this.dataStoreIndex != -1) {
-            return this.world.getObjectManager().getDataStore().isCustomDataDirty[this.dataStoreIndex];
-        }
-        return false;
-    }
-
-    public void setCustomDataDirty(boolean dirty) {
-        if (this.dataStoreIndex != -1) {
-            this.world.getObjectManager().getDataStore().isCustomDataDirty[this.dataStoreIndex] = dirty;
-        }
+    public SynchronizedData getSynchronizedData() {
+        return synchronizedData;
     }
 
     public int getDataStoreIndex() {
