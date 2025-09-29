@@ -48,10 +48,10 @@ public class VxPacketHandler {
         );
 
         registerPacket(
-                S2CCustomDataBatchPacket.class,
-                S2CCustomDataBatchPacket::encode,
-                S2CCustomDataBatchPacket::new,
-                S2CCustomDataBatchPacket::handle
+                S2CSynchronizedDataBatchPacket.class,
+                S2CSynchronizedDataBatchPacket::encode,
+                S2CSynchronizedDataBatchPacket::new,
+                S2CSynchronizedDataBatchPacket::handle
         );
 
         registerPacket(

@@ -225,6 +225,7 @@ public class VxClientObjectManager {
         VxClientBody body = managedObjects.get(id);
         if (body != null) {
             try {
+                // The incoming ByteBuf is wrapped in our custom VxByteBuf for deserialization
                 body.getSynchronizedData().readEntries(new VxByteBuf(data));
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Failed to read synchronized data for object {}", id, e);

@@ -4,19 +4,19 @@
  */
 package net.xmx.velthoric.physics.object.manager;
 
+import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.object.packet.VxSpawnData;
-import net.xmx.velthoric.physics.object.packet.batch.S2CRemoveBodyBatchPacket;
-import net.xmx.velthoric.physics.object.packet.batch.S2CSpawnBodyBatchPacket;
-import net.xmx.velthoric.physics.object.packet.batch.S2CUpdateBodyStateBatchPacket;
-import net.xmx.velthoric.physics.object.packet.batch.S2CUpdateVerticesBatchPacket;
+import net.xmx.velthoric.physics.object.packet.batch.*;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.packet.S2CUpdateWheelsPacket;
@@ -111,6 +111,7 @@ public class VxObjectNetworkDispatcher {
             try {
                 long cycleStartTime = System.nanoTime();
                 sendStateUpdates();
+                sendSynchronizedDataUpdates(); // New method call
                 sendWheelUpdates();
                 long cycleEndTime = System.nanoTime();
                 long cycleDurationMs = (cycleEndTime - cycleStartTime) / 1_000_000;
@@ -348,6 +349,59 @@ public class VxObjectNetworkDispatcher {
                 S2CUpdateVerticesBatchPacket packet = new S2CUpdateVerticesBatchPacket(idList.size(), idList.toArray(new UUID[0]), vertexList.toArray(new float[0][]));
                 VxPacketHandler.sendToPlayer(packet, player);
             }
+        }
+    }
+
+    private void sendSynchronizedDataUpdates() {
+        IntArrayList dirtyDataIndices = new IntArrayList();
+        synchronized (dataStore) {
+            for (int i = 0; i < dataStore.getCapacity(); i++) {
+                if (dataStore.isCustomDataDirty[i]) {
+                    dirtyDataIndices.add(i);
+                    dataStore.isCustomDataDirty[i] = false;
+                }
+            }
+        }
+
+        if (dirtyDataIndices.isEmpty()) {
+            return;
+        }
+
+        Map<ServerPlayer, Map<UUID, byte[]>> updatesByPlayer = new Object2ObjectOpenHashMap<>();
+
+        for (int dirtyIndex : dirtyDataIndices) {
+            UUID objectId = dataStore.getIdForIndex(dirtyIndex);
+            if (objectId == null) continue;
+
+            VxBody body = manager.getObject(objectId);
+            if (body == null) continue;
+
+            // Serialize the dirty data into a byte array
+            io.netty.buffer.ByteBuf buffer = Unpooled.buffer();
+            boolean dataWasWritten = body.writeDirtySyncData(new VxByteBuf(buffer));
+
+            if (dataWasWritten) {
+                byte[] data = new byte[buffer.readableBytes()];
+                buffer.readBytes(data);
+
+                Set<ServerPlayer> trackers = objectTrackers.get(objectId);
+                if (trackers != null) {
+                    for (ServerPlayer player : trackers) {
+                        updatesByPlayer.computeIfAbsent(player, k -> new Object2ObjectArrayMap<>()).put(objectId, data);
+                    }
+                }
+            }
+            buffer.release();
+        }
+
+        if (!updatesByPlayer.isEmpty()) {
+            level.getServer().execute(() -> {
+                updatesByPlayer.forEach((player, dataMap) -> {
+                    if (!dataMap.isEmpty()) {
+                        VxPacketHandler.sendToPlayer(new S2CSynchronizedDataBatchPacket(dataMap), player);
+                    }
+                });
+            });
         }
     }
 
