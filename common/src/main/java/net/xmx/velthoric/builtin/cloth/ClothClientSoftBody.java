@@ -28,8 +28,8 @@ import java.util.function.BiFunction;
  */
 public class ClothClientSoftBody extends VxClientSoftBody {
 
-    private static final VxDataAccessor<Integer> DATA_WIDTH_SEGMENTS = createAccessor(VxDataSerializers.INTEGER);
-    private static final VxDataAccessor<Integer> DATA_HEIGHT_SEGMENTS = createAccessor(VxDataSerializers.INTEGER);
+    private static final VxDataAccessor<Integer> DATA_WIDTH_SEGMENTS = VxDataAccessor.create(ClothClientSoftBody.class, VxDataSerializers.INTEGER);
+    private static final VxDataAccessor<Integer> DATA_HEIGHT_SEGMENTS = VxDataAccessor.create(ClothClientSoftBody.class, VxDataSerializers.INTEGER);
     private static final ResourceLocation BLUE_WOOL_TEXTURE = new ResourceLocation("minecraft:block/blue_wool");
 
     public ClothClientSoftBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {

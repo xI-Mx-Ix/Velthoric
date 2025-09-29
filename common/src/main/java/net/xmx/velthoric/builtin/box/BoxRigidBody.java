@@ -25,8 +25,8 @@ import java.util.UUID;
  */
 public class BoxRigidBody extends VxRigidBody {
 
-    private static final VxDataAccessor<Vec3> DATA_HALF_EXTENTS = createAccessor(VxDataSerializers.VEC3);
-    private static final VxDataAccessor<Integer> DATA_COLOR_ORDINAL = createAccessor(VxDataSerializers.INTEGER);
+    private static final VxDataAccessor<Vec3> DATA_HALF_EXTENTS = VxDataAccessor.create(BoxRigidBody.class, VxDataSerializers.VEC3);
+    private static final VxDataAccessor<Integer> DATA_COLOR_ORDINAL = VxDataAccessor.create(BoxRigidBody.class, VxDataSerializers.INTEGER);
 
     public BoxRigidBody(VxObjectType<BoxRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);

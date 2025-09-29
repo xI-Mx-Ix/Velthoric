@@ -25,7 +25,7 @@ import java.util.UUID;
  */
 public class RopeSoftBody extends VxSoftBody {
 
-    private static final VxDataAccessor<Float> DATA_ROPE_RADIUS = createAccessor(VxDataSerializers.FLOAT);
+    private static final VxDataAccessor<Float> DATA_ROPE_RADIUS = VxDataAccessor.create(RopeSoftBody.class, VxDataSerializers.FLOAT);
 
     private float ropeLength;
     private int numSegments;

@@ -24,7 +24,7 @@ import java.util.UUID;
  */
 public class SphereRigidBody extends VxRigidBody {
 
-    private static final VxDataAccessor<Float> DATA_RADIUS = createAccessor(VxDataSerializers.FLOAT);
+    private static final VxDataAccessor<Float> DATA_RADIUS = VxDataAccessor.create(SphereRigidBody.class, VxDataSerializers.FLOAT);
 
     public SphereRigidBody(VxObjectType<SphereRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);

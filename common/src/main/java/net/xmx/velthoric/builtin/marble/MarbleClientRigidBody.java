@@ -32,7 +32,7 @@ import java.util.UUID;
  */
 public class MarbleClientRigidBody extends VxClientRigidBody {
 
-    private static final VxDataAccessor<Float> DATA_RADIUS = createAccessor(VxDataSerializers.FLOAT);
+    private static final VxDataAccessor<Float> DATA_RADIUS = VxDataAccessor.create(MarbleClientRigidBody.class, VxDataSerializers.FLOAT);
     private static final ItemStack MARBLE_ITEM_STACK = new ItemStack(Items.MAGMA_CREAM);
 
     public MarbleClientRigidBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {

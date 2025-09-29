@@ -99,8 +99,8 @@ public abstract class VxVehicle extends VxRigidBody {
         };
     }
 
-    public static final VxDataAccessor<Vec3> DATA_CHASSIS_HALF_EXTENTS = createAccessor(VehicleDataSerializers.VEC3);
-    public static final VxDataAccessor<List<WheelSettingsWv>> DATA_WHEELS_SETTINGS = createAccessor(VehicleDataSerializers.WHEEL_SETTINGS_LIST);
+    public static final VxDataAccessor<Vec3> DATA_CHASSIS_HALF_EXTENTS = VxDataAccessor.create(VxVehicle.class, VehicleDataSerializers.VEC3);
+    public static final VxDataAccessor<List<WheelSettingsWv>> DATA_WHEELS_SETTINGS = VxDataAccessor.create(VxVehicle.class, VehicleDataSerializers.WHEEL_SETTINGS_LIST);
 
     protected List<VxWheel> wheels = Collections.emptyList();
     protected VehicleConstraintSettings constraintSettings;

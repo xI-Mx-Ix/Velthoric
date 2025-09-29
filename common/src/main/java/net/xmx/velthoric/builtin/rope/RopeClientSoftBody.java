@@ -29,7 +29,7 @@ import java.util.UUID;
  */
 public class RopeClientSoftBody extends VxClientSoftBody {
 
-    private static final VxDataAccessor<Float> DATA_ROPE_RADIUS = createAccessor(VxDataSerializers.FLOAT);
+    private static final VxDataAccessor<Float> DATA_ROPE_RADIUS = VxDataAccessor.create(RopeClientSoftBody.class, VxDataSerializers.FLOAT);
     private static final ResourceLocation YELLOW_WOOL_BLOCK_TEXTURE = new ResourceLocation("minecraft:block/yellow_wool");
     private static final int SIDES = 12;
     private static final Vec3 JOLT_UNIT_X = new Vec3(1, 0, 0);

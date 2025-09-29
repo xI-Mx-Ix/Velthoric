@@ -32,7 +32,7 @@ import java.util.UUID;
  */
 public class BlockClientRigidBody extends VxClientRigidBody {
 
-    private static final VxDataAccessor<Integer> DATA_BLOCK_STATE_ID = createAccessor(VxDataSerializers.INTEGER);
+    private static final VxDataAccessor<Integer> DATA_BLOCK_STATE_ID = VxDataAccessor.create(BlockClientRigidBody.class, VxDataSerializers.INTEGER);
 
     public BlockClientRigidBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
         super(id, manager, dataStoreIndex, objectType);

@@ -29,7 +29,7 @@ import java.util.UUID;
  */
 public class SphereClientRigidBody extends VxClientRigidBody {
 
-    private static final VxDataAccessor<Float> DATA_RADIUS = createAccessor(VxDataSerializers.FLOAT);
+    private static final VxDataAccessor<Float> DATA_RADIUS = VxDataAccessor.create(SphereClientRigidBody.class, VxDataSerializers.FLOAT);
     private static final int STACKS = 16;
     private static final int SECTORS = 32;
 

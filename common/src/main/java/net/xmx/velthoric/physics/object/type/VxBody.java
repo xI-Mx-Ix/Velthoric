@@ -16,14 +16,12 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
-import net.xmx.velthoric.physics.object.sync.VxDataSerializer;
 import net.xmx.velthoric.physics.object.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The abstract base class for all physics objects in Velthoric on the server side.
@@ -42,8 +40,6 @@ public abstract class VxBody {
     protected final VxSynchronizedData synchronizedData;
     protected int bodyId = 0;
     protected int dataStoreIndex = -1;
-
-    private static final AtomicInteger NEXT_ACCESSOR_ID = new AtomicInteger(0);
 
     // Constructor
     protected VxBody(VxObjectType<? extends VxBody> type, VxPhysicsWorld world, UUID id) {
@@ -68,16 +64,6 @@ public abstract class VxBody {
      * Implementations should call {@code synchronizedData.define(ACCESSOR, defaultValue)}.
      */
     protected abstract void defineSyncData();
-
-    /**
-     * Creates a new Data Accessor with a unique ID for this body type.
-     * This should be called to initialize static final DataAccessor fields in subclasses.
-     * @param serializer The serializer for the data type.
-     * @return A new {@link VxDataAccessor}.
-     */
-    protected static <T> VxDataAccessor<T> createAccessor(VxDataSerializer<T> serializer) {
-        return new VxDataAccessor<>(NEXT_ACCESSOR_ID.getAndIncrement(), serializer);
-    }
 
     /**
      * Gets the value of a synchronized data field.

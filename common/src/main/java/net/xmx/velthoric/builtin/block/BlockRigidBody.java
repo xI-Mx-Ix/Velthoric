@@ -30,7 +30,7 @@ import java.util.UUID;
  */
 public class BlockRigidBody extends VxRigidBody {
 
-    private static final VxDataAccessor<Integer> DATA_BLOCK_STATE_ID = createAccessor(VxDataSerializers.INTEGER);
+    private static final VxDataAccessor<Integer> DATA_BLOCK_STATE_ID = VxDataAccessor.create(BlockRigidBody.class, VxDataSerializers.INTEGER);
 
     public BlockRigidBody(VxObjectType<BlockRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
@@ -48,7 +48,7 @@ public class BlockRigidBody extends VxRigidBody {
 
     public BlockState getRepresentedBlockState() {
         BlockState state = Block.stateById(this.getSyncData(DATA_BLOCK_STATE_ID));
-        return (state != null && !state.isAir()) ? state : Blocks.STONE.defaultBlockState();
+        return !state.isAir() ? state : Blocks.STONE.defaultBlockState();
     }
 
     @Override

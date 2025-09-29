@@ -23,7 +23,7 @@ import java.util.UUID;
  */
 public class MarbleRigidBody extends VxRigidBody {
 
-    private static final VxDataAccessor<Float> DATA_RADIUS = createAccessor(VxDataSerializers.FLOAT);
+    private static final VxDataAccessor<Float> DATA_RADIUS = VxDataAccessor.create(MarbleRigidBody.class, VxDataSerializers.FLOAT);
     private static final float DENSITY = 6700f;
 
     public MarbleRigidBody(VxObjectType<MarbleRigidBody> type, VxPhysicsWorld world, UUID id) {

@@ -24,8 +24,8 @@ import java.util.function.BiFunction;
  */
 public class ClothSoftBody extends VxSoftBody {
 
-    private static final VxDataAccessor<Integer> DATA_WIDTH_SEGMENTS = createAccessor(VxDataSerializers.INTEGER);
-    private static final VxDataAccessor<Integer> DATA_HEIGHT_SEGMENTS = createAccessor(VxDataSerializers.INTEGER);
+    private static final VxDataAccessor<Integer> DATA_WIDTH_SEGMENTS = VxDataAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
+    private static final VxDataAccessor<Integer> DATA_HEIGHT_SEGMENTS = VxDataAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
 
     private float clothWidth;
     private float clothHeight;
