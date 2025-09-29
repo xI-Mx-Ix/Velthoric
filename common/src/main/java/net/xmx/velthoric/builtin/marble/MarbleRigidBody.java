@@ -4,14 +4,13 @@
  */
 package net.xmx.velthoric.builtin.marble;
 
-import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.MassProperties;
-import com.github.stephengold.joltjni.ShapeSettings;
-import com.github.stephengold.joltjni.SphereShapeSettings;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.world.VxLayers;
@@ -19,29 +18,36 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class MarbleRigidBody extends VxRigidBody {
 
-    private float radius;
+    private static final VxDataAccessor<Float> DATA_RADIUS = createAccessor(VxDataSerializers.FLOAT);
     private static final float DENSITY = 6700f;
 
     public MarbleRigidBody(VxObjectType<MarbleRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
-        this.radius = 0.15f;
+    }
+
+    @Override
+    protected void defineSyncData() {
+        this.synchronizedData.define(DATA_RADIUS, 0.15f);
     }
 
     public void setRadius(float radius) {
-        this.radius = radius;
-        this.markCustomDataDirty();
+        this.setSyncData(DATA_RADIUS, radius);
     }
 
     public float getRadius() {
-        return radius;
+        return getSyncData(DATA_RADIUS);
     }
 
     @Override
     public int createJoltBody(VxRigidBodyFactory factory) {
+        float radius = getRadius();
         try (
-                ShapeSettings shapeSettings = new SphereShapeSettings(this.radius);
+                ShapeSettings shapeSettings = new SphereShapeSettings(radius);
                 BodyCreationSettings bcs = new BodyCreationSettings()
         ) {
             bcs.setMotionType(EMotionType.Dynamic);
@@ -62,17 +68,12 @@ public class MarbleRigidBody extends VxRigidBody {
     }
 
     @Override
-    public void writeSyncData(VxByteBuf buf) {
-        buf.writeFloat(radius);
-    }
-
-    @Override
     public void writePersistenceData(VxByteBuf buf) {
-        writeSyncData(buf);
+        buf.writeFloat(getRadius());
     }
 
     @Override
     public void readPersistenceData(VxByteBuf buf) {
-        this.radius = buf.readFloat();
+        setRadius(buf.readFloat());
     }
 }

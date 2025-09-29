@@ -4,28 +4,23 @@
  */
 package net.xmx.velthoric.physics.vehicle;
 
-import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.StreamInWrapper;
-import com.github.stephengold.joltjni.Vec3;
-import com.github.stephengold.joltjni.WheelSettingsWv;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
-import com.github.stephengold.joltjni.std.StringStream;
 import net.minecraft.util.Mth;
-import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.body.VxClientRigidBody;
 import net.xmx.velthoric.physics.vehicle.wheel.WheelRenderState;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public abstract class VxClientVehicle extends VxClientRigidBody {
-
-    protected Vec3 chassisHalfExtents;
-    protected final List<WheelSettingsWv> wheelSettings;
 
     private WheelRenderState[] prevWheelStates;
     private WheelRenderState[] targetWheelStates;
@@ -33,33 +28,45 @@ public abstract class VxClientVehicle extends VxClientRigidBody {
 
     protected VxClientVehicle(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
         super(id, manager, dataStoreIndex, objectType);
-        this.chassisHalfExtents = new Vec3();
-        this.wheelSettings = new ArrayList<>();
         this.prevWheelStates = new WheelRenderState[0];
         this.targetWheelStates = new WheelRenderState[0];
         this.interpolatedWheelStates = new ArrayList<>();
     }
 
     @Override
-    public void readSyncData(VxByteBuf buf) {
-        this.chassisHalfExtents.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
-        int wheelCount = buf.readVarInt();
+    protected void defineSyncData() {
+        // Define synchronized data accessors that mirror the server-side VxVehicle
+        this.synchronizedData.define(VxVehicle.DATA_CHASSIS_HALF_EXTENTS, new Vec3());
+        this.synchronizedData.define(VxVehicle.DATA_WHEELS_SETTINGS, Collections.emptyList());
+    }
 
-        if (this.wheelSettings.size() != wheelCount) {
-            this.wheelSettings.clear();
-            for (int i = 0; i < wheelCount; i++) {
-                this.wheelSettings.add(new WheelSettingsWv());
-            }
-        }
+    /**
+     * Updates the target state for a specific wheel. This is called by the network layer
+     * when wheel state updates are received.
+     *
+     * @param wheelIndex The index of the wheel to update.
+     * @param rotation The new rotation angle.
+     * @param steer The new steer angle.
+     * @param suspension The new suspension length.
+     */
+    public void updateWheelState(int wheelIndex, float rotation, float steer, float suspension) {
+        if (wheelIndex < 0 || wheelIndex >= targetWheelStates.length) return;
+        this.prevWheelStates[wheelIndex] = this.targetWheelStates[wheelIndex];
+        this.targetWheelStates[wheelIndex] = new WheelRenderState(rotation, steer, suspension);
+    }
 
-        for (WheelSettingsWv setting : this.wheelSettings) {
-            byte[] bytes = buf.readByteArray();
-            try (StringStream stream = new StringStream(new String(bytes))) {
-                setting.restoreBinaryState(new StreamInWrapper(stream));
-            }
-        }
+    /**
+     * Calculates the interpolated transformation for the vehicle body and its wheels for smooth rendering.
+     */
+    @Override
+    public void calculateRenderState(float partialTicks, VxRenderState outState, RVec3 tempPos, Quat tempRot) {
+        super.calculateRenderState(partialTicks, outState, tempPos, tempRot);
 
-        if (this.prevWheelStates.length != wheelCount) {
+        List<WheelSettingsWv> currentWheelSettings = getWheelSettings();
+        int wheelCount = currentWheelSettings.size();
+
+        // Resize wheel state arrays if the number of wheels has changed
+        if (wheelCount != targetWheelStates.length) {
             this.prevWheelStates = new WheelRenderState[wheelCount];
             this.targetWheelStates = new WheelRenderState[wheelCount];
             this.interpolatedWheelStates.clear();
@@ -70,17 +77,6 @@ public abstract class VxClientVehicle extends VxClientRigidBody {
                 this.interpolatedWheelStates.add(initial);
             }
         }
-    }
-
-    public void updateWheelState(int wheelIndex, float rotation, float steer, float suspension) {
-        if (wheelIndex < 0 || wheelIndex >= targetWheelStates.length) return;
-        this.prevWheelStates[wheelIndex] = this.targetWheelStates[wheelIndex];
-        this.targetWheelStates[wheelIndex] = new WheelRenderState(rotation, steer, suspension);
-    }
-
-    @Override
-    public void calculateRenderState(float partialTicks, VxRenderState outState, RVec3 tempPos, Quat tempRot) {
-        super.calculateRenderState(partialTicks, outState, tempPos, tempRot);
 
         if (targetWheelStates.length > 0) {
             for (int i = 0; i < targetWheelStates.length; i++) {
@@ -98,14 +94,23 @@ public abstract class VxClientVehicle extends VxClientRigidBody {
         }
     }
 
+    /**
+     * @return The chassis half extents, retrieved from synchronized data.
+     */
     public Vec3 getChassisHalfExtents() {
-        return chassisHalfExtents;
+        return this.getSyncData(VxVehicle.DATA_CHASSIS_HALF_EXTENTS);
     }
 
+    /**
+     * @return The list of wheel settings, retrieved from synchronized data.
+     */
     public List<WheelSettingsWv> getWheelSettings() {
-        return wheelSettings;
+        return this.getSyncData(VxVehicle.DATA_WHEELS_SETTINGS);
     }
 
+    /**
+     * @return The list of interpolated wheel states for rendering.
+     */
     public List<WheelRenderState> getInterpolatedWheelStates() {
         return interpolatedWheelStates;
     }

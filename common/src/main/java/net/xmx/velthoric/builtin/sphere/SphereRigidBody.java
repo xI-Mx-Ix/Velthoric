@@ -10,6 +10,8 @@ import com.github.stephengold.joltjni.SphereShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.world.VxLayers;
@@ -17,28 +19,34 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class SphereRigidBody extends VxRigidBody {
 
-    private float radius;
+    private static final VxDataAccessor<Float> DATA_RADIUS = createAccessor(VxDataSerializers.FLOAT);
 
     public SphereRigidBody(VxObjectType<SphereRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
-        this.radius = 0.5f;
+    }
+
+    @Override
+    protected void defineSyncData() {
+        this.synchronizedData.define(DATA_RADIUS, 0.5f);
     }
 
     public void setRadius(float radius) {
-        this.radius = radius > 0 ? radius : 0.5f;
-        this.markCustomDataDirty();
+        this.setSyncData(DATA_RADIUS, radius > 0 ? radius : 0.5f);
     }
 
     public float getRadius() {
-        return radius;
+        return getSyncData(DATA_RADIUS);
     }
 
     @Override
     public int createJoltBody(VxRigidBodyFactory factory) {
         try (
-                ShapeSettings shapeSettings = new SphereShapeSettings(this.radius);
+                ShapeSettings shapeSettings = new SphereShapeSettings(this.getRadius());
                 BodyCreationSettings bcs = new BodyCreationSettings()
         ) {
             bcs.setMotionType(EMotionType.Dynamic);
@@ -48,17 +56,12 @@ public class SphereRigidBody extends VxRigidBody {
     }
 
     @Override
-    public void writeSyncData(VxByteBuf buf) {
-        buf.writeFloat(this.radius);
-    }
-
-    @Override
     public void writePersistenceData(VxByteBuf buf) {
-        writeSyncData(buf);
+        buf.writeFloat(getRadius());
     }
 
     @Override
     public void readPersistenceData(VxByteBuf buf) {
-        this.radius = buf.readFloat();
+        setRadius(buf.readFloat());
     }
 }

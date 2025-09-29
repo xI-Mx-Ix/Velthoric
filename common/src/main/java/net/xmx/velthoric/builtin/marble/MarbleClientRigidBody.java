@@ -17,18 +17,22 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.body.VxClientRigidBody;
+import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
 import java.util.UUID;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class MarbleClientRigidBody extends VxClientRigidBody {
 
-    private float radius = 0.15f;
+    private static final VxDataAccessor<Float> DATA_RADIUS = createAccessor(VxDataSerializers.FLOAT);
     private static final ItemStack MARBLE_ITEM_STACK = new ItemStack(Items.MAGMA_CREAM);
 
     public MarbleClientRigidBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
@@ -36,14 +40,15 @@ public class MarbleClientRigidBody extends VxClientRigidBody {
     }
 
     @Override
-    public void readSyncData(VxByteBuf buf) {
-        this.radius = buf.readFloat();
+    protected void defineSyncData() {
+        this.synchronizedData.define(DATA_RADIUS, 0.15f);
     }
 
     @Override
     public void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
+        float radius = getSyncData(DATA_RADIUS);
         RVec3 renderPosition = renderState.transform.getTranslation();
         poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
         poseStack.mulPose(Minecraft.getInstance().gameRenderer.getMainCamera().rotation());
@@ -65,11 +70,8 @@ public class MarbleClientRigidBody extends VxClientRigidBody {
 
     private void addVertex(VertexConsumer consumer, Matrix4f pose, Matrix3f normal, float x, float y, float u, float v, int packedLight) {
         consumer.vertex(pose, x, y, 0.0f)
-                .color(255, 255, 255, 255)
-                .uv(u, v)
-                .overlayCoords(OverlayTexture.NO_OVERLAY)
-                .uv2(packedLight)
-                .normal(normal, 0.0f, 1.0f, 0.0f)
-                .endVertex();
+                .color(255, 255, 255, 255).uv(u, v)
+                .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(packedLight)
+                .normal(normal, 0.0f, 1.0f, 0.0f).endVertex();
     }
 }

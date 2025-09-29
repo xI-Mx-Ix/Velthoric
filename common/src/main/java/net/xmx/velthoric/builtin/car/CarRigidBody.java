@@ -7,6 +7,7 @@ package net.xmx.velthoric.builtin.car;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
+import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
 import com.github.stephengold.joltjni.std.StringStream;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.AABB;
@@ -22,25 +23,33 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class CarRigidBody extends VxVehicle {
-
-    private final Vec3 chassisHalfExtents;
 
     public CarRigidBody(VxObjectType<CarRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
 
-        this.chassisHalfExtents = new Vec3(0.9f, 0.4f, 2.0f);
+        Vec3 chassisHalfExtents = new Vec3(1.1f, 0.5f, 2.4f);
         this.wheels = new ArrayList<>(4);
 
-        float wheelRadius = 0.45f;
-        float wheelWidth = 0.3f;
-        float halfVehicleWidth = 0.8f;
-        float halfVehicleLength = 1.5f;
+        float wheelRadius = 0.55f;
+        float wheelWidth = 0.35f;
+
+        float halfVehicleWidth = 1.0f;
+        float halfVehicleLength = 2.0f;
+
         float suspensionMinLength = 0.3f;
-        float suspensionMaxLength = 0.5f;
+        float suspensionMaxLength = 0.7f;
         float maxSteerAngleRad = (float) Math.toRadians(35.0);
+
+        float suspensionFrequency = 1.8f;
+        float suspensionDamping = 0.6f;
 
         WheelSettingsWv flWheel = new WheelSettingsWv();
         flWheel.setPosition(new Vec3(-halfVehicleWidth, -0.2f, halfVehicleLength));
@@ -48,7 +57,10 @@ public class CarRigidBody extends VxVehicle {
         flWheel.setWidth(wheelWidth);
         flWheel.setSuspensionMinLength(suspensionMinLength);
         flWheel.setSuspensionMaxLength(suspensionMaxLength);
+        flWheel.getSuspensionSpring().setFrequency(suspensionFrequency);
+        flWheel.getSuspensionSpring().setDamping(suspensionDamping);
         flWheel.setMaxSteerAngle(maxSteerAngleRad);
+        flWheel.setMaxBrakeTorque(5000.0f);
 
         WheelSettingsWv frWheel = new WheelSettingsWv();
         frWheel.setPosition(new Vec3(halfVehicleWidth, -0.2f, halfVehicleLength));
@@ -56,7 +68,10 @@ public class CarRigidBody extends VxVehicle {
         frWheel.setWidth(wheelWidth);
         frWheel.setSuspensionMinLength(suspensionMinLength);
         frWheel.setSuspensionMaxLength(suspensionMaxLength);
+        frWheel.getSuspensionSpring().setFrequency(suspensionFrequency);
+        frWheel.getSuspensionSpring().setDamping(suspensionDamping);
         frWheel.setMaxSteerAngle(maxSteerAngleRad);
+        frWheel.setMaxBrakeTorque(5000.0f);
 
         WheelSettingsWv rlWheel = new WheelSettingsWv();
         rlWheel.setPosition(new Vec3(-halfVehicleWidth, -0.2f, -halfVehicleLength));
@@ -65,6 +80,9 @@ public class CarRigidBody extends VxVehicle {
         rlWheel.setMaxSteerAngle(0f);
         rlWheel.setSuspensionMinLength(suspensionMinLength);
         rlWheel.setSuspensionMaxLength(suspensionMaxLength);
+        rlWheel.getSuspensionSpring().setFrequency(suspensionFrequency);
+        rlWheel.getSuspensionSpring().setDamping(suspensionDamping);
+        rlWheel.setMaxBrakeTorque(2500.0f);
 
         WheelSettingsWv rrWheel = new WheelSettingsWv();
         rrWheel.setPosition(new Vec3(halfVehicleWidth, -0.2f, -halfVehicleLength));
@@ -73,17 +91,38 @@ public class CarRigidBody extends VxVehicle {
         rrWheel.setMaxSteerAngle(0f);
         rrWheel.setSuspensionMinLength(suspensionMinLength);
         rrWheel.setSuspensionMaxLength(suspensionMaxLength);
+        rrWheel.getSuspensionSpring().setFrequency(suspensionFrequency);
+        rrWheel.getSuspensionSpring().setDamping(suspensionDamping);
+        rrWheel.setMaxBrakeTorque(2500.0f);
 
         this.wheels.add(new VxWheel(flWheel));
         this.wheels.add(new VxWheel(frWheel));
         this.wheels.add(new VxWheel(rlWheel));
         this.wheels.add(new VxWheel(rrWheel));
 
+        // Set synchronized data which will be sent to clients
+        this.setSyncData(DATA_CHASSIS_HALF_EXTENTS, chassisHalfExtents);
+        this.setSyncData(DATA_WHEELS_SETTINGS, this.wheels.stream().map(VxWheel::getSettings).collect(Collectors.toList()));
+
         WheeledVehicleControllerSettings controllerSettings = new WheeledVehicleControllerSettings();
+
+        VehicleEngineSettings engineSettings = controllerSettings.getEngine();
+        engineSettings.setMaxTorque(2600.0f);
+        engineSettings.setMaxRpm(26500.0f);
+        engineSettings.setMinRpm(1000.0f);
+
+        VehicleTransmissionSettings transmissionSettings = controllerSettings.getTransmission();
+        transmissionSettings.setMode(ETransmissionMode.Auto);
+        transmissionSettings.setGearRatios(3.5f, 2.0f, 1.4f, 1.0f, 0.75f);
+        transmissionSettings.setReverseGearRatios(-3.0f);
+        transmissionSettings.setShiftUpRpm(16000.0f);
+        transmissionSettings.setShiftDownRpm(2000.0f);
+
         controllerSettings.setNumDifferentials(1);
         VehicleDifferentialSettings differential = controllerSettings.getDifferential(0);
         differential.setLeftWheel(2);
         differential.setRightWheel(3);
+        differential.setDifferentialRatio(3.42f);
 
         this.constraintSettings = new VehicleConstraintSettings();
         this.constraintSettings.addWheels(flWheel, frWheel, rlWheel, rrWheel);
@@ -107,13 +146,13 @@ public class CarRigidBody extends VxVehicle {
     @Override
     public int createJoltBody(VxRigidBodyFactory factory) {
         try (
-                ShapeSettings shapeSettings = new BoxShapeSettings(this.chassisHalfExtents);
+                ShapeSettings shapeSettings = new BoxShapeSettings(this.getSyncData(DATA_CHASSIS_HALF_EXTENTS));
                 BodyCreationSettings bcs = new BodyCreationSettings()
         ) {
             bcs.setShapeSettings(shapeSettings);
             bcs.setMotionType(EMotionType.Dynamic);
             bcs.setObjectLayer(VxLayers.DYNAMIC);
-            bcs.getMassPropertiesOverride().setMass(1500f);
+            bcs.getMassPropertiesOverride().setMass(2000f);
             bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
 
             return factory.create(shapeSettings, bcs);
@@ -121,14 +160,17 @@ public class CarRigidBody extends VxVehicle {
     }
 
     @Override
-    public void writeSyncData(VxByteBuf buf) {
-        buf.writeFloat(chassisHalfExtents.getX());
-        buf.writeFloat(chassisHalfExtents.getY());
-        buf.writeFloat(chassisHalfExtents.getZ());
-        buf.writeVarInt(wheels.size());
-        for (VxWheel wheel : wheels) {
+    public void writePersistenceData(VxByteBuf buf) {
+        Vec3 halfExtents = this.getSyncData(DATA_CHASSIS_HALF_EXTENTS);
+        buf.writeFloat(halfExtents.getX());
+        buf.writeFloat(halfExtents.getY());
+        buf.writeFloat(halfExtents.getZ());
+
+        List<WheelSettingsWv> wheelSettings = this.getSyncData(DATA_WHEELS_SETTINGS);
+        buf.writeVarInt(wheelSettings.size());
+        for (WheelSettingsWv setting : wheelSettings) {
             try (StringStream stream = new StringStream()) {
-                wheel.getSettings().saveBinaryState(new StreamOutWrapper(stream));
+                setting.saveBinaryState(new StreamOutWrapper(stream));
                 byte[] bytes = stream.str().getBytes();
                 buf.writeByteArray(bytes);
             }
@@ -136,21 +178,22 @@ public class CarRigidBody extends VxVehicle {
     }
 
     @Override
-    public void writePersistenceData(VxByteBuf buf) {
-        writeSyncData(buf);
-    }
-
-    @Override
     public void readPersistenceData(VxByteBuf buf) {
-        chassisHalfExtents.set(buf.readFloat(), buf.readFloat(), buf.readFloat());
+        Vec3 halfExtents = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
+        this.setSyncData(DATA_CHASSIS_HALF_EXTENTS, halfExtents);
+
         int wheelCount = buf.readVarInt();
         if (wheelCount == this.wheels.size()) {
             for (VxWheel wheel : wheels) {
                 byte[] bytes = buf.readByteArray();
                 try (StringStream stream = new StringStream(new String(bytes))) {
+                    // Restore state into the existing settings object
                     wheel.getSettings().restoreBinaryState(new StreamInWrapper(stream));
                 }
             }
+            // The underlying WheelSettingsWv objects were modified.
+            // We must update the synchronized data to reflect this change and mark it as dirty for clients.
+            this.setSyncData(DATA_WHEELS_SETTINGS, this.wheels.stream().map(VxWheel::getSettings).collect(Collectors.toList()));
         }
     }
 

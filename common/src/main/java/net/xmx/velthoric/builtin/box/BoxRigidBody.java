@@ -11,6 +11,8 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.world.VxLayers;
@@ -18,39 +20,45 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class BoxRigidBody extends VxRigidBody {
 
-    private Vec3 halfExtents;
-    private BoxColor color;
+    private static final VxDataAccessor<Vec3> DATA_HALF_EXTENTS = createAccessor(VxDataSerializers.VEC3);
+    private static final VxDataAccessor<Integer> DATA_COLOR_ORDINAL = createAccessor(VxDataSerializers.INTEGER);
 
     public BoxRigidBody(VxObjectType<BoxRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
-        this.halfExtents = new Vec3(0.5f, 0.5f, 0.5f);
-        this.color = BoxColor.RED;
+    }
+
+    @Override
+    protected void defineSyncData() {
+        this.synchronizedData.define(DATA_HALF_EXTENTS, new Vec3(0.5f, 0.5f, 0.5f));
+        this.synchronizedData.define(DATA_COLOR_ORDINAL, BoxColor.RED.ordinal());
     }
 
     public void setHalfExtents(Vec3 halfExtents) {
-        this.halfExtents = halfExtents;
-        this.markCustomDataDirty();
+        this.setSyncData(DATA_HALF_EXTENTS, halfExtents);
     }
 
     public Vec3 getHalfExtents() {
-        return halfExtents;
+        return getSyncData(DATA_HALF_EXTENTS);
     }
 
     public void setColor(BoxColor color) {
-        this.color = color;
-        this.markCustomDataDirty();
+        this.setSyncData(DATA_COLOR_ORDINAL, color.ordinal());
     }
 
     public BoxColor getColor() {
-        return color;
+        int ordinal = getSyncData(DATA_COLOR_ORDINAL);
+        return (ordinal >= 0 && ordinal < BoxColor.values().length) ? BoxColor.values()[ordinal] : BoxColor.RED;
     }
 
     @Override
     public int createJoltBody(VxRigidBodyFactory factory) {
         try (
-                ShapeSettings shapeSettings = new BoxShapeSettings(this.halfExtents);
+                ShapeSettings shapeSettings = new BoxShapeSettings(this.getHalfExtents());
                 BodyCreationSettings bcs = new BodyCreationSettings()
         ) {
             bcs.setMotionType(EMotionType.Dynamic);
@@ -61,21 +69,15 @@ public class BoxRigidBody extends VxRigidBody {
     }
 
     @Override
-    public void writeSyncData(VxByteBuf buf) {
-        buf.writeFloat(halfExtents.getX());
-        buf.writeFloat(halfExtents.getY());
-        buf.writeFloat(halfExtents.getZ());
-        buf.writeInt(color.ordinal());
-    }
-
-    @Override
     public void writePersistenceData(VxByteBuf buf) {
-        writeSyncData(buf);
+        Vec3 halfExtents = getSyncData(DATA_HALF_EXTENTS);
+        buf.writeVec3(halfExtents);
+        buf.writeInt(getSyncData(DATA_COLOR_ORDINAL));
     }
 
     @Override
     public void readPersistenceData(VxByteBuf buf) {
-        this.halfExtents = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
-        this.color = BoxColor.values()[buf.readInt()];
+        this.setSyncData(DATA_HALF_EXTENTS, buf.readVec3());
+        this.setSyncData(DATA_COLOR_ORDINAL, buf.readInt());
     }
 }

@@ -5,7 +5,6 @@
 package net.xmx.velthoric.builtin.block;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.core.BlockPos;
@@ -16,6 +15,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.object.util.VxVoxelShapeUtil;
@@ -24,22 +25,30 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class BlockRigidBody extends VxRigidBody {
 
-    private BlockState representedBlockState;
+    private static final VxDataAccessor<Integer> DATA_BLOCK_STATE_ID = createAccessor(VxDataSerializers.INTEGER);
 
     public BlockRigidBody(VxObjectType<BlockRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
-        this.representedBlockState = Blocks.STONE.defaultBlockState();
+    }
+
+    @Override
+    protected void defineSyncData() {
+        this.synchronizedData.define(DATA_BLOCK_STATE_ID, Block.getId(Blocks.STONE.defaultBlockState()));
     }
 
     public void setRepresentedBlockState(BlockState blockState) {
-        this.representedBlockState = (blockState != null && !blockState.isAir()) ? blockState : Blocks.STONE.defaultBlockState();
-        this.markCustomDataDirty();
+        BlockState state = (blockState != null && !blockState.isAir()) ? blockState : Blocks.STONE.defaultBlockState();
+        this.setSyncData(DATA_BLOCK_STATE_ID, Block.getId(state));
     }
 
     public BlockState getRepresentedBlockState() {
-        return (this.representedBlockState != null && !this.representedBlockState.isAir()) ? this.representedBlockState : Blocks.STONE.defaultBlockState();
+        BlockState state = Block.stateById(this.getSyncData(DATA_BLOCK_STATE_ID));
+        return (state != null && !state.isAir()) ? state : Blocks.STONE.defaultBlockState();
     }
 
     @Override
@@ -47,40 +56,37 @@ public class BlockRigidBody extends VxRigidBody {
         BlockState stateForShape = getRepresentedBlockState();
         VoxelShape voxelShape = stateForShape.getCollisionShape(this.world.getLevel(), BlockPos.ZERO);
 
-        ShapeSettings shapeSettings = VxVoxelShapeUtil.toMutableCompoundShape(voxelShape);
-
-        if (shapeSettings == null) {
-            VxMainClass.LOGGER.warn("VoxelShape conversion for BlockState {} failed. Using BoxShape as fallback.", stateForShape);
-            shapeSettings = new BoxShapeSettings(0.5f, 0.5f, 0.5f);
+        try (ShapeSettings shapeSettings = VxVoxelShapeUtil.toMutableCompoundShape(voxelShape)) {
+            if (shapeSettings == null) {
+                VxMainClass.LOGGER.warn("VoxelShape conversion for BlockState {} failed. Using default BoxShape.", stateForShape);
+                try (var boxSettings = VxVoxelShapeUtil.toMutableCompoundShape(Blocks.STONE.defaultBlockState().getCollisionShape(this.world.getLevel(), BlockPos.ZERO));
+                     BodyCreationSettings bcs = new BodyCreationSettings()) {
+                    bcs.setMotionType(EMotionType.Dynamic);
+                    bcs.setObjectLayer(VxLayers.DYNAMIC);
+                    return factory.create(boxSettings, bcs);
+                }
+            }
+            try (BodyCreationSettings bcs = new BodyCreationSettings()) {
+                bcs.setMotionType(EMotionType.Dynamic);
+                bcs.setObjectLayer(VxLayers.DYNAMIC);
+                return factory.create(shapeSettings, bcs);
+            }
         }
-
-        try (
-                ShapeSettings finalShapeSettings = shapeSettings;
-                BodyCreationSettings bcs = new BodyCreationSettings()
-        ) {
-            bcs.setMotionType(EMotionType.Dynamic);
-            bcs.setObjectLayer(VxLayers.DYNAMIC);
-
-            return factory.create(finalShapeSettings, bcs);
-        }
-    }
-
-    @Override
-    public void writeSyncData(VxByteBuf buf) {
-        buf.writeVarInt(Block.getId(this.representedBlockState));
     }
 
     @Override
     public void writePersistenceData(VxByteBuf buf) {
-        buf.writeVarInt(Block.getId(this.representedBlockState));
+        buf.writeVarInt(this.getSyncData(DATA_BLOCK_STATE_ID));
     }
 
     @Override
     public void readPersistenceData(VxByteBuf buf) {
         int blockStateId = buf.readVarInt();
-        this.representedBlockState = Block.stateById(blockStateId);
-        if (this.representedBlockState.isAir()) {
-            this.representedBlockState = Blocks.STONE.defaultBlockState();
+        BlockState state = Block.stateById(blockStateId);
+        if (state.isAir()) {
+            this.setSyncData(DATA_BLOCK_STATE_ID, Block.getId(Blocks.STONE.defaultBlockState()));
+        } else {
+            this.setSyncData(DATA_BLOCK_STATE_ID, blockStateId);
         }
     }
 }

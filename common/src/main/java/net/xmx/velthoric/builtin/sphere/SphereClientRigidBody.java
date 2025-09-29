@@ -12,10 +12,11 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.body.VxClientRigidBody;
+import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -23,9 +24,12 @@ import org.joml.Vector3f;
 
 import java.util.UUID;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class SphereClientRigidBody extends VxClientRigidBody {
 
-    private float radius = 0.5f;
+    private static final VxDataAccessor<Float> DATA_RADIUS = createAccessor(VxDataSerializers.FLOAT);
     private static final int STACKS = 16;
     private static final int SECTORS = 32;
 
@@ -34,8 +38,8 @@ public class SphereClientRigidBody extends VxClientRigidBody {
     }
 
     @Override
-    public void readSyncData(VxByteBuf buf) {
-        this.radius = buf.readFloat();
+    protected void defineSyncData() {
+        this.synchronizedData.define(DATA_RADIUS, 0.5f);
     }
 
     @Override
@@ -52,12 +56,12 @@ public class SphereClientRigidBody extends VxClientRigidBody {
         Matrix3f normalMatrix = lastPose.normal();
 
         VertexConsumer consumer = bufferSource.getBuffer(RenderType.solid());
+        float radius = getSyncData(DATA_RADIUS);
         int r = 200, g = 50, b = 50, a = 255;
 
         for (int i = 0; i < STACKS; ++i) {
             float phi1 = (float) (i * Math.PI / STACKS);
             float phi2 = (float) ((i + 1) * Math.PI / STACKS);
-
             for (int j = 0; j < SECTORS; ++j) {
                 float theta1 = (float) (j * 2 * Math.PI / SECTORS);
                 float theta2 = (float) ((j + 1) * 2 * Math.PI / SECTORS);
@@ -89,11 +93,8 @@ public class SphereClientRigidBody extends VxClientRigidBody {
     private void addVertex(VertexConsumer consumer, Matrix4f poseMatrix, Matrix3f normalMatrix, Vector3f pos, int r, int g, int b, int a, int packedLight) {
         Vector3f normal = new Vector3f(pos).normalize();
         consumer.vertex(poseMatrix, pos.x, pos.y, pos.z)
-                .color(r, g, b, a)
-                .uv(0, 0)
-                .overlayCoords(OverlayTexture.NO_OVERLAY)
-                .uv2(packedLight)
-                .normal(normalMatrix, normal.x, normal.y, normal.z)
-                .endVertex();
+                .color(r, g, b, a).uv(0, 0)
+                .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(packedLight)
+                .normal(normalMatrix, normal.x, normal.y, normal.z).endVertex();
     }
 }

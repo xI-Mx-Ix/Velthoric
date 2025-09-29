@@ -9,6 +9,9 @@ import net.minecraft.world.level.block.Blocks;
 
 import java.util.Random;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public enum BoxColor {
     WHITE(Blocks.WHITE_CONCRETE),
     ORANGE(Blocks.ORANGE_CONCRETE),
