@@ -15,7 +15,7 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
-import net.xmx.velthoric.physics.object.sync.SynchronizedData;
+import net.xmx.velthoric.physics.object.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializer;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -38,7 +38,7 @@ public abstract class VxBody {
     protected final UUID physicsId;
     protected final VxObjectType<? extends VxBody> type;
     protected final VxPhysicsWorld world;
-    protected final SynchronizedData synchronizedData;
+    protected final VxSynchronizedData synchronizedData;
     protected int bodyId = 0;
     protected int dataStoreIndex = -1;
 
@@ -48,7 +48,7 @@ public abstract class VxBody {
         this.type = type;
         this.world = world;
         this.physicsId = id;
-        this.synchronizedData = new SynchronizedData(EnvType.SERVER);
+        this.synchronizedData = new VxSynchronizedData(EnvType.SERVER);
         this.defineSyncData();
     }
 
@@ -79,8 +79,8 @@ public abstract class VxBody {
      * @param buf The buffer to write to.
      */
     public void writeInitialSyncData(VxByteBuf buf) {
-        List<SynchronizedData.Entry<?>> allEntries = this.synchronizedData.getAllEntries();
-        SynchronizedData.writeEntries(buf, allEntries);
+        List<VxSynchronizedData.Entry<?>> allEntries = this.synchronizedData.getAllEntries();
+        VxSynchronizedData.writeEntries(buf, allEntries);
     }
 
     /**
@@ -90,11 +90,11 @@ public abstract class VxBody {
      * @return True if any data was written, false otherwise.
      */
     public boolean writeDirtySyncData(VxByteBuf buf) {
-        List<SynchronizedData.Entry<?>> dirtyEntries = this.synchronizedData.getDirtyEntries();
+        List<VxSynchronizedData.Entry<?>> dirtyEntries = this.synchronizedData.getDirtyEntries();
         if (dirtyEntries == null) {
             return false;
         }
-        SynchronizedData.writeEntries(buf, dirtyEntries);
+        VxSynchronizedData.writeEntries(buf, dirtyEntries);
         this.synchronizedData.clearDirty();
         return true;
     }
@@ -206,7 +206,7 @@ public abstract class VxBody {
         return this.world;
     }
 
-    public SynchronizedData getSynchronizedData() {
+    public VxSynchronizedData getSynchronizedData() {
         return synchronizedData;
     }
 

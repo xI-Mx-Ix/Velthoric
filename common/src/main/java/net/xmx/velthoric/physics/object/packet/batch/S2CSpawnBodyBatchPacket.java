@@ -11,7 +11,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.packet.SpawnData;
+import net.xmx.velthoric.physics.object.packet.VxSpawnData;
 
 import java.io.IOException;
 import java.util.List;
@@ -26,14 +26,14 @@ import java.util.zip.DataFormatException;
  */
 public class S2CSpawnBodyBatchPacket {
 
-    private final List<SpawnData> spawnDataList;
+    private final List<VxSpawnData> spawnDataList;
 
     /**
      * Constructs a new batch packet with a list of objects to spawn.
      *
-     * @param spawnDataList The list of {@link SpawnData} for each object.
+     * @param spawnDataList The list of {@link VxSpawnData} for each object.
      */
-    public S2CSpawnBodyBatchPacket(List<SpawnData> spawnDataList) {
+    public S2CSpawnBodyBatchPacket(List<VxSpawnData> spawnDataList) {
         this.spawnDataList = spawnDataList;
     }
 
@@ -50,7 +50,7 @@ public class S2CSpawnBodyBatchPacket {
             int size = decompressedBuf.readVarInt();
             this.spawnDataList = new ObjectArrayList<>(size);
             for (int i = 0; i < size; i++) {
-                this.spawnDataList.add(new SpawnData(decompressedBuf));
+                this.spawnDataList.add(new VxSpawnData(decompressedBuf));
             }
         } catch (IOException | DataFormatException e) {
             throw new IllegalStateException("Failed to decompress spawn body batch packet", e);
@@ -66,7 +66,7 @@ public class S2CSpawnBodyBatchPacket {
         FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
         try {
             tempBuf.writeVarInt(spawnDataList.size());
-            for (SpawnData data : spawnDataList) {
+            for (VxSpawnData data : spawnDataList) {
                 data.encode(tempBuf);
             }
             byte[] uncompressedData = new byte[tempBuf.readableBytes()];
@@ -92,7 +92,7 @@ public class S2CSpawnBodyBatchPacket {
         context.queue(() -> {
             VxClientObjectManager manager = VxClientObjectManager.getInstance();
             // Iterate through each spawn data object and spawn it on the client.
-            for (SpawnData data : msg.spawnDataList) {
+            for (VxSpawnData data : msg.spawnDataList) {
                 // Wrap the raw byte data into a buffer for the manager to read.
                 VxByteBuf dataBuf = new VxByteBuf(Unpooled.wrappedBuffer(data.data));
                 try {

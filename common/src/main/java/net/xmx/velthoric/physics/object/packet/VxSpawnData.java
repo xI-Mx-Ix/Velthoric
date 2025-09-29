@@ -24,7 +24,7 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public class SpawnData {
+public class VxSpawnData {
     public final UUID id;
     public final ResourceLocation typeIdentifier;
     public final EBodyType objectType;
@@ -38,7 +38,7 @@ public class SpawnData {
      * @param obj       The physics object to create spawn data for.
      * @param timestamp The server-side timestamp of the spawn event.
      */
-    public SpawnData(VxBody obj, long timestamp) {
+    public VxSpawnData(VxBody obj, long timestamp) {
         this.id = obj.getPhysicsId();
         this.typeIdentifier = obj.getType().getTypeId();
         this.objectType = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
@@ -75,7 +75,7 @@ public class SpawnData {
      *
      * @param buf The buffer to read from.
      */
-    public SpawnData(FriendlyByteBuf buf) {
+    public VxSpawnData(FriendlyByteBuf buf) {
         this.id = buf.readUUID();
         this.typeIdentifier = buf.readResourceLocation();
         this.objectType = buf.readEnum(EBodyType.class);

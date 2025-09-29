@@ -14,7 +14,7 @@ import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.sync.SynchronizedData;
+import net.xmx.velthoric.physics.object.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializer;
 
@@ -35,7 +35,7 @@ public abstract class VxClientBody {
     protected final VxClientObjectManager manager;
     protected final int dataStoreIndex;
     protected final EBodyType objectType;
-    protected final SynchronizedData synchronizedData;
+    protected final VxSynchronizedData synchronizedData;
 
     private static final AtomicInteger NEXT_ACCESSOR_ID = new AtomicInteger(0);
 
@@ -44,7 +44,7 @@ public abstract class VxClientBody {
         this.manager = manager;
         this.dataStoreIndex = dataStoreIndex;
         this.objectType = objectType;
-        this.synchronizedData = new SynchronizedData(EnvType.CLIENT);
+        this.synchronizedData = new VxSynchronizedData(EnvType.CLIENT);
         this.defineSyncData();
     }
 
@@ -108,7 +108,7 @@ public abstract class VxClientBody {
         return manager.getStore().render_isInitialized[dataStoreIndex];
     }
 
-    public SynchronizedData getSynchronizedData() {
+    public VxSynchronizedData getSynchronizedData() {
         return synchronizedData;
     }
 

@@ -12,7 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxPacketHandler;
-import net.xmx.velthoric.physics.object.packet.SpawnData;
+import net.xmx.velthoric.physics.object.packet.VxSpawnData;
 import net.xmx.velthoric.physics.object.packet.batch.S2CRemoveBodyBatchPacket;
 import net.xmx.velthoric.physics.object.packet.batch.S2CSpawnBodyBatchPacket;
 import net.xmx.velthoric.physics.object.packet.batch.S2CUpdateBodyStateBatchPacket;
@@ -64,7 +64,7 @@ public class VxObjectNetworkDispatcher {
 
     // --- Pending packet batches (accessed from main thread) ---
     // A map to queue physics objects that need to be spawned on a player's client
-    private final Map<ServerPlayer, ObjectArrayList<SpawnData>> pendingSpawns = new HashMap<>();
+    private final Map<ServerPlayer, ObjectArrayList<VxSpawnData>> pendingSpawns = new HashMap<>();
     // A map to queue physics object UUIDs that need to be removed from a player's client
     private final Map<ServerPlayer, ObjectArrayList<UUID>> pendingRemovals = new HashMap<>();
 
@@ -485,7 +485,7 @@ public class VxObjectNetworkDispatcher {
                 // If no pending removal was found, queue a new spawn packet for this object.
                 // This will be processed and sent at the end of the server tick.
                 pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>())
-                        .add(new SpawnData(body, System.nanoTime()));
+                        .add(new VxSpawnData(body, System.nanoTime()));
             }
         }
     }
@@ -520,7 +520,7 @@ public class VxObjectNetworkDispatcher {
             // Synchronize on a shared lock to ensure atomic operations on both pending packet maps.
             synchronized (pendingSpawns) {
                 // Check if a spawn for this exact object is pending for this player.
-                ObjectArrayList<SpawnData> spawns = pendingSpawns.get(player);
+                ObjectArrayList<VxSpawnData> spawns = pendingSpawns.get(player);
                 if (spawns != null) {
                     // We must use removeIf because we need to check the ID inside the SpawnData object.
                     if (spawns.removeIf(spawnData -> spawnData.id.equals(bodyId))) {
@@ -626,9 +626,9 @@ public class VxObjectNetworkDispatcher {
         synchronized (pendingSpawns) {
             pendingSpawns.forEach((player, spawnDataList) -> {
                 if (!spawnDataList.isEmpty()) {
-                    ObjectArrayList<SpawnData> batch = new ObjectArrayList<>();
+                    ObjectArrayList<VxSpawnData> batch = new ObjectArrayList<>();
                     int currentBatchSizeBytes = 0;
-                    for (SpawnData data : spawnDataList) {
+                    for (VxSpawnData data : spawnDataList) {
                         int dataSize = data.estimateSize();
                         // Send the current batch if adding the next item would exceed the payload limit.
                         if (!batch.isEmpty() && currentBatchSizeBytes + dataSize > MAX_PACKET_PAYLOAD_SIZE) {

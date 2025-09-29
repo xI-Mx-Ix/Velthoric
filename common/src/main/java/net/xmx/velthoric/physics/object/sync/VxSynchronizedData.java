@@ -20,13 +20,13 @@ import java.util.Objects;
  *
  * @author xI-Mx-Ix
  */
-public class SynchronizedData {
+public class VxSynchronizedData {
 
     private final Int2ObjectMap<Entry<?>> entries = new Int2ObjectOpenHashMap<>();
     private final EnvType environment;
     private boolean isDirty;
 
-    public SynchronizedData(EnvType environment) {
+    public VxSynchronizedData(EnvType environment) {
         this.environment = environment;
     }
 
