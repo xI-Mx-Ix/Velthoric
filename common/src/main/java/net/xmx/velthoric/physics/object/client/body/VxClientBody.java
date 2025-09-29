@@ -14,9 +14,9 @@ import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializer;
+import net.xmx.velthoric.physics.object.sync.VxSynchronizedData;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public abstract class VxClientBody {
 
+    // Fields
     protected final UUID id;
     protected final VxClientObjectManager manager;
     protected final int dataStoreIndex;
@@ -39,6 +40,7 @@ public abstract class VxClientBody {
 
     private static final AtomicInteger NEXT_ACCESSOR_ID = new AtomicInteger(0);
 
+    // Constructor
     protected VxClientBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
         this.id = id;
         this.manager = manager;
@@ -48,42 +50,7 @@ public abstract class VxClientBody {
         this.defineSyncData();
     }
 
-    /**
-     * Creates a new Data Accessor with a unique ID for this body type.
-     * This should be called to initialize static final DataAccessor fields in subclasses.
-     * @param serializer The serializer for the data type.
-     * @return A new {@link VxDataAccessor}.
-     */
-    protected static <T> VxDataAccessor<T> createAccessor(VxDataSerializer<T> serializer) {
-        return new VxDataAccessor<>(NEXT_ACCESSOR_ID.getAndIncrement(), serializer);
-    }
-
-    /**
-     * Called in the constructor to define all synchronized data fields for this object type.
-     * Implementations should call {@code synchronizedData.define(ACCESSOR, defaultValue)}.
-     */
-    protected abstract void defineSyncData();
-
-    /**
-     * Gets the value of a synchronized data field.
-     * @param accessor The accessor for the data.
-     * @return The current value.
-     */
-    public <T> T getSyncData(VxDataAccessor<T> accessor) {
-        return this.synchronizedData.get(accessor);
-    }
-
-    /**
-     * Calculates the final, interpolated render state for the object for the current frame.
-     * This method populates the provided output objects with the interpolated transform.
-     *
-     * @param partialTicks The fraction of a tick that has passed since the last full tick.
-     * @param outState     The {@link VxRenderState} object to populate with the final state.
-     * @param tempPos      A reusable {@link RVec3} to store the intermediate interpolated position.
-     * @param tempRot      A reusable {@link Quat} to store the intermediate interpolated rotation.
-     */
-    public abstract void calculateRenderState(float partialTicks, VxRenderState outState, RVec3 tempPos, Quat tempRot);
-
+    // Rendering
     /**
      * Renders the object in the world.
      * This must be implemented by the final concrete class.
@@ -96,6 +63,54 @@ public abstract class VxClientBody {
      */
     public abstract void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState);
 
+    /**
+     * Calculates the final, interpolated render state for the object for the current frame.
+     * This method populates the provided output objects with the interpolated transform.
+     *
+     * @param partialTicks The fraction of a tick that has passed since the last full tick.
+     * @param outState     The {@link VxRenderState} object to populate with the final state.
+     * @param tempPos      A reusable {@link RVec3} to store the intermediate interpolated position.
+     * @param tempRot      A reusable {@link Quat} to store the intermediate interpolated rotation.
+     */
+    public abstract void calculateRenderState(float partialTicks, VxRenderState outState, RVec3 tempPos, Quat tempRot);
+
+    public AABB getCullingAABB(float inflation) {
+        RVec3 lastPos = manager.getStore().lastKnownPosition[dataStoreIndex];
+        return new AABB(
+                lastPos.xx() - inflation, lastPos.yy() - inflation, lastPos.zz() - inflation,
+                lastPos.xx() + inflation, lastPos.yy() + inflation, lastPos.zz() + inflation
+        );
+    }
+
+
+    // Synchronized Data Management
+    /**
+     * Called in the constructor to define all synchronized data fields for this object type.
+     * Implementations should call {@code synchronizedData.define(ACCESSOR, defaultValue)}.
+     */
+    protected abstract void defineSyncData();
+
+    /**
+     * Creates a new Data Accessor with a unique ID for this body type.
+     * This should be called to initialize static final DataAccessor fields in subclasses.
+     * @param serializer The serializer for the data type.
+     * @return A new {@link VxDataAccessor}.
+     */
+    protected static <T> VxDataAccessor<T> createAccessor(VxDataSerializer<T> serializer) {
+        return new VxDataAccessor<>(NEXT_ACCESSOR_ID.getAndIncrement(), serializer);
+    }
+
+    /**
+     * Gets the value of a synchronized data field.
+     * @param accessor The accessor for the data.
+     * @return The current value.
+     */
+    public <T> T getSyncData(VxDataAccessor<T> accessor) {
+        return this.synchronizedData.get(accessor);
+    }
+
+
+    // Getters
     public UUID getId() {
         return id;
     }
@@ -110,13 +125,5 @@ public abstract class VxClientBody {
 
     public VxSynchronizedData getSynchronizedData() {
         return synchronizedData;
-    }
-
-    public AABB getCullingAABB(float inflation) {
-        RVec3 lastPos = manager.getStore().lastKnownPosition[dataStoreIndex];
-        return new AABB(
-                lastPos.xx() - inflation, lastPos.yy() - inflation, lastPos.zz() - inflation,
-                lastPos.xx() + inflation, lastPos.yy() + inflation, lastPos.zz() + inflation
-        );
     }
 }
