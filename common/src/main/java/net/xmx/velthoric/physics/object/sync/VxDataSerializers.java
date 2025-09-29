@@ -16,6 +16,7 @@ import com.github.stephengold.joltjni.Vec4;
 import com.github.stephengold.joltjni.VertexList;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import net.minecraft.network.syncher.EntityDataSerializer;
 import net.xmx.velthoric.network.VxByteBuf;
 
 /**
@@ -26,6 +27,33 @@ import net.xmx.velthoric.network.VxByteBuf;
 public final class VxDataSerializers {
     private static final Int2ObjectMap<VxDataSerializer<?>> REGISTRY = new Int2ObjectOpenHashMap<>();
     private static int nextId = 0;
+
+    /**
+     * Creates a VxDataSerializer wrapper around a vanilla Minecraft EntityDataSerializer.
+     * This requires VxByteBuf to be a subclass of FriendlyByteBuf.
+     *
+     * @param mcSerializer The vanilla serializer to wrap.
+     * @param <T> The data type.
+     * @return A compatible VxDataSerializer instance.
+     */
+    private static <T> VxDataSerializer<T> fromMinecraft(EntityDataSerializer<T> mcSerializer) {
+        return new VxDataSerializer<>() {
+            @Override
+            public void write(VxByteBuf buf, T value) {
+                mcSerializer.write(buf, value);
+            }
+
+            @Override
+            public T read(VxByteBuf buf) {
+                return mcSerializer.read(buf);
+            }
+
+            @Override
+            public T copy(T value) {
+                return mcSerializer.copy(value);
+            }
+        };
+    }
 
     public static final VxDataSerializer<Byte> BYTE = register(new VxDataSerializer<>() {
         @Override
