@@ -14,8 +14,6 @@
     "misc.ExplosionMixin_TriggerExplosion",
     "object.ChunkMapMixin_DispatchObjectsToPlayers",
     "riding.render.eye.MixinEntity_EyePosOnPhysicsObject",
-    "terrain.ChunkHolderMixin_ChunkLoadTerrain",
-    "terrain.ChunkMapMixin_ChunkUnloadTerrain",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
   ],
   "client": [

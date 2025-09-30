@@ -206,30 +206,6 @@ public class VxTerrainSystem implements Runnable {
         });
     }
 
-    public void onChunkLoadedFromVanilla(@NotNull LevelChunk chunk) {
-        if (!isInitialized.get() || jobSystem.isShutdown()) return;
-
-        jobSystem.submit(() -> {
-            ChunkPos chunkPos = chunk.getPos();
-            for (int y = level.getMinSection(); y < level.getMaxSection(); ++y) {
-                VxSectionPos vPos = new VxSectionPos(chunkPos.x, y, chunkPos.z);
-                Integer index = chunkDataStore.getIndexForPos(vPos);
-                if (index != null && chunkDataStore.referenceCounts[index] > 0) {
-                    scheduleShapeGeneration(vPos, index, true, VxTaskPriority.HIGH);
-                }
-            }
-        });
-    }
-
-    public void onChunkUnloaded(@NotNull ChunkPos chunkPos) {
-        if (!isInitialized.get() || jobSystem.isShutdown()) return;
-        jobSystem.submit(() -> {
-            for (int y = level.getMinSection(); y < level.getMaxSection(); y++) {
-                unloadChunkPhysicsInternal(new VxSectionPos(chunkPos.x, y, chunkPos.z));
-            }
-        });
-    }
-
     private void processRebuildQueue() {
         if (chunksToRebuild.isEmpty()) return;
 
@@ -485,7 +461,7 @@ public class VxTerrainSystem implements Runnable {
             futures.add(CompletableFuture.supplyAsync(() -> {
                 Set<VxSectionPos> required = new HashSet<>();
                 for (VxBody obj : batch) {
-                    ConstBody body = obj.getBody();
+                    ConstBody body = obj.getConstBody();
                     if (body != null) {
                         ConstAaBox bounds = body.getWorldSpaceBounds();
                         calculateRequiredChunks(
@@ -577,70 +553,6 @@ public class VxTerrainSystem implements Runnable {
             chunksToRelease.forEach(this::releaseChunk);
         }
         objectUpdateCooldowns.remove(id);
-    }
-
-    private void calculateRequiredChunksForObject(ConstAaBox currentAabb, Vec3 velocity, Set<VxSectionPos> outRequiredChunks) {
-        addChunksForAabb(currentAabb, PRELOAD_RADIUS_CHUNKS, outRequiredChunks);
-
-        Vec3 tempDisplacement = new Vec3(velocity);
-        RVec3 tempRVec3Min = new RVec3(currentAabb.getMin());
-        RVec3 tempRVec3Max = new RVec3(currentAabb.getMax());
-        Vec3 tempVec3Min = new Vec3();
-        Vec3 tempVec3Max = new Vec3();
-        try (AaBox predictedAabb = new AaBox()) {
-            Op.starEquals(tempDisplacement, PREDICTION_SECONDS);
-            Op.plusEquals(tempRVec3Min, tempDisplacement);
-            Op.plusEquals(tempRVec3Max, tempDisplacement);
-
-            tempVec3Min.set(tempRVec3Min);
-            tempVec3Max.set(tempRVec3Max);
-            predictedAabb.setMin(tempVec3Min);
-            predictedAabb.setMax(tempVec3Max);
-
-            addChunksForAabb(predictedAabb, PRELOAD_RADIUS_CHUNKS, outRequiredChunks);
-        }
-    }
-
-    private void calculateActivationChunksForObject(ConstAaBox currentAabb, Vec3 velocity, Set<VxSectionPos> outChunks) {
-        addChunksForAabb(currentAabb, ACTIVATION_RADIUS_CHUNKS, outChunks);
-
-        Vec3 tempDisplacement = new Vec3(velocity);
-        RVec3 tempRVec3Min = new RVec3(currentAabb.getMin());
-        RVec3 tempRVec3Max = new RVec3(currentAabb.getMax());
-        Vec3 tempVec3Min = new Vec3();
-        Vec3 tempVec3Max = new Vec3();
-        try (AaBox predictedAabb = new AaBox()) {
-            Op.starEquals(tempDisplacement, PREDICTION_SECONDS);
-            Op.plusEquals(tempRVec3Min, tempDisplacement);
-            Op.plusEquals(tempRVec3Max, tempDisplacement);
-
-            tempVec3Min.set(tempRVec3Min);
-            tempVec3Max.set(tempRVec3Max);
-            predictedAabb.setMin(tempVec3Min);
-            predictedAabb.setMax(tempVec3Max);
-
-            addChunksForAabb(predictedAabb, ACTIVATION_RADIUS_CHUNKS, outChunks);
-        }
-    }
-
-    private void addChunksForAabb(ConstAaBox aabb, int radiusInChunks, Set<VxSectionPos> outChunks) {
-        RVec3 tempRVec3Min = new RVec3(aabb.getMin());
-        RVec3 tempRVec3Max = new RVec3(aabb.getMax());
-
-        VxSectionPos minSection = VxSectionPos.fromWorldSpace(tempRVec3Min.xx(), tempRVec3Min.yy(), tempRVec3Min.zz());
-        VxSectionPos maxSection = VxSectionPos.fromWorldSpace(tempRVec3Max.xx(), tempRVec3Max.yy(), tempRVec3Max.zz());
-
-        final int worldMinY = level.getMinBuildHeight() >> 4;
-        final int worldMaxY = level.getMaxBuildHeight() >> 4;
-
-        for (int y = minSection.y() - radiusInChunks; y <= maxSection.y() + radiusInChunks; ++y) {
-            if (y < worldMinY || y >= worldMaxY) continue;
-            for (int z = minSection.z() - radiusInChunks; z <= maxSection.z() + radiusInChunks; ++z) {
-                for (int x = minSection.x() - radiusInChunks; x <= maxSection.x() + radiusInChunks; ++x) {
-                    outChunks.add(new VxSectionPos(x, y, z));
-                }
-            }
-        }
     }
 
     private void calculateRequiredChunks(Vec3 min, Vec3 max, Vec3 velocity, int radius, Set<VxSectionPos> outChunks) {
