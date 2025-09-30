@@ -25,7 +25,7 @@ import net.xmx.velthoric.physics.terrain.chunk.ChunkSnapshot;
 import net.xmx.velthoric.physics.terrain.chunk.TerrainGenerator;
 import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
-import net.xmx.velthoric.physics.world.VxLayers;
+import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.NotNull;
 

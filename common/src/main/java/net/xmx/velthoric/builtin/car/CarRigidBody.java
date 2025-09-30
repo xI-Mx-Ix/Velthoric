@@ -18,7 +18,7 @@ import net.xmx.velthoric.physics.riding.input.VxRideInput;
 import net.xmx.velthoric.physics.riding.seat.VxSeat;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
-import net.xmx.velthoric.physics.world.VxLayers;
+import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 

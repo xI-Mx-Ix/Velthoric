@@ -4,22 +4,36 @@
  */
 package net.xmx.velthoric.natives;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.Jolt;
+import com.github.stephengold.joltjni.JoltPhysicsObject;
+import com.github.stephengold.joltjni.BroadPhaseLayerInterface;
+import com.github.stephengold.joltjni.ObjectLayerPairFilter;
+import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilter;
 import dev.architectury.platform.Platform;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.vxnative.VxNativeLibraryLoader;
 
 import java.nio.file.Path;
 
+/**
+ * Manages the lifecycle of the Jolt physics native library.
+ * This includes loading the native library, initializing the Jolt factory,
+ * setting up allocators and callbacks, and managing the physics layer interfaces.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxNativeJolt {
 
     private static volatile boolean isInitialized = false;
 
-    private static BroadPhaseLayerInterface broadPhaseLayerInterface;
-    private static ObjectVsBroadPhaseLayerFilter objectVsBroadPhaseLayerFilter;
-    private static ObjectLayerPairFilter objectLayerPairFilter;
-
+    /**
+     * Initializes the Jolt physics system.
+     * This method loads the native library, sets up the necessary Jolt components,
+     * registers default callbacks, and initializes the collision layer logic.
+     * It ensures that initialization only occurs once.
+     *
+     * @throws IllegalStateException if the Jolt Factory cannot be created.
+     */
     public static void initialize() {
         if (isInitialized) {
             return;
@@ -40,49 +54,18 @@ public class VxNativeJolt {
         }
         Jolt.registerTypes();
 
-        initializeCollisionFilters();
+        // Delegate the creation and configuration of collision filters to the VxLayers class.
+        VxLayers.initialize();
 
         isInitialized = true;
         VxMainClass.LOGGER.debug("Physics initialization complete.");
     }
 
-    private static void initializeCollisionFilters() {
-        final int numObjectLayers = VxLayers.NUM_LAYERS;
-        final int numBroadPhaseLayers = VxLayers.NUM_LAYERS;
-
-        ObjectLayerPairFilterTable olpfTable = new ObjectLayerPairFilterTable(numObjectLayers);
-
-        olpfTable.disableCollision(VxLayers.STATIC, VxLayers.STATIC);
-        olpfTable.disableCollision(VxLayers.STATIC, VxLayers.TERRAIN);
-        olpfTable.enableCollision(VxLayers.STATIC, VxLayers.DYNAMIC);
-        olpfTable.enableCollision(VxLayers.STATIC, VxLayers.KINEMATIC);
-
-        olpfTable.enableCollision(VxLayers.DYNAMIC, VxLayers.DYNAMIC);
-        olpfTable.enableCollision(VxLayers.DYNAMIC, VxLayers.KINEMATIC);
-        olpfTable.enableCollision(VxLayers.DYNAMIC, VxLayers.TERRAIN);
-
-        olpfTable.enableCollision(VxLayers.KINEMATIC, VxLayers.KINEMATIC);
-        olpfTable.enableCollision(VxLayers.KINEMATIC, VxLayers.DYNAMIC);
-        olpfTable.enableCollision(VxLayers.KINEMATIC, VxLayers.TERRAIN);
-
-        olpfTable.enableCollision(VxLayers.TERRAIN, VxLayers.DYNAMIC);
-        olpfTable.enableCollision(VxLayers.TERRAIN, VxLayers.KINEMATIC);
-
-        objectLayerPairFilter = olpfTable;
-
-        BroadPhaseLayerInterfaceTable bpliTable = new BroadPhaseLayerInterfaceTable(numObjectLayers, numBroadPhaseLayers);
-        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.STATIC, VxLayers.STATIC);
-        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.DYNAMIC, VxLayers.DYNAMIC);
-        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.KINEMATIC, VxLayers.KINEMATIC);
-        bpliTable.mapObjectToBroadPhaseLayer(VxLayers.TERRAIN, VxLayers.TERRAIN);
-        broadPhaseLayerInterface = bpliTable;
-
-        objectVsBroadPhaseLayerFilter = new ObjectVsBroadPhaseLayerFilterTable(
-                broadPhaseLayerInterface, numBroadPhaseLayers,
-                objectLayerPairFilter, numObjectLayers
-        );
-    }
-
+    /**
+     * Shuts down the Jolt physics system.
+     * This method cleans up all allocated resources, including layer interfaces and the Jolt factory.
+     * It ensures that shutdown only occurs if the system was previously initialized.
+     */
     public static void shutdown() {
         if (!isInitialized) {
             return;
@@ -90,28 +73,47 @@ public class VxNativeJolt {
 
         VxMainClass.LOGGER.debug("Performing Physics shutdown...");
 
-        if (objectVsBroadPhaseLayerFilter != null) objectVsBroadPhaseLayerFilter.close();
-        if (objectLayerPairFilter != null) objectLayerPairFilter.close();
-        if (broadPhaseLayerInterface != null) broadPhaseLayerInterface.close();
+        // Delegate the cleanup of layer interfaces to the VxLayers class.
+        VxLayers.shutdown();
 
         Jolt.destroyFactory();
         isInitialized = false;
         VxMainClass.LOGGER.debug("Physics shutdown complete.");
     }
 
+    /**
+     * Checks if the Jolt physics system has been initialized.
+     *
+     * @return true if initialized, false otherwise.
+     */
     public static boolean isInitialized() {
         return isInitialized;
     }
 
+    /**
+     * Gets the configured broad-phase layer interface.
+     *
+     * @return The singleton instance of BroadPhaseLayerInterface.
+     */
     public static BroadPhaseLayerInterface getBroadPhaseLayerInterface() {
-        return broadPhaseLayerInterface;
+        return VxLayers.getBroadPhaseLayerInterface();
     }
 
+    /**
+     * Gets the configured object vs. broad-phase layer filter.
+     *
+     * @return The singleton instance of ObjectVsBroadPhaseLayerFilter.
+     */
     public static ObjectVsBroadPhaseLayerFilter getObjectVsBroadPhaseLayerFilter() {
-        return objectVsBroadPhaseLayerFilter;
+        return VxLayers.getObjectVsBroadPhaseLayerFilter();
     }
 
+    /**
+     * Gets the configured object layer pair filter.
+     *
+     * @return The singleton instance of ObjectLayerPairFilter.
+     */
     public static ObjectLayerPairFilter getObjectLayerPairFilter() {
-        return objectLayerPairFilter;
+        return VxLayers.getObjectLayerPairFilter();
     }
 }
