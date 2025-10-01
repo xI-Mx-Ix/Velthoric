@@ -414,10 +414,7 @@ public class VxTerrainSystem implements Runnable {
         }
 
         List<VxBody> currentObjects = new ArrayList<>(physicsWorld.getObjectManager().getAllObjects());
-        Set<UUID> currentObjectIds = new HashSet<>(currentObjects.size());
-        for (VxBody obj : currentObjects) {
-            currentObjectIds.add(obj.getPhysicsId());
-        }
+        Set<UUID> currentObjectIds = currentObjects.stream().map(VxBody::getPhysicsId).collect(Collectors.toSet());
 
         objectTrackedChunks.keySet().removeIf(id -> {
             if (!currentObjectIds.contains(id)) {
@@ -437,39 +434,75 @@ public class VxTerrainSystem implements Runnable {
         }
 
         int objectsToUpdate = Math.min(currentObjects.size(), OBJECT_PRELOAD_UPDATE_STRIDE);
+        Map<Integer, VxBody> objectsToPreload = new HashMap<>();
+
         for (int i = 0; i < objectsToUpdate; ++i) {
             if (objectUpdateIndex >= currentObjects.size()) {
                 objectUpdateIndex = 0;
             }
             VxBody obj = currentObjects.get(objectUpdateIndex++);
-            if (obj.getBodyId() != 0) {
-                updatePreloadForObject(obj);
-            } else {
+
+            int dataIndex = obj.getDataStoreIndex();
+            if (dataIndex == -1 || obj.getBodyId() == 0) {
                 removeObjectTracking(obj.getPhysicsId());
+                continue;
+            }
+
+            int cooldown = objectUpdateCooldowns.getOrDefault(obj.getPhysicsId(), 0);
+            float velSq = objectDataStore.velX[dataIndex] * objectDataStore.velX[dataIndex] +
+                    objectDataStore.velY[dataIndex] * objectDataStore.velY[dataIndex] +
+                    objectDataStore.velZ[dataIndex] * objectDataStore.velZ[dataIndex];
+
+            if (cooldown > 0 && velSq < MAX_SPEED_FOR_COOLDOWN_SQR) {
+                objectUpdateCooldowns.put(obj.getPhysicsId(), cooldown - 1);
+            } else {
+                objectsToPreload.put(obj.getBodyId(), obj);
             }
         }
 
-        List<List<VxBody>> batches = partitionList(currentObjects, OBJECT_ACTIVATION_BATCH_SIZE);
-        List<CompletableFuture<Set<VxSectionPos>>> futures = new ArrayList<>();
+        if (!objectsToPreload.isEmpty()) {
+            int[] preloadBodyIds = objectsToPreload.keySet().stream().mapToInt(Integer::intValue).toArray();
+            BodyLockMultiRead lock = new BodyLockMultiRead(physicsWorld.getPhysicsSystem().getBodyLockInterfaceNoLock(), preloadBodyIds);
+            try {
+                for (int i = 0; i < preloadBodyIds.length; i++) {
+                    int bodyId = preloadBodyIds[i];
+                    ConstBody body = lock.getBody(i);
+                    VxBody obj = objectsToPreload.get(bodyId);
+
+                    objectUpdateCooldowns.put(obj.getPhysicsId(), UPDATE_INTERVAL_TICKS);
+                    processPreloadForLockedBody(obj, body);
+                }
+            } finally {
+                lock.releaseLocks();
+            }
+        }
 
         if (jobSystem.isShutdown()) {
             return;
         }
 
+        List<List<VxBody>> batches = partitionList(currentObjects, OBJECT_ACTIVATION_BATCH_SIZE);
+        List<CompletableFuture<Set<VxSectionPos>>> futures = new ArrayList<>();
+
         for (List<VxBody> batch : batches) {
             futures.add(CompletableFuture.supplyAsync(() -> {
                 Set<VxSectionPos> required = new HashSet<>();
-                for (VxBody obj : batch) {
-                    ConstBody body = obj.getConstBody();
-                    if (body != null) {
-                        ConstAaBox bounds = body.getWorldSpaceBounds();
-                        calculateRequiredChunks(
-                                bounds.getMin(), bounds.getMax(),
-                                body.getLinearVelocity(),
-                                ACTIVATION_RADIUS_CHUNKS,
-                                required
-                        );
+                if (batch.isEmpty()) return required;
+
+                int[] batchBodyIds = batch.stream().mapToInt(VxBody::getBodyId).filter(id -> id != 0).toArray();
+                if (batchBodyIds.length == 0) return required;
+
+                BodyLockMultiRead batchLock = new BodyLockMultiRead(physicsWorld.getPhysicsSystem().getBodyLockInterfaceNoLock(), batchBodyIds);
+                try {
+                    for (int i = 0; i < batchBodyIds.length; i++) {
+                        ConstBody body = batchLock.getBody(i);
+                        if (body != null) {
+                            ConstAaBox bounds = body.getWorldSpaceBounds();
+                            calculateRequiredChunks(bounds.getMin(), bounds.getMax(), body.getLinearVelocity(), ACTIVATION_RADIUS_CHUNKS, required);
+                        }
                     }
+                } finally {
+                    batchLock.releaseLocks();
                 }
                 return required;
             }, jobSystem.getExecutor()));
@@ -485,7 +518,6 @@ public class VxTerrainSystem implements Runnable {
         for (int index : chunkDataStore.getActiveIndices()) {
             VxSectionPos pos = chunkDataStore.getPosForIndex(index);
             if (pos == null) continue;
-
             if (chunkDataStore.states[index] == STATE_READY_ACTIVE && !activeSet.contains(pos)) {
                 deactivateChunk(index);
             }
@@ -499,35 +531,21 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
-    private void updatePreloadForObject(VxBody obj) {
+    private void processPreloadForLockedBody(VxBody obj, ConstBody body) {
         UUID id = obj.getPhysicsId();
-        int dataIndex = obj.getDataStoreIndex();
-        if (dataIndex == -1) {
+        if (body == null) {
             removeObjectTracking(id);
             return;
         }
 
-        int cooldown = objectUpdateCooldowns.getOrDefault(id, 0);
+        int dataIndex = obj.getDataStoreIndex();
         float velX = objectDataStore.velX[dataIndex];
         float velY = objectDataStore.velY[dataIndex];
         float velZ = objectDataStore.velZ[dataIndex];
-        float velSq = velX * velX + velY * velY + velZ * velZ;
-
-        if (cooldown > 0 && velSq < MAX_SPEED_FOR_COOLDOWN_SQR) {
-            objectUpdateCooldowns.put(id, cooldown - 1);
-            return;
-        }
-        objectUpdateCooldowns.put(id, UPDATE_INTERVAL_TICKS);
 
         Set<VxSectionPos> required = new HashSet<>();
-        ConstBody body = obj.getBody();
-        if (body != null) {
-            ConstAaBox bounds = body.getWorldSpaceBounds();
-            calculateRequiredChunks(bounds.getMin(), bounds.getMax(), velX, velY, velZ, PRELOAD_RADIUS_CHUNKS, required);
-        } else {
-            removeObjectTracking(id);
-            return;
-        }
+        ConstAaBox bounds = body.getWorldSpaceBounds();
+        calculateRequiredChunks(bounds.getMin(), bounds.getMax(), velX, velY, velZ, PRELOAD_RADIUS_CHUNKS, required);
 
         Set<VxSectionPos> previouslyTracked = objectTrackedChunks.computeIfAbsent(id, k -> new HashSet<>());
 
