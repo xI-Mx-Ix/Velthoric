@@ -53,11 +53,11 @@ dependencies {
     shadowBundle project(path: ":VxNativeUtil", configuration: "namedElements")
 
     shadowBundle("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}")
-    shadowBundle("com.github.stephengold:jolt-jni-Windows64:${jolt_jni_version}:ReleaseDp")
-    shadowBundle("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}:ReleaseDp")
-    shadowBundle("com.github.stephengold:jolt-jni-Linux_ARM64:${jolt_jni_version}:ReleaseDp")
-    shadowBundle("com.github.stephengold:jolt-jni-MacOSX64:${jolt_jni_version}:ReleaseDp")
-    shadowBundle("com.github.stephengold:jolt-jni-MacOSX_ARM64:${jolt_jni_version}:ReleaseDp")
+    shadowBundle("com.github.stephengold:jolt-jni-Windows64:${jolt_jni_version}:ReleaseSp")
+    shadowBundle("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}:ReleaseSp")
+    shadowBundle("com.github.stephengold:jolt-jni-Linux_ARM64:${jolt_jni_version}:ReleaseSp")
+    shadowBundle("com.github.stephengold:jolt-jni-MacOSX64:${jolt_jni_version}:ReleaseSp")
+    shadowBundle("com.github.stephengold:jolt-jni-MacOSX_ARM64:${jolt_jni_version}:ReleaseSp")
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
