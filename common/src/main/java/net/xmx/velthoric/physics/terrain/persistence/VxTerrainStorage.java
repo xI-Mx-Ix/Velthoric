@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
-import net.xmx.velthoric.physics.terrain.VxSectionPos;
+import net.xmx.velthoric.physics.terrain.chunk.VxSectionPos;
 
 import java.util.ArrayList;
 import java.util.List;

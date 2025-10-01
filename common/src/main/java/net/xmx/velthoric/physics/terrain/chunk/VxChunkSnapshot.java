@@ -8,7 +8,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.xmx.velthoric.physics.terrain.VxSectionPos;
 
 import java.util.HashMap;
 import java.util.Map;

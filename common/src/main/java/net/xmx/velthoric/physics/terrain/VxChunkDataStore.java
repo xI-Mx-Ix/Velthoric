@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.terrain;
 
 import com.github.stephengold.joltjni.ShapeRefC;
 import net.xmx.velthoric.physics.object.AbstractDataStore;
+import net.xmx.velthoric.physics.terrain.chunk.VxSectionPos;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;

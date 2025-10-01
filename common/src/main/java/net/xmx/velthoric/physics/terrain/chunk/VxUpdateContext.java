@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.terrain;
+package net.xmx.velthoric.physics.terrain.chunk;
 
 import com.github.stephengold.joltjni.*;
 
@@ -15,7 +15,7 @@ import com.github.stephengold.joltjni.*;
  * @author xI-Mx-Ix
  */
 public class VxUpdateContext {
-    final AaBox aabox_1 = new AaBox();
-    final BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
-    final ObjectLayerFilter olFilter = new ObjectLayerFilter();
+    public final AaBox aabox_1 = new AaBox();
+    public final BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
+    public final ObjectLayerFilter olFilter = new ObjectLayerFilter();
 }

@@ -2,14 +2,13 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.terrain.shape;
+package net.xmx.velthoric.physics.terrain.chunk;
 
 import com.github.stephengold.joltjni.*;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.terrain.cache.VxTerrainShapeCache;
 import net.xmx.velthoric.physics.terrain.persistence.VxTerrainStorage;
-import net.xmx.velthoric.physics.terrain.chunk.VxChunkSnapshot;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
