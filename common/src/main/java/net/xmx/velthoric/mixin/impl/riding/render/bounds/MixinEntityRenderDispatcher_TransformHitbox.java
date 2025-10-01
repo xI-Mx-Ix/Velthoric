@@ -20,13 +20,13 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Modifies the {@link EntityRenderDispatcher} to correctly render hitboxes for entities
- * that are passengers of a physics-driven object. This includes rotating the entire
- * hitbox and ensuring the view vector (blue line) points in the correct direction.
+ * Modifies the EntityRenderDispatcher to correctly render the hitboxes of entities
+ * that are passengers of a physics-driven object. This ensures the hitbox (AABB) and
+ * the view vector (blue line) are rotated according to the vehicle's physics state.
  *
  * @author xI-Mx-Ix
  */
@@ -41,17 +41,15 @@ public class MixinEntityRenderDispatcher_TransformHitbox {
 
     /**
      * Injects at the beginning of the hitbox rendering method to apply the physics-based rotation.
-     * This ensures that the entire hitbox, including the bounding box and the eye-level line,
-     * is rotated to match the orientation of the physics vehicle. The PoseStack state is pushed
-     * to isolate this transformation.
+     * This rotates the entire rendering context (PoseStack) to match the orientation of the
+     * physics vehicle. The PoseStack state is pushed to isolate this transformation.
      *
      * @param poseStack The current PoseStack for rendering transformations.
-     * @param entity The entity whose hitbox is being rendered.
-     * @param partialTicks The fraction of a tick that has passed since the last full tick.
-     * @param ci Callback info provided by Mixin.
+     * @param entity    The entity whose hitbox is being rendered.
+     * @param ci        Callback info provided by Mixin.
      */
     @Inject(
-            method = "renderHitbox",
+            method = "renderHitbox(Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;Lnet/minecraft/world/entity/Entity;F)V",
             at = @At("HEAD")
     )
     private static void velthoric_applyFullHitboxTransform(PoseStack poseStack, VertexConsumer buffer, Entity entity, float partialTicks, CallbackInfo ci) {
@@ -66,7 +64,6 @@ public class MixinEntityRenderDispatcher_TransformHitbox {
                     return;
                 }
 
-                // Interpolate the physics rotation for the current frame.
                 interpolator.interpolateRotation(store, index, partialTicks, velthoric_tempHitboxRot);
 
                 Quaternionf physRotation = new Quaternionf(
@@ -76,7 +73,6 @@ public class MixinEntityRenderDispatcher_TransformHitbox {
                         velthoric_tempHitboxRot.getW()
                 );
 
-                // Save the current state and apply the physics rotation.
                 poseStack.pushPose();
                 poseStack.mulPose(physRotation);
             });
@@ -84,28 +80,32 @@ public class MixinEntityRenderDispatcher_TransformHitbox {
     }
 
     /**
-     * Intercepts the view vector before it is used to render the blue direction line.
-     * The entity's view vector is already correctly transformed into world-space by another mixin.
-     * However, since the entire PoseStack is also rotated by {@link #velthoric_applyFullHitboxTransform},
-     * rendering the world-space vector would apply the rotation a second time.
+     * Redirects the call to {@code entity.getViewVector(partialTicks)} to provide a corrected view vector.
+     * The {@code renderHitbox} method is rendered within a PoseStack that has already been rotated
+     * by {@link #velthoric_applyFullHitboxTransform}. If the original world-space view vector were used,
+     * it would be rotated a second time, resulting in an incorrect direction.
      * <p>
-     * To counteract this, this method transforms the vector by the *inverse* of the physics rotation.
-     * This effectively converts the vector back into the entity's local space. When the vanilla code
-     * then renders this local-space vector, the rotated PoseStack correctly transforms it into the
-     * proper world-space orientation, avoiding the double transformation.
+     * This method counteracts the double transformation. It takes the original view vector, transforms it
+     * by the *inverse* of the physics rotation (effectively converting it back to the entity's local space),
+     * and returns the result. When the vanilla code then renders this local-space vector, the rotated
+     * PoseStack correctly transforms it into the proper world-space orientation.
      *
-     * @param value The original view vector calculated by the game.
-     * @param entity The entity being rendered.
-     * @param partialTicks The fraction of a tick that has passed.
+     * @param instance     The entity instance on which getViewVector() is called.
+     * @param partialTicks The partial tick value passed to the original getViewVector method.
      * @return The corrected, local-space view vector.
      */
-    @ModifyVariable(
-            method = "renderHitbox",
-            at = @At(value = "STORE", ordinal = 0),
-            name = "vec3"
+    @Redirect(
+            method = "renderHitbox(Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;Lnet/minecraft/world/entity/Entity;F)V",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/Entity;getViewVector(F)Lnet/minecraft/world/phys/Vec3;"
+            )
     )
-    private static Vec3 velthoric_untransformViewVector(Vec3 value, PoseStack poseStack, VertexConsumer buffer, Entity entity, float partialTicks) {
-        if (entity.getVehicle() instanceof VxRidingProxyEntity proxy) {
+    private static Vec3 velthoric_redirectViewVectorForHitbox(Entity instance, float partialTicks) {
+        // Get the original vector that the game would have calculated.
+        Vec3 originalViewVector = instance.getViewVector(partialTicks);
+
+        if (instance.getVehicle() instanceof VxRidingProxyEntity proxy) {
             return proxy.getPhysicsObjectId().map(id -> {
                 VxClientObjectManager manager = VxClientObjectManager.getInstance();
                 VxClientObjectDataStore store = manager.getStore();
@@ -113,7 +113,7 @@ public class MixinEntityRenderDispatcher_TransformHitbox {
                 Integer index = store.getIndexForId(id);
 
                 if (index == null || !store.render_isInitialized[index]) {
-                    return value;
+                    return originalViewVector;
                 }
 
                 interpolator.interpolateRotation(store, index, partialTicks, velthoric_tempHitboxRot);
@@ -128,30 +128,31 @@ public class MixinEntityRenderDispatcher_TransformHitbox {
                 // Invert the rotation to transform from world-space back to local-space.
                 physRotation.invert();
 
-                Vector3d correctedVector = new Vector3d(value.x, value.y, value.z);
+                Vector3d correctedVector = new Vector3d(originalViewVector.x, originalViewVector.y, originalViewVector.z);
                 physRotation.transform(correctedVector);
 
                 return new Vec3(correctedVector.x, correctedVector.y, correctedVector.z);
-            }).orElse(value);
+            }).orElse(originalViewVector);
         }
-        return value;
+
+        // If the entity is not in a physics vehicle, return the original vector.
+        return originalViewVector;
     }
 
     /**
      * Injects at the end of the hitbox rendering method to restore the original PoseStack state.
-     * This prevents the physics-based rotation from affecting other rendering operations by popping
-     * the transformation that was pushed at the beginning of the method.
+     * This prevents the physics-based rotation from affecting any other rendering operations by popping
+     * the transformation that was pushed by {@link #velthoric_applyFullHitboxTransform}.
      *
      * @param poseStack The current PoseStack.
-     * @param entity The entity whose hitbox was rendered.
-     * @param ci Callback info provided by Mixin.
+     * @param entity    The entity whose hitbox was rendered.
+     * @param ci        Callback info provided by Mixin.
      */
     @Inject(
-            method = "renderHitbox",
+            method = "renderHitbox(Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;Lnet/minecraft/world/entity/Entity;F)V",
             at = @At("TAIL")
     )
     private static void velthoric_restoreHitboxTransform(PoseStack poseStack, VertexConsumer buffer, Entity entity, float partialTicks, CallbackInfo ci) {
-        // If a transformation was applied at the beginning, pop it now to restore the original state.
         if (entity.getVehicle() instanceof VxRidingProxyEntity proxy && proxy.getPhysicsObjectId().isPresent()) {
             poseStack.popPose();
         }
