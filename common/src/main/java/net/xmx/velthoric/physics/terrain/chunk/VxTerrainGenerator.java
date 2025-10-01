@@ -6,6 +6,8 @@ package net.xmx.velthoric.physics.terrain.chunk;
 
 import com.github.stephengold.joltjni.*;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.terrain.cache.VxTerrainShapeCache;
 import net.xmx.velthoric.physics.terrain.persistence.VxTerrainStorage;
@@ -14,14 +16,16 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Responsible for generating optimized Jolt physics shapes from chunk data.
  * <p>
- * This class implements a greedy meshing algorithm to combine adjacent, identical
- * blocks into larger box shapes. It interacts with a cache and persistent storage
- * to avoid redundant computations by storing and reconstructing shapes from pure
- * geometric data rather than native binary blobs.
+ * This class implements a hybrid strategy. It uses a greedy meshing algorithm
+ * to combine adjacent, identical full-cube blocks into larger box shapes for maximum
+ * performance. For blocks with complex shapes (like stairs or slabs), it generates
+ * the exact voxel geometry from their constituent bounding boxes. It interacts with
+ * a cache and persistent storage to avoid redundant computations.
  *
  * @author xI-Mx-Ix
  */
@@ -64,7 +68,7 @@ public final class VxTerrainGenerator {
             return reconstructedShape;
         }
 
-        GreedyMeshResult result = generateGreedyMeshShape(snapshot);
+        GreedyMeshResult result = generateAccurateGreedyMeshShape(snapshot);
         if (result != null && result.shape != null) {
             terrainStorage.storeShapeData(snapshot.pos(), contentHash, result.data());
             shapeCache.put(contentHash, result.shape.getPtr().toRefC());
@@ -95,6 +99,8 @@ public final class VxTerrainGenerator {
                     try (ShapeRefC boxShape = boxResult.get()) {
                         compoundSettings.addShape(position, Quat.sIdentity(), boxShape);
                     }
+                } else {
+                    boxSettings.close();
                 }
             }
             try (ShapeResult result = compoundSettings.create()) {
@@ -108,12 +114,20 @@ public final class VxTerrainGenerator {
         return null;
     }
 
+    /**
+     * Generates a physics shape by applying greedy meshing to full-cube blocks and
+     * generating exact shapes for complex blocks.
+     *
+     * @param snapshot The chunk data snapshot.
+     * @return The result containing the generated shape and its geometric data.
+     */
     @Nullable
-    private GreedyMeshResult generateGreedyMeshShape(VxChunkSnapshot snapshot) {
+    private GreedyMeshResult generateAccurateGreedyMeshShape(VxChunkSnapshot snapshot) {
         try (StaticCompoundShapeSettings compoundSettings = new StaticCompoundShapeSettings()) {
             List<VxTerrainStorage.BoxData> boxDataList = new ArrayList<>();
             boolean[] visited = new boolean[CHUNK_DIM * CHUNK_DIM * CHUNK_DIM];
             int[] blockData = snapshot.blockData();
+            Map<Integer, BlockState> palette = snapshot.palette();
 
             for (int y = 0; y < CHUNK_DIM; y++) {
                 for (int z = 0; z < CHUNK_DIM; z++) {
@@ -122,46 +136,45 @@ public final class VxTerrainGenerator {
                         if (visited[index] || blockData[index] == 0) continue;
 
                         int blockId = blockData[index];
-                        int width = 1; // x-axis
-                        while (x + width < CHUNK_DIM && !visited[getIndex(x + width, y, z)] && blockData[getIndex(x + width, y, z)] == blockId) width++;
 
-                        int height = 1; // y-axis
-                        height_loop:
-                        while (y + height < CHUNK_DIM) {
-                            for (int i = 0; i < width; i++) {
-                                if (visited[getIndex(x + i, y + height, z)] || blockData[getIndex(x + i, y + height, z)] != blockId) break height_loop;
-                            }
-                            height++;
-                        }
+                        if (snapshot.fullCubeIds().contains(blockId)) {
+                            // --- GREEDY MESHING FOR FULL CUBES ---
+                            int width = 1; // x-axis
+                            while (x + width < CHUNK_DIM && !visited[getIndex(x + width, y, z)] && blockData[getIndex(x + width, y, z)] == blockId) width++;
 
-                        int depth = 1; // z-axis
-                        depth_loop:
-                        while (z + depth < CHUNK_DIM) {
-                            for (int j = 0; j < height; j++) {
+                            int height = 1; // y-axis
+                            height_loop:
+                            while (y + height < CHUNK_DIM) {
                                 for (int i = 0; i < width; i++) {
-                                    if (visited[getIndex(x + i, y + j, z + depth)] || blockData[getIndex(x + i, y + j, z + depth)] != blockId) break depth_loop;
+                                    if (visited[getIndex(x + i, y + height, z)] || blockData[getIndex(x + i, y + height, z)] != blockId) break height_loop;
                                 }
+                                height++;
                             }
-                            depth++;
-                        }
 
-                        for (int dz = 0; dz < depth; dz++) for (int dy = 0; dy < height; dy++) for (int dx = 0; dx < width; dx++) {
-                            visited[getIndex(x + dx, y + dy, z + dz)] = true;
-                        }
-
-                        float hx = width / 2.0f, hy = height / 2.0f, hz = depth / 2.0f;
-                        float px = x + hx, py = y + hy, pz = z + hz;
-
-                        boxDataList.add(new VxTerrainStorage.BoxData(px, py, pz, hx, hy, hz));
-
-                        Vec3 halfExtents = new Vec3(hx, hy, hz);
-                        Vec3 position = new Vec3(px, py, pz);
-                        BoxShapeSettings boxSettings = new BoxShapeSettings(halfExtents);
-                        ShapeResult boxResult = boxSettings.create();
-                        if (boxResult.isValid()) {
-                            try (ShapeRefC boxShape = boxResult.get()) {
-                                compoundSettings.addShape(position, Quat.sIdentity(), boxShape);
+                            int depth = 1; // z-axis
+                            depth_loop:
+                            while (z + depth < CHUNK_DIM) {
+                                for (int j = 0; j < height; j++) {
+                                    for (int i = 0; i < width; i++) {
+                                        if (visited[getIndex(x + i, y + j, z + depth)] || blockData[getIndex(x + i, y + j, z + depth)] != blockId) break depth_loop;
+                                    }
+                                }
+                                depth++;
                             }
+
+                            for (int dz = 0; dz < depth; dz++) for (int dy = 0; dy < height; dy++) for (int dx = 0; dx < width; dx++) {
+                                visited[getIndex(x + dx, y + dy, z + dz)] = true;
+                            }
+                            addBox(compoundSettings, boxDataList, x, y, z, width, height, depth);
+
+                        } else {
+                            // --- DETAILED SHAPE FOR COMPLEX BLOCKS ---
+                            BlockState state = palette.get(blockId);
+                            // Context is not needed here as we get the default shape, which is what was used for the check during snapshot creation.
+                            for (AABB aabb : state.getShape(null, null).toAabbs()) {
+                                addBoxFromAABB(compoundSettings, boxDataList, aabb, x, y, z);
+                            }
+                            visited[index] = true;
                         }
                     }
                 }
@@ -180,11 +193,57 @@ public final class VxTerrainGenerator {
         return null;
     }
 
+    private void addBoxFromAABB(StaticCompoundShapeSettings settings, List<VxTerrainStorage.BoxData> data, AABB aabb, int offsetX, int offsetY, int offsetZ) {
+        float w = (float) (aabb.maxX - aabb.minX);
+        float h = (float) (aabb.maxY - aabb.minY);
+        float d = (float) (aabb.maxZ - aabb.minZ);
+        float hx = w / 2.0f;
+        float hy = h / 2.0f;
+        float hz = d / 2.0f;
+        float px = (float) (offsetX + aabb.minX + hx);
+        float py = (float) (offsetY + aabb.minY + hy);
+        float pz = (float) (offsetZ + aabb.minZ + hz);
+
+        data.add(new VxTerrainStorage.BoxData(px, py, pz, hx, hy, hz));
+
+        try (BoxShapeSettings boxSettings = new BoxShapeSettings(new Vec3(hx, hy, hz))) {
+            try(ShapeResult boxResult = boxSettings.create()){
+                if (boxResult.isValid()) {
+                    try (ShapeRefC boxShape = boxResult.get()) {
+                        settings.addShape(new Vec3(px, py, pz), Quat.sIdentity(), boxShape);
+                    }
+                }
+            }
+        }
+    }
+
+    private void addBox(StaticCompoundShapeSettings settings, List<VxTerrainStorage.BoxData> data, int x, int y, int z, int width, int height, int depth) {
+        float hx = width / 2.0f;
+        float hy = height / 2.0f;
+        float hz = depth / 2.0f;
+        float px = x + hx;
+        float py = y + hy;
+        float pz = z + hz;
+
+        data.add(new VxTerrainStorage.BoxData(px, py, pz, hx, hy, hz));
+
+        try (BoxShapeSettings boxSettings = new BoxShapeSettings(new Vec3(hx, hy, hz))) {
+            try (ShapeResult boxResult = boxSettings.create()) {
+                if (boxResult.isValid()) {
+                    try (ShapeRefC boxShape = boxResult.get()) {
+                        settings.addShape(new Vec3(px, py, pz), Quat.sIdentity(), boxShape);
+                    }
+                }
+            }
+        }
+    }
+
     private int getIndex(int x, int y, int z) {
         return y * CHUNK_DIM * CHUNK_DIM + z * CHUNK_DIM + x;
     }
 
     private int computeContentHash(VxChunkSnapshot snapshot) {
+        // Hashing based on blockData provides a good measure of content uniqueness.
         return Arrays.hashCode(snapshot.blockData());
     }
 }
