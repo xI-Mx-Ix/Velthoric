@@ -21,6 +21,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
@@ -37,6 +38,9 @@ import java.util.UUID;
 public class BlockClientRigidBody extends VxClientRigidBody {
 
     private static final VxDataAccessor<Integer> DATA_BLOCK_STATE_ID = VxDataAccessor.create(BlockClientRigidBody.class, VxDataSerializers.INTEGER);
+
+    private BlockEntity cachedBlockEntity;
+    private BlockState lastBlockState;
 
     public BlockClientRigidBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
         super(id, manager, dataStoreIndex, objectType);
@@ -93,21 +97,33 @@ public class BlockClientRigidBody extends VxClientRigidBody {
         }
 
         if (blockStateToRender.getBlock() instanceof EntityBlock entityBlock) {
-            Minecraft mc = Minecraft.getInstance();
-            BlockEntityRenderDispatcher beDispatcher = mc.getBlockEntityRenderDispatcher();
-            var blockEntity = entityBlock.newBlockEntity(BlockPos.ZERO, blockStateToRender);
+            // Check if the block state has changed since the last render call.
+            if (this.lastBlockState != blockStateToRender) {
+                // If it has changed, create a new BlockEntity instance.
+                this.cachedBlockEntity = entityBlock.newBlockEntity(BlockPos.ZERO, blockStateToRender);
+                this.lastBlockState = blockStateToRender;
 
-            if (blockEntity != null) {
+                // Set the level for the new BlockEntity.
+                if (this.cachedBlockEntity != null) {
+                    this.cachedBlockEntity.setLevel(Minecraft.getInstance().level);
+                }
+            }
 
-                blockEntity.setLevel(mc.level);
-                var renderer = beDispatcher.getRenderer(blockEntity);
+            // Render the cached BlockEntity if it exists.
+            if (this.cachedBlockEntity != null) {
+                BlockEntityRenderDispatcher beDispatcher = Minecraft.getInstance().getBlockEntityRenderDispatcher();
+                var renderer = beDispatcher.getRenderer(this.cachedBlockEntity);
                 if (renderer != null) {
                     poseStack.pushPose();
                     poseStack.translate(-0.5, -0.5, -0.5);
-                    renderer.render(blockEntity, partialTicks, poseStack, bufferSource, packedLight, OverlayTexture.NO_OVERLAY);
+                    renderer.render(this.cachedBlockEntity, partialTicks, poseStack, bufferSource, packedLight, OverlayTexture.NO_OVERLAY);
                     poseStack.popPose();
                 }
             }
+        } else {
+            // If the current block is not an EntityBlock, clear the cache.
+            this.cachedBlockEntity = null;
+            this.lastBlockState = null;
         }
 
         poseStack.popPose();
