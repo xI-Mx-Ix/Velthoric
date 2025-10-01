@@ -9,6 +9,9 @@ import net.xmx.velthoric.event.api.VxLevelEvent;
 import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class TerrainLifecycleEvents {
 
     public static void registerEvents() {

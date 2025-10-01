@@ -8,6 +8,9 @@ import net.xmx.velthoric.init.VxMainClass;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public final class VxTerrainJobSystem {
 
     private final ExecutorService executorService;

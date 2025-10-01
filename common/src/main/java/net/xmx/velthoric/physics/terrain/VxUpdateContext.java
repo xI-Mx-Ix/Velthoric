@@ -6,9 +6,15 @@ package net.xmx.velthoric.physics.terrain;
 
 import com.github.stephengold.joltjni.*;
 
-public class UpdateContext {
-    final Vec3 vec3_1 = new Vec3();
-    final Vec3 vec3_2 = new Vec3();
+/**
+ * A container for thread-local, reusable Jolt physics objects.
+ * <p>
+ * This class helps to reduce garbage collection pressure by providing pre-allocated
+ * objects for common physics calculations within a single thread's execution context.
+ *
+ * @author xI-Mx-Ix
+ */
+public class VxUpdateContext {
     final AaBox aabox_1 = new AaBox();
     final BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
     final ObjectLayerFilter olFilter = new ObjectLayerFilter();

@@ -4,6 +4,9 @@
  */
 package net.xmx.velthoric.physics.terrain.job;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public enum VxTaskPriority {
     LOW,
     MEDIUM,

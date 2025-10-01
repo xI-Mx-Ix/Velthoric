@@ -11,6 +11,9 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public record VxSectionPos(int x, int y, int z) {
 
     public static final int CHUNK_SIZE = 16;

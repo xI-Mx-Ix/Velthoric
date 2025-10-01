@@ -17,16 +17,16 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
 import net.xmx.velthoric.physics.object.type.VxBody;
-import net.xmx.velthoric.physics.terrain.cache.TerrainShapeCache;
-import net.xmx.velthoric.physics.terrain.cache.TerrainStorage;
-import net.xmx.velthoric.physics.terrain.chunk.ChunkSnapshot;
-import net.xmx.velthoric.physics.terrain.chunk.TerrainGenerator;
+import net.xmx.velthoric.physics.terrain.cache.VxTerrainShapeCache;
+import net.xmx.velthoric.physics.terrain.chunk.VxChunkSnapshot;
 import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.natives.VxLayers;
+import net.xmx.velthoric.physics.terrain.persistence.VxTerrainStorage;
+import net.xmx.velthoric.physics.terrain.shape.VxTerrainGenerator;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -36,10 +36,18 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
+ * Manages the lifecycle and interaction of terrain physics bodies in the world.
+ * <p>
+ * This system is responsible for tracking dynamic physics objects, determining which
+ * terrain chunks need to be loaded, activating/deactivating them, and handling
+ * chunk updates due to block changes. It operates largely on a dedicated worker
+ * thread to minimize impact on the main server thread.
+ *
  * @author xI-Mx-Ix
  */
 public class VxTerrainSystem implements Runnable {
 
+    // --- State Machine Constants for Chunks ---
     private static final int STATE_UNLOADED = 0;
     private static final int STATE_LOADING_SCHEDULED = 1;
     private static final int STATE_GENERATING_SHAPE = 2;
@@ -48,47 +56,48 @@ public class VxTerrainSystem implements Runnable {
     private static final int STATE_REMOVING = 5;
     private static final int STATE_AIR_CHUNK = 6;
 
+    // --- System Dependencies ---
     private final VxPhysicsWorld physicsWorld;
     private final ServerLevel level;
-    private final TerrainGenerator terrainGenerator;
-    private final VxObjectDataStore objectDataStore;
-    private final TerrainShapeCache shapeCache;
-    private final TerrainStorage terrainStorage;
+    private final VxTerrainGenerator terrainGenerator;
+    private final VxTerrainShapeCache shapeCache;
+    private final VxTerrainStorage terrainStorage;
     private final VxTerrainJobSystem jobSystem;
     private final Thread workerThread;
     private final AtomicBoolean isInitialized = new AtomicBoolean(false);
 
+    // --- State Management ---
     private final VxChunkDataStore chunkDataStore = new VxChunkDataStore();
-
     private final Set<VxSectionPos> chunksToRebuild = ConcurrentHashMap.newKeySet();
     private final Map<UUID, Set<VxSectionPos>> objectTrackedChunks = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> objectUpdateCooldowns = new ConcurrentHashMap<>();
 
-    private static final ThreadLocal<UpdateContext> updateContext = ThreadLocal.withInitial(UpdateContext::new);
+    private static final ThreadLocal<VxUpdateContext> updateContext = ThreadLocal.withInitial(VxUpdateContext::new);
 
+    // --- Configuration ---
     private static final int UPDATE_INTERVAL_TICKS = 10;
-    private static final float MAX_SPEED_FOR_COOLDOWN_SQR = 100f * 100f;
     private static final int PRELOAD_RADIUS_CHUNKS = 3;
     private static final int ACTIVATION_RADIUS_CHUNKS = 1;
     private static final float PREDICTION_SECONDS = 0.5f;
 
     private int objectUpdateIndex = 0;
-
     private static final int OBJECT_PRELOAD_UPDATE_STRIDE = 250;
     private static final int OBJECT_ACTIVATION_BATCH_SIZE = 100;
 
     public VxTerrainSystem(VxPhysicsWorld physicsWorld, ServerLevel level) {
         this.physicsWorld = physicsWorld;
         this.level = level;
-        this.objectDataStore = physicsWorld.getObjectManager().getDataStore();
-        this.shapeCache = new TerrainShapeCache(1024);
-        this.terrainStorage = new TerrainStorage(this.level);
-        this.terrainGenerator = new TerrainGenerator(this.shapeCache, this.terrainStorage);
+        this.shapeCache = new VxTerrainShapeCache(1024);
+        this.terrainStorage = new VxTerrainStorage(this.level);
+        this.terrainGenerator = new VxTerrainGenerator(this.shapeCache, this.terrainStorage);
         this.jobSystem = new VxTerrainJobSystem();
         this.workerThread = new Thread(this, "Velthoric Terrain Tracker - " + level.dimension().location().getPath());
         this.workerThread.setDaemon(true);
     }
 
+    /**
+     * Initializes the terrain system and starts its worker thread.
+     */
     public void initialize() {
         if (isInitialized.compareAndSet(false, true)) {
             this.terrainStorage.initialize();
@@ -96,60 +105,39 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
+    /**
+     * Shuts down the terrain system, its worker thread, and cleans up resources.
+     */
     public void shutdown() {
         if (isInitialized.compareAndSet(true, false)) {
             jobSystem.shutdown();
             workerThread.interrupt();
 
             VxMainClass.LOGGER.debug("Shutting down Terrain Tracker for '{}'. Waiting up to 30 seconds for worker thread to exit...", level.dimension().location());
-
             try {
                 workerThread.join(30000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                VxMainClass.LOGGER.warn("Interrupted while waiting for terrain tracker thread to stop. Proceeding with forced shutdown.");
+                VxMainClass.LOGGER.warn("Interrupted while waiting for terrain tracker thread to stop.");
             }
 
             if (workerThread.isAlive()) {
-
                 StringBuilder stackTraceBuilder = new StringBuilder();
-                stackTraceBuilder.append("Stack trace of deadlocked thread '").append(workerThread.getName()).append("':\n");
-
-                StackTraceElement[] stackTrace = workerThread.getStackTrace();
-                for (StackTraceElement ste : stackTrace) {
-
+                stackTraceBuilder.append("Stack trace of non-terminating thread '").append(workerThread.getName()).append("':\n");
+                for (StackTraceElement ste : workerThread.getStackTrace()) {
                     stackTraceBuilder.append("\tat ").append(ste).append("\n");
                 }
-
-                VxMainClass.LOGGER.fatal(
-
-                        "Terrain tracker thread for '{}' did not terminate in 30 seconds and is likely deadlocked. " +
-                                "Forcing shutdown to prevent a server hang. Some terrain data might not have been handled correctly.\n{}",
-                        level.dimension().location(),
-                        stackTraceBuilder.toString()
-                );
-            } else {
-                VxMainClass.LOGGER.debug("Terrain tracker for '{}' shut down gracefully.", level.dimension().location());
+                VxMainClass.LOGGER.error("Terrain tracker thread did not terminate gracefully.\n{}", stackTraceBuilder.toString());
             }
 
-            VxMainClass.LOGGER.debug("Cleaning up terrain physics bodies for '{}'...", level.dimension().location());
+            // Final cleanup on the calling thread
             BodyInterface bi = physicsWorld.getBodyInterface();
             if (bi != null) {
-                chunkDataStore.getManagedPositions().forEach(pos -> {
-                    Integer index = chunkDataStore.getIndexForPos(pos);
-                    if (index != null) {
-                        removeBodyAndShape(index, bi);
-                    }
-                });
+                chunkDataStore.getActiveIndices().forEach(index -> removeBodyAndShape(index, bi));
             }
-
             chunkDataStore.clear();
-            chunksToRebuild.clear();
-            objectTrackedChunks.clear();
-            objectUpdateCooldowns.clear();
             shapeCache.clear();
             this.terrainStorage.shutdown();
-
             VxMainClass.LOGGER.debug("Terrain system for '{}' has been fully shut down.", level.dimension().location());
         }
     }
@@ -170,16 +158,24 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
+    /**
+     * Saves all terrain region files that have been modified.
+     */
     public void saveDirtyRegions() {
         if (terrainStorage != null) {
             terrainStorage.saveDirtyRegions();
         }
     }
 
+    /**
+     * Called when a block changes in the world. Schedules a rebuild if the chunk is active.
+     *
+     * @param worldPos The position of the changed block.
+     * @param oldState The old block state.
+     * @param newState The new block state.
+     */
     public void onBlockUpdate(BlockPos worldPos, BlockState oldState, BlockState newState) {
-        if (!isInitialized.get()) {
-            return;
-        }
+        if (!isInitialized.get()) return;
 
         VxSectionPos pos = VxSectionPos.fromBlockPos(worldPos.immutable());
         Integer index = chunkDataStore.getIndexForPos(pos);
@@ -190,17 +186,13 @@ public class VxTerrainSystem implements Runnable {
             chunksToRebuild.add(pos);
         }
 
+        // Wake up any physics bodies sleeping near the block change.
         physicsWorld.execute(() -> {
             BodyInterface bi = physicsWorld.getBodyInterface();
             if (bi == null) return;
-
-            UpdateContext ctx = updateContext.get();
-            ctx.vec3_1.set(worldPos.getX() - 2.0f, worldPos.getY() - 2.0f, worldPos.getZ() - 2.0f);
-            ctx.vec3_2.set(worldPos.getX() + 3.0f, worldPos.getY() + 3.0f, worldPos.getZ() + 3.0f);
-
-            ctx.aabox_1.setMin(ctx.vec3_1);
-            ctx.aabox_1.setMax(ctx.vec3_2);
-
+            VxUpdateContext ctx = updateContext.get();
+            ctx.aabox_1.setMin(new Vec3(worldPos.getX() - 2f, worldPos.getY() - 2f, worldPos.getZ() - 2f));
+            ctx.aabox_1.setMax(new Vec3(worldPos.getX() + 3f, worldPos.getY() + 3f, worldPos.getZ() + 3f));
             bi.activateBodiesInAaBox(ctx.aabox_1, ctx.bplFilter, ctx.olFilter);
         });
     }
@@ -220,10 +212,6 @@ public class VxTerrainSystem implements Runnable {
     }
 
     private void scheduleShapeGeneration(VxSectionPos pos, int index, boolean isInitialBuild, VxTaskPriority priority) {
-        if (jobSystem.isShutdown()) {
-            return;
-        }
-
         if (!isInitialized.get() || jobSystem.isShutdown()) {
             return;
         }
@@ -233,12 +221,14 @@ public class VxTerrainSystem implements Runnable {
             return;
         }
 
+        // Atomically set state to prevent race conditions
         if (chunkDataStore.states[index] == currentState) {
             chunkDataStore.states[index] = STATE_LOADING_SCHEDULED;
             final int version = ++chunkDataStore.rebuildVersions[index];
 
+            // Snapshotting must be done on the main thread
             level.getServer().execute(() -> {
-                if (version < chunkDataStore.rebuildVersions[index]) {
+                if (version < chunkDataStore.rebuildVersions[index] || chunkDataStore.states[index] != STATE_LOADING_SCHEDULED) {
                     if (chunkDataStore.states[index] == STATE_LOADING_SCHEDULED) chunkDataStore.states[index] = currentState;
                     return;
                 }
@@ -249,7 +239,7 @@ public class VxTerrainSystem implements Runnable {
                     return;
                 }
 
-                ChunkSnapshot snapshot = ChunkSnapshot.snapshotFromChunk(level, chunk, pos);
+                VxChunkSnapshot snapshot = VxChunkSnapshot.snapshotFromChunk(level, chunk, pos);
                 if (chunkDataStore.states[index] == STATE_LOADING_SCHEDULED) {
                     chunkDataStore.states[index] = STATE_GENERATING_SHAPE;
                     jobSystem.submit(() -> processShapeGenerationOnWorker(pos, index, version, snapshot, isInitialBuild, currentState));
@@ -258,17 +248,18 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
-    private void processShapeGenerationOnWorker(VxSectionPos pos, int index, int version, ChunkSnapshot snapshot, boolean isInitialBuild, int previousState) {
+    private void processShapeGenerationOnWorker(VxSectionPos pos, int index, int version, VxChunkSnapshot snapshot, boolean isInitialBuild, int previousState) {
         if (version < chunkDataStore.rebuildVersions[index]) {
             if (chunkDataStore.states[index] == STATE_GENERATING_SHAPE) chunkDataStore.states[index] = previousState;
             return;
         }
 
         try {
-            if (!isInitialized.get()) {
-                return;
-            }
+            if (!isInitialized.get()) return;
+            // The generated shape is a new resource that this thread now owns.
             ShapeRefC generatedShape = terrainGenerator.generateShape(level, snapshot);
+            // Schedule the application of the shape on the physics thread.
+            // Ownership of 'generatedShape' is transferred to the 'applyGeneratedShape' lambda.
             physicsWorld.execute(() -> applyGeneratedShape(pos, index, version, generatedShape, isInitialBuild));
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Exception during terrain shape generation for {}", pos, e);
@@ -276,61 +267,64 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
-    private void applyGeneratedShape(VxSectionPos pos, int index, int version, ShapeRefC shape, boolean isInitialBuild) {
-        boolean wasActive = chunkDataStore.states[index] == STATE_READY_ACTIVE;
+    private void applyGeneratedShape(VxSectionPos pos, int index, int version, @Nullable ShapeRefC shape, boolean isInitialBuild) {
+        // This method takes ownership of the 'shape' parameter and MUST close it before returning.
+        try {
+            boolean wasActive = chunkDataStore.states[index] == STATE_READY_ACTIVE;
 
-        if (version < chunkDataStore.rebuildVersions[index] || chunkDataStore.states[index] == STATE_REMOVING) {
-            if (shape != null) shape.close();
-            if (chunkDataStore.states[index] != STATE_REMOVING) chunkDataStore.states[index] = STATE_UNLOADED;
-            return;
-        }
+            if (version < chunkDataStore.rebuildVersions[index] || chunkDataStore.states[index] == STATE_REMOVING) {
+                if (chunkDataStore.states[index] != STATE_REMOVING) chunkDataStore.states[index] = STATE_UNLOADED;
+                return;
+            }
 
-        BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-        if (bodyInterface == null) {
-            if (shape != null) shape.close();
-            chunkDataStore.states[index] = STATE_UNLOADED;
-            return;
-        }
+            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+            if (bodyInterface == null) {
+                chunkDataStore.states[index] = STATE_UNLOADED;
+                return;
+            }
 
-        int bodyId = chunkDataStore.bodyIds[index];
-        if (bodyId != VxChunkDataStore.UNUSED_BODY_ID) {
+            int bodyId = chunkDataStore.bodyIds[index];
+
             if (shape != null) {
-                bodyInterface.setShape(bodyId, shape, true, EActivation.DontActivate);
-                chunkDataStore.setShape(index, shape);
+                if (bodyId != VxChunkDataStore.UNUSED_BODY_ID) { // Body exists, update its shape
+                    bodyInterface.setShape(bodyId, shape, true, EActivation.DontActivate);
+                } else { // Body does not exist, create it
+                    RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
+                    try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxLayers.TERRAIN)) {
+                        bcs.setEnhancedInternalEdgeRemoval(true);
+                        // createBody transfers ownership of the shape's native object to the new body.
+                        Body body = bodyInterface.createBody(bcs);
+                        if (body != null) {
+                            chunkDataStore.bodyIds[index] = body.getId();
+                        } else {
+                            VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}", pos);
+                            chunkDataStore.states[index] = STATE_UNLOADED;
+                        }
+                    }
+                }
+                // The shape's native object is now owned by the body. Store our own independent reference.
+                chunkDataStore.setShape(index, shape.getPtr().toRefC());
                 chunkDataStore.states[index] = wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE;
-            } else {
-                removeBodyAndShape(index, bodyInterface);
+            } else { // No shape generated
+                if (bodyId != VxChunkDataStore.UNUSED_BODY_ID) {
+                    removeBodyAndShape(index, bodyInterface);
+                }
+                chunkDataStore.setShape(index, null);
                 chunkDataStore.states[index] = STATE_AIR_CHUNK;
             }
-        } else if (shape != null) {
-            RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
-            try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxLayers.TERRAIN)) {
-                Body body = bodyInterface.createBody(bcs);
-                if (body != null) {
-                    body.setFriction(0.65f);
-                    chunkDataStore.bodyIds[index] = body.getId();
-                    chunkDataStore.setShape(index, shape);
-                    chunkDataStore.states[index] = wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE;
-                } else {
-                    VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}", pos);
-                    shape.close();
-                    chunkDataStore.states[index] = STATE_UNLOADED;
-                }
+            chunkDataStore.isPlaceholder[index] = isInitialBuild;
+            if (wasActive) {
+                activateChunk(pos, index);
             }
-        } else {
-            chunkDataStore.states[index] = STATE_AIR_CHUNK;
-        }
-
-        chunkDataStore.isPlaceholder[index] = isInitialBuild;
-        if (wasActive) {
-            activateChunk(pos, index);
+        } finally {
+            if (shape != null) {
+                shape.close(); // Close the temporary reference passed to this method.
+            }
         }
     }
 
     private void activateChunk(VxSectionPos pos, int index) {
-        if (chunkDataStore.states[index] == STATE_AIR_CHUNK) {
-            return;
-        }
+        if (chunkDataStore.states[index] == STATE_AIR_CHUNK) return;
 
         if (chunkDataStore.bodyIds[index] != VxChunkDataStore.UNUSED_BODY_ID && chunkDataStore.states[index] == STATE_READY_INACTIVE) {
             chunkDataStore.states[index] = STATE_READY_ACTIVE;
@@ -387,6 +381,9 @@ public class VxTerrainSystem implements Runnable {
         chunkDataStore.setShape(index, null);
     }
 
+    /**
+     * Called when an object tracker needs a chunk. Increments the reference count.
+     */
     public void requestChunk(VxSectionPos pos) {
         int index = chunkDataStore.addChunk(pos);
         if (++chunkDataStore.referenceCounts[index] == 1) {
@@ -394,6 +391,10 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
+    /**
+     * Called when an object tracker no longer needs a chunk. Decrements the reference count.
+     * If the count reaches zero, the chunk is unloaded.
+     */
     public void releaseChunk(VxSectionPos pos) {
         Integer index = chunkDataStore.getIndexForPos(pos);
         if (index != null && --chunkDataStore.referenceCounts[index] == 0) {
@@ -401,6 +402,9 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
+    /**
+     * Increases the priority of a chunk's generation task.
+     */
     public void prioritizeChunk(VxSectionPos pos, VxTaskPriority priority) {
         Integer index = chunkDataStore.getIndexForPos(pos);
         if (index != null && (isPlaceholder(pos, index) || !isReady(pos, index))) {
@@ -408,14 +412,18 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
+    /**
+     * The main loop of the worker thread. Updates which chunks are loaded and active based on object positions.
+     */
     private void updateTrackers() {
-        if (!isInitialized.get()) {
+        if (!isInitialized.get() || jobSystem.isShutdown()) {
             return;
         }
 
         List<VxBody> currentObjects = new ArrayList<>(physicsWorld.getObjectManager().getAllObjects());
         Set<UUID> currentObjectIds = currentObjects.stream().map(VxBody::getPhysicsId).collect(Collectors.toSet());
 
+        // Clean up trackers for objects that no longer exist
         objectTrackedChunks.keySet().removeIf(id -> {
             if (!currentObjectIds.contains(id)) {
                 removeObjectTracking(id);
@@ -424,6 +432,7 @@ public class VxTerrainSystem implements Runnable {
             return false;
         });
 
+        // If no objects, deactivate all chunks
         if (currentObjects.isEmpty()) {
             for (int index : chunkDataStore.getActiveIndices()) {
                 if (chunkDataStore.states[index] == STATE_READY_ACTIVE) {
@@ -433,6 +442,7 @@ public class VxTerrainSystem implements Runnable {
             return;
         }
 
+        // Update preloading for a subset of objects each tick
         int objectsToUpdate = Math.min(currentObjects.size(), OBJECT_PRELOAD_UPDATE_STRIDE);
         Map<Integer, VxBody> objectsToPreload = new HashMap<>();
 
@@ -441,19 +451,10 @@ public class VxTerrainSystem implements Runnable {
                 objectUpdateIndex = 0;
             }
             VxBody obj = currentObjects.get(objectUpdateIndex++);
-
-            int dataIndex = obj.getDataStoreIndex();
-            if (dataIndex == -1 || obj.getBodyId() == 0) {
-                removeObjectTracking(obj.getPhysicsId());
-                continue;
-            }
+            if (obj.getDataStoreIndex() == -1 || obj.getBodyId() == 0) continue;
 
             int cooldown = objectUpdateCooldowns.getOrDefault(obj.getPhysicsId(), 0);
-            float velSq = objectDataStore.velX[dataIndex] * objectDataStore.velX[dataIndex] +
-                    objectDataStore.velY[dataIndex] * objectDataStore.velY[dataIndex] +
-                    objectDataStore.velZ[dataIndex] * objectDataStore.velZ[dataIndex];
-
-            if (cooldown > 0 && velSq < MAX_SPEED_FOR_COOLDOWN_SQR) {
+            if (cooldown > 0) { // Simple cooldown to reduce frequent updates for static objects
                 objectUpdateCooldowns.put(obj.getPhysicsId(), cooldown - 1);
             } else {
                 objectsToPreload.put(obj.getBodyId(), obj);
@@ -462,25 +463,16 @@ public class VxTerrainSystem implements Runnable {
 
         if (!objectsToPreload.isEmpty()) {
             int[] preloadBodyIds = objectsToPreload.keySet().stream().mapToInt(Integer::intValue).toArray();
-            BodyLockMultiRead lock = new BodyLockMultiRead(physicsWorld.getPhysicsSystem().getBodyLockInterfaceNoLock(), preloadBodyIds);
-            try {
+            try (BodyLockMultiRead lock = new BodyLockMultiRead(physicsWorld.getPhysicsSystem().getBodyLockInterfaceNoLock(), preloadBodyIds)) {
                 for (int i = 0; i < preloadBodyIds.length; i++) {
-                    int bodyId = preloadBodyIds[i];
-                    ConstBody body = lock.getBody(i);
-                    VxBody obj = objectsToPreload.get(bodyId);
-
+                    VxBody obj = objectsToPreload.get(preloadBodyIds[i]);
                     objectUpdateCooldowns.put(obj.getPhysicsId(), UPDATE_INTERVAL_TICKS);
-                    processPreloadForLockedBody(obj, body);
+                    processPreloadForLockedBody(obj, lock.getBody(i));
                 }
-            } finally {
-                lock.releaseLocks();
             }
         }
 
-        if (jobSystem.isShutdown()) {
-            return;
-        }
-
+        // Determine the complete set of chunks that need to be active for ALL objects
         List<List<VxBody>> batches = partitionList(currentObjects, OBJECT_ACTIVATION_BATCH_SIZE);
         List<CompletableFuture<Set<VxSectionPos>>> futures = new ArrayList<>();
 
@@ -488,12 +480,10 @@ public class VxTerrainSystem implements Runnable {
             futures.add(CompletableFuture.supplyAsync(() -> {
                 Set<VxSectionPos> required = new HashSet<>();
                 if (batch.isEmpty()) return required;
-
                 int[] batchBodyIds = batch.stream().mapToInt(VxBody::getBodyId).filter(id -> id != 0).toArray();
                 if (batchBodyIds.length == 0) return required;
 
-                BodyLockMultiRead batchLock = new BodyLockMultiRead(physicsWorld.getPhysicsSystem().getBodyLockInterfaceNoLock(), batchBodyIds);
-                try {
+                try (BodyLockMultiRead batchLock = new BodyLockMultiRead(physicsWorld.getPhysicsSystem().getBodyLockInterfaceNoLock(), batchBodyIds)) {
                     for (int i = 0; i < batchBodyIds.length; i++) {
                         ConstBody body = batchLock.getBody(i);
                         if (body != null) {
@@ -501,8 +491,6 @@ public class VxTerrainSystem implements Runnable {
                             calculateRequiredChunks(bounds.getMin(), bounds.getMax(), body.getLinearVelocity(), ACTIVATION_RADIUS_CHUNKS, required);
                         }
                     }
-                } finally {
-                    batchLock.releaseLocks();
                 }
                 return required;
             }, jobSystem.getExecutor()));
@@ -513,22 +501,20 @@ public class VxTerrainSystem implements Runnable {
                 .flatMap(Set::stream)
                 .collect(Collectors.toSet());
 
+        // Activate required chunks and deactivate unneeded ones
         activeSet.forEach(pos -> prioritizeChunk(pos, VxTaskPriority.CRITICAL));
-
-        for (int index : chunkDataStore.getActiveIndices()) {
+        chunkDataStore.getActiveIndices().forEach(index -> {
             VxSectionPos pos = chunkDataStore.getPosForIndex(index);
-            if (pos == null) continue;
-            if (chunkDataStore.states[index] == STATE_READY_ACTIVE && !activeSet.contains(pos)) {
-                deactivateChunk(index);
+            if (pos != null) {
+                if (chunkDataStore.states[index] == STATE_READY_ACTIVE && !activeSet.contains(pos)) {
+                    deactivateChunk(index);
+                }
             }
-        }
-
-        for (VxSectionPos pos : activeSet) {
+        });
+        activeSet.forEach(pos -> {
             Integer index = chunkDataStore.getIndexForPos(pos);
-            if (index != null) {
-                activateChunk(pos, index);
-            }
-        }
+            if (index != null) activateChunk(pos, index);
+        });
     }
 
     private void processPreloadForLockedBody(VxBody obj, ConstBody body) {
@@ -538,17 +524,11 @@ public class VxTerrainSystem implements Runnable {
             return;
         }
 
-        int dataIndex = obj.getDataStoreIndex();
-        float velX = objectDataStore.velX[dataIndex];
-        float velY = objectDataStore.velY[dataIndex];
-        float velZ = objectDataStore.velZ[dataIndex];
-
         Set<VxSectionPos> required = new HashSet<>();
         ConstAaBox bounds = body.getWorldSpaceBounds();
-        calculateRequiredChunks(bounds.getMin(), bounds.getMax(), velX, velY, velZ, PRELOAD_RADIUS_CHUNKS, required);
+        calculateRequiredChunks(bounds.getMin(), bounds.getMax(), body.getLinearVelocity(), PRELOAD_RADIUS_CHUNKS, required);
 
         Set<VxSectionPos> previouslyTracked = objectTrackedChunks.computeIfAbsent(id, k -> new HashSet<>());
-
         previouslyTracked.removeIf(pos -> {
             if (!required.contains(pos)) {
                 releaseChunk(pos);
@@ -556,12 +536,11 @@ public class VxTerrainSystem implements Runnable {
             }
             return false;
         });
-
-        for (VxSectionPos pos : required) {
+        required.forEach(pos -> {
             if (previouslyTracked.add(pos)) {
                 requestChunk(pos);
             }
-        }
+        });
     }
 
     private void removeObjectTracking(UUID id) {
@@ -573,18 +552,14 @@ public class VxTerrainSystem implements Runnable {
     }
 
     private void calculateRequiredChunks(Vec3 min, Vec3 max, Vec3 velocity, int radius, Set<VxSectionPos> outChunks) {
-        calculateRequiredChunks(min, max, velocity.getX(), velocity.getY(), velocity.getZ(), radius, outChunks);
-    }
-
-    private void calculateRequiredChunks(Vec3 min, Vec3 max, float velX, float velY, float velZ, int radius, Set<VxSectionPos> outChunks) {
         addChunksForBounds(min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ(), radius, outChunks);
 
-        double predMinX = min.getX() + velX * PREDICTION_SECONDS;
-        double predMinY = min.getY() + velY * PREDICTION_SECONDS;
-        double predMinZ = min.getZ() + velZ * PREDICTION_SECONDS;
-        double predMaxX = max.getX() + velX * PREDICTION_SECONDS;
-        double predMaxY = max.getY() + velY * PREDICTION_SECONDS;
-        double predMaxZ = max.getZ() + velZ * PREDICTION_SECONDS;
+        double predMinX = min.getX() + velocity.getX() * PREDICTION_SECONDS;
+        double predMinY = min.getY() + velocity.getY() * PREDICTION_SECONDS;
+        double predMinZ = min.getZ() + velocity.getZ() * PREDICTION_SECONDS;
+        double predMaxX = max.getX() + velocity.getX() * PREDICTION_SECONDS;
+        double predMaxY = max.getY() + velocity.getY() * PREDICTION_SECONDS;
+        double predMaxZ = max.getZ() + velocity.getZ() * PREDICTION_SECONDS;
 
         addChunksForBounds(predMinX, predMinY, predMinZ, predMaxX, predMaxY, predMaxZ, radius, outChunks);
     }
@@ -611,10 +586,8 @@ public class VxTerrainSystem implements Runnable {
     }
 
     private static <T> List<List<T>> partitionList(List<T> list, int batchSize) {
-        if (list.isEmpty()) {
-            return Collections.emptyList();
-        }
-        int numBatches = (int) Math.ceil((double) list.size() / (double) batchSize);
+        if (list.isEmpty()) return Collections.emptyList();
+        int numBatches = (list.size() + batchSize - 1) / batchSize;
         return IntStream.range(0, numBatches)
                 .mapToObj(i -> list.subList(i * batchSize, Math.min((i + 1) * batchSize, list.size())))
                 .collect(Collectors.toList());
@@ -640,18 +613,8 @@ public class VxTerrainSystem implements Runnable {
     }
 
     public boolean isSectionReady(SectionPos sectionPos) {
-        if (sectionPos == null) {
-            return false;
-        }
+        if (sectionPos == null) return false;
         return isReady(new VxSectionPos(sectionPos.x(), sectionPos.y(), sectionPos.z()));
-    }
-
-    public boolean isTerrainBody(int bodyId) {
-        if (bodyId <= 0) return false;
-        for (int id : chunkDataStore.bodyIds) {
-            if (id == bodyId) return true;
-        }
-        return false;
     }
 
     public ServerLevel getLevel() {
