@@ -19,7 +19,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.vehicle.VxClientVehicle;
-import net.xmx.velthoric.physics.vehicle.wheel.WheelRenderState;
+import net.xmx.velthoric.physics.vehicle.wheel.VxWheelRenderState;
 import org.joml.Quaternionf;
 
 import java.util.List;
@@ -72,7 +72,7 @@ public class VxClientCar extends VxClientVehicle {
 
         // Wheel rendering
         List<WheelSettingsWv> wheelSettingsList = this.getWheelSettings();
-        List<WheelRenderState> wheelRenderStates = this.getInterpolatedWheelStates();
+        List<VxWheelRenderState> wheelRenderStates = this.getInterpolatedWheelStates();
 
         if (wheelRenderStates == null || wheelSettingsList.size() != wheelRenderStates.size()) {
             poseStack.popPose();
@@ -81,7 +81,7 @@ public class VxClientCar extends VxClientVehicle {
 
         for (int i = 0; i < wheelSettingsList.size(); i++) {
             WheelSettingsWv wheelSettings = wheelSettingsList.get(i);
-            WheelRenderState wheelState = wheelRenderStates.get(i);
+            VxWheelRenderState wheelState = wheelRenderStates.get(i);
 
             if (wheelState == null) continue;
 

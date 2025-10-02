@@ -13,5 +13,5 @@ package net.xmx.velthoric.physics.vehicle.wheel;
  * @param suspensionLength The interpolated current length of the suspension spring.
  * @author xI-Mx-Ix
  */
-public record WheelRenderState(float rotationAngle, float steerAngle, float suspensionLength) {
+public record VxWheelRenderState(float rotationAngle, float steerAngle, float suspensionLength) {
 }

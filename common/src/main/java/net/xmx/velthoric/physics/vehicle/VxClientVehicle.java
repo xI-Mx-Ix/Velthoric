@@ -12,7 +12,7 @@ import net.minecraft.util.Mth;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.body.VxClientRigidBody;
-import net.xmx.velthoric.physics.vehicle.wheel.WheelRenderState;
+import net.xmx.velthoric.physics.vehicle.wheel.VxWheelRenderState;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,14 +27,14 @@ import java.util.UUID;
  */
 public abstract class VxClientVehicle extends VxClientRigidBody {
 
-    private WheelRenderState[] prevWheelStates;
-    private WheelRenderState[] targetWheelStates;
-    protected final List<WheelRenderState> interpolatedWheelStates;
+    private VxWheelRenderState[] prevWheelStates;
+    private VxWheelRenderState[] targetWheelStates;
+    protected final List<VxWheelRenderState> interpolatedWheelStates;
 
     protected VxClientVehicle(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
         super(id, manager, dataStoreIndex, objectType);
-        this.prevWheelStates = new WheelRenderState[0];
-        this.targetWheelStates = new WheelRenderState[0];
+        this.prevWheelStates = new VxWheelRenderState[0];
+        this.targetWheelStates = new VxWheelRenderState[0];
         this.interpolatedWheelStates = new ArrayList<>();
     }
 
@@ -56,7 +56,7 @@ public abstract class VxClientVehicle extends VxClientRigidBody {
     public void updateWheelState(int wheelIndex, float rotation, float steer, float suspension) {
         if (wheelIndex < 0 || wheelIndex >= targetWheelStates.length) return;
         this.prevWheelStates[wheelIndex] = this.targetWheelStates[wheelIndex];
-        this.targetWheelStates[wheelIndex] = new WheelRenderState(rotation, steer, suspension);
+        this.targetWheelStates[wheelIndex] = new VxWheelRenderState(rotation, steer, suspension);
     }
 
     /**
@@ -71,10 +71,10 @@ public abstract class VxClientVehicle extends VxClientRigidBody {
 
         // Resize wheel state arrays if the number of wheels has changed
         if (wheelCount != targetWheelStates.length) {
-            this.prevWheelStates = new WheelRenderState[wheelCount];
-            this.targetWheelStates = new WheelRenderState[wheelCount];
+            this.prevWheelStates = new VxWheelRenderState[wheelCount];
+            this.targetWheelStates = new VxWheelRenderState[wheelCount];
             this.interpolatedWheelStates.clear();
-            WheelRenderState initial = new WheelRenderState(0, 0, 0);
+            VxWheelRenderState initial = new VxWheelRenderState(0, 0, 0);
             for (int i = 0; i < wheelCount; i++) {
                 this.prevWheelStates[i] = initial;
                 this.targetWheelStates[i] = initial;
@@ -84,8 +84,8 @@ public abstract class VxClientVehicle extends VxClientRigidBody {
 
         if (targetWheelStates.length > 0) {
             for (int i = 0; i < targetWheelStates.length; i++) {
-                WheelRenderState prev = prevWheelStates[i];
-                WheelRenderState target = targetWheelStates[i];
+                VxWheelRenderState prev = prevWheelStates[i];
+                VxWheelRenderState target = targetWheelStates[i];
 
                 if (prev == null || target == null) continue;
 
@@ -93,7 +93,7 @@ public abstract class VxClientVehicle extends VxClientRigidBody {
                 float steer = Mth.lerp(partialTicks, prev.steerAngle(), target.steerAngle());
                 float susp = Mth.lerp(partialTicks, prev.suspensionLength(), target.suspensionLength());
 
-                interpolatedWheelStates.set(i, new WheelRenderState(rot, steer, susp));
+                interpolatedWheelStates.set(i, new VxWheelRenderState(rot, steer, susp));
             }
         }
     }
@@ -108,7 +108,7 @@ public abstract class VxClientVehicle extends VxClientRigidBody {
     /**
      * @return The list of interpolated wheel states for rendering.
      */
-    public List<WheelRenderState> getInterpolatedWheelStates() {
+    public List<VxWheelRenderState> getInterpolatedWheelStates() {
         return interpolatedWheelStates;
     }
 }
