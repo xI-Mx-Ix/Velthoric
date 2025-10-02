@@ -19,7 +19,8 @@ import net.xmx.velthoric.physics.object.packet.VxSpawnData;
 import net.xmx.velthoric.physics.object.packet.batch.*;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
-import net.xmx.velthoric.physics.vehicle.packet.S2CUpdateWheelsPacket;
+import net.xmx.velthoric.physics.vehicle.sync.S2CUpdateWheelsPacket;
+import net.xmx.velthoric.physics.vehicle.sync.VxWheelNetworkDispatcher;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 
 import java.util.*;
@@ -42,6 +43,7 @@ public class VxObjectNetworkDispatcher {
     private final ServerLevel level;
     private final VxObjectManager manager;
     private final VxObjectDataStore dataStore;
+    private final VxWheelNetworkDispatcher wheelDispatcher;
 
     // --- Constants for network tuning ---
     private static final int NETWORK_THREAD_TICK_RATE_MS = 10;
@@ -75,6 +77,7 @@ public class VxObjectNetworkDispatcher {
         this.level = level;
         this.manager = manager;
         this.dataStore = manager.getDataStore();
+        this.wheelDispatcher = new VxWheelNetworkDispatcher();
     }
 
     /**
@@ -111,8 +114,8 @@ public class VxObjectNetworkDispatcher {
             try {
                 long cycleStartTime = System.nanoTime();
                 sendStateUpdates();
-                sendSynchronizedDataUpdates(); // New method call
-                sendWheelUpdates();
+                sendSynchronizedDataUpdates();
+                this.wheelDispatcher.dispatchUpdates(this.level, this.manager, this.objectTrackers);
                 long cycleEndTime = System.nanoTime();
                 long cycleDurationMs = (cycleEndTime - cycleStartTime) / 1_000_000;
                 long sleepTime = Math.max(0, NETWORK_THREAD_TICK_RATE_MS - cycleDurationMs);
@@ -166,66 +169,6 @@ public class VxObjectNetworkDispatcher {
                 vertexUpdatesByPlayer.forEach(this::sendVertexDataPackets);
             });
         }
-    }
-
-    /**
-     * Collects wheel state updates for all dirty vehicles and sends them to tracking players.
-     * This method runs on the dedicated network sync thread but schedules the actual
-     * packet sending on the main server thread for thread safety with Netty.
-     */
-    private void sendWheelUpdates() {
-        // Step 1: Collect all vehicles that have been marked with dirty wheel states.
-        // This avoids iterating over non-vehicle objects.
-        List<VxVehicle> dirtyVehicles = new ArrayList<>();
-        for (VxBody body : manager.getAllObjects()) {
-            if (body instanceof VxVehicle vehicle && vehicle.areWheelsDirty()) {
-                dirtyVehicles.add(vehicle);
-                // Reset the dirty flag immediately to prevent sending the same data multiple times.
-                vehicle.clearWheelsDirty();
-            }
-        }
-
-        // If no vehicles need updates, exit early.
-        if (dirtyVehicles.isEmpty()) {
-            return;
-        }
-
-        // Step 2: Schedule the packet creation and sending on the main server thread.
-        // This is crucial because network operations (sending packets) must be done
-        // from the main thread in Minecraft.
-        level.getServer().execute(() -> {
-            for (VxVehicle vehicle : dirtyVehicles) {
-                // Find all players who are currently tracking this vehicle.
-                Set<ServerPlayer> trackers = objectTrackers.get(vehicle.getPhysicsId());
-                if (trackers == null || trackers.isEmpty()) {
-                    continue; // Skip if no one is watching this vehicle.
-                }
-
-                List<VxWheel> wheels = vehicle.getWheels();
-                int wheelCount = wheels.size();
-                if (wheelCount == 0) continue;
-
-                // Step 3: Gather the wheel data into arrays for the packet constructor.
-                float[] rotations = new float[wheelCount];
-                float[] steers = new float[wheelCount];
-                float[] suspensions = new float[wheelCount];
-
-                for (int i = 0; i < wheelCount; i++) {
-                    VxWheel wheel = wheels.get(i);
-                    rotations[i] = wheel.getRotationAngle();
-                    steers[i] = wheel.getSteerAngle();
-                    suspensions[i] = wheel.getSuspensionLength();
-                }
-
-                // Step 4: Create a single packet with all wheel data for this vehicle.
-                S2CUpdateWheelsPacket packet = new S2CUpdateWheelsPacket(vehicle.getPhysicsId(), wheelCount, rotations, steers, suspensions);
-
-                // Step 5: Send the packet to every player tracking this vehicle.
-                for (ServerPlayer player : trackers) {
-                    VxPacketHandler.sendToPlayer(packet, player);
-                }
-            }
-        });
     }
 
     /**
