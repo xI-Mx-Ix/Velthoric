@@ -12,7 +12,6 @@ import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializer;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
-import net.xmx.velthoric.physics.vehicle.controller.VxWheeledVehicleController;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
@@ -20,40 +19,23 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
- * Abstract base class for all vehicle physics objects.
- * This class extends VxRigidBody and manages the Jolt VehicleConstraint, controller,
- * and wheels associated with the vehicle's chassis. It also defines the synchronized
- * data accessors for vehicle properties.
+ * Abstract base class for all vehicle physics objects. This class manages the
+ * Jolt VehicleConstraint and wheels. The management of the specific vehicle
+ * controller is delegated to subclasses.
  *
  * @author xI-Mx-Ix
  */
 public abstract class VxVehicle extends VxRigidBody {
 
-    /**
-     * Contains custom data serializers for vehicle-specific Jolt types.
-     * These would typically be registered in a central registry.
-     */
     private static class VehicleDataSerializers {
-        public static final VxDataSerializer<Vec3> VEC3 = new VxDataSerializer<>() {
-            @Override public void write(VxByteBuf buf, Vec3 value) {
-                buf.writeFloat(value.getX());
-                buf.writeFloat(value.getY());
-                buf.writeFloat(value.getZ());
-            }
-            @Override public Vec3 read(VxByteBuf buf) {
-                return new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
-            }
-            @Override public Vec3 copy(Vec3 value) { return new Vec3(value); }
-        };
-
         public static final VxDataSerializer<WheelSettingsWv> WHEEL_SETTINGS_WV = new VxDataSerializer<>() {
             @Override public void write(VxByteBuf buf, WheelSettingsWv value) {
                 try (StringStream stream = new StringStream()) {
                     value.saveBinaryState(new StreamOutWrapper(stream));
-                    byte[] bytes = stream.str().getBytes();
-                    buf.writeByteArray(bytes);
+                    buf.writeByteArray(stream.str().getBytes());
                 }
             }
             @Override public WheelSettingsWv read(VxByteBuf buf) {
@@ -68,7 +50,10 @@ public abstract class VxVehicle extends VxRigidBody {
                 WheelSettingsWv newSettings = new WheelSettingsWv();
                 try (StringStream stream = new StringStream()) {
                     value.saveBinaryState(new StreamOutWrapper(stream));
-                    newSettings.restoreBinaryState(new StreamInWrapper(stream));
+                    byte[] bytes = stream.str().getBytes();
+                    try (StringStream readStream = new StringStream(new String(bytes))) {
+                        newSettings.restoreBinaryState(new StreamInWrapper(readStream));
+                    }
                 }
                 return newSettings;
             }
@@ -99,15 +84,13 @@ public abstract class VxVehicle extends VxRigidBody {
         };
     }
 
-    public static final VxDataAccessor<Vec3> DATA_CHASSIS_HALF_EXTENTS = VxDataAccessor.create(VxVehicle.class, VehicleDataSerializers.VEC3);
     public static final VxDataAccessor<List<WheelSettingsWv>> DATA_WHEELS_SETTINGS = VxDataAccessor.create(VxVehicle.class, VehicleDataSerializers.WHEEL_SETTINGS_LIST);
 
     protected List<VxWheel> wheels = Collections.emptyList();
     protected VehicleConstraintSettings constraintSettings;
     protected VehicleCollisionTester collisionTester;
 
-    private VehicleConstraint constraint;
-    private VxWheeledVehicleController controller;
+    protected VehicleConstraint constraint;
     private boolean wheelsDirty = false;
 
     protected VxVehicle(VxObjectType<? extends VxVehicle> type, VxPhysicsWorld world, UUID id) {
@@ -116,7 +99,6 @@ public abstract class VxVehicle extends VxRigidBody {
 
     @Override
     protected void defineSyncData() {
-        this.synchronizedData.define(DATA_CHASSIS_HALF_EXTENTS, new Vec3(1.0f, 0.5f, 2.0f));
         this.synchronizedData.define(DATA_WHEELS_SETTINGS, Collections.emptyList());
     }
 
@@ -124,24 +106,20 @@ public abstract class VxVehicle extends VxRigidBody {
     public void onBodyAdded(VxPhysicsWorld world) {
         super.onBodyAdded(world);
 
-        Body chassisBody = getBody();
-        if (chassisBody == null || constraintSettings == null) {
-            throw new IllegalStateException("Vehicle cannot be initialized without a chassis body or constraint settings.");
+        Body body = getBody();
+        if (body == null || constraintSettings == null) {
+            throw new IllegalStateException("Vehicle cannot be initialized without a body or constraint settings.");
         }
 
-        this.constraint = new VehicleConstraint(chassisBody, constraintSettings);
+        this.constraint = new VehicleConstraint(body, constraintSettings);
 
         if (this.collisionTester == null) {
-            this.collisionTester = new VehicleCollisionTesterCastCylinder(chassisBody.getObjectLayer());
+            this.collisionTester = new VehicleCollisionTesterCastCylinder(body.getObjectLayer());
         }
         this.constraint.setVehicleCollisionTester(collisionTester);
 
         world.getPhysicsSystem().addConstraint(constraint);
         world.getPhysicsSystem().addStepListener(constraint.getStepListener());
-
-        if (constraint.getController() instanceof WheeledVehicleController joltController) {
-            this.controller = new VxWheeledVehicleController(joltController);
-        }
     }
 
     @Override
@@ -184,6 +162,32 @@ public abstract class VxVehicle extends VxRigidBody {
         }
     }
 
+    @Override
+    public void writePersistenceData(VxByteBuf buf) {
+        List<WheelSettingsWv> wheelSettings = this.getSyncData(DATA_WHEELS_SETTINGS);
+        buf.writeVarInt(wheelSettings.size());
+        for (WheelSettingsWv setting : wheelSettings) {
+            try (StringStream stream = new StringStream()) {
+                setting.saveBinaryState(new StreamOutWrapper(stream));
+                buf.writeByteArray(stream.str().getBytes());
+            }
+        }
+    }
+
+    @Override
+    public void readPersistenceData(VxByteBuf buf) {
+        int wheelCount = buf.readVarInt();
+        if (wheelCount == this.wheels.size()) {
+            for (VxWheel wheel : wheels) {
+                byte[] bytes = buf.readByteArray();
+                try (StringStream stream = new StringStream(new String(bytes))) {
+                    wheel.getSettings().restoreBinaryState(new StreamInWrapper(stream));
+                }
+            }
+            this.setSyncData(DATA_WHEELS_SETTINGS, this.wheels.stream().map(VxWheel::getSettings).collect(Collectors.toList()));
+        }
+    }
+
     public void markWheelsDirty() {
         this.wheelsDirty = true;
     }
@@ -198,9 +202,5 @@ public abstract class VxVehicle extends VxRigidBody {
 
     public List<VxWheel> getWheels() {
         return wheels;
-    }
-
-    public VxWheeledVehicleController getController() {
-        return controller;
     }
 }

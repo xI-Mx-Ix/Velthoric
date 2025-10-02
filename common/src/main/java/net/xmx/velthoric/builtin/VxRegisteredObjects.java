@@ -7,13 +7,14 @@ package net.xmx.velthoric.builtin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
+import net.xmx.velthoric.builtin.block.BlockClientRigidBody;
 import net.xmx.velthoric.builtin.block.BlockRigidBody;
 import net.xmx.velthoric.builtin.box.BoxClientRigidBody;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
-import net.xmx.velthoric.builtin.car.CarClientRigidBody;
-import net.xmx.velthoric.builtin.car.CarRigidBody;
 import net.xmx.velthoric.builtin.cloth.ClothClientSoftBody;
 import net.xmx.velthoric.builtin.cloth.ClothSoftBody;
+import net.xmx.velthoric.builtin.driveable.CarImpl;
+import net.xmx.velthoric.builtin.driveable.MotorcycleImpl;
 import net.xmx.velthoric.builtin.marble.MarbleClientRigidBody;
 import net.xmx.velthoric.builtin.marble.MarbleRigidBody;
 import net.xmx.velthoric.builtin.rope.RopeClientSoftBody;
@@ -22,8 +23,15 @@ import net.xmx.velthoric.builtin.sphere.SphereClientRigidBody;
 import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
-import net.xmx.velthoric.builtin.block.BlockClientRigidBody;
+import net.xmx.velthoric.physics.vehicle.type.car.VxClientCar;
+import net.xmx.velthoric.physics.vehicle.type.motorcycle.VxClientMotorcycle;
 
+/**
+ * A central registry for all built-in physics object types. This class handles
+ * the registration of server-side object logic and client-side rendering factories.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxRegisteredObjects {
 
     public static final VxObjectType<BlockRigidBody> BLOCK = VxObjectType.Builder
@@ -51,10 +59,18 @@ public class VxRegisteredObjects {
             .create(RopeSoftBody::new)
             .build(new ResourceLocation("velthoric", "rope"));
 
-    public static final VxObjectType<CarRigidBody> CAR = VxObjectType.Builder
-            .create(CarRigidBody::new)
+    public static final VxObjectType<CarImpl> CAR = VxObjectType.Builder
+            .create(CarImpl::new)
             .build(new ResourceLocation("velthoric", "car"));
 
+    public static final VxObjectType<MotorcycleImpl> MOTORCYCLE = VxObjectType.Builder
+            .create(MotorcycleImpl::new)
+            .build(new ResourceLocation("velthoric", "motorcycle"));
+
+    /**
+     * Registers all server-side physics object types. This should be called
+     * during the server initialization phase.
+     */
     public static void register() {
         var registry = VxObjectRegistry.getInstance();
         registry.register(BLOCK);
@@ -64,8 +80,13 @@ public class VxRegisteredObjects {
         registry.register(CLOTH);
         registry.register(ROPE);
         registry.register(CAR);
+        registry.register(MOTORCYCLE);
     }
 
+    /**
+     * Registers all client-side factory methods for creating client-side
+     * representations of physics objects. This should only be called on the client.
+     */
     @Environment(EnvType.CLIENT)
     public static void registerClientFactories() {
         var registry = VxObjectRegistry.getInstance();
@@ -75,6 +96,7 @@ public class VxRegisteredObjects {
         registry.registerClientFactory(MARBLE.getTypeId(), MarbleClientRigidBody::new);
         registry.registerClientFactory(CLOTH.getTypeId(), ClothClientSoftBody::new);
         registry.registerClientFactory(ROPE.getTypeId(), RopeClientSoftBody::new);
-        registry.registerClientFactory(CAR.getTypeId(), CarClientRigidBody::new);
+        registry.registerClientFactory(CAR.getTypeId(), VxClientCar::new);
+        registry.registerClientFactory(MOTORCYCLE.getTypeId(), VxClientMotorcycle::new);
     }
 }

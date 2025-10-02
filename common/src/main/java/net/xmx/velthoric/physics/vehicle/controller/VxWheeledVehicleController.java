@@ -7,8 +7,8 @@ package net.xmx.velthoric.physics.vehicle.controller;
 import com.github.stephengold.joltjni.WheeledVehicleController;
 
 /**
- * Manages driver input for a wheeled vehicle, acting as a wrapper around Jolt's
- * WheeledVehicleController.
+ * Manages driver input for a standard wheeled vehicle, acting as a wrapper
+ * around Jolt's WheeledVehicleController.
  *
  * @author xI-Mx-Ix
  */

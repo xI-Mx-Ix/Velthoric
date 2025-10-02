@@ -4,7 +4,9 @@
  */
 package net.xmx.velthoric.physics.vehicle;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.WheelSettingsWv;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import net.minecraft.util.Mth;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
@@ -18,6 +20,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
+ * The client-side base class for any vehicle. It handles the interpolation
+ * of wheel states for smooth rendering.
+ *
  * @author xI-Mx-Ix
  */
 public abstract class VxClientVehicle extends VxClientRigidBody {
@@ -36,7 +41,6 @@ public abstract class VxClientVehicle extends VxClientRigidBody {
     @Override
     protected void defineSyncData() {
         // Define synchronized data accessors that mirror the server-side VxVehicle
-        this.synchronizedData.define(VxVehicle.DATA_CHASSIS_HALF_EXTENTS, new Vec3());
         this.synchronizedData.define(VxVehicle.DATA_WHEELS_SETTINGS, Collections.emptyList());
     }
 
@@ -92,13 +96,6 @@ public abstract class VxClientVehicle extends VxClientRigidBody {
                 interpolatedWheelStates.set(i, new WheelRenderState(rot, steer, susp));
             }
         }
-    }
-
-    /**
-     * @return The chassis half extents, retrieved from synchronized data.
-     */
-    public Vec3 getChassisHalfExtents() {
-        return this.getSyncData(VxVehicle.DATA_CHASSIS_HALF_EXTENTS);
     }
 
     /**

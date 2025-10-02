@@ -2,52 +2,50 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.builtin.car;
+package net.xmx.velthoric.builtin.driveable;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
-import com.github.stephengold.joltjni.std.StringStream;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.AABB;
-import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.physics.riding.input.VxRideInput;
 import net.xmx.velthoric.physics.riding.seat.VxSeat;
-import net.xmx.velthoric.physics.vehicle.VxVehicle;
+import net.xmx.velthoric.physics.vehicle.type.car.VxCar;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
-import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
+ * A concrete implementation of a car, defining its physical properties like
+ * chassis size, wheel setup, engine, and transmission.
+ *
  * @author xI-Mx-Ix
  */
-public class CarRigidBody extends VxVehicle {
+public class CarImpl extends VxCar {
 
-    public CarRigidBody(VxObjectType<CarRigidBody> type, VxPhysicsWorld world, UUID id) {
+    public CarImpl(VxObjectType<CarImpl> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
+        addDriverSeat();
+    }
 
-        Vec3 chassisHalfExtents = new Vec3(1.1f, 0.5f, 2.4f);
+    @Override
+    protected VehicleConstraintSettings createConstraintSettings() {
         this.wheels = new ArrayList<>(4);
 
         float wheelRadius = 0.55f;
         float wheelWidth = 0.35f;
-
         float halfVehicleWidth = 1.0f;
         float halfVehicleLength = 2.0f;
-
         float suspensionMinLength = 0.3f;
         float suspensionMaxLength = 0.7f;
         float maxSteerAngleRad = (float) Math.toRadians(35.0);
-
         float suspensionFrequency = 1.8f;
         float suspensionDamping = 0.6f;
 
@@ -99,13 +97,9 @@ public class CarRigidBody extends VxVehicle {
         this.wheels.add(new VxWheel(frWheel));
         this.wheels.add(new VxWheel(rlWheel));
         this.wheels.add(new VxWheel(rrWheel));
-
-        // Set synchronized data which will be sent to clients
-        this.setSyncData(DATA_CHASSIS_HALF_EXTENTS, chassisHalfExtents);
         this.setSyncData(DATA_WHEELS_SETTINGS, this.wheels.stream().map(VxWheel::getSettings).collect(Collectors.toList()));
 
         WheeledVehicleControllerSettings controllerSettings = new WheeledVehicleControllerSettings();
-
         VehicleEngineSettings engineSettings = controllerSettings.getEngine();
         engineSettings.setMaxTorque(2600.0f);
         engineSettings.setMaxRpm(26500.0f);
@@ -124,13 +118,15 @@ public class CarRigidBody extends VxVehicle {
         differential.setRightWheel(3);
         differential.setDifferentialRatio(3.42f);
 
-        this.constraintSettings = new VehicleConstraintSettings();
-        this.constraintSettings.addWheels(flWheel, frWheel, rlWheel, rrWheel);
-        this.constraintSettings.setController(controllerSettings);
+        VehicleConstraintSettings settings = new VehicleConstraintSettings();
+        settings.addWheels(flWheel, frWheel, rlWheel, rrWheel);
+        settings.setController(controllerSettings);
+        return settings;
+    }
 
-        this.collisionTester = new VehicleCollisionTesterCastCylinder(VxLayers.DYNAMIC);
-
-        addDriverSeat();
+    @Override
+    protected VehicleCollisionTester createCollisionTester() {
+        return new VehicleCollisionTesterCastCylinder(VxLayers.DYNAMIC);
     }
 
     private void addDriverSeat() {
@@ -157,70 +153,5 @@ public class CarRigidBody extends VxVehicle {
 
             return factory.create(shapeSettings, bcs);
         }
-    }
-
-    @Override
-    public void writePersistenceData(VxByteBuf buf) {
-        Vec3 halfExtents = this.getSyncData(DATA_CHASSIS_HALF_EXTENTS);
-        buf.writeFloat(halfExtents.getX());
-        buf.writeFloat(halfExtents.getY());
-        buf.writeFloat(halfExtents.getZ());
-
-        List<WheelSettingsWv> wheelSettings = this.getSyncData(DATA_WHEELS_SETTINGS);
-        buf.writeVarInt(wheelSettings.size());
-        for (WheelSettingsWv setting : wheelSettings) {
-            try (StringStream stream = new StringStream()) {
-                setting.saveBinaryState(new StreamOutWrapper(stream));
-                byte[] bytes = stream.str().getBytes();
-                buf.writeByteArray(bytes);
-            }
-        }
-    }
-
-    @Override
-    public void readPersistenceData(VxByteBuf buf) {
-        Vec3 halfExtents = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
-        this.setSyncData(DATA_CHASSIS_HALF_EXTENTS, halfExtents);
-
-        int wheelCount = buf.readVarInt();
-        if (wheelCount == this.wheels.size()) {
-            for (VxWheel wheel : wheels) {
-                byte[] bytes = buf.readByteArray();
-                try (StringStream stream = new StringStream(new String(bytes))) {
-                    // Restore state into the existing settings object
-                    wheel.getSettings().restoreBinaryState(new StreamInWrapper(stream));
-                }
-            }
-            // The underlying WheelSettingsWv objects were modified.
-            // We must update the synchronized data to reflect this change and mark it as dirty for clients.
-            this.setSyncData(DATA_WHEELS_SETTINGS, this.wheels.stream().map(VxWheel::getSettings).collect(Collectors.toList()));
-        }
-    }
-
-    @Override
-    public void onStopRiding(ServerPlayer player) {
-        if (this.getController() != null) {
-            this.getController().setInput(0.0f, 0.0f, 0.0f, 0.0f);
-        }
-    }
-
-    @Override
-    public void handleDriverInput(ServerPlayer player, VxRideInput input) {
-        if (this.getController() == null) {
-            return;
-        }
-
-        float forward = 0.0f;
-        if (input.isForward()) forward = 1.0f;
-        if (input.isBackward()) forward = -1.0f;
-
-        float right = 0.0f;
-        if (input.isRight()) right = 1.0f;
-        if (input.isLeft()) right = -1.0f;
-
-        float brake = input.isBackward() ? 1.0f : 0.0f;
-        float handBrake = input.isUp() ? 1.0f : 0.0f;
-
-        this.getController().setInput(forward, right, brake, handBrake);
     }
 }
