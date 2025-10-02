@@ -4,20 +4,16 @@
  */
 package net.xmx.velthoric.physics.object.sync;
 
-import com.github.stephengold.joltjni.Color;
-import com.github.stephengold.joltjni.Float2;
-import com.github.stephengold.joltjni.Float3;
-import com.github.stephengold.joltjni.Plane;
-import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.UVec4;
-import com.github.stephengold.joltjni.Vec3;
-import com.github.stephengold.joltjni.Vec4;
-import com.github.stephengold.joltjni.VertexList;
+import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.ESpringMode;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.network.syncher.EntityDataSerializer;
 import net.xmx.velthoric.network.VxByteBuf;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A registry holding standard implementations of {@link VxDataSerializer} for common data types.
@@ -296,6 +292,104 @@ public final class VxDataSerializers {
                 copy.set(i, new Float3(value.get(i)));
             }
             return copy;
+        }
+    });
+
+    public static final VxDataSerializer<List<WheelSettingsWv>> WHEEL_SETTINGS_LIST = register(new VxDataSerializer<>() {
+
+        private final VxDataSerializer<WheelSettingsWv> WHEEL_SETTINGS_WV_MANUAL = new VxDataSerializer<>() {
+            @Override
+            public void write(VxByteBuf buf, WheelSettingsWv value) {
+
+                buf.writeVec3(value.getPosition());
+                buf.writeFloat(value.getRadius());
+                buf.writeFloat(value.getWidth());
+                buf.writeVec3(value.getSuspensionDirection());
+                buf.writeFloat(value.getSuspensionMinLength());
+                buf.writeFloat(value.getSuspensionMaxLength());
+                buf.writeFloat(value.getSuspensionPreloadLength());
+                buf.writeVec3(value.getSuspensionForcePoint());
+                buf.writeBoolean(value.getEnableSuspensionForcePoint());
+                buf.writeVec3(value.getSteeringAxis());
+                buf.writeVec3(value.getWheelUp());
+                buf.writeVec3(value.getWheelForward());
+
+                SpringSettings spring = value.getSuspensionSpring();
+                buf.writeVarInt(spring.getMode().ordinal());
+                buf.writeFloat(spring.getFrequency());
+                buf.writeFloat(spring.getDamping());
+                buf.writeBoolean(spring.hasStiffness());
+                if (spring.hasStiffness()) {
+                    buf.writeFloat(spring.getStiffness());
+                }
+
+                buf.writeFloat(value.getMaxSteerAngle());
+                buf.writeFloat(value.getMaxBrakeTorque());
+                buf.writeFloat(value.getMaxHandBrakeTorque());
+            }
+
+            @Override
+            public WheelSettingsWv read(VxByteBuf buf) {
+                WheelSettingsWv settings = new WheelSettingsWv();
+
+                settings.setPosition(buf.readVec3());
+                settings.setRadius(buf.readFloat());
+                settings.setWidth(buf.readFloat());
+                settings.setSuspensionDirection(buf.readVec3());
+                settings.setSuspensionMinLength(buf.readFloat());
+                settings.setSuspensionMaxLength(buf.readFloat());
+                settings.setSuspensionPreloadLength(buf.readFloat());
+                settings.setSuspensionForcePoint(buf.readVec3());
+                settings.setEnableSuspensionForcePoint(buf.readBoolean());
+                settings.setSteeringAxis(buf.readVec3());
+                settings.setWheelUp(buf.readVec3());
+                settings.setWheelForward(buf.readVec3());
+
+                SpringSettings spring = settings.getSuspensionSpring();
+                spring.setMode(ESpringMode.values()[buf.readVarInt()]);
+                spring.setFrequency(buf.readFloat());
+                spring.setDamping(buf.readFloat());
+                if (buf.readBoolean()) {
+                    spring.setStiffness(buf.readFloat());
+                }
+
+                settings.setMaxSteerAngle(buf.readFloat());
+                settings.setMaxBrakeTorque(buf.readFloat());
+                settings.setMaxHandBrakeTorque(buf.readFloat());
+
+                return settings;
+            }
+
+            @Override
+            public WheelSettingsWv copy(WheelSettingsWv value) {
+
+                return new WheelSettingsWv(value);
+            }
+        };
+
+        @Override
+        public void write(VxByteBuf buf, List<WheelSettingsWv> value) {
+            buf.writeVarInt(value.size());
+            for (WheelSettingsWv settings : value) {
+                WHEEL_SETTINGS_WV_MANUAL.write(buf, settings);
+            }
+        }
+
+        @Override
+        public List<WheelSettingsWv> read(VxByteBuf buf) {
+            int size = buf.readVarInt();
+            List<WheelSettingsWv> list = new ArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                list.add(WHEEL_SETTINGS_WV_MANUAL.read(buf));
+            }
+            return list;
+        }
+
+        @Override
+        public List<WheelSettingsWv> copy(List<WheelSettingsWv> value) {
+            return value.stream()
+                    .map(WHEEL_SETTINGS_WV_MANUAL::copy)
+                    .collect(Collectors.toList());
         }
     });
 

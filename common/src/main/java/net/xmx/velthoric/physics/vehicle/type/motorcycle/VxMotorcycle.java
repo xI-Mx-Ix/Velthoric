@@ -94,13 +94,15 @@ public abstract class VxMotorcycle extends VxVehicle {
     @Override
     public void writePersistenceData(VxByteBuf buf) {
         super.writePersistenceData(buf);
-        buf.writeVec3(this.getSyncData(DATA_CHASSIS_HALF_EXTENTS));
+        // Serialize chassis half extents using its defined data serializer for consistency.
+        DATA_CHASSIS_HALF_EXTENTS.getSerializer().write(buf, this.getSyncData(DATA_CHASSIS_HALF_EXTENTS));
     }
 
     @Override
     public void readPersistenceData(VxByteBuf buf) {
         super.readPersistenceData(buf);
-        this.setSyncData(DATA_CHASSIS_HALF_EXTENTS, buf.readVec3());
+        // Deserialize chassis half extents using its defined data serializer.
+        this.setSyncData(DATA_CHASSIS_HALF_EXTENTS, DATA_CHASSIS_HALF_EXTENTS.getSerializer().read(buf));
     }
 
     public VxWheeledVehicleController getController() {

@@ -5,12 +5,11 @@
 package net.xmx.velthoric.physics.vehicle;
 
 import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.std.StringStream;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
-import net.xmx.velthoric.physics.object.sync.VxDataSerializer;
+import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -19,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Abstract base class for all vehicle physics objects. This class manages the
@@ -30,61 +28,7 @@ import java.util.stream.Collectors;
  */
 public abstract class VxVehicle extends VxRigidBody {
 
-    private static class VehicleDataSerializers {
-        public static final VxDataSerializer<WheelSettingsWv> WHEEL_SETTINGS_WV = new VxDataSerializer<>() {
-            @Override public void write(VxByteBuf buf, WheelSettingsWv value) {
-                try (StringStream stream = new StringStream()) {
-                    value.saveBinaryState(new StreamOutWrapper(stream));
-                    buf.writeByteArray(stream.str().getBytes());
-                }
-            }
-            @Override public WheelSettingsWv read(VxByteBuf buf) {
-                WheelSettingsWv settings = new WheelSettingsWv();
-                byte[] bytes = buf.readByteArray();
-                try (StringStream stream = new StringStream(new String(bytes))) {
-                    settings.restoreBinaryState(new StreamInWrapper(stream));
-                }
-                return settings;
-            }
-            @Override public WheelSettingsWv copy(WheelSettingsWv value) {
-                WheelSettingsWv newSettings = new WheelSettingsWv();
-                try (StringStream stream = new StringStream()) {
-                    value.saveBinaryState(new StreamOutWrapper(stream));
-                    byte[] bytes = stream.str().getBytes();
-                    try (StringStream readStream = new StringStream(new String(bytes))) {
-                        newSettings.restoreBinaryState(new StreamInWrapper(readStream));
-                    }
-                }
-                return newSettings;
-            }
-        };
-
-        public static final VxDataSerializer<List<WheelSettingsWv>> WHEEL_SETTINGS_LIST = new VxDataSerializer<>() {
-            @Override public void write(VxByteBuf buf, List<WheelSettingsWv> value) {
-                buf.writeVarInt(value.size());
-                for (WheelSettingsWv settings : value) {
-                    WHEEL_SETTINGS_WV.write(buf, settings);
-                }
-            }
-            @Override public List<WheelSettingsWv> read(VxByteBuf buf) {
-                int size = buf.readVarInt();
-                List<WheelSettingsWv> list = new ArrayList<>(size);
-                for (int i = 0; i < size; i++) {
-                    list.add(WHEEL_SETTINGS_WV.read(buf));
-                }
-                return list;
-            }
-            @Override public List<WheelSettingsWv> copy(List<WheelSettingsWv> value) {
-                List<WheelSettingsWv> newList = new ArrayList<>(value.size());
-                for (WheelSettingsWv settings : value) {
-                    newList.add(WHEEL_SETTINGS_WV.copy(settings));
-                }
-                return newList;
-            }
-        };
-    }
-
-    public static final VxDataAccessor<List<WheelSettingsWv>> DATA_WHEELS_SETTINGS = VxDataAccessor.create(VxVehicle.class, VehicleDataSerializers.WHEEL_SETTINGS_LIST);
+    public static final VxDataAccessor<List<WheelSettingsWv>> DATA_WHEELS_SETTINGS = VxDataAccessor.create(VxVehicle.class, VxDataSerializers.WHEEL_SETTINGS_LIST);
 
     protected List<VxWheel> wheels = Collections.emptyList();
     protected VehicleConstraintSettings constraintSettings;
@@ -164,27 +108,20 @@ public abstract class VxVehicle extends VxRigidBody {
 
     @Override
     public void writePersistenceData(VxByteBuf buf) {
-        List<WheelSettingsWv> wheelSettings = this.getSyncData(DATA_WHEELS_SETTINGS);
-        buf.writeVarInt(wheelSettings.size());
-        for (WheelSettingsWv setting : wheelSettings) {
-            try (StringStream stream = new StringStream()) {
-                setting.saveBinaryState(new StreamOutWrapper(stream));
-                buf.writeByteArray(stream.str().getBytes());
-            }
-        }
+        DATA_WHEELS_SETTINGS.getSerializer().write(buf, this.getSyncData(DATA_WHEELS_SETTINGS));
     }
 
     @Override
     public void readPersistenceData(VxByteBuf buf) {
-        int wheelCount = buf.readVarInt();
-        if (wheelCount == this.wheels.size()) {
-            for (VxWheel wheel : wheels) {
-                byte[] bytes = buf.readByteArray();
-                try (StringStream stream = new StringStream(new String(bytes))) {
-                    wheel.getSettings().restoreBinaryState(new StreamInWrapper(stream));
-                }
+        List<WheelSettingsWv> newSettings = DATA_WHEELS_SETTINGS.getSerializer().read(buf);
+        if (newSettings.size() == this.wheels.size()) {
+            List<WheelSettingsWv> wheelSettingsList = new ArrayList<>(wheels.size());
+            for (int i = 0; i < wheels.size(); i++) {
+                WheelSettingsWv settings = newSettings.get(i);
+                this.wheels.get(i).setSettings(settings);
+                wheelSettingsList.add(settings);
             }
-            this.setSyncData(DATA_WHEELS_SETTINGS, this.wheels.stream().map(VxWheel::getSettings).collect(Collectors.toList()));
+            this.setSyncData(DATA_WHEELS_SETTINGS, wheelSettingsList);
         }
     }
 

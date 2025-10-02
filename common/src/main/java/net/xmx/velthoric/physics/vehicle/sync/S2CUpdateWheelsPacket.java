@@ -17,6 +17,8 @@ import java.util.function.Supplier;
  * A server-to-client packet that synchronizes the dynamic state of a vehicle's wheels.
  * This includes rotation, steering angle, and suspension length for each wheel.
  * It is sent periodically for vehicles whose wheels have updated state.
+ *
+ * @author xI-Mx-Ix
  */
 public class S2CUpdateWheelsPacket {
 

@@ -14,7 +14,7 @@ import com.github.stephengold.joltjni.WheelSettingsWv;
  */
 public class VxWheel {
 
-    private final WheelSettingsWv settings;
+    private WheelSettingsWv settings;
 
     // --- Dynamic State (updated each physics tick) ---
     private float rotationAngle = 0.0f;
@@ -29,6 +29,10 @@ public class VxWheel {
 
     public WheelSettingsWv getSettings() {
         return settings;
+    }
+
+    public void setSettings(WheelSettingsWv settings) {
+        this.settings = settings;
     }
 
     // --- Getters for dynamic state ---
