@@ -10,108 +10,53 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.terrain.cache.VxTerrainShapeCache;
-import net.xmx.velthoric.physics.terrain.persistence.VxTerrainStorage;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
 /**
  * Responsible for generating optimized Jolt physics shapes from chunk data.
  * <p>
- * This class implements a hybrid strategy. It uses a greedy meshing algorithm
- * to combine adjacent, identical full-cube blocks into larger box shapes for maximum
- * performance. For blocks with complex shapes (like stairs or slabs), it generates
- * the exact voxel geometry from their constituent bounding boxes. It interacts with
- * a cache and persistent storage to avoid redundant computations.
+ * This class uses a greedy meshing algorithm for full-cube blocks and generates
+ * detailed shapes for complex blocks. It relies on an in-memory cache to avoid
+ * re-computing shapes for identical chunk sections. It does not persist shapes
+ * to disk, as recalculation is extremely fast and more robust.
  *
  * @author xI-Mx-Ix
  */
 public final class VxTerrainGenerator {
 
     private final VxTerrainShapeCache shapeCache;
-    private final VxTerrainStorage terrainStorage;
     private static final int CHUNK_DIM = 16;
 
-    /**
-     * A simple container for the results of the greedy meshing process.
-     */
-    private record GreedyMeshResult(ShapeRefC shape, List<VxTerrainStorage.BoxData> data) {}
-
-    public VxTerrainGenerator(VxTerrainShapeCache shapeCache, VxTerrainStorage terrainStorage) {
+    public VxTerrainGenerator(VxTerrainShapeCache shapeCache) {
         this.shapeCache = shapeCache;
-        this.terrainStorage = terrainStorage;
     }
 
     @Nullable
     public ShapeRefC generateShape(ServerLevel level, VxChunkSnapshot snapshot) {
         if (snapshot.isEmpty()) {
-            terrainStorage.removeShape(snapshot.pos());
             return null;
         }
 
         int contentHash = computeContentHash(snapshot);
 
+        // 1. Check the fast in-memory cache.
         ShapeRefC cached = shapeCache.get(contentHash);
         if (cached != null) {
             return cached;
         }
 
-        List<VxTerrainStorage.BoxData> storedData = terrainStorage.getShapeData(snapshot.pos(), contentHash);
-        if (storedData != null && !storedData.isEmpty()) {
-            ShapeRefC reconstructedShape = reconstructShapeFromData(storedData);
-            if (reconstructedShape != null) {
-                shapeCache.put(contentHash, reconstructedShape.getPtr().toRefC());
-            }
-            return reconstructedShape;
+        // 2. If not in cache, generate it now.
+        ShapeRefC generatedShape = generateAccurateGreedyMeshShape(snapshot);
+
+        // 3. Put the newly generated shape into the cache for future requests.
+        if (generatedShape != null) {
+            shapeCache.put(contentHash, generatedShape.getPtr().toRefC());
         }
 
-        GreedyMeshResult result = generateAccurateGreedyMeshShape(snapshot);
-        if (result != null && result.shape != null) {
-            terrainStorage.storeShapeData(snapshot.pos(), contentHash, result.data());
-            shapeCache.put(contentHash, result.shape.getPtr().toRefC());
-            return result.shape;
-        } else {
-            terrainStorage.removeShape(snapshot.pos());
-        }
-
-        return null;
-    }
-
-    /**
-     * Reconstructs a Jolt physics shape from a list of box geometry data.
-     *
-     * @param data The list of boxes to include in the shape.
-     * @return A new reference to the reconstructed compound shape, or null on failure.
-     */
-    @Nullable
-    private ShapeRefC reconstructShapeFromData(List<VxTerrainStorage.BoxData> data) {
-        try (StaticCompoundShapeSettings compoundSettings = new StaticCompoundShapeSettings()) {
-            for (VxTerrainStorage.BoxData box : data) {
-                Vec3 halfExtents = new Vec3(box.hx(), box.hy(), box.hz());
-                Vec3 position = new Vec3(box.px(), box.py(), box.pz());
-                BoxShapeSettings boxSettings = new BoxShapeSettings(halfExtents);
-                ShapeResult boxResult = boxSettings.create();
-
-                if (boxResult.isValid()) {
-                    try (ShapeRefC boxShape = boxResult.get()) {
-                        compoundSettings.addShape(position, Quat.sIdentity(), boxShape);
-                    }
-                } else {
-                    boxSettings.close();
-                }
-            }
-            try (ShapeResult result = compoundSettings.create()) {
-                if (result.isValid()) {
-                    return result.get();
-                } else {
-                    VxMainClass.LOGGER.error("Failed to reconstruct terrain compound shape: {}", result.getError());
-                }
-            }
-        }
-        return null;
+        return generatedShape;
     }
 
     /**
@@ -119,12 +64,12 @@ public final class VxTerrainGenerator {
      * generating exact shapes for complex blocks.
      *
      * @param snapshot The chunk data snapshot.
-     * @return The result containing the generated shape and its geometric data.
+     * @return The generated compound shape, or null if the chunk was effectively empty.
      */
     @Nullable
-    private GreedyMeshResult generateAccurateGreedyMeshShape(VxChunkSnapshot snapshot) {
+    private ShapeRefC generateAccurateGreedyMeshShape(VxChunkSnapshot snapshot) {
         try (StaticCompoundShapeSettings compoundSettings = new StaticCompoundShapeSettings()) {
-            List<VxTerrainStorage.BoxData> boxDataList = new ArrayList<>();
+            boolean hasAnyShape = false;
             boolean[] visited = new boolean[CHUNK_DIM * CHUNK_DIM * CHUNK_DIM];
             int[] blockData = snapshot.blockData();
             Map<Integer, BlockState> palette = snapshot.palette();
@@ -136,6 +81,7 @@ public final class VxTerrainGenerator {
                         if (visited[index] || blockData[index] == 0) continue;
 
                         int blockId = blockData[index];
+                        hasAnyShape = true;
 
                         if (snapshot.fullCubeIds().contains(blockId)) {
                             // --- GREEDY MESHING FOR FULL CUBES ---
@@ -165,14 +111,13 @@ public final class VxTerrainGenerator {
                             for (int dz = 0; dz < depth; dz++) for (int dy = 0; dy < height; dy++) for (int dx = 0; dx < width; dx++) {
                                 visited[getIndex(x + dx, y + dy, z + dz)] = true;
                             }
-                            addBox(compoundSettings, boxDataList, x, y, z, width, height, depth);
+                            addBox(compoundSettings, x, y, z, width, height, depth);
 
                         } else {
                             // --- DETAILED SHAPE FOR COMPLEX BLOCKS ---
                             BlockState state = palette.get(blockId);
-                            // Context is not needed here as we get the default shape, which is what was used for the check during snapshot creation.
                             for (AABB aabb : state.getShape(null, null).toAabbs()) {
-                                addBoxFromAABB(compoundSettings, boxDataList, aabb, x, y, z);
+                                addBoxFromAABB(compoundSettings, aabb, x, y, z);
                             }
                             visited[index] = true;
                         }
@@ -180,11 +125,11 @@ public final class VxTerrainGenerator {
                 }
             }
 
-            if (boxDataList.isEmpty()) return null;
+            if (!hasAnyShape) return null;
 
             try (ShapeResult result = compoundSettings.create()) {
                 if (result.isValid()) {
-                    return new GreedyMeshResult(result.get(), boxDataList);
+                    return result.get();
                 } else {
                     VxMainClass.LOGGER.error("Failed to create terrain compound shape for {}: {}", snapshot.pos(), result.getError());
                 }
@@ -193,18 +138,13 @@ public final class VxTerrainGenerator {
         return null;
     }
 
-    private void addBoxFromAABB(StaticCompoundShapeSettings settings, List<VxTerrainStorage.BoxData> data, AABB aabb, int offsetX, int offsetY, int offsetZ) {
-        float w = (float) (aabb.maxX - aabb.minX);
-        float h = (float) (aabb.maxY - aabb.minY);
-        float d = (float) (aabb.maxZ - aabb.minZ);
-        float hx = w / 2.0f;
-        float hy = h / 2.0f;
-        float hz = d / 2.0f;
+    private void addBoxFromAABB(StaticCompoundShapeSettings settings, AABB aabb, int offsetX, int offsetY, int offsetZ) {
+        float hx = (float) (aabb.maxX - aabb.minX) / 2.0f;
+        float hy = (float) (aabb.maxY - aabb.minY) / 2.0f;
+        float hz = (float) (aabb.maxZ - aabb.minZ) / 2.0f;
         float px = (float) (offsetX + aabb.minX + hx);
         float py = (float) (offsetY + aabb.minY + hy);
         float pz = (float) (offsetZ + aabb.minZ + hz);
-
-        data.add(new VxTerrainStorage.BoxData(px, py, pz, hx, hy, hz));
 
         try (BoxShapeSettings boxSettings = new BoxShapeSettings(new Vec3(hx, hy, hz))) {
             try(ShapeResult boxResult = boxSettings.create()){
@@ -217,15 +157,13 @@ public final class VxTerrainGenerator {
         }
     }
 
-    private void addBox(StaticCompoundShapeSettings settings, List<VxTerrainStorage.BoxData> data, int x, int y, int z, int width, int height, int depth) {
+    private void addBox(StaticCompoundShapeSettings settings, int x, int y, int z, int width, int height, int depth) {
         float hx = width / 2.0f;
         float hy = height / 2.0f;
         float hz = depth / 2.0f;
         float px = x + hx;
         float py = y + hy;
         float pz = z + hz;
-
-        data.add(new VxTerrainStorage.BoxData(px, py, pz, hx, hy, hz));
 
         try (BoxShapeSettings boxSettings = new BoxShapeSettings(new Vec3(hx, hy, hz))) {
             try (ShapeResult boxResult = boxSettings.create()) {
@@ -243,7 +181,6 @@ public final class VxTerrainGenerator {
     }
 
     private int computeContentHash(VxChunkSnapshot snapshot) {
-        // Hashing based on blockData provides a good measure of content uniqueness.
         return Arrays.hashCode(snapshot.blockData());
     }
 }

@@ -59,11 +59,13 @@ public class VxChunkManager {
      * @param pos The position of the requested chunk section.
      */
     public void requestChunk(VxSectionPos pos) {
-        int index = chunkDataStore.addChunk(pos);
-        if (++chunkDataStore.referenceCounts[index] == 1) {
-            // First request for this chunk, schedule its shape generation.
-            shapeGenerationQueue.scheduleShapeGeneration(pos, index, true, VxTaskPriority.HIGH);
-        }
+        physicsWorld.execute(() -> {
+            int index = chunkDataStore.addChunk(pos);
+            if (++chunkDataStore.referenceCounts[index] == 1 && chunkDataStore.states[index] == STATE_UNLOADED) {
+                // First request for this chunk, schedule its shape generation.
+                shapeGenerationQueue.scheduleShapeGeneration(pos, index, true, VxTaskPriority.HIGH);
+            }
+        });
     }
 
     /**
@@ -72,63 +74,96 @@ public class VxChunkManager {
      * @param pos The position of the released chunk section.
      */
     public void releaseChunk(VxSectionPos pos) {
-        Integer index = chunkDataStore.getIndexForPos(pos);
-        if (index != null && --chunkDataStore.referenceCounts[index] == 0) {
-            // Last reference released, unload the chunk.
-            unloadChunkPhysics(pos);
-        }
+        physicsWorld.execute(() -> {
+            Integer index = chunkDataStore.getIndexForPos(pos);
+            if (index != null && --chunkDataStore.referenceCounts[index] <= 0) {
+                // Last reference released, unload the chunk.
+                unloadChunkPhysics(pos, index);
+            }
+        });
     }
 
     /**
      * Applies a newly generated shape to a chunk. This involves creating a new body
-     * or updating the shape of an existing one.
+     * or updating the shape of an existing one. This method is the final step in the
+     * shape generation pipeline and runs on the physics thread.
      *
      * @param pos            The position of the chunk section.
      * @param index          The data store index for the chunk.
+     * @param version        The generation version of this task, used to discard outdated results.
      * @param shape          The new shape. This method takes ownership and will close it.
      * @param isInitialBuild True if this is the first time a shape is being built for this chunk.
      */
-    public void applyGeneratedShape(VxSectionPos pos, int index, @Nullable ShapeRefC shape, boolean isInitialBuild) {
-        // This method takes ownership of the 'shape' parameter and MUST close it before returning.
-        try {
-            boolean wasActive = chunkDataStore.states[index] == STATE_READY_ACTIVE;
-            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-            if (bodyInterface == null) {
+    public void applyGeneratedShape(VxSectionPos pos, int index, int version, @Nullable ShapeRefC shape, boolean isInitialBuild) {
+        physicsWorld.execute(() -> {
+            // Take ownership of the shape and ensure it's closed in all code paths.
+            try (ShapeRefC ownedShape = shape) {
+                // If the chunk was unloaded while the shape was generating, this result is obsolete.
+                if (version < chunkDataStore.rebuildVersions[index] || chunkDataStore.states[index] == STATE_REMOVING) {
+                    return;
+                }
+
+                BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+                if (bodyInterface == null) {
+                    handleGenerationFailure(pos, index, version);
+                    return;
+                }
+
+                int bodyId = chunkDataStore.bodyIds[index];
+                boolean wasActive = chunkDataStore.states[index] == STATE_READY_ACTIVE;
+
+                if (ownedShape != null) {
+                    // We have a valid shape (not an air chunk).
+                    if (bodyId != VxChunkDataStore.UNUSED_BODY_ID) {
+                        bodyInterface.setShape(bodyId, ownedShape, true, EActivation.DontActivate);
+                    } else {
+                        bodyId = createBody(pos, ownedShape, bodyInterface);
+                        chunkDataStore.bodyIds[index] = bodyId;
+                    }
+
+                    if (bodyId != VxChunkDataStore.UNUSED_BODY_ID) {
+                        chunkDataStore.setShape(index, ownedShape.getPtr().toRefC());
+                        chunkDataStore.states[index] = STATE_READY_INACTIVE;
+                    }
+                } else { // No shape was generated (air chunk).
+                    if (bodyId != VxChunkDataStore.UNUSED_BODY_ID) {
+                        removeBodyAndShape(index, bodyInterface);
+                    }
+                    chunkDataStore.setShape(index, null);
+                    chunkDataStore.states[index] = STATE_AIR_CHUNK;
+                }
+
+                chunkDataStore.isPlaceholder[index] = isInitialBuild;
+                if (wasActive) {
+                    activateChunk(pos, index);
+                }
+            }
+        });
+    }
+
+    /**
+     * Handles cases where shape generation fails. If the chunk is still needed (has references),
+     * it will be rescheduled. Otherwise, it will be cleaned up.
+     * @param pos The position of the chunk that failed.
+     * @param index The data store index for the chunk.
+     * @param version The version of the failed task.
+     */
+    public void handleGenerationFailure(VxSectionPos pos, int index, int version) {
+        physicsWorld.execute(() -> {
+            if (version < chunkDataStore.rebuildVersions[index]) {
+                return; // A newer task is already running.
+            }
+
+            if (chunkDataStore.referenceCounts[index] > 0) {
+                // Still needed, schedule a retry.
+                VxMainClass.LOGGER.warn("Shape generation failed for {}, retrying.", pos);
                 chunkDataStore.states[index] = STATE_UNLOADED;
-                return;
+                shapeGenerationQueue.scheduleShapeGeneration(pos, index, true, VxTaskPriority.HIGH);
+            } else {
+                // No longer needed, clean it up.
+                unloadChunkPhysics(pos, index);
             }
-
-            int bodyId = chunkDataStore.bodyIds[index];
-
-            if (shape != null) {
-                if (bodyId != VxChunkDataStore.UNUSED_BODY_ID) {
-                    bodyInterface.setShape(bodyId, shape, true, EActivation.DontActivate);
-                } else {
-                    bodyId = createBody(pos, shape, bodyInterface);
-                    chunkDataStore.bodyIds[index] = bodyId;
-                }
-
-                if (bodyId != VxChunkDataStore.UNUSED_BODY_ID) {
-                    chunkDataStore.setShape(index, shape.getPtr().toRefC());
-                    chunkDataStore.states[index] = wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE;
-                }
-            } else { // No shape was generated (air chunk).
-                if (bodyId != VxChunkDataStore.UNUSED_BODY_ID) {
-                    removeBodyAndShape(index, bodyInterface);
-                }
-                chunkDataStore.setShape(index, null);
-                chunkDataStore.states[index] = STATE_AIR_CHUNK;
-            }
-
-            chunkDataStore.isPlaceholder[index] = isInitialBuild;
-            if (wasActive) {
-                activateChunk(pos, index);
-            }
-        } finally {
-            if (shape != null) {
-                shape.close();
-            }
-        }
+        });
     }
 
     /**
@@ -160,9 +195,10 @@ public class VxChunkManager {
      * @param index The data store index for the chunk.
      */
     public void activateChunk(VxSectionPos pos, int index) {
-        if (chunkDataStore.states[index] == STATE_AIR_CHUNK) return;
+        int state = chunkDataStore.states[index];
+        if (state == STATE_AIR_CHUNK || state == STATE_READY_ACTIVE) return;
 
-        if (chunkDataStore.bodyIds[index] != VxChunkDataStore.UNUSED_BODY_ID && chunkDataStore.states[index] == STATE_READY_INACTIVE) {
+        if (chunkDataStore.bodyIds[index] != VxChunkDataStore.UNUSED_BODY_ID && state == STATE_READY_INACTIVE) {
             chunkDataStore.states[index] = STATE_READY_ACTIVE;
             physicsWorld.execute(() -> {
                 BodyInterface bodyInterface = physicsWorld.getBodyInterface();
@@ -194,13 +230,10 @@ public class VxChunkManager {
 
     /**
      * Schedules the complete removal of a chunk's physics resources.
-     *
      * @param pos The position of the chunk section to unload.
+     * @param index The data store index of the chunk.
      */
-    public void unloadChunkPhysics(VxSectionPos pos) {
-        Integer index = chunkDataStore.getIndexForPos(pos);
-        if (index == null) return;
-
+    private void unloadChunkPhysics(VxSectionPos pos, int index) {
         chunkDataStore.states[index] = STATE_REMOVING;
         chunkDataStore.rebuildVersions[index]++; // Invalidate any pending generation tasks
 
@@ -212,6 +245,7 @@ public class VxChunkManager {
 
     /**
      * Immediately removes a body from the simulation, destroys it, and releases its shape reference.
+     * This must be called on the physics thread.
      *
      * @param index         The data store index for the chunk.
      * @param bodyInterface The Jolt body interface.

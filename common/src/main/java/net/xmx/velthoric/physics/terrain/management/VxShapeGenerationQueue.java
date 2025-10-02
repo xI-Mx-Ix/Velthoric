@@ -9,14 +9,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.terrain.VxChunkDataStore;
-import net.xmx.velthoric.physics.terrain.chunk.VxSectionPos;
 import net.xmx.velthoric.physics.terrain.chunk.VxChunkSnapshot;
+import net.xmx.velthoric.physics.terrain.chunk.VxSectionPos;
+import net.xmx.velthoric.physics.terrain.chunk.VxTerrainGenerator;
 import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
-import net.xmx.velthoric.physics.terrain.chunk.VxTerrainGenerator;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -26,7 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * This class handles the entire pipeline from scheduling a chunk for an update,
  * taking a snapshot of its block data on the main thread, generating the shape on a
  * worker thread, and finally applying the result via the {@link VxChunkManager} on the
- * physics thread. It uses a versioning system to prevent race conditions from outdated tasks.
+ * physics thread. It uses a versioning system to prevent race conditions from outdated tasks
+ * and handles failures gracefully to ensure system stability.
  *
  * @author xI-Mx-Ix
  */
@@ -57,24 +58,26 @@ public class VxShapeGenerationQueue {
     }
 
     /**
-     * Processes a batch of chunks from the rebuild queue.
+     * Processes a batch of chunks from the rebuild queue. This is designed to be thread-safe
+     * by atomically removing a batch of items to process.
      */
     public void processRebuildQueue() {
         if (chunksToRebuild.isEmpty()) return;
 
-        Set<VxSectionPos> batch = new HashSet<>(chunksToRebuild);
-        chunksToRebuild.removeAll(batch);
-
-        for (VxSectionPos pos : batch) {
+        Iterator<VxSectionPos> iterator = chunksToRebuild.iterator();
+        while (iterator.hasNext()) {
+            VxSectionPos pos = iterator.next();
             Integer index = chunkDataStore.getIndexForPos(pos);
             if (index != null) {
                 scheduleShapeGeneration(pos, index, false, VxTaskPriority.MEDIUM);
             }
+            iterator.remove();
         }
     }
 
     /**
      * Schedules the asynchronous generation of a physics shape for a chunk.
+     * This method is the entry point for both initial loads and rebuilds.
      *
      * @param pos            The position of the chunk section.
      * @param index          The data store index for the chunk.
@@ -85,7 +88,8 @@ public class VxShapeGenerationQueue {
         if (jobSystem.isShutdown()) return;
 
         int currentState = chunkDataStore.states[index];
-        if (currentState == VxChunkManager.STATE_REMOVING || currentState == VxChunkManager.STATE_LOADING_SCHEDULED || currentState == VxChunkManager.STATE_GENERATING_SHAPE) {
+
+        if (currentState == VxChunkManager.STATE_LOADING_SCHEDULED || currentState == VxChunkManager.STATE_GENERATING_SHAPE || currentState == VxChunkManager.STATE_REMOVING) {
             return;
         }
 
@@ -93,26 +97,31 @@ public class VxShapeGenerationQueue {
             chunkDataStore.states[index] = VxChunkManager.STATE_LOADING_SCHEDULED;
             final int version = ++chunkDataStore.rebuildVersions[index];
 
-            level.getServer().execute(() -> takeSnapshotAndSubmit(pos, index, version, isInitialBuild, currentState));
+            level.getServer().execute(() -> takeSnapshotAndSubmit(pos, index, version, isInitialBuild));
         }
     }
 
     /**
      * Takes a snapshot of the chunk on the main server thread and submits the generation task.
+     * This is the last point of control on the main thread before going async.
      */
-    private void takeSnapshotAndSubmit(VxSectionPos pos, int index, int version, boolean isInitialBuild, int previousState) {
+    private void takeSnapshotAndSubmit(VxSectionPos pos, int index, int version, boolean isInitialBuild) {
         if (version < chunkDataStore.rebuildVersions[index] || chunkDataStore.states[index] != VxChunkManager.STATE_LOADING_SCHEDULED) {
-            if (chunkDataStore.states[index] == VxChunkManager.STATE_LOADING_SCHEDULED) chunkDataStore.states[index] = previousState;
             return;
         }
 
         LevelChunk chunk = level.getChunkSource().getChunk(pos.x(), pos.z(), false);
         if (chunk == null) {
+            // This is a common and expected case during server startup. The chunk is not yet loaded in memory.
+            // Instead of treating this as a failure, we reset the state. The ObjectTracker's main loop
+            // will naturally re-request the chunk on its next 50ms cycle. This provides a natural,
+            // throttled retry mechanism and avoids log spam.
             chunkDataStore.states[index] = VxChunkManager.STATE_UNLOADED;
             return;
         }
 
         VxChunkSnapshot snapshot = VxChunkSnapshot.snapshotFromChunk(level, chunk, pos);
+
         if (chunkDataStore.states[index] == VxChunkManager.STATE_LOADING_SCHEDULED) {
             chunkDataStore.states[index] = VxChunkManager.STATE_GENERATING_SHAPE;
             jobSystem.submit(() -> processShapeGenerationOnWorker(pos, index, version, snapshot, isInitialBuild));
@@ -121,20 +130,19 @@ public class VxShapeGenerationQueue {
 
     /**
      * Generates the shape on a worker thread and schedules the result to be applied.
+     * This runs completely asynchronously.
      */
     private void processShapeGenerationOnWorker(VxSectionPos pos, int index, int version, VxChunkSnapshot snapshot, boolean isInitialBuild) {
-        if (version < chunkDataStore.rebuildVersions[index]) {
-            // A newer task has been scheduled, so this one is obsolete.
+        if (version < chunkDataStore.rebuildVersions[index] || chunkDataStore.states[index] == VxChunkManager.STATE_REMOVING) {
             return;
         }
 
         try {
             @Nullable ShapeRefC generatedShape = terrainGenerator.generateShape(level, snapshot);
-            // The 'generatedShape' is a new resource. Ownership is transferred to the chunk manager.
-            chunkManager.applyGeneratedShape(pos, index, generatedShape, isInitialBuild);
+            chunkManager.applyGeneratedShape(pos, index, version, generatedShape, isInitialBuild);
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Exception during terrain shape generation for {}", pos, e);
-            chunkDataStore.states[index] = VxChunkManager.STATE_UNLOADED;
+            chunkManager.handleGenerationFailure(pos, index, version);
         }
     }
 }

@@ -17,7 +17,6 @@ import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.renderer.VxPhysicsRenderer;
 import net.xmx.velthoric.physics.object.manager.event.ObjectLifecycleEvents;
 import net.xmx.velthoric.physics.riding.manager.VxClientRidingManager;
-import net.xmx.velthoric.physics.terrain.event.TerrainLifecycleEvents;
 
 public class RegisterEvents {
 
@@ -29,7 +28,6 @@ public class RegisterEvents {
         PhysicsGunEvents.registerEvents();
         MagnetizerEvents.registerEvents();
         BoxThrowerEvents.registerEvents();
-        TerrainLifecycleEvents.registerEvents();
     }
 
     @Environment(EnvType.CLIENT)

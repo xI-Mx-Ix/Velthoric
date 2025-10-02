@@ -9,15 +9,18 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.readonly.ConstAaBox;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import net.minecraft.server.level.ServerLevel;
+import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.terrain.VxChunkDataStore;
 import net.xmx.velthoric.physics.terrain.chunk.VxSectionPos;
+import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -26,8 +29,8 @@ import java.util.stream.IntStream;
  * loaded, preloaded, and activated.
  * <p>
  * This system calculates the required chunk set based on the current and predicted
- * positions of dynamic bodies, and then interfaces with the {@link VxChunkManager}
- * to request, release, and prioritize those chunks.
+ * positions of dynamic bodies. It actively monitors the state of requested chunks
+ * to re-trigger generation if a previous attempt failed, preventing deadlocks.
  *
  * @author xI-Mx-Ix
  */
@@ -38,9 +41,11 @@ public class VxObjectTracker {
     private final VxChunkManager chunkManager;
     private final VxChunkDataStore chunkDataStore;
     private final VxTerrainJobSystem jobSystem;
+    private VxShapeGenerationQueue shapeGenerationQueue; // Lazily initialized
 
     private final Map<UUID, Set<VxSectionPos>> objectTrackedChunks = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> objectUpdateCooldowns = new ConcurrentHashMap<>();
+    private final AtomicBoolean needsInitialFullScan = new AtomicBoolean(false);
 
     private int objectUpdateIndex = 0;
     private static final int OBJECT_PRELOAD_UPDATE_STRIDE = 250;
@@ -59,12 +64,33 @@ public class VxObjectTracker {
     }
 
     /**
+     * Notifies the tracker that the system has been initialized or reloaded.
+     * This will trigger a full scan on the next update.
+     */
+    public void notifyInitialized() {
+        this.needsInitialFullScan.set(true);
+    }
+
+    /**
+     * Clears all tracking data, usually during system shutdown.
+     */
+    public void clear() {
+        objectTrackedChunks.clear();
+        objectUpdateCooldowns.clear();
+    }
+
+    /**
      * Main update method, called periodically by the terrain system's worker thread.
      * It updates chunk requirements based on object positions.
      */
     public void update() {
         if (jobSystem.isShutdown()) {
             return;
+        }
+
+        // Lazy initialization to break circular dependency
+        if (this.shapeGenerationQueue == null) {
+            this.shapeGenerationQueue = this.physicsWorld.getTerrainSystem().getShapeGenerationQueue();
         }
 
         List<VxBody> currentObjects = new ArrayList<>(physicsWorld.getObjectManager().getAllObjects());
@@ -75,13 +101,15 @@ public class VxObjectTracker {
             return;
         }
 
-        updatePreloadedChunks(currentObjects);
+        if (needsInitialFullScan.compareAndSet(true, false)) {
+            updatePreloadedChunks(currentObjects, true);
+        } else {
+            updatePreloadedChunks(currentObjects, false);
+        }
+
         updateActiveChunks(currentObjects);
     }
 
-    /**
-     * Removes trackers for objects that no longer exist in the physics world.
-     */
     private void cleanupStaleTrackers(List<VxBody> currentObjects) {
         Set<UUID> currentObjectIds = currentObjects.stream().map(VxBody::getPhysicsId).collect(Collectors.toSet());
         objectTrackedChunks.keySet().removeIf(id -> {
@@ -93,36 +121,38 @@ public class VxObjectTracker {
         });
     }
 
-    /**
-     * Deactivates all currently active terrain chunks.
-     */
     private void deactivateAllChunks() {
-        for (int index : chunkDataStore.getActiveIndices()) {
+        chunkDataStore.getActiveIndices().forEach(index -> {
             if (chunkDataStore.states[index] == VxChunkManager.STATE_READY_ACTIVE) {
                 chunkManager.deactivateChunk(index);
             }
-        }
+        });
     }
 
-    /**
-     * Updates the set of preloaded chunks for a subset of objects.
-     */
-    private void updatePreloadedChunks(List<VxBody> currentObjects) {
-        int objectsToUpdate = Math.min(currentObjects.size(), OBJECT_PRELOAD_UPDATE_STRIDE);
+    private void updatePreloadedChunks(List<VxBody> currentObjects, boolean fullScan) {
         Map<Integer, VxBody> objectsToPreload = new HashMap<>();
 
-        for (int i = 0; i < objectsToUpdate; ++i) {
-            if (objectUpdateIndex >= currentObjects.size()) {
-                objectUpdateIndex = 0;
-            }
-            VxBody obj = currentObjects.get(objectUpdateIndex++);
-            if (obj.getDataStoreIndex() == -1 || obj.getBodyId() == 0) continue;
+        if (fullScan) {
+            currentObjects.forEach(obj -> {
+                if (obj.getDataStoreIndex() != -1 && obj.getBodyId() != 0) {
+                    objectsToPreload.put(obj.getBodyId(), obj);
+                }
+            });
+        } else {
+            int objectsToUpdate = Math.min(currentObjects.size(), OBJECT_PRELOAD_UPDATE_STRIDE);
+            for (int i = 0; i < objectsToUpdate; ++i) {
+                if (objectUpdateIndex >= currentObjects.size()) {
+                    objectUpdateIndex = 0;
+                }
+                VxBody obj = currentObjects.get(objectUpdateIndex++);
+                if (obj.getDataStoreIndex() == -1 || obj.getBodyId() == 0) continue;
 
-            int cooldown = objectUpdateCooldowns.getOrDefault(obj.getPhysicsId(), 0);
-            if (cooldown > 0) {
-                objectUpdateCooldowns.put(obj.getPhysicsId(), cooldown - 1);
-            } else {
-                objectsToPreload.put(obj.getBodyId(), obj);
+                int cooldown = objectUpdateCooldowns.getOrDefault(obj.getPhysicsId(), 0);
+                if (cooldown > 0) {
+                    objectUpdateCooldowns.put(obj.getPhysicsId(), cooldown - 1);
+                } else {
+                    objectsToPreload.put(obj.getBodyId(), obj);
+                }
             }
         }
 
@@ -131,16 +161,56 @@ public class VxObjectTracker {
             try (BodyLockMultiRead lock = new BodyLockMultiRead(physicsWorld.getPhysicsSystem().getBodyLockInterfaceNoLock(), preloadBodyIds)) {
                 for (int i = 0; i < preloadBodyIds.length; i++) {
                     VxBody obj = objectsToPreload.get(preloadBodyIds[i]);
-                    objectUpdateCooldowns.put(obj.getPhysicsId(), UPDATE_INTERVAL_TICKS);
+                    if (!fullScan) {
+                        objectUpdateCooldowns.put(obj.getPhysicsId(), UPDATE_INTERVAL_TICKS);
+                    }
                     processPreloadForLockedBody(obj, lock.getBody(i));
                 }
             }
         }
     }
 
-    /**
-     * Updates the set of active chunks based on the positions of all objects.
-     */
+    private void processPreloadForLockedBody(VxBody obj, ConstBody body) {
+        UUID id = obj.getPhysicsId();
+        if (body == null) {
+            removeObjectTracking(id);
+            return;
+        }
+
+        Set<VxSectionPos> required = new HashSet<>();
+        ConstAaBox bounds = body.getWorldSpaceBounds();
+        calculateRequiredChunks(bounds.getMin(), bounds.getMax(), body.getLinearVelocity(), PRELOAD_RADIUS_CHUNKS, required);
+
+        Set<VxSectionPos> previouslyTracked = objectTrackedChunks.computeIfAbsent(id, k -> new HashSet<>());
+
+        // Release chunks that are no longer required by this object.
+        previouslyTracked.removeIf(pos -> {
+            if (!required.contains(pos)) {
+                chunkManager.releaseChunk(pos);
+                return true;
+            }
+            return false;
+        });
+
+        // For all required chunks, ensure they are either newly requested or re-triggered if they got stuck.
+        for (VxSectionPos pos : required) {
+            if (previouslyTracked.add(pos)) {
+                // This is a new chunk for this object, make a formal request.
+                chunkManager.requestChunk(pos);
+            } else {
+                // We are already tracking this chunk. We must check if it got stuck in an UNLOADED state.
+                // This happens if the generation was attempted while the server chunk wasn't ready.
+                Integer index = chunkDataStore.getIndexForPos(pos);
+                if (index != null && chunkDataStore.states[index] == VxChunkManager.STATE_UNLOADED) {
+                    // The chunk is stuck. The previous request failed and was reset. We need to kick it again.
+                    // We call the queue directly because the reference count is already correct.
+                    VxMainClass.LOGGER.debug("Re-requesting stuck chunk {}", pos);
+                    shapeGenerationQueue.scheduleShapeGeneration(pos, index, true, VxTaskPriority.HIGH);
+                }
+            }
+        }
+    }
+
     private void updateActiveChunks(List<VxBody> currentObjects) {
         List<List<VxBody>> batches = partitionList(currentObjects, OBJECT_ACTIVATION_BATCH_SIZE);
         List<CompletableFuture<Set<VxSectionPos>>> futures = new ArrayList<>();
@@ -154,7 +224,6 @@ public class VxObjectTracker {
                 .flatMap(Set::stream)
                 .collect(Collectors.toSet());
 
-        // Activate required chunks and deactivate unneeded ones
         activeSet.forEach(pos -> {
             Integer index = chunkDataStore.getIndexForPos(pos);
             if (index != null) {
@@ -173,6 +242,7 @@ public class VxObjectTracker {
     private Set<VxSectionPos> calculateActivationSetForBatch(List<VxBody> batch) {
         Set<VxSectionPos> required = new HashSet<>();
         if (batch.isEmpty()) return required;
+
         int[] batchBodyIds = batch.stream().mapToInt(VxBody::getBodyId).filter(id -> id != 0).toArray();
         if (batchBodyIds.length == 0) return required;
 
@@ -188,32 +258,6 @@ public class VxObjectTracker {
         return required;
     }
 
-    private void processPreloadForLockedBody(VxBody obj, ConstBody body) {
-        UUID id = obj.getPhysicsId();
-        if (body == null) {
-            removeObjectTracking(id);
-            return;
-        }
-
-        Set<VxSectionPos> required = new HashSet<>();
-        ConstAaBox bounds = body.getWorldSpaceBounds();
-        calculateRequiredChunks(bounds.getMin(), bounds.getMax(), body.getLinearVelocity(), PRELOAD_RADIUS_CHUNKS, required);
-
-        Set<VxSectionPos> previouslyTracked = objectTrackedChunks.computeIfAbsent(id, k -> new HashSet<>());
-        previouslyTracked.removeIf(pos -> {
-            if (!required.contains(pos)) {
-                chunkManager.releaseChunk(pos);
-                return true;
-            }
-            return false;
-        });
-        required.forEach(pos -> {
-            if (previouslyTracked.add(pos)) {
-                chunkManager.requestChunk(pos);
-            }
-        });
-    }
-
     private void removeObjectTracking(UUID id) {
         Set<VxSectionPos> chunksToRelease = objectTrackedChunks.remove(id);
         if (chunksToRelease != null) {
@@ -225,12 +269,12 @@ public class VxObjectTracker {
     private void calculateRequiredChunks(Vec3 min, Vec3 max, Vec3 velocity, int radius, Set<VxSectionPos> outChunks) {
         addChunksForBounds(min.getX(), min.getY(), min.getZ(), max.getX(), max.getY(), max.getZ(), radius, outChunks);
 
-        double predMinX = min.getX() + velocity.getX() * PREDICTION_SECONDS;
-        double predMinY = min.getY() + velocity.getY() * PREDICTION_SECONDS;
-        double predMinZ = min.getZ() + velocity.getZ() * PREDICTION_SECONDS;
-        double predMaxX = max.getX() + velocity.getX() * PREDICTION_SECONDS;
-        double predMaxY = max.getY() + velocity.getY() * PREDICTION_SECONDS;
-        double predMaxZ = max.getZ() + velocity.getZ() * PREDICTION_SECONDS;
+        float predMinX = min.getX() + velocity.getX() * PREDICTION_SECONDS;
+        float predMinY = min.getY() + velocity.getY() * PREDICTION_SECONDS;
+        float predMinZ = min.getZ() + velocity.getZ() * PREDICTION_SECONDS;
+        float predMaxX = max.getX() + velocity.getX() * PREDICTION_SECONDS;
+        float predMaxY = max.getY() + velocity.getY() * PREDICTION_SECONDS;
+        float predMaxZ = max.getZ() + velocity.getZ() * PREDICTION_SECONDS;
 
         addChunksForBounds(predMinX, predMinY, predMinZ, predMaxX, predMaxY, predMaxZ, radius, outChunks);
     }
