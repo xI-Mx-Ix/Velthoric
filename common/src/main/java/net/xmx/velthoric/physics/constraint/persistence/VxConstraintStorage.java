@@ -4,7 +4,6 @@
  */
 package net.xmx.velthoric.physics.constraint.persistence;
 
-import com.github.stephengold.joltjni.enumerate.EConstraintSubType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
@@ -25,8 +24,8 @@ import java.util.concurrent.*;
 /**
  * Manages persistent storage for physics constraints.
  * This class handles serialization, deserialization, and asynchronous loading/saving
- * of constraint data using a region-based file system.
- * It uses a shared I/O executor provided by the persistence framework.
+ * of constraint data using a region-based file system. It uses a codec to separate
+ * serialization logic from storage management.
  *
  * @author xI-Mx-Ix
  */
@@ -161,15 +160,18 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         });
     }
 
+    /**
+     * Deserializes constraint data from a byte array using the VxConstraintCodec.
+     *
+     * @param id   The UUID of the constraint.
+     * @param data The raw byte data.
+     * @return The deserialized VxConstraint, or null on failure.
+     */
     private VxConstraint deserializeConstraint(UUID id, byte[] data) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
         try {
-            buf.readLong(); // Skip chunk key
-            UUID body1Id = buf.readUUID();
-            UUID body2Id = buf.readUUID();
-            EConstraintSubType subType = EConstraintSubType.values()[buf.readInt()];
-            byte[] settingsData = buf.readByteArray();
-            return new VxConstraint(id, body1Id, body2Id, settingsData, subType);
+            buf.readLong(); // Skip chunk key, which is storage-specific metadata.
+            return VxConstraintCodec.deserialize(id, buf);
         } finally {
             if (buf.refCnt() > 0) {
                 buf.release();
@@ -177,15 +179,19 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
+    /**
+     * Serializes a constraint into a byte array using the VxConstraintCodec.
+     *
+     * @param constraint The constraint to serialize.
+     * @param pos        The chunk position, used as storage-specific metadata.
+     * @return The serialized byte array.
+     */
     private byte[] serializeConstraintData(VxConstraint constraint, ChunkPos pos) {
         ByteBuf buffer = Unpooled.buffer();
         FriendlyByteBuf buf = new FriendlyByteBuf(buffer);
         try {
-            buf.writeLong(pos.toLong());
-            buf.writeUUID(constraint.getBody1Id());
-            buf.writeUUID(constraint.getBody2Id());
-            buf.writeInt(constraint.getSubType().ordinal());
-            buf.writeByteArray(constraint.getSettingsData());
+            buf.writeLong(pos.toLong()); // Write storage-specific metadata first.
+            VxConstraintCodec.serialize(constraint, buf);
 
             byte[] data = new byte[buffer.readableBytes()];
             buffer.readBytes(data);

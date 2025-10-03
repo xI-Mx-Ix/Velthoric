@@ -18,7 +18,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.VxObjectType;
-import net.xmx.velthoric.physics.object.persistence.VxObjectStorage;
+import net.xmx.velthoric.physics.object.persistence.VxBodyStorage;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
@@ -44,7 +44,7 @@ import java.util.function.Consumer;
 public class VxObjectManager {
 
     private final VxPhysicsWorld world;
-    private final VxObjectStorage objectStorage;
+    private final VxBodyStorage objectStorage;
     private final VxObjectDataStore dataStore;
     private final VxPhysicsUpdater physicsUpdater;
     private final VxObjectNetworkDispatcher networkDispatcher;
@@ -61,7 +61,7 @@ public class VxObjectManager {
     public VxObjectManager(VxPhysicsWorld world) {
         this.world = world;
         this.dataStore = new VxObjectDataStore();
-        this.objectStorage = new VxObjectStorage(world.getLevel(), this);
+        this.objectStorage = new VxBodyStorage(world.getLevel(), this);
         // The physics updater is now responsible for setting the correct dirty flags in the data store.
         this.physicsUpdater = new VxPhysicsUpdater(this);
         // The network dispatcher reads directly from the data store's dirty flags.
@@ -185,7 +185,7 @@ public class VxObjectManager {
      * @return The created and added {@link VxBody}, or null on failure.
      */
     @Nullable
-    public VxBody addSerializedBody(VxObjectStorage.SerializedBodyData data) {
+    public VxBody addSerializedBody(VxBodyStorage.SerializedBodyData data) {
         VxBody obj = VxObjectRegistry.getInstance().create(data.typeId(), world, data.id());
         if (obj == null) {
             VxMainClass.LOGGER.error("Failed to create object of type {} with ID {} from storage.", data.typeId(), data.id());
@@ -613,7 +613,7 @@ public class VxObjectManager {
         return dataStore;
     }
 
-    public VxObjectStorage getObjectStorage() {
+    public VxBodyStorage getObjectStorage() {
         return objectStorage;
     }
 
