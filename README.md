@@ -51,6 +51,14 @@ Create custom physics objects, control rendering, manipulate bodies, and extend 
 Spawn built-in and custom objects: boxes, ropes, cloth, marbles and more.  
 Also works with any objects registered via the API.
 
+**Test Vehicles:**  
+You can spawn a test car or motorcycle that you can drive using:
+```
+/vxsummon velthoric:car ~ ~ ~
+/vxsummon velthoric:motorcycle ~ ~ ~
+```
+The seat is visible when you press **F3 + B**.
+
 ---
 
 **`/vxtest`**  
