@@ -108,7 +108,7 @@ public class VxTerrainTracker {
         return allObjects.parallelStream()
                 .map(obj -> {
                     Set<VxSectionPos> requiredForObj = new HashSet<>();
-                    ConstBody body = obj.getBody();
+                    ConstBody body = obj.getConstBody();
                     if (body != null) {
                         ConstAaBox bounds = body.getWorldSpaceBounds();
                         calculateRequiredChunks(bounds.getMin().getX(), bounds.getMin().getY(), bounds.getMin().getZ(),
@@ -168,7 +168,7 @@ public class VxTerrainTracker {
         objectUpdateCooldowns.put(id, UPDATE_INTERVAL_TICKS);
 
         Set<VxSectionPos> required = new HashSet<>();
-        ConstBody body = obj.getBody();
+        ConstBody body = obj.getConstBody();
         if (body != null) {
             ConstAaBox bounds = body.getWorldSpaceBounds();
             calculateRequiredChunks(bounds.getMin().getX(), bounds.getMin().getY(), bounds.getMin().getZ(),
