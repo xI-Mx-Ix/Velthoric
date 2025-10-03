@@ -6,7 +6,6 @@ package net.xmx.velthoric.physics.object.manager;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceNoLock;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
@@ -43,7 +42,6 @@ public class VxPhysicsUpdater {
     private final ThreadLocal<Quat> tempRot = ThreadLocal.withInitial(Quat::new);
     private final ThreadLocal<Vec3> tempLinVel = ThreadLocal.withInitial(Vec3::new);
     private final ThreadLocal<Vec3> tempAngVel = ThreadLocal.withInitial(Vec3::new);
-    private final ThreadLocal<BodyIdVector> localBodyIdVector = ThreadLocal.withInitial(BodyIdVector::new);
 
     public VxPhysicsUpdater(VxObjectManager manager) {
         this.manager = manager;
@@ -63,7 +61,6 @@ public class VxPhysicsUpdater {
      * @param level The server level.
      */
     public void onGameTick(ServerLevel level) {
-        // Game Ticks are still useful for game logic on the main thread.
         this.manager.getAllObjects().forEach(obj -> obj.gameTick(level));
     }
 
@@ -76,30 +73,24 @@ public class VxPhysicsUpdater {
         final BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterfaceNoLock();
 
         // Phase 1: Pre-Update Sync (Game State -> Jolt)
-        // Pushes changes made by game logic (e.g., teleporting) into the simulation.
         preUpdateSync(bodyInterface);
 
-        // Phase 2: Step the Physics Simulation
-        // This is handled by VxPhysicsWorld's run loop, which calls physicsSystem.update().
+        // Phase 2: Step the Physics Simulation (handled externally)
 
         // Phase 3: Post-Update Sync (Jolt -> Game State)
-        // Reads the results from Jolt and updates our data store for networking and game logic.
         postUpdateSync(timestampNanos, world, bodyInterface);
     }
 
     /**
      * Scans for objects marked as dirty by the game logic and applies their
-     * state (position, rotation, velocity) to the Jolt bodies.
-     * This is a fast scan over a boolean array.
+     * state to the Jolt bodies.
      */
     private void preUpdateSync(BodyInterface bodyInterface) {
-        // We iterate up to the current capacity. This is faster than iterating
-        // a collection and avoids creating an iterator object (less GC).
         for (int i = 0; i < dataStore.getCapacity(); ++i) {
             if (dataStore.isGameStateDirty[i]) {
                 final UUID id = dataStore.getIdForIndex(i);
                 if (id == null) {
-                    dataStore.isGameStateDirty[i] = false; // Clean up stale flag
+                    dataStore.isGameStateDirty[i] = false;
                     continue;
                 }
 
@@ -107,7 +98,6 @@ public class VxPhysicsUpdater {
                 if (body != null) {
                     final int bodyId = body.getBodyId();
                     if (bodyId != 0 && bodyInterface.isAdded(bodyId)) {
-                        // Apply state from DataStore to Jolt Body
                         final RVec3 pos = tempPos.get();
                         pos.set(dataStore.posX[i], dataStore.posY[i], dataStore.posZ[i]);
                         final Quat rot = tempRot.get();
@@ -123,96 +113,79 @@ public class VxPhysicsUpdater {
                         bodyInterface.setAngularVelocity(bodyId, angVel);
                     }
                 }
-                // Reset the flag after processing
                 dataStore.isGameStateDirty[i] = false;
             }
         }
     }
 
     /**
-     * Reads the state of all *active* Jolt bodies and writes it back into the
-     * data store. It marks the object as dirty for the network dispatcher. This avoids
-     * expensive state-change checks in Java by simply trusting Jolt's active-body list.
+     * Reads the state of Jolt bodies and writes it back into the data store.
+     * It synchronizes a body's state if it is currently active, OR if it was active
+     * on the previous tick and has just become inactive. This ensures clients receive
+     * a final update when an object comes to rest, keeping it visible and correctly positioned.
      */
     private void postUpdateSync(long timestampNanos, VxPhysicsWorld world, BodyInterface bodyInterface) {
-        final PhysicsSystem physicsSystem = world.getPhysicsSystem();
-        final BodyIdVector activeBodiesVector = localBodyIdVector.get();
-        activeBodiesVector.resize(0);
+        for (int i = 0; i < dataStore.getCapacity(); ++i) {
+            UUID id = dataStore.getIdForIndex(i);
+            if (id == null) continue;
 
-        // Get all active bodies (both rigid and soft)
-        physicsSystem.getActiveBodies(EBodyType.RigidBody, activeBodiesVector);
-        try (BodyIdVector activeSoftBodiesVector = new BodyIdVector()) {
-            physicsSystem.getActiveBodies(EBodyType.SoftBody, activeSoftBodiesVector);
-            for (int i = 0; i < activeSoftBodiesVector.size(); ++i) {
-                activeBodiesVector.pushBack(activeSoftBodiesVector.get(i));
-            }
-        }
+            VxBody obj = manager.getObject(id);
+            if (obj == null) continue;
 
-        final int totalActiveBodies = activeBodiesVector.size();
-        if (totalActiveBodies == 0) {
-            return;
-        }
+            int bodyId = obj.getBodyId();
+            if (bodyId == 0 || !bodyInterface.isAdded(bodyId)) continue;
 
-        for (int i = 0; i < totalActiveBodies; i++) {
-            final int bodyId = activeBodiesVector.get(i);
-            if (!bodyInterface.isAdded(bodyId)) continue;
+            boolean isJoltBodyActive = bodyInterface.isActive(bodyId);
+            boolean wasDataStoreBodyActive = dataStore.isActive[i];
 
-            final VxBody obj = manager.getByBodyId(bodyId);
-            if (obj != null) {
-                obj.physicsTick(world); // Allow object-specific logic
+            // The core logic: Synchronize if the body is currently active OR if it was active
+            // in our last tick. This ensures we send one final update when a body stops.
+            if (isJoltBodyActive || wasDataStoreBodyActive) {
+                obj.physicsTick(world);
 
-                final int index = obj.getDataStoreIndex();
-                if (index < 0) continue;
-
-                // --- Unconditionally read from Jolt and write to DataStore ---
-                // We trust that if Jolt says a body is active, its state is worth syncing.
                 final RVec3 pos = tempPos.get();
                 final Quat rot = tempRot.get();
                 bodyInterface.getPositionAndRotation(bodyId, pos, rot);
 
-                dataStore.posX[index] = pos.x();
-                dataStore.posY[index] = pos.y();
-                dataStore.posZ[index] = pos.z();
-                dataStore.rotX[index] = rot.getX();
-                dataStore.rotY[index] = rot.getY();
-                dataStore.rotZ[index] = rot.getZ();
-                dataStore.rotW[index] = rot.getW();
+                dataStore.posX[i] = pos.x();
+                dataStore.posY[i] = pos.y();
+                dataStore.posZ[i] = pos.z();
+                dataStore.rotX[i] = rot.getX();
+                dataStore.rotY[i] = rot.getY();
+                dataStore.rotZ[i] = rot.getZ();
+                dataStore.rotW[i] = rot.getW();
 
                 final Vec3 linVel = tempLinVel.get();
                 bodyInterface.getLinearVelocity(bodyId, linVel);
-                dataStore.velX[index] = linVel.getX();
-                dataStore.velY[index] = linVel.getY();
-                dataStore.velZ[index] = linVel.getZ();
+                dataStore.velX[i] = linVel.getX();
+                dataStore.velY[i] = linVel.getY();
+                dataStore.velZ[i] = linVel.getZ();
 
                 final Vec3 angVel = tempAngVel.get();
                 bodyInterface.getAngularVelocity(bodyId, angVel);
-                dataStore.angVelX[index] = angVel.getX();
-                dataStore.angVelY[index] = angVel.getY();
-                dataStore.angVelZ[index] = angVel.getZ();
+                dataStore.angVelX[i] = angVel.getX();
+                dataStore.angVelY[i] = angVel.getY();
+                dataStore.angVelZ[i] = angVel.getZ();
 
                 if (obj instanceof VxSoftBody softBody) {
                     float[] newVertexData = getSoftBodyVertices(world.getBodyLockInterfaceNoLock(), bodyId, pos);
-                    // Only mark as dirty if the vertex data has actually changed.
-                    if (newVertexData != null && !Arrays.equals(newVertexData, dataStore.vertexData[index])) {
-                        dataStore.vertexData[index] = newVertexData;
-                        dataStore.isVertexDataDirty[index] = true;
-                        softBody.setLastSyncedVertexData(newVertexData); // Update cache on the body
+                    if (newVertexData != null && !Arrays.equals(newVertexData, dataStore.vertexData[i])) {
+                        dataStore.vertexData[i] = newVertexData;
+                        dataStore.isVertexDataDirty[i] = true;
+                        softBody.setLastSyncedVertexData(newVertexData);
                     }
                 }
 
-                dataStore.isActive[index] = bodyInterface.isActive(bodyId);
-                dataStore.lastUpdateTimestamp[index] = timestampNanos;
+                dataStore.isActive[i] = isJoltBodyActive;
+                dataStore.lastUpdateTimestamp[i] = timestampNanos;
 
-                // Update chunk tracking
-                final long lastKey = dataStore.chunkKey[index];
+                final long lastKey = dataStore.chunkKey[i];
                 final long currentKey = new ChunkPos(SectionPos.posToSectionCoord(pos.x()), SectionPos.posToSectionCoord(pos.z())).toLong();
                 if (lastKey != currentKey) {
                     manager.updateObjectTracking(obj, lastKey, currentKey);
                 }
 
-                // Mark the transform as dirty for the network dispatcher.
-                // This is done for all active bodies.
-                dataStore.isTransformDirty[index] = true;
+                dataStore.isTransformDirty[i] = true;
             }
         }
     }
@@ -222,7 +195,7 @@ public class VxPhysicsUpdater {
      * @param lockInterface Jolt's body lock interface.
      * @param bodyId The ID of the soft body.
      * @param bodyPosition The current position of the body's center of mass.
-     * @return An array of vertex coordinates [x1, y1, z1, x2, y2, z2, ...], or null on failure.
+     * @return An array of vertex coordinates, or null on failure.
      */
     private float @Nullable [] getSoftBodyVertices(ConstBodyLockInterfaceNoLock lockInterface, int bodyId, RVec3Arg bodyPosition) {
         try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {
@@ -233,12 +206,11 @@ public class VxPhysicsUpdater {
                     int numVertices = motionProps.getSettings().countVertices();
                     if (numVertices > 0) {
                         int bufferSize = numVertices * 3;
-                        // Use a direct buffer for efficient JNI transfer.
                         FloatBuffer vertexBuffer = Jolt.newDirectFloatBuffer(bufferSize);
                         motionProps.putVertexLocations(bodyPosition, vertexBuffer);
-                        vertexBuffer.flip(); // Prepare buffer for reading
+                        vertexBuffer.flip();
                         float[] vertexArray = new float[bufferSize];
-                        vertexBuffer.get(vertexArray); // Copy data to a heap array
+                        vertexBuffer.get(vertexArray);
                         return vertexArray;
                     }
                 }

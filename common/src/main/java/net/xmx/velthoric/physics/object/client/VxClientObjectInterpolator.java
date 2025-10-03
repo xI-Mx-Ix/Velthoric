@@ -21,8 +21,10 @@ import java.util.UUID;
  */
 public class VxClientObjectInterpolator {
 
-    // The maximum time in seconds to extrapolate an object's position forward if no new state has arrived.
-    private static final float MAX_EXTRAPOLATION_SECONDS = 0.25f;
+    /** The maximum time in seconds to extrapolate an object's position forward if no new state has arrived. */
+    private static final float MAX_EXTRAPOLATION_SECONDS = 1.25f;
+    /** The minimum squared velocity required to perform extrapolation, to prevent jitter when stopping. */
+    private static final float EXTRAPOLATION_VELOCITY_THRESHOLD_SQ = 0.0001f;
 
     // Temporary quaternion objects to avoid allocations during calculations.
     private final Quat tempFromRot = new Quat();
@@ -41,10 +43,8 @@ public class VxClientObjectInterpolator {
             Integer i = store.getIndexForId(id);
             if (i == null) continue;
 
-            // Skip objects that haven't received any updates yet.
             if (store.state1_timestamp[i] == 0) continue;
 
-            // Shift the current render state to the "previous" render state buffer.
             store.prev_posX[i] = store.render_posX[i];
             store.prev_posY[i] = store.render_posY[i];
             store.prev_posZ[i] = store.render_posZ[i];
@@ -62,10 +62,8 @@ public class VxClientObjectInterpolator {
                 store.prev_vertexData[i] = null;
             }
 
-            // Calculate the new target render state.
             calculateInterpolatedState(store, i, renderTimestamp);
 
-            // On the very first update, initialize the "previous" state to the current state to prevent a visual jump.
             if (!store.render_isInitialized[i]) {
                 store.prev_posX[i] = store.render_posX[i];
                 store.prev_posY[i] = store.render_posY[i];
@@ -103,27 +101,30 @@ public class VxClientObjectInterpolator {
         long fromTime = store.state0_timestamp[i];
         long toTime = store.state1_timestamp[i];
 
-        // If timestamps are invalid or not in order, snap to the latest state.
         if (fromTime == 0 || toTime <= fromTime) {
             setRenderStateToLatest(store, i);
             return;
         }
 
         long timeDiff = toTime - fromTime;
-        // Alpha is the interpolation factor, from 0.0 (at fromTime) to 1.0 (at toTime).
         float alpha = (float) (renderTimestamp - fromTime) / timeDiff;
 
         if (alpha > 1.0f) {
             // Extrapolation: The render time is past the latest known state.
             float extrapolationTime = (float) (renderTimestamp - toTime) / 1_000_000_000.0f;
+            float velX = store.state1_velX[i];
+            float velY = store.state1_velY[i];
+            float velZ = store.state1_velZ[i];
+            float velSq = velX * velX + velY * velY + velZ * velZ;
 
-            if (extrapolationTime < MAX_EXTRAPOLATION_SECONDS) {
-                // Predict future position based on the last known velocity.
-                store.render_posX[i] = store.state1_posX[i] + store.state1_velX[i] * extrapolationTime;
-                store.render_posY[i] = store.state1_posY[i] + store.state1_velY[i] * extrapolationTime;
-                store.render_posZ[i] = store.state1_posZ[i] + store.state1_velZ[i] * extrapolationTime;
+            // Only extrapolate if the time is within limits and the body has significant velocity.
+            // This prevents overshooting when the body is meant to be stopping.
+            if (extrapolationTime < MAX_EXTRAPOLATION_SECONDS && velSq > EXTRAPOLATION_VELOCITY_THRESHOLD_SQ) {
+                store.render_posX[i] = store.state1_posX[i] + velX * extrapolationTime;
+                store.render_posY[i] = store.state1_posY[i] + velY * extrapolationTime;
+                store.render_posZ[i] = store.state1_posZ[i] + velZ * extrapolationTime;
             } else {
-                // If extrapolating too far, just clamp to the last known position.
+                // If extrapolating too far or velocity is negligible, clamp to the last known position.
                 store.render_posX[i] = store.state1_posX[i];
                 store.render_posY[i] = store.state1_posY[i];
                 store.render_posZ[i] = store.state1_posZ[i];
@@ -138,17 +139,13 @@ public class VxClientObjectInterpolator {
         }
 
         // Clamp alpha to prevent interpolating backwards.
-        if (alpha < 0.0f) {
-            alpha = 0.0f;
-        }
+        alpha = Math.max(0.0f, alpha);
 
         // Interpolation: The render time is between the two known states.
-        // Linearly interpolate position.
         store.render_posX[i] = Mth.lerp(alpha, store.state0_posX[i], store.state1_posX[i]);
         store.render_posY[i] = Mth.lerp(alpha, store.state0_posY[i], store.state1_posY[i]);
         store.render_posZ[i] = Mth.lerp(alpha, store.state0_posZ[i], store.state1_posZ[i]);
 
-        // Spherically interpolate rotation for correct, shortest-path rotation.
         tempFromRot.set(store.state0_rotX[i], store.state0_rotY[i], store.state0_rotZ[i], store.state0_rotW[i]);
         tempToRot.set(store.state1_rotX[i], store.state1_rotY[i], store.state1_rotZ[i], store.state1_rotW[i]);
         VxOperations.slerp(tempFromRot, tempToRot, alpha, tempRenderRot);
@@ -157,7 +154,6 @@ public class VxClientObjectInterpolator {
         store.render_rotZ[i] = tempRenderRot.getZ();
         store.render_rotW[i] = tempRenderRot.getW();
 
-        // Linearly interpolate soft body vertex data.
         float[] fromVerts = store.state0_vertexData[i];
         float[] toVerts = store.state1_vertexData[i];
         if (fromVerts != null && toVerts != null && fromVerts.length == toVerts.length) {
@@ -168,7 +164,6 @@ public class VxClientObjectInterpolator {
                 store.render_vertexData[i][j] = Mth.lerp(alpha, fromVerts[j], toVerts[j]);
             }
         } else {
-            // If one of the vertex arrays is missing, just use the one that exists.
             store.render_vertexData[i] = toVerts != null ? toVerts : fromVerts;
         }
     }
@@ -217,9 +212,9 @@ public class VxClientObjectInterpolator {
      */
     public void interpolatePosition(VxClientObjectDataStore store, int i, float partialTicks, RVec3 outPos) {
         outPos.set(
-                Mth.lerp(partialTicks, store.prev_posX[i], store.render_posX[i]),
-                Mth.lerp(partialTicks, store.prev_posY[i], store.render_posY[i]),
-                Mth.lerp(partialTicks, store.prev_posZ[i], store.render_posZ[i])
+                (float) Mth.lerp(partialTicks, store.prev_posX[i], store.render_posX[i]),
+                (float) Mth.lerp(partialTicks, store.prev_posY[i], store.render_posY[i]),
+                (float) Mth.lerp(partialTicks, store.prev_posZ[i], store.render_posZ[i])
         );
     }
 
@@ -253,7 +248,6 @@ public class VxClientObjectInterpolator {
             return null;
         }
 
-        // If there's no previous data, we can't interpolate, so return the current data.
         if (prevVerts == null || prevVerts.length != currVerts.length) {
             return currVerts;
         }
