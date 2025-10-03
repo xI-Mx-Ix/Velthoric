@@ -78,9 +78,15 @@ public abstract class VxCar extends VxVehicle {
             return;
         }
 
-        float forward = input.isForward() ? 1.0f : (input.isBackward() ? -1.0f : 0.0f);
-        float right = input.isRight() ? 1.0f : (input.isLeft() ? -1.0f : 0.0f);
-        float brake = input.isBackward() ? 1.0f : 0.0f;
+        float forward = 0.0f;
+        if (input.isForward()) forward = 1.0f;
+        else if (input.isBackward()) forward = -1.0f;
+
+        float right = 0.0f;
+        if (input.isRight()) right = 1.0f;
+        else if (input.isLeft()) right = -1.0f;
+
+        float brake = (forward == 0.0f) ? 1.0f : 0.0f;
         float handBrake = input.isUp() ? 1.0f : 0.0f;
 
         this.controller.setInput(forward, right, brake, handBrake);
