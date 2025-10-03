@@ -35,8 +35,7 @@ Velthoric brings **high-performance physics** to Minecraft using the full Jolt P
 * **Narrow & Broad Phase Collisions** – Efficient collision detection for all objects.
 * **Constraints** – Support for joints and other physics constraints.
 * **Shapes** – Various collision shapes supported.
-* **Raycasting** – Detect and interact with objects using rays.
-* **Region-Based Persistence** – Terrain and physics objects are saved per region, keeping their state consistent when you reload the area.
+* **Raycasting & Shape Casting** – Detect and interact with objects using rays or shapes.
 
 ### 🛠️ **Developer API**
 
