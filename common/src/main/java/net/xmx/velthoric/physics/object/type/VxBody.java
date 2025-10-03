@@ -161,7 +161,6 @@ public abstract class VxBody {
                 }
             }
         }
-        VxMainClass.LOGGER.warn("Returned null Body for bodyId {}", bodyId);
         return null;
     }
 
@@ -178,7 +177,6 @@ public abstract class VxBody {
                 }
             }
         }
-        VxMainClass.LOGGER.warn("Returned null ConstBody for bodyId {}", bodyId);
         return null;
     }
 
