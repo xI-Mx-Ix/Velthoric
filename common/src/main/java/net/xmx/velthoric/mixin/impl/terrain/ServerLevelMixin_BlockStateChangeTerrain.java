@@ -21,7 +21,7 @@ public abstract class ServerLevelMixin_BlockStateChangeTerrain {
     private void onBlockStateChangeHook(BlockPos pos, BlockState oldState, BlockState newState, CallbackInfo ci) {
         VxTerrainSystem terrainSystem = VxPhysicsWorld.getTerrainSystem(((ServerLevel)(Object)this).dimension());
         if (terrainSystem != null) {
-            terrainSystem.onBlockUpdate(pos, oldState, newState);
+            terrainSystem.onBlockUpdate(pos);
         }
     }
 }

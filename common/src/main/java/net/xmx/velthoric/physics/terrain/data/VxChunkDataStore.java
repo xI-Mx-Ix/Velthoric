@@ -2,11 +2,10 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.terrain;
+package net.xmx.velthoric.physics.terrain.data;
 
 import com.github.stephengold.joltjni.ShapeRefC;
 import net.xmx.velthoric.physics.object.AbstractDataStore;
-import net.xmx.velthoric.physics.terrain.chunk.VxSectionPos;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -26,6 +25,15 @@ public class VxChunkDataStore extends AbstractDataStore {
     private static final int INITIAL_CAPACITY = 4096;
     public static final int UNUSED_BODY_ID = 0;
 
+    // --- Chunk States ---
+    public static final int STATE_UNLOADED = 0;
+    public static final int STATE_LOADING_SCHEDULED = 1;
+    public static final int STATE_GENERATING_SHAPE = 2;
+    public static final int STATE_READY_INACTIVE = 3;
+    public static final int STATE_READY_ACTIVE = 4;
+    public static final int STATE_REMOVING = 5;
+    public static final int STATE_AIR_CHUNK = 6;
+
     private final Map<VxSectionPos, Integer> posToIndex = new HashMap<>();
     private final List<VxSectionPos> indexToPos = new ArrayList<>();
     private final Deque<Integer> freeIndices = new ArrayDeque<>();
@@ -36,7 +44,6 @@ public class VxChunkDataStore extends AbstractDataStore {
     public int[] states;
     public int[] bodyIds;
     public ShapeRefC[] shapeRefs;
-    public boolean[] isPlaceholder;
     public int[] rebuildVersions;
     public int[] referenceCounts;
 
@@ -48,11 +55,8 @@ public class VxChunkDataStore extends AbstractDataStore {
         states = grow(states, newCapacity);
         bodyIds = grow(bodyIds, newCapacity);
         shapeRefs = grow(shapeRefs, newCapacity);
-        isPlaceholder = grow(isPlaceholder, newCapacity);
         rebuildVersions = grow(rebuildVersions, newCapacity);
         referenceCounts = grow(referenceCounts, newCapacity);
-
-        Arrays.fill(isPlaceholder, count, newCapacity, true);
         this.capacity = newCapacity;
     }
 
@@ -166,19 +170,10 @@ public class VxChunkDataStore extends AbstractDataStore {
         return new ArrayList<>(posToIndex.values());
     }
 
-    public synchronized int getChunkCount() {
-        return this.count - freeIndices.size();
-    }
-
-    public int getCapacity() {
-        return this.capacity;
-    }
-
     private void resetIndex(int index) {
-        states[index] = 0; // STATE_UNLOADED
+        states[index] = STATE_UNLOADED;
         bodyIds[index] = UNUSED_BODY_ID;
         shapeRefs[index] = null;
-        isPlaceholder[index] = true;
         rebuildVersions[index] = 0;
         referenceCounts[index] = 0;
     }

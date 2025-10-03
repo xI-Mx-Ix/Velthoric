@@ -10,12 +10,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * An LRU (Least Recently Used) cache for storing compiled terrain physics shapes.
- * <p>
- * This cache helps to avoid regenerating shapes for identical chunk sections that appear
- * frequently. When the cache reaches its capacity, the least recently used entry is
- * evicted, and its associated native Jolt physics shape is properly released to prevent
- * memory leaks. This class is thread-safe.
+ * A thread-safe LRU (Least Recently Used) cache for storing terrain physics shapes.
+ * When the cache exceeds its capacity, the least recently used shape is evicted and
+ * its native resources are released.
  *
  * @author xI-Mx-Ix
  */
@@ -25,23 +22,18 @@ public class VxTerrainShapeCache {
     private final int capacity;
 
     /**
-     * Constructs a new shape cache with a specified capacity.
+     * Constructs a new terrain shape cache with a specified capacity.
      *
      * @param capacity The maximum number of shapes to store in the cache.
      */
     public VxTerrainShapeCache(int capacity) {
         this.capacity = capacity;
         this.cache = new LinkedHashMap<>(capacity, 0.75f, true) {
-            /**
-             * Called when a new entry is added to the map and the map's size exceeds the capacity.
-             * This implementation ensures that the native resource of the eldest entry is freed.
-             * @param eldest The least recently accessed entry.
-             * @return True if the eldest entry should be removed, false otherwise.
-             */
             @Override
             protected boolean removeEldestEntry(Map.Entry<Integer, ShapeRefC> eldest) {
                 boolean shouldRemove = size() > VxTerrainShapeCache.this.capacity;
                 if (shouldRemove && eldest.getValue() != null) {
+                    // Automatically close the native shape when it's evicted
                     eldest.getValue().close();
                 }
                 return shouldRemove;
@@ -50,38 +42,29 @@ public class VxTerrainShapeCache {
     }
 
     /**
-     * Retrieves a shape from the cache for a given key.
-     * <p>
-     * If a shape is found, a new reference (RefC) to it is returned. The caller
-     * is responsible for managing the lifecycle of the returned shape reference by closing it
-     * when it's no longer needed.
+     * Retrieves a shape from the cache. This operation marks the entry as recently used.
      *
-     * @param key The hash key of the chunk content.
-     * @return A new reference to the cached shape, or null if not found.
+     * @param key The hash key of the shape.
+     * @return A new {@link ShapeRefC} instance for the cached shape, or null if not found.
      */
     public synchronized ShapeRefC get(int key) {
         ShapeRefC masterRef = cache.get(key);
         if (masterRef != null && masterRef.getPtr() != null) {
-            // Return a new reference to the same native shape.
+            // Return a new reference to the same native object to ensure thread safety
             return masterRef.getPtr().toRefC();
         }
         return null;
     }
 
     /**
-     * Puts a new shape into the cache.
-     * <p>
-     * The cache takes ownership of the provided shape reference. The caller should not
-     * use or close the shape reference after passing it to this method. If a shape for
-     * the given key already exists, it is replaced, and the old shape's native resource is released.
+     * Adds a shape to the cache. If a shape with the same key already exists,
+     * it is replaced, and the old shape's resources are released.
      *
-     * @param key   The hash key of the chunk content.
-     * @param shape The shape reference to store. The cache takes ownership.
+     * @param key   The hash key for the shape.
+     * @param shape The shape reference to store. The cache takes ownership of this reference.
      */
     public synchronized void put(int key, ShapeRefC shape) {
-        if (shape == null) {
-            return;
-        }
+        if (shape == null) return;
 
         ShapeRefC oldShape = cache.put(key, shape);
 
@@ -91,7 +74,7 @@ public class VxTerrainShapeCache {
     }
 
     /**
-     * Clears the entire cache, releasing all stored native shape resources.
+     * Clears the cache, releasing all stored native shape resources.
      */
     public synchronized void clear() {
         cache.values().forEach(shapeRef -> {
