@@ -8,6 +8,7 @@ import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
@@ -31,6 +32,7 @@ public abstract class MixinEntity_EyePosOnPhysicsObject {
 
     @Shadow public abstract float getEyeHeight();
     @Shadow public abstract Entity getVehicle();
+    @Shadow private Level level;
 
     @Unique
     private static final RVec3 velthoric_interpolatedPosition_entity = new RVec3();
@@ -39,6 +41,10 @@ public abstract class MixinEntity_EyePosOnPhysicsObject {
 
     @Inject(method = "getEyePosition(F)Lnet/minecraft/world/phys/Vec3;", at = @At("HEAD"), cancellable = true)
     private void velthoric_getEyePositionOnPhysicsObject(float partialTicks, CallbackInfoReturnable<Vec3> cir) {
+        if (!level.isClientSide()) {
+            return;
+        }
+
         if (getVehicle() instanceof VxRidingProxyEntity proxy) {
             proxy.getPhysicsObjectId().ifPresent(id -> {
                 VxClientObjectManager manager = VxClientObjectManager.getInstance();
@@ -78,6 +84,10 @@ public abstract class MixinEntity_EyePosOnPhysicsObject {
 
     @Inject(method = "calculateViewVector", at = @At("HEAD"), cancellable = true)
     private void velthoric_calculateViewVectorOnPhysicsObject(float xRot, float yRot, CallbackInfoReturnable<Vec3> cir) {
+        if (!level.isClientSide()) {
+            return;
+        }
+
         if (getVehicle() instanceof VxRidingProxyEntity proxy) {
             proxy.getPhysicsObjectId().ifPresent(id -> {
                 VxClientObjectManager manager = VxClientObjectManager.getInstance();
