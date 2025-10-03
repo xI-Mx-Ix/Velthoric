@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.terrain.generation;
 
 import com.github.stephengold.joltjni.*;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.terrain.cache.VxTerrainShapeCache;
 import net.xmx.velthoric.physics.terrain.chunk.VxChunkSnapshot;
@@ -17,8 +18,8 @@ import java.util.Objects;
 
 /**
  * Generates terrain shapes by applying a greedy meshing algorithm to voxel data.
- * This class merges adjacent solid blocks within a chunk section into larger boxes
- * to create an efficient static compound shape for physics simulation.
+ * This class merges adjacent solid voxels from all block shapes within a chunk section
+ * into larger boxes to create an efficient static compound shape for physics simulation.
  *
  * @author xI-Mx-Ix
  */
@@ -61,69 +62,86 @@ public final class VxGreedyMesher {
     }
 
     /**
-     * Performs the greedy meshing algorithm on the voxel data from a chunk snapshot.
+     * Performs the greedy meshing algorithm on the detailed voxel data from a chunk snapshot.
      *
-     * @param snapshot The chunk snapshot containing voxel data.
+     * @param snapshot The chunk snapshot containing detailed voxel shapes.
      * @return A {@link ShapeRefC} representing the optimized compound shape.
      */
     private ShapeRefC generateShapeFromVoxels(VxChunkSnapshot snapshot) {
-        boolean[][][] voxels = new boolean[16][16][16];
+        final int SUBDIVISIONS = 16;
+        final int CHUNK_DIM = 16;
+        final int GRID_SIZE = CHUNK_DIM * SUBDIVISIONS;
+        final float SCALE = 1.0f / SUBDIVISIONS;
+
+        boolean[][][] subVoxels = new boolean[GRID_SIZE][GRID_SIZE][GRID_SIZE];
+
+        // Step 1: Voxelize all block shapes onto the high-resolution grid
         for (VxChunkSnapshot.ShapeInfo info : snapshot.shapes()) {
-            BlockPos local = info.localPos();
-            voxels[local.getX()][local.getY()][local.getZ()] = true;
+            BlockPos localBlockPos = info.localPos();
+            for (AABB aabb : info.shape().toAabbs()) {
+                int minX = (int) Math.floor((localBlockPos.getX() + aabb.minX) * SUBDIVISIONS);
+                int minY = (int) Math.floor((localBlockPos.getY() + aabb.minY) * SUBDIVISIONS);
+                int minZ = (int) Math.floor((localBlockPos.getZ() + aabb.minZ) * SUBDIVISIONS);
+                int maxX = (int) Math.ceil((localBlockPos.getX() + aabb.maxX) * SUBDIVISIONS);
+                int maxY = (int) Math.ceil((localBlockPos.getY() + aabb.maxY) * SUBDIVISIONS);
+                int maxZ = (int) Math.ceil((localBlockPos.getZ() + aabb.maxZ) * SUBDIVISIONS);
+
+                for (int y = minY; y < maxY; y++) {
+                    for (int z = minZ; z < maxZ; z++) {
+                        for (int x = minX; x < maxX; x++) {
+                            if (x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE && z >= 0 && z < GRID_SIZE) {
+                                subVoxels[x][y][z] = true;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        boolean[][][] visited = new boolean[16][16][16];
+        boolean[][][] visited = new boolean[GRID_SIZE][GRID_SIZE][GRID_SIZE];
         StaticCompoundShapeSettings settings = new StaticCompoundShapeSettings();
         int boxCount = 0;
 
-        for (int y = 0; y < 16; y++) {
-            for (int z = 0; z < 16; z++) {
-                for (int x = 0; x < 16; x++) {
-                    if (!voxels[x][y][z] || visited[x][y][z]) {
+        // Step 2: Run the greedy meshing algorithm on the high-resolution grid
+        for (int y = 0; y < GRID_SIZE; y++) {
+            for (int z = 0; z < GRID_SIZE; z++) {
+                for (int x = 0; x < GRID_SIZE; x++) {
+                    if (!subVoxels[x][y][z] || visited[x][y][z]) {
                         continue;
                     }
 
-                    // Expand along X axis (width)
                     int width = 1;
-                    while (x + width < 16 && !visited[x + width][y][z] && voxels[x + width][y][z]) {
+                    while (x + width < GRID_SIZE && !visited[x + width][y][z] && subVoxels[x + width][y][z]) {
                         width++;
                     }
 
-                    // Expand along Z axis (depth)
                     int depth = 1;
                     boolean canExpandZ = true;
-                    while (z + depth < 16 && canExpandZ) {
+                    while (z + depth < GRID_SIZE && canExpandZ) {
                         for (int k = 0; k < width; k++) {
-                            if (visited[x + k][y][z + depth] || !voxels[x + k][y][z + depth]) {
+                            if (visited[x + k][y][z + depth] || !subVoxels[x + k][y][z + depth]) {
                                 canExpandZ = false;
                                 break;
                             }
                         }
-                        if (canExpandZ) {
-                            depth++;
-                        }
+                        if (canExpandZ) depth++;
                     }
 
-                    // Expand along Y axis (height)
                     int height = 1;
                     boolean canExpandY = true;
-                    while (y + height < 16 && canExpandY) {
+                    while (y + height < GRID_SIZE && canExpandY) {
                         for (int kx = 0; kx < width; kx++) {
                             for (int kz = 0; kz < depth; kz++) {
-                                if (visited[x + kx][y + height][z + kz] || !voxels[x + kx][y + height][z + kz]) {
+                                if (visited[x + kx][y + height][z + kz] || !subVoxels[x + kx][y + height][z + kz]) {
                                     canExpandY = false;
                                     break;
                                 }
                             }
                             if (!canExpandY) break;
                         }
-                        if (canExpandY) {
-                            height++;
-                        }
+                        if (canExpandY) height++;
                     }
 
-                    // Mark all voxels in the merged box as visited
                     for (int dy = 0; dy < height; dy++) {
                         for (int dz = 0; dz < depth; dz++) {
                             for (int dx = 0; dx < width; dx++) {
@@ -132,17 +150,19 @@ public final class VxGreedyMesher {
                         }
                     }
 
-                    // Add the merged box to the compound shape
-                    float boxHalfWidth = width / 2.0f;
-                    float boxHalfHeight = height / 2.0f;
-                    float boxHalfDepth = depth / 2.0f;
+                    float boxHalfWidth = width * SCALE / 2.0f;
+                    float boxHalfHeight = height * SCALE / 2.0f;
+                    float boxHalfDepth = depth * SCALE / 2.0f;
 
                     Vec3 halfExtent = new Vec3(boxHalfWidth, boxHalfHeight, boxHalfDepth);
-                    Vec3 position = new Vec3(x + boxHalfWidth, y + boxHalfHeight, z + boxHalfDepth);
+                    Vec3 position = new Vec3(x * SCALE + boxHalfWidth, y * SCALE + boxHalfHeight, z * SCALE + boxHalfDepth);
+
                     BoxShapeSettings boxSettings = new BoxShapeSettings(halfExtent);
+
+                    boxSettings.setConvexRadius(0.0f);
+
                     settings.addShape(position, Quat.sIdentity(), boxSettings);
                     boxCount++;
-
                 }
             }
         }
@@ -165,7 +185,7 @@ public final class VxGreedyMesher {
     }
 
     /**
-     * Computes a hash based on the content of the chunk snapshot.
+     * Computes a hash based on the precise geometry content of the chunk snapshot.
      *
      * @param snapshot The chunk snapshot.
      * @return An integer hash code.
@@ -173,7 +193,8 @@ public final class VxGreedyMesher {
     private int computeContentHash(VxChunkSnapshot snapshot) {
         List<Integer> hashes = new ArrayList<>(snapshot.shapes().size());
         for (VxChunkSnapshot.ShapeInfo info : snapshot.shapes()) {
-            hashes.add(Objects.hash(info.state().hashCode(), info.localPos().hashCode()));
+            // AABBs list is a stable representation of the VoxelShape geometry
+            hashes.add(Objects.hash(info.state().hashCode(), info.localPos().hashCode(), info.shape().toAabbs()));
         }
         Collections.sort(hashes);
         return hashes.hashCode();

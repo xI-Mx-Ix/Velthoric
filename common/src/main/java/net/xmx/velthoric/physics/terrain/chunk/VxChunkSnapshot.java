@@ -9,6 +9,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.physics.terrain.data.VxSectionPos;
 
 import java.util.ArrayList;
@@ -32,8 +33,9 @@ public record VxChunkSnapshot(List<ShapeInfo> shapes, VxSectionPos pos) {
      *
      * @param state    The block state.
      * @param localPos The position of the block relative to the chunk section's origin (0-15).
+     * @param shape    The detailed collision shape of the block.
      */
-    public record ShapeInfo(BlockState state, BlockPos localPos) {}
+    public record ShapeInfo(BlockState state, BlockPos localPos, VoxelShape shape) {}
 
     /**
      * Creates a snapshot from a live {@link LevelChunk}.
@@ -62,10 +64,11 @@ public record VxChunkSnapshot(List<ShapeInfo> shapes, VxSectionPos pos) {
             for (int y = 0; y < 16; ++y) {
                 for (int z = 0; z < 16; ++z) {
                     BlockState blockState = section.getBlockState(x, y, z);
+                    VoxelShape collisionShape = blockState.getCollisionShape(level, origin.offset(x, y, z));
 
                     // Include only blocks that have a collision shape
-                    if (!blockState.isAir() && !blockState.getCollisionShape(level, origin.offset(x, y, z)).isEmpty()) {
-                        shapeInfos.add(new ShapeInfo(blockState, new BlockPos(x, y, z)));
+                    if (!blockState.isAir() && !collisionShape.isEmpty()) {
+                        shapeInfos.add(new ShapeInfo(blockState, new BlockPos(x, y, z), collisionShape));
                     }
                 }
             }
