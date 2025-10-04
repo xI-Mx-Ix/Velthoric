@@ -40,14 +40,6 @@ public class VxObjectRegistry {
     /** Stores the core definition of each object type, used on both server and client. */
     private final Map<ResourceLocation, VxObjectType<?>> registeredTypes = new ConcurrentHashMap<>();
 
-    /** Stores factories for creating client-side body instances. This map is only populated and used on the client. */
-    @Environment(EnvType.CLIENT)
-    private final Map<ResourceLocation, ClientFactory> clientFactories = new ConcurrentHashMap<>();
-
-    /** Stores renderers for client-side bodies. This map is only populated and used on the client. */
-    @Environment(EnvType.CLIENT)
-    private final Map<ResourceLocation, VxBodyRenderer<?>> clientRenderers = new ConcurrentHashMap<>();
-
     /** Private constructor to enforce the singleton pattern. */
     private VxObjectRegistry() {}
 
@@ -144,6 +136,19 @@ public class VxObjectRegistry {
          */
         VxClientBody create(UUID id, ResourceLocation typeId, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType);
     }
+    
+    /**
+     * This inner class holds all client-only fields and logic.
+     * It will not be loaded by the server, preventing the NoSuchFieldError.
+     */
+    @Environment(EnvType.CLIENT)
+    private static class Client {
+        /** Stores factories for creating client-side body instances. */
+        private static final Map<ResourceLocation, ClientFactory> clientFactories = new ConcurrentHashMap<>();
+
+        /** Stores renderers for client-side bodies. */
+        private static final Map<ResourceLocation, VxBodyRenderer<?>> clientRenderers = new ConcurrentHashMap<>();
+    }
 
     /**
      * Registers a factory for creating a client-side body instance.
@@ -153,7 +158,7 @@ public class VxObjectRegistry {
      */
     @Environment(EnvType.CLIENT)
     public void registerClientFactory(ResourceLocation typeId, ClientFactory factory) {
-        clientFactories.put(typeId, factory);
+        Client.clientFactories.put(typeId, factory);
     }
 
     /**
@@ -164,7 +169,7 @@ public class VxObjectRegistry {
      */
     @Environment(EnvType.CLIENT)
     public void registerClientRenderer(ResourceLocation typeId, VxBodyRenderer<?> renderer) {
-        clientRenderers.put(typeId, renderer);
+        Client.clientRenderers.put(typeId, renderer);
     }
 
     /**
@@ -175,7 +180,7 @@ public class VxObjectRegistry {
     @Nullable
     @Environment(EnvType.CLIENT)
     public VxClientBody createClientBody(ResourceLocation typeId, UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
-        ClientFactory factory = clientFactories.get(typeId);
+        ClientFactory factory = Client.clientFactories.get(typeId);
         if (factory != null) {
             try {
                 return factory.create(id, typeId, manager, dataStoreIndex, objectType);
@@ -197,6 +202,6 @@ public class VxObjectRegistry {
     @Nullable
     @Environment(EnvType.CLIENT)
     public VxBodyRenderer<?> getClientRenderer(ResourceLocation typeId) {
-        return clientRenderers.get(typeId);
+        return Client.clientRenderers.get(typeId);
     }
 }
