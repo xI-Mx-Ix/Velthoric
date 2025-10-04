@@ -23,7 +23,7 @@ import java.util.UUID;
  * This class acts as a lightweight handle for accessing the object's data,
  * which is stored in the {@link VxClientObjectDataStore} for performance.
  * It encapsulates logic for state calculation, culling, and synchronized data,
- * but delegates rendering to a dedicated {@link net.xmx.velthoric.physics.object.client.renderer.VxBodyRenderer}.
+ * but delegates rendering to a dedicated {@link net.xmx.velthoric.physics.object.client.body.renderer.VxBodyRenderer}.
  *
  * @author xI-Mx-Ix
  */
