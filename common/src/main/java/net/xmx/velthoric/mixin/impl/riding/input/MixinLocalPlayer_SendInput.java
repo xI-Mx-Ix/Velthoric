@@ -1,3 +1,7 @@
+/*
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.mixin.impl.riding.input;
 
 import net.minecraft.client.player.Input;
@@ -14,6 +18,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * @author xI-Mx-Ix
+ */
 @Mixin(LocalPlayer.class)
 public abstract class MixinLocalPlayer_SendInput {
 
