@@ -12,6 +12,7 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.event.api.VxRenderEvent;
@@ -21,13 +22,15 @@ import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.body.VxClientBody;
 import net.xmx.velthoric.physics.object.client.body.VxClientSoftBody;
+import net.xmx.velthoric.physics.object.client.body.renderer.VxBodyRenderer;
+import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 import org.joml.Matrix4f;
 
 /**
  * The main client-side renderer for all physics objects.
- * This class hooks into Minecraft's rendering pipeline to draw physics objects in the world.
- * It performs frustum culling and delegates state calculation and rendering to each
- * individual {@link VxClientBody} instance.
+ * This class hooks into Minecraft's rendering pipeline. It performs frustum culling,
+ * delegates state calculation to the {@link VxClientBody}, and then delegates the
+ * final drawing call to a registered {@link VxBodyRenderer}.
  *
  * @author xI-Mx-Ix
  */
@@ -105,8 +108,8 @@ public class VxPhysicsRenderer {
                     packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(renderPosition.xx(), renderPosition.yy(), renderPosition.zz()));
                 }
 
-                // Delegate the actual rendering call to the body.
-                body.render(poseStack, bufferSource, partialTicks, packedLight, finalRenderState);
+                // Look up the renderer and delegate the rendering call.
+                renderBody(body, poseStack, bufferSource, partialTicks, packedLight, finalRenderState);
 
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Error rendering physics object {}", body.getId(), e);
@@ -121,5 +124,21 @@ public class VxPhysicsRenderer {
         poseStack.popPose();
         // End the batch to draw everything.
         bufferSource.endBatch();
+    }
+
+    /**
+     * Looks up the appropriate renderer for the given body and calls its render method.
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static void renderBody(VxClientBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+        ResourceLocation typeId = body.getTypeId();
+        VxBodyRenderer renderer = VxObjectRegistry.getInstance().getClientRenderer(typeId);
+
+        if (renderer != null) {
+            // This unchecked call is necessary due to the generic nature of the registry.
+            renderer.render(body, poseStack, bufferSource, partialTicks, packedLight, renderState);
+        } else {
+            VxMainClass.LOGGER.warn("No renderer registered for physics object type: {}", typeId);
+        }
     }
 }

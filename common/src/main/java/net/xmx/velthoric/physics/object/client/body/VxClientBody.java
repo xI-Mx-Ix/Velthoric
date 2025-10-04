@@ -7,9 +7,8 @@ package net.xmx.velthoric.physics.object.client.body;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.api.EnvType;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
@@ -23,7 +22,8 @@ import java.util.UUID;
  * An abstract representation of a physics object on the client side.
  * This class acts as a lightweight handle for accessing the object's data,
  * which is stored in the {@link VxClientObjectDataStore} for performance.
- * It encapsulates logic for state calculation, culling, and synchronized data.
+ * It encapsulates logic for state calculation, culling, and synchronized data,
+ * but delegates rendering to a dedicated {@link net.xmx.velthoric.physics.object.client.renderer.VxBodyRenderer}.
  *
  * @author xI-Mx-Ix
  */
@@ -31,14 +31,16 @@ public abstract class VxClientBody {
 
     // Fields
     protected final UUID id;
+    protected final ResourceLocation typeId;
     protected final VxClientObjectManager manager;
     protected final int dataStoreIndex;
     protected final EBodyType objectType;
     protected final VxSynchronizedData synchronizedData;
 
     // Constructor
-    protected VxClientBody(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
+    protected VxClientBody(UUID id, ResourceLocation typeId, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
         this.id = id;
+        this.typeId = typeId;
         this.manager = manager;
         this.dataStoreIndex = dataStoreIndex;
         this.objectType = objectType;
@@ -46,19 +48,7 @@ public abstract class VxClientBody {
         this.defineSyncData();
     }
 
-    // Rendering
-    /**
-     * Renders the object in the world.
-     * This must be implemented by the final concrete class.
-     *
-     * @param poseStack    The current pose stack for transformations.
-     * @param bufferSource The buffer source for drawing.
-     * @param partialTicks The fraction of the current tick.
-     * @param packedLight  The calculated light value at the object's position.
-     * @param renderState  The final interpolated state to be rendered.
-     */
-    public abstract void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState);
-
+    // Rendering State Calculation
     /**
      * Calculates the final, interpolated render state for the object for the current frame.
      * This method populates the provided output objects with the interpolated transform.
@@ -99,6 +89,10 @@ public abstract class VxClientBody {
     // Getters
     public UUID getId() {
         return id;
+    }
+
+    public ResourceLocation getTypeId() {
+        return typeId;
     }
 
     public int getDataStoreIndex() {

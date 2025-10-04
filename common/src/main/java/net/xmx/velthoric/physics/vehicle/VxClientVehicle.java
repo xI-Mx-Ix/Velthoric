@@ -8,6 +8,7 @@ import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.WheelSettingsWv;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
@@ -31,8 +32,8 @@ public abstract class VxClientVehicle extends VxClientRigidBody {
     private VxWheelRenderState[] targetWheelStates;
     protected final List<VxWheelRenderState> interpolatedWheelStates;
 
-    protected VxClientVehicle(UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
-        super(id, manager, dataStoreIndex, objectType);
+    protected VxClientVehicle(UUID id, ResourceLocation typeId, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
+        super(id, typeId, manager, dataStoreIndex, objectType);
         this.prevWheelStates = new VxWheelRenderState[0];
         this.targetWheelStates = new VxWheelRenderState[0];
         this.interpolatedWheelStates = new ArrayList<>();

@@ -8,18 +8,26 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.builtin.block.BlockClientRigidBody;
+import net.xmx.velthoric.builtin.block.BlockRenderer;
 import net.xmx.velthoric.builtin.block.BlockRigidBody;
 import net.xmx.velthoric.builtin.box.BoxClientRigidBody;
+import net.xmx.velthoric.builtin.box.BoxRenderer;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.builtin.cloth.ClothClientSoftBody;
+import net.xmx.velthoric.builtin.cloth.ClothRenderer;
 import net.xmx.velthoric.builtin.cloth.ClothSoftBody;
-import net.xmx.velthoric.builtin.drivable.CarImpl;
-import net.xmx.velthoric.builtin.drivable.MotorcycleImpl;
+import net.xmx.velthoric.builtin.drivable.car.CarImpl;
+import net.xmx.velthoric.builtin.drivable.car.CarRenderer;
+import net.xmx.velthoric.builtin.drivable.motorcycle.MotorcycleImpl;
+import net.xmx.velthoric.builtin.drivable.motorcycle.MotorcycleRenderer;
 import net.xmx.velthoric.builtin.marble.MarbleClientRigidBody;
+import net.xmx.velthoric.builtin.marble.MarbleRenderer;
 import net.xmx.velthoric.builtin.marble.MarbleRigidBody;
 import net.xmx.velthoric.builtin.rope.RopeClientSoftBody;
+import net.xmx.velthoric.builtin.rope.RopeRenderer;
 import net.xmx.velthoric.builtin.rope.RopeSoftBody;
 import net.xmx.velthoric.builtin.sphere.SphereClientRigidBody;
+import net.xmx.velthoric.builtin.sphere.SphereRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
@@ -98,5 +106,22 @@ public class VxRegisteredObjects {
         registry.registerClientFactory(ROPE.getTypeId(), RopeClientSoftBody::new);
         registry.registerClientFactory(CAR.getTypeId(), VxClientCar::new);
         registry.registerClientFactory(MOTORCYCLE.getTypeId(), VxClientMotorcycle::new);
+    }
+
+    /**
+     * Registers all client-side renderers for physics objects.
+     * This must be called on the client after factories are registered.
+     */
+    @Environment(EnvType.CLIENT)
+    public static void registerClientRenderers() {
+        var registry = VxObjectRegistry.getInstance();
+        registry.registerClientRenderer(BLOCK.getTypeId(), new BlockRenderer());
+        registry.registerClientRenderer(SPHERE.getTypeId(), new SphereRenderer());
+        registry.registerClientRenderer(BOX.getTypeId(), new BoxRenderer());
+        registry.registerClientRenderer(MARBLE.getTypeId(), new MarbleRenderer());
+        registry.registerClientRenderer(CLOTH.getTypeId(), new ClothRenderer());
+        registry.registerClientRenderer(ROPE.getTypeId(), new RopeRenderer());
+        registry.registerClientRenderer(CAR.getTypeId(), new CarRenderer());
+        registry.registerClientRenderer(MOTORCYCLE.getTypeId(), new MotorcycleRenderer());
     }
 }

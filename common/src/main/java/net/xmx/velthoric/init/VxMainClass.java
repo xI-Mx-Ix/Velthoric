@@ -32,6 +32,7 @@ public class VxMainClass {
     @Environment(EnvType.CLIENT)
     public static void onClientInit() {
         VxRegisteredObjects.registerClientFactories();
+        VxRegisteredObjects.registerClientRenderers();
         RegisterEvents.registerClient();
     }
 }
