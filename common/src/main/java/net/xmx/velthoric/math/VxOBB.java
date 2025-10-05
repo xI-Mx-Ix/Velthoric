@@ -204,10 +204,9 @@ public class VxOBB {
 
         ra = extentsA.x * absR[1][2] + extentsA.y * absR[0][2];
         rb = extentsB.x * absR[2][1] + extentsB.y * absR[2][0];
-        if (Math.abs(t.y * R[0][2] - t.x * R[1][2]) > ra + rb) return false;
+        return !(Math.abs(t.y * R[0][2] - t.x * R[1][2]) > ra + rb);
 
         // No separating axis found, the OBBs must be intersecting.
-        return true;
     }
 
     /**

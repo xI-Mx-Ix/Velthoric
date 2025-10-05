@@ -212,9 +212,9 @@ public class VxClientObjectInterpolator {
      */
     public void interpolatePosition(VxClientObjectDataStore store, int i, float partialTicks, RVec3 outPos) {
         outPos.set(
-                (float) Mth.lerp(partialTicks, store.prev_posX[i], store.render_posX[i]),
-                (float) Mth.lerp(partialTicks, store.prev_posY[i], store.render_posY[i]),
-                (float) Mth.lerp(partialTicks, store.prev_posZ[i], store.render_posZ[i])
+                Mth.lerp(partialTicks, store.prev_posX[i], store.render_posX[i]),
+                Mth.lerp(partialTicks, store.prev_posY[i], store.render_posY[i]),
+                Mth.lerp(partialTicks, store.prev_posZ[i], store.render_posZ[i])
         );
     }
 
