@@ -575,23 +575,6 @@ public class VxObjectManager {
     }
 
     /**
-     * Asynchronously gets a physics object by its UUID, loading it from storage if it's not already in memory.
-     *
-     * @param id The UUID of the object.
-     * @return A {@link CompletableFuture} that will complete with the object, or null if it cannot be found or loaded.
-     */
-    public CompletableFuture<VxBody> getOrLoadObject(UUID id) {
-        if (id == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        VxBody loadedObject = getObject(id);
-        if (loadedObject != null) {
-            return CompletableFuture.completedFuture(loadedObject);
-        }
-        return objectStorage.loadObject(id);
-    }
-
-    /**
      * Populates a {@link VxTransform} object with the current position and rotation from the data store.
      *
      * @param dataStoreIndex The index of the object in the data store.
