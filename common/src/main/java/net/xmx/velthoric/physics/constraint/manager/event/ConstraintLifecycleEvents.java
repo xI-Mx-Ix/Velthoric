@@ -12,6 +12,9 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Optional;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class ConstraintLifecycleEvents {
 
     public static void registerEvents() {

@@ -6,40 +6,42 @@ package net.xmx.velthoric.physics.constraint.manager;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import com.github.stephengold.joltjni.std.StringStream;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.persistence.VxConstraintStorage;
-import net.xmx.velthoric.physics.constraint.serializer.ConstraintSerializerRegistry;
-import net.xmx.velthoric.physics.constraint.serializer.IVxConstraintSerializer;
-import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Manages the lifecycle of physics constraints within a physics world.
+ * This includes creation, activation, deactivation, and persistence.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxConstraintManager {
 
     private final VxPhysicsWorld world;
     private final VxObjectManager objectManager;
     private final VxConstraintStorage constraintStorage;
-    private final DependencyDataSystem dataSystem;
+    private final VxDependencyDataSystem dataSystem;
     private final Map<UUID, VxConstraint> activeConstraints = new ConcurrentHashMap<>();
 
     public VxConstraintManager(VxObjectManager objectManager) {
         this.objectManager = objectManager;
         this.world = objectManager.getPhysicsWorld();
         this.constraintStorage = new VxConstraintStorage(world.getLevel(), this);
-        this.dataSystem = new DependencyDataSystem(this);
-        ConstraintSerializerRegistry.initialize();
+        this.dataSystem = new VxDependencyDataSystem(this);
     }
 
-    public void initialize(VxPhysicsWorld world) {
+    public void initialize() {
         constraintStorage.initialize();
     }
 
@@ -55,6 +57,14 @@ public class VxConstraintManager {
         constraintStorage.shutdown();
     }
 
+    /**
+     * Creates a new constraint and schedules it for activation once its dependent bodies are loaded.
+     *
+     * @param settings The Jolt settings for the constraint.
+     * @param body1Id  The UUID of the first body.
+     * @param body2Id  The UUID of the second body.
+     * @return The newly created VxConstraint instance, or null if inputs are invalid.
+     */
     @Nullable
     public VxConstraint createConstraint(TwoBodyConstraintSettings settings, UUID body1Id, UUID body2Id) {
         if (settings == null || body1Id == null || body2Id == null) {
@@ -66,11 +76,20 @@ public class VxConstraintManager {
         return constraint;
     }
 
+    /**
+     * Adds a constraint from persistent storage to be processed for activation.
+     * @param constraint The constraint loaded from storage.
+     */
     public void addConstraintFromStorage(VxConstraint constraint) {
         dataSystem.addPendingConstraint(constraint);
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Activates a constraint by creating its Jolt counterpart and adding it to the physics system.
+     * This method is executed on the physics thread.
+     *
+     * @param constraint The constraint to activate.
+     */
     protected void activateConstraint(VxConstraint constraint) {
         world.execute(() -> {
             VxBody body1 = objectManager.getObject(constraint.getBody1Id());
@@ -81,19 +100,14 @@ public class VxConstraintManager {
                 return;
             }
 
-            Optional<IVxConstraintSerializer<?>> rawSerializerOpt = ConstraintSerializerRegistry.get(constraint.getSubType());
-            if (rawSerializerOpt.isEmpty()) {
-                VxMainClass.LOGGER.error("No serializer found for constraint type {} (ID: {})", constraint.getSubType(), constraint.getConstraintId());
-                return;
-            }
-            IVxConstraintSerializer<TwoBodyConstraintSettings> serializer = (IVxConstraintSerializer<TwoBodyConstraintSettings>) rawSerializerOpt.get();
+            try (TwoBodyConstraintSettings loadedSettings = deserializeSettings(constraint)) {
+                if (loadedSettings == null) {
+                    VxMainClass.LOGGER.error("Failed to deserialize settings for constraint {}", constraint.getConstraintId());
+                    return;
+                }
 
-            ByteBuf buffer = Unpooled.wrappedBuffer(constraint.getSettingsData());
-            TwoBodyConstraintSettings loadedSettings = serializer.load(buffer);
+                boolean wasCreatedWithWorldSpace = getConstraintSpace(loadedSettings) == EConstraintSpace.WorldSpace;
 
-            try (loadedSettings) {
-                buffer.release();
-                boolean wasCreatedWithWorldSpace = isCreatedWithWorldSpace(loadedSettings);
                 TwoBodyConstraint joltConstraint = world.getBodyInterface()
                         .createConstraint(loadedSettings, body1.getBodyId(), body2.getBodyId());
 
@@ -102,12 +116,13 @@ public class VxConstraintManager {
                     return;
                 }
 
+                // If the constraint was defined in world space, Jolt converts it to local space.
+                // We must save the new local space definition to ensure it reloads correctly.
                 if (wasCreatedWithWorldSpace) {
-                    try (ConstraintSettingsRef settingsRef = joltConstraint.getConstraintSettings()) {
-                        try (ConstraintSettings canonicalSettingsRaw = settingsRef.getPtr()) {
-                            if (canonicalSettingsRaw instanceof TwoBodyConstraintSettings canonicalSettings) {
-                                constraint.updateSettingsData(canonicalSettings);
-                            }
+                    try (ConstraintSettingsRef settingsRef = joltConstraint.getConstraintSettings();
+                         ConstraintSettings canonicalSettingsRaw = settingsRef.getPtr()) {
+                        if (canonicalSettingsRaw instanceof TwoBodyConstraintSettings canonicalSettings) {
+                            constraint.updateSettingsData(canonicalSettings);
                         }
                     }
                 }
@@ -122,33 +137,47 @@ public class VxConstraintManager {
         });
     }
 
-    private static boolean isCreatedWithWorldSpace(TwoBodyConstraintSettings loadedSettings) {
-        boolean wasCreatedWithWorldSpace = false;
+    /**
+     * Deserializes constraint settings from a VxConstraint's byte data using Jolt's object stream.
+     *
+     * @param constraint The constraint containing the data and subtype.
+     * @return The deserialized TwoBodyConstraintSettings object, or null on failure.
+     */
+    @Nullable
+    private TwoBodyConstraintSettings deserializeSettings(VxConstraint constraint) {
+        String settingsString = new String(constraint.getSettingsData(), StandardCharsets.ISO_8859_1);
+        try (StringStream stringStream = new StringStream(settingsString);
+             TwoBodyConstraintSettingsRef settingsRef = new TwoBodyConstraintSettingsRef()) {
 
-        if (loadedSettings instanceof ConeConstraintSettings s) {
-            wasCreatedWithWorldSpace = (s.getSpace() == EConstraintSpace.WorldSpace);
-        } else if (loadedSettings instanceof DistanceConstraintSettings s) {
-            wasCreatedWithWorldSpace = (s.getSpace() == EConstraintSpace.WorldSpace);
-        } else if (loadedSettings instanceof FixedConstraintSettings s) {
-            wasCreatedWithWorldSpace = (s.getSpace() == EConstraintSpace.WorldSpace);
-        } else if (loadedSettings instanceof GearConstraintSettings s) {
-            wasCreatedWithWorldSpace = (s.getSpace() == EConstraintSpace.WorldSpace);
-        } else if (loadedSettings instanceof HingeConstraintSettings s) {
-            wasCreatedWithWorldSpace = (s.getSpace() == EConstraintSpace.WorldSpace);
-        } else if (loadedSettings instanceof PointConstraintSettings s) {
-            wasCreatedWithWorldSpace = (s.getSpace() == EConstraintSpace.WorldSpace);
-        } else if (loadedSettings instanceof PulleyConstraintSettings s) {
-            wasCreatedWithWorldSpace = (s.getSpace() == EConstraintSpace.WorldSpace);
-        } else if (loadedSettings instanceof RackAndPinionConstraintSettings s) {
-            wasCreatedWithWorldSpace = (s.getSpace() == EConstraintSpace.WorldSpace);
-        } else if (loadedSettings instanceof SixDofConstraintSettings s) {
-            wasCreatedWithWorldSpace = (s.getSpace() == EConstraintSpace.WorldSpace);
-        } else if (loadedSettings instanceof SliderConstraintSettings s) {
-            wasCreatedWithWorldSpace = (s.getSpace() == EConstraintSpace.WorldSpace);
-        } else if (loadedSettings instanceof SwingTwistConstraintSettings s) {
-            wasCreatedWithWorldSpace = (s.getSpace() == EConstraintSpace.WorldSpace);
+            if (ObjectStreamIn.sReadObject(stringStream, settingsRef)) {
+                return settingsRef.getPtr();
+            } else {
+                VxMainClass.LOGGER.error("Jolt ObjectStreamIn failed to read constraint settings for {}", constraint.getConstraintId());
+                return null;
+            }
         }
-        return wasCreatedWithWorldSpace;
+    }
+
+    /**
+     * Gets the EConstraintSpace from a TwoBodyConstraintSettings object.
+     * Returns LocalSpace for types that don't have a space property.
+     *
+     * @param settings The settings object.
+     * @return The EConstraintSpace.
+     */
+    private EConstraintSpace getConstraintSpace(TwoBodyConstraintSettings settings) {
+        if (settings instanceof ConeConstraintSettings s) return s.getSpace();
+        if (settings instanceof DistanceConstraintSettings s) return s.getSpace();
+        if (settings instanceof FixedConstraintSettings s) return s.getSpace();
+        if (settings instanceof GearConstraintSettings s) return s.getSpace();
+        if (settings instanceof HingeConstraintSettings s) return s.getSpace();
+        if (settings instanceof PointConstraintSettings s) return s.getSpace();
+        if (settings instanceof PulleyConstraintSettings s) return s.getSpace();
+        if (settings instanceof RackAndPinionConstraintSettings s) return s.getSpace();
+        if (settings instanceof SixDofConstraintSettings s) return s.getSpace();
+        if (settings instanceof SliderConstraintSettings s) return s.getSpace();
+        if (settings instanceof SwingTwistConstraintSettings s) return s.getSpace();
+        return EConstraintSpace.LocalToBodyCom; // Default for types without this property
     }
 
     public void removeConstraint(UUID constraintId, boolean discardData) {
@@ -187,7 +216,7 @@ public class VxConstraintManager {
         return world;
     }
 
-    public DependencyDataSystem getDataSystem() {
+    public VxDependencyDataSystem getDataSystem() {
         return dataSystem;
     }
 }

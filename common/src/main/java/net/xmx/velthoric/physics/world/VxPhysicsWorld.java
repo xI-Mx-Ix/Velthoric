@@ -109,7 +109,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
 
         this.objectManager.initialize();
-        this.constraintManager.initialize(this);
+        this.constraintManager.initialize();
         this.terrainSystem.initialize();
 
         this.isRunning = true;

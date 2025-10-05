@@ -13,14 +13,17 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class DependencyDataSystem {
+/**
+ * @author xI-Mx-Ix
+ */
+public class VxDependencyDataSystem {
 
     private final VxConstraintManager constraintManager;
     private final Map<UUID, VxConstraint> pendingConstraints = new ConcurrentHashMap<>();
 
     private final Map<UUID, Set<UUID>> bodyToConstraintMap = new ConcurrentHashMap<>();
 
-    public DependencyDataSystem(VxConstraintManager constraintManager) {
+    public VxDependencyDataSystem(VxConstraintManager constraintManager) {
         this.constraintManager = constraintManager;
     }
 
