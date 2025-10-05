@@ -35,13 +35,17 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 /**
- * Manages the lifecycle, tracking, and state of all physics objects within a VxPhysicsWorld.
+ * Manages the lifecycle, tracking, and state of all physics objects within a {@link VxPhysicsWorld}.
  * This class acts as the central hub for creating, removing, and accessing physics bodies,
- * using a data-oriented approach with {@link VxObjectDataStore}.
+ * utilizing a data-oriented approach with {@link VxObjectDataStore}.
  *
  * @author xI-Mx-Ix
  */
 public class VxObjectManager {
+
+    //================================================================================
+    // Fields
+    //================================================================================
 
     private final VxPhysicsWorld world;
     private final VxBodyStorage objectStorage;
@@ -49,22 +53,36 @@ public class VxObjectManager {
     private final VxPhysicsUpdater physicsUpdater;
     private final VxObjectNetworkDispatcher networkDispatcher;
 
-    // Main map for tracking all active object instances by their unique persistent ID.
+    /**
+     * Main map for tracking all active object instances by their unique persistent ID.
+     */
     private final Map<UUID, VxBody> managedObjects = new ConcurrentHashMap<>();
 
-    // A fast lookup map from the Jolt physics body ID to the corresponding object wrapper.
+    /**
+     * A fast lookup map from the Jolt physics body ID to the corresponding object wrapper.
+     */
     private final Int2ObjectMap<VxBody> bodyIdToObjectMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
 
-    // A spatial map that groups objects by the chunk they are in for efficient proximity queries.
+    /**
+     * A spatial map that groups objects by the chunk they are in for efficient proximity queries.
+     * The key is the long-encoded chunk position.
+     */
     private final Long2ObjectMap<List<VxBody>> objectsByChunk = new Long2ObjectOpenHashMap<>();
 
+    //================================================================================
+    // Constructor & Lifecycle
+    //================================================================================
+
+    /**
+     * Constructs a new VxObjectManager for the given physics world.
+     *
+     * @param world The physics world this manager belongs to.
+     */
     public VxObjectManager(VxPhysicsWorld world) {
         this.world = world;
         this.dataStore = new VxObjectDataStore();
         this.objectStorage = new VxBodyStorage(world.getLevel(), this);
-        // The physics updater is now responsible for setting the correct dirty flags in the data store.
         this.physicsUpdater = new VxPhysicsUpdater(this);
-        // The network dispatcher reads directly from the data store's dirty flags.
         this.networkDispatcher = new VxObjectNetworkDispatcher(world.getLevel(), this);
     }
 
@@ -96,14 +114,32 @@ public class VxObjectManager {
         dataStore.clear();
     }
 
+    //================================================================================
+    // Tick Handlers
+    //================================================================================
+
+    /**
+     * Called on every physics thread tick to update object states.
+     *
+     * @param world The physics world instance.
+     */
     public void onPhysicsTick(VxPhysicsWorld world) {
         physicsUpdater.onPhysicsTick(world);
     }
 
+    /**
+     * Called on every game thread tick for network and other game-side updates.
+     *
+     * @param level The server level instance.
+     */
     public void onGameTick(ServerLevel level) {
         networkDispatcher.onGameTick();
         physicsUpdater.onGameTick(level);
     }
+
+    //================================================================================
+    // Public API: Object Creation
+    //================================================================================
 
     /**
      * Creates a new rigid body and adds it to the physics world.
@@ -140,6 +176,10 @@ public class VxObjectManager {
         addConstructedBody(body, EActivation.DontActivate, transform);
         return body;
     }
+
+    //================================================================================
+    // Core Lifecycle Management: Addition & Removal
+    //================================================================================
 
     /**
      * Adds a pre-constructed body to the physics world with a specified initial transform.
@@ -221,22 +261,117 @@ public class VxObjectManager {
     }
 
     /**
+     * Completely removes a physics object from the world with a specified reason.
+     * This handles removal from all internal systems: data store, tracking, network, storage, and the Jolt simulation.
+     *
+     * @param id     The UUID of the object to remove.
+     * @param reason The reason for removal, which determines if the object is saved or discarded.
+     */
+    public void removeObject(UUID id, VxRemovalReason reason) {
+        // Step 1: Atomically remove from internal data structures.
+        final VxBody obj = this.removeInternal(id);
+        if (obj == null) {
+            VxMainClass.LOGGER.warn("Attempted to remove non-existent body: {}", id);
+            if (reason == VxRemovalReason.DISCARD) {
+                objectStorage.removeData(id);
+            }
+            world.getConstraintManager().removeConstraintsForObject(id, reason == VxRemovalReason.DISCARD);
+            return;
+        }
+
+        // Step 2: Notify network dispatcher to despawn the object on clients.
+        networkDispatcher.onObjectRemoved(obj);
+
+        // Step 3: Stop server-side chunk tracking.
+        stopTracking(obj);
+
+        // Step 4: Fire the removal callback on the object itself.
+        obj.onBodyRemoved(world, reason);
+
+        // Step 5: Handle persistence based on the removal reason.
+        if (reason == VxRemovalReason.SAVE) {
+            objectStorage.storeObject(obj);
+        } else if (reason == VxRemovalReason.DISCARD) {
+            objectStorage.removeData(id);
+        }
+
+        // Step 6: Clean up any associated constraints.
+        world.getConstraintManager().removeConstraintsForObject(id, reason == VxRemovalReason.DISCARD);
+
+        // Step 7: Schedule the removal of the body from the Jolt simulation on the physics thread.
+        final int bodyIdToRemove = obj.getBodyId();
+        if (bodyIdToRemove != 0 && bodyIdToRemove != Jolt.cInvalidBodyId) {
+            world.execute(() -> {
+                BodyInterface bodyInterface = world.getBodyInterface();
+                if (bodyInterface.isAdded(bodyIdToRemove)) {
+                    bodyInterface.removeBody(bodyIdToRemove);
+                }
+                bodyInterface.destroyBody(bodyIdToRemove);
+            });
+        }
+    }
+
+    //================================================================================
+    // Internal Helpers
+    //================================================================================
+
+    /**
+     * Handles the internal registration of a physics object.
+     * This method reserves a data store index, adds the object to managed maps, and begins server-side chunk tracking.
+     * It does NOT notify the network dispatcher; that must be done after the initial state is written.
+     *
+     * @param obj The object to register.
+     */
+    private void addInternal(VxBody obj) {
+        if (obj == null) return;
+        managedObjects.computeIfAbsent(obj.getPhysicsId(), id -> {
+            EBodyType type = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
+            int index = dataStore.addObject(id, type);
+            obj.setDataStoreIndex(index);
+            startTracking(obj); // Manages server-side chunk lists for visibility checks.
+            return obj;
+        });
+    }
+
+    /**
+     * Handles the internal deregistration of a physics object.
+     * This method frees its data store index and removes it from tracking maps. It does not handle Jolt body removal.
+     * This method is synchronized to ensure the entire removal process is atomic.
+     *
+     * @param id The UUID of the object to remove.
+     * @return The removed object, or null if it was not found.
+     */
+    @Nullable
+    private synchronized VxBody removeInternal(UUID id) {
+        VxBody obj = managedObjects.remove(id);
+        if (obj != null) {
+            dataStore.removeObject(id);
+            obj.setDataStoreIndex(-1);
+            if (obj.getBodyId() != 0) {
+                bodyIdToObjectMap.remove(obj.getBodyId());
+            }
+        }
+        return obj;
+    }
+
+    /**
      * Internal helper to create and add a rigid body to the Jolt physics system.
+     *
+     * @param body            The rigid body wrapper.
+     * @param linearVelocity  The initial linear velocity (can be null).
+     * @param angularVelocity The initial angular velocity (can be null).
+     * @param activation      The initial activation state.
      */
     private void addRigidBodyToPhysicsWorld(VxRigidBody body, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation) {
         try {
-            // Define the factory implementation as a lambda. This lambda encapsulates the
-            // complex resource management and direct interaction with the Jolt world.
             VxRigidBodyFactory factory = (shapeSettings, bcs) -> {
                 try (ShapeResult shapeResult = shapeSettings.create()) {
                     if (shapeResult.hasError()) {
                         throw new IllegalStateException("Shape creation failed: " + shapeResult.getError());
                     }
                     try (ShapeRefC shapeRef = shapeResult.get()) {
-                        // Complete the BodyCreationSettings with data the manager is responsible for.
-                        bcs.setShape(shapeRef);
-
                         int index = body.getDataStoreIndex();
+                        bcs.setShape(shapeRef);
                         bcs.setPosition(dataStore.posX[index], dataStore.posY[index], dataStore.posZ[index]);
                         bcs.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
                         if (linearVelocity != null) bcs.setLinearVelocity(linearVelocity);
@@ -247,7 +382,6 @@ public class VxObjectManager {
                 }
             };
 
-            // Delegate the configuration to the body and create it using our factory.
             int bodyId = body.createJoltBody(factory);
 
             if (bodyId == Jolt.cInvalidBodyId) {
@@ -268,13 +402,13 @@ public class VxObjectManager {
 
     /**
      * Internal helper to create and add a soft body to the Jolt physics system.
+     *
+     * @param body       The soft body wrapper.
+     * @param activation The initial activation state.
      */
     private void addSoftBodyToPhysicsWorld(VxSoftBody body, EActivation activation) {
         try {
-            // Define the factory implementation for soft bodies.
             VxSoftBodyFactory factory = (sharedSettings, creationSettings) -> {
-                // The body provides both settings objects, the manager just needs to use them.
-                // The factory is responsible for closing them.
                 try (sharedSettings; creationSettings) {
                     int index = body.getDataStoreIndex();
                     creationSettings.setPosition(dataStore.posX[index], dataStore.posY[index], dataStore.posZ[index]);
@@ -284,7 +418,6 @@ public class VxObjectManager {
                 }
             };
 
-            // Delegate creation to the body via the factory.
             int bodyId = body.createJoltBody(factory);
 
             if (bodyId == Jolt.cInvalidBodyId) {
@@ -302,128 +435,9 @@ public class VxObjectManager {
         }
     }
 
-    /**
-     * Handles the internal registration of a physics object. This method reserves a data store index,
-     * adds the object to managed maps, and begins server-side chunk tracking. It does NOT
-     * notify the network dispatcher; that must be done after the initial state is written.
-     *
-     * @param obj The object to register.
-     */
-    private void addInternal(VxBody obj) {
-        if (obj == null) return;
-        managedObjects.computeIfAbsent(obj.getPhysicsId(), id -> {
-            EBodyType type = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
-            int index = dataStore.addObject(id, type);
-            obj.setDataStoreIndex(index);
-            startTracking(obj); // Manages server-side chunk lists for visibility checks.
-            return obj;
-        });
-    }
-
-    /**
-     * Handles the internal deregistration of a physics object, freeing its data store index
-     * and removing it from tracking maps. This does not handle Jolt body removal.
-     * This method is synchronized to ensure the entire removal process is atomic.
-     *
-     * @param id The UUID of the object to remove.
-     * @return The removed object, or null if it was not found.
-     */
-    @Nullable
-    private synchronized VxBody removeInternal(UUID id) {
-        // By synchronizing the method, we ensure that the removal from managedObjects
-        // and all other associated data structures happens as a single, atomic operation.
-        VxBody obj = managedObjects.remove(id);
-        if (obj != null) {
-            dataStore.removeObject(id); // This method is also synchronized, which is fine (re-entrant lock).
-            obj.setDataStoreIndex(-1);
-            if (obj.getBodyId() != 0) {
-                bodyIdToObjectMap.remove(obj.getBodyId());
-            }
-        }
-        return obj;
-    }
-
-    /**
-     * Completely removes a physics object from the world with a specified reason.
-     * This handles removal from all internal systems, network dispatch, storage, and the Jolt simulation.
-     *
-     * @param id     The UUID of the object to remove.
-     * @param reason The reason for removal (e.g., saving, discarding).
-     */
-    public void removeObject(UUID id, VxRemovalReason reason) {
-        // Step 1: Remove from internal data structures.
-        final VxBody obj = this.removeInternal(id);
-        if (obj == null) {
-            VxMainClass.LOGGER.warn("Attempted to remove non-existent body: {}", id);
-            if (reason == VxRemovalReason.DISCARD) {
-                objectStorage.removeData(id);
-            }
-            world.getConstraintManager().removeConstraintsForObject(id, reason == VxRemovalReason.DISCARD);
-            return;
-        }
-
-        // Step 2: Notify network dispatcher to despawn the object on clients.
-        networkDispatcher.onObjectRemoved(obj);
-        // Step 3: Stop server-side chunk tracking.
-        stopTracking(obj);
-
-        // Step 4: Fire the removal callback on the object.
-        obj.onBodyRemoved(world, reason);
-
-        // Step 5: Handle persistence based on the removal reason.
-        if (reason == VxRemovalReason.SAVE) {
-            objectStorage.storeObject(obj);
-        } else if (reason == VxRemovalReason.DISCARD) {
-            objectStorage.removeData(id);
-        }
-
-        // Step 6: Clean up any associated constraints.
-        world.getConstraintManager().removeConstraintsForObject(id, reason == VxRemovalReason.DISCARD);
-
-        // Step 7: Schedule the removal of the body from the Jolt simulation on the physics thread.
-        final int bodyIdToRemove = obj.getBodyId();
-        if (bodyIdToRemove != 0 && bodyIdToRemove != Jolt.cInvalidBodyId) {
-            world.execute(() -> {
-                if (world.getBodyInterface().isAdded(bodyIdToRemove)) {
-                    world.getBodyInterface().removeBody(bodyIdToRemove);
-                }
-                world.getBodyInterface().destroyBody(bodyIdToRemove);
-            });
-        }
-    }
-
-    /**
-     * Updates the chunk tracking information for a body when it moves across a chunk border.
-     *
-     * @param body    The body that moved.
-     * @param fromKey The long-encoded key of the chunk it moved from.
-     * @param toKey   The long-encoded key of the chunk it moved to.
-     */
-    void updateObjectTracking(VxBody body, long fromKey, long toKey) {
-        int index = body.getDataStoreIndex();
-        if (index != -1) {
-            dataStore.chunkKey[index] = toKey;
-        }
-
-        // Remove from the old chunk's list.
-        if (fromKey != Long.MAX_VALUE) {
-            synchronized (objectsByChunk) {
-                List<VxBody> fromList = objectsByChunk.get(fromKey);
-                if (fromList != null) {
-                    fromList.remove(body);
-                    if (fromList.isEmpty()) {
-                        objectsByChunk.remove(fromKey);
-                    }
-                }
-            }
-        }
-        // Add to the new chunk's list.
-        synchronized (objectsByChunk) {
-            objectsByChunk.computeIfAbsent(toKey, k -> new CopyOnWriteArrayList<>()).add(body);
-        }
-        // Notify the network dispatcher about the movement for client-side tracking updates.
-        networkDispatcher.onObjectMoved(body, new ChunkPos(fromKey), new ChunkPos(toKey));
-    }
+    //================================================================================
+    // Chunk Tracking & Spatial Queries
+    //================================================================================
 
     /**
      * Starts tracking an object on the server, adding it to the appropriate chunk list.
@@ -463,16 +477,59 @@ public class VxObjectManager {
     }
 
     /**
-     * Retrieves a list of all physics objects within a specific chunk.
+     * Updates the chunk tracking information for a body when it moves across a chunk border.
      *
-     * @param pos The position of the chunk.
-     * @return A list of objects in that chunk, or an empty list if none exist.
+     * @param body    The body that moved.
+     * @param fromKey The long-encoded key of the chunk it moved from.
+     * @param toKey   The long-encoded key of the chunk it moved to.
      */
-    public List<VxBody> getObjectsInChunk(ChunkPos pos) {
+    void updateObjectTracking(VxBody body, long fromKey, long toKey) {
+        int index = body.getDataStoreIndex();
+        if (index != -1) {
+            dataStore.chunkKey[index] = toKey;
+        }
+
+        // Remove from the old chunk's list.
+        if (fromKey != Long.MAX_VALUE) {
+            synchronized (objectsByChunk) {
+                List<VxBody> fromList = objectsByChunk.get(fromKey);
+                if (fromList != null) {
+                    fromList.remove(body);
+                    if (fromList.isEmpty()) {
+                        objectsByChunk.remove(fromKey);
+                    }
+                }
+            }
+        }
+        // Add to the new chunk's list.
         synchronized (objectsByChunk) {
-            return objectsByChunk.getOrDefault(pos.toLong(), Collections.emptyList());
+            objectsByChunk.computeIfAbsent(toKey, k -> new CopyOnWriteArrayList<>()).add(body);
+        }
+        // Notify the network dispatcher about the movement for client-side tracking updates.
+        networkDispatcher.onObjectMoved(body, new ChunkPos(fromKey), new ChunkPos(toKey));
+    }
+
+    /**
+     * Handles the unloading of all physics objects within a specific chunk.
+     * The objects are removed from the active simulation and queued for saving.
+     *
+     * @param chunkPos The position of the chunk being unloaded.
+     */
+    public void onChunkUnload(ChunkPos chunkPos) {
+        List<VxBody> objectsInChunk = getObjectsInChunk(chunkPos);
+        if (objectsInChunk.isEmpty()) {
+            return;
+        }
+        // Create a copy to avoid ConcurrentModificationException, as removeObject
+        // will modify the underlying list via stopTracking.
+        for (VxBody obj : List.copyOf(objectsInChunk)) {
+            removeObject(obj.getPhysicsId(), VxRemovalReason.SAVE);
         }
     }
+
+    //================================================================================
+    // Data Accessors & State Modification
+    //================================================================================
 
     /**
      * Retrieves a physics object by its Jolt body ID.
@@ -483,15 +540,6 @@ public class VxObjectManager {
     @Nullable
     public VxBody getByBodyId(int bodyId) {
         return bodyIdToObjectMap.get(bodyId);
-    }
-
-    /**
-     * Gets a collection of all managed physics objects.
-     *
-     * @return A collection view of all {@link VxBody} instances.
-     */
-    public Collection<VxBody> getAllObjects() {
-        return managedObjects.values();
     }
 
     /**
@@ -506,16 +554,23 @@ public class VxObjectManager {
     }
 
     /**
-     * Marks an object's custom data as dirty and queues it for network synchronization.
+     * Gets a collection of all managed physics objects.
      *
-     * @param body The body to update.
+     * @return A collection view of all {@link VxBody} instances.
      */
-    public void markCustomDataDirty(VxBody body) {
-        if (body.getDataStoreIndex() != -1) {
-            getDataStore().isCustomDataDirty[body.getDataStoreIndex()] = true;
-            // The network dispatcher doesn't need a queue for this anymore, but you might have a similar
-            // process for custom data if it's sent separately. This example assumes it might be batched differently.
-            // For simplicity, we assume the dispatcher will also poll for this flag.
+    public Collection<VxBody> getAllObjects() {
+        return managedObjects.values();
+    }
+
+    /**
+     * Retrieves a list of all physics objects within a specific chunk.
+     *
+     * @param pos The position of the chunk.
+     * @return A list of objects in that chunk, or an empty list if none exist.
+     */
+    public List<VxBody> getObjectsInChunk(ChunkPos pos) {
+        synchronized (objectsByChunk) {
+            return objectsByChunk.getOrDefault(pos.toLong(), Collections.emptyList());
         }
     }
 
@@ -534,46 +589,6 @@ public class VxObjectManager {
             return CompletableFuture.completedFuture(loadedObject);
         }
         return objectStorage.loadObject(id);
-    }
-
-    /**
-     * Handles the unloading of all physics objects within a specific chunk.
-     * The objects are removed from the active simulation and queued for saving.
-     *
-     * @param chunkPos The position of the chunk being unloaded.
-     */
-    public void onChunkUnload(ChunkPos chunkPos) {
-        List<VxBody> objectsInChunk = getObjectsInChunk(chunkPos);
-        if (objectsInChunk.isEmpty()) {
-            return;
-        }
-        // Create a copy to avoid ConcurrentModificationException, as removeObject
-        // will modify the underlying list via stopTracking.
-        for (VxBody obj : List.copyOf(objectsInChunk)) {
-            // The SAVE reason ensures the object is persisted before being removed from the simulation.
-            removeObject(obj.getPhysicsId(), VxRemovalReason.SAVE);
-        }
-    }
-
-    /**
-     * Schedules a task on the physics thread to save all currently managed objects
-     * and any modified region files to disk. This ensures thread-safe access to physics data.
-     */
-    public void saveAll() {
-        VxPhysicsWorld physicsWorld = getPhysicsWorld();
-        if (physicsWorld != null && physicsWorld.isRunning()) {
-            // The save operation is dispatched to the physics thread for thread safety.
-            physicsWorld.execute(() -> {
-                // Now safely on the physics thread.
-                Collection<VxBody> allObjects = getAllObjects();
-                if (!allObjects.isEmpty()) {
-                    // The storage system handles persisting each object.
-                    objectStorage.storeObjects(allObjects);
-                }
-                // Finally, write any pending region file changes to disk.
-                objectStorage.saveDirtyRegions();
-            });
-        }
     }
 
     /**
@@ -604,6 +619,42 @@ public class VxObjectManager {
         }
         return new ChunkPos(0, 0); // Fallback
     }
+
+    /**
+     * Marks an object's custom data as dirty, queuing it for network synchronization.
+     *
+     * @param body The body whose custom data has changed.
+     */
+    public void markCustomDataDirty(VxBody body) {
+        if (body.getDataStoreIndex() != -1) {
+            getDataStore().isCustomDataDirty[body.getDataStoreIndex()] = true;
+        }
+    }
+
+    //================================================================================
+    // Persistence
+    //================================================================================
+
+    /**
+     * Schedules a task on the physics thread to save all currently managed objects
+     * and any modified region files to disk. This ensures thread-safe access to physics data.
+     */
+    public void saveAll() {
+        VxPhysicsWorld physicsWorld = getPhysicsWorld();
+        if (physicsWorld != null && physicsWorld.isRunning()) {
+            physicsWorld.execute(() -> {
+                Collection<VxBody> allObjects = getAllObjects();
+                if (!allObjects.isEmpty()) {
+                    objectStorage.storeObjects(allObjects);
+                }
+                objectStorage.saveDirtyRegions();
+            });
+        }
+    }
+
+    //================================================================================
+    // Getters for Subsystems
+    //================================================================================
 
     public VxPhysicsWorld getPhysicsWorld() {
         return world;
