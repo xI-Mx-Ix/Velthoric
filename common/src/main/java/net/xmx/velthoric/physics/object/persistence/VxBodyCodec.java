@@ -10,7 +10,6 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
-import net.xmx.velthoric.physics.object.persistence.VxBodyStorage.SerializedBodyData;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
@@ -20,7 +19,7 @@ import java.util.UUID;
  * A utility class for serializing and deserializing {@link VxBody} objects.
  * This codec translates the state of a physics body (including transform, velocity, and
  * custom data) into a byte representation for storage, and vice versa. Deserialization
- * produces a {@link SerializedBodyData} record, which acts as an intermediary
+ * produces a {@link VxSerializedBodyData} record, which acts as an intermediary
  * data-transfer object for reconstructing the body.
  *
  * @author xI-Mx-Ix
@@ -68,15 +67,15 @@ public final class VxBodyCodec {
     }
 
     /**
-     * Deserializes physics body data from a buffer into a {@link SerializedBodyData} record.
+     * Deserializes physics body data from a buffer into a {@link VxSerializedBodyData} record.
      * This record contains all necessary information to recreate the body later.
      * Includes sanity checks for velocity values to prevent physics instabilities from corrupt data.
      *
      * @param buf The buffer to read the serialized data from.
-     * @return A {@link SerializedBodyData} record, or null if deserialization fails.
+     * @return A {@link VxSerializedBodyData} record, or null if deserialization fails.
      */
     @Nullable
-    public static SerializedBodyData deserialize(VxByteBuf buf) {
+    public static VxSerializedBodyData deserialize(VxByteBuf buf) {
         try {
             UUID id = buf.readUUID();
             ResourceLocation typeId = new ResourceLocation(buf.readUtf());
@@ -97,7 +96,7 @@ public final class VxBodyCodec {
             // The remaining bytes in the buffer are custom persistence data.
             VxByteBuf persistenceData = new VxByteBuf(buf.readBytes(buf.readableBytes()));
 
-            return new SerializedBodyData(typeId, id, transform, linearVelocity, angularVelocity, persistenceData);
+            return new VxSerializedBodyData(typeId, id, transform, linearVelocity, angularVelocity, persistenceData);
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to deserialize physics object from data", e);
             return null;

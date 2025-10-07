@@ -18,6 +18,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.persistence.VxSerializedBodyData;
 import net.xmx.velthoric.physics.object.persistence.VxBodyStorage;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.object.type.VxBody;
@@ -223,7 +224,7 @@ public class VxObjectManager {
      * @return The created and added {@link VxBody}, or null on failure.
      */
     @Nullable
-    public VxBody addSerializedBody(VxBodyStorage.SerializedBodyData data) {
+    public VxBody addSerializedBody(VxSerializedBodyData data) {
         VxBody obj = VxObjectRegistry.getInstance().create(data.typeId(), world, data.id());
         if (obj == null) {
             VxMainClass.LOGGER.error("Failed to create object of type {} with ID {} from storage.", data.typeId(), data.id());

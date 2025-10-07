@@ -11,7 +11,6 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
@@ -35,17 +34,6 @@ import java.util.stream.Collectors;
  * @author xI-Mx-Ix
  */
 public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
-    // Note: The SerializedBodyData record can now be moved inside VxBodyCodec if preferred,
-    // or kept here for clarity. It is kept here for this example.
-    public record SerializedBodyData(
-            net.minecraft.resources.ResourceLocation typeId,
-            UUID id,
-            VxTransform transform,
-            com.github.stephengold.joltjni.Vec3 linearVelocity,
-            com.github.stephengold.joltjni.Vec3 angularVelocity,
-            VxByteBuf persistenceData
-    ) {}
-
     private final VxObjectManager objectManager;
     private final VxObjectDataStore dataStore;
     private final ConcurrentMap<Long, List<UUID>> chunkToUuidIndex = new ConcurrentHashMap<>();
@@ -202,13 +190,13 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     /**
-     * Deserializes a raw byte array into a structured {@link SerializedBodyData} object using the VxBodyCodec.
+     * Deserializes a raw byte array into a structured {@link VxSerializedBodyData} object using the VxBodyCodec.
      *
      * @param data The raw byte data from storage.
      * @return The deserialized data, or null on failure.
      */
     @Nullable
-    private SerializedBodyData deserializeObject(byte[] data) {
+    private VxSerializedBodyData deserializeObject(byte[] data) {
         if (data == null) return null;
         VxByteBuf buf = new VxByteBuf(Unpooled.wrappedBuffer(data));
         try {
