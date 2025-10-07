@@ -98,8 +98,7 @@ public class VxObjectManager {
      */
     public void shutdown() {
         networkDispatcher.stop();
-        getAllObjects().forEach(objectStorage::storeObject);
-        objectStorage.saveDirtyRegions();
+        saveAll(); // Save any remaining objects on shutdown
         clear();
         objectStorage.shutdown();
     }
@@ -616,6 +615,19 @@ public class VxObjectManager {
     //================================================================================
     // Persistence
     //================================================================================
+
+    /**
+     * Saves all physics objects located within a specific chunk.
+     * This is triggered by the EntityStorage save hook.
+     *
+     * @param pos The position of the chunk to save objects for.
+     */
+    public void saveObjectsInChunk(ChunkPos pos) {
+        List<VxBody> objectsInChunk = getObjectsInChunk(pos);
+        if (!objectsInChunk.isEmpty()) {
+            objectStorage.storeObjects(List.copyOf(objectsInChunk));
+        }
+    }
 
     /**
      * Schedules a task on the physics thread to save all currently managed objects

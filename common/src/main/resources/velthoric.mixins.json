@@ -12,7 +12,9 @@
     "event.level.ServerLevelMixin_VxLevelEvent",
     "event.server.MinecraftServerMixin_VxServerLifecylceEvent",
     "misc.ExplosionMixin_TriggerExplosion",
+    "object.ChunkMapMixin_UnloadObjects",
     "object.ChunkMapMixin_DispatchObjectsToPlayers",
+    "object.EntityStorageMixin_Persistence",
     "riding.render.eye.MixinEntity_EyePosOnPhysicsObject",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
   ],
