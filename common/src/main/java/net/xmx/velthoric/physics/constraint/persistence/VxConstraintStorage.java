@@ -16,10 +16,12 @@ import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 /**
  * Manages persistent storage for physics constraints.
@@ -65,31 +67,54 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     /**
-     * Stores a single constraint to disk asynchronously. The constraint's location
-     * is determined by its first body's chunk position.
+     * Stores a collection of constraints by grouping them by region and saving each region in a single batch operation.
+     *
+     * @param constraints The constraints to store.
+     */
+    public void storeConstraints(Collection<VxConstraint> constraints) {
+        if (constraints == null || constraints.isEmpty()) return;
+
+        Map<RegionPos, List<VxConstraint>> constraintsByRegion = new HashMap<>();
+        for (VxConstraint constraint : constraints) {
+            if (constraint == null) continue;
+            VxBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
+            if (body1 != null) {
+                int index = body1.getDataStoreIndex();
+                if (index == -1) continue;
+                ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(index);
+                RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
+                constraintsByRegion.computeIfAbsent(regionPos, k -> new ArrayList<>()).add(constraint);
+            }
+        }
+
+        constraintsByRegion.forEach((regionPos, regionConstraints) -> {
+            getRegion(regionPos).thenAcceptAsync(region -> {
+                for (VxConstraint constraint : regionConstraints) {
+                    VxBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
+                    if (body1 == null || body1.getDataStoreIndex() == -1) continue;
+
+                    ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(body1.getDataStoreIndex());
+                    byte[] data = serializeConstraintData(constraint, chunkPos);
+                    region.entries.put(constraint.getConstraintId(), data);
+                    regionIndex.put(constraint.getConstraintId(), regionPos);
+                    indexConstraintData(constraint.getConstraintId(), data);
+                }
+                region.dirty.set(true);
+            }, ioExecutor).exceptionally(ex -> {
+                VxMainClass.LOGGER.error("Failed to store constraint batch in region {}", regionPos, ex);
+                return null;
+            });
+        });
+    }
+
+    /**
+     * Stores a single constraint. For better performance, use storeConstraints when saving multiple constraints.
      *
      * @param constraint The constraint to store.
      */
     public void storeConstraint(VxConstraint constraint) {
         if (constraint == null) return;
-        VxBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
-        if (body1 != null) {
-            int index = body1.getDataStoreIndex();
-            if (index == -1) return;
-            ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(index);
-            byte[] data = serializeConstraintData(constraint, chunkPos);
-            RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
-
-            getRegion(regionPos).thenAcceptAsync(region -> {
-                region.entries.put(constraint.getConstraintId(), data);
-                region.dirty.set(true);
-                regionIndex.put(constraint.getConstraintId(), regionPos);
-                indexConstraintData(constraint.getConstraintId(), data);
-            }, ioExecutor).exceptionally(ex -> {
-                VxMainClass.LOGGER.error("Failed to store constraint {}", constraint.getConstraintId(), ex);
-                return null;
-            });
-        }
+        storeConstraints(Collections.singletonList(constraint));
     }
 
     /**

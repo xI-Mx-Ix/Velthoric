@@ -94,11 +94,11 @@ public class VxObjectManager {
     }
 
     /**
-     * Shuts down the manager, ensuring all objects are saved and subsystems are terminated gracefully.
+     * Shuts down the manager, ensuring all subsystems are terminated gracefully.
+     * Saving is handled by Minecraft's chunk persistence, not here.
      */
     public void shutdown() {
         networkDispatcher.stop();
-        saveAll(); // Save any remaining objects on shutdown
         clear();
         objectStorage.shutdown();
     }
@@ -626,23 +626,6 @@ public class VxObjectManager {
         List<VxBody> objectsInChunk = getObjectsInChunk(pos);
         if (!objectsInChunk.isEmpty()) {
             objectStorage.storeObjects(List.copyOf(objectsInChunk));
-        }
-    }
-
-    /**
-     * Schedules a task on the physics thread to save all currently managed objects
-     * and any modified region files to disk. This ensures thread-safe access to physics data.
-     */
-    public void saveAll() {
-        VxPhysicsWorld physicsWorld = getPhysicsWorld();
-        if (physicsWorld != null && physicsWorld.isRunning()) {
-            physicsWorld.execute(() -> {
-                Collection<VxBody> allObjects = getAllObjects();
-                if (!allObjects.isEmpty()) {
-                    objectStorage.storeObjects(allObjects);
-                }
-                objectStorage.saveDirtyRegions();
-            });
         }
     }
 

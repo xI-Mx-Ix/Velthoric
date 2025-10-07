@@ -48,34 +48,35 @@ public class VxConstraintManager {
         constraintStorage.initialize();
     }
 
-    public void saveData() {
-        activeConstraints.values().forEach(constraintStorage::storeConstraint);
-        constraintStorage.saveDirtyRegions();
-    }
-
+    /**
+     * Cleans up resources on shutdown. Saving is handled by Minecraft's chunk saving mechanism.
+     */
     public void shutdown() {
-        saveData();
         activeConstraints.clear();
         dataSystem.clear();
         constraintStorage.shutdown();
     }
 
     /**
-     * Saves all constraints associated with a given chunk.
+     * Saves all constraints associated with a given chunk using a single batch operation.
      * A constraint is considered to be in a chunk if its first body is in that chunk.
      *
      * @param pos The position of the chunk.
      */
     public void saveConstraintsInChunk(ChunkPos pos) {
         long chunkKey = pos.toLong();
+        List<VxConstraint> constraintsToSave = new ArrayList<>();
         for (VxConstraint constraint : activeConstraints.values()) {
             VxBody body1 = objectManager.getObject(constraint.getBody1Id());
             if (body1 != null) {
                 int index = body1.getDataStoreIndex();
                 if (index != -1 && objectManager.getDataStore().chunkKey[index] == chunkKey) {
-                    constraintStorage.storeConstraint(constraint);
+                    constraintsToSave.add(constraint);
                 }
             }
+        }
+        if (!constraintsToSave.isEmpty()) {
+            constraintStorage.storeConstraints(constraintsToSave);
         }
     }
 
