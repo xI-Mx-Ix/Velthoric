@@ -69,7 +69,7 @@ public class VxConstraintManager {
         for (VxConstraint constraint : activeConstraints.values()) {
             VxBody body1 = objectManager.getObject(constraint.getBody1Id());
             if (body1 != null) {
-                int index = body1.getDataStoreIndex();
+                int index = body1.getInternalBody().getDataStoreIndex();
                 if (index != -1 && objectManager.getDataStore().chunkKey[index] == chunkKey) {
                     constraintsToSave.add(constraint);
                 }
@@ -93,7 +93,7 @@ public class VxConstraintManager {
         for (VxConstraint constraint : activeConstraints.values()) {
             VxBody body1 = objectManager.getObject(constraint.getBody1Id());
             if (body1 != null) {
-                int index = body1.getDataStoreIndex();
+                int index = body1.getInternalBody().getDataStoreIndex();
                 if (index != -1 && objectManager.getDataStore().chunkKey[index] == chunkKey) {
                     toRemove.add(constraint.getConstraintId());
                 }
@@ -144,7 +144,7 @@ public class VxConstraintManager {
             VxBody body1 = objectManager.getObject(constraint.getBody1Id());
             VxBody body2 = objectManager.getObject(constraint.getBody2Id());
 
-            if (body1 == null || body2 == null || body1.getBodyId() == 0 || body2.getBodyId() == 0) {
+            if (body1 == null || body2 == null || body1.getInternalBody().getBodyId() == 0 || body2.getInternalBody().getBodyId() == 0) {
                 dataSystem.addPendingConstraint(constraint);
                 return;
             }
@@ -158,7 +158,7 @@ public class VxConstraintManager {
                 boolean wasCreatedWithWorldSpace = getConstraintSpace(loadedSettings) == EConstraintSpace.WorldSpace;
 
                 TwoBodyConstraint joltConstraint = world.getBodyInterface()
-                        .createConstraint(loadedSettings, body1.getBodyId(), body2.getBodyId());
+                        .createConstraint(loadedSettings, body1.getInternalBody().getBodyId(), body2.getInternalBody().getBodyId());
 
                 if (joltConstraint == null) {
                     VxMainClass.LOGGER.error("Failed to create Jolt constraint for {}", constraint.getConstraintId());

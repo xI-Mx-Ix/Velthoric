@@ -355,7 +355,7 @@ public class VxObjectNetworkDispatcher {
      * @param body The physics object that was added.
      */
     public void onObjectAdded(VxBody body) {
-        int index = body.getDataStoreIndex();
+        int index = body.getInternalBody().getDataStoreIndex();
         if (index == -1) return;
         ChunkPos bodyChunk = manager.getObjectChunkPos(index);
         for (ServerPlayer player : level.players()) {

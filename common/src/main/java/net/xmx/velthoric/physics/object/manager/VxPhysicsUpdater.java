@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
+import net.xmx.velthoric.physics.object.type.internal.VxInternalBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -96,7 +97,7 @@ public class VxPhysicsUpdater {
 
                 final VxBody body = manager.getObject(id);
                 if (body != null) {
-                    final int bodyId = body.getBodyId();
+                    final int bodyId = body.getInternalBody().getBodyId();
                     if (bodyId != 0 && bodyInterface.isAdded(bodyId)) {
                         final RVec3 pos = tempPos.get();
                         pos.set(dataStore.posX[i], dataStore.posY[i], dataStore.posZ[i]);
@@ -132,7 +133,8 @@ public class VxPhysicsUpdater {
             VxBody obj = manager.getObject(id);
             if (obj == null) continue;
 
-            int bodyId = obj.getBodyId();
+            VxInternalBody internalBody = obj.getInternalBody();
+            int bodyId = internalBody.getBodyId();
             if (bodyId == 0 || !bodyInterface.isAdded(bodyId)) continue;
 
             boolean isJoltBodyActive = bodyInterface.isActive(bodyId);

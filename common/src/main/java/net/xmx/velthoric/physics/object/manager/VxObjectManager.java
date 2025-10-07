@@ -18,14 +18,15 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.VxObjectType;
-import net.xmx.velthoric.physics.object.persistence.VxSerializedBodyData;
 import net.xmx.velthoric.physics.object.persistence.VxBodyStorage;
+import net.xmx.velthoric.physics.object.persistence.VxSerializedBodyData;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.object.type.factory.VxSoftBodyFactory;
+import net.xmx.velthoric.physics.object.type.internal.VxInternalBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -191,7 +192,7 @@ public class VxObjectManager {
     public void addConstructedBody(VxBody body, EActivation activation, VxTransform transform) {
         // Step 1: Reserve a slot in the data store and add to internal tracking maps.
         addInternal(body);
-        int index = body.getDataStoreIndex();
+        int index = body.getInternalBody().getDataStoreIndex();
 
         // Step 2: Write the initial transform to the data store. This ensures the correct
         // spawn position is available before any network packets are created.
@@ -232,7 +233,7 @@ public class VxObjectManager {
         }
 
         addInternal(obj);
-        int index = obj.getDataStoreIndex();
+        int index = obj.getInternalBody().getDataStoreIndex();
         if (index != -1) {
             dataStore.posX[index] = data.transform().getTranslation().x();
             dataStore.posY[index] = data.transform().getTranslation().y();
@@ -298,7 +299,7 @@ public class VxObjectManager {
         world.getConstraintManager().removeConstraintsForObject(id, reason == VxRemovalReason.DISCARD);
 
         // Step 7: Schedule the removal of the body from the Jolt simulation on the physics thread.
-        final int bodyIdToRemove = obj.getBodyId();
+        final int bodyIdToRemove = obj.getInternalBody().getBodyId();
         if (bodyIdToRemove != 0 && bodyIdToRemove != Jolt.cInvalidBodyId) {
             world.execute(() -> {
                 BodyInterface bodyInterface = world.getBodyInterface();
@@ -326,7 +327,7 @@ public class VxObjectManager {
         managedObjects.computeIfAbsent(obj.getPhysicsId(), id -> {
             EBodyType type = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
             int index = dataStore.addObject(id, type);
-            obj.setDataStoreIndex(index);
+            obj.getInternalBody().setDataStoreIndex(index);
             startTracking(obj); // Manages server-side chunk lists for visibility checks.
             return obj;
         });
@@ -345,10 +346,11 @@ public class VxObjectManager {
         VxBody obj = managedObjects.remove(id);
         if (obj != null) {
             dataStore.removeObject(id);
-            obj.setDataStoreIndex(-1);
-            if (obj.getBodyId() != 0) {
-                bodyIdToObjectMap.remove(obj.getBodyId());
+            int bodyId = obj.getInternalBody().getBodyId();
+            if (bodyId != 0) {
+                bodyIdToObjectMap.remove(bodyId);
             }
+            obj.getInternalBody().setDataStoreIndex(-1);
         }
         return obj;
     }
@@ -363,13 +365,14 @@ public class VxObjectManager {
      */
     private void addRigidBodyToPhysicsWorld(VxRigidBody body, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation) {
         try {
+            VxInternalBody internalBody = body.getInternalBody();
             VxRigidBodyFactory factory = (shapeSettings, bcs) -> {
                 try (ShapeResult shapeResult = shapeSettings.create()) {
                     if (shapeResult.hasError()) {
                         throw new IllegalStateException("Shape creation failed: " + shapeResult.getError());
                     }
                     try (ShapeRefC shapeRef = shapeResult.get()) {
-                        int index = body.getDataStoreIndex();
+                        int index = internalBody.getDataStoreIndex();
                         bcs.setShape(shapeRef);
                         bcs.setPosition(dataStore.posX[index], dataStore.posY[index], dataStore.posZ[index]);
                         bcs.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
@@ -388,7 +391,7 @@ public class VxObjectManager {
                 removeInternal(body.getPhysicsId()); // Clean up failed addition.
                 return;
             }
-            body.setBodyId(bodyId);
+            internalBody.setBodyId(bodyId);
             bodyIdToObjectMap.put(bodyId, body);
             body.onBodyAdded(world);
             world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
@@ -407,9 +410,10 @@ public class VxObjectManager {
      */
     private void addSoftBodyToPhysicsWorld(VxSoftBody body, EActivation activation) {
         try {
+            VxInternalBody internalBody = body.getInternalBody();
             VxSoftBodyFactory factory = (sharedSettings, creationSettings) -> {
                 try (sharedSettings; creationSettings) {
-                    int index = body.getDataStoreIndex();
+                    int index = internalBody.getDataStoreIndex();
                     creationSettings.setPosition(dataStore.posX[index], dataStore.posY[index], dataStore.posZ[index]);
                     creationSettings.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
 
@@ -424,7 +428,7 @@ public class VxObjectManager {
                 removeInternal(body.getPhysicsId()); // Clean up failed addition.
                 return;
             }
-            body.setBodyId(bodyId);
+            internalBody.setBodyId(bodyId);
             bodyIdToObjectMap.put(bodyId, body);
             body.onBodyAdded(world);
             world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
@@ -444,7 +448,7 @@ public class VxObjectManager {
      * @param body The object to start tracking.
      */
     public void startTracking(VxBody body) {
-        int index = body.getDataStoreIndex();
+        int index = body.getInternalBody().getDataStoreIndex();
         if (index == -1) return;
         long key = getObjectChunkPos(index).toLong();
         dataStore.chunkKey[index] = key;
@@ -459,7 +463,7 @@ public class VxObjectManager {
      * @param body The object to stop tracking.
      */
     public void stopTracking(VxBody body) {
-        int index = body.getDataStoreIndex();
+        int index = body.getInternalBody().getDataStoreIndex();
         if (index == -1) return;
         long key = dataStore.chunkKey[index];
         if (key != Long.MAX_VALUE) {
@@ -483,7 +487,7 @@ public class VxObjectManager {
      * @param toKey   The long-encoded key of the chunk it moved to.
      */
     void updateObjectTracking(VxBody body, long fromKey, long toKey) {
-        int index = body.getDataStoreIndex();
+        int index = body.getInternalBody().getDataStoreIndex();
         if (index != -1) {
             dataStore.chunkKey[index] = toKey;
         }
@@ -608,8 +612,8 @@ public class VxObjectManager {
      * @param body The body whose custom data has changed.
      */
     public void markCustomDataDirty(VxBody body) {
-        if (body.getDataStoreIndex() != -1) {
-            getDataStore().isCustomDataDirty[body.getDataStoreIndex()] = true;
+        if (body.getInternalBody().getDataStoreIndex() != -1) {
+            getDataStore().isCustomDataDirty[body.getInternalBody().getDataStoreIndex()] = true;
         }
     }
 

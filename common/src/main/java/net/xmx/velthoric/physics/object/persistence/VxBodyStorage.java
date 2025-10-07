@@ -81,16 +81,16 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
         Map<RegionPos, List<VxBody>> objectsByRegion = objects.stream()
                 .filter(Objects::nonNull)
-                .filter(obj -> obj.getDataStoreIndex() != -1)
+                .filter(obj -> obj.getInternalBody().getDataStoreIndex() != -1)
                 .collect(Collectors.groupingBy(obj -> {
-                    ChunkPos chunkPos = objectManager.getObjectChunkPos(obj.getDataStoreIndex());
+                    ChunkPos chunkPos = objectManager.getObjectChunkPos(obj.getInternalBody().getDataStoreIndex());
                     return new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
                 }));
 
         objectsByRegion.forEach((regionPos, regionObjects) -> {
             getRegion(regionPos).thenAcceptAsync(region -> {
                 for (VxBody object : regionObjects) {
-                    int index = object.getDataStoreIndex();
+                    int index = object.getInternalBody().getDataStoreIndex();
                     if (index == -1) continue; // Should already be filtered, but as a safeguard
 
                     byte[] data = serializeObjectData(object, index);
@@ -111,7 +111,7 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      * @param object The object to store.
      */
     public void storeObject(VxBody object) {
-        if (object == null || object.getDataStoreIndex() == -1) return;
+        if (object == null || object.getInternalBody().getDataStoreIndex() == -1) return;
         storeObjects(Collections.singletonList(object));
     }
 

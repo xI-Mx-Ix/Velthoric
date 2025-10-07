@@ -10,13 +10,13 @@ import com.github.stephengold.joltjni.BodyLockWrite;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import net.fabricmc.api.EnvType;
 import net.minecraft.server.level.ServerLevel;
-import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxSynchronizedData;
+import net.xmx.velthoric.physics.object.type.internal.VxInternalBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,9 +25,10 @@ import java.util.UUID;
 
 /**
  * The abstract base class for all physics objects in Velthoric on the server side.
- * This class acts as a lightweight handle for a physics body, with most of its state
- * stored in a data-oriented {@link net.xmx.velthoric.physics.object.manager.VxObjectDataStore}
- * for efficient processing. It contains all server-side game logic for the object.
+ * This class is the high-level representation, handling persistence, network synchronization,
+ * and game logic. It holds a lightweight {@link VxInternalBody} handle for direct
+ * interaction with the physics simulation. Users should inherit from this class's children,
+ * {@link VxRigidBody} or {@link VxSoftBody}.
  *
  * @author xI-Mx-Ix
  */
@@ -38,22 +39,46 @@ public abstract class VxBody {
     protected final VxObjectType<? extends VxBody> type;
     protected final VxPhysicsWorld world;
     protected final VxSynchronizedData synchronizedData;
-    protected int bodyId = 0;
-    protected int dataStoreIndex = -1;
+    protected final VxInternalBody internalBody;
 
     // Constructor
     protected VxBody(VxObjectType<? extends VxBody> type, VxPhysicsWorld world, UUID id) {
         this.type = type;
         this.world = world;
         this.physicsId = id;
+        this.internalBody = new VxInternalBody();
         this.synchronizedData = new VxSynchronizedData(EnvType.SERVER);
         this.defineSyncData();
     }
 
     // Lifecycle and Ticking
+    /**
+     * Called when the body is successfully added to the Jolt physics world.
+     *
+     * @param world The physics world the body was added to.
+     */
     public void onBodyAdded(VxPhysicsWorld world) {}
+
+    /**
+     * Called when the body is removed from the world.
+     *
+     * @param world The physics world.
+     * @param reason The reason for removal.
+     */
     public void onBodyRemoved(VxPhysicsWorld world, VxRemovalReason reason) {}
+
+    /**
+     * Called on every physics thread tick for this body.
+     *
+     * @param world The physics world instance.
+     */
     public void physicsTick(VxPhysicsWorld world) {}
+
+    /**
+     * Called on every game thread tick for this body.
+     *
+     * @param level The server level instance.
+     */
     public void gameTick(ServerLevel level) {}
 
 
@@ -133,15 +158,15 @@ public abstract class VxBody {
 
     // Physics State & Body Access
     public void getTransform(VxTransform outTransform) {
-        if (this.dataStoreIndex != -1) {
-            this.world.getObjectManager().getTransform(this.dataStoreIndex, outTransform);
+        if (this.internalBody.getDataStoreIndex() != -1) {
+            this.world.getObjectManager().getTransform(this.internalBody.getDataStoreIndex(), outTransform);
         }
     }
 
     public VxTransform getTransform() {
-        if (this.dataStoreIndex != -1) {
+        if (this.internalBody.getDataStoreIndex() != -1) {
             VxTransform transform = new VxTransform();
-            this.world.getObjectManager().getTransform(this.dataStoreIndex, transform);
+            this.world.getObjectManager().getTransform(this.internalBody.getDataStoreIndex(), transform);
             return transform;
         }
         // Return a default or throw an exception if the object is not yet fully initialized
@@ -150,6 +175,7 @@ public abstract class VxBody {
 
     @Nullable
     public Body getBody() {
+        int bodyId = internalBody.getBodyId();
         if (bodyId == 0) {
             return null;
         }
@@ -166,6 +192,7 @@ public abstract class VxBody {
 
     @Nullable
     public ConstBody getConstBody() {
+        int bodyId = internalBody.getBodyId();
         if (bodyId == 0) {
             return null;
         }
@@ -194,20 +221,14 @@ public abstract class VxBody {
         return this.world;
     }
 
-    public int getBodyId() {
-        return this.bodyId;
-    }
-
-    public void setBodyId(int bodyId) {
-        this.bodyId = bodyId;
-    }
-
-    public int getDataStoreIndex() {
-        return dataStoreIndex;
-    }
-
-    public void setDataStoreIndex(int dataStoreIndex) {
-        this.dataStoreIndex = dataStoreIndex;
+    /**
+     * Gets the internal lightweight handle for this body.
+     * This should primarily be used by the physics engine internals.
+     *
+     * @return The internal body handle.
+     */
+    public VxInternalBody getInternalBody() {
+        return internalBody;
     }
 
     public VxSynchronizedData getSynchronizedData() {

@@ -17,6 +17,7 @@ import java.util.UUID;
 /**
  * An abstract base class for all rigid body physics objects.
  * A rigid body has a fixed shape and is simulated using rigid body dynamics (e.g., it can rotate and translate).
+ * Users should inherit from this class to create custom rigid bodies.
  *
  * @author xI-Mx-Ix
  */
@@ -35,9 +36,8 @@ public abstract class VxRigidBody extends VxBody implements VxRideable {
 
     /**
      * Defines and creates the Jolt physics body using the provided factory.
-     * This method encapsulates the entire creation logic for this body type.
-     * The implementation should create and configure the necessary settings objects
-     * and pass them to the factory for instantiation in the Jolt world.
+     * This method must be implemented by subclasses to define the shape and
+     * properties of the rigid body.
      *
      * @param factory The factory provided by the VxObjectManager to create the body.
      * @return The body ID assigned by Jolt.

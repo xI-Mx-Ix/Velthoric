@@ -134,7 +134,7 @@ public class VxTerrainTracker {
                 objectUpdateIndex = 0;
             }
             VxBody obj = currentObjects.get(objectUpdateIndex++);
-            if (obj.getBodyId() != 0) {
+            if (obj.getInternalBody().getBodyId() != 0) {
                 updatePreloadForObject(obj);
             } else {
                 removeObjectTracking(obj.getPhysicsId());
@@ -149,7 +149,7 @@ public class VxTerrainTracker {
      */
     private void updatePreloadForObject(VxBody obj) {
         UUID id = obj.getPhysicsId();
-        int dataIndex = obj.getDataStoreIndex();
+        int dataIndex = obj.getInternalBody().getDataStoreIndex();
         if (dataIndex == -1) {
             removeObjectTracking(id);
             return;

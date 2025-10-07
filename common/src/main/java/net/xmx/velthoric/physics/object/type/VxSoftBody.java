@@ -14,7 +14,8 @@ import java.util.UUID;
 /**
  * An abstract base class for all soft body physics objects.
  * A soft body is a deformable object composed of a collection of vertices or particles,
- * simulated using techniques like mass-spring systems.
+ * simulated using techniques like mass-spring systems. Users should inherit from this
+ * class to create custom soft bodies.
  *
  * @author xI-Mx-Ix
  */
@@ -52,7 +53,8 @@ public abstract class VxSoftBody extends VxBody {
 
     /**
      * Defines and creates the Jolt soft body using the provided factory.
-     * This method encapsulates the entire creation logic for this body type.
+     * This method must be implemented by subclasses to define the properties
+     * of the soft body.
      *
      * @param factory The factory provided by the VxObjectManager to create the body.
      * @return The body ID assigned by Jolt.

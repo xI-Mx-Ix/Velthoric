@@ -21,7 +21,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
 
 /**
  * Manages persistent storage for physics constraints.
@@ -79,7 +78,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             if (constraint == null) continue;
             VxBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
             if (body1 != null) {
-                int index = body1.getDataStoreIndex();
+                int index = body1.getInternalBody().getDataStoreIndex();
                 if (index == -1) continue;
                 ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(index);
                 RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
@@ -91,9 +90,9 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             getRegion(regionPos).thenAcceptAsync(region -> {
                 for (VxConstraint constraint : regionConstraints) {
                     VxBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
-                    if (body1 == null || body1.getDataStoreIndex() == -1) continue;
+                    if (body1 == null || body1.getInternalBody().getDataStoreIndex() == -1) continue;
 
-                    ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(body1.getDataStoreIndex());
+                    ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(body1.getInternalBody().getDataStoreIndex());
                     byte[] data = serializeConstraintData(constraint, chunkPos);
                     region.entries.put(constraint.getConstraintId(), data);
                     regionIndex.put(constraint.getConstraintId(), regionPos);
