@@ -11,7 +11,6 @@ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
@@ -34,37 +33,15 @@ public class VxRidingProxyEntity extends Entity {
     private static final EntityDataAccessor<Vector3f> RIDE_POSITION_OFFSET =
             SynchedEntityData.defineId(VxRidingProxyEntity.class, EntityDataSerializers.VECTOR3);
 
-    private float deltaRotation;
-
     public VxRidingProxyEntity(EntityType<?> entityType, Level level) {
         super(entityType, level);
         this.noPhysics = true;
-    }
-
-    protected void clampRotation(Entity entityToUpdate) {
-        entityToUpdate.setYBodyRot(this.getYRot());
-        float f = Mth.wrapDegrees(entityToUpdate.getYRot() - this.getYRot());
-        float g = Mth.clamp(f, -105.0F, 105.0F);
-        entityToUpdate.yRotO += g - f;
-        entityToUpdate.setYRot(entityToUpdate.getYRot() + g - f);
-        entityToUpdate.setYHeadRot(entityToUpdate.getYRot());
-    }
-
-    @Override
-    protected void positionRider(Entity passenger, MoveFunction callback) {
-        super.positionRider(passenger, callback);
-        if (!level().isClientSide()) {
-            passenger.setYRot(passenger.getYRot() + this.deltaRotation);
-            passenger.setYHeadRot(passenger.getYHeadRot() + this.deltaRotation);
-            this.clampRotation(passenger);
-        }
     }
 
     @Override
     public void tick() {
         super.tick();
         if (!level().isClientSide) {
-            this.deltaRotation = Mth.wrapDegrees(this.getYRot() - this.yRotO);
             if (getPassengers().isEmpty()) {
                 discard();
             }

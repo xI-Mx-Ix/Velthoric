@@ -6,14 +6,16 @@ package net.xmx.velthoric.mixin.impl.riding.render.eye;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
-import net.minecraft.util.Mth;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.riding.VxRidingProxyEntity;
+import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -41,7 +43,7 @@ public abstract class MixinEntity_EyePosOnPhysicsObject {
 
     @Inject(method = "getEyePosition(F)Lnet/minecraft/world/phys/Vec3;", at = @At("HEAD"), cancellable = true)
     private void velthoric_getEyePositionOnPhysicsObject(float partialTicks, CallbackInfoReturnable<Vec3> cir) {
-        if (!level.isClientSide()) {
+        if (!this.level.isClientSide()) {
             return;
         }
 
@@ -82,37 +84,59 @@ public abstract class MixinEntity_EyePosOnPhysicsObject {
         }
     }
 
-    @Inject(method = "calculateViewVector", at = @At("HEAD"), cancellable = true)
-    private void velthoric_calculateViewVectorOnPhysicsObject(float xRot, float yRot, CallbackInfoReturnable<Vec3> cir) {
-        if (!level.isClientSide()) {
-            return;
+    /**
+     * Injects into the core view vector calculation method to apply the vehicle's rotation.
+     * This single injection corrects the view vector for both the client (visuals) and server (logic).
+     */
+    @Inject(method = "calculateViewVector(FF)Lnet/minecraft/world/phys/Vec3;", at = @At("RETURN"), cancellable = true)
+    private void velthoric_transformViewVector(float xRot, float yRot, CallbackInfoReturnable<Vec3> cir) {
+        Entity self = (Entity)(Object)this;
+        if (!(self.getVehicle() instanceof VxRidingProxyEntity proxy)) {
+            return; // Not riding our vehicle, do nothing.
         }
 
-        if (getVehicle() instanceof VxRidingProxyEntity proxy) {
-            proxy.getPhysicsObjectId().ifPresent(id -> {
+        proxy.getPhysicsObjectId().ifPresent(id -> {
+            // Get the original, untransformed local view vector calculated by Minecraft.
+            Vec3 localViewVector = cir.getReturnValue();
+            Vector3d transformedVector = new Vector3d(localViewVector.x, localViewVector.y, localViewVector.z);
+            Quaterniond vehicleRotation;
+
+            if (this.level.isClientSide()) {
+                // --- CLIENT-SIDE LOGIC ---
                 VxClientObjectManager manager = VxClientObjectManager.getInstance();
                 VxClientObjectDataStore store = manager.getStore();
+                VxClientObjectInterpolator interpolator = manager.getInterpolator();
                 Integer index = store.getIndexForId(id);
 
                 if (index == null || !store.render_isInitialized[index]) {
                     return;
                 }
 
-                Quat physRotQuat = new Quat(store.render_rotX[index], store.render_rotY[index], store.render_rotZ[index], store.render_rotW[index]);
-                Quaterniond physRotation = new Quaterniond(physRotQuat.getX(), physRotQuat.getY(), physRotQuat.getZ(), physRotQuat.getW());
+                // Use interpolated rotation for smooth visuals.
+                float partialTicks = Minecraft.getInstance().getFrameTime();
+                interpolator.interpolateRotation(store, index, partialTicks, velthoric_interpolatedRotation_entity);
+                vehicleRotation = new Quaterniond(
+                        velthoric_interpolatedRotation_entity.getX(),
+                        velthoric_interpolatedRotation_entity.getY(),
+                        velthoric_interpolatedRotation_entity.getZ(),
+                        velthoric_interpolatedRotation_entity.getW()
+                );
 
-                float f = xRot * ((float)Math.PI / 180F);
-                float g = -yRot * ((float)Math.PI / 180F);
-                float h = Mth.cos(g);
-                float i = Mth.sin(g);
-                float j = Mth.cos(f);
-                float k = Mth.sin(f);
-                Vector3d originalViewVector = new Vector3d(i * j, -k, h * j);
+            } else {
+                // --- SERVER-SIDE LOGIC ---
+                VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(this.level.dimension());
+                if (physicsWorld == null) return;
+                VxBody body = physicsWorld.getObjectManager().getObject(id);
+                if (body == null) return;
 
-                physRotation.transform(originalViewVector);
+                // Use the current, exact rotation for accurate game logic.
+                var rot = body.getTransform().getRotation();
+                vehicleRotation = new Quaterniond(rot.getX(), rot.getY(), rot.getZ(), rot.getW());
+            }
 
-                cir.setReturnValue(new Vec3(originalViewVector.x, originalViewVector.y, originalViewVector.z));
-            });
-        }
+            // Apply the vehicle's rotation to the player's local view vector.
+            vehicleRotation.transform(transformedVector);
+            cir.setReturnValue(new Vec3(transformedVector.x, transformedVector.y, transformedVector.z));
+        });
     }
 }
