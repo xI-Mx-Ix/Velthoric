@@ -328,6 +328,12 @@ public class VxObjectManager {
             EBodyType type = obj instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
             int index = dataStore.addObject(id, type);
             obj.getInternalBody().setDataStoreIndex(index);
+
+            // Prime the data store's active flag. This ensures that the post-physics sync
+            // will run once for this body, sending its initial (inactive) state to clients.
+            // This fixes visibility issues for bodies spawned inactive.
+            dataStore.isActive[index] = true;
+
             startTracking(obj); // Manages server-side chunk lists for visibility checks.
             return obj;
         });
