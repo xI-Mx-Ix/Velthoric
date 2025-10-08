@@ -5,6 +5,7 @@
 package net.xmx.velthoric.builtin.drivable.motorcycle;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
@@ -132,6 +133,7 @@ public class MotorcycleImpl extends VxMotorcycle {
             bcs.setShapeSettings(shapeSettings);
             bcs.setMotionType(EMotionType.Dynamic);
             bcs.setObjectLayer(VxLayers.DYNAMIC);
+            bcs.setMotionQuality(EMotionQuality.LinearCast);
             bcs.getMassPropertiesOverride().setMass(250f);
             bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
             return factory.create(shapeSettings, bcs);

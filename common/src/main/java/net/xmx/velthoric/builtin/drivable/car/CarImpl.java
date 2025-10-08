@@ -5,6 +5,7 @@
 package net.xmx.velthoric.builtin.drivable.car;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
@@ -148,6 +149,7 @@ public class CarImpl extends VxCar {
             bcs.setShapeSettings(shapeSettings);
             bcs.setMotionType(EMotionType.Dynamic);
             bcs.setObjectLayer(VxLayers.DYNAMIC);
+            bcs.setMotionQuality(EMotionQuality.LinearCast);
             bcs.getMassPropertiesOverride().setMass(2000f);
             bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
 
