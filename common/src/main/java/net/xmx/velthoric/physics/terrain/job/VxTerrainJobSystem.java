@@ -23,8 +23,9 @@ public final class VxTerrainJobSystem {
      * Initializes the job system with an optimal number of threads based on available processors.
      */
     public VxTerrainJobSystem() {
-        // Use a reasonable number of threads, leaving some for the main server and other tasks.
-        int threadCount = Math.max(3, Math.min(8, Runtime.getRuntime().availableProcessors() - 1));
+        // Use a balanced number of threads, leaving resources for the main server and other tasks.
+        // This prevents the terrain system from monopolizing the CPU.
+        int threadCount = Math.max(2, Math.min(Runtime.getRuntime().availableProcessors() - 2, 6));
         this.executorService = new ThreadPoolExecutor(
                 threadCount, threadCount,
                 0L, TimeUnit.MILLISECONDS,

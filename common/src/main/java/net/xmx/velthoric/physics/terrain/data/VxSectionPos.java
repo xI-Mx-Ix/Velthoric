@@ -4,109 +4,126 @@
  */
 package net.xmx.velthoric.physics.terrain.data;
 
-import com.github.stephengold.joltjni.RVec3;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.AABB;
 
 /**
- * Represents the coordinates of a 16x16x16 chunk section.
- * This is a record, making it immutable and suitable for use as a map key.
- *
- * @param x The X coordinate of the section.
- * @param y The Y coordinate of the section.
- * @param z The Z coordinate of the section.
+ * A utility class for handling 16x16x16 chunk section coordinates.
+ * <p>
+ * It provides high-performance, allocation-free methods to convert between
+ * 3D integer coordinates and a single primitive {@code long}. This is crucial
+ * for a data-oriented design, as it allows positions to be used as keys in
+
+ * maps and sets without the overhead of object allocation and garbage collection.
+ * <p>
+ * The bit layout for the packed long is as follows:
+ * <ul>
+ *   <li>Bits 0-25: Z coordinate (26 bits, signed)</li>
+ *   <li>Bits 26-37: Y coordinate (12 bits, signed)</li>
+ *   <li>Bits 38-63: X coordinate (26 bits, signed)</li>
+ * </ul>
+ * This layout provides a vast range for X and Z coordinates ([-33554432, 33554431])
+ * and a sufficient range for Y coordinates ([-2048, 2047]), covering all possible
+ * Minecraft world heights.
  *
  * @author xI-Mx-Ix
  */
-public record VxSectionPos(int x, int y, int z) {
+public final class VxSectionPos {
 
-    public static final int CHUNK_SIZE = 16;
-    public static final int CHUNK_SIZE_SHIFT = 4;
+    private static final int X_BITS = 26;
+    private static final int Y_BITS = 12;
+    private static final int Z_BITS = 26;
+
+    private static final int Y_SHIFT = Z_BITS;
+    private static final int X_SHIFT = Y_SHIFT + Y_BITS;
+
+    private static final long X_MASK = (1L << X_BITS) - 1;
+    private static final long Y_MASK = (1L << Y_BITS) - 1;
+    private static final long Z_MASK = (1L << Z_BITS) - 1;
 
     /**
-     * Converts this section position to a 2D chunk position.
-     *
-     * @return The corresponding {@link ChunkPos}.
+     * Private constructor to prevent instantiation.
      */
-    public ChunkPos toChunkPos2D() {
-        return new ChunkPos(x, z);
+    private VxSectionPos() {}
+
+    /**
+     * Packs 3D section coordinates into a single primitive long.
+     *
+     * @param x The X coordinate of the section.
+     * @param y The Y coordinate of the section.
+     * @param z The Z coordinate of the section.
+     * @return A packed long representing the position.
+     */
+    public static long pack(int x, int y, int z) {
+        return ((long)x & X_MASK) << X_SHIFT |
+                ((long)y & Y_MASK) << Y_SHIFT |
+                ((long)z & Z_MASK);
     }
 
     /**
-     * Creates a {@link VxSectionPos} from a world block position.
+     * Packs a BlockPos into a single primitive long representing its section.
      *
      * @param pos The block position.
-     * @return The corresponding section position.
+     * @return A packed long representing the section containing the block.
      */
-    public static VxSectionPos fromBlockPos(BlockPos pos) {
-        return new VxSectionPos(
-                pos.getX() >> CHUNK_SIZE_SHIFT,
-                pos.getY() >> CHUNK_SIZE_SHIFT,
-                pos.getZ() >> CHUNK_SIZE_SHIFT
+    public static long fromBlockPos(BlockPos pos) {
+        return pack(
+                pos.getX() >> 4,
+                pos.getY() >> 4,
+                pos.getZ() >> 4
         );
     }
 
     /**
-     * Creates a {@link VxSectionPos} from a high-precision Jolt vector.
+     * Unpacks the X coordinate from a packed long.
      *
-     * @param pos The RVec3 position.
-     * @return The corresponding section position.
+     * @param packed The packed position long.
+     * @return The integer X coordinate.
      */
-    public static VxSectionPos fromRVec3(RVec3 pos) {
-        return new VxSectionPos(
-                SectionPos.blockToSectionCoord(pos.x()),
-                SectionPos.blockToSectionCoord(pos.y()),
-                SectionPos.blockToSectionCoord(pos.z())
-        );
+    public static int unpackX(long packed) {
+        return (int) ((packed >> X_SHIFT));
     }
 
     /**
-     * Creates a {@link VxSectionPos} from world-space coordinates.
+     * Unpacks the Y coordinate from a packed long.
      *
-     * @param x The world X coordinate.
-     * @param y The world Y coordinate.
-     * @param z The world Z coordinate.
-     * @return The corresponding section position.
+     * @param packed The packed position long.
+     * @return The integer Y coordinate.
      */
-    public static VxSectionPos fromWorldSpace(double x, double y, double z) {
-        return new VxSectionPos(
-                (int) Math.floor(x) >> CHUNK_SIZE_SHIFT,
-                (int) Math.floor(y) >> CHUNK_SIZE_SHIFT,
-                (int) Math.floor(z) >> CHUNK_SIZE_SHIFT
-        );
+    public static int unpackY(long packed) {
+        // Sign-extend the 12-bit value
+        return (int) (((packed >> Y_SHIFT) & Y_MASK) << (32 - Y_BITS)) >> (32 - Y_BITS);
     }
 
     /**
-     * Gets the world-space origin (minimum corner) of this chunk section.
+     * Unpacks the Z coordinate from a packed long.
      *
+     * @param packed The packed position long.
+     * @return The integer Z coordinate.
+     */
+    public static int unpackZ(long packed) {
+        // Sign-extend the 26-bit value
+        return (int) ((packed & Z_MASK) << (32 - Z_BITS)) >> (32 - Z_BITS);
+    }
+
+    /**
+     * Unpacks the world-space origin (minimum corner) of the chunk section.
+     *
+     * @param packed The packed position long.
      * @return The origin as a {@link BlockPos}.
      */
-    public BlockPos getOrigin() {
-        return new BlockPos(x << CHUNK_SIZE_SHIFT, y << CHUNK_SIZE_SHIFT, z << CHUNK_SIZE_SHIFT);
+    public static BlockPos unpackToOrigin(long packed) {
+        return new BlockPos(unpackX(packed) << 4, unpackY(packed) << 4, unpackZ(packed) << 4);
     }
 
     /**
-     * Gets the world-space bounding box of this chunk section.
+     * Unpacks the packed long into a Minecraft SectionPos object.
+     * Note: This allocates a new object and should be avoided in hot paths.
      *
-     * @return The bounding box as an {@link AABB}.
+     * @param packed The packed position long.
+     * @return A new {@link SectionPos} instance.
      */
-    public AABB getAABB() {
-        BlockPos origin = getOrigin();
-        return new AABB(origin, origin.offset(CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE));
-    }
-
-    /**
-     * Checks if this section is within the buildable height of the given level.
-     *
-     * @param level The level to check against.
-     * @return True if the section is within the world's height limits, false otherwise.
-     */
-    public boolean isWithinWorldHeight(Level level) {
-        int minBlockY = y << CHUNK_SIZE_SHIFT;
-        int maxBlockY = minBlockY + (CHUNK_SIZE - 1);
-        return maxBlockY >= level.getMinBuildHeight() && minBlockY < level.getMaxBuildHeight();
+    public static SectionPos unpackToSectionPos(long packed) {
+        return SectionPos.of(unpackX(packed), unpackY(packed), unpackZ(packed));
     }
 }

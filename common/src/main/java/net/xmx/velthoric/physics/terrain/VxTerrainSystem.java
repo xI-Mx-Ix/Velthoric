@@ -47,7 +47,7 @@ public class VxTerrainSystem implements Runnable {
 
         this.jobSystem = new VxTerrainJobSystem();
         this.chunkDataStore = new VxChunkDataStore();
-        this.shapeCache = new VxTerrainShapeCache(1024);
+        this.shapeCache = new VxTerrainShapeCache(2048); // Increased cache size
         this.greedyMesher = new VxGreedyMesher(this.shapeCache);
         this.shapeGenerator = new VxTerrainShapeGenerator(physicsWorld, level, jobSystem, chunkDataStore, greedyMesher);
         this.terrainManager = new VxTerrainManager(physicsWorld, level, chunkDataStore, shapeGenerator);
@@ -119,6 +119,7 @@ public class VxTerrainSystem implements Runnable {
 
     public void onChunkLoadedFromVanilla(@NotNull LevelChunk chunk) {
         if (isInitialized.get() && !jobSystem.isShutdown()) {
+            // The manager logic is now submitted to the job system to avoid blocking the main thread.
             jobSystem.submit(() -> terrainManager.onChunkLoadedFromVanilla(chunk));
         }
     }
@@ -128,7 +129,7 @@ public class VxTerrainSystem implements Runnable {
             jobSystem.submit(() -> terrainManager.onChunkUnloaded(chunkPos));
         }
     }
-    
+
     public void onObjectRemoved(UUID id) {
         if (isInitialized.get() && !jobSystem.isShutdown()) {
             jobSystem.submit(() -> terrainTracker.removeObjectTracking(id));

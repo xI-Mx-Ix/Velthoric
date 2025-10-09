@@ -18,15 +18,14 @@ import java.util.List;
 
 /**
  * An immutable snapshot of the block data within a single chunk section (16x16x16 blocks).
- * It contains only the information relevant for physics shape generation, such as block states
- * and their local positions.
+ * It contains only the information relevant for physics shape generation.
  *
  * @param shapes A list of shapes within this chunk section.
- * @param pos    The position of this chunk section.
+ * @param packedPos The packed long position of this chunk section.
  *
  * @author xI-Mx-Ix
  */
-public record VxChunkSnapshot(List<ShapeInfo> shapes, VxSectionPos pos) {
+public record VxChunkSnapshot(List<ShapeInfo> shapes, long packedPos) {
 
     /**
      * Holds information about a single block's shape.
@@ -42,23 +41,24 @@ public record VxChunkSnapshot(List<ShapeInfo> shapes, VxSectionPos pos) {
      *
      * @param level The level the chunk belongs to.
      * @param chunk The chunk to snapshot.
-     * @param pos   The specific section position within the chunk.
+     * @param packedPos The specific section position as a packed long.
      * @return A new {@link VxChunkSnapshot} instance.
      */
-    public static VxChunkSnapshot snapshotFromChunk(Level level, LevelChunk chunk, VxSectionPos pos) {
-        int sectionIndex = level.getSectionIndexFromSectionY(pos.y());
+    public static VxChunkSnapshot snapshotFromChunk(Level level, LevelChunk chunk, long packedPos) {
+        int sectionY = VxSectionPos.unpackY(packedPos);
+        int sectionIndex = level.getSectionIndexFromSectionY(sectionY);
 
         if (sectionIndex < 0 || sectionIndex >= chunk.getSections().length) {
-            return new VxChunkSnapshot(Collections.emptyList(), pos);
+            return new VxChunkSnapshot(Collections.emptyList(), packedPos);
         }
 
         LevelChunkSection section = chunk.getSections()[sectionIndex];
         if (section == null || section.hasOnlyAir()) {
-            return new VxChunkSnapshot(Collections.emptyList(), pos);
+            return new VxChunkSnapshot(Collections.emptyList(), packedPos);
         }
 
         List<ShapeInfo> shapeInfos = new ArrayList<>();
-        BlockPos origin = pos.getOrigin();
+        BlockPos origin = VxSectionPos.unpackToOrigin(packedPos);
 
         for (int x = 0; x < 16; ++x) {
             for (int y = 0; y < 16; ++y) {
@@ -66,13 +66,12 @@ public record VxChunkSnapshot(List<ShapeInfo> shapes, VxSectionPos pos) {
                     BlockState blockState = section.getBlockState(x, y, z);
                     VoxelShape collisionShape = blockState.getCollisionShape(level, origin.offset(x, y, z));
 
-                    // Include only blocks that have a collision shape
                     if (!blockState.isAir() && !collisionShape.isEmpty()) {
                         shapeInfos.add(new ShapeInfo(blockState, new BlockPos(x, y, z), collisionShape));
                     }
                 }
             }
         }
-        return new VxChunkSnapshot(shapeInfos, pos);
+        return new VxChunkSnapshot(shapeInfos, packedPos);
     }
 }
