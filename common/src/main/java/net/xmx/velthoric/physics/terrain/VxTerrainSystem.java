@@ -19,12 +19,11 @@ import net.xmx.velthoric.physics.terrain.management.VxTerrainTracker;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The main orchestrator for the terrain physics system. It initializes, manages, and shuts down
- * all related components, including the terrain manager, object tracker, and shape generator.
+ * all related components, following a proactive, state-driven terrain management approach.
  *
  * @author xI-Mx-Ix
  */
@@ -47,28 +46,25 @@ public class VxTerrainSystem implements Runnable {
 
         this.jobSystem = new VxTerrainJobSystem();
         this.chunkDataStore = new VxChunkDataStore();
-        this.shapeCache = new VxTerrainShapeCache(2048); // Increased cache size
+        this.shapeCache = new VxTerrainShapeCache(2048);
         this.greedyMesher = new VxGreedyMesher(this.shapeCache);
+
+        // The circular dependency is resolved, so we can instantiate in the correct order.
         this.shapeGenerator = new VxTerrainShapeGenerator(physicsWorld, level, jobSystem, chunkDataStore, greedyMesher);
-        this.terrainManager = new VxTerrainManager(physicsWorld, level, chunkDataStore, shapeGenerator);
-        this.terrainTracker = new VxTerrainTracker(physicsWorld, terrainManager, chunkDataStore);
+        this.terrainManager = new VxTerrainManager(physicsWorld, level, chunkDataStore, this.shapeGenerator);
+
+        this.terrainTracker = new VxTerrainTracker(physicsWorld, this.terrainManager);
 
         this.workerThread = new Thread(this, "Velthoric Terrain Worker - " + level.dimension().location().getPath());
         this.workerThread.setDaemon(true);
     }
 
-    /**
-     * Initializes the terrain system and starts its worker thread.
-     */
     public void initialize() {
         if (isInitialized.compareAndSet(false, true)) {
             this.workerThread.start();
         }
     }
 
-    /**
-     * Shuts down the terrain system, stops the worker thread, and cleans up all resources.
-     */
     public void shutdown() {
         if (isInitialized.compareAndSet(true, false)) {
             jobSystem.shutdown();
@@ -83,22 +79,19 @@ public class VxTerrainSystem implements Runnable {
 
             terrainManager.cleanupAllBodies();
             chunkDataStore.clear();
-            terrainTracker.clear();
             shapeCache.clear();
 
             VxMainClass.LOGGER.debug("Terrain system for '{}' has been fully shut down.", level.dimension().location());
         }
     }
 
-    /**
-     * The main loop for the worker thread, which periodically updates the terrain system.
-     */
     @Override
     public void run() {
         while (isInitialized.get() && !Thread.currentThread().isInterrupted()) {
             try {
                 terrainTracker.update();
-                terrainManager.processRebuildQueue();
+                terrainManager.tick();
+                shapeGenerator.tick();
                 Thread.sleep(50);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -109,8 +102,6 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
-    // --- Public API ---
-
     public void onBlockUpdate(BlockPos worldPos) {
         if (isInitialized.get()) {
             terrainManager.onBlockUpdate(worldPos);
@@ -119,7 +110,6 @@ public class VxTerrainSystem implements Runnable {
 
     public void onChunkLoadedFromVanilla(@NotNull LevelChunk chunk) {
         if (isInitialized.get() && !jobSystem.isShutdown()) {
-            // The manager logic is now submitted to the job system to avoid blocking the main thread.
             jobSystem.submit(() -> terrainManager.onChunkLoadedFromVanilla(chunk));
         }
     }
@@ -130,17 +120,15 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
-    public void onObjectRemoved(UUID id) {
-        if (isInitialized.get() && !jobSystem.isShutdown()) {
-            jobSystem.submit(() -> terrainTracker.removeObjectTracking(id));
-        }
-    }
-
     public boolean isTerrainBody(int bodyId) {
         return terrainManager.isTerrainBody(bodyId);
     }
 
     public ServerLevel getLevel() {
         return level;
+    }
+
+    public VxChunkDataStore getChunkDataStore() {
+        return chunkDataStore;
     }
 }

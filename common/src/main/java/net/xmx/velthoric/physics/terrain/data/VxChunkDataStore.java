@@ -15,12 +15,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A data-oriented store for the state of all terrain chunk physics bodies.
- * <p>
- * This class uses a "Structure of Arrays" (SoA) layout for cache efficiency.
- * It is thread-safe, using a ConcurrentHashMap for lookups from a packed long
- * position to an integer index. A ReentrantLock protects the underlying arrays
- * during resizing or structural modifications, providing better concurrency
- * than synchronizing every method.
+ * It uses a Structure of Arrays (SoA) layout and manages the lifecycle of chunks
+ * via a life counter, inspired by proactive terrain management systems.
  *
  * @author xI-Mx-Ix
  */
@@ -30,12 +26,13 @@ public class VxChunkDataStore extends AbstractDataStore {
 
     // --- Chunk States ---
     public static final int STATE_UNLOADED = 0;
-    public static final int STATE_LOADING_SCHEDULED = 1;
-    public static final int STATE_GENERATING_SHAPE = 2;
-    public static final int STATE_READY_INACTIVE = 3;
-    public static final int STATE_READY_ACTIVE = 4;
-    public static final int STATE_REMOVING = 5;
-    public static final int STATE_AIR_CHUNK = 6;
+    public static final int STATE_AWAITING_CHUNK = 1; // The system is waiting for the Minecraft chunk to be loaded.
+    public static final int STATE_LOADING_SCHEDULED = 2;
+    public static final int STATE_GENERATING_SHAPE = 3;
+    public static final int STATE_READY_INACTIVE = 4;
+    public static final int STATE_READY_ACTIVE = 5;
+    public static final int STATE_REMOVING = 6;
+    public static final int STATE_AIR_CHUNK = 7;
 
     private final Map<Long, Integer> posToIndex = new ConcurrentHashMap<>();
     private final List<Long> indexToPos = new ArrayList<>();
@@ -49,7 +46,7 @@ public class VxChunkDataStore extends AbstractDataStore {
     public volatile int[] bodyIds;
     public volatile ShapeRefC[] shapeRefs;
     public volatile int[] rebuildVersions;
-    public volatile int[] referenceCounts;
+    public volatile int[] lifeCounters; // TTL for automatic cleanup
 
     public VxChunkDataStore() {
         allocate(INITIAL_CAPACITY);
@@ -62,19 +59,13 @@ public class VxChunkDataStore extends AbstractDataStore {
             bodyIds = grow(bodyIds, newCapacity);
             shapeRefs = grow(shapeRefs, newCapacity);
             rebuildVersions = grow(rebuildVersions, newCapacity);
-            referenceCounts = grow(referenceCounts, newCapacity);
+            lifeCounters = grow(lifeCounters, newCapacity);
             this.capacity = newCapacity;
         } finally {
             lock.unlock();
         }
     }
 
-    /**
-     * Reserves a new index for a terrain chunk or retrieves the existing one.
-     *
-     * @param packedPos The packed long representing the chunk section's position.
-     * @return The data store index for the chunk.
-     */
     public int addChunk(long packedPos) {
         Integer existingIndex = posToIndex.get(packedPos);
         if (existingIndex != null) {
@@ -89,7 +80,7 @@ public class VxChunkDataStore extends AbstractDataStore {
             }
 
             if (count == capacity) {
-                allocate(capacity + (capacity >> 1)); // Grow by 50%
+                allocate(capacity + (capacity >> 1));
             }
             int index = freeIndices.isEmpty() ? count++ : freeIndices.pop();
 
@@ -107,12 +98,6 @@ public class VxChunkDataStore extends AbstractDataStore {
         }
     }
 
-    /**
-     * Releases the index for a given chunk position, making it available for reuse.
-     *
-     * @param packedPos The packed long of the chunk to remove.
-     * @return The released index, or null if the chunk was not found.
-     */
     @Nullable
     public Integer removeChunk(long packedPos) {
         Integer index = posToIndex.remove(packedPos);
@@ -124,7 +109,7 @@ public class VxChunkDataStore extends AbstractDataStore {
                     shapeRefs[index] = null;
                 }
                 freeIndices.push(index);
-                indexToPos.set(index, 0L); // Clear the position
+                indexToPos.set(index, 0L);
             } finally {
                 lock.unlock();
             }
@@ -133,9 +118,6 @@ public class VxChunkDataStore extends AbstractDataStore {
         return null;
     }
 
-    /**
-     * Clears all data and resets the store to its initial state.
-     */
     public void clear() {
         lock.lock();
         try {
@@ -154,12 +136,6 @@ public class VxChunkDataStore extends AbstractDataStore {
         }
     }
 
-    /**
-     * Safely sets the shape for a given index, ensuring the previous shape is closed.
-     *
-     * @param index The data store index.
-     * @param shape The new shape reference.
-     */
     public void setShape(int index, ShapeRefC shape) {
         lock.lock();
         try {
@@ -177,12 +153,6 @@ public class VxChunkDataStore extends AbstractDataStore {
         return posToIndex.get(packedPos);
     }
 
-    /**
-     * Gets the packed long position for a given index.
-     *
-     * @param index The data store index.
-     * @return The packed long position, or 0 if the index is invalid.
-     */
     public long getPosForIndex(int index) {
         lock.lock();
         try {
@@ -195,11 +165,7 @@ public class VxChunkDataStore extends AbstractDataStore {
         }
     }
 
-    public Set<Long> getManagedPositions() {
-        return new HashSet<>(posToIndex.keySet());
-    }
-
-    public Collection<Integer> getActiveIndices() {
+    public Collection<Integer> getManagedIndices() {
         return new ArrayList<>(posToIndex.values());
     }
 
@@ -208,6 +174,6 @@ public class VxChunkDataStore extends AbstractDataStore {
         bodyIds[index] = UNUSED_BODY_ID;
         shapeRefs[index] = null;
         rebuildVersions[index] = 0;
-        referenceCounts[index] = 0;
+        lifeCounters[index] = 0;
     }
 }

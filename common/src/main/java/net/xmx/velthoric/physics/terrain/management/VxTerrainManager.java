@@ -4,9 +4,8 @@
  */
 package net.xmx.velthoric.physics.terrain.management;
 
-import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.BodyInterface;
-import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.Jolt;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -18,12 +17,9 @@ import net.xmx.velthoric.physics.terrain.generation.VxTerrainShapeGenerator;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 /**
- * Manages the state and lifecycle of terrain physics bodies. It uses packed longs
- * for positions to minimize object allocations and GC pressure.
+ * Manages the state and lifecycle of terrain physics bodies. It handles ticking logic
+ * for chunk lifetime, processes rebuilds, and triggers shape generation.
  *
  * @author xI-Mx-Ix
  */
@@ -34,7 +30,6 @@ public class VxTerrainManager {
     private final VxChunkDataStore chunkDataStore;
     private final VxTerrainShapeGenerator shapeGenerator;
 
-    private final Queue<Long> chunksToRebuild = new ConcurrentLinkedQueue<>();
     private static final ThreadLocal<VxUpdateContext> updateContext = ThreadLocal.withInitial(VxUpdateContext::new);
 
     public static final long TERRAIN_BODY_USER_DATA = 0x5445525241494E42L; // "TERRAINB"
@@ -46,17 +41,25 @@ public class VxTerrainManager {
         this.shapeGenerator = shapeGenerator;
     }
 
-    public void processRebuildQueue() {
-        int processed = 0;
-        final int maxToProcess = 128; // Process more chunks per tick
-        while (processed < maxToProcess && !chunksToRebuild.isEmpty()) {
-            Long packedPos = chunksToRebuild.poll();
-            if (packedPos != null) {
-                Integer index = chunkDataStore.getIndexForPos(packedPos);
-                if (index != null) {
-                    shapeGenerator.scheduleShapeGeneration(packedPos, index);
+    /**
+     * Main tick method for the terrain manager, called from the worker thread.
+     */
+    public void tick() {
+        processLifeCycle();
+    }
+
+    /**
+     * Decrements the life counter of all managed chunks and removes those that expire.
+     */
+    private void processLifeCycle() {
+        for (int index : chunkDataStore.getManagedIndices()) {
+            if (chunkDataStore.lifeCounters[index] > 0) {
+                chunkDataStore.lifeCounters[index]--;
+            } else {
+                long pos = chunkDataStore.getPosForIndex(index);
+                if (pos != 0L) {
+                    unloadChunkPhysicsInternal(pos);
                 }
-                processed++;
             }
         }
     }
@@ -67,22 +70,20 @@ public class VxTerrainManager {
         if (index == null) return;
 
         int currentState = chunkDataStore.states[index];
-        if (currentState == VxChunkDataStore.STATE_READY_ACTIVE || currentState == VxChunkDataStore.STATE_READY_INACTIVE || currentState == VxChunkDataStore.STATE_AIR_CHUNK) {
-            if (!chunksToRebuild.contains(packedPos)) {
-                chunksToRebuild.add(packedPos);
-            }
+        // Trigger a rebuild if the chunk section is in a valid, active state.
+        if (currentState >= VxChunkDataStore.STATE_READY_INACTIVE && currentState != VxChunkDataStore.STATE_REMOVING) {
+            shapeGenerator.requestRebuild(packedPos);
         }
 
+        // Wake up any nearby physics bodies that might be sleeping.
         physicsWorld.execute(() -> {
             BodyInterface bi = physicsWorld.getBodyInterface();
             if (bi == null) return;
-
             VxUpdateContext ctx = updateContext.get();
             ctx.vec3_1.set(worldPos.getX() - 2.0f, worldPos.getY() - 2.0f, worldPos.getZ() - 2.0f);
             ctx.vec3_2.set(worldPos.getX() + 3.0f, worldPos.getY() + 3.0f, worldPos.getZ() + 3.0f);
             ctx.aabox_1.setMin(ctx.vec3_1);
             ctx.aabox_1.setMax(ctx.vec3_2);
-
             bi.activateBodiesInAaBox(ctx.aabox_1, ctx.bplFilter, ctx.olFilter);
         });
     }
@@ -92,7 +93,7 @@ public class VxTerrainManager {
         for (int y = level.getMinSection(); y < level.getMaxSection(); ++y) {
             long packedPos = VxSectionPos.pack(chunkPos.x, y, chunkPos.z);
             Integer index = chunkDataStore.getIndexForPos(packedPos);
-            if (index != null && chunkDataStore.referenceCounts[index] > 0) {
+            if (index != null && chunkDataStore.states[index] == VxChunkDataStore.STATE_AWAITING_CHUNK) {
                 shapeGenerator.scheduleShapeGeneration(packedPos, index);
             }
         }
@@ -100,51 +101,27 @@ public class VxTerrainManager {
 
     public void onChunkUnloaded(@NotNull ChunkPos chunkPos) {
         for (int y = level.getMinSection(); y < level.getMaxSection(); y++) {
-            unloadChunkPhysicsInternal(VxSectionPos.pack(chunkPos.x, y, chunkPos.z));
-        }
-    }
-
-    public void activateChunk(int index) {
-        if (chunkDataStore.states[index] == VxChunkDataStore.STATE_AIR_CHUNK) {
-            return;
-        }
-
-        if (chunkDataStore.bodyIds[index] != VxChunkDataStore.UNUSED_BODY_ID && chunkDataStore.states[index] == VxChunkDataStore.STATE_READY_INACTIVE) {
-            chunkDataStore.states[index] = VxChunkDataStore.STATE_READY_ACTIVE;
-            physicsWorld.execute(() -> {
-                BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-                int bodyId = chunkDataStore.bodyIds[index];
-                if (bodyInterface != null && bodyId != VxChunkDataStore.UNUSED_BODY_ID && !bodyInterface.isAdded(bodyId)) {
-                    bodyInterface.addBody(bodyId, EActivation.Activate);
-                }
-            });
-        }
-    }
-
-    public void deactivateChunk(int index) {
-        if (chunkDataStore.bodyIds[index] != VxChunkDataStore.UNUSED_BODY_ID && chunkDataStore.states[index] == VxChunkDataStore.STATE_READY_ACTIVE) {
-            chunkDataStore.states[index] = VxChunkDataStore.STATE_READY_INACTIVE;
-            physicsWorld.execute(() -> {
-                BodyInterface bodyInterface = physicsWorld.getBodyInterface();
-                int bodyId = chunkDataStore.bodyIds[index];
-                if (bodyInterface != null && bodyId != VxChunkDataStore.UNUSED_BODY_ID && bodyInterface.isAdded(bodyId)) {
-                    bodyInterface.removeBody(bodyId);
-                }
-            });
+            long packedPos = VxSectionPos.pack(chunkPos.x, y, chunkPos.z);
+            Integer index = chunkDataStore.getIndexForPos(packedPos);
+            if (index != null) {
+                // If the chunk is unloaded in Minecraft, we mark it as waiting in case it's loaded again soon.
+                // The lifecycle counter will eventually clean it up if it's no longer needed.
+                chunkDataStore.states[index] = VxChunkDataStore.STATE_AWAITING_CHUNK;
+            }
         }
     }
 
     public void requestChunk(long packedPos) {
         int index = chunkDataStore.addChunk(packedPos);
-        if (++chunkDataStore.referenceCounts[index] == 1) {
-            shapeGenerator.scheduleShapeGeneration(packedPos, index);
-        }
-    }
+        chunkDataStore.lifeCounters[index] = 100; // Refresh lifetime
 
-    public void releaseChunk(long packedPos) {
-        Integer index = chunkDataStore.getIndexForPos(packedPos);
-        if (index != null && --chunkDataStore.referenceCounts[index] == 0) {
-            unloadChunkPhysicsInternal(packedPos);
+        if (chunkDataStore.states[index] == VxChunkDataStore.STATE_UNLOADED) {
+            LevelChunk chunk = level.getChunkSource().getChunk(VxSectionPos.unpackX(packedPos), VxSectionPos.unpackZ(packedPos), false);
+            if (chunk == null) {
+                chunkDataStore.states[index] = VxChunkDataStore.STATE_AWAITING_CHUNK;
+            } else {
+                shapeGenerator.scheduleShapeGeneration(packedPos, index);
+            }
         }
     }
 
@@ -154,7 +131,7 @@ public class VxTerrainManager {
 
         chunkDataStore.states[index] = VxChunkDataStore.STATE_REMOVING;
         chunkDataStore.rebuildVersions[index]++;
-        chunksToRebuild.remove(packedPos);
+        shapeGenerator.cancelRebuild(packedPos);
 
         physicsWorld.execute(() -> {
             removeBodyAndShape(index, physicsWorld.getBodyInterface());
@@ -175,7 +152,7 @@ public class VxTerrainManager {
     }
 
     public boolean isTerrainBody(int bodyId) {
-        if (bodyId <= 0) return false;
+        if (bodyId <= 0 || bodyId == Jolt.cInvalidBodyId) return false;
         BodyInterface bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
         if (bodyInterface == null) return false;
         return bodyInterface.getUserData(bodyId) == TERRAIN_BODY_USER_DATA;
@@ -184,12 +161,7 @@ public class VxTerrainManager {
     public void cleanupAllBodies() {
         BodyInterface bi = physicsWorld.getBodyInterface();
         if (bi != null) {
-            chunkDataStore.getManagedPositions().forEach(packedPos -> {
-                Integer index = chunkDataStore.getIndexForPos(packedPos);
-                if (index != null) {
-                    removeBodyAndShape(index, bi);
-                }
-            });
+            chunkDataStore.getManagedIndices().forEach(index -> removeBodyAndShape(index, bi));
         }
     }
 }
