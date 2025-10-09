@@ -13,8 +13,10 @@ import net.minecraft.core.SectionPos;
  * It provides high-performance, allocation-free methods to convert between
  * 3D integer coordinates and a single primitive {@code long}. This is crucial
  * for a data-oriented design, as it allows positions to be used as keys in
-
  * maps and sets without the overhead of object allocation and garbage collection.
+ * <p>
+ * This implementation is robust and correctly handles the full range of signed
+ * 32-bit integer coordinates by properly sign-extending them within the bitfield.
  * <p>
  * The bit layout for the packed long is as follows:
  * <ul>
@@ -30,16 +32,16 @@ import net.minecraft.core.SectionPos;
  */
 public final class VxSectionPos {
 
-    private static final int X_BITS = 26;
-    private static final int Y_BITS = 12;
     private static final int Z_BITS = 26;
+    private static final int Y_BITS = 12;
+    private static final int X_BITS = 26;
 
     private static final int Y_SHIFT = Z_BITS;
     private static final int X_SHIFT = Y_SHIFT + Y_BITS;
 
-    private static final long X_MASK = (1L << X_BITS) - 1;
-    private static final long Y_MASK = (1L << Y_BITS) - 1;
     private static final long Z_MASK = (1L << Z_BITS) - 1;
+    private static final long Y_MASK = (1L << Y_BITS) - 1;
+    private static final long X_MASK = (1L << X_BITS) - 1;
 
     /**
      * Private constructor to prevent instantiation.
@@ -81,7 +83,8 @@ public final class VxSectionPos {
      * @return The integer X coordinate.
      */
     public static int unpackX(long packed) {
-        return (int) ((packed >> X_SHIFT));
+        // Shift the value to the lowest bits, then sign-extend from 26 bits to the full 64 bits.
+        return (int) ((packed << (64 - X_SHIFT - X_BITS)) >> (64 - X_BITS));
     }
 
     /**
@@ -91,8 +94,8 @@ public final class VxSectionPos {
      * @return The integer Y coordinate.
      */
     public static int unpackY(long packed) {
-        // Sign-extend the 12-bit value
-        return (int) (((packed >> Y_SHIFT) & Y_MASK) << (32 - Y_BITS)) >> (32 - Y_BITS);
+        // Shift the value to the lowest bits, then sign-extend from 12 bits to the full 64 bits.
+        return (int) ((packed << (64 - Y_SHIFT - Y_BITS)) >> (64 - Y_BITS));
     }
 
     /**
@@ -102,8 +105,8 @@ public final class VxSectionPos {
      * @return The integer Z coordinate.
      */
     public static int unpackZ(long packed) {
-        // Sign-extend the 26-bit value
-        return (int) ((packed & Z_MASK) << (32 - Z_BITS)) >> (32 - Z_BITS);
+        // The value is already in the lowest bits, so we just sign-extend from 26 bits to the full 64 bits.
+        return (int) ((packed << (64 - Z_BITS)) >> (64 - Z_BITS));
     }
 
     /**

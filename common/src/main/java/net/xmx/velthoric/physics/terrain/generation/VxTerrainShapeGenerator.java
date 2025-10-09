@@ -19,8 +19,9 @@ import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.physics.terrain.management.VxTerrainManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages the asynchronous generation of terrain physics shapes. It processes a queue
@@ -37,7 +38,7 @@ public class VxTerrainShapeGenerator {
     private final VxChunkDataStore chunkDataStore;
     private final VxGreedyMesher greedyMesher;
 
-    private final Queue<Long> chunksToRebuild = new ConcurrentLinkedQueue<>();
+    private final Set<Long> chunksToRebuild = ConcurrentHashMap.newKeySet();
 
     public VxTerrainShapeGenerator(VxPhysicsWorld physicsWorld, ServerLevel level, VxTerrainJobSystem jobSystem, VxChunkDataStore chunkDataStore, VxGreedyMesher greedyMesher) {
         this.physicsWorld = physicsWorld;
@@ -54,15 +55,21 @@ public class VxTerrainShapeGenerator {
     public void tick() {
         int processed = 0;
         final int maxToProcess = 128;
-        while (processed < maxToProcess && !chunksToRebuild.isEmpty()) {
-            Long packedPos = chunksToRebuild.poll();
-            if (packedPos != null) {
-                Integer index = chunkDataStore.getIndexForPos(packedPos);
-                if (index != null) {
-                    scheduleShapeGeneration(packedPos, index);
-                }
-                processed++;
+
+        if (chunksToRebuild.isEmpty()) {
+            return;
+        }
+
+        Iterator<Long> iterator = chunksToRebuild.iterator();
+        while (iterator.hasNext() && processed < maxToProcess) {
+            long packedPos = iterator.next();
+            iterator.remove();
+
+            Integer index = chunkDataStore.getIndexForPos(packedPos);
+            if (index != null) {
+                scheduleShapeGeneration(packedPos, index);
             }
+            processed++;
         }
     }
 
@@ -71,9 +78,7 @@ public class VxTerrainShapeGenerator {
      * @param packedPos The packed long position of the chunk section to rebuild.
      */
     public void requestRebuild(long packedPos) {
-        if (!chunksToRebuild.contains(packedPos)) {
-            chunksToRebuild.add(packedPos);
-        }
+        chunksToRebuild.add(packedPos);
     }
 
     /**
@@ -87,46 +92,49 @@ public class VxTerrainShapeGenerator {
     public void scheduleShapeGeneration(long packedPos, int index) {
         if (jobSystem.isShutdown()) return;
 
-        final int currentState = chunkDataStore.states[index];
-        if (currentState != VxChunkDataStore.STATE_GENERATING_SHAPE && currentState != VxChunkDataStore.STATE_LOADING_SCHEDULED) {
-            chunkDataStore.states[index] = VxChunkDataStore.STATE_LOADING_SCHEDULED;
-            final int version = ++chunkDataStore.rebuildVersions[index];
-
-            jobSystem.submit(() -> {
-                if (version < chunkDataStore.rebuildVersions[index] || jobSystem.isShutdown()) {
-                    if (chunkDataStore.states[index] == VxChunkDataStore.STATE_LOADING_SCHEDULED) {
-                        chunkDataStore.states[index] = currentState;
-                    }
-                    return;
-                }
-
-                LevelChunk chunk = level.getChunkSource().getChunk(VxSectionPos.unpackX(packedPos), VxSectionPos.unpackZ(packedPos), false);
-                if (chunk == null) {
-                    chunkDataStore.states[index] = VxChunkDataStore.STATE_AWAITING_CHUNK;
-                    return;
-                }
-
-                VxChunkSnapshot snapshot = VxChunkSnapshot.snapshotFromChunk(level, chunk, packedPos);
-                chunkDataStore.states[index] = VxChunkDataStore.STATE_GENERATING_SHAPE;
-                processShapeGenerationOnWorker(packedPos, index, version, snapshot);
-            });
+        // Atomically check state, set to loading, and get new version.
+        // This prevents race conditions from multiple block updates on the same chunk.
+        final int version = chunkDataStore.scheduleRebuild(index);
+        if (version == -1) {
+            return; // Another thread is already handling a rebuild for this chunk.
         }
+
+        jobSystem.submit(() -> {
+            // Check if a newer version has been requested since this job was submitted.
+            if (version < chunkDataStore.getRebuildVersion(index) || jobSystem.isShutdown()) {
+                return; // This job is stale, a newer one has been scheduled.
+            }
+
+            LevelChunk chunk = level.getChunkSource().getChunk(VxSectionPos.unpackX(packedPos), VxSectionPos.unpackZ(packedPos), false);
+            if (chunk == null) {
+                // If chunk is not loaded, wait for it. onChunkLoaded will trigger a new build.
+                chunkDataStore.setState(index, VxChunkDataStore.STATE_AWAITING_CHUNK);
+                return;
+            }
+
+            // Now we have the chunk, proceed with generation.
+            chunkDataStore.setState(index, VxChunkDataStore.STATE_GENERATING_SHAPE);
+            VxChunkSnapshot snapshot = VxChunkSnapshot.snapshotFromChunk(level, chunk, packedPos);
+            processShapeGenerationOnWorker(packedPos, index, version, snapshot);
+        });
     }
 
     private void processShapeGenerationOnWorker(long packedPos, int index, int version, VxChunkSnapshot snapshot) {
-        if (version < chunkDataStore.rebuildVersions[index]) return;
+        if (version < chunkDataStore.getRebuildVersion(index)) return; // Stale check
 
         try {
             ShapeRefC generatedShape = greedyMesher.generateShape(snapshot);
+            // Switch to the main physics thread to apply the new shape.
             physicsWorld.execute(() -> applyGeneratedShape(packedPos, index, version, generatedShape));
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Exception during terrain shape generation for {}", VxSectionPos.unpackToSectionPos(packedPos), e);
-            chunkDataStore.states[index] = VxChunkDataStore.STATE_UNLOADED;
+            chunkDataStore.setState(index, VxChunkDataStore.STATE_UNLOADED);
         }
     }
 
     private void applyGeneratedShape(long packedPos, int index, int version, ShapeRefC shape) {
-        if (version < chunkDataStore.rebuildVersions[index] || chunkDataStore.states[index] == VxChunkDataStore.STATE_REMOVING) {
+        // Final check on the physics thread to ensure this job is still valid.
+        if (version < chunkDataStore.getRebuildVersion(index) || chunkDataStore.getState(index) == VxChunkDataStore.STATE_REMOVING) {
             if (shape != null) shape.close();
             return;
         }
@@ -138,15 +146,16 @@ public class VxTerrainShapeGenerator {
         }
 
         // Remove the old body if it exists.
-        int oldBodyId = chunkDataStore.bodyIds[index];
+        int oldBodyId = chunkDataStore.getBodyId(index);
         if (oldBodyId != VxChunkDataStore.UNUSED_BODY_ID) {
             if (bodyInterface.isAdded(oldBodyId)) {
                 bodyInterface.removeBody(oldBodyId);
             }
             bodyInterface.destroyBody(oldBodyId);
-            chunkDataStore.bodyIds[index] = VxChunkDataStore.UNUSED_BODY_ID;
-            chunkDataStore.setShape(index, null); // Also releases old shape reference
         }
+        // Also releases old shape reference
+        chunkDataStore.setShape(index, null);
+        chunkDataStore.setBodyId(index, VxChunkDataStore.UNUSED_BODY_ID);
 
         // If the new shape is not null (i.e., not an all-air chunk), create and add the new body.
         if (shape != null) {
@@ -161,18 +170,18 @@ public class VxTerrainShapeGenerator {
                     bodyInterface.addBody(newBody.getId(), EActivation.DontActivate);
 
                     // Update the data store with the new information.
-                    chunkDataStore.bodyIds[index] = newBody.getId();
+                    chunkDataStore.setBodyId(index, newBody.getId());
                     chunkDataStore.setShape(index, shape);
-                    chunkDataStore.states[index] = VxChunkDataStore.STATE_READY_INACTIVE;
+                    chunkDataStore.setState(index, VxChunkDataStore.STATE_READY_INACTIVE);
                 } else {
                     VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}", VxSectionPos.unpackToSectionPos(packedPos));
                     shape.close(); // Clean up the shape if body creation fails.
-                    chunkDataStore.states[index] = VxChunkDataStore.STATE_UNLOADED;
+                    chunkDataStore.setState(index, VxChunkDataStore.STATE_UNLOADED);
                 }
             }
         } else {
             // This chunk section is entirely air, so it has no body.
-            chunkDataStore.states[index] = VxChunkDataStore.STATE_AIR_CHUNK;
+            chunkDataStore.setState(index, VxChunkDataStore.STATE_AIR_CHUNK);
         }
     }
 }

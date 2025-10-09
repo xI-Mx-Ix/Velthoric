@@ -14,9 +14,10 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * A data-oriented store for the state of all terrain chunk physics bodies.
+ * A data-oriented, thread-safe store for the state of all terrain chunk physics bodies.
  * It uses a Structure of Arrays (SoA) layout and manages the lifecycle of chunks
- * via a life counter, inspired by proactive terrain management systems.
+ * via a life counter, inspired by proactive terrain management systems. All access
+ * to chunk data is synchronized to prevent race conditions.
  *
  * @author xI-Mx-Ix
  */
@@ -41,12 +42,12 @@ public class VxChunkDataStore extends AbstractDataStore {
     private int count = 0;
     private int capacity = 0;
 
-    // --- Chunk State Data (SoA) ---
-    public volatile int[] states;
-    public volatile int[] bodyIds;
-    public volatile ShapeRefC[] shapeRefs;
-    public volatile int[] rebuildVersions;
-    public volatile int[] lifeCounters; // TTL for automatic cleanup
+    // --- Chunk State Data (SoA) - Access via synchronized methods ---
+    private volatile int[] states;
+    private volatile int[] bodyIds;
+    private volatile ShapeRefC[] shapeRefs;
+    private volatile int[] rebuildVersions;
+    private volatile int[] lifeCounters; // TTL for automatic cleanup
 
     public VxChunkDataStore() {
         allocate(INITIAL_CAPACITY);
@@ -67,6 +68,7 @@ public class VxChunkDataStore extends AbstractDataStore {
     }
 
     public int addChunk(long packedPos) {
+        // First, check without lock for performance.
         Integer existingIndex = posToIndex.get(packedPos);
         if (existingIndex != null) {
             return existingIndex;
@@ -74,6 +76,7 @@ public class VxChunkDataStore extends AbstractDataStore {
 
         lock.lock();
         try {
+            // Double-check after acquiring the lock.
             existingIndex = posToIndex.get(packedPos);
             if (existingIndex != null) {
                 return existingIndex;
@@ -98,8 +101,7 @@ public class VxChunkDataStore extends AbstractDataStore {
         }
     }
 
-    @Nullable
-    public Integer removeChunk(long packedPos) {
+    public void removeChunk(long packedPos) {
         Integer index = posToIndex.remove(packedPos);
         if (index != null) {
             lock.lock();
@@ -113,9 +115,7 @@ public class VxChunkDataStore extends AbstractDataStore {
             } finally {
                 lock.unlock();
             }
-            return index;
         }
-        return null;
     }
 
     public void clear() {
@@ -136,17 +136,16 @@ public class VxChunkDataStore extends AbstractDataStore {
         }
     }
 
-    public void setShape(int index, ShapeRefC shape) {
-        lock.lock();
-        try {
-            if (shapeRefs[index] != null && shapeRefs[index] != shape) {
-                shapeRefs[index].close();
-            }
-            shapeRefs[index] = shape;
-        } finally {
-            lock.unlock();
-        }
+    private void resetIndex(int index) {
+        // This method must be called within a locked block.
+        states[index] = STATE_UNLOADED;
+        bodyIds[index] = UNUSED_BODY_ID;
+        shapeRefs[index] = null;
+        rebuildVersions[index] = 0;
+        lifeCounters[index] = 0;
     }
+
+    // --- Synchronized Accessors ---
 
     @Nullable
     public Integer getIndexForPos(long packedPos) {
@@ -169,11 +168,115 @@ public class VxChunkDataStore extends AbstractDataStore {
         return new ArrayList<>(posToIndex.values());
     }
 
-    private void resetIndex(int index) {
-        states[index] = STATE_UNLOADED;
-        bodyIds[index] = UNUSED_BODY_ID;
-        shapeRefs[index] = null;
-        rebuildVersions[index] = 0;
-        lifeCounters[index] = 0;
+    public Collection<Long> getManagedPositions() {
+        return new ArrayList<>(posToIndex.keySet());
+    }
+
+    public int getState(int index) {
+        lock.lock();
+        try {
+            return states[index];
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void setState(int index, int state) {
+        lock.lock();
+        try {
+            states[index] = state;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public int getBodyId(int index) {
+        lock.lock();
+        try {
+            return bodyIds[index];
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void setBodyId(int index, int bodyId) {
+        lock.lock();
+        try {
+            bodyIds[index] = bodyId;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void setShape(int index, ShapeRefC shape) {
+        lock.lock();
+        try {
+            if (shapeRefs[index] != null && shapeRefs[index] != shape) {
+                shapeRefs[index].close();
+            }
+            shapeRefs[index] = shape;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public int getRebuildVersion(int index) {
+        lock.lock();
+        try {
+            return rebuildVersions[index];
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public int incrementAndGetRebuildVersion(int index) {
+        lock.lock();
+        try {
+            return ++rebuildVersions[index];
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void setLifeCounter(int index, int life) {
+        lock.lock();
+        try {
+            lifeCounters[index] = life;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public boolean decrementLifeCounterAndCheck(int index) {
+        lock.lock();
+        try {
+            if (lifeCounters[index] > 0) {
+                lifeCounters[index]--;
+            }
+            return lifeCounters[index] <= 0;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Atomically checks the current state and, if valid, transitions it to LOADING_SCHEDULED
+     * and increments the rebuild version.
+     *
+     * @param index The index of the chunk section.
+     * @return The new version number if scheduling was successful, otherwise -1.
+     */
+    public int scheduleRebuild(int index) {
+        lock.lock();
+        try {
+            int currentState = states[index];
+            if (currentState != STATE_GENERATING_SHAPE && currentState != STATE_LOADING_SCHEDULED) {
+                states[index] = STATE_LOADING_SCHEDULED;
+                return ++rebuildVersions[index];
+            }
+            return -1;
+        } finally {
+            lock.unlock();
+        }
     }
 }
