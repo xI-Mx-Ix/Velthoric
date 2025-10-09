@@ -15,8 +15,8 @@ import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.body.VxClientBody;
-import net.xmx.velthoric.physics.riding.manager.VxClientRidingManager;
-import net.xmx.velthoric.physics.riding.seat.VxSeat;
+import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
+import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 
 /**
  * A dedicated renderer for drawing debug information related to physics objects,
@@ -56,7 +56,7 @@ public class VxDebugRenderer {
      */
     private void renderSeatHitboxes(PoseStack poseStack, MultiBufferSource bufferSource, VxClientObjectManager manager, float partialTicks) {
         VertexConsumer vertexConsumer = bufferSource.getBuffer(RenderType.lines());
-        VxClientRidingManager ridingManager = VxClientRidingManager.getInstance();
+        VxClientMountingManager ridingManager = VxClientMountingManager.getInstance();
 
         for (VxClientBody body : manager.getAllObjects()) {
             if (!body.isInitialized()) continue;

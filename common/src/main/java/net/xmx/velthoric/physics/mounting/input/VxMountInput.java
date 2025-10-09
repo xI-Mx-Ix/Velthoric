@@ -2,14 +2,20 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.riding.input;
+package net.xmx.velthoric.physics.mounting.input;
 
 import net.minecraft.network.FriendlyByteBuf;
 import java.util.Objects;
 
-public class VxRideInput {
+/**
+ * Represents the input state of a mounted entity.
+ * This class is used to encode and decode the input state of a mounted entity.
+ *
+ * @author xI-Mx-Ix
+ */
+public class VxMountInput {
 
-    public static final VxRideInput NEUTRAL = new VxRideInput(false, false, false, false, false, false);
+    public static final VxMountInput NEUTRAL = new VxMountInput(false, false, false, false, false, false);
 
     private final boolean forward;
     private final boolean backward;
@@ -18,7 +24,7 @@ public class VxRideInput {
     private final boolean up;
     private final boolean down;
 
-    public VxRideInput(boolean forward, boolean backward, boolean left, boolean right, boolean up, boolean down) {
+    public VxMountInput(boolean forward, boolean backward, boolean left, boolean right, boolean up, boolean down) {
         this.forward = forward;
         this.backward = backward;
         this.left = left;
@@ -27,7 +33,7 @@ public class VxRideInput {
         this.down = down;
     }
 
-    public VxRideInput(FriendlyByteBuf buf) {
+    public VxMountInput(FriendlyByteBuf buf) {
         int packed = buf.readByte();
         this.forward = (packed & 1) != 0;
         this.backward = (packed & 2) != 0;
@@ -76,7 +82,7 @@ public class VxRideInput {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        VxRideInput rideInput = (VxRideInput) o;
+        VxMountInput rideInput = (VxMountInput) o;
         return forward == rideInput.forward &&
                 backward == rideInput.backward &&
                 left == rideInput.left &&

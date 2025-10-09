@@ -2,41 +2,41 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.riding.manager;
+package net.xmx.velthoric.physics.mounting.manager;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.riding.seat.VxSeat;
+import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Manages the state of all rideable seats on the client side.
+ * Manages the state of all mountable seats on the client side.
  * This class acts as a central store for seat information received from the server,
- * making it available for client-side logic and rendering.
+ * providing fast, map-based lookups for client-side logic and rendering.
  *
  * @author xI-Mx-Ix
  */
-public final class VxClientRidingManager {
+public final class VxClientMountingManager {
 
-    private static final VxClientRidingManager INSTANCE = new VxClientRidingManager();
+    private static final VxClientMountingManager INSTANCE = new VxClientMountingManager();
 
     /**
-     * Maps a physics object's UUID to its list of associated seats.
+     * Maps a physics object's UUID to a map of its seats, indexed by each seat's UUID.
+     * This nested map structure allows for O(1) lookup of a specific seat.
      */
-    private final Map<UUID, List<VxSeat>> objectToSeatsMap = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<UUID, VxSeat>> objectToSeatsMap = new ConcurrentHashMap<>();
 
-    private VxClientRidingManager() {
+    private VxClientMountingManager() {
     }
 
     /**
-     * Returns the singleton instance of the client riding manager.
+     * Returns the singleton instance of the client mounting manager.
      *
      * @return The singleton instance.
      */
-    public static VxClientRidingManager getInstance() {
+    public static VxClientMountingManager getInstance() {
         return INSTANCE;
     }
 
@@ -49,7 +49,7 @@ public final class VxClientRidingManager {
 
     /**
      * Reads seat data from a network buffer and associates it with a physics object.
-     * This is typically called when an object is spawned.
+     * This is typically called when a mountable object is spawned on the client.
      *
      * @param objectId The UUID of the physics object.
      * @param buf      The buffer containing the serialized seat data.
@@ -57,9 +57,10 @@ public final class VxClientRidingManager {
     public void addSeatsFromBuffer(UUID objectId, VxByteBuf buf) {
         int seatCount = buf.readVarInt();
         if (seatCount > 0) {
-            List<VxSeat> seats = new ObjectArrayList<>(seatCount);
+            Map<UUID, VxSeat> seats = new ConcurrentHashMap<>(seatCount);
             for (int i = 0; i < seatCount; i++) {
-                seats.add(new VxSeat(buf));
+                VxSeat seat = new VxSeat(buf);
+                seats.put(seat.getId(), seat);
             }
             this.objectToSeatsMap.put(objectId, seats);
         }
@@ -82,7 +83,21 @@ public final class VxClientRidingManager {
      * @return A collection of seats for the object, or an empty collection if none exist.
      */
     public Collection<VxSeat> getSeats(UUID objectId) {
-        return this.objectToSeatsMap.getOrDefault(objectId, Collections.emptyList());
+        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+        return seats != null ? seats.values() : Collections.emptyList();
+    }
+
+    /**
+     * Retrieves a specific seat for a given physics object using the seat's UUID.
+     * This provides a highly efficient O(1) lookup.
+     *
+     * @param objectId The UUID of the physics object.
+     * @param seatId The UUID of the seat.
+     * @return An Optional containing the seat if found.
+     */
+    public Optional<VxSeat> getSeat(UUID objectId, UUID seatId) {
+        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+        return seats != null ? Optional.ofNullable(seats.get(seatId)) : Optional.empty();
     }
 
     /**

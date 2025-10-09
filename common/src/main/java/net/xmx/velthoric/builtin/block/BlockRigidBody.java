@@ -54,12 +54,12 @@ public class BlockRigidBody extends VxRigidBody {
     @Override
     public int createJoltBody(VxRigidBodyFactory factory) {
         BlockState stateForShape = getRepresentedBlockState();
-        VoxelShape voxelShape = stateForShape.getCollisionShape(this.world.getLevel(), BlockPos.ZERO);
+        VoxelShape voxelShape = stateForShape.getCollisionShape(this.physicsWorld.getLevel(), BlockPos.ZERO);
 
         try (ShapeSettings shapeSettings = VxVoxelShapeUtil.toMutableCompoundShape(voxelShape)) {
             if (shapeSettings == null) {
                 VxMainClass.LOGGER.warn("VoxelShape conversion for BlockState {} failed. Using default BoxShape.", stateForShape);
-                try (var boxSettings = VxVoxelShapeUtil.toMutableCompoundShape(Blocks.STONE.defaultBlockState().getCollisionShape(this.world.getLevel(), BlockPos.ZERO));
+                try (var boxSettings = VxVoxelShapeUtil.toMutableCompoundShape(Blocks.STONE.defaultBlockState().getCollisionShape(this.physicsWorld.getLevel(), BlockPos.ZERO));
                      BodyCreationSettings bcs = new BodyCreationSettings()) {
                     bcs.setMotionType(EMotionType.Dynamic);
                     bcs.setObjectLayer(VxLayers.DYNAMIC);

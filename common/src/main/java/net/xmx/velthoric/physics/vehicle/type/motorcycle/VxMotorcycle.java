@@ -14,7 +14,7 @@ import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
-import net.xmx.velthoric.physics.riding.input.VxRideInput;
+import net.xmx.velthoric.physics.mounting.input.VxMountInput;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.controller.VxWheeledVehicleController;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -68,7 +68,7 @@ public abstract class VxMotorcycle extends VxVehicle {
     }
 
     @Override
-    public void onStopRiding(ServerPlayer player) {
+    public void onStopMounting(ServerPlayer player) {
         if (controller != null) {
             // Set all four inputs to zero
             controller.setInput(0.0f, 0.0f, 0.0f, 0.0f);
@@ -76,7 +76,7 @@ public abstract class VxMotorcycle extends VxVehicle {
     }
 
     @Override
-    public void handleDriverInput(ServerPlayer player, VxRideInput input) {
+    public void handleDriverInput(ServerPlayer player, VxMountInput input) {
         if (controller == null) {
             return;
         }

@@ -17,8 +17,8 @@ import net.xmx.velthoric.item.boxthrower.packet.BoxThrowerActionPacket;
 import net.xmx.velthoric.item.magnetizer.packet.MagnetizerActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.*;
 import net.xmx.velthoric.physics.object.packet.batch.*;
-import net.xmx.velthoric.physics.riding.input.C2SRideInputPacket;
-import net.xmx.velthoric.physics.riding.request.C2SRequestRidePacket;
+import net.xmx.velthoric.physics.mounting.input.C2SMountInputPacket;
+import net.xmx.velthoric.physics.mounting.request.C2SRequestMountPacket;
 import net.xmx.velthoric.physics.vehicle.sync.S2CUpdateWheelsPacket;
 
 import java.util.function.BiConsumer;
@@ -41,10 +41,10 @@ public class VxPacketHandler {
     public static void register() {
 
         registerPacket(
-                C2SRequestRidePacket.class,
-                C2SRequestRidePacket::encode,
-                C2SRequestRidePacket::new,
-                C2SRequestRidePacket::handle
+                C2SRequestMountPacket.class,
+                C2SRequestMountPacket::encode,
+                C2SRequestMountPacket::new,
+                C2SRequestMountPacket::handle
         );
 
         registerPacket(
@@ -55,10 +55,10 @@ public class VxPacketHandler {
         );
 
         registerPacket(
-                C2SRideInputPacket.class,
-                C2SRideInputPacket::encode,
-                C2SRideInputPacket::new,
-                C2SRideInputPacket::handle
+                C2SMountInputPacket.class,
+                C2SMountInputPacket::encode,
+                C2SMountInputPacket::new,
+                C2SMountInputPacket::handle
         );
 
         registerPacket(

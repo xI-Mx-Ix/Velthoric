@@ -2,12 +2,12 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.riding.input;
+package net.xmx.velthoric.physics.mounting.input;
 
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.physics.riding.manager.VxRidingManager;
+import net.xmx.velthoric.physics.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.function.Supplier;
@@ -18,16 +18,16 @@ import java.util.function.Supplier;
  *
  * @author xI-Mx-Ix
  */
-public class C2SRideInputPacket {
+public class C2SMountInputPacket {
 
-    private final VxRideInput input;
+    private final VxMountInput input;
 
     /**
      * Constructs a new input packet with the player's ride controls.
      *
-     * @param input The {@link VxRideInput} data.
+     * @param input The {@link VxMountInput} data.
      */
-    public C2SRideInputPacket(VxRideInput input) {
+    public C2SMountInputPacket(VxMountInput input) {
         this.input = input;
     }
 
@@ -36,8 +36,8 @@ public class C2SRideInputPacket {
      *
      * @param buf The buffer to read from.
      */
-    public C2SRideInputPacket(FriendlyByteBuf buf) {
-        this.input = new VxRideInput(buf);
+    public C2SMountInputPacket(FriendlyByteBuf buf) {
+        this.input = new VxMountInput(buf);
     }
 
     /**
@@ -55,7 +55,7 @@ public class C2SRideInputPacket {
      * @param msg             The received packet.
      * @param contextSupplier A supplier for the network packet context.
      */
-    public static void handle(C2SRideInputPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
+    public static void handle(C2SMountInputPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             ServerPlayer player = (ServerPlayer) context.getPlayer();
@@ -65,7 +65,7 @@ public class C2SRideInputPacket {
 
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(player.serverLevel().dimension());
             if (physicsWorld != null) {
-                VxRidingManager ridingManager = physicsWorld.getRidingManager();
+                VxMountingManager ridingManager = physicsWorld.getMountingManager();
                 ridingManager.handlePlayerInput(player, msg.input);
             }
         });

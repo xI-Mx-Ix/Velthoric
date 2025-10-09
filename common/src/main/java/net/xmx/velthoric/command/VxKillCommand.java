@@ -24,7 +24,7 @@ public class VxKillCommand {
                             List<VxBody> objectsToRemove = VxObjectArgument.getObjects(context, "selector");
 
                             for (VxBody obj : objectsToRemove) {
-                                obj.getWorld().getObjectManager().removeObject(obj.getPhysicsId(), VxRemovalReason.DISCARD);
+                                obj.getPhysicsWorld().getObjectManager().removeObject(obj.getPhysicsId(), VxRemovalReason.DISCARD);
                             }
 
                             context.getSource().sendSuccess(() -> Component.literal("Removed " + objectsToRemove.size() + " physics objects."), true);

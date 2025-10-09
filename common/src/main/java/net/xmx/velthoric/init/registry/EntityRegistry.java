@@ -11,18 +11,18 @@ import dev.architectury.utils.Env;
 import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.xmx.velthoric.physics.riding.VxRidingProxyEntity;
+import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
 
 public class EntityRegistry {
 
-    public static final RegistrySupplier<EntityType<VxRidingProxyEntity>> RIDING_PROXY =
+    public static final RegistrySupplier<EntityType<VxMountingEntity>> MOUNTING_ENTITY =
             ModRegistries.ENTITY_TYPES.register(
-                    "riding_proxy",
-                    () -> EntityType.Builder.of(VxRidingProxyEntity::new, MobCategory.MISC)
+                    "mounting_entity",
+                    () -> EntityType.Builder.of(VxMountingEntity::new, MobCategory.MISC)
                             .sized(0.5F, 0.5F)
                             .noSummon()
                             .fireImmune()
-                            .build("riding_proxy")
+                            .build("mounting_entity")
             );
 
     public static void register() {
@@ -32,7 +32,7 @@ public class EntityRegistry {
 
     private static void registerEntityRenderers() {
         if (Platform.getEnvironment() == Env.CLIENT) {
-            EntityRendererRegistry.register(EntityRegistry.RIDING_PROXY, NoopRenderer::new);
+            EntityRendererRegistry.register(EntityRegistry.MOUNTING_ENTITY, NoopRenderer::new);
         }
     }
 }

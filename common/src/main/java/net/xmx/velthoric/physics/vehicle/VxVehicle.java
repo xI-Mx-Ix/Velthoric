@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.vehicle;
 
 import com.github.stephengold.joltjni.*;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.mounting.VxMountable;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
@@ -26,7 +27,7 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public abstract class VxVehicle extends VxRigidBody {
+public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
     public static final VxDataAccessor<List<WheelSettingsWv>> DATA_WHEELS_SETTINGS = VxDataAccessor.create(VxVehicle.class, VxDataSerializers.WHEEL_SETTINGS_LIST);
 

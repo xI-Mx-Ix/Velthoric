@@ -13,7 +13,7 @@ import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.physics.riding.seat.VxSeat;
+import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.vehicle.type.car.VxCar;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -137,7 +137,7 @@ public class CarImpl extends VxCar {
                 riderOffset.x + 0.3, riderOffset.y + 0.4, riderOffset.z + 0.3
         );
         VxSeat driverSeat = new VxSeat(UUID.randomUUID(), "driver_seat", localAABB, riderOffset, true);
-        this.getWorld().getRidingManager().addSeat(this.getPhysicsId(), driverSeat);
+        this.getPhysicsWorld().getMountingManager().addSeat(this.getPhysicsId(), driverSeat);
     }
 
     @Override

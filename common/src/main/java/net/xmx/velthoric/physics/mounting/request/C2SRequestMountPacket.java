@@ -2,12 +2,12 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.riding.request;
+package net.xmx.velthoric.physics.mounting.request;
 
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.physics.riding.manager.VxRidingManager;
+import net.xmx.velthoric.physics.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
@@ -19,7 +19,7 @@ import java.util.function.Supplier;
  *
  * @author xI-Mx-Ix
  */
-public class C2SRequestRidePacket {
+public class C2SRequestMountPacket {
 
     private final UUID objectId;
     private final UUID seatId;
@@ -30,7 +30,7 @@ public class C2SRequestRidePacket {
      * @param objectId The UUID of the physics object.
      * @param seatId The UUID of the seat to ride.
      */
-    public C2SRequestRidePacket(UUID objectId, UUID seatId) {
+    public C2SRequestMountPacket(UUID objectId, UUID seatId) {
         this.objectId = objectId;
         this.seatId = seatId;
     }
@@ -40,7 +40,7 @@ public class C2SRequestRidePacket {
      *
      * @param buf The buffer to read from.
      */
-    public C2SRequestRidePacket(FriendlyByteBuf buf) {
+    public C2SRequestMountPacket(FriendlyByteBuf buf) {
         this.objectId = buf.readUUID();
         this.seatId = buf.readUUID();
     }
@@ -61,7 +61,7 @@ public class C2SRequestRidePacket {
      * @param msg             The received packet.
      * @param contextSupplier A supplier for the network packet context.
      */
-    public static void handle(C2SRequestRidePacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
+    public static void handle(C2SRequestMountPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             ServerPlayer player = (ServerPlayer) context.getPlayer();
@@ -71,8 +71,8 @@ public class C2SRequestRidePacket {
 
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(player.serverLevel().dimension());
             if (physicsWorld != null) {
-                VxRidingManager ridingManager = physicsWorld.getRidingManager();
-                ridingManager.requestRiding(player, msg.objectId, msg.seatId);
+                VxMountingManager ridingManager = physicsWorld.getMountingManager();
+                ridingManager.requestMounting(player, msg.objectId, msg.seatId);
             }
         });
     }

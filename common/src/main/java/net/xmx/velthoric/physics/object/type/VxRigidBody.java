@@ -4,12 +4,8 @@
  */
 package net.xmx.velthoric.physics.object.type;
 
-import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.physics.riding.VxRideable;
-import net.xmx.velthoric.physics.riding.input.VxRideInput;
-import net.xmx.velthoric.physics.riding.seat.VxSeat;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
@@ -21,7 +17,7 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public abstract class VxRigidBody extends VxBody implements VxRideable {
+public abstract class VxRigidBody extends VxBody {
 
     /**
      * Constructor for a rigid body.
@@ -43,15 +39,4 @@ public abstract class VxRigidBody extends VxBody implements VxRideable {
      * @return The body ID assigned by Jolt.
      */
     public abstract int createJoltBody(VxRigidBodyFactory factory);
-
-    // ---- Rideable Interface (Default Implementations) ---- //
-
-    @Override
-    public void onStartRiding(ServerPlayer player, VxSeat seat) {}
-
-    @Override
-    public void onStopRiding(ServerPlayer player) {}
-
-    @Override
-    public void handleDriverInput(ServerPlayer player, VxRideInput input) {}
 }

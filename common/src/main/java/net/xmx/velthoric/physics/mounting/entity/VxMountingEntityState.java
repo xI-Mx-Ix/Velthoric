@@ -2,11 +2,14 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.riding;
+package net.xmx.velthoric.physics.mounting.entity;
 
 import net.minecraft.world.entity.Entity;
 
-public class VxOriginalState {
+/**
+ * @author xI-Mx-Ix
+ */
+public class VxMountingEntityState {
     double xo, yo, zo;
     double x, y, z;
     double xOld, yOld, zOld;

@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.riding.request;
+package net.xmx.velthoric.mixin.impl.mounting.request;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
@@ -15,9 +15,9 @@ import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.body.VxClientBody;
-import net.xmx.velthoric.physics.riding.manager.VxClientRidingManager;
-import net.xmx.velthoric.physics.riding.request.C2SRequestRidePacket;
-import net.xmx.velthoric.physics.riding.seat.VxSeat;
+import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
+import net.xmx.velthoric.physics.mounting.request.C2SRequestMountPacket;
+import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -28,7 +28,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.Optional;
 
 @Mixin(Minecraft.class)
-public abstract class MixinMinecraft_RequestRiding {
+public abstract class MixinMinecraft {
 
     @Shadow
     public LocalPlayer player;
@@ -69,7 +69,7 @@ public abstract class MixinMinecraft_RequestRiding {
         Vec3 endVec = cameraPos.add(viewVec.x * maxDist, viewVec.y * maxDist, viewVec.z * maxDist);
 
         VxClientObjectManager objectManager = VxClientObjectManager.getInstance();
-        VxClientRidingManager ridingManager = VxClientRidingManager.getInstance();
+        VxClientMountingManager ridingManager = VxClientMountingManager.getInstance();
 
         VxClientBody closestBody = null;
         VxSeat closestSeat = null;
@@ -102,7 +102,7 @@ public abstract class MixinMinecraft_RequestRiding {
         }
 
         if (closestBody != null) {
-            VxPacketHandler.CHANNEL.sendToServer(new C2SRequestRidePacket(closestBody.getId(), closestSeat.getId()));
+            VxPacketHandler.CHANNEL.sendToServer(new C2SRequestMountPacket(closestBody.getId(), closestSeat.getId()));
             return true;
         }
 

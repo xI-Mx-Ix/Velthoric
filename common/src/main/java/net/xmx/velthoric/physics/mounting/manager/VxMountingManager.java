@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.riding.manager;
+package net.xmx.velthoric.physics.mounting.manager;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -12,11 +12,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.init.registry.EntityRegistry;
+import net.xmx.velthoric.physics.mounting.VxMountable;
+import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
+import net.xmx.velthoric.physics.mounting.input.VxMountInput;
+import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.object.type.VxBody;
-import net.xmx.velthoric.physics.riding.VxRideable;
-import net.xmx.velthoric.physics.riding.VxRidingProxyEntity;
-import net.xmx.velthoric.physics.riding.input.VxRideInput;
-import net.xmx.velthoric.physics.riding.seat.VxSeat;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -25,14 +25,14 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Manages all riding-related logic on the server side for a specific physics world.
- * This includes tracking which players are riding which objects, handling seat management,
- * processing player input, and synchronizing the position of riders.
+ * Manages all mounting-related logic on the server side for a specific physics world.
+ * This includes tracking which players are mounting which objects, handling seat management,
+ * processing player input, and synchronizing the position of mounted entities.
  * Seats are managed using their unique UUIDs as primary keys.
  *
  * @author xI-Mx-Ix
  */
-public class VxRidingManager {
+public class VxMountingManager {
 
     private final VxPhysicsWorld world;
     /** Maps a physics object's UUID to a map of its seats, where each seat is keyed by its own UUID. */
@@ -41,7 +41,7 @@ public class VxRidingManager {
     private final Object2ObjectMap<UUID, Map<UUID, ServerPlayer>> objectToRidersMap = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<UUID, VxSeat> playerToSeatMap = new Object2ObjectOpenHashMap<>();
 
-    public VxRidingManager(VxPhysicsWorld world) {
+    public VxMountingManager(VxPhysicsWorld world) {
         this.world = world;
     }
 
@@ -72,23 +72,23 @@ public class VxRidingManager {
     }
 
     /**
-     * Handles a request from a client to start riding an object.
-     * This method validates the request before initiating the ride.
+     * Handles a request from a client to start mounting an object.
+     * This method validates the request before initiating the mount.
      *
      * @param player   The player making the request.
      * @param objectId The UUID of the target object.
      * @param seatId   The UUID of the target seat.
      */
-    public void requestRiding(ServerPlayer player, UUID objectId, UUID seatId) {
+    public void requestMounting(ServerPlayer player, UUID objectId, UUID seatId) {
         VxBody body = world.getObjectManager().getObject(objectId);
-        if (!(body instanceof VxRideable rideable)) {
-            VxMainClass.LOGGER.warn("Player {} requested to ride non-rideable object {}", player.getName().getString(), objectId);
+        if (!(body instanceof VxMountable mountable)) {
+            VxMainClass.LOGGER.warn("Player {} requested to mount non-mountable object {}", player.getName().getString(), objectId);
             return;
         }
 
         Optional<VxSeat> seatOpt = getSeat(objectId, seatId);
         if (seatOpt.isEmpty()) {
-            VxMainClass.LOGGER.warn("Player {} requested to ride non-existent seat '{}' on object {}", player.getName().getString(), seatId, objectId);
+            VxMainClass.LOGGER.warn("Player {} requested to mount non-existent seat '{}' on object {}", player.getName().getString(), seatId, objectId);
             return;
         }
 
@@ -104,87 +104,35 @@ public class VxRidingManager {
         );
 
         if (distanceSq > (reachDistance * reachDistance)) {
-            VxMainClass.LOGGER.warn("Player {} is too far to ride object {} (distSq: {}, reach: {})", player.getName().getString(), objectId, distanceSq, reachDistance);
+            VxMainClass.LOGGER.warn("Player {} is too far to mount object {} (distSq: {}, reach: {})", player.getName().getString(), objectId, distanceSq, reachDistance);
             return;
         }
 
-        // If validation passes, start the riding process
-        startRiding(player, rideable, seat);
+        // If validation passes, start the mounting process
+        startMounting(player, mountable, seat);
     }
 
     /**
-     * Gets a specific seat from an object by its UUID.
+     * Makes a player start mounting a specific seat on a mountable object.
      *
-     * @param objectId The UUID of the object.
-     * @param seatId   The UUID of the seat.
-     * @return An Optional containing the seat if found.
+     * @param player    The player to start mounting.
+     * @param mountable The mountable object.
+     * @param seat      The seat to occupy.
      */
-    public Optional<VxSeat> getSeat(UUID objectId, UUID seatId) {
-        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
-        return seats != null ? Optional.ofNullable(seats.get(seatId)) : Optional.empty();
-    }
-
-    /**
-     * Gets the seat a specific player is currently occupying.
-     *
-     * @param player The player.
-     * @return An Optional containing the seat if the player is riding.
-     */
-    public Optional<VxSeat> getSeatForPlayer(ServerPlayer player) {
-        return Optional.ofNullable(playerToSeatMap.get(player.getUUID()));
-    }
-
-    /**
-     * Gets the rideable object a specific player is currently on.
-     *
-     * @param player The player.
-     * @return An Optional containing the rideable object.
-     */
-    public Optional<VxRideable> getRideableForPlayer(ServerPlayer player) {
-        UUID objectId = playerToObjectIdMap.get(player.getUUID());
-        if (objectId == null) {
-            return Optional.empty();
-        }
-        VxBody body = world.getObjectManager().getObject(objectId);
-        if (body instanceof VxRideable) {
-            return Optional.of((VxRideable) body);
-        }
-        return Optional.empty();
-    }
-
-    /**
-     * Gets all seats associated with a physics object.
-     *
-     * @param objectId The UUID of the object.
-     * @return A collection of all seats for the object.
-     */
-    public Collection<VxSeat> getSeats(UUID objectId) {
-        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
-        return seats != null ? seats.values() : Collections.emptyList();
-    }
-
-    /**
-     * Makes a player start riding a specific seat on a rideable object.
-     *
-     * @param player   The player to start riding.
-     * @param rideable The rideable object.
-     * @param seat     The seat to occupy.
-     */
-    public void startRiding(ServerPlayer player, VxRideable rideable, VxSeat seat) {
-        if (player.level().isClientSide() || isRiding(player) || isSeatOccupied(rideable.getPhysicsId(), seat)) {
+    public void startMounting(ServerPlayer player, VxMountable mountable, VxSeat seat) {
+        if (player.level().isClientSide() || isMounting(player) || isSeatOccupied(mountable.getPhysicsId(), seat)) {
             return;
         }
 
-        VxRidingProxyEntity proxy = new VxRidingProxyEntity(EntityRegistry.RIDING_PROXY.get(), player.level());
-        Vector3f rideOffsetJoml = new Vector3f(seat.getRiderOffset());
-        proxy.setFollowInfo(rideable.getPhysicsId(), rideOffsetJoml);
+        VxMountingEntity proxy = new VxMountingEntity(EntityRegistry.MOUNTING_ENTITY.get(), player.level());
+        proxy.setMountInfo(mountable.getPhysicsId(), seat.getId());
 
-        var initialTransform = rideable.getTransform();
+        var initialTransform = mountable.getTransform();
         var initialPos = initialTransform.getTranslation();
         var initialRot = initialTransform.getRotation();
         Quaternionf initialQuat = new Quaternionf(initialRot.getX(), initialRot.getY(), initialRot.getZ(), initialRot.getW());
 
-        Vector3f worldOffset = new Vector3f(rideOffsetJoml);
+        Vector3f worldOffset = new Vector3f(seat.getRiderOffset());
         initialQuat.transform(worldOffset);
 
         double finalX = initialPos.x() + worldOffset.x();
@@ -200,20 +148,20 @@ public class VxRidingManager {
         world.getLevel().addFreshEntity(proxy);
         player.startRiding(proxy, true);
 
-        objectToRidersMap.computeIfAbsent(rideable.getPhysicsId(), k -> Maps.newHashMap()).put(player.getUUID(), player);
-        playerToObjectIdMap.put(player.getUUID(), rideable.getPhysicsId());
+        objectToRidersMap.computeIfAbsent(mountable.getPhysicsId(), k -> Maps.newHashMap()).put(player.getUUID(), player);
+        playerToObjectIdMap.put(player.getUUID(), mountable.getPhysicsId());
         playerToSeatMap.put(player.getUUID(), seat);
 
-        rideable.onStartRiding(player, seat);
+        mountable.onStartMounting(player, seat);
     }
 
     /**
-     * Makes a player stop riding their current object.
+     * Makes a player stop mounting their current object.
      *
-     * @param player The player to stop riding.
+     * @param player The player to stop mounting.
      */
-    public void stopRiding(ServerPlayer player) {
-        if (!isRiding(player)) {
+    public void stopMounting(ServerPlayer player) {
+        if (!isMounting(player)) {
             return;
         }
         UUID playerUuid = player.getUUID();
@@ -221,7 +169,7 @@ public class VxRidingManager {
         playerToSeatMap.remove(playerUuid);
 
         if (objectId != null) {
-            getRideableForPlayer(player).ifPresent(rideable -> rideable.onStopRiding(player));
+            getMountableForPlayer(player).ifPresent(mountable -> mountable.onStopMounting(player));
             Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
             if (riders != null) {
                 riders.remove(playerUuid);
@@ -231,17 +179,17 @@ public class VxRidingManager {
             }
         }
         Entity vehicle = player.getVehicle();
-        if (vehicle instanceof VxRidingProxyEntity) {
+        if (vehicle instanceof VxMountingEntity) {
             player.stopRiding();
             vehicle.discard();
         }
     }
 
     /**
-     * Called every server game tick to update the positions and states of all riders.
+     * Called every server game tick to update the positions and states of all mounted entities.
      */
     public void onGameTick() {
-        List<ServerPlayer> playersToStopRiding = new ArrayList<>();
+        List<ServerPlayer> playersToStopMounting = new ArrayList<>();
         Set<UUID> objectIds = Sets.newHashSet(objectToRidersMap.keySet());
 
         for (UUID objectId : objectIds) {
@@ -250,7 +198,7 @@ public class VxRidingManager {
 
             VxBody physObject = world.getObjectManager().getObject(objectId);
             if (physObject == null) {
-                playersToStopRiding.addAll(riders.values());
+                playersToStopMounting.addAll(riders.values());
                 continue;
             }
 
@@ -263,8 +211,8 @@ public class VxRidingManager {
             float yawDegrees = (float) Math.toDegrees(eulerAngles.y);
 
             for (ServerPlayer rider : Sets.newHashSet(riders.values())) {
-                if (rider.isRemoved() || !rider.isPassenger() || !(rider.getVehicle() instanceof VxRidingProxyEntity)) {
-                    playersToStopRiding.add(rider);
+                if (rider.isRemoved() || !rider.isPassenger() || !(rider.getVehicle() instanceof VxMountingEntity)) {
+                    playersToStopMounting.add(rider);
                 } else {
                     VxSeat seat = this.playerToSeatMap.get(rider.getUUID());
                     if (seat != null) {
@@ -279,32 +227,32 @@ public class VxRidingManager {
                         vehicle.setPos(finalX, finalY, finalZ);
                         vehicle.setYRot(yawDegrees);
                     } else {
-                        playersToStopRiding.add(rider);
+                        playersToStopMounting.add(rider);
                     }
                 }
             }
         }
 
-        for (ServerPlayer player : playersToStopRiding) {
-            stopRiding(player);
+        for (ServerPlayer player : playersToStopMounting) {
+            stopMounting(player);
         }
     }
 
     /**
-     * Handles movement input from a riding player.
+     * Handles movement input from a mounted player.
      *
      * @param player The player providing the input.
      * @param input  The input state.
      */
-    public void handlePlayerInput(ServerPlayer player, VxRideInput input) {
-        if (!isRiding(player)) {
+    public void handlePlayerInput(ServerPlayer player, VxMountInput input) {
+        if (!isMounting(player)) {
             return;
         }
 
         getSeatForPlayer(player).ifPresent(seat -> {
             if (seat.isDriverSeat()) {
-                getRideableForPlayer(player).ifPresent(rideable -> {
-                    rideable.handleDriverInput(player, input);
+                getMountableForPlayer(player).ifPresent(mountable -> {
+                    mountable.handleDriverInput(player, input);
                 });
             }
         });
@@ -316,28 +264,23 @@ public class VxRidingManager {
      * @param player The player who disconnected.
      */
     public void onPlayerDisconnect(ServerPlayer player) {
-        if (isRiding(player)) {
-            stopRiding(player);
+        if (isMounting(player)) {
+            stopMounting(player);
         }
     }
 
-    public Map<UUID, Map<UUID, VxSeat>> getAllSeatsByObject() {
-        return Collections.unmodifiableMap(this.objectToSeatsMap);
-    }
-
     /**
-     * Checks if a player is currently riding a physics object.
+     * Checks if a player is currently mounting a physics object.
      *
      * @param player The player to check.
-     * @return True if the player is riding.
+     * @return True if the player is mounting.
      */
-    public boolean isRiding(ServerPlayer player) {
+    public boolean isMounting(ServerPlayer player) {
         return playerToObjectIdMap.containsKey(player.getUUID());
     }
 
     /**
      * Checks if a specific seat on an object is occupied.
-     * Compares seats by their unique UUIDs.
      *
      * @param objectId The UUID of the object.
      * @param seat     The seat to check.
@@ -355,5 +298,65 @@ public class VxRidingManager {
             }
         }
         return false;
+    }
+
+    /**
+     * Gets a specific seat from an object by its UUID.
+     *
+     * @param objectId The UUID of the object.
+     * @param seatId   The UUID of the seat.
+     * @return An Optional containing the seat if found.
+     */
+    public Optional<VxSeat> getSeat(UUID objectId, UUID seatId) {
+        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+        return seats != null ? Optional.ofNullable(seats.get(seatId)) : Optional.empty();
+    }
+
+    /**
+     * Gets all seats associated with a physics object.
+     *
+     * @param objectId The UUID of the object.
+     * @return A collection of all seats for the object.
+     */
+    public Collection<VxSeat> getSeats(UUID objectId) {
+        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+        return seats != null ? seats.values() : Collections.emptyList();
+    }
+
+    /**
+     * Gets the seat a specific player is currently occupying.
+     *
+     * @param player The player.
+     * @return An Optional containing the seat if the player is mounting.
+     */
+    public Optional<VxSeat> getSeatForPlayer(ServerPlayer player) {
+        return Optional.ofNullable(playerToSeatMap.get(player.getUUID()));
+    }
+
+    /**
+     * Gets the mountable object a specific player is currently on.
+     *
+     * @param player The player.
+     * @return An Optional containing the mountable object.
+     */
+    public Optional<VxMountable> getMountableForPlayer(ServerPlayer player) {
+        UUID objectId = playerToObjectIdMap.get(player.getUUID());
+        if (objectId == null) {
+            return Optional.empty();
+        }
+        VxBody body = world.getObjectManager().getObject(objectId);
+        if (body instanceof VxMountable) {
+            return Optional.of((VxMountable) body);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Gets an unmodifiable view of all seats grouped by their parent object's UUID.
+     *
+     * @return A map of all seats.
+     */
+    public Map<UUID, Map<UUID, VxSeat>> getAllSeatsByObject() {
+        return Collections.unmodifiableMap(this.objectToSeatsMap);
     }
 }

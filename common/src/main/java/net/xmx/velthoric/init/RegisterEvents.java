@@ -14,7 +14,7 @@ import net.xmx.velthoric.item.physicsgun.event.PhysicsGunEvents;
 import net.xmx.velthoric.physics.VxLifecycleEvents;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.renderer.VxPhysicsRenderer;
-import net.xmx.velthoric.physics.riding.manager.VxClientRidingManager;
+import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
 
 public class RegisterEvents {
 
@@ -28,7 +28,7 @@ public class RegisterEvents {
     @Environment(EnvType.CLIENT)
     public static void registerClient() {
         VxClientObjectManager.registerEvents();
-        VxClientRidingManager.registerEvents();
+        VxClientMountingManager.registerEvents();
         DebugScreen.registerEvents();
         VxPhysicsRenderer.registerEvents();
         PhysicsGunBeamRenderer.registerEvents();

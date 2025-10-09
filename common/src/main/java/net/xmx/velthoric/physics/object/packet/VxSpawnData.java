@@ -9,11 +9,11 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.mounting.VxMountable;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
-import net.xmx.velthoric.physics.riding.VxRideable;
-import net.xmx.velthoric.physics.riding.manager.VxRidingManager;
-import net.xmx.velthoric.physics.riding.seat.VxSeat;
+import net.xmx.velthoric.physics.mounting.manager.VxMountingManager;
+import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 
 import java.util.Collection;
 import java.util.UUID;
@@ -50,8 +50,8 @@ public class VxSpawnData {
             obj.getTransform().toBuffer(buf);
             obj.writeInitialSyncData(buf);
 
-            if (obj instanceof VxRideable) {
-                VxRidingManager ridingManager = obj.getWorld().getRidingManager();
+            if (obj instanceof VxMountable) {
+                VxMountingManager ridingManager = obj.getPhysicsWorld().getMountingManager();
                 Collection<VxSeat> seats = ridingManager.getSeats(obj.getPhysicsId());
                 buf.writeVarInt(seats.size());
                 for (VxSeat seat : seats) {

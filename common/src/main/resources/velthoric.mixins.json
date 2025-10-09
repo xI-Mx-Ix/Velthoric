@@ -12,10 +12,10 @@
     "event.level.ServerLevelMixin_VxLevelEvent",
     "event.server.MinecraftServerMixin_VxServerLifecylceEvent",
     "misc.ExplosionMixin_TriggerExplosion",
-    "object.ChunkMapMixin_UnloadObjects",
+    "mounting.entity.MixinEntity",
     "object.ChunkMapMixin_DispatchObjectsToPlayers",
+    "object.ChunkMapMixin_UnloadObjects",
     "object.EntityStorageMixin_Persistence",
-    "riding.render.eye.MixinEntity_EyePosOnPhysicsObject",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
   ],
   "client": [
@@ -28,17 +28,15 @@
     "magnetizer.MouseHandlerMixin_MagnetizerInput",
     "misc.MixinDebugScreenOverlay",
     "misc.MixinMinecraft",
+    "mounting.input.MixinLocalPlayer",
+    "mounting.render.MixinCamera",
+    "mounting.render.MixinEntityRenderDispatcher",
+    "mounting.render.MixinGameRenderer",
+    "mounting.render.MixinLivingEntityRenderer",
+    "mounting.request.MixinMinecraft",
     "physicsgun.KeyboardHandlerMixin_PhysicsGunHandling",
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
-    "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
-    "riding.input.MixinLocalPlayer_SendInput",
-    "riding.render.MixinGameRenderer_SmoothEntityPosition",
-    "riding.render.bounds.MixinEntityRenderDispatcher_TransformHitbox",
-    "riding.render.bounds.MixinGameRenderer_TranformPick",
-    "riding.render.bounds.MixinLivingEntityRenderer_TransformEntity",
-    "riding.render.camera.MixinCamera_CamOnPhysicsObject",
-    "riding.render.camera.MixinGameRenderer_InverseViewRotationMatrix",
-    "riding.request.MixinMinecraft_RequestRiding"
+    "physicsgun.PlayerRendererMixin_PhysicsGunArmPose"
   ],
   "injectors": {
     "defaultRequire": 1

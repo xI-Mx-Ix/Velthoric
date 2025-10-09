@@ -37,14 +37,14 @@ public abstract class VxBody {
     // Fields
     protected final UUID physicsId;
     protected final VxObjectType<? extends VxBody> type;
-    protected final VxPhysicsWorld world;
+    protected final VxPhysicsWorld physicsWorld;
     protected final VxSynchronizedData synchronizedData;
     protected final VxInternalBody internalBody;
 
     // Constructor
-    protected VxBody(VxObjectType<? extends VxBody> type, VxPhysicsWorld world, UUID id) {
+    protected VxBody(VxObjectType<? extends VxBody> type, VxPhysicsWorld physicsWorld, UUID id) {
         this.type = type;
-        this.world = world;
+        this.physicsWorld = physicsWorld;
         this.physicsId = id;
         this.internalBody = new VxInternalBody();
         this.synchronizedData = new VxSynchronizedData(EnvType.SERVER);
@@ -108,7 +108,7 @@ public abstract class VxBody {
     public <T> void setSyncData(VxDataAccessor<T> accessor, T value) {
         this.synchronizedData.set(accessor, value);
         if (this.synchronizedData.isDirty()) {
-            this.world.getObjectManager().markCustomDataDirty(this);
+            this.physicsWorld.getObjectManager().markCustomDataDirty(this);
         }
     }
 
@@ -159,14 +159,14 @@ public abstract class VxBody {
     // Physics State & Body Access
     public void getTransform(VxTransform outTransform) {
         if (this.internalBody.getDataStoreIndex() != -1) {
-            this.world.getObjectManager().getTransform(this.internalBody.getDataStoreIndex(), outTransform);
+            this.physicsWorld.getObjectManager().getTransform(this.internalBody.getDataStoreIndex(), outTransform);
         }
     }
 
     public VxTransform getTransform() {
         if (this.internalBody.getDataStoreIndex() != -1) {
             VxTransform transform = new VxTransform();
-            this.world.getObjectManager().getTransform(this.internalBody.getDataStoreIndex(), transform);
+            this.physicsWorld.getObjectManager().getTransform(this.internalBody.getDataStoreIndex(), transform);
             return transform;
         }
         // Return a default or throw an exception if the object is not yet fully initialized
@@ -179,9 +179,9 @@ public abstract class VxBody {
         if (bodyId == 0) {
             return null;
         }
-        VxBody found = world.getObjectManager().getByBodyId(bodyId);
+        VxBody found = physicsWorld.getObjectManager().getByBodyId(bodyId);
         if (found == this) {
-            try (BodyLockWrite lock = new BodyLockWrite(world.getBodyLockInterface(), bodyId)) {
+            try (BodyLockWrite lock = new BodyLockWrite(physicsWorld.getBodyLockInterface(), bodyId)) {
                 if (lock.succeededAndIsInBroadPhase()) {
                     return lock.getBody();
                 }
@@ -196,9 +196,9 @@ public abstract class VxBody {
         if (bodyId == 0) {
             return null;
         }
-        VxBody found = world.getObjectManager().getByBodyId(bodyId);
+        VxBody found = physicsWorld.getObjectManager().getByBodyId(bodyId);
         if (found == this) {
-            try (BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), bodyId)) {
+            try (BodyLockRead lock = new BodyLockRead(physicsWorld.getBodyLockInterface(), bodyId)) {
                 if (lock.succeededAndIsInBroadPhase()) {
                     return lock.getBody();
                 }
@@ -217,8 +217,8 @@ public abstract class VxBody {
         return type;
     }
 
-    public VxPhysicsWorld getWorld() {
-        return this.world;
+    public VxPhysicsWorld getPhysicsWorld() {
+        return this.physicsWorld;
     }
 
     /**
