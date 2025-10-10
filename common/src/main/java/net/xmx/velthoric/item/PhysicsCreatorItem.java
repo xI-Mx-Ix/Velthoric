@@ -25,6 +25,9 @@ import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.object.util.VxVoxelShapeUtil;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class PhysicsCreatorItem extends Item {
 
     public PhysicsCreatorItem() {
@@ -34,8 +37,9 @@ public class PhysicsCreatorItem extends Item {
     @Override
     public InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
+
         if (level.isClientSide()) {
-            return InteractionResult.SUCCESS;
+            return super.useOn(context);
         }
 
         BlockPos pos = context.getClickedPos();
@@ -50,9 +54,11 @@ public class PhysicsCreatorItem extends Item {
             VxMainClass.LOGGER.error("Could not find VxPhysicsWorld for the level!");
             return InteractionResult.FAIL;
         }
+
         VxObjectManager objectManager = physicsWorld.getObjectManager();
 
-        try (var ignored = VxVoxelShapeUtil.toMutableCompoundShape(originalState.getVisualShape(level, pos, CollisionContext.empty()))) {
+        try (var ignored = VxVoxelShapeUtil.toMutableCompoundShape(
+                originalState.getVisualShape(level, pos, CollisionContext.empty()))) {
             if (ignored == null) {
                 VxMainClass.LOGGER.warn("Could not generate a valid physics shape for the block: {}", originalState);
                 return InteractionResult.FAIL;
@@ -79,7 +85,8 @@ public class PhysicsCreatorItem extends Item {
                 throw new IllegalStateException("Body creation returned null.");
             }
 
-            return InteractionResult.SUCCESS;
+            return super.useOn(context);
+
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Error creating physics object, restoring original block.", e);
             level.setBlock(pos, originalState, Block.UPDATE_ALL | Block.UPDATE_IMMEDIATE);
