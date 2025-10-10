@@ -4,13 +4,16 @@
  */
 package net.xmx.velthoric.physics.terrain.management;
 
+import com.github.stephengold.joltjni.AaBox;
 import com.github.stephengold.joltjni.BodyInterface;
+import com.github.stephengold.joltjni.BroadPhaseLayerFilter;
 import com.github.stephengold.joltjni.Jolt;
+import com.github.stephengold.joltjni.ObjectLayerFilter;
+import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.xmx.velthoric.physics.terrain.VxUpdateContext;
 import net.xmx.velthoric.physics.terrain.data.VxChunkDataStore;
 import net.xmx.velthoric.physics.terrain.data.VxSectionPos;
 import net.xmx.velthoric.physics.terrain.generation.VxTerrainShapeGenerator;
@@ -29,8 +32,6 @@ public class VxTerrainManager {
     private final ServerLevel level;
     private final VxChunkDataStore chunkDataStore;
     private final VxTerrainShapeGenerator shapeGenerator;
-
-    private static final ThreadLocal<VxUpdateContext> updateContext = ThreadLocal.withInitial(VxUpdateContext::new);
 
     public static final long TERRAIN_BODY_USER_DATA = 0x5445525241494E42L; // "TERRAINB"
 
@@ -63,6 +64,11 @@ public class VxTerrainManager {
         }
     }
 
+    /**
+     * Handles a block update event from the game.
+     *
+     * @param worldPos The world position of the block that changed.
+     */
     public void onBlockUpdate(BlockPos worldPos) {
         long packedPos = VxSectionPos.fromBlockPos(worldPos.immutable());
         Integer index = chunkDataStore.getIndexForPos(packedPos);
@@ -74,21 +80,26 @@ public class VxTerrainManager {
             shapeGenerator.requestRebuild(packedPos);
         }
 
-        // Wake up any nearby physics bodies that might be sleeping.
+        // Wake up any nearby physics bodies that might be sleeping and affected by the change.
         physicsWorld.execute(() -> {
             BodyInterface bi = physicsWorld.getBodyInterface();
             if (bi == null) return;
-            VxUpdateContext ctx = updateContext.get();
-            ctx.vec3_1.set(worldPos.getX() - 2.0f, worldPos.getY() - 2.0f, worldPos.getZ() - 2.0f);
-            ctx.vec3_2.set(worldPos.getX() + 3.0f, worldPos.getY() + 3.0f, worldPos.getZ() + 3.0f);
-            ctx.aabox_1.setMin(ctx.vec3_1);
-            ctx.aabox_1.setMax(ctx.vec3_2);
-            bi.activateBodiesInAaBox(ctx.aabox_1, ctx.bplFilter, ctx.olFilter);
+            // Create temporary objects for the query.
+            // These are lightweight and their allocation is not on a critical path.
+            Vec3 min = new Vec3(worldPos.getX() - 2.0f, worldPos.getY() - 2.0f, worldPos.getZ() - 2.0f);
+            Vec3 max = new Vec3(worldPos.getX() + 3.0f, worldPos.getY() + 3.0f, worldPos.getZ() + 3.0f);
+            AaBox area = new AaBox(min, max);
+            // Default filters activate all bodies in the area.
+            bi.activateBodiesInAaBox(area, new BroadPhaseLayerFilter(), new ObjectLayerFilter());
         });
     }
 
-
-
+    /**
+     * Called when a Minecraft chunk is loaded. It checks for any terrain sections
+     * within that chunk that were waiting for data and schedules their generation.
+     *
+     * @param chunk The loaded chunk.
+     */
     public void onChunkLoadedFromVanilla(@NotNull LevelChunk chunk) {
         ChunkPos chunkPos = chunk.getPos();
         for (int y = level.getMinSection(); y < level.getMaxSection(); ++y) {
@@ -100,18 +111,30 @@ public class VxTerrainManager {
         }
     }
 
+    /**
+     * Called when a Minecraft chunk is unloaded. This marks the corresponding physics
+     * sections as awaiting the chunk, in case it is loaded again soon. The lifecycle
+     * counter will eventually clean them up if they are no longer needed.
+     *
+     * @param chunkPos The position of the unloaded chunk.
+     */
     public void onChunkUnloaded(@NotNull ChunkPos chunkPos) {
         for (int y = level.getMinSection(); y < level.getMaxSection(); y++) {
             long packedPos = VxSectionPos.pack(chunkPos.x, y, chunkPos.z);
             Integer index = chunkDataStore.getIndexForPos(packedPos);
             if (index != null) {
-                // If the chunk is unloaded in Minecraft, we mark it as waiting in case it's loaded again soon.
-                // The lifecycle counter will eventually clean it up if it's no longer needed.
                 chunkDataStore.setState(index, VxChunkDataStore.STATE_AWAITING_CHUNK);
             }
         }
     }
 
+    /**
+     * Requests that a chunk section be managed by the system. This typically comes
+     * from the terrain tracker. It resets the chunk's life counter and triggers
+     * shape generation if needed.
+     *
+     * @param packedPos The packed position of the chunk section.
+     */
     public void requestChunk(long packedPos) {
         int index = chunkDataStore.addChunk(packedPos);
         chunkDataStore.setLifeCounter(index, 100); // Refresh lifetime
@@ -126,6 +149,11 @@ public class VxTerrainManager {
         }
     }
 
+    /**
+     * Internal method to unload the physics representation of a chunk section.
+     *
+     * @param packedPos The packed position of the section to unload.
+     */
     private void unloadChunkPhysicsInternal(long packedPos) {
         Integer index = chunkDataStore.getIndexForPos(packedPos);
         if (index == null) return;
@@ -140,6 +168,12 @@ public class VxTerrainManager {
         });
     }
 
+    /**
+     * Safely removes a physics body and its associated shape from the world.
+     *
+     * @param index The index of the chunk in the data store.
+     * @param bodyInterface The Jolt body interface.
+     */
     private void removeBodyAndShape(int index, BodyInterface bodyInterface) {
         int bodyId = chunkDataStore.getBodyId(index);
         if (bodyId != VxChunkDataStore.UNUSED_BODY_ID && bodyInterface != null) {
@@ -149,9 +183,16 @@ public class VxTerrainManager {
             bodyInterface.destroyBody(bodyId);
         }
         chunkDataStore.setBodyId(index, VxChunkDataStore.UNUSED_BODY_ID);
+        // The shape reference is managed by the data store and will be closed on removal.
         chunkDataStore.setShape(index, null);
     }
 
+    /**
+     * Checks if a given body ID corresponds to a terrain body.
+     *
+     * @param bodyId The ID of the body to check.
+     * @return True if it is a terrain body, false otherwise.
+     */
     public boolean isTerrainBody(int bodyId) {
         if (bodyId <= 0 || bodyId == Jolt.cInvalidBodyId) return false;
         BodyInterface bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
@@ -159,6 +200,10 @@ public class VxTerrainManager {
         return bodyInterface.getUserData(bodyId) == TERRAIN_BODY_USER_DATA;
     }
 
+    /**
+     * Cleans up all terrain bodies managed by this instance.
+     * Called during system shutdown.
+     */
     public void cleanupAllBodies() {
         BodyInterface bi = physicsWorld.getBodyInterface();
         if (bi != null) {

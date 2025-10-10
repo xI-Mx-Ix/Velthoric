@@ -7,11 +7,11 @@ package net.xmx.velthoric.physics.terrain.management;
 import com.github.stephengold.joltjni.readonly.ConstAaBox;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import net.xmx.velthoric.physics.object.type.VxBody;
-import net.xmx.velthoric.physics.terrain.VxUpdateContext;
 import net.xmx.velthoric.physics.terrain.data.VxSectionPos;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -30,8 +30,6 @@ public class VxTerrainTracker {
     private static final int PRELOAD_RADIUS_CHUNKS = 4; // Increased radius for smoother experience
     private static final float PREDICTION_SECONDS = 0.75f;
 
-    private static final ThreadLocal<VxUpdateContext> updateContext = ThreadLocal.withInitial(VxUpdateContext::new);
-
     public VxTerrainTracker(VxPhysicsWorld physicsWorld, VxTerrainManager terrainManager) {
         this.physicsWorld = physicsWorld;
         this.terrainManager = terrainManager;
@@ -46,14 +44,14 @@ public class VxTerrainTracker {
             return;
         }
 
-        VxUpdateContext ctx = updateContext.get();
-        Set<Long> requiredChunks = ctx.requiredChunksSet;
-        requiredChunks.clear();
+        // Create a new set for this update cycle. The overhead is minimal compared to the rest of the work.
+        Set<Long> requiredChunks = new HashSet<>(2048);
 
         // Step 1: Calculate the total set of required chunks for all objects.
         for (VxBody obj : currentObjects) {
             ConstBody body = obj.getConstBody();
-            if (body != null && body.isRigidBody()) { // Soft bodies might not need terrain tracking
+            // Ensure the body is a rigid body suitable for terrain tracking.
+            if (body != null && body.isRigidBody()) {
                 ConstAaBox bounds = body.getWorldSpaceBounds();
                 calculateRequiredChunks(bounds.getMin().getX(), bounds.getMin().getY(), bounds.getMin().getZ(),
                         bounds.getMax().getX(), bounds.getMax().getY(), bounds.getMax().getZ(),
@@ -69,8 +67,24 @@ public class VxTerrainTracker {
         }
     }
 
+    /**
+     * Calculates the required chunk sections based on an object's current and predicted future AABB.
+     *
+     * @param minX The minimum X coordinate of the AABB.
+     * @param minY The minimum Y coordinate of the AABB.
+     * @param minZ The minimum Z coordinate of the AABB.
+     * @param maxX The maximum X coordinate of the AABB.
+     * @param maxY The maximum Y coordinate of the AABB.
+     * @param maxZ The maximum Z coordinate of the AABB.
+     * @param velX The linear velocity on the X axis.
+     * @param velY The linear velocity on the Y axis.
+     * @param velZ The linear velocity on the Z axis.
+     * @param radius The radius in chunks to preload around the object.
+     * @param outChunks The set to which the packed chunk section positions will be added.
+     */
     private void calculateRequiredChunks(double minX, double minY, double minZ, double maxX, double maxY, double maxZ,
                                          float velX, float velY, float velZ, int radius, Set<Long> outChunks) {
+        // Predict future position to proactively load chunks.
         double predMinX = minX + velX * PREDICTION_SECONDS;
         double predMinY = minY + velY * PREDICTION_SECONDS;
         double predMinZ = minZ + velZ * PREDICTION_SECONDS;
@@ -78,6 +92,7 @@ public class VxTerrainTracker {
         double predMaxY = maxY + velY * PREDICTION_SECONDS;
         double predMaxZ = maxZ + velZ * PREDICTION_SECONDS;
 
+        // Create a combined bounding box that includes both current and predicted positions.
         double combinedMinX = Math.min(minX, predMinX);
         double combinedMinY = Math.min(minY, predMinY);
         double combinedMinZ = Math.min(minZ, predMinZ);
@@ -88,6 +103,18 @@ public class VxTerrainTracker {
         addChunksForBounds(combinedMinX, combinedMinY, combinedMinZ, combinedMaxX, combinedMaxY, combinedMaxZ, radius, outChunks);
     }
 
+    /**
+     * Iterates over a given world-space AABB and adds all overlapping chunk sections to the output set.
+     *
+     * @param minX The minimum X coordinate of the bounds.
+     * @param minY The minimum Y coordinate of the bounds.
+     * @param minZ The minimum Z coordinate of the bounds.
+     * @param maxX The maximum X coordinate of the bounds.
+     * @param maxY The maximum Y coordinate of the bounds.
+     * @param maxZ The maximum Z coordinate of the bounds.
+     * @param radiusInChunks An additional radius in chunks to add around the bounds.
+     * @param outChunks The set to which the packed chunk section positions will be added.
+     */
     private void addChunksForBounds(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, int radiusInChunks, Set<Long> outChunks) {
         int minSectionX = ((int) Math.floor(minX) >> 4) - radiusInChunks;
         int minSectionY = ((int) Math.floor(minY) >> 4) - radiusInChunks;
