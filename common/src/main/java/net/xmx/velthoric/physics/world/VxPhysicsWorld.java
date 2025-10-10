@@ -16,6 +16,7 @@ import net.minecraft.world.level.Level;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.natives.VxNativeJolt;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
+import net.xmx.velthoric.physics.buoyancy.VxBuoyancyManager;
 import net.xmx.velthoric.physics.object.manager.VxObjectManager;
 import net.xmx.velthoric.physics.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
@@ -55,6 +56,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxConstraintManager constraintManager;
     private final VxTerrainSystem terrainSystem;
     private final VxMountingManager mountingManager;
+    private final VxBuoyancyManager buoyancyManager;
 
     private final FrameTimer physicsFrameTimer = new FrameTimer();
 
@@ -76,6 +78,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.constraintManager = new VxConstraintManager(this.objectManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
         this.mountingManager = new VxMountingManager(this);
+        this.buoyancyManager = new VxBuoyancyManager(this);
     }
 
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
@@ -200,11 +203,13 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public void onPhysicsTick() {
         this.objectManager.onPhysicsTick(this);
+        this.buoyancyManager.applyBuoyancyForces(FIXED_TIME_STEP);
     }
 
     public void onGameTick(ServerLevel level) {
         this.objectManager.onGameTick(level);
         this.mountingManager.onGameTick();
+        this.buoyancyManager.updateFluidStates();
     }
 
     private void processCommandQueue() {
@@ -271,6 +276,9 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         if (this.objectManager != null) {
             this.objectManager.shutdown();
         }
+        if (this.buoyancyManager != null) {
+            this.buoyancyManager.shutdown();
+        }
     }
 
     private void cleanupJolt() {
@@ -314,6 +322,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public VxMountingManager getMountingManager() {
         return this.mountingManager;
+    }
+
+    public VxBuoyancyManager getBuoyancyManager() {
+        return this.buoyancyManager;
     }
 
     public ServerLevel getLevel() {
@@ -395,6 +407,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     public static VxMountingManager getMountingManager(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
         return world != null ? world.getMountingManager() : null;
+    }
+
+    @Nullable
+    public static VxBuoyancyManager getBuoyancyManager(ResourceKey<Level> dimensionKey) {
+        VxPhysicsWorld world = get(dimensionKey);
+        return world != null ? world.getBuoyancyManager() : null;
     }
 
     public static Collection<VxPhysicsWorld> getAll() {
