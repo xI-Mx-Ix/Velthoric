@@ -4,94 +4,129 @@
  */
 package net.xmx.velthoric.physics.terrain;
 
+import com.github.stephengold.joltjni.BodyInterface;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.terrain.cache.VxTerrainShapeCache;
-import net.xmx.velthoric.physics.terrain.data.VxChunkDataStore;
-import net.xmx.velthoric.physics.terrain.generation.VxGreedyMesher;
-import net.xmx.velthoric.physics.terrain.generation.VxTerrainShapeGenerator;
+import net.xmx.velthoric.physics.terrain.generation.VxTerrainGenerator;
+import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.physics.terrain.management.VxTerrainManager;
 import net.xmx.velthoric.physics.terrain.management.VxTerrainTracker;
+import net.xmx.velthoric.physics.terrain.storage.VxChunkDataStore;
+import net.xmx.velthoric.physics.terrain.storage.VxTerrainStorage;
+import net.xmx.velthoric.physics.terrain.util.VxUpdateContext;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
-import org.jetbrains.annotations.NotNull;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * The main orchestrator for the terrain physics system. It initializes, manages, and shuts down
- * all related components, following a proactive, state-driven terrain management approach.
+ * The main entry point and orchestrator for the terrain physics system.
+ * This class initializes, manages, and shuts down all terrain-related subsystems,
+ * including tracking, generation, and storage. It also serves as the primary interface
+ * for interactions from other parts of the application, such as block updates.
  *
  * @author xI-Mx-Ix
  */
-public class VxTerrainSystem implements Runnable {
+public final class VxTerrainSystem implements Runnable {
 
+    private final VxPhysicsWorld physicsWorld;
     private final ServerLevel level;
-    private final AtomicBoolean isInitialized = new AtomicBoolean(false);
-    private final Thread workerThread;
-
     private final VxTerrainJobSystem jobSystem;
+    private final Thread workerThread;
+    private final AtomicBoolean isInitialized = new AtomicBoolean(false);
+
     private final VxChunkDataStore chunkDataStore;
+    private final VxTerrainStorage terrainStorage;
     private final VxTerrainShapeCache shapeCache;
-    private final VxGreedyMesher greedyMesher;
-    private final VxTerrainShapeGenerator shapeGenerator;
+    private final VxTerrainGenerator terrainGenerator;
     private final VxTerrainManager terrainManager;
     private final VxTerrainTracker terrainTracker;
 
+    private final Set<VxSectionPos> chunksToRebuild = ConcurrentHashMap.newKeySet();
+    private static final ThreadLocal<VxUpdateContext> updateContext = ThreadLocal.withInitial(VxUpdateContext::new);
+
     public VxTerrainSystem(VxPhysicsWorld physicsWorld, ServerLevel level) {
+        this.physicsWorld = physicsWorld;
         this.level = level;
 
         this.jobSystem = new VxTerrainJobSystem();
         this.chunkDataStore = new VxChunkDataStore();
-        this.shapeCache = new VxTerrainShapeCache(2048);
-        this.greedyMesher = new VxGreedyMesher(this.shapeCache);
+        this.terrainStorage = new VxTerrainStorage(this.level);
+        this.shapeCache = new VxTerrainShapeCache(1024);
+        this.terrainGenerator = new VxTerrainGenerator(this.shapeCache, this.terrainStorage);
+        this.terrainManager = new VxTerrainManager(physicsWorld, level, terrainGenerator, chunkDataStore, jobSystem);
+        this.terrainTracker = new VxTerrainTracker(physicsWorld, terrainManager, chunkDataStore, level);
 
-        // The circular dependency is resolved, so we can instantiate in the correct order.
-        this.shapeGenerator = new VxTerrainShapeGenerator(physicsWorld, level, jobSystem, chunkDataStore, greedyMesher);
-        this.terrainManager = new VxTerrainManager(physicsWorld, level, chunkDataStore, this.shapeGenerator);
-
-        this.terrainTracker = new VxTerrainTracker(physicsWorld, this.terrainManager);
-
-        this.workerThread = new Thread(this, "Velthoric Terrain Worker - " + level.dimension().location().getPath());
+        this.workerThread = new Thread(this, "Velthoric Terrain System - " + level.dimension().location().getPath());
         this.workerThread.setDaemon(true);
     }
 
+    /**
+     * Initializes the terrain system, starts background threads, and prepares storage.
+     */
     public void initialize() {
         if (isInitialized.compareAndSet(false, true)) {
+            this.terrainStorage.initialize();
             this.workerThread.start();
         }
     }
 
+    /**
+     * Shuts down the terrain system, stops all background tasks, and cleans up resources.
+     */
     public void shutdown() {
         if (isInitialized.compareAndSet(true, false)) {
             jobSystem.shutdown();
             workerThread.interrupt();
-            VxMainClass.LOGGER.debug("Shutting down Terrain System for '{}'.", level.dimension().location());
 
+            VxMainClass.LOGGER.debug("Shutting down Terrain System for '{}'. Waiting up to 30 seconds for worker thread to exit...", level.dimension().location());
             try {
-                workerThread.join(5000);
+                workerThread.join(30000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                VxMainClass.LOGGER.warn("Interrupted while waiting for terrain system thread to stop.");
             }
 
+            if (workerThread.isAlive()) {
+                StringBuilder stackTraceBuilder = new StringBuilder();
+                stackTraceBuilder.append("Stack trace of deadlocked thread '").append(workerThread.getName()).append("':\n");
+                for (StackTraceElement ste : workerThread.getStackTrace()) {
+                    stackTraceBuilder.append("\tat ").append(ste).append("\n");
+                }
+                VxMainClass.LOGGER.fatal("Terrain system thread for '{}' did not terminate in 30 seconds. Forcing shutdown.\n{}", level.dimension().location(), stackTraceBuilder.toString());
+            } else {
+                VxMainClass.LOGGER.debug("Terrain system for '{}' shut down gracefully.", level.dimension().location());
+            }
+
+            VxMainClass.LOGGER.debug("Cleaning up terrain physics bodies for '{}'...", level.dimension().location());
             terrainManager.cleanupAllBodies();
+
             chunkDataStore.clear();
+            chunksToRebuild.clear();
+            terrainTracker.clear();
             shapeCache.clear();
+            this.terrainStorage.shutdown();
 
             VxMainClass.LOGGER.debug("Terrain system for '{}' has been fully shut down.", level.dimension().location());
         }
     }
 
+    /**
+     * The main loop for the terrain system worker thread. Periodically updates object trackers
+     * and processes chunks that need to be rebuilt.
+     */
     @Override
     public void run() {
         while (isInitialized.get() && !Thread.currentThread().isInterrupted()) {
             try {
                 terrainTracker.update();
-                terrainManager.tick();
-                shapeGenerator.tick();
+                processRebuildQueue();
                 Thread.sleep(50);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -102,33 +137,107 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
+    /**
+     * Saves all pending terrain shape data to disk.
+     */
+    public void saveDirtyRegions() {
+        if (terrainStorage != null) {
+            terrainStorage.saveDirtyRegions();
+        }
+    }
+
+    /**
+     * Handles a block update event from the game world. If a terrain chunk is affected,
+     * it is queued for a rebuild and nearby physics bodies are woken up.
+     * @param worldPos The position of the block that changed.
+     */
     public void onBlockUpdate(BlockPos worldPos) {
-        if (isInitialized.get()) {
-            terrainManager.onBlockUpdate(worldPos);
+        if (!isInitialized.get()) {
+            return;
+        }
+
+        VxSectionPos pos = VxSectionPos.fromBlockPos(worldPos.immutable());
+        if (terrainManager.isManaged(pos)) {
+            chunksToRebuild.add(pos);
+        }
+
+        physicsWorld.execute(() -> {
+            BodyInterface bi = physicsWorld.getBodyInterface();
+            if (bi == null) return;
+
+            VxUpdateContext ctx = updateContext.get();
+            ctx.vec3_1.set(worldPos.getX() - 2.0f, worldPos.getY() - 2.0f, worldPos.getZ() - 2.0f);
+            ctx.vec3_2.set(worldPos.getX() + 3.0f, worldPos.getY() + 3.0f, worldPos.getZ() + 3.0f);
+
+            ctx.aabox_1.setMin(ctx.vec3_1);
+            ctx.aabox_1.setMax(ctx.vec3_2);
+
+            bi.activateBodiesInAaBox(ctx.aabox_1, ctx.bplFilter, ctx.olFilter);
+        });
+    }
+
+    /**
+     * Processes the queue of chunks waiting to be rebuilt, scheduling them for regeneration.
+     */
+    private void processRebuildQueue() {
+        if (chunksToRebuild.isEmpty()) return;
+
+        Set<VxSectionPos> batch = new HashSet<>(chunksToRebuild);
+        chunksToRebuild.removeAll(batch);
+
+        for (VxSectionPos pos : batch) {
+            terrainManager.rebuildChunk(pos, VxTaskPriority.MEDIUM);
         }
     }
 
-    public void handleChunkLoad(@NotNull LevelChunk chunk) {
-        if (isInitialized.get() && !jobSystem.isShutdown()) {
-            jobSystem.submit(() -> terrainManager.handleChunkLoad(chunk));
-        }
+    /**
+     * Checks if a terrain chunk at a given position is fully loaded and ready for physics simulation.
+     * @param pos The position of the chunk section.
+     * @return True if the chunk is ready, false otherwise.
+     */
+    public boolean isReady(VxSectionPos pos) {
+        return terrainManager.isReady(pos);
     }
 
-    public void handleChunkUnload(@NotNull ChunkPos chunkPos) {
-        if (isInitialized.get() && !jobSystem.isShutdown()) {
-            jobSystem.submit(() -> terrainManager.handleChunkUnload(chunkPos));
-        }
+    /**
+     * Checks if a terrain chunk at a given position is using a placeholder shape.
+     * @param pos The position of the chunk section.
+     * @return True if the chunk is using a placeholder, false otherwise.
+     */
+    public boolean isPlaceholder(VxSectionPos pos) {
+        return terrainManager.isPlaceholder(pos);
     }
 
+    /**
+     * Checks if a terrain chunk is ready based on its SectionPos.
+     * @param sectionPos The SectionPos of the chunk.
+     * @return True if the chunk is ready.
+     */
+    public boolean isSectionReady(SectionPos sectionPos) {
+        if (sectionPos == null) {
+            return false;
+        }
+        return isReady(new VxSectionPos(sectionPos.x(), sectionPos.y(), sectionPos.z()));
+    }
+
+    /**
+     * Determines if a given physics body ID belongs to a terrain chunk.
+     * @param bodyId The ID of the physics body.
+     * @return True if the body is a terrain body, false otherwise.
+     */
     public boolean isTerrainBody(int bodyId) {
-        return terrainManager.isTerrainBody(bodyId);
+        if (bodyId <= 0) return false;
+        for (int id : chunkDataStore.bodyIds) {
+            if (id == bodyId) return true;
+        }
+        return false;
     }
 
+    /**
+     * Gets the Minecraft ServerLevel this terrain system is associated with.
+     * @return The ServerLevel instance.
+     */
     public ServerLevel getLevel() {
         return level;
-    }
-
-    public VxChunkDataStore getChunkDataStore() {
-        return chunkDataStore;
     }
 }
