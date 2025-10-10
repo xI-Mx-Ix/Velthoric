@@ -155,7 +155,7 @@ public class VxObjectManager {
         T body = type.create(world, UUID.randomUUID());
         if (body == null) return null;
         configurator.accept(body);
-        addConstructedBody(body, EActivation.DontActivate, transform);
+        addConstructedBody(body, EActivation.Activate, transform);
         return body;
     }
 
@@ -173,7 +173,7 @@ public class VxObjectManager {
         T body = type.create(world, UUID.randomUUID());
         if (body == null) return null;
         configurator.accept(body);
-        addConstructedBody(body, EActivation.DontActivate, transform);
+        addConstructedBody(body, EActivation.Activate, transform);
         return body;
     }
 
@@ -182,20 +182,20 @@ public class VxObjectManager {
     //================================================================================
 
     /**
-     * Adds a pre-constructed body to the physics world with a specified initial transform.
-     * This is the core method for adding new objects during gameplay.
+     * Adds a pre-constructed body to the physics world. The body is always spawned
+     * in an inactive state in Jolt. If activation is set to {@link EActivation#Activate},
+     * the {@link VxPhysicsUpdater} will activate it once the underlying terrain is loaded.
      *
-     * @param body       The body to add.
-     * @param activation The initial activation state for the Jolt body.
-     * @param transform  The initial transform to set in the data store.
+     * @param body The body to add.
+     * @param activation The activation intent; {@link EActivation#Activate} or {@link EActivation#DontActivate}.
+     * @param transform The initial transform to set in the data store.
      */
     public void addConstructedBody(VxBody body, EActivation activation, VxTransform transform) {
         // Step 1: Reserve a slot in the data store and add to internal tracking maps.
         addInternal(body);
         int index = body.getInternalBody().getDataStoreIndex();
 
-        // Step 2: Write the initial transform to the data store. This ensures the correct
-        // spawn position is available before any network packets are created.
+        // Step 2: Write the initial transform and set the activation flag.
         if (index != -1) {
             dataStore.posX[index] = transform.getTranslation().x();
             dataStore.posY[index] = transform.getTranslation().y();
@@ -204,22 +204,27 @@ public class VxObjectManager {
             dataStore.rotY[index] = transform.getRotation().getY();
             dataStore.rotZ[index] = transform.getRotation().getZ();
             dataStore.rotW[index] = transform.getRotation().getW();
+
+            // Lazy activation: The PhysicsUpdater will handle this once the terrain is ready.
+            dataStore.isAwaitingActivation[index] = (activation == EActivation.Activate);
         }
 
-        // Step 3: Now that the data store is populated with the correct initial state,
-        // notify the network dispatcher to send a spawn packet to clients.
+        // Step 3: Notify the network dispatcher to send a spawn packet to clients.
         networkDispatcher.onObjectAdded(body);
 
-        // Step 4: Create the actual physics body in the Jolt simulation.
+        // Step 4: Create the actual physics body in the Jolt simulation, always starting as inactive.
         if (body instanceof VxRigidBody rigidBody) {
-            addRigidBodyToPhysicsWorld(rigidBody, null, null, activation);
+            addRigidBodyToPhysicsWorld(rigidBody, null, null, EActivation.DontActivate);
         } else if (body instanceof VxSoftBody softBody) {
-            addSoftBodyToPhysicsWorld(softBody, activation);
+            // Soft bodies also respect lazy activation
+            addSoftBodyToPhysicsWorld(softBody, EActivation.DontActivate);
         }
     }
 
+
     /**
      * Adds a body from serialized data, typically when loading from storage.
+     * The body will be queued for activation if it has a non-zero velocity.
      *
      * @param data The deserialized data container.
      * @return The created and added {@link VxBody}, or null on failure.
@@ -234,6 +239,9 @@ public class VxObjectManager {
 
         addInternal(obj);
         int index = obj.getInternalBody().getDataStoreIndex();
+
+        boolean shouldActivate = data.linearVelocity().lengthSq() > 0.0001f || data.angularVelocity().lengthSq() > 0.0001f;
+
         if (index != -1) {
             dataStore.posX[index] = data.transform().getTranslation().x();
             dataStore.posY[index] = data.transform().getTranslation().y();
@@ -242,6 +250,7 @@ public class VxObjectManager {
             dataStore.rotY[index] = data.transform().getRotation().getY();
             dataStore.rotZ[index] = data.transform().getRotation().getZ();
             dataStore.rotW[index] = data.transform().getRotation().getW();
+            dataStore.isAwaitingActivation[index] = shouldActivate;
         }
 
         obj.readPersistenceData(data.persistenceData());
@@ -249,13 +258,11 @@ public class VxObjectManager {
 
         networkDispatcher.onObjectAdded(obj);
 
-        boolean hasVelocity = data.linearVelocity().lengthSq() > 0.0001f || data.angularVelocity().lengthSq() > 0.0001f;
-        EActivation activation = hasVelocity ? EActivation.Activate : EActivation.DontActivate;
-
+        // Always spawn inactive; the updater will handle activation.
         if (obj instanceof VxRigidBody rigidBody) {
-            addRigidBodyToPhysicsWorld(rigidBody, data.linearVelocity(), data.angularVelocity(), activation);
+            addRigidBodyToPhysicsWorld(rigidBody, data.linearVelocity(), data.angularVelocity(), EActivation.DontActivate);
         } else if (obj instanceof VxSoftBody softBody) {
-            addSoftBodyToPhysicsWorld(softBody, activation);
+            addSoftBodyToPhysicsWorld(softBody, EActivation.DontActivate);
         }
         return obj;
     }
