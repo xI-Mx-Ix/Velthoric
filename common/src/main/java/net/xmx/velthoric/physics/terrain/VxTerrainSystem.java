@@ -108,15 +108,15 @@ public class VxTerrainSystem implements Runnable {
         }
     }
 
-    public void onChunkLoadedFromVanilla(@NotNull LevelChunk chunk) {
+    public void handleChunkLoad(@NotNull LevelChunk chunk) {
         if (isInitialized.get() && !jobSystem.isShutdown()) {
-            jobSystem.submit(() -> terrainManager.onChunkLoadedFromVanilla(chunk));
+            jobSystem.submit(() -> terrainManager.handleChunkLoad(chunk));
         }
     }
 
-    public void onChunkUnloaded(@NotNull ChunkPos chunkPos) {
+    public void handleChunkUnload(@NotNull ChunkPos chunkPos) {
         if (isInitialized.get() && !jobSystem.isShutdown()) {
-            jobSystem.submit(() -> terrainManager.onChunkUnloaded(chunkPos));
+            jobSystem.submit(() -> terrainManager.handleChunkUnload(chunkPos));
         }
     }
 

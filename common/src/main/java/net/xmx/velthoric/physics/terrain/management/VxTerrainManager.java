@@ -100,7 +100,7 @@ public class VxTerrainManager {
      *
      * @param chunk The loaded chunk.
      */
-    public void onChunkLoadedFromVanilla(@NotNull LevelChunk chunk) {
+    public void handleChunkLoad(@NotNull LevelChunk chunk) {
         ChunkPos chunkPos = chunk.getPos();
         for (int y = level.getMinSection(); y < level.getMaxSection(); ++y) {
             long packedPos = VxSectionPos.pack(chunkPos.x, y, chunkPos.z);
@@ -118,7 +118,7 @@ public class VxTerrainManager {
      *
      * @param chunkPos The position of the unloaded chunk.
      */
-    public void onChunkUnloaded(@NotNull ChunkPos chunkPos) {
+    public void handleChunkUnload(@NotNull ChunkPos chunkPos) {
         for (int y = level.getMinSection(); y < level.getMaxSection(); y++) {
             long packedPos = VxSectionPos.pack(chunkPos.x, y, chunkPos.z);
             Integer index = chunkDataStore.getIndexForPos(packedPos);
