@@ -216,6 +216,25 @@ public class VxObjectManager {
     }
 
     /**
+     * Creates a new rigid body and adds it to the physics world.
+     * This method must be called on the main physics thread.
+     *
+     * @param type         The type of rigid body to create.
+     * @param transform    The initial transform (position and rotation).
+     * @param activation   The initial activation state of the body.
+     * @param configurator A consumer to apply additional configuration to the body before it's added.
+     * @return The created body, or null on failure.
+     */
+    @Nullable
+    public <T extends VxRigidBody> T createRigidBody(VxObjectType<T> type, VxTransform transform, EActivation activation, Consumer<T> configurator) {
+        T body = type.create(world, UUID.randomUUID());
+        if (body == null) return null;
+        configurator.accept(body);
+        addConstructedBody(body, activation, transform);
+        return body;
+    }
+
+    /**
      * Creates a new soft body and adds it to the physics world.
      * This method must be called on the main physics thread.
      *
@@ -230,6 +249,25 @@ public class VxObjectManager {
         if (body == null) return null;
         configurator.accept(body);
         addConstructedBody(body, EActivation.DontActivate, transform);
+        return body;
+    }
+
+    /**
+     * Creates a new soft body and adds it to the physics world.
+     * This method must be called on the main physics thread.
+     *
+     * @param type         The type of soft body to create.
+     * @param transform    The initial transform (position and rotation).
+     * @param activation   The initial activation state of the body.
+     * @param configurator A consumer to apply additional configuration to the body before it's added.
+     * @return The created body, or null on failure.
+     */
+    @Nullable
+    public <T extends VxSoftBody> T createSoftBody(VxObjectType<T> type, VxTransform transform, EActivation activation, Consumer<T> configurator) {
+        T body = type.create(world, UUID.randomUUID());
+        if (body == null) return null;
+        configurator.accept(body);
+        addConstructedBody(body, activation, transform);
         return body;
     }
 
