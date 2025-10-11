@@ -71,8 +71,8 @@ public class C2SRequestMountPacket {
 
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(player.serverLevel().dimension());
             if (physicsWorld != null) {
-                VxMountingManager ridingManager = physicsWorld.getMountingManager();
-                ridingManager.requestMounting(player, msg.objectId, msg.seatId);
+                VxMountingManager mountingManager = physicsWorld.getMountingManager();
+                mountingManager.requestMounting(player, msg.objectId, msg.seatId);
             }
         });
     }

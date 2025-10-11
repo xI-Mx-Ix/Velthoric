@@ -65,8 +65,8 @@ public class C2SMountInputPacket {
 
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(player.serverLevel().dimension());
             if (physicsWorld != null) {
-                VxMountingManager ridingManager = physicsWorld.getMountingManager();
-                ridingManager.handlePlayerInput(player, msg.input);
+                VxMountingManager mountingManager = physicsWorld.getMountingManager();
+                mountingManager.handlePlayerInput(player, msg.input);
             }
         });
     }
