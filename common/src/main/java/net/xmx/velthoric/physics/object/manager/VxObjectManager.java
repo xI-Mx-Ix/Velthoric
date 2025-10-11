@@ -7,6 +7,7 @@ package net.xmx.velthoric.physics.object.manager;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
+import com.github.stephengold.joltjni.readonly.ConstBody;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -137,6 +138,64 @@ public class VxObjectManager {
     //================================================================================
     // Public API: Object Creation
     //================================================================================
+
+    /**
+     * Retrieves a writable {@link Body} instance for the given physics object ID.
+     * <p>
+     * This method attempts to acquire a {@link BodyLockWrite} for the internal body associated
+     * with the given {@link UUID}. If the lock succeeds and the body is still present in the
+     * broad phase, the underlying {@link Body} is returned.
+     * </p>
+     * <p>
+     * <b>Note:</b> Always handle the returned body carefully — modifying it directly affects
+     * the physics world. The body will only be available while the lock is active.
+     * </p>
+     *
+     * @param physicsId The UUID of the physics object whose body should be retrieved.
+     * @return The {@link Body} if it exists and is valid; otherwise {@code null}.
+     */
+    @Nullable
+    public Body getBody(UUID physicsId) {
+        int bodyId = getObject(physicsId).getInternalBody().getBodyId();
+        if (bodyId == 0) {
+            return null;
+        }
+        try (BodyLockWrite lock = new BodyLockWrite(world.getBodyLockInterface(), bodyId)) {
+            if (lock.succeededAndIsInBroadPhase()) {
+                return lock.getBody();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Retrieves a read-only {@link ConstBody} instance for the given physics object ID.
+     * <p>
+     * This method acquires a {@link BodyLockRead} to safely access the internal body
+     * in a thread-safe manner. If the lock succeeds and the body is still active
+     * in the broad phase, a {@link ConstBody} reference is returned.
+     * </p>
+     * <p>
+     * <b>Note:</b> The returned {@link ConstBody} must not be modified.
+     * Use {@link #getBody(UUID)} instead if write access is required.
+     * </p>
+     *
+     * @param physicsId The UUID of the physics object whose body should be accessed.
+     * @return The {@link ConstBody} if available and valid; otherwise {@code null}.
+     */
+    @Nullable
+    public ConstBody getConstBody(UUID physicsId) {
+        int bodyId = getObject(physicsId).getInternalBody().getBodyId();
+        if (bodyId == 0) {
+            return null;
+        }
+        try (BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), bodyId)) {
+            if (lock.succeededAndIsInBroadPhase()) {
+                return lock.getBody();
+            }
+        }
+        return null;
+    }
 
     /**
      * Creates a new rigid body and adds it to the physics world.

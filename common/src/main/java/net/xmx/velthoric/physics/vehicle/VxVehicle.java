@@ -51,7 +51,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
     public void onBodyAdded(VxPhysicsWorld world) {
         super.onBodyAdded(world);
 
-        Body body = getBody();
+        Body body = world.getObjectManager().getBody(this.getPhysicsId());
         if (body == null || constraintSettings == null) {
             throw new IllegalStateException("Vehicle cannot be initialized without a body or constraint settings.");
         }

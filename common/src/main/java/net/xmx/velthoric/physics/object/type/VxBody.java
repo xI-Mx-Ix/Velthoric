@@ -173,41 +173,6 @@ public abstract class VxBody {
         return new VxTransform();
     }
 
-    @Nullable
-    public Body getBody() {
-        int bodyId = internalBody.getBodyId();
-        if (bodyId == 0) {
-            return null;
-        }
-        VxBody found = physicsWorld.getObjectManager().getByBodyId(bodyId);
-        if (found == this) {
-            try (BodyLockWrite lock = new BodyLockWrite(physicsWorld.getBodyLockInterface(), bodyId)) {
-                if (lock.succeededAndIsInBroadPhase()) {
-                    return lock.getBody();
-                }
-            }
-        }
-        return null;
-    }
-
-    @Nullable
-    public ConstBody getConstBody() {
-        int bodyId = internalBody.getBodyId();
-        if (bodyId == 0) {
-            return null;
-        }
-        VxBody found = physicsWorld.getObjectManager().getByBodyId(bodyId);
-        if (found == this) {
-            try (BodyLockRead lock = new BodyLockRead(physicsWorld.getBodyLockInterface(), bodyId)) {
-                if (lock.succeededAndIsInBroadPhase()) {
-                    return lock.getBody();
-                }
-            }
-        }
-        return null;
-    }
-
-
     // Getters and Setters
     public UUID getPhysicsId() {
         return this.physicsId;
