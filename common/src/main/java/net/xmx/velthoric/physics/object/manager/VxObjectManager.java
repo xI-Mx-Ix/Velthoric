@@ -211,7 +211,7 @@ public class VxObjectManager {
         T body = type.create(world, UUID.randomUUID());
         if (body == null) return null;
         configurator.accept(body);
-        addConstructedBody(body, EActivation.Activate, transform);
+        addConstructedBody(body, EActivation.DontActivate, transform);
         return body;
     }
 
@@ -229,7 +229,7 @@ public class VxObjectManager {
         T body = type.create(world, UUID.randomUUID());
         if (body == null) return null;
         configurator.accept(body);
-        addConstructedBody(body, EActivation.Activate, transform);
+        addConstructedBody(body, EActivation.DontActivate, transform);
         return body;
     }
 
