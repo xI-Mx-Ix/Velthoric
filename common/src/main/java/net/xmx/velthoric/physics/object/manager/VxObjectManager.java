@@ -10,14 +10,13 @@ import com.github.stephengold.joltjni.enumerate.EBodyType;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.manager.chunk.VxChunkManager;
 import net.xmx.velthoric.physics.object.persistence.VxBodyStorage;
 import net.xmx.velthoric.physics.object.persistence.VxSerializedBodyData;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
@@ -30,15 +29,17 @@ import net.xmx.velthoric.physics.object.type.internal.VxInternalBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 /**
- * Manages the lifecycle, tracking, and state of all physics objects within a {@link VxPhysicsWorld}.
+ * Manages the lifecycle and state of all physics objects within a {@link VxPhysicsWorld}.
  * This class acts as the central hub for creating, removing, and accessing physics bodies,
- * utilizing a data-oriented approach with {@link VxObjectDataStore}.
+ * delegating spatial partitioning to a {@link VxChunkManager}.
  *
  * @author xI-Mx-Ix
  */
@@ -53,6 +54,7 @@ public class VxObjectManager {
     private final VxObjectDataStore dataStore;
     private final VxPhysicsUpdater physicsUpdater;
     private final VxObjectNetworkDispatcher networkDispatcher;
+    private final VxChunkManager chunkManager;
 
     /**
      * Main map for tracking all active object instances by their unique persistent ID.
@@ -63,12 +65,6 @@ public class VxObjectManager {
      * A fast lookup map from the Jolt physics body ID to the corresponding object wrapper.
      */
     private final Int2ObjectMap<VxBody> bodyIdToObjectMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
-
-    /**
-     * A spatial map that groups objects by the chunk they are in for efficient proximity queries.
-     * The key is the long-encoded chunk position.
-     */
-    private final Long2ObjectMap<List<VxBody>> objectsByChunk = new Long2ObjectOpenHashMap<>();
 
     //================================================================================
     // Constructor & Lifecycle
@@ -85,6 +81,7 @@ public class VxObjectManager {
         this.objectStorage = new VxBodyStorage(world.getLevel(), this);
         this.physicsUpdater = new VxPhysicsUpdater(this);
         this.networkDispatcher = new VxObjectNetworkDispatcher(world.getLevel(), this);
+        this.chunkManager = new VxChunkManager(this);
     }
 
     /**
@@ -290,7 +287,7 @@ public class VxObjectManager {
         networkDispatcher.onObjectRemoved(obj);
 
         // Step 3: Stop server-side chunk tracking.
-        stopTracking(obj);
+        chunkManager.stopTracking(obj);
 
         // Step 4: Fire the removal callback on the object itself.
         obj.onBodyRemoved(world, reason);
@@ -341,7 +338,7 @@ public class VxObjectManager {
             // This fixes visibility issues for bodies spawned inactive.
             dataStore.isActive[index] = true;
 
-            startTracking(obj); // Manages server-side chunk lists for visibility checks.
+            chunkManager.startTracking(obj); // Manages server-side chunk lists for visibility checks.
             return obj;
         });
     }
@@ -452,78 +449,8 @@ public class VxObjectManager {
     }
 
     //================================================================================
-    // Chunk Tracking & Spatial Queries
+    // Chunk Unloading
     //================================================================================
-
-    /**
-     * Starts tracking an object on the server, adding it to the appropriate chunk list.
-     *
-     * @param body The object to start tracking.
-     */
-    public void startTracking(VxBody body) {
-        int index = body.getInternalBody().getDataStoreIndex();
-        if (index == -1) return;
-        long key = getObjectChunkPos(index).toLong();
-        dataStore.chunkKey[index] = key;
-        synchronized (objectsByChunk) {
-            objectsByChunk.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>()).add(body);
-        }
-    }
-
-    /**
-     * Stops tracking an object on the server, removing it from its chunk list.
-     *
-     * @param body The object to stop tracking.
-     */
-    public void stopTracking(VxBody body) {
-        int index = body.getInternalBody().getDataStoreIndex();
-        if (index == -1) return;
-        long key = dataStore.chunkKey[index];
-        if (key != Long.MAX_VALUE) {
-            synchronized (objectsByChunk) {
-                List<VxBody> list = objectsByChunk.get(key);
-                if (list != null) {
-                    list.remove(body);
-                    if (list.isEmpty()) {
-                        objectsByChunk.remove(key);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Updates the chunk tracking information for a body when it moves across a chunk border.
-     *
-     * @param body    The body that moved.
-     * @param fromKey The long-encoded key of the chunk it moved from.
-     * @param toKey   The long-encoded key of the chunk it moved to.
-     */
-    void updateObjectTracking(VxBody body, long fromKey, long toKey) {
-        int index = body.getInternalBody().getDataStoreIndex();
-        if (index != -1) {
-            dataStore.chunkKey[index] = toKey;
-        }
-
-        // Remove from the old chunk's list.
-        if (fromKey != Long.MAX_VALUE) {
-            synchronized (objectsByChunk) {
-                List<VxBody> fromList = objectsByChunk.get(fromKey);
-                if (fromList != null) {
-                    fromList.remove(body);
-                    if (fromList.isEmpty()) {
-                        objectsByChunk.remove(fromKey);
-                    }
-                }
-            }
-        }
-        // Add to the new chunk's list.
-        synchronized (objectsByChunk) {
-            objectsByChunk.computeIfAbsent(toKey, k -> new CopyOnWriteArrayList<>()).add(body);
-        }
-        // Notify the network dispatcher about the movement for client-side tracking updates.
-        networkDispatcher.onObjectMoved(body, new ChunkPos(fromKey), new ChunkPos(toKey));
-    }
 
     /**
      * Handles the unloading of all physics objects within a specific chunk.
@@ -585,9 +512,7 @@ public class VxObjectManager {
      * @return A list of objects in that chunk, or an empty list if none exist.
      */
     public List<VxBody> getObjectsInChunk(ChunkPos pos) {
-        synchronized (objectsByChunk) {
-            return objectsByChunk.getOrDefault(pos.toLong(), Collections.emptyList());
-        }
+        return chunkManager.getObjectsInChunk(pos);
     }
 
     /**
@@ -665,5 +590,14 @@ public class VxObjectManager {
 
     public VxObjectNetworkDispatcher getNetworkDispatcher() {
         return networkDispatcher;
+    }
+
+    /**
+     * Gets the chunk map responsible for spatial partitioning of objects.
+     *
+     * @return The {@link VxChunkManager} instance.
+     */
+    public VxChunkManager getChunkManager() {
+        return chunkManager;
     }
 }

@@ -239,7 +239,7 @@ public class VxPhysicsUpdater {
                 final long lastKey = dataStore.chunkKey[i];
                 final long currentKey = new ChunkPos(SectionPos.posToSectionCoord(pos.x()), SectionPos.posToSectionCoord(pos.z())).toLong();
                 if (lastKey != currentKey) {
-                    manager.updateObjectTracking(obj, lastKey, currentKey);
+                    manager.getChunkManager().updateObjectTracking(obj, lastKey, currentKey);
                 }
 
                 dataStore.isTransformDirty[i] = true;
