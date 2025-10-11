@@ -9,14 +9,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.terrain.cache.VxTerrainShapeCache;
 import net.xmx.velthoric.physics.terrain.generation.VxTerrainGenerator;
 import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.physics.terrain.management.VxTerrainManager;
 import net.xmx.velthoric.physics.terrain.management.VxTerrainTracker;
 import net.xmx.velthoric.physics.terrain.storage.VxChunkDataStore;
-import net.xmx.velthoric.physics.terrain.storage.VxTerrainStorage;
 import net.xmx.velthoric.physics.terrain.util.VxUpdateContext;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
@@ -42,8 +40,6 @@ public final class VxTerrainSystem implements Runnable {
     private final AtomicBoolean isInitialized = new AtomicBoolean(false);
 
     private final VxChunkDataStore chunkDataStore;
-    private final VxTerrainStorage terrainStorage;
-    private final VxTerrainShapeCache shapeCache;
     private final VxTerrainGenerator terrainGenerator;
     private final VxTerrainManager terrainManager;
     private final VxTerrainTracker terrainTracker;
@@ -57,9 +53,7 @@ public final class VxTerrainSystem implements Runnable {
 
         this.jobSystem = new VxTerrainJobSystem();
         this.chunkDataStore = new VxChunkDataStore();
-        this.terrainStorage = new VxTerrainStorage(this.level);
-        this.shapeCache = new VxTerrainShapeCache(1024);
-        this.terrainGenerator = new VxTerrainGenerator(this.shapeCache, this.terrainStorage);
+        this.terrainGenerator = new VxTerrainGenerator();
         this.terrainManager = new VxTerrainManager(physicsWorld, level, terrainGenerator, chunkDataStore, jobSystem);
         this.terrainTracker = new VxTerrainTracker(physicsWorld, terrainManager, chunkDataStore, level);
 
@@ -72,7 +66,6 @@ public final class VxTerrainSystem implements Runnable {
      */
     public void initialize() {
         if (isInitialized.compareAndSet(false, true)) {
-            this.terrainStorage.initialize();
             this.workerThread.start();
         }
     }
@@ -110,8 +103,6 @@ public final class VxTerrainSystem implements Runnable {
             chunkDataStore.clear();
             chunksToRebuild.clear();
             terrainTracker.clear();
-            shapeCache.clear();
-            this.terrainStorage.shutdown();
 
             VxMainClass.LOGGER.debug("Terrain system for '{}' has been fully shut down.", level.dimension().location());
         }
@@ -134,15 +125,6 @@ public final class VxTerrainSystem implements Runnable {
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Error in TerrainSystem worker thread", e);
             }
-        }
-    }
-
-    /**
-     * Saves all pending terrain shape data to disk.
-     */
-    public void saveDirtyRegions() {
-        if (terrainStorage != null) {
-            terrainStorage.saveDirtyRegions();
         }
     }
 

@@ -259,7 +259,7 @@ public final class VxTerrainManager {
             activateChunk(pos);
         }
     }
-    
+
     /**
      * Internal logic to unload a chunk's physics resources.
      */
@@ -290,7 +290,7 @@ public final class VxTerrainManager {
         chunkDataStore.bodyIds[index] = VxChunkDataStore.UNUSED_BODY_ID;
         chunkDataStore.setShape(index, null);
     }
-    
+
     /**
      * Cleans up all managed terrain bodies during shutdown.
      */
