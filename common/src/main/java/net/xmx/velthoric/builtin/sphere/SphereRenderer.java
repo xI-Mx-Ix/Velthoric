@@ -19,17 +19,17 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /**
- * Renderer for the {@link SphereClientRigidBody}.
+ * Renderer for the {@link SphereRigidBody}.
  *
  * @author xI-Mx-Ix
  */
-public class SphereRenderer extends VxRigidBodyRenderer<SphereClientRigidBody> {
+public class SphereRenderer extends VxRigidBodyRenderer<SphereRigidBody> {
 
     private static final int STACKS = 16;
     private static final int SECTORS = 32;
 
     @Override
-    public void render(SphereClientRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(SphereRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         RVec3 renderPosition = renderState.transform.getTranslation();
@@ -42,7 +42,7 @@ public class SphereRenderer extends VxRigidBodyRenderer<SphereClientRigidBody> {
         Matrix3f normalMatrix = lastPose.normal();
 
         VertexConsumer consumer = bufferSource.getBuffer(RenderType.solid());
-        float radius = body.getSyncData(SphereClientRigidBody.DATA_RADIUS);
+        float radius = body.getSyncData(SphereRigidBody.DATA_RADIUS);
         int r = 200, g = 50, b = 50, a = 255;
 
         for (int i = 0; i < STACKS; ++i) {

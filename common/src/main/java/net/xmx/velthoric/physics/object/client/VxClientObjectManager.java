@@ -14,10 +14,10 @@ import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.client.body.VxClientBody;
+import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.physics.object.client.time.VxClientClock;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
-import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -30,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * - Processing incoming state update packets from the server.
  * - Synchronizing the client-side clock with the server's clock.
  * - Triggering the interpolation of object states for smooth rendering.
- * - Handling the spawning and removal of objects via {@link VxClientBody} handles.
+ * - Handling the spawning and removal of objects via {@link VxBody} handles.
  *
  * @author xI-Mx-Ix
  */
@@ -51,7 +51,7 @@ public class VxClientObjectManager {
     private final VxClientClock clock = VxClientClock.getInstance();
 
     // Map of all active client-side physics object handles.
-    private final Map<UUID, VxClientBody> managedObjects = new ConcurrentHashMap<>();
+    private final Map<UUID, VxBody> managedObjects = new ConcurrentHashMap<>();
 
     // The calculated time offset between the client and server clocks.
     private long clockOffsetNanos = 0L;
@@ -139,14 +139,14 @@ public class VxClientObjectManager {
         int index = store.addObject(id);
         store.objectType[index] = objectType;
 
-        VxClientBody body = VxObjectRegistry.getInstance().createClientBody(typeId, id, this, index, objectType);
+        VxBody body = VxObjectRegistry.getInstance().createClientBody(typeId, id, objectType);
 
         if (body == null) {
             store.removeObject(id);
             VxMainClass.LOGGER.error("Could not spawn client object with type ID '{}', factory not found or failed.", typeId);
             return;
         }
-
+        body.setDataStoreIndex(index);
         managedObjects.put(id, body);
 
         VxTransform transform = new VxTransform();
@@ -222,7 +222,7 @@ public class VxClientObjectManager {
      * @param data The buffer containing the new synchronized data.
      */
     public void updateSynchronizedData(UUID id, ByteBuf data) {
-        VxClientBody body = managedObjects.get(id);
+        VxBody body = managedObjects.get(id);
         if (body != null) {
             try {
                 // The incoming ByteBuf is wrapped in our custom VxByteBuf for deserialization
@@ -284,9 +284,9 @@ public class VxClientObjectManager {
     /**
      * Gets a collection of all managed client-side physics object handles.
      *
-     * @return A collection view of all {@link VxClientBody} instances.
+     * @return A collection view of all {@link VxBody} instances.
      */
-    public Collection<VxClientBody> getAllObjects() {
+    public Collection<VxBody> getAllObjects() {
         return managedObjects.values();
     }
 
@@ -301,10 +301,10 @@ public class VxClientObjectManager {
      * Gets a client-side physics object handle by its UUID.
      *
      * @param id The UUID of the object.
-     * @return The {@link VxClientBody} instance, or null if not currently managed.
+     * @return The {@link VxBody} instance, or null if not currently managed.
      */
     @Nullable
-    public VxClientBody getObject(UUID id) {
+    public VxBody getObject(UUID id) {
         return managedObjects.get(id);
     }
 }

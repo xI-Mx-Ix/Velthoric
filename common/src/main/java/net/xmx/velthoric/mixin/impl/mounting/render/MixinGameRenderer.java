@@ -25,7 +25,7 @@ import net.xmx.velthoric.physics.mounting.entity.VxMountingEntityState;
 import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.client.body.VxClientBody;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaterniond;
@@ -304,11 +304,11 @@ public abstract class MixinGameRenderer {
         for (Entity potentialTarget : potentialTargets) {
             if (potentialTarget.getVehicle() instanceof VxMountingEntity proxy) {
 
-                Optional<VxClientBody> physObjectOpt = proxy.getPhysicsObjectId()
+                Optional<VxBody> physObjectOpt = proxy.getPhysicsObjectId()
                         .flatMap(id -> Optional.ofNullable(VxClientObjectManager.getInstance().getObject(id)));
 
                 if (physObjectOpt.isPresent() && physObjectOpt.get().isInitialized()) {
-                    VxClientBody physObject = physObjectOpt.get();
+                    VxBody physObject = physObjectOpt.get();
 
                     // Get the interpolated transform for the physics body.
                     VxTransform physTransform = velthoric_getPhysicsObjectTransform(physObject, partialTicks);
@@ -348,7 +348,7 @@ public abstract class MixinGameRenderer {
      * @return An interpolated {@link VxTransform}.
      */
     @Unique
-    private VxTransform velthoric_getPhysicsObjectTransform(VxClientBody clientBody, float partialTicks) {
+    private VxTransform velthoric_getPhysicsObjectTransform(VxBody clientBody, float partialTicks) {
         VxTransform transform = new VxTransform();
         VxClientObjectManager.getInstance().getInterpolator().interpolateFrame(
                 VxClientObjectManager.getInstance().getStore(),

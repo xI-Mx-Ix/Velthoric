@@ -8,28 +8,45 @@ import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.resources.ResourceLocation;
+import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
 /**
+ * A simple physics object with a box shape.
+ *
  * @author xI-Mx-Ix
  */
 public class BoxRigidBody extends VxRigidBody {
 
-    private static final VxDataAccessor<Vec3> DATA_HALF_EXTENTS = VxDataAccessor.create(BoxRigidBody.class, VxDataSerializers.VEC3);
-    private static final VxDataAccessor<Integer> DATA_COLOR_ORDINAL = VxDataAccessor.create(BoxRigidBody.class, VxDataSerializers.INTEGER);
+    public static final VxDataAccessor<Vec3> DATA_HALF_EXTENTS = VxDataAccessor.create(BoxRigidBody.class, VxDataSerializers.VEC3);
+    public static final VxDataAccessor<Integer> DATA_COLOR_ORDINAL = VxDataAccessor.create(BoxRigidBody.class, VxDataSerializers.INTEGER);
 
+    /**
+     * Server-side constructor.
+     */
     public BoxRigidBody(VxObjectType<BoxRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
+    }
+
+    /**
+     * Client-side constructor.
+     */
+    @Environment(EnvType.CLIENT)
+    public BoxRigidBody(UUID id, ResourceLocation typeId, EBodyType objectType) {
+        super(id, typeId, objectType);
     }
 
     @Override

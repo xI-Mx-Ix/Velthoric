@@ -20,16 +20,16 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.mixin.impl.debug.EntityRenderDispatcherAccessor;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.client.body.VxClientBody;
-import net.xmx.velthoric.physics.object.client.body.VxClientSoftBody;
 import net.xmx.velthoric.physics.object.client.body.renderer.VxBodyRenderer;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
+import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import org.joml.Matrix4f;
 
 /**
  * The main client-side renderer for all physics objects.
  * This class hooks into Minecraft's rendering pipeline. It performs frustum culling,
- * delegates state calculation to the {@link VxClientBody}, and then delegates the
+ * delegates state calculation to the {@link VxBody}, and then delegates the
  * final drawing call to a registered {@link VxBodyRenderer}.
  *
  * @author xI-Mx-Ix
@@ -83,7 +83,7 @@ public class VxPhysicsRenderer {
         // Translate the world so rendering is relative to the camera position.
         poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
 
-        for (VxClientBody body : manager.getAllObjects()) {
+        for (VxBody body : manager.getAllObjects()) {
             try {
                 // Cull the object if it's not visible or hasn't been fully initialized.
                 if (!body.isInitialized()) {
@@ -99,7 +99,7 @@ public class VxPhysicsRenderer {
 
                 // Determine the light level at the object's position.
                 int packedLight;
-                if (body instanceof VxClientSoftBody && finalRenderState.vertexData != null && finalRenderState.vertexData.length >= 3) {
+                if (body instanceof VxSoftBody && finalRenderState.vertexData != null && finalRenderState.vertexData.length >= 3) {
                     // For soft bodies, use the position of the first vertex to sample light.
                     packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(finalRenderState.vertexData[0], finalRenderState.vertexData[1], finalRenderState.vertexData[2]));
                 } else {
@@ -112,7 +112,7 @@ public class VxPhysicsRenderer {
                 renderBody(body, poseStack, bufferSource, partialTicks, packedLight, finalRenderState);
 
             } catch (Exception e) {
-                VxMainClass.LOGGER.error("Error rendering physics object {}", body.getId(), e);
+                VxMainClass.LOGGER.error("Error rendering physics object {}", body.getPhysicsId(), e);
             }
         }
 
@@ -130,7 +130,7 @@ public class VxPhysicsRenderer {
      * Looks up the appropriate renderer for the given body and calls its render method.
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static void renderBody(VxClientBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    private static void renderBody(VxBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         ResourceLocation typeId = body.getTypeId();
         VxBodyRenderer renderer = VxObjectRegistry.getInstance().getClientRenderer(typeId);
 

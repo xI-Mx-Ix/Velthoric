@@ -26,18 +26,18 @@ import net.xmx.velthoric.physics.object.client.body.renderer.VxRigidBodyRenderer
 import org.joml.Quaternionf;
 
 /**
- * Renderer for the {@link BlockClientRigidBody}.
+ * Renderer for the {@link BlockRigidBody}.
  *
  * @author xI-Mx-Ix
  */
-public class BlockRenderer extends VxRigidBodyRenderer<BlockClientRigidBody> {
+public class BlockRenderer extends VxRigidBodyRenderer<BlockRigidBody> {
 
     private BlockEntity cachedBlockEntity;
     private BlockState lastBlockState;
 
     @Override
-    public void render(BlockClientRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
-        int blockStateId = body.getSyncData(BlockClientRigidBody.DATA_BLOCK_STATE_ID);
+    public void render(BlockRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+        int blockStateId = body.getSyncData(BlockRigidBody.DATA_BLOCK_STATE_ID);
         BlockState blockStateToRender = Block.stateById(blockStateId);
 
         if (blockStateToRender.isAir() || blockStateToRender.getRenderShape() == RenderShape.INVISIBLE) {

@@ -10,8 +10,6 @@ import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.object.VxObjectType;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.client.body.VxClientBody;
 import net.xmx.velthoric.physics.object.client.body.renderer.VxBodyRenderer;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -28,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * On the server, it maps a {@link ResourceLocation} to a {@link VxObjectType} for creating {@link VxBody} instances.
  * <p>
  * On the client, it maps the same {@link ResourceLocation} to both a {@link ClientFactory} for instantiating
- * the {@link VxClientBody} and a {@link VxBodyRenderer} for handling its visual representation.
+ * a client-side {@link VxBody} and a {@link VxBodyRenderer} for handling its visual representation.
  *
  * @author xI-Mx-Ix
  */
@@ -129,14 +127,12 @@ public class VxObjectRegistry {
          *
          * @param id             The unique ID of the object.
          * @param typeId         The unique identifier of the object's type.
-         * @param manager        The client object manager instance.
-         * @param dataStoreIndex The index assigned to this object in the client data store.
          * @param objectType     The type of the body (e.g., RigidBody, SoftBody).
-         * @return A new instance of a {@link VxClientBody} subclass.
+         * @return A new instance of a {@link VxBody} subclass, configured for the client.
          */
-        VxClientBody create(UUID id, ResourceLocation typeId, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType);
+        VxBody create(UUID id, ResourceLocation typeId, EBodyType objectType);
     }
-    
+
     /**
      * This inner class holds all client-only fields and logic.
      * It will not be loaded by the server, preventing the NoSuchFieldError.
@@ -175,15 +171,15 @@ public class VxObjectRegistry {
     /**
      * Creates a new client-side body instance for the given type identifier.
      *
-     * @return A new {@link VxClientBody} instance, or {@code null} on failure.
+     * @return A new {@link VxBody} instance, or {@code null} on failure.
      */
     @Nullable
     @Environment(EnvType.CLIENT)
-    public VxClientBody createClientBody(ResourceLocation typeId, UUID id, VxClientObjectManager manager, int dataStoreIndex, EBodyType objectType) {
+    public VxBody createClientBody(ResourceLocation typeId, UUID id, EBodyType objectType) {
         ClientFactory factory = Client.clientFactories.get(typeId);
         if (factory != null) {
             try {
-                return factory.create(id, typeId, manager, dataStoreIndex, objectType);
+                return factory.create(id, typeId, objectType);
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Failed to create client body of type {}", typeId, e);
             }

@@ -19,11 +19,11 @@ import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.body.renderer.VxSoftBodyRenderer;
 
 /**
- * Renderer for the {@link RopeClientSoftBody}.
+ * Renderer for the {@link RopeSoftBody}.
  *
  * @author xI-Mx-Ix
  */
-public class RopeRenderer extends VxSoftBodyRenderer<RopeClientSoftBody> {
+public class RopeRenderer extends VxSoftBodyRenderer<RopeSoftBody> {
 
     private static final ResourceLocation YELLOW_WOOL_BLOCK_TEXTURE = new ResourceLocation("minecraft:block/yellow_wool");
     private static final int SIDES = 12;
@@ -31,13 +31,13 @@ public class RopeRenderer extends VxSoftBodyRenderer<RopeClientSoftBody> {
     private static final Vec3 JOLT_UNIT_Y = new Vec3(0, 1, 0);
 
     @Override
-    public void render(RopeClientSoftBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(RopeSoftBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         float[] renderVertexData = renderState.vertexData;
         if (renderVertexData == null || renderVertexData.length < 6) {
             return;
         }
 
-        float ropeRadius = body.getSyncData(RopeClientSoftBody.DATA_ROPE_RADIUS);
+        float ropeRadius = body.getSyncData(RopeSoftBody.DATA_ROPE_RADIUS);
         if (ropeRadius <= 0) {
             return;
         }

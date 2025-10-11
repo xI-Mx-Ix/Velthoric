@@ -77,7 +77,7 @@ public final class SpawnChainedBoxes implements IVxTestCommand {
             }
 
             // Set the anchor body to be kinematic so it doesn't move
-            physicsWorld.getBodyInterface().setMotionType(anchorBody.getBodyHandle().getBodyId(), EMotionType.Kinematic, EActivation.DontActivate);
+            physicsWorld.getBodyInterface().setMotionType(anchorBody.getBodyId(), EMotionType.Kinematic, EActivation.DontActivate);
 
             BoxRigidBody previousBody = anchorBody;
 

@@ -14,10 +14,10 @@ import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.client.body.VxClientBody;
 import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.physics.mounting.request.C2SRequestMountPacket;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -71,16 +71,16 @@ public abstract class MixinMinecraft {
         VxClientObjectManager objectManager = VxClientObjectManager.getInstance();
         VxClientMountingManager ridingManager = VxClientMountingManager.getInstance();
 
-        VxClientBody closestBody = null;
+        VxBody closestBody = null;
         VxSeat closestSeat = null;
         double closestDistSq = Double.MAX_VALUE;
 
-        for (VxClientBody body : objectManager.getAllObjects()) {
+        for (VxBody body : objectManager.getAllObjects()) {
             if (!body.isInitialized()) continue;
 
             body.calculateRenderState(partialTicks, velthoric_renderState, velthoric_tempPos, velthoric_tempRot);
 
-            for (VxSeat seat : ridingManager.getSeats(body.getId())) {
+            for (VxSeat seat : ridingManager.getSeats(body.getPhysicsId())) {
                 // 1. Broad-phase: Fast, coarse check using an axis-aligned bounding box.
                 AABB broadPhaseBox = seat.getGlobalAABB(velthoric_renderState.transform);
                 if (broadPhaseBox.clip(cameraPos, endVec).isPresent()) {
@@ -102,7 +102,7 @@ public abstract class MixinMinecraft {
         }
 
         if (closestBody != null) {
-            VxPacketHandler.CHANNEL.sendToServer(new C2SRequestMountPacket(closestBody.getId(), closestSeat.getId()));
+            VxPacketHandler.CHANNEL.sendToServer(new C2SRequestMountPacket(closestBody.getPhysicsId(), closestSeat.getId()));
             return true;
         }
 

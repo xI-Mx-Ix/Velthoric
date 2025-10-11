@@ -6,13 +6,18 @@ package net.xmx.velthoric.builtin.block;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.ShapeSettings;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
@@ -20,20 +25,32 @@ import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.object.util.VxVoxelShapeUtil;
-import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
 /**
+ * A physics object that represents a single, dynamic block.
+ *
  * @author xI-Mx-Ix
  */
 public class BlockRigidBody extends VxRigidBody {
 
-    private static final VxDataAccessor<Integer> DATA_BLOCK_STATE_ID = VxDataAccessor.create(BlockRigidBody.class, VxDataSerializers.INTEGER);
+    public static final VxDataAccessor<Integer> DATA_BLOCK_STATE_ID = VxDataAccessor.create(BlockRigidBody.class, VxDataSerializers.INTEGER);
 
+    /**
+     * Server-side constructor.
+     */
     public BlockRigidBody(VxObjectType<BlockRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
+    }
+
+    /**
+     * Client-side constructor.
+     */
+    @Environment(EnvType.CLIENT)
+    public BlockRigidBody(UUID id, ResourceLocation typeId, EBodyType objectType) {
+        super(id, typeId, objectType);
     }
 
     @Override

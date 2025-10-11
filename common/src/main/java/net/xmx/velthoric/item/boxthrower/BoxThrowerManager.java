@@ -96,7 +96,7 @@ public class BoxThrowerManager {
         );
 
         if (spawnedObject != null) {
-            var bodyId = spawnedObject.getBodyHandle().getBodyId();
+            var bodyId = spawnedObject.getBodyId();
             var bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
             bodyInterface.activateBody(bodyId);
             bodyInterface.setLinearVelocity(bodyId, launchVelocity);

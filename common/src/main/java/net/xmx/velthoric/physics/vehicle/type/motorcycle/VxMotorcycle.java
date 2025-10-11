@@ -8,13 +8,17 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.VehicleCollisionTester;
 import com.github.stephengold.joltjni.VehicleConstraintSettings;
 import com.github.stephengold.joltjni.WheeledVehicleController;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.mounting.input.VxMountInput;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
-import net.xmx.velthoric.physics.mounting.input.VxMountInput;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.controller.VxWheeledVehicleController;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -34,10 +38,21 @@ public abstract class VxMotorcycle extends VxVehicle {
 
     private VxWheeledVehicleController controller;
 
+    /**
+     * Server-side constructor.
+     */
     protected VxMotorcycle(VxObjectType<? extends VxMotorcycle> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.constraintSettings = createConstraintSettings();
         this.collisionTester = createCollisionTester();
+    }
+
+    /**
+     * Client-side constructor.
+     */
+    @Environment(EnvType.CLIENT)
+    protected VxMotorcycle(UUID id, ResourceLocation typeId, EBodyType objectType) {
+        super(id, typeId, objectType);
     }
 
     protected abstract VehicleConstraintSettings createConstraintSettings();
@@ -47,7 +62,6 @@ public abstract class VxMotorcycle extends VxVehicle {
     @Override
     public void onBodyAdded(VxPhysicsWorld world) {
         super.onBodyAdded(world);
-        // MotorcycleController is a subclass of WheeledVehicleController
         if (constraint.getController() instanceof WheeledVehicleController joltController) {
             this.controller = new VxWheeledVehicleController(joltController);
         } else {
@@ -70,7 +84,6 @@ public abstract class VxMotorcycle extends VxVehicle {
     @Override
     public void onStopMounting(ServerPlayer player) {
         if (controller != null) {
-            // Set all four inputs to zero
             controller.setInput(0.0f, 0.0f, 0.0f, 0.0f);
         }
     }
@@ -83,26 +96,26 @@ public abstract class VxMotorcycle extends VxVehicle {
 
         float forward = input.isForward() ? 1.0f : (input.isBackward() ? -1.0f : 0.0f);
         float right = input.isRight() ? 1.0f : (input.isLeft() ? -1.0f : 0.0f);
-        // For motorcycles, brake is also tied to the backward key. Handbrake can be separate.
         float brake = input.isBackward() ? 1.0f : 0.0f;
-        float handBrake = input.isUp() ? 1.0f : 0.0f; // Example mapping for handbrake
+        float handBrake = input.isUp() ? 1.0f : 0.0f;
 
-        // Use the 4-argument method, as MotorcycleController inherits it.
         controller.setInput(forward, right, brake, handBrake);
     }
 
     @Override
     public void writePersistenceData(VxByteBuf buf) {
         super.writePersistenceData(buf);
-        // Serialize chassis half extents using its defined data serializer for consistency.
         DATA_CHASSIS_HALF_EXTENTS.getSerializer().write(buf, this.getSyncData(DATA_CHASSIS_HALF_EXTENTS));
     }
 
     @Override
     public void readPersistenceData(VxByteBuf buf) {
         super.readPersistenceData(buf);
-        // Deserialize chassis half extents using its defined data serializer.
         this.setSyncData(DATA_CHASSIS_HALF_EXTENTS, DATA_CHASSIS_HALF_EXTENTS.getSerializer().read(buf));
+    }
+
+    public Vec3 getChassisHalfExtents() {
+        return this.getSyncData(DATA_CHASSIS_HALF_EXTENTS);
     }
 
     public VxWheeledVehicleController getController() {

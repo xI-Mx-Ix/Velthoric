@@ -17,24 +17,24 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.body.renderer.VxRigidBodyRenderer;
-import net.xmx.velthoric.physics.vehicle.type.motorcycle.VxClientMotorcycle;
+import net.xmx.velthoric.physics.vehicle.type.motorcycle.VxMotorcycle;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheelRenderState;
 import org.joml.Quaternionf;
 
 import java.util.List;
 
 /**
- * Renderer for the {@link VxClientMotorcycle}.
+ * Renderer for the {@link VxMotorcycle}.
  *
  * @author xI-Mx-Ix
  */
-public class MotorcycleRenderer extends VxRigidBodyRenderer<VxClientMotorcycle> {
+public class MotorcycleRenderer extends VxRigidBodyRenderer<VxMotorcycle> {
 
     private static final BlockState CHASSIS_STATE = Blocks.GRAY_CONCRETE.defaultBlockState();
     private static final BlockState WHEEL_STATE = Blocks.BLACK_CONCRETE.defaultBlockState();
 
     @Override
-    public void render(VxClientMotorcycle body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxMotorcycle body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         RVec3 renderPosition = renderState.transform.getTranslation();

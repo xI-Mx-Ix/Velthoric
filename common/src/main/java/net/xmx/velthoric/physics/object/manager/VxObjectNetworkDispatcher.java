@@ -313,7 +313,7 @@ public class VxObjectNetworkDispatcher {
      * @param body The physics object that was added.
      */
     public void onObjectAdded(VxBody body) {
-        int index = body.getBodyHandle().getDataStoreIndex();
+        int index = body.getDataStoreIndex();
         if (index == -1) return;
         ChunkPos bodyChunk = manager.getObjectChunkPos(index);
         for (ServerPlayer player : this.level.getChunkSource().chunkMap.getPlayers(bodyChunk, false)) {

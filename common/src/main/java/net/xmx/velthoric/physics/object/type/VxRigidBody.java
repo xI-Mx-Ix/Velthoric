@@ -4,7 +4,15 @@
  */
 package net.xmx.velthoric.physics.object.type;
 
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
@@ -20,7 +28,7 @@ import java.util.UUID;
 public abstract class VxRigidBody extends VxBody {
 
     /**
-     * Constructor for a rigid body.
+     * Server-side constructor for a rigid body.
      *
      * @param type  The object type definition.
      * @param world The physics world this body belongs to.
@@ -28,6 +36,18 @@ public abstract class VxRigidBody extends VxBody {
      */
     protected VxRigidBody(VxObjectType<? extends VxRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
+    }
+
+    /**
+     * Client-side constructor for a rigid body.
+     *
+     * @param id The unique UUID for this body.
+     * @param typeId The resource location of the object's type.
+     * @param objectType The Jolt body type.
+     */
+    @Environment(EnvType.CLIENT)
+    protected VxRigidBody(UUID id, ResourceLocation typeId, EBodyType objectType) {
+        super(id, typeId, objectType);
     }
 
     /**
@@ -39,4 +59,16 @@ public abstract class VxRigidBody extends VxBody {
      * @return The body ID assigned by Jolt.
      */
     public abstract int createJoltBody(VxRigidBodyFactory factory);
+
+    @Override
+    @Environment(EnvType.CLIENT)
+    public void calculateRenderState(float partialTicks, VxRenderState outState, RVec3 tempPos, Quat tempRot) {
+        VxClientObjectManager manager = VxClientObjectManager.getInstance();
+        // Calculate the interpolated transform (position and rotation). This is generic for all rigid bodies.
+        manager.getInterpolator().interpolateFrame(manager.getStore(), this.getDataStoreIndex(), partialTicks, tempPos, tempRot);
+        outState.transform.getTranslation().set(tempPos);
+        outState.transform.getRotation().set(tempRot);
+        // Rigid bodies do not have vertex data.
+        outState.vertexData = null;
+    }
 }

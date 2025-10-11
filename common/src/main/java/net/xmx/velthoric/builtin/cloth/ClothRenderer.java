@@ -19,19 +19,19 @@ import org.joml.Vector3f;
 import java.util.function.BiFunction;
 
 /**
- * Renderer for the {@link ClothClientSoftBody}.
+ * Renderer for the {@link ClothSoftBody}.
  *
  * @author xI-Mx-Ix
  */
-public class ClothRenderer extends VxSoftBodyRenderer<ClothClientSoftBody> {
+public class ClothRenderer extends VxSoftBodyRenderer<ClothSoftBody> {
 
     private static final ResourceLocation BLUE_WOOL_TEXTURE = new ResourceLocation("minecraft:block/blue_wool");
 
     @Override
-    public void render(ClothClientSoftBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(ClothSoftBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         float[] renderVertexData = renderState.vertexData;
-        int widthSegments = body.getSyncData(ClothClientSoftBody.DATA_WIDTH_SEGMENTS);
-        int heightSegments = body.getSyncData(ClothClientSoftBody.DATA_HEIGHT_SEGMENTS);
+        int widthSegments = body.getSyncData(ClothSoftBody.DATA_WIDTH_SEGMENTS);
+        int heightSegments = body.getSyncData(ClothSoftBody.DATA_HEIGHT_SEGMENTS);
 
         if (renderVertexData == null || renderVertexData.length < 12 || widthSegments <= 0 || heightSegments <= 0) {
             return;

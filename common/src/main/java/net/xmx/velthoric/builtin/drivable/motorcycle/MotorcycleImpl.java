@@ -5,15 +5,19 @@
 package net.xmx.velthoric.builtin.drivable.motorcycle;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.natives.VxLayers;
+import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.vehicle.type.motorcycle.VxMotorcycle;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -31,14 +35,24 @@ import java.util.stream.Collectors;
  */
 public class MotorcycleImpl extends VxMotorcycle {
 
+    /**
+     * Server-side constructor.
+     */
     public MotorcycleImpl(VxObjectType<MotorcycleImpl> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         addDriverSeat();
     }
 
+    /**
+     * Client-side constructor.
+     */
+    @Environment(EnvType.CLIENT)
+    public MotorcycleImpl(UUID id, ResourceLocation typeId, EBodyType objectType) {
+        super(id, typeId, objectType);
+    }
+
     @Override
     protected VehicleConstraintSettings createConstraintSettings() {
-
         this.wheels = new ArrayList<>(2);
 
         float wheelRadius = 0.4f;
@@ -50,38 +64,30 @@ public class MotorcycleImpl extends VxMotorcycle {
         float suspensionDamping = 0.8f;
 
         WheelSettingsWv rearWheel = new WheelSettingsWv();
-
         rearWheel.setPosition(new Vec3(0, 0, -wheelBase * 0.5f));
         rearWheel.setRadius(wheelRadius);
         rearWheel.setWidth(wheelWidth);
         rearWheel.setSuspensionMinLength(suspensionMinLength);
         rearWheel.setSuspensionMaxLength(suspensionMaxLength);
-
         rearWheel.getSuspensionSpring().setFrequency(suspensionFrequency);
         rearWheel.getSuspensionSpring().setDamping(suspensionDamping);
-
         rearWheel.setMaxSteerAngle(0.0f);
 
         WheelSettingsWv frontWheel = new WheelSettingsWv();
-
         frontWheel.setPosition(new Vec3(0, 0, wheelBase * 0.5f));
         frontWheel.setRadius(wheelRadius);
         frontWheel.setWidth(wheelWidth);
         frontWheel.setSuspensionMinLength(suspensionMinLength);
         frontWheel.setSuspensionMaxLength(suspensionMaxLength);
-
         frontWheel.getSuspensionSpring().setFrequency(suspensionFrequency);
         frontWheel.getSuspensionSpring().setDamping(suspensionDamping);
-
         frontWheel.setMaxSteerAngle((float) Math.toRadians(40.0));
 
         this.wheels.add(new VxWheel(rearWheel));
         this.wheels.add(new VxWheel(frontWheel));
-
         this.setSyncData(DATA_WHEELS_SETTINGS, this.wheels.stream().map(VxWheel::getSettings).collect(Collectors.toList()));
 
         MotorcycleControllerSettings controllerSettings = new MotorcycleControllerSettings();
-
         VehicleEngineSettings engineSettings = controllerSettings.getEngine();
         engineSettings.setMaxTorque(800.0f);
         engineSettings.setMaxRpm(12000.0f);
@@ -101,9 +107,7 @@ public class MotorcycleImpl extends VxMotorcycle {
         differential.setDifferentialRatio(2.5f);
 
         VehicleConstraintSettings settings = new VehicleConstraintSettings();
-
         settings.addWheels(rearWheel, frontWheel);
-
         settings.setController(controllerSettings);
 
         return settings;

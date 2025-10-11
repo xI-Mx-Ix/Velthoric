@@ -7,8 +7,9 @@ package net.xmx.velthoric.physics.vehicle.sync;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.client.body.VxClientBody;
-import net.xmx.velthoric.physics.vehicle.VxClientVehicle;
+import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.vehicle.VxVehicle;
+import net.xmx.velthoric.physics.vehicle.type.motorcycle.VxMotorcycle;
 
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -88,15 +89,11 @@ public class S2CUpdateWheelsPacket {
     public static void handle(S2CUpdateWheelsPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            // This code is now running on the client's main thread.
             VxClientObjectManager manager = VxClientObjectManager.getInstance();
-            VxClientBody body = manager.getObject(msg.vehicleId);
+            VxBody body = manager.getObject(msg.vehicleId);
 
-            // Check if the body is a vehicle and is still loaded.
-            if (body instanceof VxClientVehicle vehicle) {
-                // Iterate through the received wheel states and apply them.
+            if (body instanceof VxVehicle vehicle) {
                 for (int i = 0; i < msg.rotationAngles.length; i++) {
-                    // This call updates the target state for interpolation on the client.
                     vehicle.updateWheelState(i, msg.rotationAngles[i], msg.steerAngles[i], msg.suspensionLengths[i]);
                 }
             }

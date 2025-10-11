@@ -8,13 +8,17 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.VehicleCollisionTester;
 import com.github.stephengold.joltjni.VehicleConstraintSettings;
 import com.github.stephengold.joltjni.WheeledVehicleController;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.mounting.input.VxMountInput;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
-import net.xmx.velthoric.physics.mounting.input.VxMountInput;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.controller.VxWheeledVehicleController;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -34,10 +38,21 @@ public abstract class VxCar extends VxVehicle {
 
     private VxWheeledVehicleController controller;
 
+    /**
+     * Server-side constructor.
+     */
     protected VxCar(VxObjectType<? extends VxCar> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.constraintSettings = createConstraintSettings();
         this.collisionTester = createCollisionTester();
+    }
+
+    /**
+     * Client-side constructor.
+     */
+    @Environment(EnvType.CLIENT)
+    protected VxCar(UUID id, ResourceLocation typeId, EBodyType objectType) {
+        super(id, typeId, objectType);
     }
 
     protected abstract VehicleConstraintSettings createConstraintSettings();
@@ -95,15 +110,17 @@ public abstract class VxCar extends VxVehicle {
     @Override
     public void writePersistenceData(VxByteBuf buf) {
         super.writePersistenceData(buf);
-        // Serialize chassis half extents using its defined data serializer for consistency.
         DATA_CHASSIS_HALF_EXTENTS.getSerializer().write(buf, this.getSyncData(DATA_CHASSIS_HALF_EXTENTS));
     }
 
     @Override
     public void readPersistenceData(VxByteBuf buf) {
         super.readPersistenceData(buf);
-        // Deserialize chassis half extents using its defined data serializer.
         this.setSyncData(DATA_CHASSIS_HALF_EXTENTS, DATA_CHASSIS_HALF_EXTENTS.getSerializer().read(buf));
+    }
+
+    public Vec3 getChassisHalfExtents() {
+        return this.getSyncData(DATA_CHASSIS_HALF_EXTENTS);
     }
 
     public VxWheeledVehicleController getController() {

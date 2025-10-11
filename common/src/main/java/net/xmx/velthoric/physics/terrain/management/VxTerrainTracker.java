@@ -95,8 +95,8 @@ public final class VxTerrainTracker {
             }
             VxBody obj = currentObjects.get(objectUpdateIndex++);
 
-            int dataIndex = obj.getBodyHandle().getDataStoreIndex();
-            if (dataIndex == -1 || obj.getBodyHandle().getBodyId() == 0) {
+            int dataIndex = obj.getDataStoreIndex();
+            if (dataIndex == -1 || obj.getBodyId() == 0) {
                 removeObjectTracking(obj.getPhysicsId());
                 continue;
             }
@@ -122,7 +122,7 @@ public final class VxTerrainTracker {
         Set<VxSectionPos> activeSet = new HashSet<>();
 
         for (VxBody obj : currentObjects) {
-            int dataIndex = obj.getBodyHandle().getDataStoreIndex();
+            int dataIndex = obj.getDataStoreIndex();
             if (dataIndex != -1) {
                 calculateRequiredChunks(
                         dataIndex,

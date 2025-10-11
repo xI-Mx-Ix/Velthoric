@@ -17,24 +17,24 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.client.body.renderer.VxRigidBodyRenderer;
-import net.xmx.velthoric.physics.vehicle.type.car.VxClientCar;
+import net.xmx.velthoric.physics.vehicle.type.car.VxCar;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheelRenderState;
 import org.joml.Quaternionf;
 
 import java.util.List;
 
 /**
- * Renderer for the {@link VxClientCar}.
+ * Renderer for the {@link VxCar}.
  *
  * @author xI-Mx-Ix
  */
-public class CarRenderer extends VxRigidBodyRenderer<VxClientCar> {
+public class CarRenderer extends VxRigidBodyRenderer<VxCar> {
 
     private static final BlockState CHASSIS_STATE = Blocks.BLUE_CONCRETE.defaultBlockState();
     private static final BlockState WHEEL_STATE = Blocks.BLACK_CONCRETE.defaultBlockState();
 
     @Override
-    public void render(VxClientCar body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxCar body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         RVec3 renderPosition = renderState.transform.getTranslation();

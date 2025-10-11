@@ -5,39 +5,56 @@
 package net.xmx.velthoric.builtin.cloth;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.resources.ResourceLocation;
+import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
 import net.xmx.velthoric.physics.object.type.factory.VxSoftBodyFactory;
-import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 import java.util.function.BiFunction;
 
 /**
+ * A soft body physics object that simulates a piece of cloth.
+ *
  * @author xI-Mx-Ix
  */
 public class ClothSoftBody extends VxSoftBody {
 
-    private static final VxDataAccessor<Integer> DATA_WIDTH_SEGMENTS = VxDataAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
-    private static final VxDataAccessor<Integer> DATA_HEIGHT_SEGMENTS = VxDataAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
+    public static final VxDataAccessor<Integer> DATA_WIDTH_SEGMENTS = VxDataAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
+    public static final VxDataAccessor<Integer> DATA_HEIGHT_SEGMENTS = VxDataAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
 
     private float clothWidth;
     private float clothHeight;
     private float mass;
     private float compliance;
 
+    /**
+     * Server-side constructor.
+     */
     public ClothSoftBody(VxObjectType<ClothSoftBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.clothWidth = 2.0f;
         this.clothHeight = 2.0f;
         this.mass = 2.0f;
         this.compliance = 0.02f;
+    }
+
+    /**
+     * Client-side constructor.
+     */
+    @Environment(EnvType.CLIENT)
+    public ClothSoftBody(UUID id, ResourceLocation typeId, EBodyType objectType) {
+        super(id, typeId, objectType);
     }
 
     @Override

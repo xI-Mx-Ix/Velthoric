@@ -17,19 +17,19 @@ import net.xmx.velthoric.physics.object.client.body.renderer.VxRigidBodyRenderer
 import org.joml.Quaternionf;
 
 /**
- * Renderer for the {@link BoxClientRigidBody}.
+ * Renderer for the {@link BoxRigidBody}.
  *
  * @author xI-Mx-Ix
  */
-public class BoxRenderer extends VxRigidBodyRenderer<BoxClientRigidBody> {
+public class BoxRenderer extends VxRigidBodyRenderer<BoxRigidBody> {
 
     @Override
-    public void render(BoxClientRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
-        int colorOrdinal = body.getSyncData(BoxClientRigidBody.DATA_COLOR_ORDINAL);
+    public void render(BoxRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+        int colorOrdinal = body.getSyncData(BoxRigidBody.DATA_COLOR_ORDINAL);
         BoxColor color = (colorOrdinal >= 0 && colorOrdinal < BoxColor.values().length) ? BoxColor.values()[colorOrdinal] : BoxColor.RED;
         BlockState blockState = color.getBlock().defaultBlockState();
 
-        Vec3 halfExtents = body.getSyncData(BoxClientRigidBody.DATA_HALF_EXTENTS);
+        Vec3 halfExtents = body.getSyncData(BoxRigidBody.DATA_HALF_EXTENTS);
         float hx = halfExtents.getX();
         float hy = halfExtents.getY();
         float hz = halfExtents.getZ();

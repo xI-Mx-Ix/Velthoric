@@ -12,11 +12,11 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxOBB;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.client.body.VxClientBody;
 import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.object.client.VxRenderState;
+import net.xmx.velthoric.physics.object.type.VxBody;
 
 /**
  * A dedicated renderer for drawing debug information related to physics objects,
@@ -58,13 +58,13 @@ public class VxDebugRenderer {
         VertexConsumer vertexConsumer = bufferSource.getBuffer(RenderType.lines());
         VxClientMountingManager ridingManager = VxClientMountingManager.getInstance();
 
-        for (VxClientBody body : manager.getAllObjects()) {
+        for (VxBody body : manager.getAllObjects()) {
             if (!body.isInitialized()) continue;
 
             // Calculate the interpolated render state for the parent object.
             body.calculateRenderState(partialTicks, this.renderState, this.interpolatedPosition, this.interpolatedRotation);
 
-            for (VxSeat seat : ridingManager.getSeats(body.getId())) {
+            for (VxSeat seat : ridingManager.getSeats(body.getPhysicsId())) {
                 // Get the precise Oriented Bounding Box for the seat in world space.
                 VxOBB obb = seat.getGlobalOBB(this.renderState.transform);
                 // Draw the OBB's wireframe.

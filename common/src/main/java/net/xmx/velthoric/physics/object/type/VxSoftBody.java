@@ -4,7 +4,15 @@
  */
 package net.xmx.velthoric.physics.object.type;
 
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.type.factory.VxSoftBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
@@ -25,7 +33,7 @@ public abstract class VxSoftBody extends VxBody {
     protected float @Nullable [] lastSyncedVertexData;
 
     /**
-     * Constructor for a soft body.
+     * Server-side constructor for a soft body.
      *
      * @param type  The object type definition.
      * @param world The physics world this body belongs to.
@@ -33,6 +41,18 @@ public abstract class VxSoftBody extends VxBody {
      */
     protected VxSoftBody(VxObjectType<? extends VxSoftBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
+    }
+
+    /**
+     * Client-side constructor for a soft body.
+     *
+     * @param id The unique UUID for this body.
+     * @param typeId The resource location of the object's type.
+     * @param objectType The Jolt body type.
+     */
+    @Environment(EnvType.CLIENT)
+    protected VxSoftBody(UUID id, ResourceLocation typeId, EBodyType objectType) {
+        super(id, typeId, objectType);
     }
 
     /**
@@ -60,4 +80,17 @@ public abstract class VxSoftBody extends VxBody {
      * @return The body ID assigned by Jolt.
      */
     public abstract int createJoltBody(VxSoftBodyFactory factory);
+
+    @Override
+    @Environment(EnvType.CLIENT)
+    public void calculateRenderState(float partialTicks, VxRenderState outState, RVec3 tempPos, Quat tempRot) {
+        VxClientObjectManager manager = VxClientObjectManager.getInstance();
+        // Calculate the base interpolated transform (position and rotation).
+        manager.getInterpolator().interpolateFrame(manager.getStore(), this.getDataStoreIndex(), partialTicks, tempPos, tempRot);
+        outState.transform.getTranslation().set(tempPos);
+        outState.transform.getRotation().set(tempRot);
+
+        // Also calculate the interpolated vertex data for the soft body mesh. This is generic.
+        outState.vertexData = manager.getInterpolator().getInterpolatedVertexData(manager.getStore(), this.getDataStoreIndex(), partialTicks);
+    }
 }

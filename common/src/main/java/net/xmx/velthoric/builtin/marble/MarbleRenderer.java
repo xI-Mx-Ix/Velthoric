@@ -22,19 +22,19 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
 /**
- * Renderer for the {@link MarbleClientRigidBody}.
+ * Renderer for the {@link MarbleRigidBody}.
  *
  * @author xI-Mx-Ix
  */
-public class MarbleRenderer extends VxRigidBodyRenderer<MarbleClientRigidBody> {
+public class MarbleRenderer extends VxRigidBodyRenderer<MarbleRigidBody> {
 
     private static final ItemStack MARBLE_ITEM_STACK = new ItemStack(Items.MAGMA_CREAM);
 
     @Override
-    public void render(MarbleClientRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(MarbleRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
-        float radius = body.getSyncData(MarbleClientRigidBody.DATA_RADIUS);
+        float radius = body.getSyncData(MarbleRigidBody.DATA_RADIUS);
         RVec3 renderPosition = renderState.transform.getTranslation();
         poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
         poseStack.mulPose(Minecraft.getInstance().gameRenderer.getMainCamera().rotation());

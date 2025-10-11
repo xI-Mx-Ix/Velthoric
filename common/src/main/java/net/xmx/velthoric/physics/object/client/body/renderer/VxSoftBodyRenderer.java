@@ -4,15 +4,15 @@
  */
 package net.xmx.velthoric.physics.object.client.body.renderer;
 
-import net.xmx.velthoric.physics.object.client.body.VxClientSoftBody;
+import net.xmx.velthoric.physics.object.type.VxSoftBody;
 
 /**
- * An abstract base renderer for any object that extends {@link VxClientSoftBody}.
+ * An abstract base renderer for any object that extends {@link VxSoftBody}.
  * Concrete implementations will handle the specific visual representation, typically
  * involving dynamic mesh generation from the body's vertex data.
  *
- * @param <T> The specific type of VxClientSoftBody this renderer can draw.
+ * @param <T> The specific type of VxSoftBody this renderer can draw.
  * @author xI-Mx-Ix
  */
-public abstract class VxSoftBodyRenderer<T extends VxClientSoftBody> extends VxBodyRenderer<T> {
+public abstract class VxSoftBodyRenderer<T extends VxSoftBody> extends VxBodyRenderer<T> {
 }
