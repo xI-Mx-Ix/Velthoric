@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.object.manager;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.readonly.ConstAaBox;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceNoLock;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
@@ -181,6 +182,8 @@ public class VxPhysicsUpdater {
      * a final update when an object comes to rest, keeping it visible and correctly positioned.
      */
     private void postUpdateSync(long timestampNanos, VxPhysicsWorld world, BodyInterface bodyInterface) {
+        ConstBodyLockInterfaceNoLock lockInterface = world.getPhysicsSystem().getBodyLockInterfaceNoLock();
+
         for (int i = 0; i < dataStore.getCapacity(); ++i) {
             UUID id = dataStore.getIdForIndex(i);
             if (id == null) continue;
@@ -195,11 +198,10 @@ public class VxPhysicsUpdater {
             boolean isJoltBodyActive = bodyInterface.isActive(bodyId);
             boolean wasDataStoreBodyActive = dataStore.isActive[i];
 
-            // The core logic: Synchronize if the body is currently active OR if it was active
-            // in our last tick. This ensures we send one final update when a body stops.
             if (isJoltBodyActive || wasDataStoreBodyActive) {
                 obj.physicsTick(world);
 
+                // --- Phase 4.1: Sync transform and velocities using performant BodyInterface methods ---
                 final RVec3 pos = tempPos.get();
                 final Quat rot = tempRot.get();
                 bodyInterface.getPositionAndRotation(bodyId, pos, rot);
@@ -224,15 +226,35 @@ public class VxPhysicsUpdater {
                 dataStore.angVelY[i] = angVel.getY();
                 dataStore.angVelZ[i] = angVel.getZ();
 
-                if (obj instanceof VxSoftBody softBody) {
-                    float[] newVertexData = getSoftBodyVertices(world.getBodyLockInterfaceNoLock(), bodyId, pos);
-                    if (newVertexData != null && !Arrays.equals(newVertexData, dataStore.vertexData[i])) {
-                        dataStore.vertexData[i] = newVertexData;
-                        dataStore.isVertexDataDirty[i] = true;
-                        softBody.setLastSyncedVertexData(newVertexData);
+                // --- Phase 4.2: Use a lock only for data not available on BodyInterface ---
+                try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {
+                    if (lock.succeededAndIsInBroadPhase()) {
+                        ConstBody body = lock.getBody();
+
+                        // Sync World Space AABB for terrain tracking
+                        ConstAaBox bounds = body.getWorldSpaceBounds();
+                        Vec3 min = bounds.getMin();
+                        Vec3 max = bounds.getMax();
+                        dataStore.aabbMinX[i] = min.getX();
+                        dataStore.aabbMinY[i] = min.getY();
+                        dataStore.aabbMinZ[i] = min.getZ();
+                        dataStore.aabbMaxX[i] = max.getX();
+                        dataStore.aabbMaxY[i] = max.getY();
+                        dataStore.aabbMaxZ[i] = max.getZ();
+
+                        // Sync soft body vertices if applicable
+                        if (obj instanceof VxSoftBody softBody) {
+                            float[] newVertexData = getSoftBodyVertices(body, pos);
+                            if (newVertexData != null && !Arrays.equals(newVertexData, dataStore.vertexData[i])) {
+                                dataStore.vertexData[i] = newVertexData;
+                                dataStore.isVertexDataDirty[i] = true;
+                                softBody.setLastSyncedVertexData(newVertexData);
+                            }
+                        }
                     }
                 }
 
+                // --- Phase 4.3: Update management flags ---
                 dataStore.isActive[i] = isJoltBodyActive;
                 dataStore.lastUpdateTimestamp[i] = timestampNanos;
 
@@ -249,28 +271,22 @@ public class VxPhysicsUpdater {
 
     /**
      * Extracts the vertex positions of a soft body from Jolt.
-     * @param lockInterface Jolt's body lock interface.
-     * @param bodyId The ID of the soft body.
+     * @param body The locked ConstBody instance of the soft body.
      * @param bodyPosition The current position of the body's center of mass.
      * @return An array of vertex coordinates, or null on failure.
      */
-    private float @Nullable [] getSoftBodyVertices(ConstBodyLockInterfaceNoLock lockInterface, int bodyId, RVec3Arg bodyPosition) {
-        try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {
-            if (lock.succeededAndIsInBroadPhase()) {
-                ConstBody body = lock.getBody();
-                if (body.isSoftBody()) {
-                    ConstSoftBodyMotionProperties motionProps = (ConstSoftBodyMotionProperties) body.getMotionProperties();
-                    int numVertices = motionProps.getSettings().countVertices();
-                    if (numVertices > 0) {
-                        int bufferSize = numVertices * 3;
-                        FloatBuffer vertexBuffer = Jolt.newDirectFloatBuffer(bufferSize);
-                        motionProps.putVertexLocations(bodyPosition, vertexBuffer);
-                        vertexBuffer.flip();
-                        float[] vertexArray = new float[bufferSize];
-                        vertexBuffer.get(vertexArray);
-                        return vertexArray;
-                    }
-                }
+    private float @Nullable [] getSoftBodyVertices(ConstBody body, RVec3Arg bodyPosition) {
+        if (body.isSoftBody()) {
+            ConstSoftBodyMotionProperties motionProps = (ConstSoftBodyMotionProperties) body.getMotionProperties();
+            int numVertices = motionProps.getSettings().countVertices();
+            if (numVertices > 0) {
+                int bufferSize = numVertices * 3;
+                FloatBuffer vertexBuffer = Jolt.newDirectFloatBuffer(bufferSize);
+                motionProps.putVertexLocations(bodyPosition, vertexBuffer);
+                vertexBuffer.flip();
+                float[] vertexArray = new float[bufferSize];
+                vertexBuffer.get(vertexArray);
+                return vertexArray;
             }
         }
         return null;

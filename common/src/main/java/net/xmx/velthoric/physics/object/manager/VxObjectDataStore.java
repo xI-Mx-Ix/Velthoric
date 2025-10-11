@@ -34,6 +34,8 @@ public class VxObjectDataStore extends AbstractDataStore {
     public float[] rotX, rotY, rotZ, rotW;
     public float[] velX, velY, velZ;
     public float[] angVelX, angVelY, angVelZ;
+    public float[] aabbMinX, aabbMinY, aabbMinZ; // AABB min corner
+    public float[] aabbMaxX, aabbMaxY, aabbMaxZ; // AABB max corner
     public float[] @Nullable [] vertexData; // For soft bodies
     public boolean[] isActive;
     public EBodyType[] bodyType;
@@ -71,6 +73,12 @@ public class VxObjectDataStore extends AbstractDataStore {
         angVelX = grow(angVelX, newCapacity);
         angVelY = grow(angVelY, newCapacity);
         angVelZ = grow(angVelZ, newCapacity);
+        aabbMinX = grow(aabbMinX, newCapacity);
+        aabbMinY = grow(aabbMinY, newCapacity);
+        aabbMinZ = grow(aabbMinZ, newCapacity);
+        aabbMaxX = grow(aabbMaxX, newCapacity);
+        aabbMaxY = grow(aabbMaxY, newCapacity);
+        aabbMaxZ = grow(aabbMaxZ, newCapacity);
         vertexData = grow(vertexData, newCapacity);
         isActive = grow(isActive, newCapacity);
         bodyType = grow(bodyType, newCapacity);
@@ -171,6 +179,8 @@ public class VxObjectDataStore extends AbstractDataStore {
         rotW[index] = 1f;
         velX[index] = velY[index] = velZ[index] = 0f;
         angVelX[index] = angVelY[index] = angVelZ[index] = 0f;
+        aabbMinX[index] = aabbMinY[index] = aabbMinZ[index] = 0f;
+        aabbMaxX[index] = aabbMaxY[index] = aabbMaxZ[index] = 0f;
         vertexData[index] = null;
         isActive[index] = false;
         bodyType[index] = null;
