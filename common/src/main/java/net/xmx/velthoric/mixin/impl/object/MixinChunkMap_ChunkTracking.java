@@ -30,7 +30,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * @author xI-Mx-Ix
  */
 @Mixin(ChunkMap.class)
-public abstract class ChunkMapMixin_DispatchObjectsToPlayers {
+public abstract class MixinChunkMap_ChunkTracking {
 
     @Shadow @Final ServerLevel level;
 

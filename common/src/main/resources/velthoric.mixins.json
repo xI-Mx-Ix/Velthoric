@@ -13,9 +13,9 @@
     "event.server.MinecraftServerMixin_VxServerLifecylceEvent",
     "misc.ExplosionMixin_TriggerExplosion",
     "mounting.entity.MixinEntity",
-    "object.ChunkMapMixin_DispatchObjectsToPlayers",
-    "object.ChunkMapMixin_UnloadObjects",
-    "object.EntityStorageMixin_Persistence",
+    "object.MixinChunkMap_ChunkTracking",
+    "object.MixinChunkMap_UnloadObjects",
+    "object.MixinEntityStorage_BodyPersistence",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
   ],
   "client": [

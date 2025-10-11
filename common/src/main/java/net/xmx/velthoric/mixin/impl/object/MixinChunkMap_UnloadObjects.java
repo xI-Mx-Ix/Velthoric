@@ -24,7 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * @author xI-Mx-Ix
  */
 @Mixin(ChunkMap.class)
-public class ChunkMapMixin_UnloadObjects {
+public class MixinChunkMap_UnloadObjects {
 
     @Shadow @Final ServerLevel level;
 
