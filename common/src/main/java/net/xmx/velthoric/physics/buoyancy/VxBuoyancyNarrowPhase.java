@@ -69,6 +69,11 @@ public final class VxBuoyancyNarrowPhase {
      * @param fluidTypes        A map from body ID to the type of fluid.
      */
     private void processBuoyancyForBody(Body body, float deltaTime, Map<Integer, Float> fluidSurfaceHeights, Map<Integer, VxFluidType> fluidTypes) {
+        // Activate the body if it's currently inactive, so forces can take effect.
+        if (!body.isActive()) {
+            physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(body.getId());
+        }
+
         MotionProperties motionProperties = body.getMotionProperties();
         if (motionProperties == null || motionProperties.getInverseMass() < 1e-6f) {
             return; // Static or kinematic bodies are not affected by buoyancy forces.
