@@ -48,9 +48,9 @@ dependencies {
 
     modImplementation "dev.architectury:architectury-forge:$rootProject.architectury_api_version"
 
-    implementation project(path: ":VxNativeUtil", configuration: "namedElements")
-    shadowBundle project(path: ":VxNativeUtil", configuration: "namedElements")
-    minecraftRuntimeLibraries project(path: ":VxNativeUtil", configuration: "namedElements")
+    implementation project(path: ":vx-native", configuration: "namedElements")
+    shadowBundle project(path: ":vx-native", configuration: "namedElements")
+    minecraftRuntimeLibraries project(path: ":vx-native", configuration: "namedElements")
 
     shadowBundle("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}")
     shadowBundle("com.github.stephengold:jolt-jni-Windows64:${jolt_jni_version}:ReleaseSp")

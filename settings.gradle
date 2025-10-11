@@ -13,4 +13,4 @@ include 'common'
 include 'fabric'
 include 'forge'
 
-include 'VxNativeUtil'
+include 'vx-native'
