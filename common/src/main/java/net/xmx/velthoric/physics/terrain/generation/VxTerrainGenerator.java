@@ -66,7 +66,7 @@ public final class VxTerrainGenerator {
                     float cy = (float) (info.localPos().getY() + aabb.minY + hy);
                     float cz = (float) (info.localPos().getZ() + aabb.minZ + hz);
 
-                    try (BoxShapeSettings boxSettings = new BoxShapeSettings(hx, hy, hz)) {
+                    try (BoxShapeSettings boxSettings = new BoxShapeSettings(new Vec3(hx, hy, hz), 0.0f)) {
                         compoundSettings.addShape(cx, cy, cz, boxSettings);
                         hasShapes = true;
                     }
