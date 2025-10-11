@@ -11,7 +11,7 @@ import com.github.stephengold.joltjni.readonly.ConstBody;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
 import net.xmx.velthoric.physics.object.type.VxBody;
-import net.xmx.velthoric.physics.object.type.internal.VxInternalBody;
+import net.xmx.velthoric.physics.object.type.internal.VxBodyHandle;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
 import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.storage.VxChunkDataStore;
@@ -101,8 +101,8 @@ public final class VxTerrainTracker {
             }
             VxBody obj = currentObjects.get(objectUpdateIndex++);
 
-            int dataIndex = obj.getInternalBody().getDataStoreIndex();
-            if (dataIndex == -1 || obj.getInternalBody().getBodyId() == 0) {
+            int dataIndex = obj.getBodyHandle().getDataStoreIndex();
+            if (dataIndex == -1 || obj.getBodyHandle().getBodyId() == 0) {
                 removeObjectTracking(obj.getPhysicsId());
                 continue;
             }
@@ -115,7 +115,7 @@ public final class VxTerrainTracker {
             if (cooldown > 0 && velSq < MAX_SPEED_FOR_COOLDOWN_SQR) {
                 objectUpdateCooldowns.put(obj.getPhysicsId(), cooldown - 1);
             } else {
-                objectsToPreload.put(obj.getInternalBody().getBodyId(), obj);
+                objectsToPreload.put(obj.getBodyHandle().getBodyId(), obj);
             }
         }
 
@@ -146,8 +146,8 @@ public final class VxTerrainTracker {
         for (List<VxBody> batch : batches) {
             if (batch.isEmpty()) continue;
             int[] batchBodyIds = batch.stream()
-                .map(VxBody::getInternalBody)
-                .mapToInt(VxInternalBody::getBodyId)
+                .map(VxBody::getBodyHandle)
+                .mapToInt(VxBodyHandle::getBodyId)
                 .filter(id -> id != 0)
                 .toArray();
 
@@ -195,7 +195,7 @@ public final class VxTerrainTracker {
             return;
         }
 
-        int dataIndex = obj.getInternalBody().getDataStoreIndex();
+        int dataIndex = obj.getBodyHandle().getDataStoreIndex();
         float velX = objectDataStore.velX[dataIndex];
         float velY = objectDataStore.velY[dataIndex];
         float velZ = objectDataStore.velZ[dataIndex];

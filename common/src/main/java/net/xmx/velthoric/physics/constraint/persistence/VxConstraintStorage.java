@@ -78,7 +78,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             if (constraint == null) continue;
             VxBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
             if (body1 != null) {
-                int index = body1.getInternalBody().getDataStoreIndex();
+                int index = body1.getBodyHandle().getDataStoreIndex();
                 if (index == -1) continue;
                 ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(index);
                 RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
@@ -90,9 +90,9 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             getRegion(regionPos).thenAcceptAsync(region -> {
                 for (VxConstraint constraint : regionConstraints) {
                     VxBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
-                    if (body1 == null || body1.getInternalBody().getDataStoreIndex() == -1) continue;
+                    if (body1 == null || body1.getBodyHandle().getDataStoreIndex() == -1) continue;
 
-                    ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(body1.getInternalBody().getDataStoreIndex());
+                    ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(body1.getBodyHandle().getDataStoreIndex());
                     byte[] data = serializeConstraintData(constraint, chunkPos);
                     region.entries.put(constraint.getConstraintId(), data);
                     regionIndex.put(constraint.getConstraintId(), regionPos);

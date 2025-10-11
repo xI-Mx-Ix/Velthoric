@@ -55,8 +55,8 @@ public class VxDependencyDataSystem {
             VxBody body1 = objectManager.getObject(constraint.getBody1Id());
             VxBody body2 = objectManager.getObject(constraint.getBody2Id());
 
-            boolean body1Ready = body1 != null && body1.getInternalBody().getBodyId() != 0;
-            boolean body2Ready = body2 != null && body2.getInternalBody().getBodyId() != 0;
+            boolean body1Ready = body1 != null && body1.getBodyHandle().getBodyId() != 0;
+            boolean body2Ready = body2 != null && body2.getBodyHandle().getBodyId() != 0;
 
             if (body1Ready && body2Ready) {
                 if (pendingConstraints.remove(constraintId) != null) {

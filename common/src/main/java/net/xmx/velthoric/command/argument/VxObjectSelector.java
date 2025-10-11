@@ -47,7 +47,7 @@ public class VxObjectSelector {
 
         if (bodyType != null) {
             predicate = predicate.and(obj -> {
-                int index = obj.getInternalBody().getDataStoreIndex();
+                int index = obj.getBodyHandle().getDataStoreIndex();
                 if (index != -1) {
                     return obj.getPhysicsWorld().getObjectManager().getDataStore().bodyType[index] == bodyType;
                 }

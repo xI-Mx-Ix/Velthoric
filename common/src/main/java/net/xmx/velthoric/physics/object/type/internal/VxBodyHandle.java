@@ -11,7 +11,7 @@ package net.xmx.velthoric.physics.object.type.internal;
  *
  * @author xI-Mx-Ix
  */
-public final class VxInternalBody {
+public final class VxBodyHandle {
 
     /**
      * The ID of the body in the Jolt physics simulation. 0 if not yet added.

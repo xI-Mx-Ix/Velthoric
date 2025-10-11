@@ -17,7 +17,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.material.FluidState;
 import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
 import net.xmx.velthoric.physics.object.type.VxBody;
-import net.xmx.velthoric.physics.object.type.internal.VxInternalBody;
+import net.xmx.velthoric.physics.object.type.internal.VxBodyHandle;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
@@ -64,7 +64,7 @@ public final class VxBuoyancyBroadPhase {
             VxBody body = physicsWorld.getObjectManager().getObject(id);
             if (body == null) continue;
 
-            VxInternalBody internalBody = body.getInternalBody();
+            VxBodyHandle internalBody = body.getBodyHandle();
             int bodyId = internalBody.getBodyId();
             if (bodyId == 0) continue;
 

@@ -15,7 +15,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
-import net.xmx.velthoric.physics.object.type.internal.VxInternalBody;
+import net.xmx.velthoric.physics.object.type.internal.VxBodyHandle;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
 import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -110,7 +110,7 @@ public class VxPhysicsUpdater {
 
                 final VxBody body = manager.getObject(id);
                 if (body != null) {
-                    final int bodyId = body.getInternalBody().getBodyId();
+                    final int bodyId = body.getBodyHandle().getBodyId();
                     if (bodyId != 0 && bodyInterface.isAdded(bodyId)) {
                         tempSectionPos.set(new VxSectionPos(
                                 SectionPos.posToSectionCoord(dataStore.posX[i]),
@@ -152,7 +152,7 @@ public class VxPhysicsUpdater {
 
                 final VxBody body = manager.getObject(id);
                 if (body != null) {
-                    final int bodyId = body.getInternalBody().getBodyId();
+                    final int bodyId = body.getBodyHandle().getBodyId();
                     if (bodyId != 0 && bodyInterface.isAdded(bodyId)) {
                         final RVec3 pos = tempPos.get();
                         pos.set(dataStore.posX[i], dataStore.posY[i], dataStore.posZ[i]);
@@ -188,7 +188,7 @@ public class VxPhysicsUpdater {
             VxBody obj = manager.getObject(id);
             if (obj == null) continue;
 
-            VxInternalBody internalBody = obj.getInternalBody();
+            VxBodyHandle internalBody = obj.getBodyHandle();
             int bodyId = internalBody.getBodyId();
             if (bodyId == 0 || !bodyInterface.isAdded(bodyId)) continue;
 

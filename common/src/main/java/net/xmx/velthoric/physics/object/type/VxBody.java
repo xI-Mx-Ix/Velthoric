@@ -4,10 +4,6 @@
  */
 package net.xmx.velthoric.physics.object.type;
 
-import com.github.stephengold.joltjni.Body;
-import com.github.stephengold.joltjni.BodyLockRead;
-import com.github.stephengold.joltjni.BodyLockWrite;
-import com.github.stephengold.joltjni.readonly.ConstBody;
 import net.fabricmc.api.EnvType;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.math.VxTransform;
@@ -16,9 +12,8 @@ import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxSynchronizedData;
-import net.xmx.velthoric.physics.object.type.internal.VxInternalBody;
+import net.xmx.velthoric.physics.object.type.internal.VxBodyHandle;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,7 +21,7 @@ import java.util.UUID;
 /**
  * The abstract base class for all physics objects in Velthoric on the server side.
  * This class is the high-level representation, handling persistence, network synchronization,
- * and game logic. It holds a lightweight {@link VxInternalBody} handle for direct
+ * and game logic. It holds a lightweight {@link VxBodyHandle} handle for direct
  * interaction with the physics simulation. Users should inherit from this class's children,
  * {@link VxRigidBody} or {@link VxSoftBody}.
  *
@@ -39,14 +34,14 @@ public abstract class VxBody {
     protected final VxObjectType<? extends VxBody> type;
     protected final VxPhysicsWorld physicsWorld;
     protected final VxSynchronizedData synchronizedData;
-    protected final VxInternalBody internalBody;
+    protected final VxBodyHandle bodyHandle;
 
     // Constructor
     protected VxBody(VxObjectType<? extends VxBody> type, VxPhysicsWorld physicsWorld, UUID id) {
         this.type = type;
         this.physicsWorld = physicsWorld;
         this.physicsId = id;
-        this.internalBody = new VxInternalBody();
+        this.bodyHandle = new VxBodyHandle();
         this.synchronizedData = new VxSynchronizedData(EnvType.SERVER);
         this.defineSyncData();
     }
@@ -158,15 +153,15 @@ public abstract class VxBody {
 
     // Physics State & Body Access
     public void getTransform(VxTransform outTransform) {
-        if (this.internalBody.getDataStoreIndex() != -1) {
-            this.physicsWorld.getObjectManager().getTransform(this.internalBody.getDataStoreIndex(), outTransform);
+        if (this.bodyHandle.getDataStoreIndex() != -1) {
+            this.physicsWorld.getObjectManager().getTransform(this.bodyHandle.getDataStoreIndex(), outTransform);
         }
     }
 
     public VxTransform getTransform() {
-        if (this.internalBody.getDataStoreIndex() != -1) {
+        if (this.bodyHandle.getDataStoreIndex() != -1) {
             VxTransform transform = new VxTransform();
-            this.physicsWorld.getObjectManager().getTransform(this.internalBody.getDataStoreIndex(), transform);
+            this.physicsWorld.getObjectManager().getTransform(this.bodyHandle.getDataStoreIndex(), transform);
             return transform;
         }
         // Return a default or throw an exception if the object is not yet fully initialized
@@ -192,8 +187,8 @@ public abstract class VxBody {
      *
      * @return The internal body handle.
      */
-    public VxInternalBody getInternalBody() {
-        return internalBody;
+    public VxBodyHandle getBodyHandle() {
+        return bodyHandle;
     }
 
     public VxSynchronizedData getSynchronizedData() {

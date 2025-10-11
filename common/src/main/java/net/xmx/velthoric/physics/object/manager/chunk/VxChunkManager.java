@@ -52,7 +52,7 @@ public class VxChunkManager {
      * @param body The object to start tracking.
      */
     public void startTracking(VxBody body) {
-        int index = body.getInternalBody().getDataStoreIndex();
+        int index = body.getBodyHandle().getDataStoreIndex();
         if (index == -1) return;
 
         long key = objectManager.getObjectChunkPos(index).toLong();
@@ -69,7 +69,7 @@ public class VxChunkManager {
      * @param body The object to stop tracking.
      */
     public void stopTracking(VxBody body) {
-        int index = body.getInternalBody().getDataStoreIndex();
+        int index = body.getBodyHandle().getDataStoreIndex();
         if (index == -1) return;
 
         long key = dataStore.chunkKey[index];
@@ -96,7 +96,7 @@ public class VxChunkManager {
      * @param toKey   The long-encoded key of the chunk it moved to.
      */
     public void updateObjectTracking(VxBody body, long fromKey, long toKey) {
-        int index = body.getInternalBody().getDataStoreIndex();
+        int index = body.getBodyHandle().getDataStoreIndex();
         if (index != -1) {
             dataStore.chunkKey[index] = toKey;
         }
