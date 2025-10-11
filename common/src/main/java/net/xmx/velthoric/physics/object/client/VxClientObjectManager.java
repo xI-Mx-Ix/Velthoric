@@ -6,7 +6,6 @@ package net.xmx.velthoric.physics.object.client;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import dev.architectury.event.events.client.ClientTickEvent;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -15,6 +14,7 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
+import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.client.time.VxClientClock;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 import net.xmx.velthoric.physics.object.type.VxBody;
@@ -126,26 +126,31 @@ public class VxClientObjectManager {
      *
      * @param id          The UUID of the new object.
      * @param typeId      The ResourceLocation identifying the object's type.
-     * @param objectType  The EBodyType of the object (Rigid, Soft, etc.).
      * @param data        A buffer containing the initial transform and custom sync data.
      * @param timestamp   The server-side timestamp of the spawn event.
      */
-    public void spawnObject(UUID id, ResourceLocation typeId, EBodyType objectType, VxByteBuf data, long timestamp) {
+    public void spawnObject(UUID id, ResourceLocation typeId, VxByteBuf data, long timestamp) {
         if (store.hasObject(id)) {
             VxMainClass.LOGGER.warn("Client received spawn request for already existing object: {}", id);
             return;
         }
 
-        int index = store.addObject(id);
-        store.objectType[index] = objectType;
+        VxObjectRegistry registry = VxObjectRegistry.getInstance();
+        VxObjectType<?> type = registry.getRegistrationData(typeId);
 
-        VxBody body = VxObjectRegistry.getInstance().createClientBody(typeId, id, objectType);
-
-        if (body == null) {
-            store.removeObject(id);
-            VxMainClass.LOGGER.error("Could not spawn client object with type ID '{}', factory not found or failed.", typeId);
+        if (type == null) {
+            VxMainClass.LOGGER.error("Could not spawn client object with type ID '{}', type not registered on client.", typeId);
             return;
         }
+
+        VxBody body = registry.createClientBody(type, id);
+
+        if (body == null) {
+            // The registry's createClientBody method already logs the specific error.
+            return;
+        }
+
+        int index = store.addObject(id);
         body.setDataStoreIndex(index);
         managedObjects.put(id, body);
 

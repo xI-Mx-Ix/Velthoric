@@ -5,7 +5,6 @@
 package net.xmx.velthoric.physics.object.client;
 
 import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import net.xmx.velthoric.physics.object.AbstractDataStore;
 import org.jetbrains.annotations.Nullable;
 
@@ -66,8 +65,6 @@ public class VxClientObjectDataStore extends AbstractDataStore {
     public boolean[] render_isInitialized;
 
     // --- Static and Metadata ---
-    // The type of body (e.g., RigidBody, SoftBody).
-    public EBodyType[] objectType;
     // Buffer for custom data sent from the server.
     public ByteBuffer[] customData;
     // The last known position of the object, used for frustum culling.
@@ -133,7 +130,6 @@ public class VxClientObjectDataStore extends AbstractDataStore {
         render_vertexData = grow(render_vertexData, newCapacity);
         render_isInitialized = grow(render_isInitialized, newCapacity);
 
-        objectType = grow(objectType, newCapacity);
         customData = grow(customData, newCapacity);
         lastKnownPosition = grow(lastKnownPosition, newCapacity);
 
@@ -240,7 +236,6 @@ public class VxClientObjectDataStore extends AbstractDataStore {
         prev_vertexData[index] = null;
         render_vertexData[index] = null;
         customData[index] = null;
-        objectType[index] = null;
         if (lastKnownPosition != null && lastKnownPosition[index] != null) {
             lastKnownPosition[index].loadZero();
         }

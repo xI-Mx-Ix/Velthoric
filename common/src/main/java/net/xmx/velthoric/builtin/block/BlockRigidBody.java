@@ -6,12 +6,10 @@ package net.xmx.velthoric.builtin.block;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.ShapeSettings;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -19,7 +17,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
@@ -49,8 +47,8 @@ public class BlockRigidBody extends VxRigidBody {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    public BlockRigidBody(UUID id, ResourceLocation typeId, EBodyType objectType) {
-        super(id, typeId, objectType);
+    public BlockRigidBody(VxObjectType<BlockRigidBody> type, UUID id) {
+        super(type, id);
     }
 
     @Override

@@ -4,12 +4,10 @@
  */
 package net.xmx.velthoric.physics.object.registry;
 
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.VxObjectType;
 import net.xmx.velthoric.physics.object.client.body.renderer.VxBodyRenderer;
 import net.xmx.velthoric.physics.object.type.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -125,12 +123,11 @@ public class VxObjectRegistry {
         /**
          * Creates a new client-side body instance.
          *
-         * @param id             The unique ID of the object.
-         * @param typeId         The unique identifier of the object's type.
-         * @param objectType     The type of the body (e.g., RigidBody, SoftBody).
+         * @param type The type definition of the object.
+         * @param id   The unique ID of the object instance.
          * @return A new instance of a {@link VxBody} subclass, configured for the client.
          */
-        VxBody create(UUID id, ResourceLocation typeId, EBodyType objectType);
+        VxBody create(VxObjectType<?> type, UUID id);
     }
 
     /**
@@ -169,17 +166,24 @@ public class VxObjectRegistry {
     }
 
     /**
-     * Creates a new client-side body instance for the given type identifier.
+     * Creates a new client-side body instance for the given type.
      *
+     * @param type The object type definition.
+     * @param id   The unique identifier for the new instance.
      * @return A new {@link VxBody} instance, or {@code null} on failure.
      */
     @Nullable
     @Environment(EnvType.CLIENT)
-    public VxBody createClientBody(ResourceLocation typeId, UUID id, EBodyType objectType) {
+    public VxBody createClientBody(VxObjectType<?> type, UUID id) {
+        if (type == null) {
+            VxMainClass.LOGGER.error("Attempted to create client body with null type for ID: {}", id);
+            return null;
+        }
+        ResourceLocation typeId = type.getTypeId();
         ClientFactory factory = Client.clientFactories.get(typeId);
         if (factory != null) {
             try {
-                return factory.create(id, typeId, objectType);
+                return factory.create(type, id);
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Failed to create client body of type {}", typeId, e);
             }

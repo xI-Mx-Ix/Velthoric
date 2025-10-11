@@ -6,7 +6,6 @@ package net.xmx.velthoric.physics.object.type;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
@@ -14,7 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
@@ -39,21 +38,14 @@ public abstract class VxBody {
     // --- Common Fields ---
     protected final UUID physicsId;
     protected final VxSynchronizedData synchronizedData;
+    protected final VxObjectType<? extends VxBody> type;
     /** The ID of the body in the Jolt physics simulation. 0 if not yet added. Server-side only. */
     private int bodyId = 0;
     /** The index of this body's data in the data store. -1 if not yet added. */
     private int dataStoreIndex = -1;
 
     // --- Server-Only Fields ---
-    protected final VxObjectType<? extends VxBody> type;
     protected final VxPhysicsWorld physicsWorld;
-
-    // --- Client-Only Fields ---
-    @Environment(EnvType.CLIENT)
-    protected ResourceLocation typeId;
-    @Environment(EnvType.CLIENT)
-    protected EBodyType objectType;
-
 
     /**
      * Server-side constructor.
@@ -71,19 +63,16 @@ public abstract class VxBody {
 
     /**
      * Client-side constructor.
+     * @param type The object type definition.
      * @param id The unique UUID for this body.
-     * @param typeId The resource location of the object's type.
-     * @param objectType The Jolt body type.
      */
     @Environment(EnvType.CLIENT)
-    protected VxBody(UUID id, ResourceLocation typeId, EBodyType objectType) {
+    protected VxBody(VxObjectType<? extends VxBody> type, UUID id) {
+        this.type = type;
         this.physicsId = id;
-        this.typeId = typeId;
-        this.objectType = objectType;
         this.synchronizedData = new VxSynchronizedData(EnvType.CLIENT);
         this.defineSyncData();
         // Server-only fields are left null on the client.
-        this.type = null;
         this.physicsWorld = null;
     }
 
@@ -269,21 +258,19 @@ public abstract class VxBody {
     }
 
     /**
-     * @return The server-side type definition of this object. Null on the client.
+     * @return The type definition of this object.
      */
-    @Nullable
     public VxObjectType<? extends VxBody> getType() {
         return type;
     }
 
     /**
      * Gets the ResourceLocation that identifies this object's type.
-     * On the server, it's retrieved from the VxObjectType. On the client, it's stored directly.
      *
      * @return The type identifier.
      */
     public ResourceLocation getTypeId() {
-        return type != null ? type.getTypeId() : typeId;
+        return type.getTypeId();
     }
 
     /**

@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.object;
+package net.xmx.velthoric.physics.object.registry;
 
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.physics.object.type.VxBody;

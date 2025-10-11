@@ -22,6 +22,8 @@ import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunClientManager;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
 import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.object.type.VxRigidBody;
 import org.joml.Matrix4f;
 
 import java.util.Map;
@@ -83,7 +85,9 @@ public class PhysicsGunBeamRenderer {
             if (player == null) continue;
 
             Integer index = store.getIndexForId(objectUuid);
-            if (index == null || !store.render_isInitialized[index] || store.objectType[index] != EBodyType.RigidBody) continue;
+            VxBody body = objectManager.getObject(objectUuid);
+
+            if (index == null || !store.render_isInitialized[index] || !(body instanceof VxRigidBody)) continue;
 
             interpolator.interpolateFrame(store, index, partialTicks, INTERPOLATED_POSITION, INTERPOLATED_ROTATION);
 

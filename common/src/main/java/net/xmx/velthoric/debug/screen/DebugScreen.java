@@ -14,6 +14,9 @@ import net.xmx.velthoric.event.api.VxDebugEvent;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
+import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.object.type.VxRigidBody;
+import net.xmx.velthoric.physics.object.type.VxSoftBody;
 
 import java.util.List;
 import java.util.UUID;
@@ -53,9 +56,12 @@ public class DebugScreen {
             Integer index = store.getIndexForId(id);
             if (index == null) continue;
 
-            if (store.objectType[index] == EBodyType.RigidBody) {
+            VxBody body = clientManager.getObject(id);
+            if (body == null) continue;
+
+            if (body instanceof VxRigidBody) {
                 clientRigidCount++;
-            } else if (store.objectType[index] == EBodyType.SoftBody) {
+            } else if (body instanceof VxSoftBody) {
                 clientSoftCount++;
                 if (store.render_vertexData[index] != null) {
                     totalVertexCount += store.render_vertexData[index].length / 3;

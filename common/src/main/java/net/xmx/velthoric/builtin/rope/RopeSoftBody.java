@@ -9,13 +9,11 @@ import com.github.stephengold.joltjni.SoftBodyCreationSettings;
 import com.github.stephengold.joltjni.SoftBodySharedSettings;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.Vertex;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.object.type.VxSoftBody;
@@ -53,8 +51,8 @@ public class RopeSoftBody extends VxSoftBody {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    public RopeSoftBody(UUID id, ResourceLocation typeId, EBodyType objectType) {
-        super(id, typeId, objectType);
+    public RopeSoftBody(VxObjectType<RopeSoftBody> type, UUID id) {
+        super(type, id);
     }
 
     @Override

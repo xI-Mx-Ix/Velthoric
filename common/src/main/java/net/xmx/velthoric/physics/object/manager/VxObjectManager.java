@@ -16,7 +16,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.chunk.VxChunkManager;
 import net.xmx.velthoric.physics.object.persistence.VxBodyStorage;
 import net.xmx.velthoric.physics.object.persistence.VxSerializedBodyData;

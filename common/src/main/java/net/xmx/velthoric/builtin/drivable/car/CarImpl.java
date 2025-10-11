@@ -5,18 +5,16 @@
 package net.xmx.velthoric.builtin.drivable.car;
 
 import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
-import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.vehicle.type.car.VxCar;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
@@ -47,8 +45,8 @@ public class CarImpl extends VxCar {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    public CarImpl(UUID id, ResourceLocation typeId, EBodyType objectType) {
-        super(id, typeId, objectType);
+    public CarImpl(VxObjectType<CarImpl> type, UUID id) {
+        super(type, id);
     }
 
     @Override

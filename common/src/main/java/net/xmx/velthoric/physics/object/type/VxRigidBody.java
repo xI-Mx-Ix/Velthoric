@@ -6,11 +6,9 @@ package net.xmx.velthoric.physics.object.type;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
@@ -41,13 +39,12 @@ public abstract class VxRigidBody extends VxBody {
     /**
      * Client-side constructor for a rigid body.
      *
+     * @param type The object type definition.
      * @param id The unique UUID for this body.
-     * @param typeId The resource location of the object's type.
-     * @param objectType The Jolt body type.
      */
     @Environment(EnvType.CLIENT)
-    protected VxRigidBody(UUID id, ResourceLocation typeId, EBodyType objectType) {
-        super(id, typeId, objectType);
+    protected VxRigidBody(VxObjectType<? extends VxRigidBody> type, UUID id) {
+        super(type, id);
     }
 
     /**

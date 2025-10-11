@@ -8,14 +8,12 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.VehicleCollisionTester;
 import com.github.stephengold.joltjni.VehicleConstraintSettings;
 import com.github.stephengold.joltjni.WheeledVehicleController;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.mounting.input.VxMountInput;
-import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
@@ -51,8 +49,8 @@ public abstract class VxCar extends VxVehicle {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    protected VxCar(UUID id, ResourceLocation typeId, EBodyType objectType) {
-        super(id, typeId, objectType);
+    protected VxCar(VxObjectType<? extends VxCar> type, UUID id) {
+        super(type, id);
     }
 
     protected abstract VehicleConstraintSettings createConstraintSettings();

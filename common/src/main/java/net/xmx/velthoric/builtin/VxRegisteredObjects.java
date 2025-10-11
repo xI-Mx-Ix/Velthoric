@@ -23,7 +23,7 @@ import net.xmx.velthoric.builtin.rope.RopeRenderer;
 import net.xmx.velthoric.builtin.rope.RopeSoftBody;
 import net.xmx.velthoric.builtin.sphere.SphereRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
-import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
 
 /**
@@ -32,6 +32,7 @@ import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
  *
  * @author xI-Mx-Ix
  */
+@SuppressWarnings("unchecked")
 public class VxRegisteredObjects {
 
     public static final VxObjectType<BlockRigidBody> BLOCK = VxObjectType.Builder
@@ -90,14 +91,14 @@ public class VxRegisteredObjects {
     @Environment(EnvType.CLIENT)
     public static void registerClientFactories() {
         var registry = VxObjectRegistry.getInstance();
-        registry.registerClientFactory(BLOCK.getTypeId(), BlockRigidBody::new);
-        registry.registerClientFactory(SPHERE.getTypeId(), SphereRigidBody::new);
-        registry.registerClientFactory(BOX.getTypeId(), BoxRigidBody::new);
-        registry.registerClientFactory(MARBLE.getTypeId(), MarbleRigidBody::new);
-        registry.registerClientFactory(CLOTH.getTypeId(), ClothSoftBody::new);
-        registry.registerClientFactory(ROPE.getTypeId(), RopeSoftBody::new);
-        registry.registerClientFactory(CAR.getTypeId(), CarImpl::new);
-        registry.registerClientFactory(MOTORCYCLE.getTypeId(), MotorcycleImpl::new);
+        registry.registerClientFactory(BLOCK.getTypeId(), (type, id) -> new BlockRigidBody((VxObjectType<BlockRigidBody>) type, id));
+        registry.registerClientFactory(SPHERE.getTypeId(), (type, id) -> new SphereRigidBody((VxObjectType<SphereRigidBody>) type, id));
+        registry.registerClientFactory(BOX.getTypeId(), (type, id) -> new BoxRigidBody((VxObjectType<BoxRigidBody>) type, id));
+        registry.registerClientFactory(MARBLE.getTypeId(), (type, id) -> new MarbleRigidBody((VxObjectType<MarbleRigidBody>) type, id));
+        registry.registerClientFactory(CLOTH.getTypeId(), (type, id) -> new ClothSoftBody((VxObjectType<ClothSoftBody>) type, id));
+        registry.registerClientFactory(ROPE.getTypeId(), (type, id) -> new RopeSoftBody((VxObjectType<RopeSoftBody>) type, id));
+        registry.registerClientFactory(CAR.getTypeId(), (type, id) -> new CarImpl((VxObjectType<CarImpl>) type, id));
+        registry.registerClientFactory(MOTORCYCLE.getTypeId(), (type, id) -> new MotorcycleImpl((VxObjectType<MotorcycleImpl>) type, id));
     }
 
     /**

@@ -5,15 +5,13 @@
 package net.xmx.velthoric.builtin.marble;
 
 import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.object.type.VxRigidBody;
@@ -43,8 +41,8 @@ public class MarbleRigidBody extends VxRigidBody {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    public MarbleRigidBody(UUID id, ResourceLocation typeId, EBodyType objectType) {
-        super(id, typeId, objectType);
+    public MarbleRigidBody(VxObjectType<MarbleRigidBody> type, UUID id) {
+        super(type, id);
     }
 
     @Override

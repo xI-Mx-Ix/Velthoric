@@ -5,14 +5,12 @@
 package net.xmx.velthoric.physics.vehicle;
 
 import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.mounting.VxMountable;
-import net.xmx.velthoric.physics.object.VxObjectType;
+import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.client.VxRenderState;
 import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
@@ -65,8 +63,8 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    protected VxVehicle(UUID id, ResourceLocation typeId, EBodyType objectType) {
-        super(id, typeId, objectType);
+    protected VxVehicle(VxObjectType<? extends VxVehicle> type, UUID id) {
+        super(type, id);
         this.prevWheelStates = new VxWheelRenderState[0];
         this.targetWheelStates = new VxWheelRenderState[0];
         this.interpolatedWheelStates = new ArrayList<>();
