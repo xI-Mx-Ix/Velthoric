@@ -97,6 +97,7 @@ public abstract class VxMotorcycle extends VxVehicle {
         float brake = input.isBackward() ? 1.0f : 0.0f;
         float handBrake = input.isUp() ? 1.0f : 0.0f;
 
+        physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(this.getBodyId());
         controller.setInput(forward, right, brake, handBrake);
     }
 
