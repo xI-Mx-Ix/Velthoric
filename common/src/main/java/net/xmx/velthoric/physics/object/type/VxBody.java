@@ -137,6 +137,18 @@ public abstract class VxBody {
     }
 
     /**
+     * Called on the client right after synchronized data has been updated from a server packet.
+     * Subclasses can override this method to react to data changes. For example, to update
+     * a client-side manager or trigger an effect.
+     *
+     * @param accessor The specific data accessor that was just updated.
+     */
+    @Environment(EnvType.CLIENT)
+    public void onSyncedDataUpdated(VxDataAccessor<?> accessor) {
+        // This is a hook for subclasses to implement.
+    }
+
+    /**
      * Writes all defined synchronized data to the buffer. Used for spawning the object on the client.
      * @param buf The buffer to write to.
      */

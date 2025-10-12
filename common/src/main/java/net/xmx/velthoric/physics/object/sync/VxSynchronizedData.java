@@ -8,6 +8,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.fabricmc.api.EnvType;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.object.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -143,10 +144,12 @@ public class VxSynchronizedData {
     }
 
     /**
-     * Reads entries from a buffer and applies them to this data store.
+     * Reads entries from a buffer, applies them to this data store,
+     * and calls the on-update hook on the provided body for each entry.
      * @param buf The buffer to read from.
+     * @param body The body instance whose data is being updated, used to call the hook.
      */
-    public void readEntries(VxByteBuf buf) {
+    public void readEntries(VxByteBuf buf, VxBody body) {
         while (true) {
             int id = buf.readVarInt();
             if (id == 255) { // End marker
@@ -154,7 +157,11 @@ public class VxSynchronizedData {
             }
             Entry<?> entry = this.entries.get(id);
             if (entry != null) {
+                // 1. Read and apply the data value (existing logic)
                 this.readEntry(buf, entry);
+
+                // 2. Call the hook on the body, notifying it of the specific change (new logic)
+                body.onSyncedDataUpdated(entry.getAccessor());
             }
         }
     }

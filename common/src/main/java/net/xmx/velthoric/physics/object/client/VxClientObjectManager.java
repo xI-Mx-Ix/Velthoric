@@ -169,7 +169,7 @@ public class VxClientObjectManager {
         VxTransform transform = new VxTransform();
         transform.fromBuffer(data);
 
-        body.getSynchronizedData().readEntries(data);
+        body.getSynchronizedData().readEntries(data, body);
 
         initializeState(index, transform, timestamp);
     }
@@ -231,6 +231,7 @@ public class VxClientObjectManager {
         store.removeObject(id);
         VxClientMountingManager.getInstance().removeSeatsForObject(id);
     }
+
     /**
      * Updates the synchronized data for a specific object.
      *
@@ -241,8 +242,9 @@ public class VxClientObjectManager {
         VxBody body = managedObjects.get(id);
         if (body != null) {
             try {
-                // The incoming ByteBuf is wrapped in our custom VxByteBuf for deserialization
-                body.getSynchronizedData().readEntries(new VxByteBuf(data));
+                // The incoming ByteBuf is wrapped in our custom VxByteBuf for deserialization.
+                // We now pass the body instance itself to the readEntries method.
+                body.getSynchronizedData().readEntries(new VxByteBuf(data), body);
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Failed to read synchronized data for object {}", id, e);
             }
