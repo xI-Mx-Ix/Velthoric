@@ -113,15 +113,28 @@ public final class VxTerrainTracker {
     }
 
     /**
-     * Recalculates the full set of physically active chunks required by bodies that are either
-     * already moving or are waiting to be activated for the first time.
+     * Updates the set of active terrain chunks for the current physics tick.
+     * <p>
+     * Ensures that physics bodies can interact properly by loading terrain
+     * around moving or soon-to-move bodies. Prevents deadlocks where inactive
+     * terrain blocks activation.
+     * <p>
+     * Steps:
+     * <ol>
+     *   <li>Collect chunks required by all relevant bodies.</li>
+     *   <li>Request generation of missing chunks via {@link VxTerrainManager}.</li>
+     *   <li>Deactivate chunks no longer needed; activate new ones.</li>
+     * </ol>
+     *
+     * @param allObjects Snapshot of all current physics bodies.
      */
     private void updateChunkActivation(List<VxBody> allObjects) {
+        // A set to hold all chunk positions that must be physically active this tick.
         Set<VxSectionPos> requiredActiveSet = new HashSet<>();
 
-        // *** THE FIX IS HERE ***
-        // Consider bodies for activation if they are either already active (moving)
-        // OR if they are waiting for their initial activation. This breaks the deadlock.
+        // A body requires active terrain if it's already moving (isActive) or if the physics engine
+        // has marked it to start moving on the next simulation step (isAwaitingActivation).
+        // Including 'isAwaitingActivation' is crucial to prevent deadlocks.
         for (VxBody obj : allObjects) {
             int dataIndex = obj.getDataStoreIndex();
             if (dataIndex != -1 && (objectDataStore.isActive[dataIndex] || objectDataStore.isAwaitingActivation[dataIndex])) {
@@ -129,24 +142,25 @@ public final class VxTerrainTracker {
             }
         }
 
-        // Prioritize the generation of these critical chunks.
+        // Ensure that the most urgently needed chunks are generated with the highest priority.
         requiredActiveSet.forEach(pos -> terrainManager.prioritizeChunk(pos, VxTaskPriority.CRITICAL));
 
-        // Get the set of chunks that are currently active in the world.
+        // Get a snapshot of all chunks that are currently part of the physics simulation.
         Set<VxSectionPos> currentlyActive = chunkDataStore.getActiveIndices().stream()
                 .filter(index -> chunkDataStore.states[index] == 4 /* STATE_READY_ACTIVE */)
                 .map(chunkDataStore::getPosForIndex)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        // Deactivate chunks that are no longer needed.
+        // Deactivate any chunks that were active last tick but are no longer required.
+        // This is an optimization to keep the number of bodies in the simulation low.
         for (VxSectionPos pos : currentlyActive) {
             if (!requiredActiveSet.contains(pos)) {
                 terrainManager.deactivateChunk(pos);
             }
         }
 
-        // Activate chunks that are newly required.
+        // Activate any newly required chunks that are not yet part of the simulation.
         for (VxSectionPos pos : requiredActiveSet) {
             if (!currentlyActive.contains(pos)) {
                 terrainManager.activateChunk(pos);
