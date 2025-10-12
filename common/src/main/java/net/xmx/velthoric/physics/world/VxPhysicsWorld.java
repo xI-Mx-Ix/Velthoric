@@ -230,8 +230,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         final int maxBodies = 65536;
         final int maxBodyPairs = 65536;
         final int maxContactConstraints = 65536;
-        final int numPositionIterations = 3;
-        final int numVelocityIterations = 8;
+        final int numPositionIterations = 10;
+        final int numVelocityIterations = 15;
         final float speculativeContactDistance = 0.02f;
         final float baumgarteFactor = 0.2f;
         final float penetrationSlop = 0.001f;
