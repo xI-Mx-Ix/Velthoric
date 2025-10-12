@@ -48,6 +48,7 @@ public class VxDebugRenderer {
 
     /**
      * Renders the hitboxes for all rideable seats as wireframe OBBs.
+     * Driver seats are rendered in red, and passenger seats are rendered in light blue.
      *
      * @param poseStack    The current pose stack.
      * @param bufferSource The buffer source.
@@ -67,8 +68,15 @@ public class VxDebugRenderer {
             for (VxSeat seat : ridingManager.getSeats(body.getPhysicsId())) {
                 // Get the precise Oriented Bounding Box for the seat in world space.
                 VxOBB obb = seat.getGlobalOBB(this.renderState.transform);
-                // Draw the OBB's wireframe.
-                drawOBB(vertexConsumer, poseStack, obb, 0.0f, 1.0f, 1.0f, 1.0f);
+
+                // Draw the OBB's wireframe with a color indicating its type.
+                if (seat.isDriverSeat()) {
+                    // Red for the driver seat
+                    drawOBB(vertexConsumer, poseStack, obb, 1.0f, 0.0f, 0.0f, 1.0f);
+                } else {
+                    // Light blue for passenger seats
+                    drawOBB(vertexConsumer, poseStack, obb, 0.2f, 0.6f, 1.0f, 1.0f);
+                }
             }
         }
     }
