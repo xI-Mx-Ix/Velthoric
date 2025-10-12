@@ -17,10 +17,11 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Tracks physics objects using a highly performant, grid-based dynamic clustering approach.
+ * Tracks physics bodies using a high-performance, grid-based dynamic clustering approach.
  * This system is optimized to handle thousands of bodies, whether they are clustered together
  * or widely distributed across the world. It avoids the high CPU overhead of per-body tracking
- * and the high memory overhead of a single global bounding box.
+ * and the high memory overhead of a single global bounding box by grouping nearby bodies into
+ * clusters and managing terrain for each cluster.
  *
  * @author xI-Mx-Ix
  */
@@ -38,17 +39,36 @@ public final class VxTerrainTracker {
 
     /**
      * Defines the size of the coarse grid cells used for clustering, in chunks.
-     * A larger value groups more distant objects, behaving more like the "single box" approach.
+     * A larger value groups more distant bodies, behaving more like a "single box" approach.
      * A smaller value creates more, smaller clusters, behaving more like per-body tracking.
-     * 16 (a 256x256 block area) is a good balance.
+     * A value of 16 (a 256x256 block area) provides a good balance.
      */
     private static final int GRID_CELL_SIZE_IN_CHUNKS = 16;
 
+    /**
+     * The radius, in chunks, around a moving body's bounding box to keep active.
+     */
     private static final int ACTIVATION_RADIUS_CHUNKS = 1;
+
+    /**
+     * The radius, in chunks, to preload around a cluster's bounding box.
+     */
     private static final int PRELOAD_RADIUS_CHUNKS = 3;
+
+    /**
+     * The time, in seconds, to predict a body's future position for preloading terrain.
+     */
     private static final float PREDICTION_SECONDS = 0.5f;
 
 
+    /**
+     * Constructs a new VxTerrainTracker.
+     *
+     * @param physicsWorld The physics world containing the bodies to track.
+     * @param terrainManager The manager responsible for loading and unloading terrain.
+     * @param chunkDataStore The data store for chunk state information.
+     * @param level The server level in which the tracking occurs.
+     */
     public VxTerrainTracker(VxPhysicsWorld physicsWorld, VxTerrainManager terrainManager, VxChunkDataStore chunkDataStore, ServerLevel level) {
         this.physicsWorld = physicsWorld;
         this.terrainManager = terrainManager;
@@ -59,7 +79,8 @@ public final class VxTerrainTracker {
 
     /**
      * Performs a single update tick. It dynamically clusters all bodies, calculates the
-     * required terrain for each cluster, and manages chunk loading and activation.
+     * required terrain for each cluster, and manages chunk loading and activation based on
+     * the current and previous state.
      */
     public void update() {
         List<VxBody> currentObjects = new ArrayList<>(physicsWorld.getObjectManager().getAllObjects());
@@ -94,7 +115,10 @@ public final class VxTerrainTracker {
 
     /**
      * Groups all physics bodies into grid-based clusters and calculates the union of
-     * chunks required by each cluster.
+     * chunks required by each cluster, including a preloading radius and motion prediction.
+     *
+     * @param allObjects A list of all physics bodies currently in the world.
+     * @return A set of {@link VxSectionPos} representing all chunks that should be loaded.
      */
     private Set<VxSectionPos> calculateRequiredPreloadSet(List<VxBody> allObjects) {
         // Step 1: Group bodies into clusters using a fast spatial hash (grid).
@@ -177,7 +201,10 @@ public final class VxTerrainTracker {
 
     /**
      * Updates the set of active terrain chunks for the current physics tick.
-     * This logic is kept for performance, activating chunks only around moving bodies.
+     * This logic is kept separate for performance, activating chunks only around bodies
+     * that are currently in motion to ensure immediate collision data is available.
+     *
+     * @param allObjects The list of all physics bodies in the world.
      */
     private void updateChunkActivation(List<VxBody> allObjects) {
         Set<VxSectionPos> requiredActiveSet = new HashSet<>();
@@ -217,7 +244,16 @@ public final class VxTerrainTracker {
     }
 
     /**
-     * Helper method to iterate over all chunk sections that overlap a given AABB plus a radius.
+     * Helper method to iterate over all chunk sections that overlap a given AABB, expanded by a radius.
+     *
+     * @param minX The minimum X coordinate of the bounding box.
+     * @param minY The minimum Y coordinate of the bounding box.
+     * @param minZ The minimum Z coordinate of the bounding box.
+     * @param maxX The maximum X coordinate of the bounding box.
+     * @param maxY The maximum Y coordinate of the bounding box.
+     * @param maxZ The maximum Z coordinate of the bounding box.
+     * @param radiusInChunks The radius in chunks to expand the box by.
+     * @param outChunks The set to which the overlapping chunk positions will be added.
      */
     private void forEachSectionInBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, int radiusInChunks, Set<VxSectionPos> outChunks) {
         int minSectionX = SectionPos.blockToSectionCoord(minX) - radiusInChunks;
@@ -240,7 +276,9 @@ public final class VxTerrainTracker {
         }
     }
 
-    /** Releases all chunks currently held by the tracker. */
+    /**
+     * Releases all chunks currently held by the tracker.
+     */
     private void releaseAllChunks() {
         if (previouslyRequiredChunks.isEmpty()) return;
         for (VxSectionPos pos : previouslyRequiredChunks) {
@@ -249,7 +287,10 @@ public final class VxTerrainTracker {
         previouslyRequiredChunks.clear();
     }
 
-    /** Deactivates all currently managed terrain chunks. Used when no objects are in the world. */
+    /**
+     * Deactivates all currently managed terrain chunks. This is typically used when no physics
+     * bodies are present in the world.
+     */
     private void deactivateAllChunks() {
         chunkDataStore.getActiveIndices().stream()
                 .map(chunkDataStore::getPosForIndex)
@@ -257,7 +298,9 @@ public final class VxTerrainTracker {
                 .forEach(terrainManager::deactivateChunk);
     }
 
-    /** Clears all tracking data. Used during shutdown. */
+    /**
+     * Clears all tracking data and releases all held chunks. Used during world shutdown or reloads.
+     */
     public void clear() {
         releaseAllChunks();
     }
