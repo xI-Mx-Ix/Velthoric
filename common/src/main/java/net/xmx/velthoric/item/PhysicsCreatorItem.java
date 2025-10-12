@@ -6,6 +6,7 @@ package net.xmx.velthoric.item;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
@@ -78,6 +79,7 @@ public class PhysicsCreatorItem extends Item {
             BlockRigidBody body = objectManager.createRigidBody(
                     VxRegisteredObjects.BLOCK,
                     transform,
+                    EActivation.Activate,
                     b -> b.setRepresentedBlockState(originalState)
             );
 
