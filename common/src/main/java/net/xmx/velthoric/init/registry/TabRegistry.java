@@ -19,7 +19,6 @@ public class TabRegistry {
 							.icon(() -> new ItemStack(Blocks.STRUCTURE_BLOCK))
 							.displayItems((parameters, output) -> {
 								output.accept(ItemRegistry.PHYSICS_CREATOR_STICK.get());
-								output.accept(ItemRegistry.PHYSICS_REMOVER_STICK.get());
 								output.accept(ItemRegistry.PHYSICS_GUN.get());
 								output.accept(ItemRegistry.MAGNETIZER.get());
 								output.accept(ItemRegistry.BOX_THROWER.get());
