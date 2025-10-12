@@ -142,17 +142,25 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     private CompletableFuture<VxBody> loadObjectAsync(UUID id) {
-        return CompletableFuture.supplyAsync(() -> {
-                    RegionPos regionPos = regionIndex.get(id);
-                    if (regionPos == null) return null;
-                    RegionData<UUID, byte[]> region = getRegion(regionPos).join();
-                    return region.entries.get(id);
+        RegionPos regionPos = regionIndex.get(id);
+        if (regionPos == null) {
+            // If there's no index entry, the object doesn't exist in storage.
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // Chain the futures instead of blocking with .join() to prevent deadlocks.
+        return getRegion(regionPos)
+                .thenApplyAsync(region -> region.entries.get(id), ioExecutor)
+                .thenApplyAsync(data -> { // Allow null data to propagate
+                    if (data == null) return null;
+                    return deserializeObject(data);
                 }, ioExecutor)
-                .thenApplyAsync(this::deserializeObject, ioExecutor)
                 .thenComposeAsync(data -> {
                     if (data == null) {
+                        // Object data wasn't found in the region file, though an index entry existed.
                         return CompletableFuture.completedFuture(null);
                     }
+                    // Switch to the physics thread to add the body to the world
                     CompletableFuture<VxBody> bodyFuture = new CompletableFuture<>();
                     objectManager.getPhysicsWorld().execute(() -> {
                         try {
@@ -168,6 +176,7 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                     if (ex != null) {
                         VxMainClass.LOGGER.error("Exception loading physics object {}", id, ex);
                     }
+                    // Always remove from pending loads, regardless of success or failure.
                     pendingLoads.remove(id);
                 });
     }

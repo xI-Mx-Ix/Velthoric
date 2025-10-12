@@ -77,16 +77,6 @@ public abstract class VxAbstractRegionStorage<K, V> {
     }
 
     public void shutdown() {
-        CompletableFuture<Void> saveFuture = saveDirtyRegions();
-        try {
-            saveFuture.get(15, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            VxMainClass.LOGGER.error("Error or timeout waiting for dirty regions to save during shutdown for {}", filePrefix, e);
-        }
-
-        if (regionIndex != null) {
-            regionIndex.save();
-        }
         loadedRegions.clear();
     }
 

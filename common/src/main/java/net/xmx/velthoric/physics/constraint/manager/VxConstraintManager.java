@@ -49,9 +49,17 @@ public class VxConstraintManager {
     }
 
     /**
-     * Cleans up resources on shutdown. Saving is handled by Minecraft's chunk saving mechanism.
+     * Cleans up resources on shutdown. This method explicitly flushes all pending
+     * constraint data to disk synchronously before clearing in-memory state,
+     * guaranteeing a reliable save.
      */
     public void shutdown() {
+        // Synchronously flush all pending persistence operations to disk.
+        // This guarantees that all changes are saved before the server closes the world.
+        VxMainClass.LOGGER.info("Flushing physics constraint persistence for world {}...", world.getDimensionKey().location());
+        flushPersistence();
+        VxMainClass.LOGGER.info("Physics constraint persistence flushed for world {}.", world.getDimensionKey().location());
+
         activeConstraints.clear();
         dataSystem.clear();
         constraintStorage.shutdown();
@@ -82,7 +90,7 @@ public class VxConstraintManager {
 
     /**
      * Forces all pending constraint data in the storage system to be written to disk
-     * and waits for the operation to complete.
+     * and waits for the operation to complete. This is a blocking, synchronous operation.
      */
     public void flushPersistence() {
         try {
@@ -97,27 +105,39 @@ public class VxConstraintManager {
 
     /**
      * Handles the unloading of all constraints within a specific chunk.
-     * This removes the constraints from the active simulation.
+     * This method first saves all relevant constraints to ensure their state is persisted,
+     * then removes them from the active simulation.
      *
      * @param pos The position of the chunk being unloaded.
      */
     public void onChunkUnload(ChunkPos pos) {
-        List<UUID> toRemove = new ArrayList<>();
         long chunkKey = pos.toLong();
+        List<VxConstraint> constraintsToSaveAndRemove = new ArrayList<>();
 
+        // Find all constraints that need to be unloaded
         for (VxConstraint constraint : activeConstraints.values()) {
             VxBody body1 = objectManager.getObject(constraint.getBody1Id());
+            // A constraint is considered to be in a chunk if its first body is in that chunk.
             if (body1 != null) {
                 int index = body1.getDataStoreIndex();
                 if (index != -1 && objectManager.getDataStore().chunkKey[index] == chunkKey) {
-                    toRemove.add(constraint.getConstraintId());
+                    constraintsToSaveAndRemove.add(constraint);
                 }
             }
         }
 
-        for (UUID id : toRemove) {
-            // Remove from simulation, but do not discard the data from storage.
-            removeConstraint(id, false);
+        if (constraintsToSaveAndRemove.isEmpty()) {
+            return;
+        }
+
+        // Save all found constraints in a single batch operation.
+        // This ensures their latest state is persisted before they are removed from memory.
+        constraintStorage.storeConstraints(constraintsToSaveAndRemove);
+
+        // Now, remove them from the active simulation.
+        for (VxConstraint constraint : constraintsToSaveAndRemove) {
+            // Remove from simulation, but do not discard the data from storage (discardData=false).
+            removeConstraint(constraint.getConstraintId(), false);
         }
     }
 

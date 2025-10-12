@@ -142,24 +142,29 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      * @param id The UUID of the constraint to load.
      */
     public void loadConstraint(UUID id) {
-        CompletableFuture.supplyAsync(() -> {
-            RegionPos regionPos = regionIndex.get(id);
-            if (regionPos == null) return null;
+        RegionPos regionPos = regionIndex.get(id);
+        if (regionPos == null) {
+            // Silently return if no index entry exists.
+            return;
+        }
 
-            RegionData<UUID, byte[]> region = getRegion(regionPos).join();
-            byte[] data = region.entries.get(id);
-            if (data != null) {
-                return deserializeConstraint(id, data);
-            }
-            return null;
-        }, ioExecutor).thenAcceptAsync(constraint -> {
-            if (constraint != null) {
-                constraintManager.addConstraintFromStorage(constraint);
-            }
-        }, level.getServer()).exceptionally(ex -> {
-            VxMainClass.LOGGER.error("Exception loading physics constraint {}", id, ex);
-            return null;
-        });
+        getRegion(regionPos)
+                .thenApplyAsync(region -> {
+                    byte[] data = region.entries.get(id);
+                    if (data != null) {
+                        return deserializeConstraint(id, data);
+                    }
+                    return null;
+                }, ioExecutor)
+                .thenAcceptAsync(constraint -> {
+                    if (constraint != null) {
+                        constraintManager.addConstraintFromStorage(constraint);
+                    }
+                }, level.getServer()) // Schedule on the main server thread
+                .exceptionally(ex -> {
+                    VxMainClass.LOGGER.error("Exception loading physics constraint {}", id, ex);
+                    return null;
+                });
     }
 
     /**

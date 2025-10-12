@@ -94,10 +94,18 @@ public class VxObjectManager {
 
     /**
      * Shuts down the manager, ensuring all subsystems are terminated gracefully.
-     * Saving is handled by Minecraft's chunk persistence, not here.
+     * This method explicitly flushes all pending data to disk synchronously before
+     * clearing in-memory state, guaranteeing a reliable save on shutdown.
      */
     public void shutdown() {
         networkDispatcher.stop();
+
+        // Synchronously flush all pending persistence operations to disk.
+        // This guarantees that all changes are saved before the server closes the world.
+        VxMainClass.LOGGER.info("Flushing physics object persistence for world {}...", world.getDimensionKey().location());
+        flushPersistence();
+        VxMainClass.LOGGER.info("Physics object persistence flushed for world {}.", world.getDimensionKey().location());
+
         clear();
         objectStorage.shutdown();
     }
@@ -365,16 +373,20 @@ public class VxObjectManager {
 
     /**
      * Completely removes a physics object from the world with a specified reason.
-     * This handles removal from all internal systems: data store, tracking, network, storage, and the Jolt simulation.
+     * This handles removal from all internal systems in the correct order to prevent race conditions.
      *
      * @param id     The UUID of the object to remove.
      * @param reason The reason for removal, which determines if the object is saved or discarded.
      */
     public void removeObject(UUID id, VxRemovalReason reason) {
-        // Step 1: Atomically remove from internal data structures.
-        final VxBody obj = this.removeInternal(id);
+        // Step 1: Atomically get and remove the object from the main tracking map.
+        // This prevents other threads from interfering with the removal process.
+        final VxBody obj = this.managedObjects.remove(id);
+
         if (obj == null) {
             VxMainClass.LOGGER.warn("Attempted to remove non-existent body: {}", id);
+            // If the object is not in memory, we might still need to clean up its persistent data
+            // or any associated constraints from a previous session.
             if (reason == VxRemovalReason.DISCARD) {
                 objectStorage.removeData(id);
             }
@@ -382,27 +394,30 @@ public class VxObjectManager {
             return;
         }
 
-        // Notify managers about the removal.
-        world.getMountingManager().onObjectRemoved(obj);
-        networkDispatcher.onObjectRemoved(obj);
-
-        // Step 3: Stop server-side chunk tracking.
-        chunkManager.stopTracking(obj);
-
-        // Step 4: Fire the removal callback on the object itself.
-        obj.onBodyRemoved(world, reason);
-
-        // Step 5: Handle persistence based on the removal reason.
+        // Step 2: Handle persistence. This is the critical step.
+        // At this point, the object is removed from active management, but its data in the
+        // dataStore is still intact and valid. We serialize this state.
         if (reason == VxRemovalReason.SAVE) {
             objectStorage.storeObject(obj);
         } else if (reason == VxRemovalReason.DISCARD) {
             objectStorage.removeData(id);
         }
 
+        // Step 3: Notify other high-level managers about the removal.
+        world.getMountingManager().onObjectRemoved(obj);
+        networkDispatcher.onObjectRemoved(obj);
+
+        // Step 4: Stop server-side chunk tracking.
+        chunkManager.stopTracking(obj);
+
+        // Step 5: Fire the removal callback on the object itself.
+        obj.onBodyRemoved(world, reason);
+
         // Step 6: Clean up any associated constraints.
         world.getConstraintManager().removeConstraintsForObject(id, reason == VxRemovalReason.DISCARD);
 
-        // Step 7: Schedule the removal of the body from the Jolt simulation on the physics thread.
+        // Step 7: Schedule the removal of the physical body from the Jolt simulation.
+        // This is done on the physics thread.
         final int bodyIdToRemove = obj.getBodyId();
         if (bodyIdToRemove != 0 && bodyIdToRemove != Jolt.cInvalidBodyId) {
             world.execute(() -> {
@@ -413,6 +428,15 @@ public class VxObjectManager {
                 bodyInterface.destroyBody(bodyIdToRemove);
             });
         }
+
+        // Step 8: Finally, release all low-level resources associated with the object.
+        // This includes the dataStore index and the mapping from Jolt's bodyId.
+        dataStore.removeObject(id);
+        if (bodyIdToRemove != 0) {
+            bodyIdToObjectMap.remove(bodyIdToRemove);
+        }
+        // Mark the object's index as invalid to prevent accidental use.
+        obj.setDataStoreIndex(-1);
     }
 
     //================================================================================
@@ -441,28 +465,6 @@ public class VxObjectManager {
             chunkManager.startTracking(obj); // Manages server-side chunk lists for visibility checks.
             return obj;
         });
-    }
-
-    /**
-     * Handles the internal deregistration of a physics object.
-     * This method frees its data store index and removes it from tracking maps. It does not handle Jolt body removal.
-     * This method is synchronized to ensure the entire removal process is atomic.
-     *
-     * @param id The UUID of the object to remove.
-     * @return The removed object, or null if it was not found.
-     */
-    @Nullable
-    private synchronized VxBody removeInternal(UUID id) {
-        VxBody obj = managedObjects.remove(id);
-        if (obj != null) {
-            dataStore.removeObject(id);
-            int bodyId = obj.getBodyId();
-            if (bodyId != 0) {
-                bodyIdToObjectMap.remove(bodyId);
-            }
-            obj.setDataStoreIndex(-1);
-        }
-        return obj;
     }
 
     /**
@@ -497,7 +499,7 @@ public class VxObjectManager {
 
             if (bodyId == Jolt.cInvalidBodyId) {
                 VxMainClass.LOGGER.error("Jolt failed to create/add rigid body for {}", body.getPhysicsId());
-                removeInternal(body.getPhysicsId()); // Clean up failed addition.
+                removeObject(body.getPhysicsId(), VxRemovalReason.DISCARD); // Clean up failed addition.
                 return;
             }
             body.setBodyId(bodyId);
@@ -507,7 +509,7 @@ public class VxObjectManager {
 
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to create/add rigid body {}", body.getPhysicsId(), e);
-            removeInternal(body.getPhysicsId()); // Clean up on exception.
+            removeObject(body.getPhysicsId(), VxRemovalReason.DISCARD); // Clean up on exception.
         }
     }
 
@@ -533,7 +535,7 @@ public class VxObjectManager {
 
             if (bodyId == Jolt.cInvalidBodyId) {
                 VxMainClass.LOGGER.error("Jolt failed to create/add soft body for {}", body.getPhysicsId());
-                removeInternal(body.getPhysicsId()); // Clean up failed addition.
+                removeObject(body.getPhysicsId(), VxRemovalReason.DISCARD); // Clean up failed addition.
                 return;
             }
             body.setBodyId(bodyId);
@@ -542,7 +544,7 @@ public class VxObjectManager {
             world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to create/add soft body {}", body.getPhysicsId(), e);
-            removeInternal(body.getPhysicsId()); // Clean up on exception.
+            removeObject(body.getPhysicsId(), VxRemovalReason.DISCARD); // Clean up on exception.
         }
     }
 
@@ -672,7 +674,7 @@ public class VxObjectManager {
 
     /**
      * Forces all pending object data in the storage system to be written to disk
-     * and waits for the operation to complete.
+     * and waits for the operation to complete. This is a blocking, synchronous operation.
      */
     public void flushPersistence() {
         try {
