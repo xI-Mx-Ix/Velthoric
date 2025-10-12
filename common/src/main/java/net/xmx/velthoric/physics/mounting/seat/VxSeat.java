@@ -6,7 +6,6 @@ package net.xmx.velthoric.physics.mounting.seat;
 
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.operator.Op;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxOBB;
@@ -36,35 +35,6 @@ public class VxSeat {
         this.localAABB = localAABB;
         this.riderOffset = riderOffset;
         this.isDriverSeat = isDriverSeat;
-    }
-
-    public VxSeat(FriendlyByteBuf buf) {
-        this.seatId = buf.readUUID();
-        this.seatName = buf.readUtf();
-        double minX = buf.readDouble();
-        double minY = buf.readDouble();
-        double minZ = buf.readDouble();
-        double maxX = buf.readDouble();
-        double maxY = buf.readDouble();
-        double maxZ = buf.readDouble();
-        this.localAABB = new AABB(minX, minY, minZ, maxX, maxY, maxZ);
-        this.riderOffset = new Vector3f(buf.readFloat(), buf.readFloat(), buf.readFloat());
-        this.isDriverSeat = buf.readBoolean();
-    }
-
-    public void encode(FriendlyByteBuf buf) {
-        buf.writeUUID(this.seatId);
-        buf.writeUtf(this.seatName);
-        buf.writeDouble(this.localAABB.minX);
-        buf.writeDouble(this.localAABB.minY);
-        buf.writeDouble(this.localAABB.minZ);
-        buf.writeDouble(this.localAABB.maxX);
-        buf.writeDouble(this.localAABB.maxY);
-        buf.writeDouble(this.localAABB.maxZ);
-        buf.writeFloat(this.riderOffset.x());
-        buf.writeFloat(this.riderOffset.y());
-        buf.writeFloat(this.riderOffset.z());
-        buf.writeBoolean(this.isDriverSeat);
     }
 
     /**

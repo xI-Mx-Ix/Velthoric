@@ -13,6 +13,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.natives.VxLayers;
+import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
@@ -21,6 +22,7 @@ import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -47,6 +49,7 @@ public class MotorcycleImpl extends VxMotorcycle {
     @Environment(EnvType.CLIENT)
     public MotorcycleImpl(VxObjectType<MotorcycleImpl> type, UUID id) {
         super(type, id);
+        addDriverSeat();
     }
 
     @Override
@@ -122,8 +125,19 @@ public class MotorcycleImpl extends VxMotorcycle {
                 riderOffset.x - 0.3, riderOffset.y - 0.4, riderOffset.z - 0.3,
                 riderOffset.x + 0.3, riderOffset.y + 0.4, riderOffset.z + 0.3
         );
-        VxSeat driverSeat = new VxSeat(UUID.randomUUID(), "driver_seat", localAABB, riderOffset, true);
-        this.getPhysicsWorld().getMountingManager().addSeat(this.getPhysicsId(), driverSeat);
+        // Generate a deterministic UUID based on the object's ID and a seat identifier string.
+        // This ensures the seat ID is identical on both server and client.
+        String seatIdentifier = "driver_seat";
+        UUID seatId = UUID.nameUUIDFromBytes((this.getPhysicsId().toString() + seatIdentifier).getBytes(StandardCharsets.UTF_8));
+        VxSeat driverSeat = new VxSeat(seatId, seatIdentifier, localAABB, riderOffset, true);
+
+        // The physics world is only available on the server.
+        if (this.getPhysicsWorld() != null) {
+            this.getPhysicsWorld().getMountingManager().addSeat(this.getPhysicsId(), driverSeat);
+        } else {
+            // On the client, directly access the client-side mounting manager.
+            VxClientMountingManager.getInstance().addSeat(this.getPhysicsId(), driverSeat);
+        }
     }
 
     @Override

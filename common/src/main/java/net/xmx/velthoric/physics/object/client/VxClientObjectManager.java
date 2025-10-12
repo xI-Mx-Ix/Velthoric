@@ -158,7 +158,6 @@ public class VxClientObjectManager {
         transform.fromBuffer(data);
 
         body.getSynchronizedData().readEntries(data);
-        VxClientMountingManager.getInstance().addSeatsFromBuffer(id, data);
 
         initializeState(index, transform, timestamp);
     }

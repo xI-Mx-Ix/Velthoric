@@ -5,7 +5,6 @@
 package net.xmx.velthoric.physics.mounting.manager;
 
 import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
-import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 
 import java.util.*;
@@ -13,8 +12,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages the state of all mountable seats on the client side.
- * This class acts as a central store for seat information received from the server,
- * providing fast, map-based lookups for client-side logic and rendering.
+ * This class acts as a central store for seat information, providing
+ * fast, map-based lookups for client-side logic and rendering.
  *
  * @author xI-Mx-Ix
  */
@@ -48,22 +47,14 @@ public final class VxClientMountingManager {
     }
 
     /**
-     * Reads seat data from a network buffer and associates it with a physics object.
-     * This is typically called when a mountable object is spawned on the client.
+     * Adds a seat to a physics object on the client side.
+     * This is typically called from the object's client-side constructor.
      *
-     * @param objectId The UUID of the physics object.
-     * @param buf      The buffer containing the serialized seat data.
+     * @param objectId The UUID of the object.
+     * @param seat     The seat to add.
      */
-    public void addSeatsFromBuffer(UUID objectId, VxByteBuf buf) {
-        int seatCount = buf.readVarInt();
-        if (seatCount > 0) {
-            Map<UUID, VxSeat> seats = new ConcurrentHashMap<>(seatCount);
-            for (int i = 0; i < seatCount; i++) {
-                VxSeat seat = new VxSeat(buf);
-                seats.put(seat.getId(), seat);
-            }
-            this.objectToSeatsMap.put(objectId, seats);
-        }
+    public void addSeat(UUID objectId, VxSeat seat) {
+        this.objectToSeatsMap.computeIfAbsent(objectId, k -> new ConcurrentHashMap<>()).put(seat.getId(), seat);
     }
 
     /**
