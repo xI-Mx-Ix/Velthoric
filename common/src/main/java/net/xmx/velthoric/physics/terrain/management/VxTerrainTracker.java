@@ -42,7 +42,7 @@ public final class VxTerrainTracker {
     private static final int PRELOAD_RADIUS_CHUNKS = 3; // Radius around an object to request/preload chunks.
     private static final int ACTIVATION_RADIUS_CHUNKS = 1; // Radius around an object to make chunks physically active.
     private static final float PREDICTION_SECONDS = 0.5f; // How far into the future to predict object movement for preloading.
-    private static final int OBJECTS_PER_TICK = 100; // How many objects to process for preloading each tick.
+    private static final int OBJECTS_PER_TICK = 512; // How many objects to process for preloading each tick.
 
     private int objectUpdateIndex = 0;
 
