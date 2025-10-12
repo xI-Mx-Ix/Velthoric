@@ -46,6 +46,35 @@ public class VxMountingManager {
     }
 
     /**
+     * Callback executed when a new physics object is added to the world.
+     * If the object is mountable, this method registers all its defined seats.
+     *
+     * @param body The physics object that was added.
+     */
+    public void onObjectAdded(VxBody body) {
+        if (body instanceof VxMountable mountable) {
+            List<VxSeat> seats = mountable.defineSeats();
+            if (seats != null) {
+                for (VxSeat seat : seats) {
+                    addSeat(body.getPhysicsId(), seat);
+                }
+            }
+        }
+    }
+
+    /**
+     * Callback executed when a physics object is removed from the world.
+     * This removes all seat data associated with the object.
+     *
+     * @param body The physics object that was removed.
+     */
+    public void onObjectRemoved(VxBody body) {
+        if (body instanceof VxMountable) {
+            this.objectToSeatsMap.remove(body.getPhysicsId());
+        }
+    }
+
+    /**
      * Adds a seat to a physics object, indexed by the seat's UUID.
      *
      * @param objectId The UUID of the object.

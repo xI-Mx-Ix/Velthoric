@@ -13,7 +13,9 @@ import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.mounting.VxMountable;
 import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
+import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.object.registry.VxObjectType;
 import net.xmx.velthoric.physics.object.client.time.VxClientClock;
 import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
@@ -148,6 +150,16 @@ public class VxClientObjectManager {
         if (body == null) {
             // The registry's createClientBody method already logs the specific error.
             return;
+        }
+
+        // If the object is mountable, register its seats on the client.
+        if (body instanceof VxMountable mountable) {
+            List<VxSeat> seats = mountable.defineSeats();
+            if (seats != null) {
+                for (VxSeat seat : seats) {
+                    VxClientMountingManager.getInstance().addSeat(id, seat);
+                }
+            }
         }
 
         int index = store.addObject(id);

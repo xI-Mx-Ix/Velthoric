@@ -302,7 +302,8 @@ public class VxObjectManager {
             dataStore.isAwaitingActivation[index] = (activation == EActivation.Activate);
         }
 
-        // Step 3: Notify the network dispatcher to send a spawn packet to clients.
+        // Notify managers that a new object has been fully added.
+        world.getMountingManager().onObjectAdded(body);
         networkDispatcher.onObjectAdded(body);
 
         // Step 4: Create the actual physics body in the Jolt simulation, always starting as inactive.
@@ -349,6 +350,8 @@ public class VxObjectManager {
         obj.readPersistenceData(data.persistenceData());
         data.persistenceData().release();
 
+        // Notify managers that a new object has been fully added.
+        world.getMountingManager().onObjectAdded(obj);
         networkDispatcher.onObjectAdded(obj);
 
         // Always spawn inactive; the updater will handle activation.
@@ -379,7 +382,8 @@ public class VxObjectManager {
             return;
         }
 
-        // Step 2: Notify network dispatcher to despawn the object on clients.
+        // Notify managers about the removal.
+        world.getMountingManager().onObjectRemoved(obj);
         networkDispatcher.onObjectRemoved(obj);
 
         // Step 3: Stop server-side chunk tracking.

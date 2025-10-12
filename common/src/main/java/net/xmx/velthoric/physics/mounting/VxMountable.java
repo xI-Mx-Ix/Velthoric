@@ -10,6 +10,7 @@ import net.xmx.velthoric.physics.mounting.input.VxMountInput;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -41,6 +42,15 @@ public interface VxMountable {
      * @return The object's transform.
      */
     VxTransform getTransform();
+
+    /**
+     * Defines all seats for this mountable object.
+     * This method is called by the appropriate manager when the object is created
+     * to automatically register its seats.
+     *
+     * @return A list of {@link VxSeat} objects to be added to this entity. Can be null or empty.
+     */
+    List<VxSeat> defineSeats();
 
     /**
      * Called when a player successfully starts mounting this object.

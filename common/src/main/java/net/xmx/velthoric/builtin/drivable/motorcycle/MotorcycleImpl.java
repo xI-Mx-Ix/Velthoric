@@ -24,6 +24,7 @@ import org.joml.Vector3f;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -40,7 +41,6 @@ public class MotorcycleImpl extends VxMotorcycle {
      */
     public MotorcycleImpl(VxObjectType<MotorcycleImpl> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
-        addDriverSeat();
     }
 
     /**
@@ -49,7 +49,6 @@ public class MotorcycleImpl extends VxMotorcycle {
     @Environment(EnvType.CLIENT)
     public MotorcycleImpl(VxObjectType<MotorcycleImpl> type, UUID id) {
         super(type, id);
-        addDriverSeat();
     }
 
     @Override
@@ -119,7 +118,8 @@ public class MotorcycleImpl extends VxMotorcycle {
         return new VehicleCollisionTesterCastCylinder(VxLayers.DYNAMIC);
     }
 
-    private void addDriverSeat() {
+    @Override
+    public List<VxSeat> defineSeats() {
         Vector3f riderOffset = new Vector3f(0.0f, 0.7f, -0.2f);
         AABB localAABB = new AABB(
                 riderOffset.x - 0.3, riderOffset.y - 0.4, riderOffset.z - 0.3,
@@ -131,13 +131,7 @@ public class MotorcycleImpl extends VxMotorcycle {
         UUID seatId = UUID.nameUUIDFromBytes((this.getPhysicsId().toString() + seatIdentifier).getBytes(StandardCharsets.UTF_8));
         VxSeat driverSeat = new VxSeat(seatId, seatIdentifier, localAABB, riderOffset, true);
 
-        // The physics world is only available on the server.
-        if (this.getPhysicsWorld() != null) {
-            this.getPhysicsWorld().getMountingManager().addSeat(this.getPhysicsId(), driverSeat);
-        } else {
-            // On the client, directly access the client-side mounting manager.
-            VxClientMountingManager.getInstance().addSeat(this.getPhysicsId(), driverSeat);
-        }
+        return List.of(driverSeat);
     }
 
     @Override

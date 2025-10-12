@@ -24,6 +24,7 @@ import org.joml.Vector3f;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -40,7 +41,6 @@ public class CarImpl extends VxCar {
      */
     public CarImpl(VxObjectType<CarImpl> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
-        addDriverSeat();
     }
 
     /**
@@ -49,7 +49,6 @@ public class CarImpl extends VxCar {
     @Environment(EnvType.CLIENT)
     public CarImpl(VxObjectType<CarImpl> type, UUID id) {
         super(type, id);
-        addDriverSeat();
     }
 
     @Override
@@ -146,26 +145,35 @@ public class CarImpl extends VxCar {
         return new VehicleCollisionTesterCastCylinder(VxLayers.DYNAMIC);
     }
 
-    private void addDriverSeat() {
-        Vector3f riderOffset = new Vector3f(0.0f, 0.5f, 0.0f);
-        AABB localAABB = new AABB(
-                riderOffset.x - 0.3, riderOffset.y - 0.4, riderOffset.z - 0.3,
-                riderOffset.x + 0.3, riderOffset.y + 0.4, riderOffset.z + 0.3
+    @Override
+    public List<VxSeat> defineSeats() {
+        // Front seat (driver)
+        Vector3f frontOffset = new Vector3f(0.0f, 0.5f, 0.5f);
+        AABB frontAABB = new AABB(
+                frontOffset.x - 0.3, frontOffset.y - 0.4, frontOffset.z - 0.3,
+                frontOffset.x + 0.3, frontOffset.y + 0.4, frontOffset.z + 0.3
         );
-        // Generate a deterministic UUID based on the object's ID and a seat identifier string.
-        // This ensures the seat ID is identical on both server and client.
-        String seatIdentifier = "driver_seat";
-        UUID seatId = UUID.nameUUIDFromBytes((this.getPhysicsId().toString() + seatIdentifier).getBytes(StandardCharsets.UTF_8));
-        VxSeat driverSeat = new VxSeat(seatId, seatIdentifier, localAABB, riderOffset, true);
+        String frontIdentifier = "front_seat";
+        UUID frontId = UUID.nameUUIDFromBytes(
+                (this.getPhysicsId().toString() + frontIdentifier).getBytes(StandardCharsets.UTF_8)
+        );
+        VxSeat frontSeat = new VxSeat(frontId, frontIdentifier, frontAABB, frontOffset, true);
 
-        // The physics world is only available on the server.
-        if (this.getPhysicsWorld() != null) {
-            this.getPhysicsWorld().getMountingManager().addSeat(this.getPhysicsId(), driverSeat);
-        } else {
-            // On the client, directly access the client-side mounting manager.
-            VxClientMountingManager.getInstance().addSeat(this.getPhysicsId(), driverSeat);
-        }
+        // Rear seat (passenger)
+        Vector3f rearOffset = new Vector3f(0.0f, 0.5f, -0.5f);
+        AABB rearAABB = new AABB(
+                rearOffset.x - 0.3, rearOffset.y - 0.4, rearOffset.z - 0.3,
+                rearOffset.x + 0.3, rearOffset.y + 0.4, rearOffset.z + 0.3
+        );
+        String rearIdentifier = "rear_seat";
+        UUID rearId = UUID.nameUUIDFromBytes(
+                (this.getPhysicsId().toString() + rearIdentifier).getBytes(StandardCharsets.UTF_8)
+        );
+        VxSeat rearSeat = new VxSeat(rearId, rearIdentifier, rearAABB, rearOffset, false);
+
+        return List.of(frontSeat, rearSeat);
     }
+
 
     @Override
     public int createJoltBody(VxRigidBodyFactory factory) {
