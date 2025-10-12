@@ -244,6 +244,15 @@ public abstract class VxAbstractRegionStorage<K, V> {
         }
     }
 
+    /**
+     * Returns the region index associated with this storage.
+     *
+     * @return The VxRegionIndex instance.
+     */
+    public VxRegionIndex getRegionIndex() {
+        return regionIndex;
+    }
+
     private Path getRegionFile(RegionPos pos) {
         return storagePath.resolve(String.format("%s.%d.%d.vxdat", filePrefix, pos.x(), pos.z()));
     }

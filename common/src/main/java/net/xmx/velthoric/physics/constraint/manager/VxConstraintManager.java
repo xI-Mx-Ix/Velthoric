@@ -81,6 +81,21 @@ public class VxConstraintManager {
     }
 
     /**
+     * Forces all pending constraint data in the storage system to be written to disk
+     * and waits for the operation to complete.
+     */
+    public void flushPersistence() {
+        try {
+            // saveDirtyRegions returns a CompletableFuture. .join() waits until it completes.
+            constraintStorage.saveDirtyRegions().join();
+            // The index also needs to be explicitly saved.
+            constraintStorage.getRegionIndex().save();
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Failed to flush physics constraint persistence for world {}", objectManager.getPhysicsWorld().getLevel().dimension().location(), e);
+        }
+    }
+
+    /**
      * Handles the unloading of all constraints within a specific chunk.
      * This removes the constraints from the active simulation.
      *

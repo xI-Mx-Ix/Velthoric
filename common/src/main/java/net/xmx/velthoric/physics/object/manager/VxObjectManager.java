@@ -670,6 +670,21 @@ public class VxObjectManager {
         }
     }
 
+    /**
+     * Forces all pending object data in the storage system to be written to disk
+     * and waits for the operation to complete.
+     */
+    public void flushPersistence() {
+        try {
+            // saveDirtyRegions returns a CompletableFuture. .join() waits until it completes.
+            objectStorage.saveDirtyRegions().join();
+            // The index also needs to be explicitly saved.
+            objectStorage.getRegionIndex().save();
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Failed to flush physics object persistence for world {}", world.getLevel().dimension().location(), e);
+        }
+    }
+
     //================================================================================
     // Getters for Subsystems
     //================================================================================
