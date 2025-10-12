@@ -283,9 +283,8 @@ public class VxObjectManager {
     //================================================================================
 
     /**
-     * Adds a pre-constructed body to the physics world. The body is always spawned
-     * in an inactive state in Jolt. If activation is set to {@link EActivation#Activate},
-     * the {@link VxPhysicsUpdater} will activate it once the underlying terrain is loaded.
+     * Adds a pre-constructed body to the physics world. The body is spawned
+     * in the Jolt simulation with the specified activation state.
      *
      * @param body The body to add.
      * @param activation The activation intent; {@link EActivation#Activate} or {@link EActivation#DontActivate}.
@@ -296,7 +295,7 @@ public class VxObjectManager {
         addInternal(body);
         int index = body.getDataStoreIndex();
 
-        // Step 2: Write the initial transform and set the activation flag.
+        // Step 2: Write the initial transform.
         if (index != -1) {
             dataStore.posX[index] = transform.getTranslation().x();
             dataStore.posY[index] = transform.getTranslation().y();
@@ -305,28 +304,24 @@ public class VxObjectManager {
             dataStore.rotY[index] = transform.getRotation().getY();
             dataStore.rotZ[index] = transform.getRotation().getZ();
             dataStore.rotW[index] = transform.getRotation().getW();
-
-            // Lazy activation: The PhysicsUpdater will handle this once the terrain is ready.
-            dataStore.isAwaitingActivation[index] = (activation == EActivation.Activate);
         }
 
-        // Notify managers that a new object has been fully added.
+        // Step 3: Notify managers that a new object has been fully added.
         world.getMountingManager().onObjectAdded(body);
         networkDispatcher.onObjectAdded(body);
 
-        // Step 4: Create the actual physics body in the Jolt simulation, always starting as inactive.
+        // Step 4: Create the actual physics body in the Jolt simulation with the requested activation state.
         if (body instanceof VxRigidBody rigidBody) {
-            addRigidBodyToPhysicsWorld(rigidBody, null, null, EActivation.DontActivate);
+            addRigidBodyToPhysicsWorld(rigidBody, null, null, activation);
         } else if (body instanceof VxSoftBody softBody) {
-            // Soft bodies also respect lazy activation
-            addSoftBodyToPhysicsWorld(softBody, EActivation.DontActivate);
+            addSoftBodyToPhysicsWorld(softBody, activation);
         }
     }
 
 
     /**
      * Adds a body from serialized data, typically when loading from storage.
-     * The body will be queued for activation if it has a non-zero velocity.
+     * The body will be activated if it has a non-zero velocity.
      *
      * @param data The deserialized data container.
      * @return The created and added {@link VxBody}, or null on failure.
@@ -343,6 +338,7 @@ public class VxObjectManager {
         int index = obj.getDataStoreIndex();
 
         boolean shouldActivate = data.linearVelocity().lengthSq() > 0.0001f || data.angularVelocity().lengthSq() > 0.0001f;
+        EActivation activation = shouldActivate ? EActivation.Activate : EActivation.DontActivate;
 
         if (index != -1) {
             dataStore.posX[index] = data.transform().getTranslation().x();
@@ -352,7 +348,6 @@ public class VxObjectManager {
             dataStore.rotY[index] = data.transform().getRotation().getY();
             dataStore.rotZ[index] = data.transform().getRotation().getZ();
             dataStore.rotW[index] = data.transform().getRotation().getW();
-            dataStore.isAwaitingActivation[index] = shouldActivate;
         }
 
         obj.readPersistenceData(data.persistenceData());
@@ -362,11 +357,11 @@ public class VxObjectManager {
         world.getMountingManager().onObjectAdded(obj);
         networkDispatcher.onObjectAdded(obj);
 
-        // Always spawn inactive; the updater will handle activation.
+        // Spawn with the determined activation state.
         if (obj instanceof VxRigidBody rigidBody) {
-            addRigidBodyToPhysicsWorld(rigidBody, data.linearVelocity(), data.angularVelocity(), EActivation.DontActivate);
+            addRigidBodyToPhysicsWorld(rigidBody, data.linearVelocity(), data.angularVelocity(), activation);
         } else if (obj instanceof VxSoftBody softBody) {
-            addSoftBodyToPhysicsWorld(softBody, EActivation.DontActivate);
+            addSoftBodyToPhysicsWorld(softBody, activation);
         }
         return obj;
     }

@@ -50,8 +50,6 @@ public class VxObjectDataStore extends AbstractDataStore {
     public boolean[] isVertexDataDirty;
     /** Flag indicating that the object's custom data has changed, requiring a network sync. */
     public boolean[] isCustomDataDirty;
-    /** Flag indicating that the object is waiting for nearby terrain to be ready before being activated. */
-    public boolean[] isAwaitingActivation;
     /** The server timestamp of the last physics update for this object. */
     public long[] lastUpdateTimestamp;
 
@@ -88,7 +86,6 @@ public class VxObjectDataStore extends AbstractDataStore {
         isTransformDirty = grow(isTransformDirty, newCapacity);
         isVertexDataDirty = grow(isVertexDataDirty, newCapacity);
         isCustomDataDirty = grow(isCustomDataDirty, newCapacity);
-        isAwaitingActivation = grow(isAwaitingActivation, newCapacity);
         lastUpdateTimestamp = grow(lastUpdateTimestamp, newCapacity);
 
         this.capacity = newCapacity;
@@ -189,7 +186,6 @@ public class VxObjectDataStore extends AbstractDataStore {
         isTransformDirty[index] = false;
         isVertexDataDirty[index] = false;
         isCustomDataDirty[index] = false;
-        isAwaitingActivation[index] = false;
         lastUpdateTimestamp[index] = 0L;
     }
 }
