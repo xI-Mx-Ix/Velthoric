@@ -102,9 +102,9 @@ public class VxObjectManager {
 
         // Synchronously flush all pending persistence operations to disk.
         // This guarantees that all changes are saved before the server closes the world.
-        VxMainClass.LOGGER.info("Flushing physics object persistence for world {}...", world.getDimensionKey().location());
+        VxMainClass.LOGGER.debug("Flushing physics object persistence for world {}...", world.getDimensionKey().location());
         flushPersistence();
-        VxMainClass.LOGGER.info("Physics object persistence flushed for world {}.", world.getDimensionKey().location());
+        VxMainClass.LOGGER.debug("Physics object persistence flushed for world {}.", world.getDimensionKey().location());
 
         clear();
         objectStorage.shutdown();
