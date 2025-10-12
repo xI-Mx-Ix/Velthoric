@@ -4,6 +4,7 @@
  */
 package net.xmx.velthoric.physics.terrain.management;
 
+import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
 import net.xmx.velthoric.physics.object.type.VxBody;
@@ -13,15 +14,13 @@ import net.xmx.velthoric.physics.terrain.storage.VxChunkDataStore;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * Tracks physics objects in the world and determines which terrain chunks are required
- * for their simulation. It manages preloading, activation, and deactivation of chunks
- * based on object positions and velocities, reading state directly from the data store
- * for maximum performance. This implementation is optimized to handle thousands of bodies
- * by time-slicing updates and prioritizing active objects.
+ * Tracks physics objects using a highly performant, grid-based dynamic clustering approach.
+ * This system is optimized to handle thousands of bodies, whether they are clustered together
+ * or widely distributed across the world. It avoids the high CPU overhead of per-body tracking
+ * and the high memory overhead of a single global bounding box.
  *
  * @author xI-Mx-Ix
  */
@@ -33,18 +32,22 @@ public final class VxTerrainTracker {
     private final ServerLevel level;
     private final VxObjectDataStore objectDataStore;
 
-    private final Map<UUID, Set<VxSectionPos>> objectTrackedChunks = new ConcurrentHashMap<>();
-    private final Map<UUID, Integer> objectUpdateCooldowns = new ConcurrentHashMap<>();
+    private Set<VxSectionPos> previouslyRequiredChunks = new HashSet<>();
 
     // --- Configuration Constants ---
-    private static final int UPDATE_INTERVAL_TICKS = 10; // Base cooldown ticks between updates for an object.
-    private static final float MAX_SPEED_FOR_COOLDOWN_SQR = 100f * 100f; // Objects faster than this are always updated.
-    private static final int PRELOAD_RADIUS_CHUNKS = 3; // Radius around an object to request/preload chunks.
-    private static final int ACTIVATION_RADIUS_CHUNKS = 1; // Radius around an object to make chunks physically active.
-    private static final float PREDICTION_SECONDS = 0.5f; // How far into the future to predict object movement for preloading.
-    private static final int OBJECTS_PER_TICK = 512; // How many objects to process for preloading each tick.
 
-    private int objectUpdateIndex = 0;
+    /**
+     * Defines the size of the coarse grid cells used for clustering, in chunks.
+     * A larger value groups more distant objects, behaving more like the "single box" approach.
+     * A smaller value creates more, smaller clusters, behaving more like per-body tracking.
+     * 16 (a 256x256 block area) is a good balance.
+     */
+    private static final int GRID_CELL_SIZE_IN_CHUNKS = 16;
+
+    private static final int ACTIVATION_RADIUS_CHUNKS = 1;
+    private static final int PRELOAD_RADIUS_CHUNKS = 3;
+    private static final float PREDICTION_SECONDS = 0.5f;
+
 
     public VxTerrainTracker(VxPhysicsWorld physicsWorld, VxTerrainManager terrainManager, VxChunkDataStore chunkDataStore, ServerLevel level) {
         this.physicsWorld = physicsWorld;
@@ -55,112 +58,157 @@ public final class VxTerrainTracker {
     }
 
     /**
-     * Performs a single update tick of the tracker.
-     * This method efficiently handles thousands of objects by:
-     * 1. Time-slicing the preloading logic, processing only a small batch of objects per tick.
-     * 2. Calculating the required active chunks for physically active bodies AND for bodies awaiting initial activation.
+     * Performs a single update tick. It dynamically clusters all bodies, calculates the
+     * required terrain for each cluster, and manages chunk loading and activation.
      */
     public void update() {
-        // Get a snapshot of all currently managed objects.
         List<VxBody> currentObjects = new ArrayList<>(physicsWorld.getObjectManager().getAllObjects());
+
         if (currentObjects.isEmpty()) {
+            releaseAllChunks();
             deactivateAllChunks();
             return;
         }
 
-        // Clean up tracking data for objects that have been removed from the world.
-        cleanupRemovedObjects(currentObjects);
+        // 1. Calculate the total set of required chunks based on dynamic clustering.
+        Set<VxSectionPos> currentlyRequiredChunks = calculateRequiredPreloadSet(currentObjects);
 
-        // Process a small batch of objects for preloading to distribute the load over time.
-        updateObjectPreloading(currentObjects);
+        // 2. Request new chunks and release old ones by comparing the current and previous sets.
+        for (VxSectionPos pos : currentlyRequiredChunks) {
+            if (!previouslyRequiredChunks.contains(pos)) {
+                terrainManager.requestChunk(pos);
+            }
+        }
+        for (VxSectionPos pos : previouslyRequiredChunks) {
+            if (!currentlyRequiredChunks.contains(pos)) {
+                terrainManager.releaseChunk(pos);
+            }
+        }
 
-        // Determine which chunks need to be physically active.
+        // 3. Update the state for the next tick.
+        this.previouslyRequiredChunks = currentlyRequiredChunks;
+
+        // 4. Handle fine-grained activation for bodies that are actually moving.
         updateChunkActivation(currentObjects);
     }
 
     /**
-     * Processes a subset of objects each tick to manage which chunks they should be preloading.
-     * This is the core of the time-slicing optimization.
+     * Groups all physics bodies into grid-based clusters and calculates the union of
+     * chunks required by each cluster.
      */
-    private void updateObjectPreloading(List<VxBody> allObjects) {
-        int objectCount = allObjects.size();
-        if (objectCount == 0) return;
+    private Set<VxSectionPos> calculateRequiredPreloadSet(List<VxBody> allObjects) {
+        // Step 1: Group bodies into clusters using a fast spatial hash (grid).
+        Map<Long, List<VxBody>> bodyClusters = new HashMap<>();
+        for (VxBody body : allObjects) {
+            int dataIndex = body.getDataStoreIndex();
+            if (dataIndex == -1) continue;
 
-        int objectsToProcess = Math.min(objectCount, OBJECTS_PER_TICK);
+            // Get the body's position in chunk coordinates.
+            VxSectionPos bodySectionPos = VxSectionPos.fromWorldSpace(
+                    objectDataStore.posX[dataIndex],
+                    objectDataStore.posY[dataIndex],
+                    objectDataStore.posZ[dataIndex]
+            );
 
-        for (int i = 0; i < objectsToProcess; ++i) {
-            objectUpdateIndex = (objectUpdateIndex + 1) % objectCount;
-            VxBody obj = allObjects.get(objectUpdateIndex);
-            int dataIndex = obj.getDataStoreIndex();
+            // Calculate the coarse grid cell coordinates.
+            int cellX = bodySectionPos.x() / GRID_CELL_SIZE_IN_CHUNKS;
+            int cellY = bodySectionPos.y() / GRID_CELL_SIZE_IN_CHUNKS;
+            int cellZ = bodySectionPos.z() / GRID_CELL_SIZE_IN_CHUNKS;
 
-            if (dataIndex == -1 || obj.getBodyId() == 0) {
-                removeObjectTracking(obj.getPhysicsId());
-                continue;
-            }
-
-            // Check and update the cooldown for this object.
-            int cooldown = objectUpdateCooldowns.getOrDefault(obj.getPhysicsId(), 0);
-            float velSq = getVelocitySq(dataIndex);
-
-            if (cooldown > 0 && velSq < MAX_SPEED_FOR_COOLDOWN_SQR) {
-                objectUpdateCooldowns.put(obj.getPhysicsId(), cooldown - 1);
-            } else {
-                // Time to update this object's tracking.
-                objectUpdateCooldowns.put(obj.getPhysicsId(), UPDATE_INTERVAL_TICKS);
-                processPreloadForObject(obj.getPhysicsId(), dataIndex);
-            }
+            // Use SectionPos.asLong to create a unique, stable key for the cell.
+            long cellKey = SectionPos.asLong(cellX, cellY, cellZ);
+            bodyClusters.computeIfAbsent(cellKey, k -> new ArrayList<>()).add(body);
         }
+
+        // Step 2: For each cluster, calculate its bounding box and the chunks it needs.
+        Set<VxSectionPos> requiredChunks = new HashSet<>();
+        for (List<VxBody> cluster : bodyClusters.values()) {
+            if (cluster.isEmpty()) continue;
+
+            // Initialize AABB with the first object's bounds.
+            int firstIndex = cluster.get(0).getDataStoreIndex();
+            float minX = objectDataStore.aabbMinX[firstIndex];
+            float minY = objectDataStore.aabbMinY[firstIndex];
+            float minZ = objectDataStore.aabbMinZ[firstIndex];
+            float maxX = objectDataStore.aabbMaxX[firstIndex];
+            float maxY = objectDataStore.aabbMaxY[firstIndex];
+            float maxZ = objectDataStore.aabbMaxZ[firstIndex];
+
+            // Expand the AABB to include all other objects in the cluster and their predictions.
+            for (VxBody obj : cluster) {
+                int dataIndex = obj.getDataStoreIndex();
+                if (dataIndex == -1) continue;
+
+                // Current bounds
+                minX = Math.min(minX, objectDataStore.aabbMinX[dataIndex]);
+                minY = Math.min(minY, objectDataStore.aabbMinY[dataIndex]);
+                minZ = Math.min(minZ, objectDataStore.aabbMinZ[dataIndex]);
+                maxX = Math.max(maxX, objectDataStore.aabbMaxX[dataIndex]);
+                maxY = Math.max(maxY, objectDataStore.aabbMaxY[dataIndex]);
+                maxZ = Math.max(maxZ, objectDataStore.aabbMaxZ[dataIndex]);
+
+                // Predicted bounds
+                float velX = objectDataStore.velX[dataIndex];
+                float velY = objectDataStore.velY[dataIndex];
+                float velZ = objectDataStore.velZ[dataIndex];
+                if (Math.abs(velX) > 0.01f || Math.abs(velY) > 0.01f || Math.abs(velZ) > 0.01f) {
+                    float predMinX = objectDataStore.aabbMinX[dataIndex] + velX * PREDICTION_SECONDS;
+                    float predMinY = objectDataStore.aabbMinY[dataIndex] + velY * PREDICTION_SECONDS;
+                    float predMinZ = objectDataStore.aabbMinZ[dataIndex] + velZ * PREDICTION_SECONDS;
+                    float predMaxX = objectDataStore.aabbMaxX[dataIndex] + velX * PREDICTION_SECONDS;
+                    float predMaxY = objectDataStore.aabbMaxY[dataIndex] + velY * PREDICTION_SECONDS;
+                    float predMaxZ = objectDataStore.aabbMaxZ[dataIndex] + velZ * PREDICTION_SECONDS;
+
+                    minX = Math.min(minX, predMinX);
+                    minY = Math.min(minY, predMinY);
+                    minZ = Math.min(minZ, predMinZ);
+                    maxX = Math.max(maxX, predMaxX);
+                    maxY = Math.max(maxY, predMaxY);
+                    maxZ = Math.max(maxZ, predMaxZ);
+                }
+            }
+
+            // Add all chunks within this cluster's expanded AABB to the final set.
+            forEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, PRELOAD_RADIUS_CHUNKS, requiredChunks);
+        }
+
+        return requiredChunks;
     }
 
     /**
      * Updates the set of active terrain chunks for the current physics tick.
-     * <p>
-     * Ensures that physics bodies can interact properly by loading terrain
-     * around moving or soon-to-move bodies. Prevents deadlocks where inactive
-     * terrain blocks activation.
-     * <p>
-     * Steps:
-     * <ol>
-     *   <li>Collect chunks required by all relevant bodies.</li>
-     *   <li>Request generation of missing chunks via {@link VxTerrainManager}.</li>
-     *   <li>Deactivate chunks no longer needed; activate new ones.</li>
-     * </ol>
-     *
-     * @param allObjects Snapshot of all current physics bodies.
+     * This logic is kept for performance, activating chunks only around moving bodies.
      */
     private void updateChunkActivation(List<VxBody> allObjects) {
-        // A set to hold all chunk positions that must be physically active this tick.
         Set<VxSectionPos> requiredActiveSet = new HashSet<>();
 
-        // A body requires active terrain if it's already moving (isActive) or if the physics engine
-        // has marked it to start moving on the next simulation step (isAwaitingActivation).
-        // Including 'isAwaitingActivation' is crucial to prevent deadlocks.
         for (VxBody obj : allObjects) {
             int dataIndex = obj.getDataStoreIndex();
-            if (dataIndex != -1 && (objectDataStore.isActive[dataIndex] || objectDataStore.isAwaitingActivation[dataIndex])) {
-                calculateRequiredChunks(dataIndex, ACTIVATION_RADIUS_CHUNKS, requiredActiveSet);
+            if (dataIndex != -1 && objectDataStore.isActive[dataIndex]) {
+                float minX = objectDataStore.aabbMinX[dataIndex];
+                float minY = objectDataStore.aabbMinY[dataIndex];
+                float minZ = objectDataStore.aabbMinZ[dataIndex];
+                float maxX = objectDataStore.aabbMaxX[dataIndex];
+                float maxY = objectDataStore.aabbMaxY[dataIndex];
+                float maxZ = objectDataStore.aabbMaxZ[dataIndex];
+                forEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, ACTIVATION_RADIUS_CHUNKS, requiredActiveSet);
             }
         }
 
-        // Ensure that the most urgently needed chunks are generated with the highest priority.
         requiredActiveSet.forEach(pos -> terrainManager.prioritizeChunk(pos, VxTaskPriority.CRITICAL));
 
-        // Get a snapshot of all chunks that are currently part of the physics simulation.
         Set<VxSectionPos> currentlyActive = chunkDataStore.getActiveIndices().stream()
                 .filter(index -> chunkDataStore.states[index] == 4 /* STATE_READY_ACTIVE */)
                 .map(chunkDataStore::getPosForIndex)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        // Deactivate any chunks that were active last tick but are no longer required.
-        // This is an optimization to keep the number of bodies in the simulation low.
         for (VxSectionPos pos : currentlyActive) {
             if (!requiredActiveSet.contains(pos)) {
                 terrainManager.deactivateChunk(pos);
             }
         }
 
-        // Activate any newly required chunks that are not yet part of the simulation.
         for (VxSectionPos pos : requiredActiveSet) {
             if (!currentlyActive.contains(pos)) {
                 terrainManager.activateChunk(pos);
@@ -169,78 +217,15 @@ public final class VxTerrainTracker {
     }
 
     /**
-     * Calculates and applies the required preloaded chunks for a single object.
-     * It compares the new set of required chunks with the previously tracked set and
-     * issues requests/releases to the TerrainManager accordingly.
+     * Helper method to iterate over all chunk sections that overlap a given AABB plus a radius.
      */
-    private void processPreloadForObject(UUID id, int dataIndex) {
-        Set<VxSectionPos> requiredPreloadSet = new HashSet<>();
-        calculateRequiredChunks(dataIndex, PRELOAD_RADIUS_CHUNKS, requiredPreloadSet);
-
-        Set<VxSectionPos> previouslyTracked = objectTrackedChunks.computeIfAbsent(id, k -> new HashSet<>());
-
-        // Release chunks that are no longer needed by this object.
-        previouslyTracked.removeIf(pos -> {
-            if (!requiredPreloadSet.contains(pos)) {
-                terrainManager.releaseChunk(pos);
-                return true;
-            }
-            return false;
-        });
-
-        // Request chunks that are newly required.
-        for (VxSectionPos pos : requiredPreloadSet) {
-            if (previouslyTracked.add(pos)) {
-                terrainManager.requestChunk(pos);
-            }
-        }
-    }
-
-    /**
-     * Calculates the set of chunk sections required for a body based on its AABB, velocity prediction, and a given radius.
-     *
-     * @param dataIndex The index of the body in the data store.
-     * @param radius The radius in chunks to include around the body.
-     * @param outChunks The set to which the required chunk positions will be added.
-     */
-    private void calculateRequiredChunks(int dataIndex, int radius, Set<VxSectionPos> outChunks) {
-        // Read current AABB from data store
-        float minX = objectDataStore.aabbMinX[dataIndex];
-        float minY = objectDataStore.aabbMinY[dataIndex];
-        float minZ = objectDataStore.aabbMinZ[dataIndex];
-        float maxX = objectDataStore.aabbMaxX[dataIndex];
-        float maxY = objectDataStore.aabbMaxY[dataIndex];
-        float maxZ = objectDataStore.aabbMaxZ[dataIndex];
-
-        // Add chunks for the current position
-        addChunksForBounds(minX, minY, minZ, maxX, maxY, maxZ, radius, outChunks);
-
-        // Predict future position and add chunks for it as well, but only if the object is moving.
-        float velX = objectDataStore.velX[dataIndex];
-        float velY = objectDataStore.velY[dataIndex];
-        float velZ = objectDataStore.velZ[dataIndex];
-
-        if (Math.abs(velX) > 0.01f || Math.abs(velY) > 0.01f || Math.abs(velZ) > 0.01f) {
-            float predMinX = minX + velX * PREDICTION_SECONDS;
-            float predMinY = minY + velY * PREDICTION_SECONDS;
-            float predMinZ = minZ + velZ * PREDICTION_SECONDS;
-            float predMaxX = maxX + velX * PREDICTION_SECONDS;
-            float predMaxY = maxY + velY * PREDICTION_SECONDS;
-            float predMaxZ = maxZ + velZ * PREDICTION_SECONDS;
-            addChunksForBounds(predMinX, predMinY, predMinZ, predMaxX, predMaxY, predMaxZ, radius, outChunks);
-        }
-    }
-
-    /**
-     * A helper method to populate a set with all chunk sections that overlap a given AABB plus a radius.
-     */
-    private void addChunksForBounds(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, int radiusInChunks, Set<VxSectionPos> outChunks) {
-        int minSectionX = ((int) Math.floor(minX) >> 4) - radiusInChunks;
-        int minSectionY = ((int) Math.floor(minY) >> 4) - radiusInChunks;
-        int minSectionZ = ((int) Math.floor(minZ) >> 4) - radiusInChunks;
-        int maxSectionX = ((int) Math.floor(maxX) >> 4) + radiusInChunks;
-        int maxSectionY = ((int) Math.floor(maxY) >> 4) + radiusInChunks;
-        int maxSectionZ = ((int) Math.floor(maxZ) >> 4) + radiusInChunks;
+    private void forEachSectionInBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, int radiusInChunks, Set<VxSectionPos> outChunks) {
+        int minSectionX = SectionPos.blockToSectionCoord(minX) - radiusInChunks;
+        int minSectionY = SectionPos.blockToSectionCoord(minY) - radiusInChunks;
+        int minSectionZ = SectionPos.blockToSectionCoord(minZ) - radiusInChunks;
+        int maxSectionX = SectionPos.blockToSectionCoord(maxX) + radiusInChunks;
+        int maxSectionY = SectionPos.blockToSectionCoord(maxY) + radiusInChunks;
+        int maxSectionZ = SectionPos.blockToSectionCoord(maxZ) + radiusInChunks;
 
         final int worldMinY = level.getMinBuildHeight() >> 4;
         final int worldMaxY = level.getMaxBuildHeight() >> 4;
@@ -255,30 +240,13 @@ public final class VxTerrainTracker {
         }
     }
 
-    /**
-     * Removes all tracking information for a specific object and releases its held chunks.
-     * @param id The UUID of the object to stop tracking.
-     */
-    private void removeObjectTracking(UUID id) {
-        Set<VxSectionPos> chunksToRelease = objectTrackedChunks.remove(id);
-        if (chunksToRelease != null) {
-            chunksToRelease.forEach(terrainManager::releaseChunk);
+    /** Releases all chunks currently held by the tracker. */
+    private void releaseAllChunks() {
+        if (previouslyRequiredChunks.isEmpty()) return;
+        for (VxSectionPos pos : previouslyRequiredChunks) {
+            terrainManager.releaseChunk(pos);
         }
-        objectUpdateCooldowns.remove(id);
-    }
-
-    /**
-     * Iterates through the list of tracked objects and removes any that are no longer present in the world.
-     */
-    private void cleanupRemovedObjects(List<VxBody> currentObjects) {
-        Set<UUID> currentObjectIds = currentObjects.stream().map(VxBody::getPhysicsId).collect(Collectors.toSet());
-        objectTrackedChunks.keySet().removeIf(id -> {
-            if (!currentObjectIds.contains(id)) {
-                removeObjectTracking(id);
-                return true;
-            }
-            return false;
-        });
+        previouslyRequiredChunks.clear();
     }
 
     /** Deactivates all currently managed terrain chunks. Used when no objects are in the world. */
@@ -289,17 +257,8 @@ public final class VxTerrainTracker {
                 .forEach(terrainManager::deactivateChunk);
     }
 
-    private float getVelocitySq(int dataIndex) {
-        float vx = objectDataStore.velX[dataIndex];
-        float vy = objectDataStore.velY[dataIndex];
-        float vz = objectDataStore.velZ[dataIndex];
-        return vx * vx + vy * vy + vz * vz;
-    }
-
     /** Clears all tracking data. Used during shutdown. */
     public void clear() {
-        objectTrackedChunks.clear();
-        objectUpdateCooldowns.clear();
-        objectUpdateIndex = 0;
+        releaseAllChunks();
     }
 }
