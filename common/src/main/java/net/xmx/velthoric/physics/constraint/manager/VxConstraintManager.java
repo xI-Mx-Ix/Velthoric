@@ -56,9 +56,9 @@ public class VxConstraintManager {
     public void shutdown() {
         // Synchronously flush all pending persistence operations to disk.
         // This guarantees that all changes are saved before the server closes the world.
-        VxMainClass.LOGGER.info("Flushing physics constraint persistence for world {}...", world.getDimensionKey().location());
+        VxMainClass.LOGGER.debug("Flushing physics constraint persistence for world {}...", world.getDimensionKey().location());
         flushPersistence();
-        VxMainClass.LOGGER.info("Physics constraint persistence flushed for world {}.", world.getDimensionKey().location());
+        VxMainClass.LOGGER.debug("Physics constraint persistence flushed for world {}.", world.getDimensionKey().location());
 
         activeConstraints.clear();
         dataSystem.clear();
