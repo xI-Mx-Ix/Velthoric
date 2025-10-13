@@ -93,5 +93,5 @@ Found a bug, crash, or an incompatible mod? Please report it on the **issue trac
 
 ### 🙏 Acknowledgments
 
-* [Stephen Gold](https://github.com/stephengold) - JoltJNI
-* [Jolt Physics](https://github.com/jrouwe/JoltPhysics) - physics engine
+* [JoltJNI](https://github.com/stephengold/jolt-jni) - JNI bindings for Jolt Physics
+* [Jolt Physics](https://github.com/jrouwe/JoltPhysics) - Physics engine
