@@ -29,7 +29,7 @@ public abstract class MixinArgumentTypeInfos {
     @Inject(method = "bootstrap", at = @At("TAIL"))
     private static void onBootstrap(Registry<ArgumentTypeInfo<?, ?>> registry, CallbackInfoReturnable<ArgumentTypeInfo<?, ?>> cir) {
 
-        register(registry, "velthoric:vx_object", VxBodyArgument.class,
+        register(registry, "velthoric:vx_body", VxBodyArgument.class,
             SingletonArgumentInfo.contextFree(VxBodyArgument::instance));
     }
 }
