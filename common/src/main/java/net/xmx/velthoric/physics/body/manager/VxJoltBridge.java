@@ -27,17 +27,43 @@ public enum VxJoltBridge {
     INSTANCE;
 
     /**
-     * Retrieves a writable {@link Body} instance for a given VxBody.
-     * This method acquires a write lock on the Jolt body.
+     * Retrieves a writable {@link Body} for a given {@link VxBody} wrapper.
+     * Acquires a write lock on the Jolt body.
      *
      * @param world The physics world containing the body.
-     * @param body  The VxBody wrapper whose Jolt body is to be retrieved.
-     * @return The writable {@link Body} if it exists and the lock succeeds; otherwise {@code null}.
+     * @param body  The VxBody wrapper.
+     * @return The writable {@link Body} if successful, otherwise null.
      */
     @Nullable
     public Body getJoltBody(VxPhysicsWorld world, VxBody body) {
         if (body == null) return null;
-        int bodyId = body.getBodyId();
+        return getJoltBody(world, body.getBodyId());
+    }
+
+    /**
+     * Retrieves a read-only {@link ConstBody} for a given {@link VxBody} wrapper.
+     * Acquires a read lock on the Jolt body.
+     *
+     * @param world The physics world containing the body.
+     * @param body  The VxBody wrapper.
+     * @return The read-only {@link ConstBody} if successful, otherwise null.
+     */
+    @Nullable
+    public ConstBody getConstJoltBody(VxPhysicsWorld world, VxBody body) {
+        if (body == null) return null;
+        return getConstJoltBody(world, body.getBodyId());
+    }
+
+    /**
+     * Retrieves a writable {@link Body} for a given Jolt body ID.
+     * Acquires a write lock on the Jolt body.
+     *
+     * @param world  The physics world containing the body.
+     * @param bodyId The Jolt body ID.
+     * @return The writable {@link Body} if successful, otherwise null.
+     */
+    @Nullable
+    public Body getJoltBody(VxPhysicsWorld world, int bodyId) {
         if (bodyId == 0) return null;
 
         try (BodyLockWrite lock = new BodyLockWrite(world.getPhysicsSystem().getBodyLockInterface(), bodyId)) {
@@ -49,17 +75,15 @@ public enum VxJoltBridge {
     }
 
     /**
-     * Retrieves a read-only {@link ConstBody} instance for a given VxBody.
-     * This method acquires a read lock on the Jolt body.
+     * Retrieves a read-only {@link ConstBody} for a given Jolt body ID.
+     * Acquires a read lock on the Jolt body.
      *
-     * @param world The physics world containing the body.
-     * @param body  The VxBody wrapper whose Jolt body is to be accessed.
-     * @return The read-only {@link ConstBody} if available and the lock succeeds; otherwise {@code null}.
+     * @param world  The physics world containing the body.
+     * @param bodyId The Jolt body ID.
+     * @return The read-only {@link ConstBody} if successful, otherwise null.
      */
     @Nullable
-    public ConstBody getConstJoltBody(VxPhysicsWorld world, VxBody body) {
-        if (body == null) return null;
-        int bodyId = body.getBodyId();
+    public ConstBody getConstJoltBody(VxPhysicsWorld world, int bodyId) {
         if (bodyId == 0) return null;
 
         try (BodyLockRead lock = new BodyLockRead(world.getPhysicsSystem().getBodyLockInterface(), bodyId)) {
