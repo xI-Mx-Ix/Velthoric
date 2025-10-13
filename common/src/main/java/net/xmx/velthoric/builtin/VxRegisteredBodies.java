@@ -85,8 +85,8 @@ public class VxRegisteredBodies {
     }
 
     /**
-     * Registers all client-side factory methods for creating client-side
-     * representations of physics bodies. This should only be called on the client.
+     * Registers factories for client-side instantiation of physics bodies.
+     * This should only be called on the client.
      */
     @Environment(EnvType.CLIENT)
     public static void registerClientFactories() {
