@@ -8,7 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.object.client.time.VxClientClock;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.physics.world.VxPauseUtil;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -36,12 +36,11 @@ public abstract class MixinMinecraft {
 
         if (!isGamePausable) {
             if (velthoric$wasPaused) {
-                VxMainClass.LOGGER.debug("Game is no longer pausable (e.g., opened to LAN). Ensuring physics is running.");
-                VxPhysicsWorld.getAll().forEach(VxPhysicsWorld::resume);
+                VxMainClass.LOGGER.debug("Game is no longer pausable. Ensuring physics is running.");
+                VxPauseUtil.setPaused(false);
                 clientClock.resume();
                 velthoric$wasPaused = false;
             }
-
             return;
         }
 
@@ -50,11 +49,11 @@ public abstract class MixinMinecraft {
         if (isNowPaused != velthoric$wasPaused) {
             if (isNowPaused) {
                 VxMainClass.LOGGER.debug("Single-player game paused. Pausing physics simulation...");
-                VxPhysicsWorld.getAll().forEach(VxPhysicsWorld::pause);
+                VxPauseUtil.setPaused(true);
                 clientClock.pause();
             } else {
                 VxMainClass.LOGGER.debug("Single-player game resumed. Resuming physics simulation...");
-                VxPhysicsWorld.getAll().forEach(VxPhysicsWorld::resume);
+                VxPauseUtil.setPaused(false);
                 clientClock.resume();
             }
             velthoric$wasPaused = isNowPaused;

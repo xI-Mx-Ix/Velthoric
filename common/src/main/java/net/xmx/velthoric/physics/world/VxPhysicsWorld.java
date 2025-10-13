@@ -6,9 +6,6 @@ package net.xmx.velthoric.physics.world;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
-import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceLocking;
-import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceNoLock;
-import com.github.stephengold.joltjni.readonly.ConstNarrowPhaseQuery;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.FrameTimer;
@@ -67,7 +64,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final Queue<ICommand> commandQueue = new ConcurrentLinkedQueue<>();
     private volatile Thread physicsThreadExecutor;
     private volatile boolean isRunning = false;
-    private volatile boolean isPaused = false;
     private float timeAccumulator = 0.0f;
     private long lastTimeNanos = 0L;
 
@@ -149,12 +145,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
                 processCommandQueue();
 
                 long currentTimeNanos = System.nanoTime();
-                if (this.isPaused) {
-                    this.lastTimeNanos = currentTimeNanos;
-                    Thread.sleep(10);
-                    continue;
-                }
-
                 float deltaTime = (currentTimeNanos - this.lastTimeNanos) / 1_000_000_000.0f;
                 this.lastTimeNanos = currentTimeNanos;
 
@@ -174,7 +164,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     private void updatePhysicsLoop(float deltaTime) {
-        if (this.isPaused || !this.isRunning || this.physicsSystem == null) {
+        if (VxPauseUtil.isPaused() || !this.isRunning || this.physicsSystem == null) {
             return;
         }
 
@@ -342,18 +332,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public boolean isRunning() {
         return this.isRunning && this.physicsThreadExecutor != null && this.physicsThreadExecutor.isAlive();
-    }
-
-    public boolean isPaused() {
-        return this.isPaused;
-    }
-
-    public void pause() {
-        this.execute(() -> this.isPaused = true);
-    }
-
-    public void resume() {
-        this.execute(() -> this.isPaused = false);
     }
 
     @Nullable
