@@ -149,19 +149,22 @@ public final class VxTerrainTracker {
         for (List<VxBody> cluster : bodyClusters.values()) {
             if (cluster.isEmpty()) continue;
 
-            // Initialize AABB with the first body's bounds.
-            int firstIndex = cluster.get(0).getDataStoreIndex();
-            float minX = bodyDataStore.aabbMinX[firstIndex];
-            float minY = bodyDataStore.aabbMinY[firstIndex];
-            float minZ = bodyDataStore.aabbMinZ[firstIndex];
-            float maxX = bodyDataStore.aabbMaxX[firstIndex];
-            float maxY = bodyDataStore.aabbMaxY[firstIndex];
-            float maxZ = bodyDataStore.aabbMaxZ[firstIndex];
+            // Initialize AABB with inverted bounds to correctly encompass all valid bodies in the cluster.
+            float minX = Float.POSITIVE_INFINITY;
+            float minY = Float.POSITIVE_INFINITY;
+            float minZ = Float.POSITIVE_INFINITY;
+            float maxX = Float.NEGATIVE_INFINITY;
+            float maxY = Float.NEGATIVE_INFINITY;
+            float maxZ = Float.NEGATIVE_INFINITY;
+            boolean clusterHasValidBodies = false;
 
-            // Expand the AABB to include all other bodies in the cluster and their predictions.
+            // Expand the AABB to include all bodies in the cluster and their predictions.
             for (VxBody body : cluster) {
                 int dataIndex = body.getDataStoreIndex();
+                // Safely skip any body that may have been removed concurrently.
                 if (dataIndex == -1) continue;
+
+                clusterHasValidBodies = true;
 
                 // Current bounds
                 minX = Math.min(minX, bodyDataStore.aabbMinX[dataIndex]);
@@ -192,8 +195,10 @@ public final class VxTerrainTracker {
                 }
             }
 
-            // Add all chunks within this cluster's expanded AABB to the final set.
-            forEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, PRELOAD_RADIUS_CHUNKS, requiredChunks);
+            // Only add chunks if the cluster contained at least one valid body.
+            if (clusterHasValidBodies) {
+                forEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, PRELOAD_RADIUS_CHUNKS, requiredChunks);
+            }
         }
 
         return requiredChunks;
