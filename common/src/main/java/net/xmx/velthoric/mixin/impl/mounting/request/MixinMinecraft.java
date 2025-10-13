@@ -69,7 +69,7 @@ public abstract class MixinMinecraft {
         Vec3 endVec = cameraPos.add(viewVec.x * maxDist, viewVec.y * maxDist, viewVec.z * maxDist);
 
         VxClientBodyManager bodyManager = VxClientBodyManager.getInstance();
-        VxClientMountingManager ridingManager = VxClientMountingManager.getInstance();
+        VxClientMountingManager ridingManager = VxClientMountingManager.INSTANCE;
 
         VxBody closestBody = null;
         VxSeat closestSeat = null;

@@ -57,7 +57,7 @@ public class VxDebugRenderer {
      */
     private void renderSeatHitboxes(PoseStack poseStack, MultiBufferSource bufferSource, VxClientBodyManager manager, float partialTicks) {
         VertexConsumer vertexConsumer = bufferSource.getBuffer(RenderType.lines());
-        VxClientMountingManager ridingManager = VxClientMountingManager.getInstance();
+        VxClientMountingManager ridingManager = VxClientMountingManager.INSTANCE;
 
         for (VxBody body : manager.getAllBodies()) {
             if (!body.isInitialized()) continue;

@@ -89,7 +89,7 @@ public class VxMountingEntity extends Entity {
         if (level().isClientSide()) {
             return getPhysicsBodyId().flatMap(objId ->
                     getSeatId().flatMap(seatId ->
-                            VxClientMountingManager.getInstance().getSeat(objId, seatId)
+                            VxClientMountingManager.INSTANCE.getSeat(objId, seatId)
                     )
             ).map(seat -> new Vector3f(seat.getRiderOffset())).orElse(new Vector3f());
         } else {

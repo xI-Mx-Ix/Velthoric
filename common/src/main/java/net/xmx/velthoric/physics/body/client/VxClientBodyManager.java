@@ -157,7 +157,7 @@ public class VxClientBodyManager {
             List<VxSeat> seats = mountable.defineSeats();
             if (seats != null) {
                 for (VxSeat seat : seats) {
-                    VxClientMountingManager.getInstance().addSeat(id, seat);
+                    VxClientMountingManager.INSTANCE.addSeat(id, seat);
                 }
             }
         }
@@ -229,7 +229,7 @@ public class VxClientBodyManager {
     public void removeBody(UUID id) {
         managedBodies.remove(id);
         store.removeBody(id);
-        VxClientMountingManager.getInstance().removeSeatsForBody(id);
+        VxClientMountingManager.INSTANCE.removeSeatsForBody(id);
     }
 
     /**

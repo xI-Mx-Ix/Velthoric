@@ -17,27 +17,14 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author xI-Mx-Ix
  */
-public final class VxClientMountingManager {
-
-    private static final VxClientMountingManager INSTANCE = new VxClientMountingManager();
+public enum VxClientMountingManager {
+    INSTANCE;
 
     /**
      * Maps a physics body's UUID to a map of its seats, indexed by each seat's UUID.
      * This nested map structure allows for O(1) lookup of a specific seat.
      */
     private final Map<UUID, Map<UUID, VxSeat>> bodyToSeatsMap = new ConcurrentHashMap<>();
-
-    private VxClientMountingManager() {
-    }
-
-    /**
-     * Returns the singleton instance of the client mounting manager.
-     *
-     * @return The singleton instance.
-     */
-    public static VxClientMountingManager getInstance() {
-        return INSTANCE;
-    }
 
     /**
      * Registers the necessary client-side event listeners for this manager.
