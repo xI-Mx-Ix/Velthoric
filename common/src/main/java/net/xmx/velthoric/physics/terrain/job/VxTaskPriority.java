@@ -19,22 +19,22 @@ package net.xmx.velthoric.physics.terrain.job;
 public enum VxTaskPriority {
 
     /**
-     * Low priority — used for background generation far from any player or body.
+     * Low priority - used for background generation far from any player or body.
      */
     LOW,
 
     /**
-     * Medium priority — standard level for normal terrain operations like block updates.
+     * Medium priority - standard level for normal terrain operations like block updates.
      */
     MEDIUM,
 
     /**
-     * High priority — for chunks in the immediate preloading range of an active body.
+     * High priority - for chunks in the immediate preloading range of an active body.
      */
     HIGH,
 
     /**
-     * Critical priority — reserved for chunks required immediately by the simulation.
+     * Critical priority - reserved for chunks required immediately by the simulation.
      */
     CRITICAL,
 }
