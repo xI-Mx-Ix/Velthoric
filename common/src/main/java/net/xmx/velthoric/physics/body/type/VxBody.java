@@ -39,9 +39,13 @@ public abstract class VxBody {
     protected final UUID physicsId;
     protected final VxSynchronizedData synchronizedData;
     protected final VxBodyType<? extends VxBody> type;
-    /** The ID of the body in the Jolt physics simulation. 0 if not yet added. Server-side only. */
+    /**
+     * The ID of the body in the Jolt physics simulation. 0 if not yet added. Server-side only.
+     */
     private int bodyId = 0;
-    /** The index of this body's data in the data store. -1 if not yet added. */
+    /**
+     *  The index of this body's data in the data store. -1 if not yet added.
+     */
     private int dataStoreIndex = -1;
 
     // --- Server-Only Fields ---
