@@ -6,8 +6,8 @@ package net.xmx.velthoric.physics.terrain.management;
 
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
-import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
 import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.storage.VxChunkDataStore;
@@ -31,7 +31,7 @@ public final class VxTerrainTracker {
     private final VxTerrainManager terrainManager;
     private final VxChunkDataStore chunkDataStore;
     private final ServerLevel level;
-    private final VxObjectDataStore objectDataStore;
+    private final VxBodyDataStore bodyDataStore;
 
     private Set<VxSectionPos> previouslyRequiredChunks = new HashSet<>();
 
@@ -74,7 +74,7 @@ public final class VxTerrainTracker {
         this.terrainManager = terrainManager;
         this.chunkDataStore = chunkDataStore;
         this.level = level;
-        this.objectDataStore = physicsWorld.getObjectManager().getDataStore();
+        this.bodyDataStore = physicsWorld.getBodyManager().getDataStore();
     }
 
     /**
@@ -83,16 +83,16 @@ public final class VxTerrainTracker {
      * the current and previous state.
      */
     public void update() {
-        List<VxBody> currentObjects = new ArrayList<>(physicsWorld.getObjectManager().getAllObjects());
+        List<VxBody> currentBodies = new ArrayList<>(physicsWorld.getBodyManager().getAllBodies());
 
-        if (currentObjects.isEmpty()) {
+        if (currentBodies.isEmpty()) {
             releaseAllChunks();
             deactivateAllChunks();
             return;
         }
 
         // 1. Calculate the total set of required chunks based on dynamic clustering.
-        Set<VxSectionPos> currentlyRequiredChunks = calculateRequiredPreloadSet(currentObjects);
+        Set<VxSectionPos> currentlyRequiredChunks = calculateRequiredPreloadSet(currentBodies);
 
         // 2. Request new chunks and release old ones by comparing the current and previous sets.
         for (VxSectionPos pos : currentlyRequiredChunks) {
@@ -110,28 +110,28 @@ public final class VxTerrainTracker {
         this.previouslyRequiredChunks = currentlyRequiredChunks;
 
         // 4. Handle fine-grained activation for bodies that are actually moving.
-        updateChunkActivation(currentObjects);
+        updateChunkActivation(currentBodies);
     }
 
     /**
      * Groups all physics bodies into grid-based clusters and calculates the union of
      * chunks required by each cluster, including a preloading radius and motion prediction.
      *
-     * @param allObjects A list of all physics bodies currently in the world.
+     * @param allBodies A list of all physics bodies currently in the world.
      * @return A set of {@link VxSectionPos} representing all chunks that should be loaded.
      */
-    private Set<VxSectionPos> calculateRequiredPreloadSet(List<VxBody> allObjects) {
+    private Set<VxSectionPos> calculateRequiredPreloadSet(List<VxBody> allBodies) {
         // Step 1: Group bodies into clusters using a fast spatial hash (grid).
         Map<Long, List<VxBody>> bodyClusters = new HashMap<>();
-        for (VxBody body : allObjects) {
+        for (VxBody body : allBodies) {
             int dataIndex = body.getDataStoreIndex();
             if (dataIndex == -1) continue;
 
             // Get the body's position in chunk coordinates.
             VxSectionPos bodySectionPos = VxSectionPos.fromWorldSpace(
-                    objectDataStore.posX[dataIndex],
-                    objectDataStore.posY[dataIndex],
-                    objectDataStore.posZ[dataIndex]
+                    bodyDataStore.posX[dataIndex],
+                    bodyDataStore.posY[dataIndex],
+                    bodyDataStore.posZ[dataIndex]
             );
 
             // Calculate the coarse grid cell coordinates.
@@ -149,39 +149,39 @@ public final class VxTerrainTracker {
         for (List<VxBody> cluster : bodyClusters.values()) {
             if (cluster.isEmpty()) continue;
 
-            // Initialize AABB with the first object's bounds.
+            // Initialize AABB with the first body's bounds.
             int firstIndex = cluster.get(0).getDataStoreIndex();
-            float minX = objectDataStore.aabbMinX[firstIndex];
-            float minY = objectDataStore.aabbMinY[firstIndex];
-            float minZ = objectDataStore.aabbMinZ[firstIndex];
-            float maxX = objectDataStore.aabbMaxX[firstIndex];
-            float maxY = objectDataStore.aabbMaxY[firstIndex];
-            float maxZ = objectDataStore.aabbMaxZ[firstIndex];
+            float minX = bodyDataStore.aabbMinX[firstIndex];
+            float minY = bodyDataStore.aabbMinY[firstIndex];
+            float minZ = bodyDataStore.aabbMinZ[firstIndex];
+            float maxX = bodyDataStore.aabbMaxX[firstIndex];
+            float maxY = bodyDataStore.aabbMaxY[firstIndex];
+            float maxZ = bodyDataStore.aabbMaxZ[firstIndex];
 
-            // Expand the AABB to include all other objects in the cluster and their predictions.
-            for (VxBody obj : cluster) {
-                int dataIndex = obj.getDataStoreIndex();
+            // Expand the AABB to include all other bodies in the cluster and their predictions.
+            for (VxBody body : cluster) {
+                int dataIndex = body.getDataStoreIndex();
                 if (dataIndex == -1) continue;
 
                 // Current bounds
-                minX = Math.min(minX, objectDataStore.aabbMinX[dataIndex]);
-                minY = Math.min(minY, objectDataStore.aabbMinY[dataIndex]);
-                minZ = Math.min(minZ, objectDataStore.aabbMinZ[dataIndex]);
-                maxX = Math.max(maxX, objectDataStore.aabbMaxX[dataIndex]);
-                maxY = Math.max(maxY, objectDataStore.aabbMaxY[dataIndex]);
-                maxZ = Math.max(maxZ, objectDataStore.aabbMaxZ[dataIndex]);
+                minX = Math.min(minX, bodyDataStore.aabbMinX[dataIndex]);
+                minY = Math.min(minY, bodyDataStore.aabbMinY[dataIndex]);
+                minZ = Math.min(minZ, bodyDataStore.aabbMinZ[dataIndex]);
+                maxX = Math.max(maxX, bodyDataStore.aabbMaxX[dataIndex]);
+                maxY = Math.max(maxY, bodyDataStore.aabbMaxY[dataIndex]);
+                maxZ = Math.max(maxZ, bodyDataStore.aabbMaxZ[dataIndex]);
 
                 // Predicted bounds
-                float velX = objectDataStore.velX[dataIndex];
-                float velY = objectDataStore.velY[dataIndex];
-                float velZ = objectDataStore.velZ[dataIndex];
+                float velX = bodyDataStore.velX[dataIndex];
+                float velY = bodyDataStore.velY[dataIndex];
+                float velZ = bodyDataStore.velZ[dataIndex];
                 if (Math.abs(velX) > 0.01f || Math.abs(velY) > 0.01f || Math.abs(velZ) > 0.01f) {
-                    float predMinX = objectDataStore.aabbMinX[dataIndex] + velX * PREDICTION_SECONDS;
-                    float predMinY = objectDataStore.aabbMinY[dataIndex] + velY * PREDICTION_SECONDS;
-                    float predMinZ = objectDataStore.aabbMinZ[dataIndex] + velZ * PREDICTION_SECONDS;
-                    float predMaxX = objectDataStore.aabbMaxX[dataIndex] + velX * PREDICTION_SECONDS;
-                    float predMaxY = objectDataStore.aabbMaxY[dataIndex] + velY * PREDICTION_SECONDS;
-                    float predMaxZ = objectDataStore.aabbMaxZ[dataIndex] + velZ * PREDICTION_SECONDS;
+                    float predMinX = bodyDataStore.aabbMinX[dataIndex] + velX * PREDICTION_SECONDS;
+                    float predMinY = bodyDataStore.aabbMinY[dataIndex] + velY * PREDICTION_SECONDS;
+                    float predMinZ = bodyDataStore.aabbMinZ[dataIndex] + velZ * PREDICTION_SECONDS;
+                    float predMaxX = bodyDataStore.aabbMaxX[dataIndex] + velX * PREDICTION_SECONDS;
+                    float predMaxY = bodyDataStore.aabbMaxY[dataIndex] + velY * PREDICTION_SECONDS;
+                    float predMaxZ = bodyDataStore.aabbMaxZ[dataIndex] + velZ * PREDICTION_SECONDS;
 
                     minX = Math.min(minX, predMinX);
                     minY = Math.min(minY, predMinY);
@@ -204,20 +204,20 @@ public final class VxTerrainTracker {
      * This logic is kept separate for performance, activating chunks only around bodies
      * that are currently in motion to ensure immediate collision data is available.
      *
-     * @param allObjects The list of all physics bodies in the world.
+     * @param allBodies The list of all physics bodies in the world.
      */
-    private void updateChunkActivation(List<VxBody> allObjects) {
+    private void updateChunkActivation(List<VxBody> allBodies) {
         Set<VxSectionPos> requiredActiveSet = new HashSet<>();
 
-        for (VxBody obj : allObjects) {
-            int dataIndex = obj.getDataStoreIndex();
-            if (dataIndex != -1 && objectDataStore.isActive[dataIndex]) {
-                float minX = objectDataStore.aabbMinX[dataIndex];
-                float minY = objectDataStore.aabbMinY[dataIndex];
-                float minZ = objectDataStore.aabbMinZ[dataIndex];
-                float maxX = objectDataStore.aabbMaxX[dataIndex];
-                float maxY = objectDataStore.aabbMaxY[dataIndex];
-                float maxZ = objectDataStore.aabbMaxZ[dataIndex];
+        for (VxBody body : allBodies) {
+            int dataIndex = body.getDataStoreIndex();
+            if (dataIndex != -1 && bodyDataStore.isActive[dataIndex]) {
+                float minX = bodyDataStore.aabbMinX[dataIndex];
+                float minY = bodyDataStore.aabbMinY[dataIndex];
+                float minZ = bodyDataStore.aabbMinZ[dataIndex];
+                float maxX = bodyDataStore.aabbMaxX[dataIndex];
+                float maxY = bodyDataStore.aabbMaxY[dataIndex];
+                float maxZ = bodyDataStore.aabbMaxZ[dataIndex];
                 forEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, ACTIVATION_RADIUS_CHUNKS, requiredActiveSet);
             }
         }

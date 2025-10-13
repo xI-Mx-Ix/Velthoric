@@ -5,18 +5,17 @@
 package net.xmx.velthoric.debug.screen;
 
 import com.github.stephengold.joltjni.Jolt;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import dev.architectury.platform.Platform;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.xmx.velthoric.event.api.VxDebugEvent;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
-import net.xmx.velthoric.physics.object.type.VxBody;
-import net.xmx.velthoric.physics.object.type.VxRigidBody;
-import net.xmx.velthoric.physics.object.type.VxSoftBody;
+import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
+import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.physics.body.type.VxBody;
+import net.xmx.velthoric.physics.body.type.VxRigidBody;
+import net.xmx.velthoric.physics.body.type.VxSoftBody;
 
 import java.util.List;
 import java.util.UUID;
@@ -45,18 +44,18 @@ public class DebugScreen {
 
 
     private static void addClientInfo(List<String> left) {
-        VxClientObjectManager clientManager = VxClientObjectManager.getInstance();
-        VxClientObjectDataStore store = clientManager.getStore();
+        VxClientBodyManager clientManager = VxClientBodyManager.getInstance();
+        VxClientBodyDataStore store = clientManager.getStore();
 
         long clientRigidCount = 0;
         long clientSoftCount = 0;
         int totalVertexCount = 0;
 
-        for (UUID id : store.getAllObjectIds()) {
+        for (UUID id : store.getAllPhysicsIds()) {
             Integer index = store.getIndexForId(id);
             if (index == null) continue;
 
-            VxBody body = clientManager.getObject(id);
+            VxBody body = clientManager.getBody(id);
             if (body == null) continue;
 
             if (body instanceof VxRigidBody) {

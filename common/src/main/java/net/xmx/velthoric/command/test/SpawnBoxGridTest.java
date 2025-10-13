@@ -17,10 +17,10 @@ import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.builtin.VxRegisteredObjects;
+import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 public final class SpawnBoxGridTest implements IVxTestCommand {
@@ -86,14 +86,14 @@ public final class SpawnBoxGridTest implements IVxTestCommand {
         VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(serverLevel.dimension());
         if (physicsWorld == null) return 0;
 
-        VxObjectManager manager = physicsWorld.getObjectManager();
+        VxBodyManager manager = physicsWorld.getBodyManager();
         VxTransform transform = new VxTransform(new RVec3(spawnPosMc.x, spawnPosMc.y, spawnPosMc.z), Quat.sIdentity());
 
-        BoxRigidBody spawnedObject = manager.createRigidBody(
-                VxRegisteredObjects.BOX,
+        BoxRigidBody spawnedBody = manager.createRigidBody(
+                VxRegisteredBodies.BOX,
                 transform,
                 box -> box.setHalfExtents(halfExtents)
         );
-        return spawnedObject != null ? 1 : 0;
+        return spawnedBody != null ? 1 : 0;
     }
 }

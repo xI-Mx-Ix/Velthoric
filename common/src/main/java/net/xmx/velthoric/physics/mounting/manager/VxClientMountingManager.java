@@ -22,10 +22,10 @@ public final class VxClientMountingManager {
     private static final VxClientMountingManager INSTANCE = new VxClientMountingManager();
 
     /**
-     * Maps a physics object's UUID to a map of its seats, indexed by each seat's UUID.
+     * Maps a physics body's UUID to a map of its seats, indexed by each seat's UUID.
      * This nested map structure allows for O(1) lookup of a specific seat.
      */
-    private final Map<UUID, Map<UUID, VxSeat>> objectToSeatsMap = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<UUID, VxSeat>> bodyToSeatsMap = new ConcurrentHashMap<>();
 
     private VxClientMountingManager() {
     }
@@ -47,47 +47,47 @@ public final class VxClientMountingManager {
     }
 
     /**
-     * Adds a seat to a physics object on the client side.
-     * This is typically called from the object's client-side constructor.
+     * Adds a seat to a physics body on the client side.
+     * This is typically called from the body's client-side constructor.
      *
-     * @param objectId The UUID of the object.
+     * @param physicsId The UUID of the body.
      * @param seat     The seat to add.
      */
-    public void addSeat(UUID objectId, VxSeat seat) {
-        this.objectToSeatsMap.computeIfAbsent(objectId, k -> new ConcurrentHashMap<>()).put(seat.getId(), seat);
+    public void addSeat(UUID physicsId, VxSeat seat) {
+        this.bodyToSeatsMap.computeIfAbsent(physicsId, k -> new ConcurrentHashMap<>()).put(seat.getId(), seat);
     }
 
     /**
-     * Removes all seat data associated with a specific physics object.
-     * This is called when an object is removed from the client's world.
+     * Removes all seat data associated with a specific physics body.
+     * This is called when a body is removed from the client's world.
      *
-     * @param objectId The UUID of the physics object.
+     * @param physicsId The UUID of the physics body.
      */
-    public void removeSeatsForObject(UUID objectId) {
-        this.objectToSeatsMap.remove(objectId);
+    public void removeSeatsForBody(UUID physicsId) {
+        this.bodyToSeatsMap.remove(physicsId);
     }
 
     /**
-     * Retrieves all seats for a given physics object.
+     * Retrieves all seats for a given physics body.
      *
-     * @param objectId The UUID of the physics object.
-     * @return A collection of seats for the object, or an empty collection if none exist.
+     * @param physicsId The UUID of the physics body.
+     * @return A collection of seats for the body, or an empty collection if none exist.
      */
-    public Collection<VxSeat> getSeats(UUID objectId) {
-        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+    public Collection<VxSeat> getSeats(UUID physicsId) {
+        Map<UUID, VxSeat> seats = this.bodyToSeatsMap.get(physicsId);
         return seats != null ? seats.values() : Collections.emptyList();
     }
 
     /**
-     * Retrieves a specific seat for a given physics object using the seat's UUID.
+     * Retrieves a specific seat for a given physics body using the seat's UUID.
      * This provides a highly efficient O(1) lookup.
      *
-     * @param objectId The UUID of the physics object.
+     * @param physicsId The UUID of the physics body.
      * @param seatId The UUID of the seat.
      * @return An Optional containing the seat if found.
      */
-    public Optional<VxSeat> getSeat(UUID objectId, UUID seatId) {
-        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+    public Optional<VxSeat> getSeat(UUID physicsId, UUID seatId) {
+        Map<UUID, VxSeat> seats = this.bodyToSeatsMap.get(physicsId);
         return seats != null ? Optional.ofNullable(seats.get(seatId)) : Optional.empty();
     }
 
@@ -95,6 +95,6 @@ public final class VxClientMountingManager {
      * Clears all stored seat data. This is called when the player logs out.
      */
     public void clearAll() {
-        this.objectToSeatsMap.clear();
+        this.bodyToSeatsMap.clear();
     }
 }

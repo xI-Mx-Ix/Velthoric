@@ -15,8 +15,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.material.FluidState;
-import net.xmx.velthoric.physics.object.manager.VxObjectDataStore;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
@@ -43,12 +43,12 @@ public final class VxBuoyancyBroadPhase {
     }
 
     /**
-     * Scans all physics objects and identifies those potentially inside a fluid.
+     * Scans all physics bodies and identifies those potentially inside a fluid.
      *
      * @return A {@link VxBuoyancyResult} object containing the lists of bodies in fluid and their properties.
      */
     public VxBuoyancyResult findPotentialFluidContacts() {
-        VxObjectDataStore ds = physicsWorld.getObjectManager().getDataStore();
+        VxBodyDataStore ds = physicsWorld.getBodyManager().getDataStore();
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
         IntArrayList bodiesFound = new IntArrayList();
 
@@ -60,7 +60,7 @@ public final class VxBuoyancyBroadPhase {
             UUID id = ds.getIdForIndex(i);
             if (id == null) continue;
 
-            VxBody body = physicsWorld.getObjectManager().getObject(id);
+            VxBody body = physicsWorld.getBodyManager().getVxBody(id);
             if (body == null) continue;
 
             int bodyId = body.getBodyId();

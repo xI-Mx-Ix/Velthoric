@@ -16,10 +16,10 @@ import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.builtin.VxRegisteredObjects;
+import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 public final class SpawnBoxTest implements IVxTestCommand {
@@ -76,19 +76,19 @@ public final class SpawnBoxTest implements IVxTestCommand {
             source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
             return 0;
         }
-        VxObjectManager manager = physicsWorld.getObjectManager();
+        VxBodyManager manager = physicsWorld.getBodyManager();
         VxTransform transform = new VxTransform(new RVec3(spawnPosMc.x, spawnPosMc.y, spawnPosMc.z), Quat.sIdentity());
 
-        BoxRigidBody spawnedObject = manager.createRigidBody(
-                VxRegisteredObjects.BOX,
+        BoxRigidBody spawnedBody = manager.createRigidBody(
+                VxRegisteredBodies.BOX,
                 transform,
                 box -> box.setHalfExtents(halfExtents)
         );
 
-        if (spawnedObject != null) {
+        if (spawnedBody != null) {
             source.sendSuccess(() -> Component.literal(
                     String.format("Successfully spawned box (%.2f x %.2f x %.2f) with ID: %s",
-                            halfExtents.getX() * 2, halfExtents.getY() * 2, halfExtents.getZ() * 2, spawnedObject.getPhysicsId())
+                            halfExtents.getX() * 2, halfExtents.getY() * 2, halfExtents.getZ() * 2, spawnedBody.getPhysicsId())
             ), true);
             return 1;
         } else {

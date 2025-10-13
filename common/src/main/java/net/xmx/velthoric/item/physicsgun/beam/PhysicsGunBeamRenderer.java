@@ -6,7 +6,6 @@ package net.xmx.velthoric.item.physicsgun.beam;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import net.minecraft.client.Camera;
@@ -19,11 +18,11 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.event.api.VxRenderEvent;
 import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunClientManager;
-import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
-import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.type.VxBody;
-import net.xmx.velthoric.physics.object.type.VxRigidBody;
+import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.physics.body.client.VxClientBodyInterpolator;
+import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
+import net.xmx.velthoric.physics.body.type.VxBody;
+import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import org.joml.Matrix4f;
 
 import java.util.Map;
@@ -55,9 +54,9 @@ public class PhysicsGunBeamRenderer {
         float partialTicks = event.getPartialTick();
 
         PhysicsGunClientManager clientManager = PhysicsGunClientManager.getInstance();
-        VxClientObjectManager objectManager = VxClientObjectManager.getInstance();
-        VxClientObjectDataStore store = objectManager.getStore();
-        VxClientObjectInterpolator interpolator = objectManager.getInterpolator();
+        VxClientBodyManager bodyManager = VxClientBodyManager.getInstance();
+        VxClientBodyDataStore store = bodyManager.getStore();
+        VxClientBodyInterpolator interpolator = bodyManager.getInterpolator();
 
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 camPos = camera.getPosition();
@@ -85,7 +84,7 @@ public class PhysicsGunBeamRenderer {
             if (player == null) continue;
 
             Integer index = store.getIndexForId(objectUuid);
-            VxBody body = objectManager.getObject(objectUuid);
+            VxBody body = bodyManager.getBody(objectUuid);
 
             if (index == null || !store.render_isInitialized[index] || !(body instanceof VxRigidBody)) continue;
 
@@ -122,7 +121,7 @@ public class PhysicsGunBeamRenderer {
             Vec3 playerLookVec = getPlayerLookVector(player, partialTicks);
             Vec3 traceStart = player.getEyePosition(partialTicks);
 
-            Optional<Vec3> physicsHitPoint = raycastClientPhysicsObjects(traceStart, playerLookVec, BEAM_MAX_LENGTH, store, interpolator, partialTicks);
+            Optional<Vec3> physicsHitPoint = raycastClientPhysicsBodies(traceStart, playerLookVec, BEAM_MAX_LENGTH, store, interpolator, partialTicks);
 
             Vec3 endPoint;
             if (physicsHitPoint.isPresent()) {
@@ -144,7 +143,7 @@ public class PhysicsGunBeamRenderer {
         poseStack.popPose();
     }
 
-    private static Optional<Vec3> raycastClientPhysicsObjects(Vec3 rayOrigin, Vec3 rayDirection, float maxDistance, VxClientObjectDataStore store, VxClientObjectInterpolator interpolator, float partialTicks) {
+    private static Optional<Vec3> raycastClientPhysicsBodies(Vec3 rayOrigin, Vec3 rayDirection, float maxDistance, VxClientBodyDataStore store, VxClientBodyInterpolator interpolator, float partialTicks) {
         double closestHitDist = maxDistance;
         Vec3 hitPoint = null;
 
@@ -154,7 +153,7 @@ public class PhysicsGunBeamRenderer {
         RVec3 tempPos = new RVec3();
         Quat tempRot = new Quat();
 
-        for (UUID id : store.getAllObjectIds()) {
+        for (UUID id : store.getAllPhysicsIds()) {
             Integer i = store.getIndexForId(id);
             if (i == null || !store.render_isInitialized[i]) {
                 continue;

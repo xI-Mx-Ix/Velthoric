@@ -5,8 +5,8 @@
 package net.xmx.velthoric.physics.constraint.manager;
 
 import net.xmx.velthoric.physics.constraint.VxConstraint;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
+import net.xmx.velthoric.physics.body.type.VxBody;
 
 import java.util.Map;
 import java.util.Set;
@@ -51,9 +51,9 @@ public class VxDependencyDataSystem {
                 continue;
             }
 
-            VxObjectManager objectManager = constraintManager.getObjectManager();
-            VxBody body1 = objectManager.getObject(constraint.getBody1Id());
-            VxBody body2 = objectManager.getObject(constraint.getBody2Id());
+            VxBodyManager bodyManager = constraintManager.getBodyManager();
+            VxBody body1 = bodyManager.getVxBody(constraint.getBody1Id());
+            VxBody body2 = bodyManager.getVxBody(constraint.getBody2Id());
 
             boolean body1Ready = body1 != null && body1.getBodyId() != 0;
             boolean body2Ready = body2 != null && body2.getBodyId() != 0;

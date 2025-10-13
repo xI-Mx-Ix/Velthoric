@@ -15,9 +15,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
-import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
-import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
+import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.physics.body.client.VxClientBodyInterpolator;
 import org.joml.Quaterniond;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
@@ -31,9 +31,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Modifies the Camera to correctly follow an entity mounted on a physics-driven object.
+ * Modifies the Camera to correctly follow an entity mounted on a physics-driven body.
  * It overrides the standard camera setup to derive its position and rotation from the
- * physics object's interpolated state, ensuring the camera moves and rotates smoothly
+ * physics body's interpolated state, ensuring the camera moves and rotates smoothly
  * with the vehicle.
  *
  * @author xI-Mx-Ix
@@ -73,7 +73,7 @@ public abstract class MixinCamera {
 
     /**
      * Injects into the camera `setup` method to completely replace its logic when the focused
-     * entity is mounted on a physics object.
+     * entity is mounted on a physics body.
      *
      * @param focusedEntity The entity the camera is focused on.
      * @param thirdPerson   Whether the camera is in a third-person view.
@@ -82,12 +82,12 @@ public abstract class MixinCamera {
      * @param ci            The callback info, used to cancel the original method.
      */
     @Inject(method = "setup", at = @At("HEAD"), cancellable = true)
-    private void velthoric_followPhysicsObject(BlockGetter area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float partialTick, CallbackInfo ci) {
+    private void velthoric_followPhysicsBody(BlockGetter area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float partialTick, CallbackInfo ci) {
         if (focusedEntity.getVehicle() instanceof VxMountingEntity proxy) {
-            proxy.getPhysicsObjectId().ifPresent(id -> {
-                VxClientObjectManager manager = VxClientObjectManager.getInstance();
-                VxClientObjectDataStore store = manager.getStore();
-                VxClientObjectInterpolator interpolator = manager.getInterpolator();
+            proxy.getPhysicsBodyId().ifPresent(id -> {
+                VxClientBodyManager manager = VxClientBodyManager.getInstance();
+                VxClientBodyDataStore store = manager.getStore();
+                VxClientBodyInterpolator interpolator = manager.getInterpolator();
                 Integer index = store.getIndexForId(id);
 
                 if (index == null || !store.render_isInitialized[index]) {
@@ -138,8 +138,8 @@ public abstract class MixinCamera {
                         velthoric_setRotationWithPhysicsTransform(currentYaw + 180.0F, -currentPitch, physRotation);
                     }
                     if (this.level instanceof Level) {
-                        // Custom zoom calculation is needed to ignore the physics object itself in the raycast.
-                        this.move(-velthoric_getMaxZoomIgnoringPhysicsObject(4.0), 0.0, 0.0);
+                        // Custom zoom calculation is needed to ignore the physics body itself in the raycast.
+                        this.move(-velthoric_getMaxZoomIgnoringPhysicsBody(4.0), 0.0, 0.0);
                     } else {
                         this.move(-this.getMaxZoom(4.0), 0.0, 0.0);
                     }
@@ -182,13 +182,13 @@ public abstract class MixinCamera {
     /**
      * Calculates the maximum camera zoom distance in third-person view, performing a raycast
      * to prevent clipping through blocks. This version is specifically designed to ignore the
-     * physics object the player is mounted on, which would otherwise obstruct the view.
+     * physics body the player is mounted on, which would otherwise obstruct the view.
      *
      * @param maxZoom The desired maximum zoom distance.
      * @return The adjusted zoom distance after checking for collisions.
      */
     @Unique
-    private double velthoric_getMaxZoomIgnoringPhysicsObject(double maxZoom) {
+    private double velthoric_getMaxZoomIgnoringPhysicsBody(double maxZoom) {
         if (!(this.level instanceof Level worldLevel)) return maxZoom;
 
         for (int i = 0; i < 8; ++i) {

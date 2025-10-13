@@ -10,12 +10,13 @@ import net.fabricmc.api.Environment;
 import net.minecraft.util.Mth;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.mounting.VxMountable;
-import net.xmx.velthoric.physics.object.registry.VxObjectType;
-import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
-import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
-import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
-import net.xmx.velthoric.physics.object.type.VxRigidBody;
+import net.xmx.velthoric.physics.body.manager.VxJoltBridge;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
+import net.xmx.velthoric.physics.body.client.VxRenderState;
+import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
+import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
+import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheelRenderState;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -26,7 +27,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Abstract base class for all vehicle physics objects. This class manages the
+ * Abstract base class for all vehicle physics bodies. This class manages the
  * Jolt VehicleConstraint and wheels, and on the client side, handles wheel state
  * interpolation for smooth rendering.
  *
@@ -55,7 +56,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
     /**
      * Server-side constructor.
      */
-    protected VxVehicle(VxObjectType<? extends VxVehicle> type, VxPhysicsWorld world, UUID id) {
+    protected VxVehicle(VxBodyType<? extends VxVehicle> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
     }
 
@@ -63,7 +64,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    protected VxVehicle(VxObjectType<? extends VxVehicle> type, UUID id) {
+    protected VxVehicle(VxBodyType<? extends VxVehicle> type, UUID id) {
         super(type, id);
         this.prevWheelStates = new VxWheelRenderState[0];
         this.targetWheelStates = new VxWheelRenderState[0];
@@ -79,7 +80,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
     public void onBodyAdded(VxPhysicsWorld world) {
         super.onBodyAdded(world);
 
-        Body body = world.getObjectManager().getBody(this.getPhysicsId());
+        Body body = VxJoltBridge.INSTANCE.getJoltBody(world, world.getBodyManager().getVxBody(this.getPhysicsId()));
         if (body == null || constraintSettings == null) {
             throw new IllegalStateException("Vehicle cannot be initialized without a body or constraint settings.");
         }

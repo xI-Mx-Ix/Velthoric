@@ -25,8 +25,8 @@ import java.util.UUID;
 
 /**
  * An invisible entity that acts as a client-side bridge between a Minecraft player
- * and a mountable physics object. The player "mounts" this proxy entity. Its primary
- * role is to hold the physics object ID and the specific seat ID for the client to
+ * and a mountable physics body. The player "mounts" this proxy entity. Its primary
+ * role is to hold the physics body ID and the specific seat ID for the client to
  * perform efficient lookups.
  *
  * @author xI-Mx-Ix
@@ -61,11 +61,11 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Gets the UUID of the physics object this proxy is associated with.
+     * Gets the UUID of the physics body this proxy is associated with.
      *
-     * @return An Optional containing the physics object's UUID.
+     * @return An Optional containing the physics body's UUID.
      */
-    public Optional<UUID> getPhysicsObjectId() {
+    public Optional<UUID> getPhysicsBodyId() {
         return this.entityData.get(PHYSICS_OBJECT_ID);
     }
 
@@ -80,14 +80,14 @@ public class VxMountingEntity extends Entity {
 
     /**
      * Gets the local-space position offset for the mounted entity.
-     * On the client, this performs an efficient lookup using the synced object and seat IDs.
+     * On the client, this performs an efficient lookup using the synced body and seat IDs.
      * On the server, it queries the Mounting Manager to find the offset for the passenger.
      *
      * @return The rider's position offset vector. Returns a zero vector if not found.
      */
     public Vector3f getMountPositionOffset() {
         if (level().isClientSide()) {
-            return getPhysicsObjectId().flatMap(objId ->
+            return getPhysicsBodyId().flatMap(objId ->
                     getSeatId().flatMap(seatId ->
                             VxClientMountingManager.getInstance().getSeat(objId, seatId)
                     )
@@ -107,10 +107,10 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Sets the necessary data for the client to track the physics object and seat.
+     * Sets the necessary data for the client to track the physics body and seat.
      * This is called on the server before the entity is spawned.
      *
-     * @param physicsId The UUID of the physics object.
+     * @param physicsId The UUID of the physics body.
      * @param seatId The UUID of the seat being occupied.
      */
     public void setMountInfo(UUID physicsId, UUID seatId) {

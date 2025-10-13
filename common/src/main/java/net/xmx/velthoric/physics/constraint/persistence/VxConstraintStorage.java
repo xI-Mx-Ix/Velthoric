@@ -12,12 +12,11 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -76,11 +75,11 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         Map<RegionPos, List<VxConstraint>> constraintsByRegion = new HashMap<>();
         for (VxConstraint constraint : constraints) {
             if (constraint == null) continue;
-            VxBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
+            VxBody body1 = constraintManager.getBodyManager().getVxBody(constraint.getBody1Id());
             if (body1 != null) {
                 int index = body1.getDataStoreIndex();
                 if (index == -1) continue;
-                ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(index);
+                ChunkPos chunkPos = constraintManager.getBodyManager().getBodyChunkPos(index);
                 RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
                 constraintsByRegion.computeIfAbsent(regionPos, k -> new ArrayList<>()).add(constraint);
             }
@@ -89,10 +88,10 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         constraintsByRegion.forEach((regionPos, regionConstraints) -> {
             getRegion(regionPos).thenAcceptAsync(region -> {
                 for (VxConstraint constraint : regionConstraints) {
-                    VxBody body1 = constraintManager.getObjectManager().getObject(constraint.getBody1Id());
+                    VxBody body1 = constraintManager.getBodyManager().getVxBody(constraint.getBody1Id());
                     if (body1 == null || body1.getDataStoreIndex() == -1) continue;
 
-                    ChunkPos chunkPos = constraintManager.getObjectManager().getObjectChunkPos(body1.getDataStoreIndex());
+                    ChunkPos chunkPos = constraintManager.getBodyManager().getBodyChunkPos(body1.getDataStoreIndex());
                     byte[] data = serializeConstraintData(constraint, chunkPos);
                     region.entries.put(constraint.getConstraintId(), data);
                     regionIndex.put(constraint.getConstraintId(), regionPos);

@@ -7,7 +7,7 @@ package net.xmx.velthoric.mixin.impl.misc;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.object.client.time.VxClientClock;
+import net.xmx.velthoric.physics.body.client.time.VxClientClock;
 import net.xmx.velthoric.physics.world.VxPauseUtil;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;

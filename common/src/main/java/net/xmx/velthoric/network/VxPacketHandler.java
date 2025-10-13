@@ -16,7 +16,7 @@ import net.minecraft.world.level.Level;
 import net.xmx.velthoric.item.boxthrower.packet.BoxThrowerActionPacket;
 import net.xmx.velthoric.item.magnetizer.packet.MagnetizerActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.*;
-import net.xmx.velthoric.physics.object.packet.batch.*;
+import net.xmx.velthoric.physics.body.packet.batch.*;
 import net.xmx.velthoric.physics.mounting.input.C2SMountInputPacket;
 import net.xmx.velthoric.physics.mounting.request.C2SRequestMountPacket;
 import net.xmx.velthoric.physics.vehicle.sync.S2CUpdateWheelsPacket;

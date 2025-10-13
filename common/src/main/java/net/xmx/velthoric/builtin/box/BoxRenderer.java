@@ -12,8 +12,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.level.block.state.BlockState;
-import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.client.body.renderer.VxRigidBodyRenderer;
+import net.xmx.velthoric.physics.body.client.VxRenderState;
+import net.xmx.velthoric.physics.body.client.body.renderer.VxRigidBodyRenderer;
 import org.joml.Quaternionf;
 
 /**

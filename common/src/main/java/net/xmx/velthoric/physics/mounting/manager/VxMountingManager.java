@@ -16,7 +16,7 @@ import net.xmx.velthoric.physics.mounting.VxMountable;
 import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.physics.mounting.input.VxMountInput;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -35,10 +35,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class VxMountingManager {
 
     private final VxPhysicsWorld world;
-    /** Maps a physics object's UUID to a map of its seats, where each seat is keyed by its own UUID. */
-    private final Object2ObjectMap<UUID, Map<UUID, VxSeat>> objectToSeatsMap = new Object2ObjectOpenHashMap<>();
-    private final Object2ObjectMap<UUID, UUID> playerToObjectIdMap = new Object2ObjectOpenHashMap<>();
-    private final Object2ObjectMap<UUID, Map<UUID, ServerPlayer>> objectToRidersMap = new Object2ObjectOpenHashMap<>();
+    /**
+     *  Maps a physics body's UUID to a map of its seats, where each seat is keyed by its own UUID.
+     */
+    private final Object2ObjectMap<UUID, Map<UUID, VxSeat>> bodyToSeatsMap = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<UUID, UUID> playerToPhysicsIdMap = new Object2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<UUID, Map<UUID, ServerPlayer>> bodyToRidersMap = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<UUID, VxSeat> playerToSeatMap = new Object2ObjectOpenHashMap<>();
 
     public VxMountingManager(VxPhysicsWorld world) {
@@ -46,12 +48,12 @@ public class VxMountingManager {
     }
 
     /**
-     * Callback executed when a new physics object is added to the world.
-     * If the object is mountable, this method registers all its defined seats.
+     * Callback executed when a new physics body is added to the world.
+     * If the body is mountable, this method registers all its defined seats.
      *
-     * @param body The physics object that was added.
+     * @param body The physics body that was added.
      */
-    public void onObjectAdded(VxBody body) {
+    public void onBodyAdded(VxBody body) {
         if (body instanceof VxMountable mountable) {
             List<VxSeat> seats = mountable.defineSeats();
             if (seats != null) {
@@ -63,61 +65,61 @@ public class VxMountingManager {
     }
 
     /**
-     * Callback executed when a physics object is removed from the world.
-     * This removes all seat data associated with the object.
+     * Callback executed when a physics body is removed from the world.
+     * This removes all seat data associated with the body.
      *
-     * @param body The physics object that was removed.
+     * @param body The physics body that was removed.
      */
-    public void onObjectRemoved(VxBody body) {
+    public void onBodyRemoved(VxBody body) {
         if (body instanceof VxMountable) {
-            this.objectToSeatsMap.remove(body.getPhysicsId());
+            this.bodyToSeatsMap.remove(body.getPhysicsId());
         }
     }
 
     /**
-     * Adds a seat to a physics object, indexed by the seat's UUID.
+     * Adds a seat to a physics body, indexed by the seat's UUID.
      *
-     * @param objectId The UUID of the object.
+     * @param physicsId The UUID of the body.
      * @param seat     The seat to add.
      */
-    public void addSeat(UUID objectId, VxSeat seat) {
-        this.objectToSeatsMap.computeIfAbsent(objectId, k -> new ConcurrentHashMap<>()).put(seat.getId(), seat);
+    public void addSeat(UUID physicsId, VxSeat seat) {
+        this.bodyToSeatsMap.computeIfAbsent(physicsId, k -> new ConcurrentHashMap<>()).put(seat.getId(), seat);
     }
 
     /**
-     * Removes a seat from a physics object using its UUID.
+     * Removes a seat from a physics body using its UUID.
      *
-     * @param objectId The UUID of the object.
+     * @param physicsId The UUID of the body.
      * @param seatId The UUID of the seat to remove.
      */
-    public void removeSeat(UUID objectId, UUID seatId) {
-        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+    public void removeSeat(UUID physicsId, UUID seatId) {
+        Map<UUID, VxSeat> seats = this.bodyToSeatsMap.get(physicsId);
         if (seats != null) {
             seats.remove(seatId);
             if (seats.isEmpty()) {
-                this.objectToSeatsMap.remove(objectId);
+                this.bodyToSeatsMap.remove(physicsId);
             }
         }
     }
 
     /**
-     * Handles a request from a client to start mounting an object.
+     * Handles a request from a client to start mounting a body.
      * This method validates the request before initiating the mount.
      *
      * @param player   The player making the request.
-     * @param objectId The UUID of the target object.
+     * @param physicsId The UUID of the target body.
      * @param seatId   The UUID of the target seat.
      */
-    public void requestMounting(ServerPlayer player, UUID objectId, UUID seatId) {
-        VxBody body = world.getObjectManager().getObject(objectId);
+    public void requestMounting(ServerPlayer player, UUID physicsId, UUID seatId) {
+        VxBody body = world.getBodyManager().getVxBody(physicsId);
         if (!(body instanceof VxMountable mountable)) {
-            VxMainClass.LOGGER.warn("Player {} requested to mount non-mountable object {}", player.getName().getString(), objectId);
+            VxMainClass.LOGGER.warn("Player {} requested to mount non-mountable body {}", player.getName().getString(), physicsId);
             return;
         }
 
-        Optional<VxSeat> seatOpt = getSeat(objectId, seatId);
+        Optional<VxSeat> seatOpt = getSeat(physicsId, seatId);
         if (seatOpt.isEmpty()) {
-            VxMainClass.LOGGER.warn("Player {} requested to mount non-existent seat '{}' on object {}", player.getName().getString(), seatId, objectId);
+            VxMainClass.LOGGER.warn("Player {} requested to mount non-existent seat '{}' on body {}", player.getName().getString(), seatId, physicsId);
             return;
         }
 
@@ -133,7 +135,7 @@ public class VxMountingManager {
         );
 
         if (distanceSq > (reachDistance * reachDistance)) {
-            VxMainClass.LOGGER.warn("Player {} is too far to mount object {} (distSq: {}, reach: {})", player.getName().getString(), objectId, distanceSq, reachDistance);
+            VxMainClass.LOGGER.warn("Player {} is too far to mount body {} (distSq: {}, reach: {})", player.getName().getString(), physicsId, distanceSq, reachDistance);
             return;
         }
 
@@ -142,10 +144,10 @@ public class VxMountingManager {
     }
 
     /**
-     * Makes a player start mounting a specific seat on a mountable object.
+     * Makes a player start mounting a specific seat on a mountable body.
      *
      * @param player    The player to start mounting.
-     * @param mountable The mountable object.
+     * @param mountable The mountable body.
      * @param seat      The seat to occupy.
      */
     public void startMounting(ServerPlayer player, VxMountable mountable, VxSeat seat) {
@@ -177,15 +179,15 @@ public class VxMountingManager {
         world.getLevel().addFreshEntity(proxy);
         player.startRiding(proxy, true);
 
-        objectToRidersMap.computeIfAbsent(mountable.getPhysicsId(), k -> Maps.newHashMap()).put(player.getUUID(), player);
-        playerToObjectIdMap.put(player.getUUID(), mountable.getPhysicsId());
+        bodyToRidersMap.computeIfAbsent(mountable.getPhysicsId(), k -> Maps.newHashMap()).put(player.getUUID(), player);
+        playerToPhysicsIdMap.put(player.getUUID(), mountable.getPhysicsId());
         playerToSeatMap.put(player.getUUID(), seat);
 
         mountable.onStartMounting(player, seat);
     }
 
     /**
-     * Makes a player stop mounting their current object.
+     * Makes a player stop mounting their current body.
      *
      * @param player The player to stop mounting.
      */
@@ -194,16 +196,16 @@ public class VxMountingManager {
             return;
         }
         UUID playerUuid = player.getUUID();
-        UUID objectId = playerToObjectIdMap.remove(playerUuid);
+        UUID physicsId = playerToPhysicsIdMap.remove(playerUuid);
         playerToSeatMap.remove(playerUuid);
 
-        if (objectId != null) {
+        if (physicsId != null) {
             getMountableForPlayer(player).ifPresent(mountable -> mountable.onStopMounting(player));
-            Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
+            Map<UUID, ServerPlayer> riders = bodyToRidersMap.get(physicsId);
             if (riders != null) {
                 riders.remove(playerUuid);
                 if (riders.isEmpty()) {
-                    objectToRidersMap.remove(objectId);
+                    bodyToRidersMap.remove(physicsId);
                 }
             }
         }
@@ -219,19 +221,19 @@ public class VxMountingManager {
      */
     public void onGameTick() {
         List<ServerPlayer> playersToStopMounting = new ArrayList<>();
-        Set<UUID> objectIds = Sets.newHashSet(objectToRidersMap.keySet());
+        Set<UUID> objectIds = Sets.newHashSet(bodyToRidersMap.keySet());
 
-        for (UUID objectId : objectIds) {
-            Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
+        for (UUID physicsId : objectIds) {
+            Map<UUID, ServerPlayer> riders = bodyToRidersMap.get(physicsId);
             if (riders == null) continue;
 
-            VxBody physObject = world.getObjectManager().getObject(objectId);
-            if (physObject == null) {
+            VxBody physBody = world.getBodyManager().getVxBody(physicsId);
+            if (physBody == null) {
                 playersToStopMounting.addAll(riders.values());
                 continue;
             }
 
-            var trans = physObject.getTransform();
+            var trans = physBody.getTransform();
             var pos = trans.getTranslation();
             var rot = trans.getRotation();
             Quaternionf jomlQuat = new Quaternionf(rot.getX(), rot.getY(), rot.getZ(), rot.getW());
@@ -299,24 +301,24 @@ public class VxMountingManager {
     }
 
     /**
-     * Checks if a player is currently mounting a physics object.
+     * Checks if a player is currently mounting a physics body.
      *
      * @param player The player to check.
      * @return True if the player is mounting.
      */
     public boolean isMounting(ServerPlayer player) {
-        return playerToObjectIdMap.containsKey(player.getUUID());
+        return playerToPhysicsIdMap.containsKey(player.getUUID());
     }
 
     /**
-     * Checks if a specific seat on an object is occupied.
+     * Checks if a specific seat on a body is occupied.
      *
-     * @param objectId The UUID of the object.
+     * @param physicsId The UUID of the body.
      * @param seat     The seat to check.
      * @return True if the seat is occupied.
      */
-    public boolean isSeatOccupied(UUID objectId, VxSeat seat) {
-        Map<UUID, ServerPlayer> riders = objectToRidersMap.get(objectId);
+    public boolean isSeatOccupied(UUID physicsId, VxSeat seat) {
+        Map<UUID, ServerPlayer> riders = bodyToRidersMap.get(physicsId);
         if (riders == null || riders.isEmpty()) {
             return false;
         }
@@ -330,25 +332,25 @@ public class VxMountingManager {
     }
 
     /**
-     * Gets a specific seat from an object by its UUID.
+     * Gets a specific seat from a body by its UUID.
      *
-     * @param objectId The UUID of the object.
+     * @param physicsId The UUID of the body.
      * @param seatId   The UUID of the seat.
      * @return An Optional containing the seat if found.
      */
-    public Optional<VxSeat> getSeat(UUID objectId, UUID seatId) {
-        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+    public Optional<VxSeat> getSeat(UUID physicsId, UUID seatId) {
+        Map<UUID, VxSeat> seats = this.bodyToSeatsMap.get(physicsId);
         return seats != null ? Optional.ofNullable(seats.get(seatId)) : Optional.empty();
     }
 
     /**
-     * Gets all seats associated with a physics object.
+     * Gets all seats associated with a physics body.
      *
-     * @param objectId The UUID of the object.
-     * @return A collection of all seats for the object.
+     * @param physicsId The UUID of the body.
+     * @return A collection of all seats for the body.
      */
-    public Collection<VxSeat> getSeats(UUID objectId) {
-        Map<UUID, VxSeat> seats = this.objectToSeatsMap.get(objectId);
+    public Collection<VxSeat> getSeats(UUID physicsId) {
+        Map<UUID, VxSeat> seats = this.bodyToSeatsMap.get(physicsId);
         return seats != null ? seats.values() : Collections.emptyList();
     }
 
@@ -363,17 +365,17 @@ public class VxMountingManager {
     }
 
     /**
-     * Gets the mountable object a specific player is currently on.
+     * Gets the mountable body a specific player is currently on.
      *
      * @param player The player.
-     * @return An Optional containing the mountable object.
+     * @return An Optional containing the mountable body.
      */
     public Optional<VxMountable> getMountableForPlayer(ServerPlayer player) {
-        UUID objectId = playerToObjectIdMap.get(player.getUUID());
-        if (objectId == null) {
+        UUID physicsId = playerToPhysicsIdMap.get(player.getUUID());
+        if (physicsId == null) {
             return Optional.empty();
         }
-        VxBody body = world.getObjectManager().getObject(objectId);
+        VxBody body = world.getBodyManager().getVxBody(physicsId);
         if (body instanceof VxMountable) {
             return Optional.of((VxMountable) body);
         }
@@ -381,11 +383,11 @@ public class VxMountingManager {
     }
 
     /**
-     * Gets an unmodifiable view of all seats grouped by their parent object's UUID.
+     * Gets an unmodifiable view of all seats grouped by their parent body's UUID.
      *
      * @return A map of all seats.
      */
-    public Map<UUID, Map<UUID, VxSeat>> getAllSeatsByObject() {
-        return Collections.unmodifiableMap(this.objectToSeatsMap);
+    public Map<UUID, Map<UUID, VxSeat>> getAllSeatsByBody() {
+        return Collections.unmodifiableMap(this.bodyToSeatsMap);
     }
 }

@@ -13,10 +13,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.mounting.input.VxMountInput;
-import net.xmx.velthoric.physics.object.registry.VxObjectType;
-import net.xmx.velthoric.physics.object.manager.VxRemovalReason;
-import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
-import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
+import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
+import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.controller.VxWheeledVehicleController;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -39,7 +39,7 @@ public abstract class VxCar extends VxVehicle {
     /**
      * Server-side constructor.
      */
-    protected VxCar(VxObjectType<? extends VxCar> type, VxPhysicsWorld world, UUID id) {
+    protected VxCar(VxBodyType<? extends VxCar> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.constraintSettings = createConstraintSettings();
         this.collisionTester = createCollisionTester();
@@ -49,7 +49,7 @@ public abstract class VxCar extends VxVehicle {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    protected VxCar(VxObjectType<? extends VxCar> type, UUID id) {
+    protected VxCar(VxBodyType<? extends VxCar> type, UUID id) {
         super(type, id);
     }
 

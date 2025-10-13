@@ -23,9 +23,9 @@ import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.mounting.entity.VxMountingEntityState;
 import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
-import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
+import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaterniond;
@@ -46,7 +46,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 /**
- * Applies several modifications to the GameRenderer for entities mounted on physics objects.
+ * Applies several modifications to the GameRenderer for entities mounted on physics bodies.
  * This includes:
  * 1.  Temporarily moving mounted entities to their smoothly interpolated physics positions
  *     before rendering and restoring them after, ensuring fluid motion without affecting game logic.
@@ -134,9 +134,9 @@ public abstract class MixinGameRenderer {
             return;
         }
 
-        proxy.getPhysicsObjectId().ifPresent(id -> {
-            VxClientObjectManager manager = VxClientObjectManager.getInstance();
-            VxClientObjectDataStore store = manager.getStore();
+        proxy.getPhysicsBodyId().ifPresent(id -> {
+            VxClientBodyManager manager = VxClientBodyManager.getInstance();
+            VxClientBodyDataStore store = manager.getStore();
             Integer index = store.getIndexForId(id);
             if (index == null || !store.render_isInitialized[index]) return;
 
@@ -195,7 +195,7 @@ public abstract class MixinGameRenderer {
 
     /**
      * Wraps the call to `LevelRenderer.prepareCullFrustum` to modify the camera setup when
-     * the player is mounted on a physics object. It applies the inverse of the vehicle's
+     * the player is mounted on a physics body. It applies the inverse of the vehicle's
      * rotation to the PoseStack and updates the `inverseViewRotationMatrix`, which is essential
      * for rendering the world correctly from a rotated viewpoint.
      *
@@ -213,7 +213,7 @@ public abstract class MixinGameRenderer {
                     target = "Lnet/minecraft/client/renderer/LevelRenderer;prepareCullFrustum(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/phys/Vec3;Lorg/joml/Matrix4f;)V"
             )
     )
-    private void velthoric_setupCameraWithPhysicsObject(
+    private void velthoric_setupCameraWithPhysicsBody(
             LevelRenderer instance,
             PoseStack poseStack,
             Vec3 cameraPos,
@@ -229,9 +229,9 @@ public abstract class MixinGameRenderer {
             return;
         }
 
-        proxy.getPhysicsObjectId().ifPresentOrElse(id -> {
-            VxClientObjectManager manager = VxClientObjectManager.getInstance();
-            VxClientObjectDataStore store = manager.getStore();
+        proxy.getPhysicsBodyId().ifPresentOrElse(id -> {
+            VxClientBodyManager manager = VxClientBodyManager.getInstance();
+            VxClientBodyDataStore store = manager.getStore();
             Integer index = store.getIndexForId(id);
 
             if (index == null || !store.render_isInitialized[index]) {
@@ -267,7 +267,7 @@ public abstract class MixinGameRenderer {
 
     /**
      * Wraps the entity picking logic to substitute AABB checks with OBB checks for entities mounted
-     * on physics objects. This ensures that raycasts for interaction or projectiles correctly
+     * on physics bodies. This ensures that raycasts for interaction or projectiles correctly
      * target the entity's visible, rotated bounding box.
      *
      * @param shooter The entity performing the pick.
@@ -304,14 +304,14 @@ public abstract class MixinGameRenderer {
         for (Entity potentialTarget : potentialTargets) {
             if (potentialTarget.getVehicle() instanceof VxMountingEntity proxy) {
 
-                Optional<VxBody> physObjectOpt = proxy.getPhysicsObjectId()
-                        .flatMap(id -> Optional.ofNullable(VxClientObjectManager.getInstance().getObject(id)));
+                Optional<VxBody> physBodyOpt = proxy.getPhysicsBodyId()
+                        .flatMap(id -> Optional.ofNullable(VxClientBodyManager.getInstance().getBody(id)));
 
-                if (physObjectOpt.isPresent() && physObjectOpt.get().isInitialized()) {
-                    VxBody physObject = physObjectOpt.get();
+                if (physBodyOpt.isPresent() && physBodyOpt.get().isInitialized()) {
+                    VxBody physBody = physBodyOpt.get();
 
                     // Get the interpolated transform for the physics body.
-                    VxTransform physTransform = velthoric_getPhysicsObjectTransform(physObject, partialTicks);
+                    VxTransform physTransform = velthoric_getPhysicsBodyTransform(physBody, partialTicks);
 
                     // Apply the passenger's local offset to the transform.
                     Vector3f rideOffset = new Vector3f(proxy.getMountPositionOffset());
@@ -348,10 +348,10 @@ public abstract class MixinGameRenderer {
      * @return An interpolated {@link VxTransform}.
      */
     @Unique
-    private VxTransform velthoric_getPhysicsObjectTransform(VxBody clientBody, float partialTicks) {
+    private VxTransform velthoric_getPhysicsBodyTransform(VxBody clientBody, float partialTicks) {
         VxTransform transform = new VxTransform();
-        VxClientObjectManager.getInstance().getInterpolator().interpolateFrame(
-                VxClientObjectManager.getInstance().getStore(),
+        VxClientBodyManager.getInstance().getInterpolator().interpolateFrame(
+                VxClientBodyManager.getInstance().getStore(),
                 clientBody.getDataStoreIndex(),
                 partialTicks,
                 velthoric_interpolatedPosition,

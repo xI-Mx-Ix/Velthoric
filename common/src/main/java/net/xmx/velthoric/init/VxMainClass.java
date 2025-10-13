@@ -6,7 +6,7 @@ package net.xmx.velthoric.init;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.xmx.velthoric.builtin.VxRegisteredObjects;
+import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.init.registry.ModRegistries;
 import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.natives.VxNativeJolt;
@@ -19,7 +19,7 @@ public class VxMainClass {
 
     public static void onInit() {
         ModRegistries.register();
-        VxRegisteredObjects.register();
+        VxRegisteredBodies.register();
         VxPacketHandler.register();
         RegisterEvents.register();
         try {
@@ -31,8 +31,8 @@ public class VxMainClass {
 
     @Environment(EnvType.CLIENT)
     public static void onClientInit() {
-        VxRegisteredObjects.registerClientFactories();
-        VxRegisteredObjects.registerClientRenderers();
+        VxRegisteredBodies.registerClientFactories();
+        VxRegisteredBodies.registerClientRenderers();
         RegisterEvents.registerClient();
     }
 }

@@ -13,17 +13,17 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.registry.VxObjectType;
-import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
-import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
-import net.xmx.velthoric.physics.object.type.VxRigidBody;
-import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
+import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
+import net.xmx.velthoric.physics.body.type.VxRigidBody;
+import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
 /**
- * A simple physics object with a box shape.
+ * A simple physics body with a box shape.
  *
  * @author xI-Mx-Ix
  */
@@ -35,7 +35,7 @@ public class BoxRigidBody extends VxRigidBody {
     /**
      * Server-side constructor.
      */
-    public BoxRigidBody(VxObjectType<BoxRigidBody> type, VxPhysicsWorld world, UUID id) {
+    public BoxRigidBody(VxBodyType<BoxRigidBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
     }
 
@@ -43,7 +43,7 @@ public class BoxRigidBody extends VxRigidBody {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    public BoxRigidBody(VxObjectType<BoxRigidBody> type, UUID id) {
+    public BoxRigidBody(VxBodyType<BoxRigidBody> type, UUID id) {
         super(type, id);
     }
 

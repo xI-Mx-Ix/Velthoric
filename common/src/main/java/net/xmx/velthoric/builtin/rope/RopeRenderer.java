@@ -15,8 +15,8 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.physics.object.client.VxRenderState;
-import net.xmx.velthoric.physics.object.client.body.renderer.VxSoftBodyRenderer;
+import net.xmx.velthoric.physics.body.client.VxRenderState;
+import net.xmx.velthoric.physics.body.client.body.renderer.VxSoftBodyRenderer;
 
 /**
  * Renderer for the {@link RopeSoftBody}.

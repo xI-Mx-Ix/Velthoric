@@ -14,10 +14,10 @@
     "misc.ExplosionMixin_TriggerExplosion",
     "mounting.entity.MixinEntity",
     "mounting.render.MixinEntityRenderer",
-    "object.MixinChunkMap_ChunkTracking",
-    "object.MixinChunkMap_UnloadObjects",
-    "object.MixinEntityStorage_Persistence",
-    "object.MixinServerLevel_Persistence",
+    "body.MixinChunkMap_ChunkTracking",
+    "body.MixinChunkMap_UnloadBodies",
+    "body.MixinEntityStorage_Persistence",
+    "body.MixinServerLevel_Persistence",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
   ],
   "client": [

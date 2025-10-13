@@ -11,18 +11,18 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.natives.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.object.registry.VxObjectType;
-import net.xmx.velthoric.physics.object.sync.VxDataAccessor;
-import net.xmx.velthoric.physics.object.sync.VxDataSerializers;
-import net.xmx.velthoric.physics.object.type.VxSoftBody;
-import net.xmx.velthoric.physics.object.type.factory.VxSoftBodyFactory;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
+import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
+import net.xmx.velthoric.physics.body.type.VxSoftBody;
+import net.xmx.velthoric.physics.body.type.factory.VxSoftBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 import java.util.function.BiFunction;
 
 /**
- * A soft body physics object that simulates a piece of cloth.
+ * A soft body physics body that simulates a piece of cloth.
  *
  * @author xI-Mx-Ix
  */
@@ -39,7 +39,7 @@ public class ClothSoftBody extends VxSoftBody {
     /**
      * Server-side constructor.
      */
-    public ClothSoftBody(VxObjectType<ClothSoftBody> type, VxPhysicsWorld world, UUID id) {
+    public ClothSoftBody(VxBodyType<ClothSoftBody> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.clothWidth = 2.0f;
         this.clothHeight = 2.0f;
@@ -51,7 +51,7 @@ public class ClothSoftBody extends VxSoftBody {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    public ClothSoftBody(VxObjectType<ClothSoftBody> type, UUID id) {
+    public ClothSoftBody(VxBodyType<ClothSoftBody> type, UUID id) {
         super(type, id);
     }
 

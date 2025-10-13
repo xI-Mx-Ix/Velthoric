@@ -18,12 +18,12 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.xmx.velthoric.builtin.VxRegisteredObjects;
+import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.block.BlockRigidBody;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
-import net.xmx.velthoric.physics.object.util.VxVoxelShapeUtil;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
+import net.xmx.velthoric.physics.body.util.VxVoxelShapeUtil;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 /**
@@ -56,7 +56,7 @@ public class PhysicsCreatorItem extends Item {
             return InteractionResult.FAIL;
         }
 
-        VxObjectManager objectManager = physicsWorld.getObjectManager();
+        VxBodyManager bodyManager = physicsWorld.getBodyManager();
 
         try (var ignored = VxVoxelShapeUtil.toMutableCompoundShape(
                 originalState.getVisualShape(level, pos, CollisionContext.empty()))) {
@@ -76,8 +76,8 @@ public class PhysicsCreatorItem extends Item {
             Quat rotation = Quat.sIdentity();
             VxTransform transform = new VxTransform(position, rotation);
 
-            BlockRigidBody body = objectManager.createRigidBody(
-                    VxRegisteredObjects.BLOCK,
+            BlockRigidBody body = bodyManager.createRigidBody(
+                    VxRegisteredBodies.BLOCK,
                     transform,
                     EActivation.Activate,
                     b -> b.setRepresentedBlockState(originalState)
@@ -90,7 +90,7 @@ public class PhysicsCreatorItem extends Item {
             return super.useOn(context);
 
         } catch (Exception e) {
-            VxMainClass.LOGGER.error("Error creating physics object, restoring original block.", e);
+            VxMainClass.LOGGER.error("Error creating physics body, restoring original block.", e);
             level.setBlock(pos, originalState, Block.UPDATE_ALL | Block.UPDATE_IMMEDIATE);
             return InteractionResult.FAIL;
         }

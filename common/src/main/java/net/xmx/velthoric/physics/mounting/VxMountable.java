@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * An interface for physics objects that players can mount.
+ * An interface for physics bodies that players can mount.
  * This defines the contract for handling player interaction, input, and lifecycle events
  * related to mounting.
  *
@@ -25,27 +25,27 @@ public interface VxMountable {
     /**
      * Gets the unique UUID of the physics body.
      *
-     * @return The physics object's UUID.
+     * @return The physics body's UUID.
      */
     UUID getPhysicsId();
 
     /**
-     * Gets the physics world this object belongs to.
+     * Gets the physics world this body belongs to.
      *
      * @return The physics world.
      */
     VxPhysicsWorld getPhysicsWorld();
 
     /**
-     * Gets the current transformation (position and rotation) of the object.
+     * Gets the current transformation (position and rotation) of the body.
      *
-     * @return The object's transform.
+     * @return The body's transform.
      */
     VxTransform getTransform();
 
     /**
-     * Defines all seats for this mountable object.
-     * This method is called by the appropriate manager when the object is created
+     * Defines all seats for this mountable body.
+     * This method is called by the appropriate manager when the body is created
      * to automatically register its seats.
      *
      * @return A list of {@link VxSeat} objects to be added to this entity. Can be null or empty.
@@ -53,7 +53,7 @@ public interface VxMountable {
     List<VxSeat> defineSeats();
 
     /**
-     * Called when a player successfully starts mounting this object.
+     * Called when a player successfully starts mounting this body.
      *
      * @param player The player who started mounting.
      * @param seat   The seat the player is occupying.
@@ -61,7 +61,7 @@ public interface VxMountable {
     default void onStartMounting(ServerPlayer player, VxSeat seat) {}
 
     /**
-     * Called when a player stops mounting this object.
+     * Called when a player stops mounting this body.
      *
      * @param player The player who stopped mounting.
      */
@@ -70,7 +70,7 @@ public interface VxMountable {
     /**
      * Handles movement and action input from a player in a driver's seat.
      *
-     * @param driver The player driving the object.
+     * @param driver The player driving the body.
      * @param input  The current input state from the player.
      */
     default void handleDriverInput(ServerPlayer driver, VxMountInput input) {}

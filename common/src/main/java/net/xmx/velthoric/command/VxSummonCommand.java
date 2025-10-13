@@ -20,10 +20,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.registry.VxObjectType;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
-import net.xmx.velthoric.physics.object.registry.VxObjectRegistry;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
+import net.xmx.velthoric.physics.body.registry.VxBodyRegistry;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
@@ -36,10 +36,10 @@ public final class VxSummonCommand {
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("type", ResourceLocationArgument.id())
                                 .suggests((context, builder) -> {
-                                    var registry = VxObjectRegistry.getInstance();
+                                    var registry = VxBodyRegistry.getInstance();
                                     return SharedSuggestionProvider.suggest(
                                             registry.getRegisteredTypes().values().stream()
-                                                    .filter(VxObjectType::isSummonable)
+                                                    .filter(VxBodyType::isSummonable)
                                                     .map(type -> type.getTypeId().toString()),
                                             builder
                                     );
@@ -63,15 +63,15 @@ public final class VxSummonCommand {
         }
         ResourceLocation typeId = ResourceLocationArgument.getId(context, "type");
 
-        VxObjectType<?> type = VxObjectRegistry.getInstance().getRegistrationData(typeId);
+        VxBodyType<?> type = VxBodyRegistry.getInstance().getRegistrationData(typeId);
 
         if (type == null) {
-            source.sendFailure(Component.literal("Physics object type not found: " + typeId));
+            source.sendFailure(Component.literal("physics body type not found: " + typeId));
             return 0;
         }
 
         if (!type.isSummonable()) {
-            source.sendFailure(Component.literal("Physics object type '" + typeId + "' cannot be summoned."));
+            source.sendFailure(Component.literal("physics body type '" + typeId + "' cannot be summoned."));
             return 0;
         }
 
@@ -81,7 +81,7 @@ public final class VxSummonCommand {
             return 0;
         }
 
-        VxObjectManager manager = world.getObjectManager();
+        VxBodyManager manager = world.getBodyManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x, pos.y, pos.z), Quat.sIdentity());
 
         VxBody body = type.create(world, UUID.randomUUID());
@@ -92,7 +92,7 @@ public final class VxSummonCommand {
 
         manager.addConstructedBody(body, EActivation.Activate, transform);
 
-        source.sendSuccess(() -> Component.literal(String.format("Successfully summoned physics object '%s' with ID: %s", typeId, body.getPhysicsId())), true);
+        source.sendSuccess(() -> Component.literal(String.format("Successfully summoned physics body '%s' with ID: %s", typeId, body.getPhysicsId())), true);
         return 1;
     }
 }

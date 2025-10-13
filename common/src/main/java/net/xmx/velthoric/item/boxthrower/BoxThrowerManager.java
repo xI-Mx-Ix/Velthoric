@@ -8,11 +8,11 @@ import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.builtin.VxRegisteredObjects;
+import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.box.BoxColor;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Map;
@@ -84,10 +84,10 @@ public class BoxThrowerManager {
         );
         launchVelocity.scaleInPlace(SHOOT_SPEED);
 
-        VxObjectManager manager = physicsWorld.getObjectManager();
+        VxBodyManager manager = physicsWorld.getBodyManager();
 
-        BoxRigidBody spawnedObject = manager.createRigidBody(
-                VxRegisteredObjects.BOX,
+        BoxRigidBody spawnedBody = manager.createRigidBody(
+                VxRegisteredBodies.BOX,
                 transform,
                 box -> {
                     box.setHalfExtents(halfExtents);
@@ -95,8 +95,8 @@ public class BoxThrowerManager {
                 }
         );
 
-        if (spawnedObject != null) {
-            var bodyId = spawnedObject.getBodyId();
+        if (spawnedBody != null) {
+            var bodyId = spawnedBody.getBodyId();
             var bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
             bodyInterface.activateBody(bodyId);
             bodyInterface.setLinearVelocity(bodyId, launchVelocity);

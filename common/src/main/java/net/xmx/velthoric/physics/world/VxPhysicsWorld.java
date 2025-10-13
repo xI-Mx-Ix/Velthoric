@@ -14,7 +14,7 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.natives.VxNativeJolt;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.buoyancy.VxBuoyancyManager;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.pcmd.ICommand;
@@ -35,7 +35,7 @@ import java.util.concurrent.Executor;
  * Manages the entire physics simulation for a single Minecraft dimension.
  * Each instance runs its own dedicated thread to perform physics calculations,
  * keeping the simulation decoupled from the main server tick rate. It handles the
- * Jolt Physics System lifecycle, manages subsystems like objects and terrain, and
+ * Jolt Physics System lifecycle, manages subsystems like bodies and terrain, and
  * provides a thread-safe command queue for interacting with the simulation.
  *
  * @author xI-Mx-Ix
@@ -49,7 +49,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     private final ServerLevel level;
     private final ResourceKey<Level> dimensionKey;
-    private final VxObjectManager objectManager;
+    private final VxBodyManager bodyManager;
     private final VxConstraintManager constraintManager;
     private final VxTerrainSystem terrainSystem;
     private final VxMountingManager mountingManager;
@@ -70,8 +70,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private VxPhysicsWorld(ServerLevel level) {
         this.level = level;
         this.dimensionKey = level.dimension();
-        this.objectManager = new VxObjectManager(this);
-        this.constraintManager = new VxConstraintManager(this.objectManager);
+        this.bodyManager = new VxBodyManager(this);
+        this.constraintManager = new VxConstraintManager(this.bodyManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
         this.mountingManager = new VxMountingManager(this);
         this.buoyancyManager = new VxBuoyancyManager(this);
@@ -107,7 +107,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             return;
         }
 
-        this.objectManager.initialize();
+        this.bodyManager.initialize();
         this.constraintManager.initialize();
         this.terrainSystem.initialize();
 
@@ -192,12 +192,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
 
     public void onPhysicsTick() {
-        this.objectManager.onPhysicsTick(this);
+        this.bodyManager.onPhysicsTick(this);
         this.buoyancyManager.applyBuoyancyForces(FIXED_TIME_STEP);
     }
 
     public void onGameTick(ServerLevel level) {
-        this.objectManager.onGameTick(level);
+        this.bodyManager.onGameTick(level);
         this.mountingManager.onGameTick();
         this.buoyancyManager.updateFluidStates();
     }
@@ -263,8 +263,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         if (this.constraintManager != null) {
             this.constraintManager.shutdown();
         }
-        if (this.objectManager != null) {
-            this.objectManager.shutdown();
+        if (this.bodyManager != null) {
+            this.bodyManager.shutdown();
         }
         if (this.buoyancyManager != null) {
             this.buoyancyManager.shutdown();
@@ -298,8 +298,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         RunTaskCommand.queue(this, task);
     }
 
-    public VxObjectManager getObjectManager() {
-        return this.objectManager;
+    public VxBodyManager getBodyManager() {
+        return this.bodyManager;
     }
 
     public VxConstraintManager getConstraintManager() {
@@ -344,9 +344,9 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     @Nullable
-    public static VxObjectManager getObjectManager(ResourceKey<Level> dimensionKey) {
+    public static VxBodyManager getBodyManager(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
-        return world != null ? world.getObjectManager() : null;
+        return world != null ? world.getBodyManager() : null;
     }
 
     @Nullable

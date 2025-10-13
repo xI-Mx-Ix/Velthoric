@@ -12,12 +12,12 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.network.VxPacketHandler;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.client.VxRenderState;
+import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
+import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.physics.mounting.request.C2SRequestMountPacket;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -68,14 +68,14 @@ public abstract class MixinMinecraft {
         Vec3 viewVec = this.player.getViewVector(partialTicks);
         Vec3 endVec = cameraPos.add(viewVec.x * maxDist, viewVec.y * maxDist, viewVec.z * maxDist);
 
-        VxClientObjectManager objectManager = VxClientObjectManager.getInstance();
+        VxClientBodyManager bodyManager = VxClientBodyManager.getInstance();
         VxClientMountingManager ridingManager = VxClientMountingManager.getInstance();
 
         VxBody closestBody = null;
         VxSeat closestSeat = null;
         double closestDistSq = Double.MAX_VALUE;
 
-        for (VxBody body : objectManager.getAllObjects()) {
+        for (VxBody body : bodyManager.getAllBodies()) {
             if (!body.isInitialized()) continue;
 
             body.calculateRenderState(partialTicks, velthoric_renderState, velthoric_tempPos, velthoric_tempRot);

@@ -20,11 +20,11 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.xmx.velthoric.builtin.VxRegisteredObjects;
+import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 public final class SpawnChainedBoxes implements IVxTestCommand {
@@ -56,7 +56,7 @@ public final class SpawnChainedBoxes implements IVxTestCommand {
         }
 
         physicsWorld.execute(() -> {
-            VxObjectManager objectManager = physicsWorld.getObjectManager();
+            VxBodyManager bodyManager = physicsWorld.getBodyManager();
             VxConstraintManager constraintManager = physicsWorld.getConstraintManager();
 
             float segmentLength = 0.5f;
@@ -65,8 +65,8 @@ public final class SpawnChainedBoxes implements IVxTestCommand {
 
             RVec3 anchorPosition = new RVec3(startPos.x, startPos.y, startPos.z);
 
-            BoxRigidBody anchorBody = objectManager.createRigidBody(
-                    VxRegisteredObjects.BOX,
+            BoxRigidBody anchorBody = bodyManager.createRigidBody(
+                    VxRegisteredBodies.BOX,
                     new VxTransform(anchorPosition, Quat.sIdentity()),
                     body -> body.setHalfExtents(segmentHalfExtents)
             );
@@ -88,8 +88,8 @@ public final class SpawnChainedBoxes implements IVxTestCommand {
                         startPos.z
                 );
 
-                BoxRigidBody currentBody = objectManager.createRigidBody(
-                        VxRegisteredObjects.BOX,
+                BoxRigidBody currentBody = bodyManager.createRigidBody(
+                        VxRegisteredBodies.BOX,
                         new VxTransform(currentPosition, Quat.sIdentity()),
                         body -> body.setHalfExtents(segmentHalfExtents)
                 );

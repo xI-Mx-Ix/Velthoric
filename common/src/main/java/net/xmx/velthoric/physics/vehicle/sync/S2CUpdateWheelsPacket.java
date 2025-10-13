@@ -6,10 +6,9 @@ package net.xmx.velthoric.physics.vehicle.sync;
 
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
-import net.xmx.velthoric.physics.vehicle.type.motorcycle.VxMotorcycle;
 
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -89,8 +88,8 @@ public class S2CUpdateWheelsPacket {
     public static void handle(S2CUpdateWheelsPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            VxClientObjectManager manager = VxClientObjectManager.getInstance();
-            VxBody body = manager.getObject(msg.vehicleId);
+            VxClientBodyManager manager = VxClientBodyManager.getInstance();
+            VxBody body = manager.getBody(msg.vehicleId);
 
             if (body instanceof VxVehicle vehicle) {
                 for (int i = 0; i < msg.rotationAngles.length; i++) {

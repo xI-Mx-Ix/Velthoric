@@ -10,10 +10,10 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-import net.xmx.velthoric.item.physicsgun.GrabbedObjectInfo;
+import net.xmx.velthoric.item.physicsgun.GrabbedBodyInfo;
 import net.xmx.velthoric.item.physicsgun.packet.PhysicsGunSyncPacket;
 import net.xmx.velthoric.network.VxPacketHandler;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.raycasting.VxHitResult;
 import net.xmx.velthoric.physics.raycasting.VxRaytracing;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 public class PhysicsGunServerManager {
 
     private static final PhysicsGunServerManager INSTANCE = new PhysicsGunServerManager();
-    private final Map<UUID, GrabbedObjectInfo> grabbedObjects = new ConcurrentHashMap<>();
+    private final Map<UUID, GrabbedBodyInfo> grabbedBodies = new ConcurrentHashMap<>();
     private final Set<UUID> playersTryingToGrab = ConcurrentHashMap.newKeySet();
 
     private static final float MIN_DISTANCE = 2.0f;
@@ -62,11 +62,11 @@ public class PhysicsGunServerManager {
     }
 
     public boolean isGrabbing(Player player) {
-        return grabbedObjects.containsKey(player.getUUID());
+        return grabbedBodies.containsKey(player.getUUID());
     }
 
-    public Map<UUID, GrabbedObjectInfo> getGrabbedObjects() {
-        return grabbedObjects;
+    public Map<UUID, GrabbedBodyInfo> getGrabbedBodies() {
+        return grabbedBodies;
     }
 
     public boolean isTryingToGrab(Player player) {
@@ -78,13 +78,13 @@ public class PhysicsGunServerManager {
     }
 
     public void startRotationMode(ServerPlayer player) {
-        grabbedObjects.computeIfPresent(player.getUUID(), (uuid, info) -> {
+        grabbedBodies.computeIfPresent(player.getUUID(), (uuid, info) -> {
             Quat currentPlayerRotation = playerRotToQuat(player.getXRot(), player.getYRot());
             Quat playerRotationDelta = Op.star(currentPlayerRotation, info.initialPlayerRotation().conjugated());
             Quat syncedBodyRotation = Op.star(playerRotationDelta, info.initialBodyRotation());
 
-            return new GrabbedObjectInfo(
-                    info.objectId(), info.bodyId(), info.grabPointLocal(),
+            return new GrabbedBodyInfo(
+                    info.physicsId(), info.bodyId(), info.grabPointLocal(),
                     info.currentDistance(), info.originalAngularDamping(),
                     syncedBodyRotation,
                     currentPlayerRotation,
@@ -94,8 +94,8 @@ public class PhysicsGunServerManager {
     }
 
     public void stopRotationMode(ServerPlayer player) {
-        grabbedObjects.computeIfPresent(player.getUUID(), (uuid, info) -> new GrabbedObjectInfo(
-                info.objectId(), info.bodyId(), info.grabPointLocal(),
+        grabbedBodies.computeIfPresent(player.getUUID(), (uuid, info) -> new GrabbedBodyInfo(
+                info.physicsId(), info.bodyId(), info.grabPointLocal(),
                 info.currentDistance(), info.originalAngularDamping(),
                 info.initialBodyRotation(),
                 playerRotToQuat(player.getXRot(), player.getYRot()),
@@ -117,10 +117,10 @@ public class PhysicsGunServerManager {
 
             VxRaytracing.raycastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHitResult -> {
                 VxHitResult.PhysicsHit physicsHit = physicsHitResult.getPhysicsHit().orElseThrow();
-                VxBody physicsObject = physicsWorld.getObjectManager().getByBodyId(physicsHit.bodyId());
-                if (physicsObject == null) return;
+                VxBody physicsBody = physicsWorld.getBodyManager().getByJoltBodyId(physicsHit.bodyId());
+                if (physicsBody == null) return;
 
-                UUID objectId = physicsObject.getPhysicsId();
+                UUID physicsId = physicsBody.getPhysicsId();
 
                 var bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
                 if (bodyInterface == null) return;
@@ -147,13 +147,13 @@ public class PhysicsGunServerManager {
                             Quat initialPlayerRot = playerRotToQuat(player.getXRot(), player.getYRot());
                             Quat initialBodyRot = body.getRotation();
 
-                            var info = new GrabbedObjectInfo(
-                                    objectId, physicsHit.bodyId(), hitPointLocal,
+                            var info = new GrabbedBodyInfo(
+                                    physicsId, physicsHit.bodyId(), hitPointLocal,
                                     grabDistance, originalDamping, initialBodyRot,
                                     initialPlayerRot, false
                             );
 
-                            grabbedObjects.put(player.getUUID(), info);
+                            grabbedBodies.put(player.getUUID(), info);
                             playersTryingToGrab.remove(player.getUUID());
                             motionProperties.setAngularDamping(2.0f);
                             body.setAngularVelocity(new Vec3(0, 0, 0));
@@ -166,7 +166,7 @@ public class PhysicsGunServerManager {
     }
 
     public void stopGrab(ServerPlayer player) {
-        GrabbedObjectInfo info = grabbedObjects.remove(player.getUUID());
+        GrabbedBodyInfo info = grabbedBodies.remove(player.getUUID());
         if (info != null) {
             syncStateWithClients();
             var physicsWorld = VxPhysicsWorld.get(player.level().dimension());
@@ -190,8 +190,8 @@ public class PhysicsGunServerManager {
         }
     }
 
-    public void freezeObject(ServerPlayer player) {
-        GrabbedObjectInfo info = grabbedObjects.get(player.getUUID());
+    public void freezeBody(ServerPlayer player) {
+        GrabbedBodyInfo info = grabbedBodies.get(player.getUUID());
         if (info == null) return;
 
         stopGrab(player);
@@ -207,11 +207,11 @@ public class PhysicsGunServerManager {
     }
 
     public void updateScroll(ServerPlayer player, float scrollDelta) {
-        grabbedObjects.computeIfPresent(player.getUUID(), (uuid, info) -> {
+        grabbedBodies.computeIfPresent(player.getUUID(), (uuid, info) -> {
             float newDistance = info.currentDistance() + scrollDelta;
             newDistance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, newDistance));
-            return new GrabbedObjectInfo(
-                    info.objectId(), info.bodyId(), info.grabPointLocal(),
+            return new GrabbedBodyInfo(
+                    info.physicsId(), info.bodyId(), info.grabPointLocal(),
                     newDistance, info.originalAngularDamping(), info.initialBodyRotation(),
                     info.initialPlayerRotation(), info.inRotationMode()
             );
@@ -219,7 +219,7 @@ public class PhysicsGunServerManager {
     }
 
     public void updateRotation(ServerPlayer player, float deltaX, float deltaY) {
-        grabbedObjects.computeIfPresent(player.getUUID(), (uuid, info) -> {
+        grabbedBodies.computeIfPresent(player.getUUID(), (uuid, info) -> {
             final float SENSITIVITY = 0.003f;
             net.minecraft.world.phys.Vec3 look = player.getLookAngle();
             net.minecraft.world.phys.Vec3 worldUp = new net.minecraft.world.phys.Vec3(0, 1, 0);
@@ -238,8 +238,8 @@ public class PhysicsGunServerManager {
             Quat manualRot = Op.star(rotYaw, rotPitch);
             Quat newInitialBodyRotation = Op.star(manualRot, info.initialBodyRotation());
 
-            return new GrabbedObjectInfo(
-                    info.objectId(), info.bodyId(), info.grabPointLocal(),
+            return new GrabbedBodyInfo(
+                    info.physicsId(), info.bodyId(), info.grabPointLocal(),
                     info.currentDistance(), info.originalAngularDamping(), newInitialBodyRotation,
                     info.initialPlayerRotation(), info.inRotationMode()
             );
@@ -247,7 +247,7 @@ public class PhysicsGunServerManager {
     }
 
     public void serverTick(ServerPlayer player) {
-        var info = grabbedObjects.get(player.getUUID());
+        var info = grabbedBodies.get(player.getUUID());
         if (info == null) return;
 
         var physicsWorld = VxPhysicsWorld.get(player.level().dimension());
@@ -274,7 +274,7 @@ public class PhysicsGunServerManager {
 
             try (var lock = new BodyLockWrite(bodyLockInterface, info.bodyId())) {
                 if (!lock.succeededAndIsInBroadPhase() || !lock.getBody().isDynamic()) {
-                    grabbedObjects.remove(player.getUUID());
+                    grabbedBodies.remove(player.getUUID());
                     syncStateWithClients();
                     return;
                 }
@@ -337,34 +337,34 @@ public class PhysicsGunServerManager {
     }
 
     public void syncStateWithClients() {
-        Map<UUID, PhysicsGunClientManager.ClientGrabData> clientGrabData = grabbedObjects.entrySet().stream()
+        Map<UUID, PhysicsGunClientManager.ClientGrabData> clientGrabData = grabbedBodies.entrySet().stream()
                 .collect(Collectors.toConcurrentMap(
                         Map.Entry::getKey,
                         entry -> {
-                            GrabbedObjectInfo info = entry.getValue();
+                            GrabbedBodyInfo info = entry.getValue();
                             net.minecraft.world.phys.Vec3 localHitPoint = new net.minecraft.world.phys.Vec3(
                                     info.grabPointLocal().getX(),
                                     info.grabPointLocal().getY(),
                                     info.grabPointLocal().getZ()
                             );
-                            return new PhysicsGunClientManager.ClientGrabData(info.objectId(), localHitPoint);
+                            return new PhysicsGunClientManager.ClientGrabData(info.physicsId(), localHitPoint);
                         }
                 ));
         VxPacketHandler.sendToAll(new PhysicsGunSyncPacket(clientGrabData, playersTryingToGrab));
     }
 
     public void syncStateForNewPlayer(ServerPlayer player) {
-        Map<UUID, PhysicsGunClientManager.ClientGrabData> clientGrabData = grabbedObjects.entrySet().stream()
+        Map<UUID, PhysicsGunClientManager.ClientGrabData> clientGrabData = grabbedBodies.entrySet().stream()
                 .collect(Collectors.toConcurrentMap(
                         Map.Entry::getKey,
                         entry -> {
-                            GrabbedObjectInfo info = entry.getValue();
+                            GrabbedBodyInfo info = entry.getValue();
                             net.minecraft.world.phys.Vec3 localHitPoint = new net.minecraft.world.phys.Vec3(
                                     info.grabPointLocal().getX(),
                                     info.grabPointLocal().getY(),
                                     info.grabPointLocal().getZ()
                             );
-                            return new PhysicsGunClientManager.ClientGrabData(info.objectId(), localHitPoint);
+                            return new PhysicsGunClientManager.ClientGrabData(info.physicsId(), localHitPoint);
                         }
                 ));
         VxPacketHandler.sendToPlayer(new PhysicsGunSyncPacket(clientGrabData, playersTryingToGrab), player);

@@ -7,8 +7,8 @@ package net.xmx.velthoric.physics.vehicle.sync;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.network.VxPacketHandler;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 
@@ -32,13 +32,13 @@ public class VxWheelNetworkDispatcher {
      * This method is designed to be called from a dedicated network synchronization thread.
      *
      * @param level The server level.
-     * @param manager The object manager containing all physics bodies.
-     * @param objectTrackers A map that tracks which players are watching which objects.
+     * @param manager The body manager containing all physics bodies.
+     * @param bodyTrackers A map that tracks which players are watching which bodies.
      */
-    public void dispatchUpdates(ServerLevel level, VxObjectManager manager, Map<UUID, Set<ServerPlayer>> objectTrackers) {
+    public void dispatchUpdates(ServerLevel level, VxBodyManager manager, Map<UUID, Set<ServerPlayer>> bodyTrackers) {
         // Step 1: Collect all vehicles that have been marked with dirty wheel states.
         List<VxVehicle> dirtyVehicles = new ArrayList<>();
-        for (VxBody body : manager.getAllObjects()) {
+        for (VxBody body : manager.getAllBodies()) {
             if (body instanceof VxVehicle vehicle && vehicle.areWheelsDirty()) {
                 dirtyVehicles.add(vehicle);
                 // Reset the dirty flag immediately to prevent sending the same data multiple times.
@@ -56,7 +56,7 @@ public class VxWheelNetworkDispatcher {
         level.getServer().execute(() -> {
             for (VxVehicle vehicle : dirtyVehicles) {
                 // Find all players who are currently tracking this vehicle.
-                Set<ServerPlayer> trackers = objectTrackers.get(vehicle.getPhysicsId());
+                Set<ServerPlayer> trackers = bodyTrackers.get(vehicle.getPhysicsId());
                 if (trackers == null || trackers.isEmpty()) {
                     continue; // Skip if no one is watching this vehicle.
                 }

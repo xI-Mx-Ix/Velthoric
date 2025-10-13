@@ -11,10 +11,10 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
-import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
-import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.physics.body.client.VxClientBodyInterpolator;
+import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
@@ -28,7 +28,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Modifies the Entity class to correctly calculate eye position and view vectors for entities
- * that are mounted on a physics-driven object. This ensures that camera placement, raycasting,
+ * that are mounted on a physics-driven body. This ensures that camera placement, raycasting,
  * and projectile spawning originate from the correct, rotated locations.
  *
  * @author xI-Mx-Ix
@@ -54,23 +54,23 @@ public abstract class MixinEntity {
 
     /**
      * Injects into `getEyePosition` to return the correctly transformed eye position of an entity
-     * mounted on a physics object. It combines the vehicle's interpolated position, the passenger's
+     * mounted on a physics body. It combines the vehicle's interpolated position, the passenger's
      * local offset, and the entity's eye height, all transformed by the vehicle's rotation.
      *
      * @param partialTicks The fraction of a tick for interpolation.
      * @param cir The callback info, used to set the return value.
      */
     @Inject(method = "getEyePosition(F)Lnet/minecraft/world/phys/Vec3;", at = @At("HEAD"), cancellable = true)
-    private void velthoric_getEyePositionOnPhysicsObject(float partialTicks, CallbackInfoReturnable<Vec3> cir) {
+    private void velthoric_getEyePositionOnPhysicsBody(float partialTicks, CallbackInfoReturnable<Vec3> cir) {
         if (!this.level.isClientSide()) {
             return;
         }
 
         if (getVehicle() instanceof VxMountingEntity proxy) {
-            proxy.getPhysicsObjectId().ifPresent(id -> {
-                VxClientObjectManager manager = VxClientObjectManager.getInstance();
-                VxClientObjectDataStore store = manager.getStore();
-                VxClientObjectInterpolator interpolator = manager.getInterpolator();
+            proxy.getPhysicsBodyId().ifPresent(id -> {
+                VxClientBodyManager manager = VxClientBodyManager.getInstance();
+                VxClientBodyDataStore store = manager.getStore();
+                VxClientBodyInterpolator interpolator = manager.getInterpolator();
                 Integer index = store.getIndexForId(id);
 
                 if (index == null || !store.render_isInitialized[index]) {
@@ -120,7 +120,7 @@ public abstract class MixinEntity {
             return;
         }
 
-        proxy.getPhysicsObjectId().ifPresent(id -> {
+        proxy.getPhysicsBodyId().ifPresent(id -> {
             // Get the original, untransformed local view vector.
             Vec3 localViewVector = cir.getReturnValue();
             Vector3d transformedVector = new Vector3d(localViewVector.x, localViewVector.y, localViewVector.z);
@@ -128,8 +128,8 @@ public abstract class MixinEntity {
 
             if (this.level.isClientSide()) {
                 // On the client, use interpolated rotation for smooth visuals.
-                VxClientObjectManager manager = VxClientObjectManager.getInstance();
-                VxClientObjectDataStore store = manager.getStore();
+                VxClientBodyManager manager = VxClientBodyManager.getInstance();
+                VxClientBodyDataStore store = manager.getStore();
                 Integer index = store.getIndexForId(id);
 
                 if (index == null || !store.render_isInitialized[index]) {
@@ -149,7 +149,7 @@ public abstract class MixinEntity {
                 // On the server, use the exact physics rotation for accurate game logic.
                 VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(this.level.dimension());
                 if (physicsWorld == null) return;
-                VxBody body = physicsWorld.getObjectManager().getObject(id);
+                VxBody body = physicsWorld.getBodyManager().getVxBody(id);
                 if (body == null) return;
                 
                 var rot = body.getTransform().getRotation();

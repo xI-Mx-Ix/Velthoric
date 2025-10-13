@@ -21,17 +21,17 @@ import java.util.function.Supplier;
  */
 public class C2SRequestMountPacket {
 
-    private final UUID objectId;
+    private final UUID physicsId;
     private final UUID seatId;
 
     /**
      * Constructs a new request to ride packet.
      *
-     * @param objectId The UUID of the physics object.
+     * @param physicsId The UUID of the physics body.
      * @param seatId The UUID of the seat to ride.
      */
-    public C2SRequestMountPacket(UUID objectId, UUID seatId) {
-        this.objectId = objectId;
+    public C2SRequestMountPacket(UUID physicsId, UUID seatId) {
+        this.physicsId = physicsId;
         this.seatId = seatId;
     }
 
@@ -41,7 +41,7 @@ public class C2SRequestMountPacket {
      * @param buf The buffer to read from.
      */
     public C2SRequestMountPacket(FriendlyByteBuf buf) {
-        this.objectId = buf.readUUID();
+        this.physicsId = buf.readUUID();
         this.seatId = buf.readUUID();
     }
 
@@ -51,7 +51,7 @@ public class C2SRequestMountPacket {
      * @param buf The buffer to write to.
      */
     public void encode(FriendlyByteBuf buf) {
-        buf.writeUUID(this.objectId);
+        buf.writeUUID(this.physicsId);
         buf.writeUUID(this.seatId);
     }
 
@@ -72,7 +72,7 @@ public class C2SRequestMountPacket {
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(player.serverLevel().dimension());
             if (physicsWorld != null) {
                 VxMountingManager mountingManager = physicsWorld.getMountingManager();
-                mountingManager.requestMounting(player, msg.objectId, msg.seatId);
+                mountingManager.requestMounting(player, msg.physicsId, msg.seatId);
             }
         });
     }

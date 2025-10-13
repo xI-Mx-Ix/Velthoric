@@ -136,7 +136,7 @@ public final class VxSectionPos {
     /**
      * Returns the world-space origin (minimum corner) of this section.
      *
-     * @return a {@link BlockPos} representing the section’s origin
+     * @return a {@link BlockPos} representing the sectionâ€™s origin
      */
     public BlockPos getOrigin() {
         return new BlockPos(x << CHUNK_SIZE_SHIFT, y << CHUNK_SIZE_SHIFT, z << CHUNK_SIZE_SHIFT);
@@ -145,7 +145,7 @@ public final class VxSectionPos {
     /**
      * Returns the axis-aligned bounding box of this section in world coordinates.
      *
-     * @return an {@link AABB} representing the section’s bounds
+     * @return an {@link AABB} representing the sectionâ€™s bounds
      */
     public AABB getAABB() {
         BlockPos origin = getOrigin();
@@ -153,10 +153,10 @@ public final class VxSectionPos {
     }
 
     /**
-     * Checks if this section is within the world’s buildable height range.
+     * Checks if this section is within the worldâ€™s buildable height range.
      *
      * @param level the world to check against
-     * @return {@code true} if the section is within the world’s height limits, otherwise {@code false}
+     * @return {@code true} if the section is within the worldâ€™s height limits, otherwise {@code false}
      */
     public boolean isWithinWorldHeight(Level level) {
         int minBlockY = y << CHUNK_SIZE_SHIFT;

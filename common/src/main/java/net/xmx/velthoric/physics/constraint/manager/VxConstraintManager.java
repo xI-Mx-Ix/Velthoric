@@ -11,8 +11,8 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.persistence.VxConstraintStorage;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
-import net.xmx.velthoric.physics.object.type.VxBody;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -32,14 +32,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public class VxConstraintManager {
 
     private final VxPhysicsWorld world;
-    private final VxObjectManager objectManager;
+    private final VxBodyManager bodyManager;
     private final VxConstraintStorage constraintStorage;
     private final VxDependencyDataSystem dataSystem;
     private final Map<UUID, VxConstraint> activeConstraints = new ConcurrentHashMap<>();
 
-    public VxConstraintManager(VxObjectManager objectManager) {
-        this.objectManager = objectManager;
-        this.world = objectManager.getPhysicsWorld();
+    public VxConstraintManager(VxBodyManager bodyManager) {
+        this.bodyManager = bodyManager;
+        this.world = bodyManager.getPhysicsWorld();
         this.constraintStorage = new VxConstraintStorage(world.getLevel(), this);
         this.dataSystem = new VxDependencyDataSystem(this);
     }
@@ -75,10 +75,10 @@ public class VxConstraintManager {
         long chunkKey = pos.toLong();
         List<VxConstraint> constraintsToSave = new ArrayList<>();
         for (VxConstraint constraint : activeConstraints.values()) {
-            VxBody body1 = objectManager.getObject(constraint.getBody1Id());
+            VxBody body1 = bodyManager.getVxBody(constraint.getBody1Id());
             if (body1 != null) {
                 int index = body1.getDataStoreIndex();
-                if (index != -1 && objectManager.getDataStore().chunkKey[index] == chunkKey) {
+                if (index != -1 && bodyManager.getDataStore().chunkKey[index] == chunkKey) {
                     constraintsToSave.add(constraint);
                 }
             }
@@ -99,7 +99,7 @@ public class VxConstraintManager {
             // The index also needs to be explicitly saved.
             constraintStorage.getRegionIndex().save();
         } catch (Exception e) {
-            VxMainClass.LOGGER.error("Failed to flush physics constraint persistence for world {}", objectManager.getPhysicsWorld().getLevel().dimension().location(), e);
+            VxMainClass.LOGGER.error("Failed to flush physics constraint persistence for world {}", bodyManager.getPhysicsWorld().getLevel().dimension().location(), e);
         }
     }
 
@@ -116,11 +116,11 @@ public class VxConstraintManager {
 
         // Find all constraints that need to be unloaded
         for (VxConstraint constraint : activeConstraints.values()) {
-            VxBody body1 = objectManager.getObject(constraint.getBody1Id());
+            VxBody body1 = bodyManager.getVxBody(constraint.getBody1Id());
             // A constraint is considered to be in a chunk if its first body is in that chunk.
             if (body1 != null) {
                 int index = body1.getDataStoreIndex();
-                if (index != -1 && objectManager.getDataStore().chunkKey[index] == chunkKey) {
+                if (index != -1 && bodyManager.getDataStore().chunkKey[index] == chunkKey) {
                     constraintsToSaveAndRemove.add(constraint);
                 }
             }
@@ -176,8 +176,8 @@ public class VxConstraintManager {
      */
     protected void activateConstraint(VxConstraint constraint) {
         world.execute(() -> {
-            VxBody body1 = objectManager.getObject(constraint.getBody1Id());
-            VxBody body2 = objectManager.getObject(constraint.getBody2Id());
+            VxBody body1 = bodyManager.getVxBody(constraint.getBody1Id());
+            VxBody body2 = bodyManager.getVxBody(constraint.getBody2Id());
 
             if (body1 == null || body2 == null || body1.getBodyId() == 0 || body2.getBodyId() == 0) {
                 dataSystem.addPendingConstraint(constraint);
@@ -277,7 +277,7 @@ public class VxConstraintManager {
         }
     }
 
-    public void removeConstraintsForObject(UUID bodyId, boolean discardData) {
+    public void removeConstraintsForBody(UUID bodyId, boolean discardData) {
         activeConstraints.values().stream()
                 .filter(c -> c.getBody1Id().equals(bodyId) || c.getBody2Id().equals(bodyId))
                 .forEach(c -> removeConstraint(c.getConstraintId(), discardData));
@@ -292,8 +292,8 @@ public class VxConstraintManager {
         return constraintStorage;
     }
 
-    public VxObjectManager getObjectManager() {
-        return objectManager;
+    public VxBodyManager getBodyManager() {
+        return bodyManager;
     }
 
     public VxPhysicsWorld getWorld() {

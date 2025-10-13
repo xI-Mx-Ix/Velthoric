@@ -13,10 +13,9 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.natives.VxLayers;
-import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
-import net.xmx.velthoric.physics.object.registry.VxObjectType;
-import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
+import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.vehicle.type.motorcycle.VxMotorcycle;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -39,7 +38,7 @@ public class MotorcycleImpl extends VxMotorcycle {
     /**
      * Server-side constructor.
      */
-    public MotorcycleImpl(VxObjectType<MotorcycleImpl> type, VxPhysicsWorld world, UUID id) {
+    public MotorcycleImpl(VxBodyType<MotorcycleImpl> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
     }
 
@@ -47,7 +46,7 @@ public class MotorcycleImpl extends VxMotorcycle {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    public MotorcycleImpl(VxObjectType<MotorcycleImpl> type, UUID id) {
+    public MotorcycleImpl(VxBodyType<MotorcycleImpl> type, UUID id) {
         super(type, id);
     }
 
@@ -125,7 +124,7 @@ public class MotorcycleImpl extends VxMotorcycle {
                 riderOffset.x - 0.3, riderOffset.y - 0.4, riderOffset.z - 0.3,
                 riderOffset.x + 0.3, riderOffset.y + 0.4, riderOffset.z + 0.3
         );
-        // Generate a deterministic UUID based on the object's ID and a seat identifier string.
+        // Generate a deterministic UUID based on the body's ID and a seat identifier string.
         // This ensures the seat ID is identical on both server and client.
         String seatIdentifier = "driver_seat";
         UUID seatId = UUID.nameUUIDFromBytes((this.getPhysicsId().toString() + seatIdentifier).getBytes(StandardCharsets.UTF_8));

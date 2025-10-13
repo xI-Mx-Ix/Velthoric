@@ -16,7 +16,7 @@ import org.joml.Vector3f;
 import java.util.UUID;
 
 /**
- * Represents a single seat on a rideable physics object.
+ * Represents a single seat on a rideable physics body.
  * A seat defines a location where a player can sit, identified by a unique UUID.
  * It also includes its collision box, rider offset, and whether it's a driver seat.
  *
@@ -38,10 +38,10 @@ public class VxSeat {
     }
 
     /**
-     * Transforms the seat's local-space AABB into a world-space AABB using the object's transform.
+     * Transforms the seat's local-space AABB into a world-space AABB using the body's transform.
      * This creates a bounding box that fully encloses the rotated seat, suitable for broad-phase checks.
      *
-     * @param objectTransform The current world transform of the physics object.
+     * @param objectTransform The current world transform of the physics body.
      * @return A new AABB representing the seat's coarse bounds in world space.
      */
     public AABB getGlobalAABB(VxTransform objectTransform) {
@@ -79,10 +79,10 @@ public class VxSeat {
     }
 
     /**
-     * Creates a world-space Oriented Bounding Box (OBB) for this seat based on the parent object's transform.
+     * Creates a world-space Oriented Bounding Box (OBB) for this seat based on the parent body's transform.
      * This is highly accurate for raycasting and intersection tests, serving as the narrow-phase check.
      *
-     * @param objectTransform The current world transform of the physics object.
+     * @param objectTransform The current world transform of the physics body.
      * @return A new VxOBB representing the seat's precise bounds and orientation in world space.
      */
     public VxOBB getGlobalOBB(VxTransform objectTransform) {

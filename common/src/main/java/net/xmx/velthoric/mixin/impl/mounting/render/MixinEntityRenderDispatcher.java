@@ -11,9 +11,9 @@ import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
-import net.xmx.velthoric.physics.object.client.VxClientObjectDataStore;
-import net.xmx.velthoric.physics.object.client.VxClientObjectInterpolator;
-import net.xmx.velthoric.physics.object.client.VxClientObjectManager;
+import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
+import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.physics.body.client.VxClientBodyInterpolator;
 import org.joml.Quaterniond;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
@@ -26,7 +26,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Modifies the EntityRenderDispatcher to correctly render entities
- * that are mounted on a physics-driven object. This includes transforming
+ * that are mounted on a physics-driven body. This includes transforming
  * the entity itself, its name tag, and its debug hitbox to match the vehicle's orientation.
  *
  * @author xI-Mx-Ix
@@ -61,10 +61,10 @@ public abstract class MixinEntityRenderDispatcher {
     )
     private <E extends Entity> void velthoric_applyFullEntityTransform(E entity, double x, double y, double z, float rotationYaw, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int packedLight, CallbackInfo ci) {
         if (entity.getVehicle() instanceof VxMountingEntity proxy) {
-            proxy.getPhysicsObjectId().ifPresent(id -> {
-                VxClientObjectManager manager = VxClientObjectManager.getInstance();
-                VxClientObjectDataStore store = manager.getStore();
-                VxClientObjectInterpolator interpolator = manager.getInterpolator();
+            proxy.getPhysicsBodyId().ifPresent(id -> {
+                VxClientBodyManager manager = VxClientBodyManager.getInstance();
+                VxClientBodyDataStore store = manager.getStore();
+                VxClientBodyInterpolator interpolator = manager.getInterpolator();
                 Integer index = store.getIndexForId(id);
 
                 if (index == null || !store.render_isInitialized[index]) {
@@ -108,10 +108,10 @@ public abstract class MixinEntityRenderDispatcher {
         Vec3 originalViewVector = instance.getViewVector(partialTicks);
 
         if (instance.getVehicle() instanceof VxMountingEntity proxy) {
-            return proxy.getPhysicsObjectId().map(id -> {
-                VxClientObjectManager manager = VxClientObjectManager.getInstance();
-                VxClientObjectDataStore store = manager.getStore();
-                VxClientObjectInterpolator interpolator = manager.getInterpolator();
+            return proxy.getPhysicsBodyId().map(id -> {
+                VxClientBodyManager manager = VxClientBodyManager.getInstance();
+                VxClientBodyDataStore store = manager.getStore();
+                VxClientBodyInterpolator interpolator = manager.getInterpolator();
                 Integer index = store.getIndexForId(id);
 
                 if (index == null || !store.render_isInitialized[index]) {

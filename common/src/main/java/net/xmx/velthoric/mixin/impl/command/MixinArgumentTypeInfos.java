@@ -9,7 +9,7 @@ import net.minecraft.commands.synchronization.ArgumentTypeInfo;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.commands.synchronization.SingletonArgumentInfo;
 import net.minecraft.core.Registry;
-import net.xmx.velthoric.command.argument.VxObjectArgument;
+import net.xmx.velthoric.command.argument.VxBodyArgument;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -29,7 +29,7 @@ public abstract class MixinArgumentTypeInfos {
     @Inject(method = "bootstrap", at = @At("TAIL"))
     private static void onBootstrap(Registry<ArgumentTypeInfo<?, ?>> registry, CallbackInfoReturnable<ArgumentTypeInfo<?, ?>> cir) {
 
-        register(registry, "velthoric:vx_object", VxObjectArgument.class,
-            SingletonArgumentInfo.contextFree(VxObjectArgument::instance));
+        register(registry, "velthoric:vx_object", VxBodyArgument.class,
+            SingletonArgumentInfo.contextFree(VxBodyArgument::instance));
     }
 }

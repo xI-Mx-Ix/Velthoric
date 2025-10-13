@@ -13,10 +13,9 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.natives.VxLayers;
-import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
-import net.xmx.velthoric.physics.object.registry.VxObjectType;
-import net.xmx.velthoric.physics.object.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
+import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.vehicle.type.car.VxCar;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -39,7 +38,7 @@ public class CarImpl extends VxCar {
     /**
      * Server-side constructor.
      */
-    public CarImpl(VxObjectType<CarImpl> type, VxPhysicsWorld world, UUID id) {
+    public CarImpl(VxBodyType<CarImpl> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
     }
 
@@ -47,7 +46,7 @@ public class CarImpl extends VxCar {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    public CarImpl(VxObjectType<CarImpl> type, UUID id) {
+    public CarImpl(VxBodyType<CarImpl> type, UUID id) {
         super(type, id);
     }
 

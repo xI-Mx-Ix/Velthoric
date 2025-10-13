@@ -79,7 +79,7 @@ public class PhysicsGunActionPacket {
                 case STOP_GRAB_ATTEMPT -> manager.stopGrabAttempt(player);
                 case UPDATE_SCROLL -> manager.updateScroll(player, msg.value1);
                 case UPDATE_ROTATION -> manager.updateRotation(player, msg.value1, msg.value2);
-                case FREEZE_OBJECT -> manager.freezeObject(player);
+                case FREEZE_OBJECT -> manager.freezeBody(player);
                 case START_ROTATION_MODE -> manager.startRotationMode(player);
                 case STOP_ROTATION_MODE -> manager.stopRotationMode(player);
             }

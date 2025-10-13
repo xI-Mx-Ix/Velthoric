@@ -18,11 +18,11 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
-import net.xmx.velthoric.builtin.VxRegisteredObjects;
+import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
-import net.xmx.velthoric.physics.object.manager.VxObjectManager;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 public final class SpawnBoxNet implements IVxTestCommand {
@@ -60,7 +60,7 @@ public final class SpawnBoxNet implements IVxTestCommand {
         }
 
         physicsWorld.execute(() -> {
-            VxObjectManager objectManager = physicsWorld.getObjectManager();
+            VxBodyManager bodyManager = physicsWorld.getBodyManager();
             VxConstraintManager constraintManager = physicsWorld.getConstraintManager();
 
             float boxSize = 0.5f;
@@ -78,8 +78,8 @@ public final class SpawnBoxNet implements IVxTestCommand {
                                 startPos.z + (z * boxSize)
                         );
 
-                        BoxRigidBody currentBody = objectManager.createRigidBody(
-                                VxRegisteredObjects.BOX,
+                        BoxRigidBody currentBody = bodyManager.createRigidBody(
+                                VxRegisteredBodies.BOX,
                                 new VxTransform(currentPosition, Quat.sIdentity()),
                                 body -> body.setHalfExtents(boxHalfExtents)
                         );
