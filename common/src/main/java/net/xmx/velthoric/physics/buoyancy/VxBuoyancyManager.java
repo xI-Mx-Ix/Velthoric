@@ -89,11 +89,11 @@ public final class VxBuoyancyManager {
             return;
         }
 
-        if (physicsWorld.getBodyLockInterfaceNoLock() == null) {
+        if (physicsWorld.getPhysicsSystem().getBodyInterfaceNoLock() == null) {
             return;
         }
         
-        try (BodyLockMultiWrite lock = new BodyLockMultiWrite(physicsWorld.getBodyLockInterfaceNoLock(), currentBodiesInFluid)) {
+        try (BodyLockMultiWrite lock = new BodyLockMultiWrite(physicsWorld.getPhysicsSystem().getBodyLockInterfaceNoLock(), currentBodiesInFluid)) {
             narrowPhase.applyForces(lock, deltaTime, this.fluidSurfaceHeights, this.fluidTypes);
         }
     }

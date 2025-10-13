@@ -151,7 +151,7 @@ public final class VxTerrainSystem implements Runnable {
         }
 
         physicsWorld.execute(() -> {
-            BodyInterface bi = physicsWorld.getBodyInterface();
+            BodyInterface bi = physicsWorld.getPhysicsSystem().getBodyInterface();
             if (bi == null) return;
 
             VxUpdateContext ctx = updateContext.get();

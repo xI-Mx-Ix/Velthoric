@@ -122,13 +122,13 @@ public class PhysicsGunServerManager {
 
                 UUID objectId = physicsObject.getPhysicsId();
 
-                var bodyInterface = physicsWorld.getBodyInterface();
+                var bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
                 if (bodyInterface == null) return;
 
                 bodyInterface.setMotionType(physicsHit.bodyId(), EMotionType.Dynamic, EActivation.Activate);
                 bodyInterface.activateBody(physicsHit.bodyId());
 
-                var bodyLockInterface = physicsWorld.getBodyLockInterface();
+                var bodyLockInterface = physicsWorld.getPhysicsSystem().getBodyLockInterface();
                 if (bodyLockInterface == null) return;
 
                 try (var lock = new BodyLockWrite(bodyLockInterface, physicsHit.bodyId())) {
@@ -172,8 +172,8 @@ public class PhysicsGunServerManager {
             var physicsWorld = VxPhysicsWorld.get(player.level().dimension());
             if (physicsWorld != null) {
                 physicsWorld.execute(() -> {
-                    var bodyInterface = physicsWorld.getBodyInterface();
-                    var bodyLockInterface = physicsWorld.getBodyLockInterface();
+                    var bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
+                    var bodyLockInterface = physicsWorld.getPhysicsSystem().getBodyLockInterface();
                     if (bodyInterface != null && bodyLockInterface != null) {
                         try (var lock = new BodyLockWrite(bodyLockInterface, info.bodyId())) {
                             if (lock.succeededAndIsInBroadPhase()) {
@@ -199,7 +199,7 @@ public class PhysicsGunServerManager {
         if (physicsWorld == null) return;
 
         physicsWorld.execute(() -> {
-            var bodyInterface = physicsWorld.getBodyInterface();
+            var bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
             if (bodyInterface != null) {
                 bodyInterface.setMotionType(info.bodyId(), EMotionType.Static, EActivation.DontActivate);
             }
@@ -265,11 +265,11 @@ public class PhysicsGunServerManager {
         final float D_GAIN_ANGULAR = 15.0f;
 
         physicsWorld.execute(() -> {
-            BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+            BodyInterface bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
             if (bodyInterface == null || !bodyInterface.isAdded(info.bodyId())) return;
             bodyInterface.activateBody(info.bodyId());
 
-            var bodyLockInterface = physicsWorld.getBodyLockInterface();
+            var bodyLockInterface = physicsWorld.getPhysicsSystem().getBodyLockInterface();
             if (bodyLockInterface == null) return;
 
             try (var lock = new BodyLockWrite(bodyLockInterface, info.bodyId())) {

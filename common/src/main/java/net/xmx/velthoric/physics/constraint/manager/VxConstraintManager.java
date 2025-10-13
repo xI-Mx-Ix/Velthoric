@@ -192,7 +192,7 @@ public class VxConstraintManager {
 
                 boolean wasCreatedWithWorldSpace = getConstraintSpace(loadedSettings) == EConstraintSpace.WorldSpace;
 
-                TwoBodyConstraint joltConstraint = world.getBodyInterface()
+                TwoBodyConstraint joltConstraint = world.getPhysicsSystem().getBodyInterface()
                         .createConstraint(loadedSettings, body1.getBodyId(), body2.getBodyId());
 
                 if (joltConstraint == null) {

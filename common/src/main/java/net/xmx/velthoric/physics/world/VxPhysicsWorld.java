@@ -366,26 +366,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     @Nullable
-    public BodyInterface getBodyInterface() {
-        return this.physicsSystem != null ? this.physicsSystem.getBodyInterface() : null;
-    }
-
-    @Nullable
-    public ConstBodyLockInterfaceLocking getBodyLockInterface() {
-        return this.physicsSystem != null ? this.physicsSystem.getBodyLockInterface() : null;
-    }
-
-    @Nullable
-    public ConstBodyLockInterfaceNoLock getBodyLockInterfaceNoLock() {
-        return this.physicsSystem != null ? this.physicsSystem.getBodyLockInterfaceNoLock() : null;
-    }
-
-    @Nullable
-    public ConstNarrowPhaseQuery getNarrowPhaseQuery() {
-        return this.physicsSystem != null ? this.physicsSystem.getNarrowPhaseQuery() : null;
-    }
-
-    @Nullable
     public static VxObjectManager getObjectManager(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
         return world != null ? world.getObjectManager() : null;

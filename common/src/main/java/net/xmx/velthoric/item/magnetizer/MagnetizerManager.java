@@ -119,7 +119,7 @@ public class MagnetizerManager {
             int[] hitBodyIds = collector.getHits();
 
             for (int bodyId : hitBodyIds) {
-                physicsWorld.getBodyInterface().activateBody(bodyId);
+                physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(bodyId);
 
                 try (var lock = new BodyLockWrite(physicsSystem.getBodyLockInterface(), bodyId)) {
                     if (lock.succeededAndIsInBroadPhase() && lock.getBody().isDynamic()) {

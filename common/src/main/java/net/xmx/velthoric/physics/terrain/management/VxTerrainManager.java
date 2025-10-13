@@ -115,7 +115,7 @@ public final class VxTerrainManager {
         if (chunkDataStore.bodyIds[index] != VxChunkDataStore.UNUSED_BODY_ID && chunkDataStore.states[index] == STATE_READY_INACTIVE) {
             chunkDataStore.states[index] = STATE_READY_ACTIVE;
             physicsWorld.execute(() -> {
-                BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+                BodyInterface bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
                 int bodyId = chunkDataStore.bodyIds[index];
                 if (bodyInterface != null && bodyId != VxChunkDataStore.UNUSED_BODY_ID && !bodyInterface.isAdded(bodyId)) {
                     bodyInterface.addBody(bodyId, EActivation.Activate);
@@ -139,7 +139,7 @@ public final class VxTerrainManager {
         if (chunkDataStore.bodyIds[index] != VxChunkDataStore.UNUSED_BODY_ID && chunkDataStore.states[index] == STATE_READY_ACTIVE) {
             chunkDataStore.states[index] = STATE_READY_INACTIVE;
             physicsWorld.execute(() -> {
-                BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+                BodyInterface bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
                 int bodyId = chunkDataStore.bodyIds[index];
                 if (bodyInterface != null && bodyId != VxChunkDataStore.UNUSED_BODY_ID && bodyInterface.isAdded(bodyId)) {
                     bodyInterface.removeBody(bodyId);
@@ -218,7 +218,7 @@ public final class VxTerrainManager {
             return;
         }
 
-        BodyInterface bodyInterface = physicsWorld.getBodyInterface();
+        BodyInterface bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
         if (bodyInterface == null) {
             if (shape != null) shape.close();
             chunkDataStore.states[index] = STATE_UNLOADED;
@@ -271,7 +271,7 @@ public final class VxTerrainManager {
         chunkDataStore.rebuildVersions[index]++;
 
         physicsWorld.execute(() -> {
-            removeBodyAndShape(index, physicsWorld.getBodyInterface());
+            removeBodyAndShape(index, physicsWorld.getPhysicsSystem().getBodyInterface());
             chunkDataStore.removeChunk(pos);
         });
     }
@@ -295,7 +295,7 @@ public final class VxTerrainManager {
      * Cleans up all managed terrain bodies during shutdown.
      */
     public void cleanupAllBodies() {
-        BodyInterface bi = physicsWorld.getBodyInterface();
+        BodyInterface bi = physicsWorld.getPhysicsSystem().getBodyInterface();
         if (bi != null) {
             chunkDataStore.getManagedPositions().forEach(pos -> {
                 Integer index = chunkDataStore.getIndexForPos(pos);

@@ -167,7 +167,7 @@ public class VxObjectManager {
         if (bodyId == 0) {
             return null;
         }
-        try (BodyLockWrite lock = new BodyLockWrite(world.getBodyLockInterface(), bodyId)) {
+        try (BodyLockWrite lock = new BodyLockWrite(world.getPhysicsSystem().getBodyLockInterface(), bodyId)) {
             if (lock.succeededAndIsInBroadPhase()) {
                 return lock.getBody();
             }
@@ -196,7 +196,7 @@ public class VxObjectManager {
         if (bodyId == 0) {
             return null;
         }
-        try (BodyLockRead lock = new BodyLockRead(world.getBodyLockInterface(), bodyId)) {
+        try (BodyLockRead lock = new BodyLockRead(world.getPhysicsSystem().getBodyLockInterface(), bodyId)) {
             if (lock.succeededAndIsInBroadPhase()) {
                 return lock.getBody();
             }
@@ -416,7 +416,7 @@ public class VxObjectManager {
         final int bodyIdToRemove = obj.getBodyId();
         if (bodyIdToRemove != 0 && bodyIdToRemove != Jolt.cInvalidBodyId) {
             world.execute(() -> {
-                BodyInterface bodyInterface = world.getBodyInterface();
+                BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
                 if (bodyInterface.isAdded(bodyIdToRemove)) {
                     bodyInterface.removeBody(bodyIdToRemove);
                 }
@@ -485,7 +485,7 @@ public class VxObjectManager {
                         if (linearVelocity != null) bcs.setLinearVelocity(linearVelocity);
                         if (angularVelocity != null) bcs.setAngularVelocity(angularVelocity);
 
-                        return world.getBodyInterface().createAndAddBody(bcs, activation);
+                        return world.getPhysicsSystem().getBodyInterface().createAndAddBody(bcs, activation);
                     }
                 }
             };
@@ -522,7 +522,7 @@ public class VxObjectManager {
                     creationSettings.setPosition(dataStore.posX[index], dataStore.posY[index], dataStore.posZ[index]);
                     creationSettings.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
 
-                    return world.getBodyInterface().createAndAddSoftBody(creationSettings, activation);
+                    return world.getPhysicsSystem().getBodyInterface().createAndAddSoftBody(creationSettings, activation);
                 }
             };
 
