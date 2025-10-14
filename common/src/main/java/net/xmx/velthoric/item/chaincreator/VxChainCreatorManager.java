@@ -85,7 +85,7 @@ public enum VxChainCreatorManager {
 
         AttachmentInfo startInfo = getAttachmentInfo(bodyManager, startHit);
         AttachmentInfo endInfo = getAttachmentInfo(bodyManager, endHit);
-        if (startInfo == null || endInfo == null || startInfo.bodyUUID.equals(endInfo.bodyUUID)) {
+        if (startInfo.bodyUUID.equals(endInfo.bodyUUID)) {
             return;
         }
 
