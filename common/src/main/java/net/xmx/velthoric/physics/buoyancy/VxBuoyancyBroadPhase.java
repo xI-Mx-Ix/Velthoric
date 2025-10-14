@@ -12,8 +12,6 @@ import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
@@ -27,8 +25,7 @@ import java.util.UUID;
 
 /**
  * Handles the broad-phase of buoyancy detection on the main game thread.
- * This class efficiently scans for bodies that are potentially in a fluid, using
- * optimizations like chunk-caching to minimize expensive world lookups.
+ * This class efficiently scans for bodies that are potentially in a fluid.
  *
  * @author xI-Mx-Ix
  */
@@ -61,7 +58,6 @@ public final class VxBuoyancyBroadPhase {
 
         Int2FloatMap newSurfaceHeights = new Int2FloatOpenHashMap();
         Int2ObjectMap<VxFluidType> newFluidTypes = new Int2ObjectOpenHashMap<>();
-        LongSet dryChunkCache = new LongOpenHashSet();
 
         for (int i = 0; i < ds.getCapacity(); ++i) {
             UUID id = ds.getIdForIndex(i);
@@ -80,20 +76,6 @@ public final class VxBuoyancyBroadPhase {
             ConstAaBox bounds = body.getWorldSpaceBounds();
             Vec3 min = bounds.getMin();
             Vec3 max = bounds.getMax();
-
-            // Broad check to see if any chunk occupied by the body could have fluid.
-            // If all relevant chunks are in the dry cache, we can skip this body.
-            boolean canSkip = true;
-            for (int chunkX = (int) min.getX() >> 4; chunkX <= (int) max.getX() >> 4; chunkX++) {
-                for (int chunkZ = (int) min.getZ() >> 4; chunkZ <= (int) max.getZ() >> 4; chunkZ++) {
-                    if (!dryChunkCache.contains(BlockPos.asLong(chunkX, 0, chunkZ))) {
-                        canSkip = false;
-                        break;
-                    }
-                }
-                if (!canSkip) break;
-            }
-            if (canSkip) continue;
 
             // Find the highest fluid surface affecting the body by sampling key points.
             float highestSurface = -Float.MAX_VALUE;
@@ -115,7 +97,7 @@ public final class VxBuoyancyBroadPhase {
                 int endY = (int) Math.floor(min.getY());
 
                 for (int y = startY; y >= endY; y--) {
-                    mutablePos.set(xPoints[p], y, zPoints[p]);
+                    mutablePos.set((int) xPoints[p], y, (int) zPoints[p]);
                     FluidState fluidState = this.level.getFluidState(mutablePos);
 
                     if (!fluidState.isEmpty()) {
@@ -142,14 +124,6 @@ public final class VxBuoyancyBroadPhase {
                     bodiesFound.add(bodyId);
                     newSurfaceHeights.put(bodyId, highestSurface);
                     newFluidTypes.put(bodyId, detectedType);
-                }
-            } else {
-                // If no fluid was found at all for this body, cache the chunks it occupies as dry
-                // to optimize future checks for other bodies in the same chunks.
-                for (int chunkX = (int) min.getX() >> 4; chunkX <= (int) max.getX() >> 4; chunkX++) {
-                    for (int chunkZ = (int) min.getZ() >> 4; chunkZ <= (int) max.getZ() >> 4; chunkZ++) {
-                        dryChunkCache.add(BlockPos.asLong(chunkX, 0, chunkZ));
-                    }
                 }
             }
         }
