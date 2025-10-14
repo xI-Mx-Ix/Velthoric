@@ -102,8 +102,8 @@ public enum VxChainCreatorManager {
         RVec3 startPos = startInfo.worldPosition;
         RVec3 endPos = endInfo.worldPosition;
 
-        final double chainPartRadius = 0.1;
-        final double desiredSegmentLength = 0.5;
+        final double chainPartRadius = 0.2;
+        final double desiredSegmentLength = 0.25;
         RVec3 vector = Op.minus(endPos, startPos);
         double distance = vector.length();
         if (distance < desiredSegmentLength) return;
