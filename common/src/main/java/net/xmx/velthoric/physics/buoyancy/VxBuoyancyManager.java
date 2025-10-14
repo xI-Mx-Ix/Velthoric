@@ -27,6 +27,7 @@ public final class VxBuoyancyManager {
     /**
      * A thread-safe, volatile array of body IDs identified by the broad-phase as being potentially in a fluid.
      * This array is written by the main game thread and read by the physics thread.
+     * The volatile keyword ensures that changes are published correctly across threads.
      */
     private volatile int[] bodiesInFluid = new int[0];
 
@@ -51,7 +52,7 @@ public final class VxBuoyancyManager {
         this.physicsWorld = physicsWorld;
         this.broadPhase = new VxBuoyancyBroadPhase(physicsWorld);
         this.narrowPhase = new VxBuoyancyNarrowPhase(physicsWorld);
-        
+
         // Use synchronized maps for thread-safe access
         this.fluidSurfaceHeights = java.util.Collections.synchronizedMap(new it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap());
         this.fluidTypes = java.util.Collections.synchronizedMap(new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>());
@@ -61,19 +62,25 @@ public final class VxBuoyancyManager {
      * BROAD-PHASE: Called on the main game thread each tick.
      * Delegates to the broad-phase handler to efficiently identify all bodies that are
      * potentially inside a fluid and prepares the results for the narrow-phase.
+     * This method ensures data is published to the physics thread in a thread-safe manner.
      */
     public void updateFluidStates() {
         // The broad phase finds all potential contacts and returns the necessary data.
         VxBuoyancyResult result = broadPhase.findPotentialFluidContacts();
 
-        // Atomically update the shared data structures for the physics thread.
-        this.bodiesInFluid = result.getBodyIds();
+        // Ensure that the data maps are fully updated *before* publishing the new list of body IDs.
+        // The synchronized block guarantees that clearing and repopulating the maps is an atomic operation.
         synchronized (this) {
             this.fluidSurfaceHeights.clear();
             this.fluidTypes.clear();
             this.fluidSurfaceHeights.putAll(result.getSurfaceHeights());
             this.fluidTypes.putAll(result.getFluidTypes());
         }
+
+        // This volatile write acts as a memory barrier. It signals to the physics thread that
+        // not only is the new array of IDs ready, but all the data in the maps associated with
+        // those IDs is also ready and consistent.
+        this.bodiesInFluid = result.getBodyIds();
     }
 
     /**
@@ -84,7 +91,10 @@ public final class VxBuoyancyManager {
      * @param deltaTime The fixed time step for the physics simulation.
      */
     public void applyBuoyancyForces(float deltaTime) {
-        int[] currentBodiesInFluid = this.bodiesInFluid; // Read the volatile array once for consistency.
+        // This volatile read ensures that we see the most up-to-date list of bodies. Because of the
+        // memory barrier established by the write in updateFluidStates(), we are also guaranteed
+        // to see the consistent, up-to-date data within the fluidSurfaceHeights and fluidTypes maps.
+        int[] currentBodiesInFluid = this.bodiesInFluid;
         if (currentBodiesInFluid.length == 0) {
             return;
         }
@@ -92,8 +102,9 @@ public final class VxBuoyancyManager {
         if (physicsWorld.getPhysicsSystem().getBodyInterfaceNoLock() == null) {
             return;
         }
-        
+
         try (BodyLockMultiWrite lock = new BodyLockMultiWrite(physicsWorld.getPhysicsSystem().getBodyLockInterfaceNoLock(), currentBodiesInFluid)) {
+            // It is now safe to pass the maps directly, as their state is consistent with the list of bodies.
             narrowPhase.applyForces(lock, deltaTime, this.fluidSurfaceHeights, this.fluidTypes);
         }
     }

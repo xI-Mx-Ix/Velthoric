@@ -6,12 +6,9 @@ package net.xmx.velthoric.physics.buoyancy;
 
 import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.BodyLockMultiWrite;
-import com.github.stephengold.joltjni.Mat44;
 import com.github.stephengold.joltjni.MotionProperties;
-import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
-import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.ConstAaBox;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
@@ -33,7 +30,6 @@ public final class VxBuoyancyNarrowPhase {
     private final ThreadLocal<Vec3> tempVec3_2 = ThreadLocal.withInitial(Vec3::new);
     private final ThreadLocal<Vec3> tempVec3_3 = ThreadLocal.withInitial(Vec3::new);
     private final ThreadLocal<RVec3> tempRVec3_1 = ThreadLocal.withInitial(RVec3::new);
-    private final ThreadLocal<Mat44> tempMat44_1 = ThreadLocal.withInitial(Mat44::new);
 
     /**
      * Constructs a new narrow-phase handler.
@@ -61,7 +57,9 @@ public final class VxBuoyancyNarrowPhase {
     }
 
     /**
-     * Calculates and applies buoyancy and drag forces to a single body.
+     * Calculates and applies buoyancy, drag, and damping impulses to a single body.
+     * This advanced implementation uses a quadratic drag model and a separate vertical
+     * damping force to create smooth, stable floating behavior and prevent oscillation.
      *
      * @param body      The physics body to process.
      * @param deltaTime The simulation time step.
@@ -69,14 +67,13 @@ public final class VxBuoyancyNarrowPhase {
      * @param fluidTypes        A map from body ID to the type of fluid.
      */
     private void processBuoyancyForBody(Body body, float deltaTime, Map<Integer, Float> fluidSurfaceHeights, Map<Integer, VxFluidType> fluidTypes) {
-        // Activate the body if it's currently inactive, so forces can take effect.
         if (!body.isActive()) {
             physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(body.getId());
         }
 
         MotionProperties motionProperties = body.getMotionProperties();
         if (motionProperties == null || motionProperties.getInverseMass() < 1e-6f) {
-            return; // Static or kinematic bodies are not affected by buoyancy forces.
+            return;
         }
 
         int bodyId = body.getId();
@@ -84,33 +81,35 @@ public final class VxBuoyancyNarrowPhase {
         VxFluidType fluidType = fluidTypes.get(bodyId);
 
         if (surfaceY == null || fluidType == null) {
-            return; // No fluid data found for this body, cannot proceed.
+            return;
         }
 
-        // Set physics properties based on the fluid type.
-        final float buoyancyFactor;
-        final float linearDrag;
-        final float angularDrag;
+        // --- Physics Properties ---
+        final float buoyancyMultiplier;
+        final float linearDragCoefficient;
+        final float angularDragCoefficient;
+        final float verticalDampingCoefficient; // Coefficient for the specialized vertical damping force.
 
         switch (fluidType) {
             case LAVA:
-                // Lava is much denser and more viscous than water.
-                // These values are increased significantly to reflect that.
-                buoyancyFactor = 3.0f; // Strong upward force.
-                linearDrag = 10.0f;    // Very high resistance to movement.
-                angularDrag = 5.0f;    // High resistance to rotation.
+                buoyancyMultiplier = 2.5f;
+                linearDragCoefficient = 10.0f;
+                angularDragCoefficient = 5.0f;
+                verticalDampingCoefficient = 8.0f;
                 break;
             case WATER:
             default:
-                buoyancyFactor = 1.1f;
-                linearDrag = 1.0f;
-                angularDrag = 0.5f;
+                // A value slightly > 1.0 ensures the object will float.
+                buoyancyMultiplier = 1.72f;
+                // These coefficients determine how "thick" the water feels.
+                linearDragCoefficient = 3.0f;
+                angularDragCoefficient = 2.0f;
+                // This is the key parameter to prevent bobbing. It strongly dampens up/down motion.
+                verticalDampingCoefficient = 5.0f;
                 break;
         }
 
-        // --- The rest of the physics calculation remains the same ---
-
-        // Calculate the submerged fraction of the body.
+        // --- Submersion Calculation ---
         ConstAaBox worldBounds = body.getWorldSpaceBounds();
         float minY = worldBounds.getMin().getY();
         float maxY = worldBounds.getMax().getY();
@@ -118,101 +117,57 @@ public final class VxBuoyancyNarrowPhase {
         if (height < 1e-6f) return;
 
         float submergedDepth = surfaceY - minY;
-        if (submergedDepth <= 0.0f) return;
+        float submergedFraction = Math.max(0.0f, Math.min(1.0f, submergedDepth / height));
+        if (submergedFraction <= 0.0f) return;
 
-        float submergedFraction = Math.min(1.0f, submergedDepth / height);
-        float totalVolume = worldBounds.getVolume();
-        float submergedVolume = totalVolume * submergedFraction;
-        if (submergedVolume <= 0.0f) return;
-
-        // Calculate the center of buoyancy.
-        RVec3 comPosition = body.getCenterOfMassPosition();
-        RVec3 centerOfBuoyancyWorld = tempRVec3_1.get();
-        centerOfBuoyancyWorld.set(comPosition.xx(), minY + (submergedDepth / 2.0f), comPosition.zz());
-        Vec3 relativeCenterOfBuoyancy = Op.minus(centerOfBuoyancyWorld, comPosition).toVec3();
-
-        // Calculate the buoyancy impulse (Archimedes' principle).
-        float inverseMass = motionProperties.getInverseMass();
-        float fluidDensity = buoyancyFactor / (totalVolume * inverseMass); // Effective density.
+        // --- Buoyancy Impulse ---
+        // This impulse counteracts gravity for the submerged portion of the body.
         Vec3 gravity = physicsWorld.getPhysicsSystem().getGravity();
+        float bodyMass = 1.0f / motionProperties.getInverseMass();
         Vec3 buoyancyImpulse = tempVec3_1.get();
         buoyancyImpulse.set(gravity);
-        buoyancyImpulse.scaleInPlace(-fluidDensity * submergedVolume * motionProperties.getGravityFactor() * deltaTime);
+        buoyancyImpulse.scaleInPlace(-buoyancyMultiplier * bodyMass * submergedFraction * deltaTime);
 
-        // Calculate linear drag impulse.
+        // Apply at the center of buoyancy. For a box, this is the center of the submerged volume.
+        RVec3 comPosition = body.getCenterOfMassPosition();
+        RVec3 centerOfBuoyancyWorld = tempRVec3_1.get();
+        centerOfBuoyancyWorld.set(comPosition.xx(), minY + (submergedDepth * 0.5f), comPosition.zz());
+        body.addImpulse(buoyancyImpulse, centerOfBuoyancyWorld);
+
+        // --- Drag and Damping Impulses ---
         Vec3 linearVelocity = body.getLinearVelocity();
+
+        // --- 1. General Quadratic Drag (for all directions) ---
+        // This simulates the resistance of moving through a fluid.
+        float linearSpeedSq = linearVelocity.lengthSq();
+        if (linearSpeedSq > 1e-6f) {
+            Vec3 linearDragImpulse = tempVec3_2.get();
+            linearDragImpulse.set(linearVelocity);
+            // Impulse is proportional to velocity squared, applied opposite to the direction of motion.
+            // F_drag = -c * |v| * v
+            linearDragImpulse.scaleInPlace(-linearDragCoefficient * (float) Math.sqrt(linearSpeedSq) * submergedFraction * deltaTime);
+            body.addImpulse(linearDragImpulse);
+        }
+
+        // --- 2. Specialized Vertical Damping (to prevent bobbing) ---
+        // This is a strong, targeted force that only opposes vertical motion,
+        // making the object settle smoothly at the water's surface.
+        float verticalVelocity = linearVelocity.getY();
+        if (Math.abs(verticalVelocity) > 1e-6f) {
+            // This damping force is proportional to the vertical velocity and the body's mass.
+            float verticalDampingImpulse = -verticalVelocity * bodyMass * verticalDampingCoefficient * submergedFraction * deltaTime;
+            body.addImpulse(new Vec3(0, verticalDampingImpulse, 0));
+        }
+
+        // --- 3. Angular Drag ---
+        // This simulates rotational resistance, making the object's rotation slow down in water.
         Vec3 angularVelocity = body.getAngularVelocity();
-        Vec3 centerOfBuoyancyVelocity = Op.star(angularVelocity, relativeCenterOfBuoyancy);
-        centerOfBuoyancyVelocity.addInPlace(linearVelocity.getX(), linearVelocity.getY(), linearVelocity.getZ());
-        Vec3 relativeCobVelocity = Op.minus(new Vec3(), centerOfBuoyancyVelocity);
-
-        Vec3 dragImpulse = tempVec3_2.get();
-        dragImpulse.loadZero();
-        float relCobVelLenSq = relativeCobVelocity.lengthSq();
-        if (relCobVelLenSq > 1.0e-12f) {
-            Vec3 size = body.getShape().getLocalBounds().getSize();
-            Quat rotation = body.getRotation();
-            Vec3 localRelativeCobVelocity = Op.star(rotation.conjugated(), relativeCobVelocity);
-            Vec3 faceAreas = tempVec3_3.get();
-            faceAreas.set(size.getY() * size.getZ(), size.getZ() * size.getX(), size.getX() * size.getY());
-            float area = Math.abs(localRelativeCobVelocity.dot(faceAreas)) / (float) Math.sqrt(relCobVelLenSq);
-
-            dragImpulse.set(relativeCobVelocity);
-            dragImpulse.scaleInPlace(0.5f * fluidDensity * linearDrag * area * deltaTime * (float) Math.sqrt(relCobVelLenSq));
-
-            // Clamp drag impulse to not exceed the body's velocity.
-            float linearVelocityLenSq = linearVelocity.lengthSq();
-            if (linearVelocityLenSq > 0f) {
-                float dragDeltaLinearVelocityLenSq = dragImpulse.lengthSq() * (inverseMass * inverseMass);
-                if (dragDeltaLinearVelocityLenSq > linearVelocityLenSq) {
-                    dragImpulse.scaleInPlace((float) Math.sqrt(linearVelocityLenSq / dragDeltaLinearVelocityLenSq));
-                }
-            }
+        float angularSpeedSq = angularVelocity.lengthSq();
+        if (angularSpeedSq > 1e-6f) {
+            Vec3 angularDragImpulse = tempVec3_3.get();
+            angularDragImpulse.set(angularVelocity);
+            angularDragImpulse.scaleInPlace(-angularDragCoefficient * (float) Math.sqrt(angularSpeedSq) * submergedFraction * deltaTime);
+            body.addAngularImpulse(angularDragImpulse);
         }
-
-        // Calculate angular drag impulse.
-        Vec3 size = body.getShape().getLocalBounds().getSize();
-        float avgWidth = (size.getX() + size.getY() + size.getZ()) / 3.0f;
-        Vec3 angularDragImpulse = tempVec3_3.get();
-        angularDragImpulse.set(angularVelocity);
-        angularDragImpulse.scaleInPlace(-angularDrag * submergedFraction * deltaTime * (avgWidth * avgWidth) / inverseMass);
-
-        // Clamp angular drag impulse to not exceed the body's angular velocity.
-        Mat44 worldInvInertia = getWorldSpaceInverseInertia(body, tempMat44_1.get());
-        Vec3 dragDeltaAngularVelocity = worldInvInertia.multiply3x3(angularDragImpulse);
-        float angularVelocityLenSq = angularVelocity.lengthSq();
-        if (angularVelocityLenSq > 0f) {
-            float dragDeltaAngularVelocityLenSq = dragDeltaAngularVelocity.lengthSq();
-            if (dragDeltaAngularVelocityLenSq > angularVelocityLenSq) {
-                angularDragImpulse.scaleInPlace((float) Math.sqrt(angularVelocityLenSq / dragDeltaAngularVelocityLenSq));
-            }
-        }
-
-        // Apply the calculated impulses.
-        Vec3 totalLinearImpulse = Op.plus(buoyancyImpulse, dragImpulse);
-        body.addImpulse(totalLinearImpulse, centerOfBuoyancyWorld);
-        body.addAngularImpulse(angularDragImpulse);
-    }
-
-    /**
-     * Reconstructs the world-space inverse inertia tensor for a dynamic body.
-     *
-     * @param body  The body for which to calculate the tensor.
-     * @param store A {@link Mat44} instance to store the result in, to avoid allocations.
-     * @return The provided 'store' matrix, now containing the world-space inverse inertia tensor.
-     */
-    private Mat44 getWorldSpaceInverseInertia(Body body, Mat44 store) {
-        MotionProperties mp = body.getMotionProperties();
-        Vec3 invInertiaDiagonal = mp.getInverseInertiaDiagonal();
-        Quat inertiaRotation = mp.getInertiaRotation();
-
-        Mat44 scale = Mat44.sScale(invInertiaDiagonal);
-        Mat44 rotation = Mat44.sRotation(inertiaRotation);
-        Mat44 rotationT = Mat44.sRotation(inertiaRotation.conjugated());
-
-        store.set(rotation);
-        store.rightMultiplyInPlace(scale);
-        store.rightMultiplyInPlace(rotationT);
-        return store;
     }
 }
