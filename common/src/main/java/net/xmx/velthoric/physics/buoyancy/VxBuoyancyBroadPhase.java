@@ -7,11 +7,6 @@ package net.xmx.velthoric.physics.buoyancy;
 import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.readonly.ConstAaBox;
-import it.unimi.dsi.fastutil.ints.Int2FloatMap;
-import it.unimi.dsi.fastutil.ints.Int2FloatOpenHashMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
@@ -44,20 +39,18 @@ public final class VxBuoyancyBroadPhase {
     }
 
     /**
-     * Scans all physics bodies and identifies those potentially inside a fluid.
-     * This method uses the body's bounding box for a more accurate and stable detection,
+     * Scans all physics bodies and populates a data store with those potentially inside a fluid.
+     * This method uses the body's bounding box for an accurate and stable detection,
      * checking multiple points and scanning vertically to find the highest fluid surface
      * affecting the body.
      *
-     * @return A {@link VxBuoyancyResult} object containing the lists of bodies in fluid and their properties.
+     * @param dataStore The {@link VxBuoyancyDataStore} to populate with the results.
      */
-    public VxBuoyancyResult findPotentialFluidContacts() {
+    public void findPotentialFluidContacts(VxBuoyancyDataStore dataStore) {
+        dataStore.clear(); // Prepare the store for new data.
+
         VxBodyDataStore ds = physicsWorld.getBodyManager().getDataStore();
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
-        IntArrayList bodiesFound = new IntArrayList();
-
-        Int2FloatMap newSurfaceHeights = new Int2FloatOpenHashMap();
-        Int2ObjectMap<VxFluidType> newFluidTypes = new Int2ObjectOpenHashMap<>();
 
         for (int i = 0; i < ds.getCapacity(); ++i) {
             UUID id = ds.getIdForIndex(i);
@@ -102,7 +95,7 @@ public final class VxBuoyancyBroadPhase {
 
                     if (!fluidState.isEmpty()) {
                         fluidFoundInBounds = true;
-                        // Calculate the precise surface height: the block's Y position plus the fluid's height within that block.
+                        // Calculate the precise surface height: the block's Y position + fluid height.
                         float surfaceHeight = y + fluidState.getHeight(level, mutablePos);
                         if (surfaceHeight > highestSurface) {
                             highestSurface = surfaceHeight;
@@ -112,7 +105,7 @@ public final class VxBuoyancyBroadPhase {
                                 detectedType = VxFluidType.LAVA;
                             }
                         }
-                        // Once fluid is found in this vertical column, break to avoid checking blocks below it.
+                        // Once fluid is found in this vertical column, we can check the next column.
                         break;
                     }
                 }
@@ -121,12 +114,9 @@ public final class VxBuoyancyBroadPhase {
             // If a fluid was detected and its surface is high enough to submerge part of the body, add it.
             if (fluidFoundInBounds && detectedType != null) {
                 if (highestSurface > min.getY()) {
-                    bodiesFound.add(bodyId);
-                    newSurfaceHeights.put(bodyId, highestSurface);
-                    newFluidTypes.put(bodyId, detectedType);
+                    dataStore.add(bodyId, highestSurface, detectedType);
                 }
             }
         }
-        return new VxBuoyancyResult(bodiesFound.toIntArray(), newSurfaceHeights, newFluidTypes);
     }
 }

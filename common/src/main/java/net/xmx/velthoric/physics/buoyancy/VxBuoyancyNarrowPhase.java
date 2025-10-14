@@ -12,12 +12,10 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.readonly.ConstAaBox;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.util.Map;
-
 /**
  * Handles the narrow-phase of buoyancy physics on the dedicated physics thread.
- * This class applies detailed Jolt C++ buoyancy and drag calculations to a small,
- * pre-filtered list of bodies that are known to be in a fluid.
+ * This class applies detailed Jolt C++ buoyancy and drag calculations by iterating
+ * efficiently over a pre-filtered {@link VxBuoyancyDataStore}.
  *
  * @author xI-Mx-Ix
  */
@@ -42,16 +40,17 @@ public final class VxBuoyancyNarrowPhase {
     /**
      * Iterates through the locked bodies and applies buoyancy forces to each.
      *
-     * @param lock              The multi-body write lock from Jolt.
-     * @param deltaTime         The simulation time step.
-     * @param fluidSurfaceHeights A map from body ID to fluid surface Y-coordinate.
-     * @param fluidTypes        A map from body ID to the type of fluid.
+     * @param lock      The multi-body write lock from Jolt.
+     * @param deltaTime The simulation time step.
+     * @param dataStore The data store containing all information about buoyant bodies.
      */
-    public void applyForces(BodyLockMultiWrite lock, float deltaTime, Map<Integer, Float> fluidSurfaceHeights, Map<Integer, VxFluidType> fluidTypes) {
-        for (int i = 0; i < lock.getNumBodies(); ++i) {
+    public void applyForces(BodyLockMultiWrite lock, float deltaTime, VxBuoyancyDataStore dataStore) {
+        // We iterate using the index from the data store, which corresponds to the locked body.
+        for (int i = 0; i < dataStore.getCount(); ++i) {
             Body body = lock.getBody(i);
             if (body != null) {
-                processBuoyancyForBody(body, deltaTime, fluidSurfaceHeights, fluidTypes);
+                // Pass the index 'i' to get the corresponding fluid data.
+                processBuoyancyForBody(body, deltaTime, i, dataStore);
             }
         }
     }
@@ -64,10 +63,10 @@ public final class VxBuoyancyNarrowPhase {
      *
      * @param body      The physics body to process.
      * @param deltaTime The simulation time step.
-     * @param fluidSurfaceHeights A map from body ID to fluid surface Y-coordinate.
-     * @param fluidTypes        A map from body ID to the type of fluid.
+     * @param index     The index of the body in the data store.
+     * @param dataStore The data store containing fluid properties.
      */
-    private void processBuoyancyForBody(Body body, float deltaTime, Map<Integer, Float> fluidSurfaceHeights, Map<Integer, VxFluidType> fluidTypes) {
+    private void processBuoyancyForBody(Body body, float deltaTime, int index, VxBuoyancyDataStore dataStore) {
         if (!body.isActive()) {
             physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(body.getId());
         }
@@ -77,13 +76,9 @@ public final class VxBuoyancyNarrowPhase {
             return;
         }
 
-        int bodyId = body.getId();
-        Float surfaceY = fluidSurfaceHeights.get(bodyId);
-        VxFluidType fluidType = fluidTypes.get(bodyId);
-
-        if (surfaceY == null || fluidType == null) {
-            return;
-        }
+        // --- Efficiently read data from the SoA store ---
+        float surfaceY = dataStore.surfaceHeights[index];
+        VxFluidType fluidType = dataStore.fluidTypes[index];
 
         // --- Physics Properties ---
         final float buoyancyMultiplier;
@@ -118,22 +113,14 @@ public final class VxBuoyancyNarrowPhase {
         float submergedFraction = Math.max(0.0f, Math.min(1.0f, submergedDepth / height));
         if (submergedFraction <= 0.0f) return;
 
-        // --- Center of Mass (für alle Berechnungen wichtig) ---
+        // --- Center of Mass (crucial for all calculations) ---
         RVec3 comPosition = body.getCenterOfMassPosition();
 
         // --- Center of Buoyancy Calculation ---
-        // Der Auftriebspunkt liegt am geometrischen Zentrum des eingetauchten Volumens,
-        // wird aber relativ zum Massenschwerpunkt angewendet.
+        // The point of buoyancy is at the geometric center of the submerged volume,
+        // but the impulse is applied relative to the center of mass.
         RVec3 centerOfBuoyancyWorld = tempRVec3_1.get();
         centerOfBuoyancyWorld.set(comPosition.xx(), minY + (submergedDepth * 0.5f), comPosition.zz());
-
-        // --- Offset vom Massenschwerpunkt zum Auftriebspunkt ---
-        Vec3 buoyancyOffset = tempVec3_1.get();
-        buoyancyOffset.set(
-                (float)(centerOfBuoyancyWorld.xx() - comPosition.xx()),
-                (float)(centerOfBuoyancyWorld.yy() - comPosition.yy()),
-                (float)(centerOfBuoyancyWorld.zz() - comPosition.zz())
-        );
 
         // --- Buoyancy Impulse ---
         Vec3 gravity = physicsWorld.getPhysicsSystem().getGravity();
@@ -142,7 +129,7 @@ public final class VxBuoyancyNarrowPhase {
         buoyancyImpulse.set(gravity);
         buoyancyImpulse.scaleInPlace(-buoyancyMultiplier * bodyMass * submergedFraction * deltaTime);
 
-        // Auftrieb am Auftriebspunkt anwenden (erzeugt korrektes Drehmoment)
+        // Apply buoyancy at the center of buoyancy to generate correct torque.
         body.addImpulse(buoyancyImpulse, centerOfBuoyancyWorld);
 
         // --- Drag and Damping Impulses ---
@@ -155,13 +142,13 @@ public final class VxBuoyancyNarrowPhase {
             linearDragImpulse.set(linearVelocity);
             linearDragImpulse.scaleInPlace(-linearDragCoefficient * (float) Math.sqrt(linearSpeedSq) * submergedFraction * deltaTime);
 
-            // Widerstand am Auftriebspunkt anwenden für realistisches Rotationsdraggen
+            // Apply drag at the center of buoyancy for realistic rotational drag.
             body.addImpulse(linearDragImpulse, centerOfBuoyancyWorld);
         }
 
         // --- 2. Specialized Vertical Damping (to prevent bobbing) ---
-        // Diese Kraft wird am Massenschwerpunkt angewendet (keine Position übergeben),
-        // da sie nur die vertikale Achse betrifft und Rotation vermeiden soll
+        // This force is applied at the center of mass (no position passed) as it
+        // should only affect the vertical axis and avoid inducing rotation.
         float verticalVelocity = linearVelocity.getY();
         if (Math.abs(verticalVelocity) > 1e-6f) {
             float verticalDampingImpulse = -verticalVelocity * bodyMass * verticalDampingCoefficient * submergedFraction * deltaTime;

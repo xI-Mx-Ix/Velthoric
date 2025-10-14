@@ -7,6 +7,7 @@ package net.xmx.velthoric.physics.body;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.ShapeRefC;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
+import net.xmx.velthoric.physics.buoyancy.VxFluidType;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -135,5 +136,16 @@ public abstract class AbstractDataStore {
      */
     protected ShapeRefC[] grow(ShapeRefC[] src, int size) {
         return src == null ? new ShapeRefC[size] : Arrays.copyOf(src, size);
+    }
+
+    /**
+     * Grows a VxFluidType enum array, preserving its contents.
+     *
+     * @param src  The source array (can be null).
+     * @param size The desired new size.
+     * @return A new array of the specified size.
+     */
+    protected VxFluidType[] grow(VxFluidType[] src, int size) {
+        return src == null ? new VxFluidType[size] : Arrays.copyOf(src, size);
     }
 }
