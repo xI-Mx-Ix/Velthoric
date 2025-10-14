@@ -5,6 +5,7 @@
 package net.xmx.velthoric.physics.body.persistence;
 
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
@@ -57,6 +58,8 @@ public final class VxBodyCodec {
         buf.writeFloat(dataStore.angVelY[index]);
         buf.writeFloat(dataStore.angVelZ[index]);
 
+        buf.writeByte(dataStore.motionType[index] != null ? dataStore.motionType[index].ordinal() : EMotionType.Static.ordinal());
+
         body.writePersistenceData(buf);
     }
 
@@ -80,6 +83,8 @@ public final class VxBodyCodec {
             Vec3 linearVelocity = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
             Vec3 angularVelocity = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
 
+            EMotionType motionType = EMotionType.values()[buf.readByte()];
+
             if (!linearVelocity.isFinite() || linearVelocity.isNan() || !angularVelocity.isFinite() || angularVelocity.isNan()) {
                 VxMainClass.LOGGER.warn("Deserialized invalid velocity for body {}. Resetting to zero.", id);
                 linearVelocity.set(0f, 0f, 0f);
@@ -88,7 +93,7 @@ public final class VxBodyCodec {
 
             VxByteBuf persistenceData = new VxByteBuf(buf.readBytes(buf.readableBytes()));
 
-            return new VxSerializedBodyData(typeId, id, transform, linearVelocity, angularVelocity, persistenceData);
+            return new VxSerializedBodyData(typeId, id, transform, linearVelocity, angularVelocity, motionType, persistenceData);
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to deserialize physics body from data", e);
             return null;

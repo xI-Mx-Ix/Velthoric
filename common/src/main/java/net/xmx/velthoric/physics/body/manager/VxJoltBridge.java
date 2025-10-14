@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.body.manager;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.body.type.VxBody;
@@ -103,7 +104,7 @@ public enum VxJoltBridge {
      * @param angularVelocity The initial angular velocity (can be null).
      * @param activation      The initial activation state.
      */
-    public void createAndAddJoltRigidBody(VxRigidBody body, VxBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation) {
+    public void createAndAddJoltRigidBody(VxRigidBody body, VxBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation, EMotionType motionType) {
         try {
             VxPhysicsWorld world = manager.getPhysicsWorld();
             VxBodyDataStore dataStore = manager.getDataStore();
@@ -120,6 +121,7 @@ public enum VxJoltBridge {
                         bcs.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
                         if (linearVelocity != null) bcs.setLinearVelocity(linearVelocity);
                         if (angularVelocity != null) bcs.setAngularVelocity(angularVelocity);
+                        bcs.setMotionType(motionType);
 
                         return world.getPhysicsSystem().getBodyInterface().createAndAddBody(bcs, activation);
                     }

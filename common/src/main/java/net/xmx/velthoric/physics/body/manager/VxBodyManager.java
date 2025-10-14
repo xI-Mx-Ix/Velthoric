@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.body.manager;
 
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -151,7 +152,7 @@ public class VxBodyManager {
         networkDispatcher.onBodyAdded(body);
 
         if (body instanceof VxRigidBody rigidBody) {
-            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, null, null, activation);
+            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, null, null, activation, EMotionType.Dynamic);
         } else if (body instanceof VxSoftBody softBody) {
             VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(softBody, this, activation);
         }
@@ -172,6 +173,7 @@ public class VxBodyManager {
         EActivation activation = shouldActivate ? EActivation.Activate : EActivation.DontActivate;
 
         if (index != -1) {
+            dataStore.motionType[index] = data.motionType();
             dataStore.posX[index] = data.transform().getTranslation().x();
             dataStore.posY[index] = data.transform().getTranslation().y();
             dataStore.posZ[index] = data.transform().getTranslation().z();
@@ -188,7 +190,7 @@ public class VxBodyManager {
         networkDispatcher.onBodyAdded(body);
 
         if (body instanceof VxRigidBody rigidBody) {
-            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, data.linearVelocity(), data.angularVelocity(), activation);
+            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, data.linearVelocity(), data.angularVelocity(), activation, data.motionType());
         } else if (body instanceof VxSoftBody softBody) {
             VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(softBody, this, activation);
         }

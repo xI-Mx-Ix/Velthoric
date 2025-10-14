@@ -5,6 +5,7 @@
 package net.xmx.velthoric.physics.body.persistence;
 
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
@@ -19,7 +20,10 @@ import java.util.UUID;
  * @param transform       position and rotation
  * @param linearVelocity  current linear velocity
  * @param angularVelocity current angular velocity
+ * @param motionType      The motion type of the body.
  * @param persistenceData extra serialized data
+ *
+ * @author xI-Mx-Ix
  */
 public record VxSerializedBodyData(
         ResourceLocation typeId,
@@ -27,5 +31,6 @@ public record VxSerializedBodyData(
         VxTransform transform,
         Vec3 linearVelocity,
         Vec3 angularVelocity,
+        EMotionType motionType,
         VxByteBuf persistenceData
 ) {}
