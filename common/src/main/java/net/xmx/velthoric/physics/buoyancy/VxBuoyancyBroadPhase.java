@@ -32,6 +32,14 @@ public final class VxBuoyancyBroadPhase {
         this.level = physicsWorld.getLevel();
     }
 
+    /**
+     * Scans the AABBs of all dynamic bodies to identify those potentially in contact with a fluid.
+     * For each potential contact, it calculates an average fluid surface height based on the fluid
+     * columns underneath the body. This approach provides a more realistic buoyancy plane,
+     * especially for objects in uneven or flowing fluids.
+     *
+     * @param dataStore The data store to be populated with potential fluid contacts.
+     */
     public void findPotentialFluidContacts(VxBuoyancyDataStore dataStore) {
         VxBodyDataStore ds = physicsWorld.getBodyManager().getDataStore();
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
@@ -59,9 +67,9 @@ public final class VxBuoyancyBroadPhase {
                 continue;
             }
 
-            float highestSurface = -Float.MAX_VALUE;
+            float totalSurfaceHeight = 0;
+            int fluidColumnCount = 0;
             VxFluidType detectedType = null;
-            boolean fluidFoundInBounds = false;
 
             int minBlockX = (int) Math.floor(minX);
             int maxBlockX = (int) Math.floor(maxX);
@@ -72,32 +80,35 @@ public final class VxBuoyancyBroadPhase {
 
             for (int x = minBlockX; x <= maxBlockX; ++x) {
                 for (int z = minBlockZ; z <= maxBlockZ; ++z) {
+                    // Scan downwards from the top of the AABB to find the fluid surface in this column.
                     for (int y = maxBlockY; y >= minBlockY; --y) {
                         mutablePos.set(x, y, z);
                         FluidState fluidState = this.level.getFluidState(mutablePos);
 
                         if (!fluidState.isEmpty()) {
-                            fluidFoundInBounds = true;
-                            float surfaceHeight = y + fluidState.getHeight(level, mutablePos);
-                            if (surfaceHeight > highestSurface) {
-                                highestSurface = surfaceHeight;
-                                if (fluidState.is(FluidTags.WATER)) {
-                                    detectedType = VxFluidType.WATER;
-                                } else if (fluidState.is(FluidTags.LAVA)) {
-                                    detectedType = VxFluidType.LAVA;
-                                }
+                            totalSurfaceHeight += y + fluidState.getHeight(level, mutablePos);
+                            fluidColumnCount++;
+
+                            if (fluidState.is(FluidTags.WATER)) {
+                                detectedType = VxFluidType.WATER;
+                            } else if (fluidState.is(FluidTags.LAVA)) {
+                                detectedType = VxFluidType.LAVA;
                             }
+                            // Once the surface is found for this column, move to the next.
                             break;
                         }
                     }
                 }
             }
 
-            if (fluidFoundInBounds && detectedType != null) {
-                if (highestSurface > minY) {
+            if (fluidColumnCount > 0 && detectedType != null) {
+                float averageSurfaceHeight = totalSurfaceHeight / fluidColumnCount;
+
+                // Only consider the body for buoyancy if its bottom is below the average surface.
+                if (averageSurfaceHeight > minY) {
                     VxBody vxBody = physicsWorld.getBodyManager().getVxBody(id);
                     if (vxBody != null) {
-                        dataStore.add(vxBody.getBodyId(), highestSurface, detectedType);
+                        dataStore.add(vxBody.getBodyId(), averageSurfaceHeight, detectedType);
                     }
                 }
             }
