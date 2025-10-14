@@ -175,6 +175,8 @@ public class VxPhysicsUpdater {
                     if (lock.succeededAndIsInBroadPhase()) {
                         ConstBody body = lock.getBody();
 
+                        dataStore.motionType[i] = body.getMotionType();
+
                         // Sync World Space AABB for terrain tracking
                         ConstAaBox bounds = body.getWorldSpaceBounds();
                         Vec3 min = bounds.getMin();

@@ -5,6 +5,7 @@
 package net.xmx.velthoric.physics.body.manager;
 
 import com.github.stephengold.joltjni.enumerate.EBodyType;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.velthoric.physics.body.AbstractDataStore;
 import org.jetbrains.annotations.Nullable;
 
@@ -39,6 +40,7 @@ public class VxBodyDataStore extends AbstractDataStore {
     public float[] @Nullable [] vertexData; // For soft bodies
     public boolean[] isActive;
     public EBodyType[] bodyType;
+    public EMotionType[] motionType;
     public long[] chunkKey;
 
     // --- Sync & Management Data ---
@@ -80,6 +82,7 @@ public class VxBodyDataStore extends AbstractDataStore {
         vertexData = grow(vertexData, newCapacity);
         isActive = grow(isActive, newCapacity);
         bodyType = grow(bodyType, newCapacity);
+        motionType = grow(motionType, newCapacity);
         chunkKey = grow(chunkKey, newCapacity);
 
         isGameStateDirty = grow(isGameStateDirty, newCapacity);
@@ -181,6 +184,7 @@ public class VxBodyDataStore extends AbstractDataStore {
         vertexData[index] = null;
         isActive[index] = false;
         bodyType[index] = null;
+        motionType[index] = null;
         chunkKey[index] = Long.MAX_VALUE;
         isGameStateDirty[index] = false;
         isTransformDirty[index] = false;
