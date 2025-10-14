@@ -8,17 +8,17 @@ import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.init.registry.ItemRegistry;
-import net.xmx.velthoric.item.boxthrower.BoxThrowerManager;
+import net.xmx.velthoric.item.boxthrower.VxBoxThrowerManager;
 
-public class BoxThrowerEvents {
+public class VxBoxThrowerEvents {
 
     public static void registerEvents() {
-        TickEvent.SERVER_POST.register(BoxThrowerEvents::onServerPostTick);
-        PlayerEvent.PLAYER_QUIT.register(BoxThrowerEvents::onPlayerQuit);
+        TickEvent.SERVER_POST.register(VxBoxThrowerEvents::onServerPostTick);
+        PlayerEvent.PLAYER_QUIT.register(VxBoxThrowerEvents::onPlayerQuit);
     }
 
     private static void onServerPostTick(net.minecraft.server.MinecraftServer server) {
-        var manager = BoxThrowerManager.getInstance();
+        var manager = VxBoxThrowerManager.getInstance();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             boolean isHoldingBoxGun = player.getMainHandItem().is(ItemRegistry.BOX_THROWER.get())
                     || player.getOffhandItem().is(ItemRegistry.BOX_THROWER.get());
@@ -33,6 +33,6 @@ public class BoxThrowerEvents {
     }
 
     private static void onPlayerQuit(ServerPlayer player) {
-        BoxThrowerManager.getInstance().stopShooting(player);
+        VxBoxThrowerManager.getInstance().stopShooting(player);
     }
 }

@@ -7,8 +7,8 @@ package net.xmx.velthoric.mixin.impl.physicsgun;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
 import net.xmx.velthoric.init.registry.ItemRegistry;
-import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunClientManager;
-import net.xmx.velthoric.item.physicsgun.packet.PhysicsGunActionPacket;
+import net.xmx.velthoric.item.physicsgun.manager.VxPhysicsGunClientManager;
+import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunActionPacket;
 import net.xmx.velthoric.network.VxPacketHandler;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
@@ -35,18 +35,18 @@ public abstract class KeyboardHandlerMixin_PhysicsGunHandling {
         boolean isHoldingGun = player.getMainHandItem().is(ItemRegistry.PHYSICS_GUN.get()) || player.getOffhandItem().is(ItemRegistry.PHYSICS_GUN.get());
         if (!isHoldingGun) return;
 
-        var clientManager = PhysicsGunClientManager.getInstance();
+        var clientManager = VxPhysicsGunClientManager.getInstance();
 
         if (clientManager.isGrabbing(player) && pKey == GLFW.GLFW_KEY_E) {
             if (pAction == GLFW.GLFW_PRESS) {
                 if (!clientManager.isRotationMode()) {
                     clientManager.setRotationMode(true);
-                    VxPacketHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.START_ROTATION_MODE));
+                    VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket(VxPhysicsGunActionPacket.ActionType.START_ROTATION_MODE));
                 }
             } else if (pAction == GLFW.GLFW_RELEASE) {
                 if (clientManager.isRotationMode()) {
                     clientManager.setRotationMode(false);
-                    VxPacketHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_ROTATION_MODE));
+                    VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket(VxPhysicsGunActionPacket.ActionType.STOP_ROTATION_MODE));
                 }
             }
 

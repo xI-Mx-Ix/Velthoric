@@ -20,9 +20,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class BoxThrowerManager {
+public class VxBoxThrowerManager {
 
-    private static final BoxThrowerManager INSTANCE = new BoxThrowerManager();
+    private static final VxBoxThrowerManager INSTANCE = new VxBoxThrowerManager();
     private final Map<UUID, Boolean> shootingPlayers = new ConcurrentHashMap<>();
 
     private static final int BOXES_PER_TICK = 5;
@@ -31,9 +31,9 @@ public class BoxThrowerManager {
     private static final float MIN_BOX_SIZE = 0.4f;
     private static final float MAX_BOX_SIZE = 1.2f;
 
-    private BoxThrowerManager() {}
+    private VxBoxThrowerManager() {}
 
-    public static BoxThrowerManager getInstance() {
+    public static VxBoxThrowerManager getInstance() {
         return INSTANCE;
     }
 

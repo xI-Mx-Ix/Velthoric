@@ -7,7 +7,7 @@ package net.xmx.velthoric.mixin.impl.magnetizer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.xmx.velthoric.init.registry.ItemRegistry;
-import net.xmx.velthoric.item.magnetizer.packet.MagnetizerActionPacket;
+import net.xmx.velthoric.item.magnetizer.packet.VxMagnetizerActionPacket;
 import net.xmx.velthoric.network.VxPacketHandler;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
@@ -37,17 +37,17 @@ public class MouseHandlerMixin_MagnetizerInput {
 
         if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
             if (action == GLFW.GLFW_PRESS) {
-                VxPacketHandler.sendToServer(new MagnetizerActionPacket(MagnetizerActionPacket.ActionType.START_ATTRACT));
+                VxPacketHandler.sendToServer(new VxMagnetizerActionPacket(VxMagnetizerActionPacket.ActionType.START_ATTRACT));
             } else if (action == GLFW.GLFW_RELEASE) {
-                VxPacketHandler.sendToServer(new MagnetizerActionPacket(MagnetizerActionPacket.ActionType.STOP_ACTION));
+                VxPacketHandler.sendToServer(new VxMagnetizerActionPacket(VxMagnetizerActionPacket.ActionType.STOP_ACTION));
             }
         }
 
         if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
             if (action == GLFW.GLFW_PRESS) {
-                VxPacketHandler.sendToServer(new MagnetizerActionPacket(MagnetizerActionPacket.ActionType.START_REPEL));
+                VxPacketHandler.sendToServer(new VxMagnetizerActionPacket(VxMagnetizerActionPacket.ActionType.START_REPEL));
             } else if (action == GLFW.GLFW_RELEASE) {
-                VxPacketHandler.sendToServer(new MagnetizerActionPacket(MagnetizerActionPacket.ActionType.STOP_ACTION));
+                VxPacketHandler.sendToServer(new VxMagnetizerActionPacket(VxMagnetizerActionPacket.ActionType.STOP_ACTION));
             }
         }
 

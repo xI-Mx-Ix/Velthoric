@@ -9,7 +9,7 @@ import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.client.model.HumanoidModel;
-import net.xmx.velthoric.item.physicsgun.PhysicsGunItem;
+import net.xmx.velthoric.item.physicsgun.VxPhysicsGunItem;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -25,7 +25,7 @@ public class PlayerRendererMixin_PhysicsGunArmPose {
     )
     private static void onGetArmPose(AbstractClientPlayer pPlayer, InteractionHand pHand, CallbackInfoReturnable<HumanoidModel.ArmPose> cir) {
         ItemStack itemstack = pPlayer.getItemInHand(pHand);
-        if (itemstack.getItem() instanceof PhysicsGunItem) {
+        if (itemstack.getItem() instanceof VxPhysicsGunItem) {
             cir.setReturnValue(HumanoidModel.ArmPose.CROSSBOW_HOLD);
         }
     }

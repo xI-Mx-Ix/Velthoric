@@ -8,17 +8,17 @@ import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.init.registry.ItemRegistry;
-import net.xmx.velthoric.item.magnetizer.MagnetizerManager;
+import net.xmx.velthoric.item.magnetizer.VxMagnetizerManager;
 
-public class MagnetizerEvents {
+public class VxMagnetizerEvents {
 
     public static void registerEvents() {
-        TickEvent.SERVER_POST.register(MagnetizerEvents::onServerPostTick);
-        PlayerEvent.PLAYER_QUIT.register(MagnetizerEvents::onPlayerQuit);
+        TickEvent.SERVER_POST.register(VxMagnetizerEvents::onServerPostTick);
+        PlayerEvent.PLAYER_QUIT.register(VxMagnetizerEvents::onPlayerQuit);
     }
 
     private static void onServerPostTick(net.minecraft.server.MinecraftServer server) {
-        var manager = MagnetizerManager.getInstance();
+        var manager = VxMagnetizerManager.getInstance();
 
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             boolean isHoldingMagnetizer = player.getMainHandItem().is(ItemRegistry.MAGNETIZER.get())
@@ -35,7 +35,7 @@ public class MagnetizerEvents {
     }
 
     private static void onPlayerQuit(ServerPlayer player) {
-        MagnetizerManager.getInstance().stop(player);
+        VxMagnetizerManager.getInstance().stop(player);
     }
 }
 

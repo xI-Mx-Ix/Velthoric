@@ -7,11 +7,11 @@ package net.xmx.velthoric.item.boxthrower.packet;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.item.boxthrower.BoxThrowerManager;
+import net.xmx.velthoric.item.boxthrower.VxBoxThrowerManager;
 
 import java.util.function.Supplier;
 
-public class BoxThrowerActionPacket {
+public class VxBoxThrowerActionPacket {
 
     private final ActionType actionType;
 
@@ -20,25 +20,25 @@ public class BoxThrowerActionPacket {
         STOP_SHOOTING
     }
 
-    public BoxThrowerActionPacket(ActionType actionType) {
+    public VxBoxThrowerActionPacket(ActionType actionType) {
         this.actionType = actionType;
     }
 
-    public static void encode(BoxThrowerActionPacket msg, FriendlyByteBuf buf) {
+    public static void encode(VxBoxThrowerActionPacket msg, FriendlyByteBuf buf) {
         buf.writeEnum(msg.actionType);
     }
 
-    public static BoxThrowerActionPacket decode(FriendlyByteBuf buf) {
-        return new BoxThrowerActionPacket(buf.readEnum(ActionType.class));
+    public static VxBoxThrowerActionPacket decode(FriendlyByteBuf buf) {
+        return new VxBoxThrowerActionPacket(buf.readEnum(ActionType.class));
     }
 
-    public static void handle(BoxThrowerActionPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
+    public static void handle(VxBoxThrowerActionPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             ServerPlayer player = (ServerPlayer) context.getPlayer();
             if (player == null) return;
 
-            var manager = BoxThrowerManager.getInstance();
+            var manager = VxBoxThrowerManager.getInstance();
             switch (msg.actionType) {
                 case START_SHOOTING -> manager.startShooting(player);
                 case STOP_SHOOTING -> manager.stopShooting(player);

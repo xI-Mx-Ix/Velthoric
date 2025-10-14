@@ -7,11 +7,11 @@ package net.xmx.velthoric.item.magnetizer.packet;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.item.magnetizer.MagnetizerManager;
+import net.xmx.velthoric.item.magnetizer.VxMagnetizerManager;
 
 import java.util.function.Supplier;
 
-public class MagnetizerActionPacket {
+public class VxMagnetizerActionPacket {
 
     private final ActionType actionType;
 
@@ -21,25 +21,25 @@ public class MagnetizerActionPacket {
         STOP_ACTION
     }
 
-    public MagnetizerActionPacket(ActionType actionType) {
+    public VxMagnetizerActionPacket(ActionType actionType) {
         this.actionType = actionType;
     }
 
-    public static void encode(MagnetizerActionPacket msg, FriendlyByteBuf buf) {
+    public static void encode(VxMagnetizerActionPacket msg, FriendlyByteBuf buf) {
         buf.writeEnum(msg.actionType);
     }
 
-    public static MagnetizerActionPacket decode(FriendlyByteBuf buf) {
-        return new MagnetizerActionPacket(buf.readEnum(ActionType.class));
+    public static VxMagnetizerActionPacket decode(FriendlyByteBuf buf) {
+        return new VxMagnetizerActionPacket(buf.readEnum(ActionType.class));
     }
 
-    public static void handle(MagnetizerActionPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
+    public static void handle(VxMagnetizerActionPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             ServerPlayer player = (ServerPlayer) context.getPlayer();
             if (player == null) return;
 
-            var manager = MagnetizerManager.getInstance();
+            var manager = VxMagnetizerManager.getInstance();
             switch (msg.actionType) {
                 case START_ATTRACT -> manager.startAttract(player);
                 case START_REPEL -> manager.startRepel(player);

@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.item.magnetizer;
+package net.xmx.velthoric.item.boxthrower;
 
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -12,10 +12,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.level.Level;
 
-public class MagnetizerItem extends Item {
+public class VxBoxThrowertem extends Item {
 
-    public MagnetizerItem() {
-        super(new Properties().stacksTo(1).rarity(Rarity.EPIC));
+    public VxBoxThrowertem() {
+        super(new Properties().stacksTo(1).rarity(Rarity.RARE));
     }
 
     @Override

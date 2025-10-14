@@ -13,9 +13,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.xmx.velthoric.item.boxthrower.packet.BoxThrowerActionPacket;
+import net.xmx.velthoric.item.boxthrower.packet.VxBoxThrowerActionPacket;
 import net.xmx.velthoric.item.chaincreator.packet.VxChainCreatorActionPacket;
-import net.xmx.velthoric.item.magnetizer.packet.MagnetizerActionPacket;
+import net.xmx.velthoric.item.magnetizer.packet.VxMagnetizerActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.*;
 import net.xmx.velthoric.physics.body.packet.batch.*;
 import net.xmx.velthoric.physics.mounting.input.C2SMountInputPacket;
@@ -105,31 +105,31 @@ public class VxPacketHandler {
         );
 
         registerPacket(
-                PhysicsGunSyncPacket.class,
-                PhysicsGunSyncPacket::encode,
-                PhysicsGunSyncPacket::decode,
-                PhysicsGunSyncPacket::handle
+                VxPhysicsGunSyncPacket.class,
+                VxPhysicsGunSyncPacket::encode,
+                VxPhysicsGunSyncPacket::decode,
+                VxPhysicsGunSyncPacket::handle
         );
 
         registerPacket(
-                MagnetizerActionPacket.class,
-                MagnetizerActionPacket::encode,
-                MagnetizerActionPacket::decode,
-                MagnetizerActionPacket::handle
+                VxMagnetizerActionPacket.class,
+                VxMagnetizerActionPacket::encode,
+                VxMagnetizerActionPacket::decode,
+                VxMagnetizerActionPacket::handle
         );
 
         registerPacket(
-                PhysicsGunActionPacket.class,
-                PhysicsGunActionPacket::encode,
-                PhysicsGunActionPacket::decode,
-                PhysicsGunActionPacket::handle
+                VxPhysicsGunActionPacket.class,
+                VxPhysicsGunActionPacket::encode,
+                VxPhysicsGunActionPacket::decode,
+                VxPhysicsGunActionPacket::handle
         );
 
         registerPacket(
-                BoxThrowerActionPacket.class,
-                BoxThrowerActionPacket::encode,
-                BoxThrowerActionPacket::decode,
-                BoxThrowerActionPacket::handle
+                VxBoxThrowerActionPacket.class,
+                VxBoxThrowerActionPacket::encode,
+                VxBoxThrowerActionPacket::decode,
+                VxBoxThrowerActionPacket::handle
         );
     }
 

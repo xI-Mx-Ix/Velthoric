@@ -8,18 +8,18 @@ import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.init.registry.ItemRegistry;
-import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunServerManager;
+import net.xmx.velthoric.item.physicsgun.manager.VxPhysicsGunServerManager;
 
-public class PhysicsGunEvents {
+public class VxPhysicsGunEvents {
 
     public static void registerEvents() {
-        TickEvent.SERVER_POST.register(PhysicsGunEvents::onServerPostTick);
-        PlayerEvent.PLAYER_JOIN.register(PhysicsGunEvents::onPlayerJoin);
-        PlayerEvent.PLAYER_QUIT.register(PhysicsGunEvents::onPlayerQuit);
+        TickEvent.SERVER_POST.register(VxPhysicsGunEvents::onServerPostTick);
+        PlayerEvent.PLAYER_JOIN.register(VxPhysicsGunEvents::onPlayerJoin);
+        PlayerEvent.PLAYER_QUIT.register(VxPhysicsGunEvents::onPlayerQuit);
     }
 
     private static void onServerPostTick(net.minecraft.server.MinecraftServer server) {
-        var manager = PhysicsGunServerManager.getInstance();
+        var manager = VxPhysicsGunServerManager.getInstance();
 
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             boolean isHoldingGun = player.getMainHandItem().is(ItemRegistry.PHYSICS_GUN.get())
@@ -42,11 +42,11 @@ public class PhysicsGunEvents {
 
     private static void onPlayerJoin(ServerPlayer newPlayer) {
 
-        PhysicsGunServerManager.getInstance().syncStateForNewPlayer(newPlayer);
+        VxPhysicsGunServerManager.getInstance().syncStateForNewPlayer(newPlayer);
     }
 
     private static void onPlayerQuit(ServerPlayer player) {
 
-        PhysicsGunServerManager.getInstance().stopGrabAttempt(player);
+        VxPhysicsGunServerManager.getInstance().stopGrabAttempt(player);
     }
 }

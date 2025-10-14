@@ -9,7 +9,7 @@ import com.github.stephengold.joltjni.Vec3;
 
 import java.util.UUID;
 
-public record GrabbedBodyInfo(
+public record VxGrabbedBodyInfo(
         UUID physicsId,
         int bodyId,
         Vec3 grabPointLocal,

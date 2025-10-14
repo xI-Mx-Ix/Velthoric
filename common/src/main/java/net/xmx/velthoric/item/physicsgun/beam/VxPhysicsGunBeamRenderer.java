@@ -17,7 +17,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.event.api.VxRenderEvent;
-import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunClientManager;
+import net.xmx.velthoric.item.physicsgun.manager.VxPhysicsGunClientManager;
 import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.physics.body.client.VxClientBodyInterpolator;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
@@ -30,7 +30,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-public class PhysicsGunBeamRenderer {
+public class VxPhysicsGunBeamRenderer {
 
     private static final int BEAM_SEGMENTS = 20;
     private static final float BEAM_WIDTH = 0.15f;
@@ -41,7 +41,7 @@ public class PhysicsGunBeamRenderer {
     private static final Quat INTERPOLATED_ROTATION = new Quat();
 
     public static void registerEvents() {
-        VxRenderEvent.ClientRenderLevelStageEvent.EVENT.register(PhysicsGunBeamRenderer::onRenderLevelStage);
+        VxRenderEvent.ClientRenderLevelStageEvent.EVENT.register(VxPhysicsGunBeamRenderer::onRenderLevelStage);
     }
 
     public static void onRenderLevelStage(VxRenderEvent.ClientRenderLevelStageEvent event) {
@@ -53,7 +53,7 @@ public class PhysicsGunBeamRenderer {
         var poseStack = event.getPoseStack();
         float partialTicks = event.getPartialTick();
 
-        PhysicsGunClientManager clientManager = PhysicsGunClientManager.getInstance();
+        VxPhysicsGunClientManager clientManager = VxPhysicsGunClientManager.getInstance();
         VxClientBodyManager bodyManager = VxClientBodyManager.getInstance();
         VxClientBodyDataStore store = bodyManager.getStore();
         VxClientBodyInterpolator interpolator = bodyManager.getInterpolator();
@@ -74,10 +74,10 @@ public class PhysicsGunBeamRenderer {
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
 
-        Map<UUID, PhysicsGunClientManager.ClientGrabData> activeGrabs = clientManager.getActiveGrabs();
+        Map<UUID, VxPhysicsGunClientManager.ClientGrabData> activeGrabs = clientManager.getActiveGrabs();
         for (var entry : activeGrabs.entrySet()) {
             UUID playerUuid = entry.getKey();
-            PhysicsGunClientManager.ClientGrabData grabData = entry.getValue();
+            VxPhysicsGunClientManager.ClientGrabData grabData = entry.getValue();
             UUID objectUuid = grabData.objectUuid();
 
             Player player = mc.level.getPlayerByUUID(playerUuid);

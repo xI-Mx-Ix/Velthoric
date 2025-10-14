@@ -30,9 +30,9 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
  * An item that converts a standard block into a physics-based rigid body upon use.
  * @author xI-Mx-Ix
  */
-public class PhysicsCreatorItem extends Item {
+public class VxPhysicsCreatorItem extends Item {
 
-    public PhysicsCreatorItem() {
+    public VxPhysicsCreatorItem() {
         super(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
     }
 

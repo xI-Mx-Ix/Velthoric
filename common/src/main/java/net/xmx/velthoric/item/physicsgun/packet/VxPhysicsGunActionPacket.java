@@ -7,11 +7,11 @@ package net.xmx.velthoric.item.physicsgun.packet;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunServerManager;
+import net.xmx.velthoric.item.physicsgun.manager.VxPhysicsGunServerManager;
 
 import java.util.function.Supplier;
 
-public class PhysicsGunActionPacket {
+public class VxPhysicsGunActionPacket {
 
     private final ActionType actionType;
     private final float value1;
@@ -27,25 +27,25 @@ public class PhysicsGunActionPacket {
         STOP_ROTATION_MODE
     }
 
-    public PhysicsGunActionPacket(ActionType actionType) {
+    public VxPhysicsGunActionPacket(ActionType actionType) {
         this(actionType, 0, 0);
     }
 
-    public PhysicsGunActionPacket(float scrollDelta) {
+    public VxPhysicsGunActionPacket(float scrollDelta) {
         this(ActionType.UPDATE_SCROLL, scrollDelta, 0);
     }
 
-    public PhysicsGunActionPacket(float deltaX, float deltaY) {
+    public VxPhysicsGunActionPacket(float deltaX, float deltaY) {
         this(ActionType.UPDATE_ROTATION, deltaX, deltaY);
     }
 
-    private PhysicsGunActionPacket(ActionType actionType, float value1, float value2) {
+    private VxPhysicsGunActionPacket(ActionType actionType, float value1, float value2) {
         this.actionType = actionType;
         this.value1 = value1;
         this.value2 = value2;
     }
 
-    public static void encode(PhysicsGunActionPacket msg, FriendlyByteBuf buf) {
+    public static void encode(VxPhysicsGunActionPacket msg, FriendlyByteBuf buf) {
         buf.writeEnum(msg.actionType);
         if (msg.actionType == ActionType.UPDATE_SCROLL) {
             buf.writeFloat(msg.value1);
@@ -55,7 +55,7 @@ public class PhysicsGunActionPacket {
         }
     }
 
-    public static PhysicsGunActionPacket decode(FriendlyByteBuf buf) {
+    public static VxPhysicsGunActionPacket decode(FriendlyByteBuf buf) {
         ActionType actionType = buf.readEnum(ActionType.class);
         float value1 = 0, value2 = 0;
         if (actionType == ActionType.UPDATE_SCROLL) {
@@ -64,16 +64,16 @@ public class PhysicsGunActionPacket {
             value1 = buf.readFloat();
             value2 = buf.readFloat();
         }
-        return new PhysicsGunActionPacket(actionType, value1, value2);
+        return new VxPhysicsGunActionPacket(actionType, value1, value2);
     }
 
-    public static void handle(PhysicsGunActionPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
+    public static void handle(VxPhysicsGunActionPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             ServerPlayer player = (ServerPlayer) context.getPlayer();
             if (player == null) return;
 
-            PhysicsGunServerManager manager = PhysicsGunServerManager.getInstance();
+            VxPhysicsGunServerManager manager = VxPhysicsGunServerManager.getInstance();
             switch (msg.actionType) {
                 case START_GRAB_ATTEMPT -> manager.startGrabAttempt(player);
                 case STOP_GRAB_ATTEMPT -> manager.stopGrabAttempt(player);

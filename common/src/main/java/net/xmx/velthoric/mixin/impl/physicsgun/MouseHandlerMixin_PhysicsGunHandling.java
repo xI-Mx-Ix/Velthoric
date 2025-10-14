@@ -7,8 +7,8 @@ package net.xmx.velthoric.mixin.impl.physicsgun;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.xmx.velthoric.init.registry.ItemRegistry;
-import net.xmx.velthoric.item.physicsgun.manager.PhysicsGunClientManager;
-import net.xmx.velthoric.item.physicsgun.packet.PhysicsGunActionPacket;
+import net.xmx.velthoric.item.physicsgun.manager.VxPhysicsGunClientManager;
+import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunActionPacket;
 import net.xmx.velthoric.network.VxPacketHandler;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
@@ -27,10 +27,10 @@ public class MouseHandlerMixin_PhysicsGunHandling {
 
     @Inject(method = "turnPlayer", at = @At("HEAD"), cancellable = true)
     private void onTurnPlayer(CallbackInfo ci) {
-        var clientManager = PhysicsGunClientManager.getInstance();
+        var clientManager = VxPhysicsGunClientManager.getInstance();
         if (clientManager.isRotationMode()) {
             if (this.accumulatedDX != 0.0D || this.accumulatedDY != 0.0D) {
-                VxPacketHandler.sendToServer(new PhysicsGunActionPacket((float) this.accumulatedDX, (float) this.accumulatedDY));
+                VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket((float) this.accumulatedDX, (float) this.accumulatedDY));
             }
             this.accumulatedDX = 0.0D;
             this.accumulatedDY = 0.0D;
@@ -43,7 +43,7 @@ public class MouseHandlerMixin_PhysicsGunHandling {
         var player = this.minecraft.player;
         if (player == null || this.minecraft.screen != null) return;
 
-        var clientManager = PhysicsGunClientManager.getInstance();
+        var clientManager = VxPhysicsGunClientManager.getInstance();
         boolean isHoldingGun = player.getMainHandItem().is(ItemRegistry.PHYSICS_GUN.get())
                 || player.getOffhandItem().is(ItemRegistry.PHYSICS_GUN.get());
 
@@ -64,7 +64,7 @@ public class MouseHandlerMixin_PhysicsGunHandling {
 
         if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
             if (action == GLFW.GLFW_PRESS) {
-                VxPacketHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.FREEZE_OBJECT));
+                VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket(VxPhysicsGunActionPacket.ActionType.FREEZE_OBJECT));
             }
         }
 
@@ -87,7 +87,7 @@ public class MouseHandlerMixin_PhysicsGunHandling {
         boolean isTryingToGrab = GLFW.glfwGetMouseButton(this.minecraft.getWindow().getWindow(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
 
         if (isTryingToGrab) {
-            VxPacketHandler.sendToServer(new PhysicsGunActionPacket((float) vertical));
+            VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket((float) vertical));
             ci.cancel();
         }
     }

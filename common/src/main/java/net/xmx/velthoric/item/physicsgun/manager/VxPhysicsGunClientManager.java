@@ -6,7 +6,7 @@ package net.xmx.velthoric.item.physicsgun.manager;
 
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.item.physicsgun.packet.PhysicsGunActionPacket;
+import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunActionPacket;
 import net.xmx.velthoric.network.VxPacketHandler;
 
 import java.util.Map;
@@ -14,9 +14,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class PhysicsGunClientManager {
+public class VxPhysicsGunClientManager {
 
-    private static final PhysicsGunClientManager INSTANCE = new PhysicsGunClientManager();
+    private static final VxPhysicsGunClientManager INSTANCE = new VxPhysicsGunClientManager();
 
     public record ClientGrabData(UUID objectUuid, Vec3 localHitPoint) {}
 
@@ -24,18 +24,18 @@ public class PhysicsGunClientManager {
     private final Set<UUID> playersTryingToGrab = ConcurrentHashMap.newKeySet();
     private boolean rotationMode = false;
 
-    private PhysicsGunClientManager() {}
+    private VxPhysicsGunClientManager() {}
 
-    public static PhysicsGunClientManager getInstance() {
+    public static VxPhysicsGunClientManager getInstance() {
         return INSTANCE;
     }
 
     public void startGrabAttempt() {
-        VxPacketHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.START_GRAB_ATTEMPT));
+        VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket(VxPhysicsGunActionPacket.ActionType.START_GRAB_ATTEMPT));
     }
 
     public void stopGrabAttempt() {
-        VxPacketHandler.sendToServer(new PhysicsGunActionPacket(PhysicsGunActionPacket.ActionType.STOP_GRAB_ATTEMPT));
+        VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket(VxPhysicsGunActionPacket.ActionType.STOP_GRAB_ATTEMPT));
         this.setRotationMode(false);
     }
 

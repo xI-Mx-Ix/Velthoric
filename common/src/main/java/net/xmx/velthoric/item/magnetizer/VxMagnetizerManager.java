@@ -25,9 +25,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * @author xI-Mx-Ix
  */
-public class MagnetizerManager {
+public class VxMagnetizerManager {
 
-    private static final MagnetizerManager INSTANCE = new MagnetizerManager();
+    private static final VxMagnetizerManager INSTANCE = new VxMagnetizerManager();
 
     private enum MagnetMode { INACTIVE, ATTRACT, REPEL }
     private final Map<UUID, MagnetMode> playerModes = new ConcurrentHashMap<>();
@@ -38,9 +38,9 @@ public class MagnetizerManager {
     private static final float BASE_ATTRACT_FORCE = 2_000f;
     private static final float BASE_REPEL_FORCE = 3_000f;
 
-    private MagnetizerManager() {}
+    private VxMagnetizerManager() {}
 
-    public static MagnetizerManager getInstance() {
+    public static VxMagnetizerManager getInstance() {
         return INSTANCE;
     }
 
