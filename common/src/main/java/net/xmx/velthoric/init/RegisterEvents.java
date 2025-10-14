@@ -8,6 +8,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.debug.screen.DebugScreen;
 import net.xmx.velthoric.item.boxthrower.event.BoxThrowerEvents;
+import net.xmx.velthoric.item.chain.event.VxChainCreatorEvents;
 import net.xmx.velthoric.item.magnetizer.event.MagnetizerEvents;
 import net.xmx.velthoric.item.physicsgun.beam.PhysicsGunBeamRenderer;
 import net.xmx.velthoric.item.physicsgun.event.PhysicsGunEvents;
@@ -23,6 +24,7 @@ public class RegisterEvents {
         PhysicsGunEvents.registerEvents();
         MagnetizerEvents.registerEvents();
         BoxThrowerEvents.registerEvents();
+        VxChainCreatorEvents.registerEvents();
     }
 
     @Environment(EnvType.CLIENT)

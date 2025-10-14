@@ -8,6 +8,7 @@ import dev.architectury.registry.registries.RegistrySupplier;
 import net.minecraft.world.item.Item;
 import net.xmx.velthoric.item.PhysicsCreatorItem;
 import net.xmx.velthoric.item.boxthrower.BoxThrowertem;
+import net.xmx.velthoric.item.chain.VxChainCreatorItem;
 import net.xmx.velthoric.item.magnetizer.MagnetizerItem;
 import net.xmx.velthoric.item.physicsgun.PhysicsGunItem;
 
@@ -17,6 +18,7 @@ public class ItemRegistry {
     public static final RegistrySupplier<Item> PHYSICS_GUN = ModRegistries.ITEMS.register("physics_gun", PhysicsGunItem::new);
     public static final RegistrySupplier<Item> MAGNETIZER = ModRegistries.ITEMS.register("magnetizer", MagnetizerItem::new);
     public static final RegistrySupplier<Item> BOX_THROWER = ModRegistries.ITEMS.register("box_thrower", BoxThrowertem::new);
+    public static final RegistrySupplier<Item> CHAIN_CREATOR = ModRegistries.ITEMS.register("chain_creator", VxChainCreatorItem::new);
 
     public static void register() {
         ModRegistries.ITEMS.register();

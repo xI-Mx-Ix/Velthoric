@@ -4,6 +4,11 @@
   "package": "net.xmx.velthoric.mixin.impl",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
+    "body.MixinChunkMap_ChunkTracking",
+    "body.MixinChunkMap_UnloadBodies",
+    "body.MixinEntityStorage_Persistence",
+    "body.MixinServerLevel_Persistence",
+    "chaincreator.MouseHandlerMixin_ChainCreatorInput",
     "command.MixinArgumentTypeInfos",
     "event.chunk.ChunkMapMixin_VxChunkLoadEvent",
     "event.chunk.ChunkMapMixin_VxChunkUnloadEvent",
@@ -14,10 +19,6 @@
     "misc.ExplosionMixin_TriggerExplosion",
     "mounting.entity.MixinEntity",
     "mounting.render.MixinEntityRenderer",
-    "body.MixinChunkMap_ChunkTracking",
-    "body.MixinChunkMap_UnloadBodies",
-    "body.MixinEntityStorage_Persistence",
-    "body.MixinServerLevel_Persistence",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
   ],
   "client": [

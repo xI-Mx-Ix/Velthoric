@@ -23,6 +23,8 @@ import net.xmx.velthoric.builtin.rope.RopeRenderer;
 import net.xmx.velthoric.builtin.rope.RopeSoftBody;
 import net.xmx.velthoric.builtin.sphere.SphereRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
+import net.xmx.velthoric.item.chain.body.VxChainPartRenderer;
+import net.xmx.velthoric.item.chain.body.VxChainPartRigidBody;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.registry.VxBodyRegistry;
 
@@ -68,6 +70,11 @@ public class VxRegisteredBodies {
             .<MotorcycleImpl>create(MotorcycleImpl::new)
             .build(new ResourceLocation("velthoric", "motorcycle"));
 
+    public static final VxBodyType<VxChainPartRigidBody> CHAIN_PART = VxBodyType.Builder
+            .<VxChainPartRigidBody>create(VxChainPartRigidBody::new)
+            .noSummon()
+            .build(new ResourceLocation("velthoric", "chain_part"));
+
     /**
      * Registers all server-side physics body types. This should be called
      * during the server initialization phase.
@@ -82,6 +89,7 @@ public class VxRegisteredBodies {
         registry.register(ROPE);
         registry.register(CAR);
         registry.register(MOTORCYCLE);
+        registry.register(CHAIN_PART);
     }
 
     /**
@@ -99,6 +107,7 @@ public class VxRegisteredBodies {
         registry.registerClientFactory(ROPE.getTypeId(), (type, id) -> new RopeSoftBody((VxBodyType<RopeSoftBody>) type, id));
         registry.registerClientFactory(CAR.getTypeId(), (type, id) -> new CarImpl((VxBodyType<CarImpl>) type, id));
         registry.registerClientFactory(MOTORCYCLE.getTypeId(), (type, id) -> new MotorcycleImpl((VxBodyType<MotorcycleImpl>) type, id));
+        registry.registerClientFactory(CHAIN_PART.getTypeId(), (type, id) -> new VxChainPartRigidBody((VxBodyType<VxChainPartRigidBody>) type, id));
     }
 
     /**
@@ -116,5 +125,6 @@ public class VxRegisteredBodies {
         registry.registerClientRenderer(ROPE.getTypeId(), new RopeRenderer());
         registry.registerClientRenderer(CAR.getTypeId(), new CarRenderer());
         registry.registerClientRenderer(MOTORCYCLE.getTypeId(), new MotorcycleRenderer());
+        registry.registerClientRenderer(CHAIN_PART.getTypeId(), new VxChainPartRenderer());
     }
 }
