@@ -77,9 +77,10 @@ You can target objects by `type`, `bodytype`, `distance`, `limit`, and `sort`.
 
 ### 🔧 **Included Tools**
 
-* **PhysicsGun** - Pick up, move, rotate, and fling objects.
-* **Magnetizer** - Pull or push objects where you aim.
-* **BoxThrower** - Spawn and launch boxes instantly.
+* **PhysicsGun** – Pick up, move, rotate, and yeet objects.
+* **Magnetizer** – Pull or push objects where you aim.
+* **BoxThrower** – Spawn and launch boxes instantly.
+* **ChainCreator** – Connect two objects (or one to the ground) with a chain.
 
 ### ⚠️ **Bug Reports & Mod Compatibility**
 
