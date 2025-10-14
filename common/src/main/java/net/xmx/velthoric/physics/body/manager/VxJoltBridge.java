@@ -121,7 +121,7 @@ public enum VxJoltBridge {
                         bcs.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
                         if (linearVelocity != null) bcs.setLinearVelocity(linearVelocity);
                         if (angularVelocity != null) bcs.setAngularVelocity(angularVelocity);
-                        bcs.setMotionType(motionType);
+                        bcs.setMotionType(EMotionType.Dynamic);
 
                         return world.getPhysicsSystem().getBodyInterface().createAndAddBody(bcs, activation);
                     }
@@ -129,6 +129,7 @@ public enum VxJoltBridge {
             };
 
             int bodyId = body.createJoltBody(factory);
+            getJoltBody(world, bodyId).setMotionType(motionType);
 
             if (bodyId == Jolt.cInvalidBodyId) {
                 VxMainClass.LOGGER.error("Jolt failed to create/add rigid body for {}", body.getPhysicsId());
