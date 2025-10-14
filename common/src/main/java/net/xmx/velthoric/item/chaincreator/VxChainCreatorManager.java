@@ -12,7 +12,10 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.BodyInterface;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.operator.Op;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.ClipContext;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.item.chaincreator.body.VxChainPartRigidBody;
@@ -48,9 +51,10 @@ public enum VxChainCreatorManager {
      * @param player The player starting the chain creation.
      */
     public void startChainCreation(ServerPlayer player) {
-        performRaycast(player).ifPresent(hitResult ->
-                chainCreators.put(player.getUUID(), hitResult)
-        );
+        performRaycast(player).ifPresent(hitResult -> {
+            chainCreators.put(player.getUUID(), hitResult);
+            player.level().playSound(null, new BlockPos((int)hitResult.getLocation().x, (int)hitResult.getLocation().y, (int)hitResult.getLocation().z), SoundEvents.CHAIN_PLACE, SoundSource.BLOCKS, 1.0f, 1.0f);
+        });
     }
 
     /**
@@ -62,9 +66,10 @@ public enum VxChainCreatorManager {
         VxHitResult startHit = chainCreators.remove(player.getUUID());
         if (startHit == null) return;
 
-        performRaycast(player).ifPresent(endHit ->
-                world.execute(() -> createChain(startHit, endHit))
-        );
+        performRaycast(player).ifPresent(endHit -> {
+            player.level().playSound(null, new BlockPos((int)endHit.getLocation().x, (int)endHit.getLocation().y, (int)endHit.getLocation().z), SoundEvents.CHAIN_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
+            world.execute(() -> createChain(startHit, endHit));
+        });
     }
 
     /**
@@ -85,7 +90,7 @@ public enum VxChainCreatorManager {
 
         AttachmentInfo startInfo = getAttachmentInfo(bodyManager, startHit);
         AttachmentInfo endInfo = getAttachmentInfo(bodyManager, endHit);
-        if (startInfo.bodyUUID.equals(endInfo.bodyUUID)) {
+        if (startInfo.bodyUUID.equals(endInfo.bodyUUID) && !startInfo.bodyUUID.equals(VxConstraintManager.WORLD_BODY_ID)) {
             return;
         }
 
@@ -226,9 +231,12 @@ public enum VxChainCreatorManager {
         if (world == null) return Optional.empty();
         this.world = world;
 
+        // Use player's reach distance
+        double reachDistance = player.isCreative() ? 5.0 : 4.5;
+
         net.minecraft.world.phys.Vec3 from = player.getEyePosition();
         net.minecraft.world.phys.Vec3 look = player.getLookAngle();
-        net.minecraft.world.phys.Vec3 to = from.add(look.scale(100.0));
+        net.minecraft.world.phys.Vec3 to = from.add(look.scale(reachDistance));
 
         VxClipContext context = new VxClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player, true);
         return VxRaycaster.raycast(player.level(), context);
