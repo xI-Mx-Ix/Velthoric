@@ -11,6 +11,11 @@ import net.minecraft.world.phys.HitResult;
 
 import java.util.Optional;
 
+/**
+ * Extended HitResult class to include additional information for raycasting.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxHitResult extends HitResult {
 
     private final HitResult minecraftHit;

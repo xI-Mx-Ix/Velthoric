@@ -18,7 +18,7 @@ import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.raycasting.VxClipContext;
 import net.xmx.velthoric.physics.raycasting.VxHitResult;
-import net.xmx.velthoric.physics.raycasting.VxRaytracing;
+import net.xmx.velthoric.physics.raycasting.VxRaycaster;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Map;
@@ -199,7 +199,7 @@ public class VxChainCreatorManager {
         net.minecraft.world.phys.Vec3 to = from.add(look.scale(100.0));
 
         VxClipContext context = new VxClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player, true);
-        return VxRaytracing.raycast(player.level(), context);
+        return VxRaycaster.raycast(player.level(), context);
     }
 
     /**

@@ -8,6 +8,11 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.Vec3;
 
+/**
+ * Extended ClipContext class to include additional information for raycasting.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxClipContext extends ClipContext {
 
     private final boolean includePhysics;

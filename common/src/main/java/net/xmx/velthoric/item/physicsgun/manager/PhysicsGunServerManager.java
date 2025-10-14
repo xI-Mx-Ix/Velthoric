@@ -15,7 +15,7 @@ import net.xmx.velthoric.item.physicsgun.packet.PhysicsGunSyncPacket;
 import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.raycasting.VxHitResult;
-import net.xmx.velthoric.physics.raycasting.VxRaytracing;
+import net.xmx.velthoric.physics.raycasting.VxRaycaster;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Map;
@@ -24,6 +24,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class PhysicsGunServerManager {
 
     private static final PhysicsGunServerManager INSTANCE = new PhysicsGunServerManager();
@@ -115,7 +118,7 @@ public class PhysicsGunServerManager {
             var rayOrigin = new RVec3((float) eyePos.x(), (float) eyePos.y(), (float) eyePos.z());
             var rayDirection = new Vec3((float) lookVec.x(), (float) lookVec.y(), (float) lookVec.z());
 
-            VxRaytracing.raycastPhysics(level, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHitResult -> {
+            VxRaycaster.raycastPhysics(physicsWorld, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(physicsHitResult -> {
                 VxHitResult.PhysicsHit physicsHit = physicsHitResult.getPhysicsHit().orElseThrow();
                 VxBody physicsBody = physicsWorld.getBodyManager().getByJoltBodyId(physicsHit.bodyId());
                 if (physicsBody == null) return;

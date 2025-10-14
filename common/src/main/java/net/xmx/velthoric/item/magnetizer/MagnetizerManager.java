@@ -14,7 +14,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.physics.raycasting.VxClipContext;
 import net.xmx.velthoric.physics.raycasting.VxHitResult;
-import net.xmx.velthoric.physics.raycasting.VxRaytracing;
+import net.xmx.velthoric.physics.raycasting.VxRaycaster;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Map;
@@ -22,6 +22,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class MagnetizerManager {
 
     private static final MagnetizerManager INSTANCE = new MagnetizerManager();
@@ -74,7 +77,7 @@ public class MagnetizerManager {
 
         VxClipContext context = new VxClipContext(eyePos, rayEnd, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player, true);
 
-        Optional<VxHitResult> hitResult = VxRaytracing.raycast(level, context);
+        Optional<VxHitResult> hitResult = VxRaycaster.raycast(level, context);
 
         final net.minecraft.world.phys.Vec3 targetPoint;
         if (hitResult.isPresent()) {
