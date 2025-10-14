@@ -58,7 +58,9 @@ public final class VxBuoyancyManager {
      * bodies that are potentially inside a fluid. It then atomically swaps the buffers.
      */
     public void updateFluidStates() {
-        // The broad phase finds all potential contacts and populates the write buffer directly.
+        // The broad phase populates the back buffer. First, clear the stale data
+        // from the previous frame to ensure we start fresh.
+        writeBuffer.clear();
         broadPhase.findPotentialFluidContacts(writeBuffer);
 
         // Atomically swap the buffers. The physics thread will now see the newly populated data.
