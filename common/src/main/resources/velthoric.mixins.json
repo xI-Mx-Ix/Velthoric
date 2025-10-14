@@ -13,6 +13,8 @@
     "event.chunk.ChunkMapMixin_VxChunkLoadEvent",
     "event.chunk.ChunkMapMixin_VxChunkUnloadEvent",
     "event.chunk.ChunkMapMixin_VxChunkWatchEvent",
+    "event.input.KeyboardHandlerMixin_VxKeyEvent",
+    "event.input.MouseHandlerMixin_VxMouseEvent",
     "event.level.MinecraftServerMixin_VxLevelEvent",
     "event.level.ServerLevelMixin_VxLevelEvent",
     "event.server.MinecraftServerMixin_VxServerLifecylceEvent",
