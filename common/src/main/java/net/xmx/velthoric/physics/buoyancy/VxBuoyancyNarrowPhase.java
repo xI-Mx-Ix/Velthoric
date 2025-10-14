@@ -59,7 +59,8 @@ public final class VxBuoyancyNarrowPhase {
     /**
      * Calculates and applies buoyancy, drag, and damping impulses to a single body.
      * This advanced implementation applies forces at the center of buoyancy to ensure
-     * physically correct torque and rotation when moving in a fluid.
+     * physically correct torque and rotation when moving in a fluid. Forces are applied
+     * relative to the body's actual center of mass for accurate simulation.
      *
      * @param body      The physics body to process.
      * @param deltaTime The simulation time step.
@@ -117,19 +118,31 @@ public final class VxBuoyancyNarrowPhase {
         float submergedFraction = Math.max(0.0f, Math.min(1.0f, submergedDepth / height));
         if (submergedFraction <= 0.0f) return;
 
-        // --- Center of Buoyancy Calculation ---
-        // This is the point where all fluid forces (buoyancy and drag) will be applied.
-        // For a simple box shape, it's the geometric center of the submerged volume.
+        // --- Center of Mass (für alle Berechnungen wichtig) ---
         RVec3 comPosition = body.getCenterOfMassPosition();
+
+        // --- Center of Buoyancy Calculation ---
+        // Der Auftriebspunkt liegt am geometrischen Zentrum des eingetauchten Volumens,
+        // wird aber relativ zum Massenschwerpunkt angewendet.
         RVec3 centerOfBuoyancyWorld = tempRVec3_1.get();
         centerOfBuoyancyWorld.set(comPosition.xx(), minY + (submergedDepth * 0.5f), comPosition.zz());
+
+        // --- Offset vom Massenschwerpunkt zum Auftriebspunkt ---
+        Vec3 buoyancyOffset = tempVec3_1.get();
+        buoyancyOffset.set(
+                (float)(centerOfBuoyancyWorld.xx() - comPosition.xx()),
+                (float)(centerOfBuoyancyWorld.yy() - comPosition.yy()),
+                (float)(centerOfBuoyancyWorld.zz() - comPosition.zz())
+        );
 
         // --- Buoyancy Impulse ---
         Vec3 gravity = physicsWorld.getPhysicsSystem().getGravity();
         float bodyMass = 1.0f / motionProperties.getInverseMass();
-        Vec3 buoyancyImpulse = tempVec3_1.get();
+        Vec3 buoyancyImpulse = tempVec3_2.get();
         buoyancyImpulse.set(gravity);
         buoyancyImpulse.scaleInPlace(-buoyancyMultiplier * bodyMass * submergedFraction * deltaTime);
+
+        // Auftrieb am Auftriebspunkt anwenden (erzeugt korrektes Drehmoment)
         body.addImpulse(buoyancyImpulse, centerOfBuoyancyWorld);
 
         // --- Drag and Damping Impulses ---
@@ -138,17 +151,17 @@ public final class VxBuoyancyNarrowPhase {
         // --- 1. General Quadratic Drag (for all directions) ---
         float linearSpeedSq = linearVelocity.lengthSq();
         if (linearSpeedSq > 1e-6f) {
-            Vec3 linearDragImpulse = tempVec3_2.get();
+            Vec3 linearDragImpulse = tempVec3_3.get();
             linearDragImpulse.set(linearVelocity);
             linearDragImpulse.scaleInPlace(-linearDragCoefficient * (float) Math.sqrt(linearSpeedSq) * submergedFraction * deltaTime);
 
-            // Apply the drag impulse at the center of buoyancy to create realistic rotational drag.
+            // Widerstand am Auftriebspunkt anwenden für realistisches Rotationsdraggen
             body.addImpulse(linearDragImpulse, centerOfBuoyancyWorld);
         }
 
         // --- 2. Specialized Vertical Damping (to prevent bobbing) ---
-        // This force is applied without a specific point (at the center of mass) as it only affects
-        // the vertical axis and is meant to stabilize floating, not cause rotation.
+        // Diese Kraft wird am Massenschwerpunkt angewendet (keine Position übergeben),
+        // da sie nur die vertikale Achse betrifft und Rotation vermeiden soll
         float verticalVelocity = linearVelocity.getY();
         if (Math.abs(verticalVelocity) > 1e-6f) {
             float verticalDampingImpulse = -verticalVelocity * bodyMass * verticalDampingCoefficient * submergedFraction * deltaTime;
@@ -159,7 +172,7 @@ public final class VxBuoyancyNarrowPhase {
         Vec3 angularVelocity = body.getAngularVelocity();
         float angularSpeedSq = angularVelocity.lengthSq();
         if (angularSpeedSq > 1e-6f) {
-            Vec3 angularDragImpulse = tempVec3_3.get();
+            Vec3 angularDragImpulse = tempVec3_1.get();
             angularDragImpulse.set(angularVelocity);
             angularDragImpulse.scaleInPlace(-angularDragCoefficient * (float) Math.sqrt(angularSpeedSq) * submergedFraction * deltaTime);
             body.addAngularImpulse(angularDragImpulse);
