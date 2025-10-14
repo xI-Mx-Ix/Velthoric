@@ -6,7 +6,8 @@ package net.xmx.velthoric.mixin.impl.mounting.entity;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
-import net.minecraft.client.Minecraft;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -128,22 +129,8 @@ public abstract class MixinEntity {
 
             if (this.level.isClientSide()) {
                 // On the client, use interpolated rotation for smooth visuals.
-                VxClientBodyManager manager = VxClientBodyManager.getInstance();
-                VxClientBodyDataStore store = manager.getStore();
-                Integer index = store.getIndexForId(id);
-
-                if (index == null || !store.render_isInitialized[index]) {
-                    return;
-                }
-                
-                float partialTicks = Minecraft.getInstance().getFrameTime();
-                manager.getInterpolator().interpolateRotation(store, index, partialTicks, velthoric_interpolatedRotation);
-                vehicleRotation = new Quaterniond(
-                        velthoric_interpolatedRotation.getX(),
-                        velthoric_interpolatedRotation.getY(),
-                        velthoric_interpolatedRotation.getZ(),
-                        velthoric_interpolatedRotation.getW()
-                );
+                vehicleRotation = velthoric_getClientRotation(id);
+                if (vehicleRotation == null) return;
 
             } else {
                 // On the server, use the exact physics rotation for accurate game logic.
@@ -151,7 +138,7 @@ public abstract class MixinEntity {
                 if (physicsWorld == null) return;
                 VxBody body = physicsWorld.getBodyManager().getVxBody(id);
                 if (body == null) return;
-                
+
                 var rot = body.getTransform().getRotation();
                 vehicleRotation = new Quaterniond(rot.getX(), rot.getY(), rot.getZ(), rot.getW());
             }
@@ -160,5 +147,43 @@ public abstract class MixinEntity {
             vehicleRotation.transform(transformedVector);
             cir.setReturnValue(new Vec3(transformedVector.x, transformedVector.y, transformedVector.z));
         });
+    }
+
+    /**
+     * Client-only method to get the interpolated rotation of a physics body.
+     * Separated to avoid loading client-only classes on the server.
+     */
+    @Unique
+    @Environment(EnvType.CLIENT)
+    private Quaterniond velthoric_getClientRotation(java.util.UUID id) {
+        VxClientBodyManager manager = VxClientBodyManager.getInstance();
+        VxClientBodyDataStore store = manager.getStore();
+        Integer index = store.getIndexForId(id);
+
+        if (index == null || !store.render_isInitialized[index]) {
+            return null;
+        }
+
+        // Use the partialTicks passed to getEyePosition or default to 1.0f
+        // You may need to store this value if you need accurate interpolation
+        float partialTicks = velthoric_getPartialTicksClient();
+        manager.getInterpolator().interpolateRotation(store, index, partialTicks, velthoric_interpolatedRotation);
+
+        return new Quaterniond(
+                velthoric_interpolatedRotation.getX(),
+                velthoric_interpolatedRotation.getY(),
+                velthoric_interpolatedRotation.getZ(),
+                velthoric_interpolatedRotation.getW()
+        );
+    }
+
+    /**
+     * Gets the partial tick time from Minecraft client instance.
+     * This method is client-only and properly annotated.
+     */
+    @Unique
+    @Environment(EnvType.CLIENT)
+    private float velthoric_getPartialTicksClient() {
+        return net.minecraft.client.Minecraft.getInstance().getFrameTime();
     }
 }
