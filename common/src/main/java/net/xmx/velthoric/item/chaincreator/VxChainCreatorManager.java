@@ -81,11 +81,22 @@ public enum VxChainCreatorManager {
 
         VxBodyManager bodyManager = world.getBodyManager();
         VxConstraintManager constraintManager = world.getConstraintManager();
+        BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
 
         AttachmentInfo startInfo = getAttachmentInfo(bodyManager, startHit);
         AttachmentInfo endInfo = getAttachmentInfo(bodyManager, endHit);
         if (startInfo == null || endInfo == null || startInfo.bodyUUID.equals(endInfo.bodyUUID)) {
             return;
+        }
+
+        // Activate attachment bodies if they are dynamic
+        VxBody startBody = bodyManager.getVxBody(startInfo.bodyUUID);
+        if (startBody != null) {
+            bodyInterface.activateBody(startBody.getBodyId());
+        }
+        VxBody endBody = bodyManager.getVxBody(endInfo.bodyUUID);
+        if (endBody != null) {
+            bodyInterface.activateBody(endBody.getBodyId());
         }
 
         RVec3 startPos = startInfo.worldPosition;
@@ -117,6 +128,9 @@ public enum VxChainCreatorManager {
                     }
             );
             if (currentBody == null) continue;
+
+            // Activate the newly created chain part
+            bodyInterface.activateBody(currentBody.getBodyId());
 
             RVec3 pivotOnCurrentBodyLocal = new RVec3(0, -actualSegmentLength / 2.0, 0);
 
