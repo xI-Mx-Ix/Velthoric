@@ -58,8 +58,8 @@ public final class VxBuoyancyNarrowPhase {
 
     /**
      * Calculates and applies buoyancy, drag, and damping impulses to a single body.
-     * This advanced implementation uses a quadratic drag model and a separate vertical
-     * damping force to create smooth, stable floating behavior and prevent oscillation.
+     * This advanced implementation applies forces at the center of buoyancy to ensure
+     * physically correct torque and rotation when moving in a fluid.
      *
      * @param body      The physics body to process.
      * @param deltaTime The simulation time step.
@@ -88,7 +88,7 @@ public final class VxBuoyancyNarrowPhase {
         final float buoyancyMultiplier;
         final float linearDragCoefficient;
         final float angularDragCoefficient;
-        final float verticalDampingCoefficient; // Coefficient for the specialized vertical damping force.
+        final float verticalDampingCoefficient;
 
         switch (fluidType) {
             case LAVA:
@@ -99,12 +99,9 @@ public final class VxBuoyancyNarrowPhase {
                 break;
             case WATER:
             default:
-                // A value slightly > 1.0 ensures the object will float.
                 buoyancyMultiplier = 1.72f;
-                // These coefficients determine how "thick" the water feels.
                 linearDragCoefficient = 3.0f;
                 angularDragCoefficient = 2.0f;
-                // This is the key parameter to prevent bobbing. It strongly dampens up/down motion.
                 verticalDampingCoefficient = 5.0f;
                 break;
         }
@@ -120,47 +117,45 @@ public final class VxBuoyancyNarrowPhase {
         float submergedFraction = Math.max(0.0f, Math.min(1.0f, submergedDepth / height));
         if (submergedFraction <= 0.0f) return;
 
+        // --- Center of Buoyancy Calculation ---
+        // This is the point where all fluid forces (buoyancy and drag) will be applied.
+        // For a simple box shape, it's the geometric center of the submerged volume.
+        RVec3 comPosition = body.getCenterOfMassPosition();
+        RVec3 centerOfBuoyancyWorld = tempRVec3_1.get();
+        centerOfBuoyancyWorld.set(comPosition.xx(), minY + (submergedDepth * 0.5f), comPosition.zz());
+
         // --- Buoyancy Impulse ---
-        // This impulse counteracts gravity for the submerged portion of the body.
         Vec3 gravity = physicsWorld.getPhysicsSystem().getGravity();
         float bodyMass = 1.0f / motionProperties.getInverseMass();
         Vec3 buoyancyImpulse = tempVec3_1.get();
         buoyancyImpulse.set(gravity);
         buoyancyImpulse.scaleInPlace(-buoyancyMultiplier * bodyMass * submergedFraction * deltaTime);
-
-        // Apply at the center of buoyancy. For a box, this is the center of the submerged volume.
-        RVec3 comPosition = body.getCenterOfMassPosition();
-        RVec3 centerOfBuoyancyWorld = tempRVec3_1.get();
-        centerOfBuoyancyWorld.set(comPosition.xx(), minY + (submergedDepth * 0.5f), comPosition.zz());
         body.addImpulse(buoyancyImpulse, centerOfBuoyancyWorld);
 
         // --- Drag and Damping Impulses ---
         Vec3 linearVelocity = body.getLinearVelocity();
 
         // --- 1. General Quadratic Drag (for all directions) ---
-        // This simulates the resistance of moving through a fluid.
         float linearSpeedSq = linearVelocity.lengthSq();
         if (linearSpeedSq > 1e-6f) {
             Vec3 linearDragImpulse = tempVec3_2.get();
             linearDragImpulse.set(linearVelocity);
-            // Impulse is proportional to velocity squared, applied opposite to the direction of motion.
-            // F_drag = -c * |v| * v
             linearDragImpulse.scaleInPlace(-linearDragCoefficient * (float) Math.sqrt(linearSpeedSq) * submergedFraction * deltaTime);
-            body.addImpulse(linearDragImpulse);
+
+            // Apply the drag impulse at the center of buoyancy to create realistic rotational drag.
+            body.addImpulse(linearDragImpulse, centerOfBuoyancyWorld);
         }
 
         // --- 2. Specialized Vertical Damping (to prevent bobbing) ---
-        // This is a strong, targeted force that only opposes vertical motion,
-        // making the object settle smoothly at the water's surface.
+        // This force is applied without a specific point (at the center of mass) as it only affects
+        // the vertical axis and is meant to stabilize floating, not cause rotation.
         float verticalVelocity = linearVelocity.getY();
         if (Math.abs(verticalVelocity) > 1e-6f) {
-            // This damping force is proportional to the vertical velocity and the body's mass.
             float verticalDampingImpulse = -verticalVelocity * bodyMass * verticalDampingCoefficient * submergedFraction * deltaTime;
             body.addImpulse(new Vec3(0, verticalDampingImpulse, 0));
         }
 
         // --- 3. Angular Drag ---
-        // This simulates rotational resistance, making the object's rotation slow down in water.
         Vec3 angularVelocity = body.getAngularVelocity();
         float angularSpeedSq = angularVelocity.lengthSq();
         if (angularSpeedSq > 1e-6f) {
