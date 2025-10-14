@@ -12,8 +12,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * @author xI-Mx-Ix
+ */
 @Mixin(MinecraftServer.class)
-public class MinecraftServerMixin_VxLevelEvent {
+public class MixinMinecraftServer_VxLevelEvent {
 
     @Inject(method = "createLevels", at = @At("RETURN"))
     private void onCreateLevels(CallbackInfo ci) {

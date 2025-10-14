@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * @author xI-Mx-Ix
  */
 @Mixin(MouseHandler.class)
-public class MouseHandlerMixin_VxMouseEvent {
+public class MixinMouseHandler_VxMouseEvent {
 
     @Shadow private double accumulatedDX;
     @Shadow private double accumulatedDY;

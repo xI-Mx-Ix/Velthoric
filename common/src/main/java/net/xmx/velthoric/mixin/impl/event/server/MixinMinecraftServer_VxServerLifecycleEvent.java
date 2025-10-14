@@ -11,8 +11,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * @author xI-Mx-Ix
+ */
 @Mixin(MinecraftServer.class)
-public abstract class MinecraftServerMixin_VxServerLifecylceEvent {
+public abstract class MixinMinecraftServer_VxServerLifecycleEvent {
 
     @Inject(method = "runServer", at = @At(value = "HEAD"))
     private void vx$runServerStart(CallbackInfo ci) {

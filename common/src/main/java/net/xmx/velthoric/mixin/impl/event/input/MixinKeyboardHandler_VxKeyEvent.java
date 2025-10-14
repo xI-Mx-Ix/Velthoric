@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * @author xI-Mx-Ix
  */
 @Mixin(KeyboardHandler.class)
-public class KeyboardHandlerMixin_VxKeyEvent {
+public class MixinKeyboardHandler_VxKeyEvent {
 
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void onKeyPress(long window, int key, int scanCode, int action, int modifiers, CallbackInfo ci) {

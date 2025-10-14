@@ -18,8 +18,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * @author xI-Mx-Ix
+ */
 @Mixin(ClientPacketListener.class)
-public abstract class ClientPacketListenerMixin_VxClientPlayerNetworkEvent {
+public abstract class MixinClientPacketListener_VxClientPlayerNetworkEvent {
 
     @Shadow @Final private Minecraft minecraft;
     @Shadow @Final private Connection connection;

@@ -12,8 +12,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.List;
 
+/**
+ * @author xI-Mx-Ix
+ */
 @Mixin(DebugScreenOverlay.class)
-public class DebugScreenOverlayMixin_VxAddDebugInfoEvent {
+public class MixinDebugScreenOverlay_VxDebugEvent {
 
     @Inject(method = "getGameInformation", at = @At("RETURN"))
     private void velthoric_fireAddDebugInfoEvent(CallbackInfoReturnable<List<String>> cir) {
