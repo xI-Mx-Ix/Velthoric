@@ -31,6 +31,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class VxConstraintManager {
 
+    /**
+     * A special, constant UUID used to represent a constraint to the static world itself,
+     * rather than to a specific physics body. This is a convention understood by the manager.
+     */
+    public static final UUID WORLD_BODY_ID = new UUID(0, 0);
+
     private final VxPhysicsWorld world;
     private final VxBodyManager bodyManager;
     private final VxConstraintStorage constraintStorage;
@@ -54,8 +60,6 @@ public class VxConstraintManager {
      * guaranteeing a reliable save.
      */
     public void shutdown() {
-        // Synchronously flush all pending persistence operations to disk.
-        // This guarantees that all changes are saved before the server closes the world.
         VxMainClass.LOGGER.debug("Flushing physics constraint persistence for world {}...", world.getDimensionKey().location());
         flushPersistence();
         VxMainClass.LOGGER.debug("Physics constraint persistence flushed for world {}.", world.getDimensionKey().location());
@@ -67,7 +71,7 @@ public class VxConstraintManager {
 
     /**
      * Saves all constraints associated with a given chunk using a single batch operation.
-     * A constraint is considered to be in a chunk if its first body is in that chunk.
+     * A constraint is considered to be in a chunk if its first (or only) real body is in that chunk.
      *
      * @param pos The position of the chunk.
      */
@@ -75,9 +79,12 @@ public class VxConstraintManager {
         long chunkKey = pos.toLong();
         List<VxConstraint> constraintsToSave = new ArrayList<>();
         for (VxConstraint constraint : activeConstraints.values()) {
-            VxBody body1 = bodyManager.getVxBody(constraint.getBody1Id());
-            if (body1 != null) {
-                int index = body1.getDataStoreIndex();
+            UUID bodyId = !constraint.getBody1Id().equals(WORLD_BODY_ID) ? constraint.getBody1Id() : constraint.getBody2Id();
+            if (bodyId.equals(WORLD_BODY_ID)) continue;
+
+            VxBody body = bodyManager.getVxBody(bodyId);
+            if (body != null) {
+                int index = body.getDataStoreIndex();
                 if (index != -1 && bodyManager.getDataStore().chunkKey[index] == chunkKey) {
                     constraintsToSave.add(constraint);
                 }
@@ -94,9 +101,7 @@ public class VxConstraintManager {
      */
     public void flushPersistence() {
         try {
-            // saveDirtyRegions returns a CompletableFuture. .join() waits until it completes.
             constraintStorage.saveDirtyRegions().join();
-            // The index also needs to be explicitly saved.
             constraintStorage.getRegionIndex().save();
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to flush physics constraint persistence for world {}", bodyManager.getPhysicsWorld().getLevel().dimension().location(), e);
@@ -114,12 +119,13 @@ public class VxConstraintManager {
         long chunkKey = pos.toLong();
         List<VxConstraint> constraintsToSaveAndRemove = new ArrayList<>();
 
-        // Find all constraints that need to be unloaded
         for (VxConstraint constraint : activeConstraints.values()) {
-            VxBody body1 = bodyManager.getVxBody(constraint.getBody1Id());
-            // A constraint is considered to be in a chunk if its first body is in that chunk.
-            if (body1 != null) {
-                int index = body1.getDataStoreIndex();
+            UUID bodyId = !constraint.getBody1Id().equals(WORLD_BODY_ID) ? constraint.getBody1Id() : constraint.getBody2Id();
+            if (bodyId.equals(WORLD_BODY_ID)) continue;
+
+            VxBody body = bodyManager.getVxBody(bodyId);
+            if (body != null) {
+                int index = body.getDataStoreIndex();
                 if (index != -1 && bodyManager.getDataStore().chunkKey[index] == chunkKey) {
                     constraintsToSaveAndRemove.add(constraint);
                 }
@@ -130,13 +136,9 @@ public class VxConstraintManager {
             return;
         }
 
-        // Save all found constraints in a single batch operation.
-        // This ensures their latest state is persisted before they are removed from memory.
         constraintStorage.storeConstraints(constraintsToSaveAndRemove);
 
-        // Now, remove them from the active simulation.
         for (VxConstraint constraint : constraintsToSaveAndRemove) {
-            // Remove from simulation, but do not discard the data from storage (discardData=false).
             removeConstraint(constraint.getConstraintId(), false);
         }
     }
@@ -145,8 +147,8 @@ public class VxConstraintManager {
      * Creates a new constraint and schedules it for activation once its dependent bodies are loaded.
      *
      * @param settings The Jolt settings for the constraint.
-     * @param body1Id  The UUID of the first body.
-     * @param body2Id  The UUID of the second body.
+     * @param body1Id  The UUID of the first body. Can be WORLD_BODY_ID.
+     * @param body2Id  The UUID of the second body. Can be WORLD_BODY_ID.
      * @return The newly created VxConstraint instance, or null if inputs are invalid.
      */
     @Nullable
@@ -170,19 +172,14 @@ public class VxConstraintManager {
 
     /**
      * Activates a constraint by creating its Jolt counterpart and adding it to the physics system.
-     * This method is executed on the physics thread.
+     * This method handles both two-body constraints and single-body (world-anchored) constraints.
      *
      * @param constraint The constraint to activate.
      */
     protected void activateConstraint(VxConstraint constraint) {
         world.execute(() -> {
-            VxBody body1 = bodyManager.getVxBody(constraint.getBody1Id());
-            VxBody body2 = bodyManager.getVxBody(constraint.getBody2Id());
-
-            if (body1 == null || body2 == null || body1.getBodyId() == 0 || body2.getBodyId() == 0) {
-                dataSystem.addPendingConstraint(constraint);
-                return;
-            }
+            boolean isBody1World = constraint.getBody1Id().equals(WORLD_BODY_ID);
+            boolean isBody2World = constraint.getBody2Id().equals(WORLD_BODY_ID);
 
             try (TwoBodyConstraintSettings loadedSettings = deserializeSettings(constraint)) {
                 if (loadedSettings == null) {
@@ -190,35 +187,70 @@ public class VxConstraintManager {
                     return;
                 }
 
-                boolean wasCreatedWithWorldSpace = getConstraintSpace(loadedSettings) == EConstraintSpace.WorldSpace;
+                TwoBodyConstraint joltConstraint;
+                BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
+                // Jolt uses the invalid body ID to represent the static world body in constraints.
+                final int worldBodyJoltId = Jolt.cInvalidBodyId;
 
-                TwoBodyConstraint joltConstraint = world.getPhysicsSystem().getBodyInterface()
-                        .createConstraint(loadedSettings, body1.getBodyId(), body2.getBodyId());
+                if (isBody1World || isBody2World) {
+                    // Handle world-anchored (single body) constraints
+                    if (isBody1World && isBody2World) return; // Cannot constrain world to world
 
-                if (joltConstraint == null) {
-                    VxMainClass.LOGGER.error("Failed to create Jolt constraint for {}", constraint.getConstraintId());
-                    return;
-                }
+                    UUID realBodyUuid = isBody1World ? constraint.getBody2Id() : constraint.getBody1Id();
+                    VxBody realBody = bodyManager.getVxBody(realBodyUuid);
 
-                // If the constraint was defined in world space, Jolt converts it to local space.
-                // We must save the new local space definition to ensure it reloads correctly.
-                if (wasCreatedWithWorldSpace) {
-                    try (ConstraintSettingsRef settingsRef = joltConstraint.getConstraintSettings();
-                         ConstraintSettings canonicalSettingsRaw = settingsRef.getPtr()) {
-                        if (canonicalSettingsRaw instanceof TwoBodyConstraintSettings canonicalSettings) {
-                            constraint.updateSettingsData(canonicalSettings);
-                        }
+                    if (realBody == null || realBody.getBodyId() == 0) {
+                        dataSystem.addPendingConstraint(constraint);
+                        return;
                     }
+
+                    joltConstraint = isBody1World
+                            ? bodyInterface.createConstraint(loadedSettings, worldBodyJoltId, realBody.getBodyId())
+                            : bodyInterface.createConstraint(loadedSettings, realBody.getBodyId(), worldBodyJoltId);
+
+                } else {
+                    // Handle standard two-body constraints
+                    VxBody body1 = bodyManager.getVxBody(constraint.getBody1Id());
+                    VxBody body2 = bodyManager.getVxBody(constraint.getBody2Id());
+
+                    if (body1 == null || body2 == null || body1.getBodyId() == 0 || body2.getBodyId() == 0) {
+                        dataSystem.addPendingConstraint(constraint);
+                        return;
+                    }
+                    joltConstraint = bodyInterface.createConstraint(loadedSettings, body1.getBodyId(), body2.getBodyId());
                 }
 
-                world.getPhysicsSystem().addConstraint(joltConstraint);
-                constraint.setJoltConstraint(joltConstraint);
-                activeConstraints.put(constraint.getConstraintId(), constraint);
+                finishActivation(constraint, joltConstraint, loadedSettings);
 
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Exception during constraint activation for {}", constraint.getConstraintId(), e);
             }
         });
+    }
+
+    /**
+     * Completes the activation process for a Jolt constraint after it has been created.
+     * This includes saving updated settings and adding it to the simulation.
+     */
+    private void finishActivation(VxConstraint constraint, TwoBodyConstraint joltConstraint, TwoBodyConstraintSettings settings) {
+        if (joltConstraint == null) {
+            VxMainClass.LOGGER.error("Failed to create Jolt constraint for {}", constraint.getConstraintId());
+            return;
+        }
+
+        boolean wasCreatedWithWorldSpace = getConstraintSpace(settings) == EConstraintSpace.WorldSpace;
+        if (wasCreatedWithWorldSpace) {
+            try (ConstraintSettingsRef settingsRef = joltConstraint.getConstraintSettings();
+                 ConstraintSettings canonicalSettingsRaw = settingsRef.getPtr()) {
+                if (canonicalSettingsRaw instanceof TwoBodyConstraintSettings canonicalSettings) {
+                    constraint.updateSettingsData(canonicalSettings);
+                }
+            }
+        }
+
+        world.getPhysicsSystem().addConstraint(joltConstraint);
+        constraint.setJoltConstraint(joltConstraint);
+        activeConstraints.put(constraint.getConstraintId(), constraint);
     }
 
     /**
@@ -232,13 +264,10 @@ public class VxConstraintManager {
         String settingsString = new String(constraint.getSettingsData(), StandardCharsets.ISO_8859_1);
         try (StringStream stringStream = new StringStream(settingsString);
              TwoBodyConstraintSettingsRef settingsRef = new TwoBodyConstraintSettingsRef()) {
-
             if (ObjectStreamIn.sReadObject(stringStream, settingsRef)) {
                 return settingsRef.getPtr();
-            } else {
-                VxMainClass.LOGGER.error("Jolt ObjectStreamIn failed to read constraint settings for {}", constraint.getConstraintId());
-                return null;
             }
+            return null;
         }
     }
 
@@ -250,14 +279,11 @@ public class VxConstraintManager {
      * @return The EConstraintSpace.
      */
     private EConstraintSpace getConstraintSpace(TwoBodyConstraintSettings settings) {
+        if (settings instanceof PointConstraintSettings s) return s.getSpace();
+        if (settings instanceof HingeConstraintSettings s) return s.getSpace();
         if (settings instanceof ConeConstraintSettings s) return s.getSpace();
         if (settings instanceof DistanceConstraintSettings s) return s.getSpace();
         if (settings instanceof FixedConstraintSettings s) return s.getSpace();
-        if (settings instanceof GearConstraintSettings s) return s.getSpace();
-        if (settings instanceof HingeConstraintSettings s) return s.getSpace();
-        if (settings instanceof PointConstraintSettings s) return s.getSpace();
-        if (settings instanceof PulleyConstraintSettings s) return s.getSpace();
-        if (settings instanceof RackAndPinionConstraintSettings s) return s.getSpace();
         if (settings instanceof SixDofConstraintSettings s) return s.getSpace();
         if (settings instanceof SliderConstraintSettings s) return s.getSpace();
         if (settings instanceof SwingTwistConstraintSettings s) return s.getSpace();
@@ -294,10 +320,6 @@ public class VxConstraintManager {
 
     public VxBodyManager getBodyManager() {
         return bodyManager;
-    }
-
-    public VxPhysicsWorld getWorld() {
-        return world;
     }
 
     public VxDependencyDataSystem getDataSystem() {

@@ -14,31 +14,55 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * Manages pending constraints and their body dependencies.
+ * A constraint will only be activated once all of its associated bodies are loaded into the physics world.
+ *
  * @author xI-Mx-Ix
  */
 public class VxDependencyDataSystem {
 
     private final VxConstraintManager constraintManager;
     private final Map<UUID, VxConstraint> pendingConstraints = new ConcurrentHashMap<>();
-
     private final Map<UUID, Set<UUID>> bodyToConstraintMap = new ConcurrentHashMap<>();
 
     public VxDependencyDataSystem(VxConstraintManager constraintManager) {
         this.constraintManager = constraintManager;
     }
 
+    /**
+     * Adds a constraint to the pending queue and registers its body dependencies.
+     * It immediately checks if the dependencies are already met.
+     * @param constraint The constraint to add.
+     */
     public void addPendingConstraint(VxConstraint constraint) {
         UUID constraintId = constraint.getConstraintId();
         pendingConstraints.put(constraintId, constraint);
 
-        bodyToConstraintMap.computeIfAbsent(constraint.getBody1Id(), k -> ConcurrentHashMap.newKeySet()).add(constraintId);
-        bodyToConstraintMap.computeIfAbsent(constraint.getBody2Id(), k -> ConcurrentHashMap.newKeySet()).add(constraintId);
+        // Register dependencies only for non-world bodies.
+        if (!constraint.getBody1Id().equals(VxConstraintManager.WORLD_BODY_ID)) {
+            bodyToConstraintMap.computeIfAbsent(constraint.getBody1Id(), k -> ConcurrentHashMap.newKeySet()).add(constraintId);
+        }
+        if (!constraint.getBody2Id().equals(VxConstraintManager.WORLD_BODY_ID)) {
+            bodyToConstraintMap.computeIfAbsent(constraint.getBody2Id(), k -> ConcurrentHashMap.newKeySet()).add(constraintId);
+        }
 
+        // Check if dependencies are already met.
         onDependencyLoaded(constraint.getBody1Id());
-        onDependencyLoaded(constraint.getBody2Id());
+        if (!constraint.getBody1Id().equals(constraint.getBody2Id())) {
+            onDependencyLoaded(constraint.getBody2Id());
+        }
     }
 
+    /**
+     * Called when a body is loaded into the world. Checks all pending constraints
+     * that depend on this body to see if they can now be activated.
+     * @param bodyId The UUID of the body that was loaded.
+     */
     public void onDependencyLoaded(UUID bodyId) {
+        if (bodyId.equals(VxConstraintManager.WORLD_BODY_ID)) {
+            return; // The world is not a dependency, so no constraints are waiting for it.
+        }
+
         Set<UUID> affectedConstraints = bodyToConstraintMap.get(bodyId);
         if (affectedConstraints == null || affectedConstraints.isEmpty()) {
             return;
@@ -55,8 +79,9 @@ public class VxDependencyDataSystem {
             VxBody body1 = bodyManager.getVxBody(constraint.getBody1Id());
             VxBody body2 = bodyManager.getVxBody(constraint.getBody2Id());
 
-            boolean body1Ready = body1 != null && body1.getBodyId() != 0;
-            boolean body2Ready = body2 != null && body2.getBodyId() != 0;
+            // A body is ready if it's loaded OR if it's the special world body ID.
+            boolean body1Ready = (body1 != null && body1.getBodyId() != 0) || constraint.getBody1Id().equals(VxConstraintManager.WORLD_BODY_ID);
+            boolean body2Ready = (body2 != null && body2.getBodyId() != 0) || constraint.getBody2Id().equals(VxConstraintManager.WORLD_BODY_ID);
 
             if (body1Ready && body2Ready) {
                 if (pendingConstraints.remove(constraintId) != null) {
@@ -67,6 +92,10 @@ public class VxDependencyDataSystem {
         }
     }
 
+    /**
+     * Removes all pending constraints and dependency mappings associated with a specific body.
+     * @param bodyId The UUID of the body being removed.
+     */
     public void removeForBody(UUID bodyId) {
         Set<UUID> affectedConstraints = bodyToConstraintMap.remove(bodyId);
         if (affectedConstraints != null) {
@@ -81,6 +110,9 @@ public class VxDependencyDataSystem {
         return pendingConstraints.containsKey(constraintId);
     }
 
+    /**
+     * Removes a constraint's ID from all dependency mappings.
+     */
     private void cleanup(UUID constraintId) {
         bodyToConstraintMap.values().forEach(set -> set.remove(constraintId));
     }
