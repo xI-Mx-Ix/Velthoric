@@ -7,6 +7,7 @@ package net.xmx.velthoric.physics.body;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.ShapeRefC;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.xmx.velthoric.physics.buoyancy.VxFluidType;
 
 import java.nio.ByteBuffer;
@@ -77,6 +78,17 @@ public abstract class AbstractDataStore {
     }
 
     /**
+     * Grows an EMotionType enum array, preserving its contents.
+     *
+     * @param src  The source array (can be null).
+     * @param size The desired new size.
+     * @return A new array of the specified size.
+     */
+    protected EMotionType[] grow(EMotionType[] src, int size) {
+        return src == null ? new EMotionType[size] : Arrays.copyOf(src, size);
+    }
+
+    /**
      * Grows a ByteBuffer array, preserving its contents.
      *
      * @param src  The source array (can be null).
@@ -85,18 +97,6 @@ public abstract class AbstractDataStore {
      */
     protected ByteBuffer[] grow(ByteBuffer[] src, int size) {
         return src == null ? new ByteBuffer[size] : Arrays.copyOf(src, size);
-    }
-
-    /**
-     * Grows a generic object array, preserving its contents.
-     *
-     * @param src  The source array (can be null).
-     * @param size The desired new size.
-     * @return A new array of the specified size.
-     */
-    @SuppressWarnings("unchecked")
-    protected <T> T[] grow(T[] src, int size) {
-        return src == null ? (T[]) new Object[size] : Arrays.copyOf(src, size);
     }
 
     /**
