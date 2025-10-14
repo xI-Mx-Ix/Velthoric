@@ -8,6 +8,7 @@ import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -104,6 +105,7 @@ public class VxChainPartRigidBody extends VxRigidBody {
             bcs.setMotionType(EMotionType.Dynamic);
             bcs.setObjectLayer(VxLayers.DYNAMIC);
             bcs.setFriction(0.5f);
+            bcs.setMotionQuality(EMotionQuality.LinearCast);
             bcs.setRestitution(0.1f);
             return factory.create(shapeSettings, bcs);
         }
