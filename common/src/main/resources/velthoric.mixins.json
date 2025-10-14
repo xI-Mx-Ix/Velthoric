@@ -8,7 +8,6 @@
     "body.MixinChunkMap_UnloadBodies",
     "body.MixinEntityStorage_Persistence",
     "body.MixinServerLevel_Persistence",
-    "chaincreator.MouseHandlerMixin_ChainCreatorInput",
     "command.MixinArgumentTypeInfos",
     "event.chunk.ChunkMapMixin_VxChunkLoadEvent",
     "event.chunk.ChunkMapMixin_VxChunkUnloadEvent",
@@ -21,16 +20,15 @@
     "misc.ExplosionMixin_TriggerExplosion",
     "mounting.entity.MixinEntity",
     "mounting.render.MixinEntityRenderer",
+    "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
   ],
   "client": [
-    "boxthrower.MouseHandlerMixin_BoxThrowerInput",
     "debug.EntityRenderDispatcherAccessor",
     "event.debug.DebugScreenOverlayMixin_VxAddDebugInfoEvent",
     "event.network.ClientLevelMixin_VxClientPlayerNetworkEvent",
     "event.network.ClientPacketListenerMixin_VxClientPlayerNetworkEvent",
     "event.render.LevelRendererMixin_VxRenderEvent",
-    "magnetizer.MouseHandlerMixin_MagnetizerInput",
     "misc.MixinDebugScreenOverlay",
     "misc.MixinMinecraft",
     "mounting.input.MixinLocalPlayer",
@@ -38,8 +36,6 @@
     "mounting.render.MixinEntityRenderDispatcher",
     "mounting.render.MixinGameRenderer",
     "mounting.request.MixinMinecraft",
-    "physicsgun.KeyboardHandlerMixin_PhysicsGunHandling",
-    "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
     "physicsgun.PlayerRendererMixin_PhysicsGunArmPose"
   ],
   "injectors": {

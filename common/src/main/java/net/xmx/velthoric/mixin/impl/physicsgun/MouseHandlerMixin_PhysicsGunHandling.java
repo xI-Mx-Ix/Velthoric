@@ -18,7 +18,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(MouseHandler.class)
+/**
+ * Mixin to handle mouse input specifically for the Physics Gun.
+ * It is given a higher priority to ensure it runs before the generic mouse event system.
+ *
+ * @author xI-Mx-Ix
+ */
+@Mixin(value = MouseHandler.class, priority = 1100)
 public class MouseHandlerMixin_PhysicsGunHandling {
 
     @Shadow private double accumulatedDX;
@@ -32,6 +38,7 @@ public class MouseHandlerMixin_PhysicsGunHandling {
             if (this.accumulatedDX != 0.0D || this.accumulatedDY != 0.0D) {
                 VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket((float) this.accumulatedDX, (float) this.accumulatedDY));
             }
+            // Reset accumulated values to prevent residual movement.
             this.accumulatedDX = 0.0D;
             this.accumulatedDY = 0.0D;
             ci.cancel();
@@ -68,10 +75,8 @@ public class MouseHandlerMixin_PhysicsGunHandling {
             }
         }
 
-        if (this.minecraft.screen == null && button != GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
-            if (isHoldingGun) {
-                ci.cancel();
-            }
+        if (button != GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
+            ci.cancel();
         }
     }
 
