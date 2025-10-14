@@ -7,7 +7,7 @@ package net.xmx.velthoric.mixin.impl.chaincreator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.xmx.velthoric.init.registry.ItemRegistry;
-import net.xmx.velthoric.item.chain.packet.VxChainCreatorActionPacket;
+import net.xmx.velthoric.item.chaincreator.packet.VxChainCreatorActionPacket;
 import net.xmx.velthoric.network.VxPacketHandler;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;

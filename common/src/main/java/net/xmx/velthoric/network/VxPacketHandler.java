@@ -14,7 +14,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.item.boxthrower.packet.BoxThrowerActionPacket;
-import net.xmx.velthoric.item.chain.packet.VxChainCreatorActionPacket;
+import net.xmx.velthoric.item.chaincreator.packet.VxChainCreatorActionPacket;
 import net.xmx.velthoric.item.magnetizer.packet.MagnetizerActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.*;
 import net.xmx.velthoric.physics.body.packet.batch.*;

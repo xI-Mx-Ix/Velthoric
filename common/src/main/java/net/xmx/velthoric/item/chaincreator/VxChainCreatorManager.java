@@ -2,16 +2,20 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.item.chain;
+package net.xmx.velthoric.item.chaincreator;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.PointConstraintSettings;
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RMat44;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.BodyInterface;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
-import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ClipContext;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
-import net.xmx.velthoric.item.chain.body.VxChainPartRigidBody;
+import net.xmx.velthoric.item.chaincreator.body.VxChainPartRigidBody;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
@@ -32,26 +36,11 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author xI-Mx-Ix
  */
-public class VxChainCreatorManager {
+public enum VxChainCreatorManager {
+    INSTANCE;
 
-    private static final VxChainCreatorManager INSTANCE = new VxChainCreatorManager();
     private final Map<UUID, VxHitResult> chainCreators = new ConcurrentHashMap<>();
     private VxPhysicsWorld world;
-
-    /**
-     * A special, constant UUID used to represent a constraint to the static world itself,
-     * rather than to a specific physics body. This is a convention understood by the VxConstraintManager.
-     */
-    private static final UUID WORLD_BODY_ID = new UUID(0, 0);
-
-    private VxChainCreatorManager() {}
-
-    /**
-     * @return The singleton instance of the VxChainCreatorManager.
-     */
-    public static VxChainCreatorManager getInstance() {
-        return INSTANCE;
-    }
 
     /**
      * Initiates the chain creation process for a player.
@@ -80,6 +69,9 @@ public class VxChainCreatorManager {
 
     /**
      * Constructs the chain of rigid bodies and constraints.
+     * This method now correctly handles the coordinate spaces for pivot points
+     * to prevent physics instabilities.
+     *
      * @param startHit The raycast result for the starting attachment point.
      * @param endHit The raycast result for the ending attachment point.
      */
@@ -112,7 +104,7 @@ public class VxChainCreatorManager {
         RVec3 segmentVector = Op.star(actualSegmentLength, direction);
 
         UUID previousBodyUuid = startInfo.bodyUUID;
-        RVec3 pivotOnPrevious = startInfo.localPivot;
+        RVec3 pivotOnPreviousBody = startInfo.localPivot;
 
         for (int i = 0; i < numSegments; ++i) {
             RVec3 segmentStartPos = Op.plus(startPos, Op.star(i, segmentVector));
@@ -126,66 +118,92 @@ public class VxChainCreatorManager {
             );
             if (currentBody == null) continue;
 
-            RVec3 pivotOnCurrent = new RVec3(0, -actualSegmentLength / 2.0, 0);
+            RVec3 pivotOnCurrentBodyLocal = new RVec3(0, -actualSegmentLength / 2.0, 0);
 
             try (PointConstraintSettings settings = new PointConstraintSettings()) {
-                settings.setSpace(EConstraintSpace.LocalToBodyCom);
-                settings.setPoint1(pivotOnPrevious);
-                settings.setPoint2(pivotOnCurrent);
+                if (previousBodyUuid.equals(VxConstraintManager.WORLD_BODY_ID)) {
+                    // Attaching WORLD to currentBody. Use WorldSpace.
+                    settings.setSpace(EConstraintSpace.WorldSpace);
+                    // Point1 is the attachment on the world (already in world space).
+                    settings.setPoint1(pivotOnPreviousBody);
+
+                    // To get Point2, rotate the local pivot by the body's orientation and add its world position.
+                    RMat44 segmentRotation = new RMat44();
+                    segmentRotation.sRotation(orientation); // Create a pure rotation matrix from the quaternion.
+                    Vec3 rotatedPivot = segmentRotation.multiply3x3(pivotOnCurrentBodyLocal.toVec3());
+                    RVec3 pivotOnCurrentBodyWorld = Op.plus(segmentCenterPos, rotatedPivot);
+                    settings.setPoint2(pivotOnCurrentBodyWorld);
+                } else {
+                    // Attaching previousBody to currentBody. Use LocalToBodyCom.
+                    settings.setSpace(EConstraintSpace.LocalToBodyCom);
+                    settings.setPoint1(pivotOnPreviousBody);
+                    settings.setPoint2(pivotOnCurrentBodyLocal);
+                }
                 constraintManager.createConstraint(settings, previousBodyUuid, currentBody.getPhysicsId());
             }
 
             previousBodyUuid = currentBody.getPhysicsId();
-            pivotOnPrevious = new RVec3(0, actualSegmentLength / 2.0, 0);
+            pivotOnPreviousBody = new RVec3(0, actualSegmentLength / 2.0, 0);
         }
 
+        // Create the final constraint from the last chain link to the end point.
         try (PointConstraintSettings settings = new PointConstraintSettings()) {
-            settings.setSpace(EConstraintSpace.LocalToBodyCom);
-            settings.setPoint1(pivotOnPrevious);
-            settings.setPoint2(endInfo.localPivot);
+            VxBody lastLinkBody = bodyManager.getVxBody(previousBodyUuid);
+            if (lastLinkBody == null) return; // Should not happen if loop ran.
+
+            if (endInfo.bodyUUID.equals(VxConstraintManager.WORLD_BODY_ID)) {
+                // Attaching last link to WORLD. Use WorldSpace.
+                settings.setSpace(EConstraintSpace.WorldSpace);
+
+                // Point1: Convert the local pivot on the last link to world space.
+                RMat44 lastLinkTransform = world.getPhysicsSystem().getBodyInterface().getCenterOfMassTransform(lastLinkBody.getBodyId());
+                RVec3 pivotOnLastLinkWorld = lastLinkTransform.multiply3x4(pivotOnPreviousBody);
+                settings.setPoint1(pivotOnLastLinkWorld);
+
+                // Point2: The attachment on the world (already in world space).
+                settings.setPoint2(endInfo.localPivot);
+            } else {
+                // Attaching last link to endBody. Use LocalToBodyCom.
+                settings.setSpace(EConstraintSpace.LocalToBodyCom);
+                settings.setPoint1(pivotOnPreviousBody);
+                settings.setPoint2(endInfo.localPivot);
+            }
             constraintManager.createConstraint(settings, previousBodyUuid, endInfo.bodyUUID);
         }
     }
 
     /**
-     * Analyzes a hit result to determine the attachment information.
-     * If the hit is on a dynamic body, it returns information to attach to that body.
-     * If the hit is on a static surface (terrain, static body, or non-physics block),
-     * it returns information to create a persistent constraint to a fixed point in the world.
+     * Analyzes a hit result to determine attachment information.
+     * If the hit is on a physics body, it returns information to attach to that body in its local space.
+     * If the hit is on a non-physics block, it returns information to attach to the static world
+     * at that point using a special world UUID.
      *
      * @param bodyManager The body manager.
-     * @param hit The raycast hit result.
+     * @param hit         The raycast hit result.
      * @return An AttachmentInfo record, or null if the attachment is invalid.
      */
     private AttachmentInfo getAttachmentInfo(VxBodyManager bodyManager, VxHitResult hit) {
         RVec3 worldPosition = new RVec3(hit.getLocation().x, hit.getLocation().y, hit.getLocation().z);
-        VxPhysicsWorld physicsWorld = bodyManager.getPhysicsWorld();
 
         if (hit.isPhysicsHit()) {
             VxHitResult.PhysicsHit physicsHit = hit.getPhysicsHit().get();
-            // Ignore attachments to ephemeral terrain bodies to ensure persistence.
-            if (!physicsWorld.getTerrainSystem().isTerrainBody(physicsHit.bodyId())) {
-                VxBody hitBody = bodyManager.getByJoltBodyId(physicsHit.bodyId());
+            VxBody hitBody = bodyManager.getByJoltBodyId(physicsHit.bodyId());
 
-                if (hitBody != null && hitBody.getBodyId() != 0) {
-                    BodyInterface bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
-                    // If the body is dynamic or kinematic, attach to it directly.
-                    if (bodyInterface.getMotionType(hitBody.getBodyId()) != EMotionType.Static) {
-                        RMat44 inverseTransform = bodyInterface.getCenterOfMassTransform(hitBody.getBodyId()).inversed();
-                        RVec3 localPivot = inverseTransform.multiply3x4(worldPosition);
-                        return new AttachmentInfo(hitBody.getPhysicsId(), worldPosition, localPivot);
-                    }
-                }
+            if (hitBody != null && hitBody.getBodyId() != 0) {
+                BodyInterface bodyInterface = bodyManager.getPhysicsWorld().getPhysicsSystem().getBodyInterface();
+                RMat44 inverseTransform = bodyInterface.getCenterOfMassTransform(hitBody.getBodyId()).inversed();
+                RVec3 localPivot = inverseTransform.multiply3x4(worldPosition);
+                return new AttachmentInfo(hitBody.getPhysicsId(), worldPosition, localPivot);
             }
         }
 
-        // For any other case (terrain, static bodies, non-physics blocks),
-        // create a persistent attachment to the world itself. The local pivot is specified in world space for world constraints.
-        return new AttachmentInfo(WORLD_BODY_ID, worldPosition, worldPosition);
+        // Fallback for non-physics hits: attach to the world.
+        // The pivot point for a world attachment is its position in world space.
+        return new AttachmentInfo(VxConstraintManager.WORLD_BODY_ID, worldPosition, worldPosition);
     }
 
     /**
-     * Performs a raycast using the VxRaytracing utility.
+     * Performs a raycast using the VxRaycaster utility.
      * @param player The player to cast from.
      * @return An Optional containing the hit result.
      */

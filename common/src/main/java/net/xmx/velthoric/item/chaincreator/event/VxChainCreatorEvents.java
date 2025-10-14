@@ -2,11 +2,11 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.item.chain.event;
+package net.xmx.velthoric.item.chaincreator.event;
 
 import dev.architectury.event.events.common.PlayerEvent;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.item.chain.VxChainCreatorManager;
+import net.xmx.velthoric.item.chaincreator.VxChainCreatorManager;
 
 /**
  * Handles server-side events related to the Chain Creator functionality.
@@ -28,6 +28,6 @@ public class VxChainCreatorEvents {
      * @param player The player who is quitting.
      */
     private static void onPlayerQuit(ServerPlayer player) {
-        VxChainCreatorManager.getInstance().onPlayerQuit(player);
+        VxChainCreatorManager.INSTANCE.onPlayerQuit(player);
     }
 }

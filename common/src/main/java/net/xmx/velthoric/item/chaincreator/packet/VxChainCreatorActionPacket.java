@@ -2,12 +2,12 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.item.chain.packet;
+package net.xmx.velthoric.item.chaincreator.packet;
 
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.item.chain.VxChainCreatorManager;
+import net.xmx.velthoric.item.chaincreator.VxChainCreatorManager;
 
 import java.util.function.Supplier;
 
@@ -63,7 +63,7 @@ public class VxChainCreatorActionPacket {
             ServerPlayer player = (ServerPlayer) context.getPlayer();
             if (player == null) return;
 
-            var manager = VxChainCreatorManager.getInstance();
+            var manager = VxChainCreatorManager.INSTANCE;
             switch (msg.actionType) {
                 case START_CREATION -> manager.startChainCreation(player);
                 case FINISH_CREATION -> manager.finishChainCreation(player);

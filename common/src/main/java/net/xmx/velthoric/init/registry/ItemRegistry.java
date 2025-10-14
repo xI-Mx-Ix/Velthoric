@@ -8,7 +8,7 @@ import dev.architectury.registry.registries.RegistrySupplier;
 import net.minecraft.world.item.Item;
 import net.xmx.velthoric.item.PhysicsCreatorItem;
 import net.xmx.velthoric.item.boxthrower.BoxThrowertem;
-import net.xmx.velthoric.item.chain.VxChainCreatorItem;
+import net.xmx.velthoric.item.chaincreator.VxChainCreatorItem;
 import net.xmx.velthoric.item.magnetizer.MagnetizerItem;
 import net.xmx.velthoric.item.physicsgun.PhysicsGunItem;
 
