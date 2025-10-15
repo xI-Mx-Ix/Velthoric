@@ -19,16 +19,17 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Handles the network synchronization of dynamic wheel states for all vehicles.
- * This class is responsible for efficiently collecting wheel data from 'dirty'
- * vehicles and dispatching update packets to all tracking clients.
+ * Handles the network synchronization of dynamic vehicle states.
+ * This class is responsible for efficiently collecting vehicle data from 'dirty'
+ * vehicles (e.g., wheel state, speed) and dispatching update packets to all
+ * tracking clients.
  *
  * @author xI-Mx-Ix
  */
-public class VxWheelNetworkDispatcher {
+public class VxVehicleNetworkDispatcher {
 
     /**
-     * Collects wheel state updates for all dirty vehicles and sends them to tracking players.
+     * Collects vehicle state updates for all dirty vehicles and sends them to tracking players.
      * This method is designed to be called from a dedicated network synchronization thread.
      *
      * @param level The server level.
@@ -36,13 +37,13 @@ public class VxWheelNetworkDispatcher {
      * @param bodyTrackers A map that tracks which players are watching which bodies.
      */
     public void dispatchUpdates(ServerLevel level, VxBodyManager manager, Map<UUID, Set<ServerPlayer>> bodyTrackers) {
-        // Step 1: Collect all vehicles that have been marked with dirty wheel states.
+        // Step 1: Collect all vehicles that have been marked with a dirty state.
         List<VxVehicle> dirtyVehicles = new ArrayList<>();
         for (VxBody body : manager.getAllBodies()) {
-            if (body instanceof VxVehicle vehicle && vehicle.areWheelsDirty()) {
+            if (body instanceof VxVehicle vehicle && vehicle.isVehicleStateDirty()) {
                 dirtyVehicles.add(vehicle);
                 // Reset the dirty flag immediately to prevent sending the same data multiple times.
-                vehicle.clearWheelsDirty();
+                vehicle.clearVehicleStateDirty();
             }
         }
 
@@ -61,24 +62,26 @@ public class VxWheelNetworkDispatcher {
                     continue; // Skip if no one is watching this vehicle.
                 }
 
+                // Step 3: Gather the vehicle data for the packet constructor.
+                float speedKmh = vehicle.getSpeedKmh();
                 List<VxWheel> wheels = vehicle.getWheels();
                 int wheelCount = wheels.size();
-                if (wheelCount == 0) continue;
 
-                // Step 3: Gather the wheel data into arrays for the packet constructor.
                 float[] rotations = new float[wheelCount];
                 float[] steers = new float[wheelCount];
                 float[] suspensions = new float[wheelCount];
 
-                for (int i = 0; i < wheelCount; i++) {
-                    VxWheel wheel = wheels.get(i);
-                    rotations[i] = wheel.getRotationAngle();
-                    steers[i] = wheel.getSteerAngle();
-                    suspensions[i] = wheel.getSuspensionLength();
+                if (wheelCount > 0) {
+                    for (int i = 0; i < wheelCount; i++) {
+                        VxWheel wheel = wheels.get(i);
+                        rotations[i] = wheel.getRotationAngle();
+                        steers[i] = wheel.getSteerAngle();
+                        suspensions[i] = wheel.getSuspensionLength();
+                    }
                 }
 
-                // Step 4: Create a single packet with all wheel data for this vehicle.
-                S2CUpdateWheelsPacket packet = new S2CUpdateWheelsPacket(vehicle.getPhysicsId(), wheelCount, rotations, steers, suspensions);
+                // Step 4: Create a single packet with all vehicle data.
+                S2CVehicleStatePacket packet = new S2CVehicleStatePacket(vehicle.getPhysicsId(), speedKmh, wheelCount, rotations, steers, suspensions);
 
                 // Step 5: Send the packet to every player tracking this vehicle.
                 for (ServerPlayer player : trackers) {

@@ -18,7 +18,7 @@ import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.body.packet.VxSpawnData;
 import net.xmx.velthoric.physics.body.packet.batch.*;
 import net.xmx.velthoric.physics.body.type.VxBody;
-import net.xmx.velthoric.physics.vehicle.sync.VxWheelNetworkDispatcher;
+import net.xmx.velthoric.physics.vehicle.sync.VxVehicleNetworkDispatcher;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,7 +38,7 @@ public class VxNetworkDispatcher {
     private final ServerLevel level;
     private final VxBodyManager manager;
     private final VxBodyDataStore dataStore;
-    private final VxWheelNetworkDispatcher wheelDispatcher;
+    private final VxVehicleNetworkDispatcher vehicleDispatcher;
 
     // --- Constants for network tuning ---
     private static final int NETWORK_THREAD_TICK_RATE_MS = 10;
@@ -58,7 +58,7 @@ public class VxNetworkDispatcher {
         this.level = level;
         this.manager = manager;
         this.dataStore = manager.getDataStore();
-        this.wheelDispatcher = new VxWheelNetworkDispatcher();
+        this.vehicleDispatcher = new VxVehicleNetworkDispatcher();
     }
 
     /**
@@ -103,7 +103,7 @@ public class VxNetworkDispatcher {
                 long cycleStartTime = System.nanoTime();
                 sendStateUpdates();
                 sendSynchronizedDataUpdates();
-                this.wheelDispatcher.dispatchUpdates(this.level, this.manager, this.bodyTrackers);
+                this.vehicleDispatcher.dispatchUpdates(this.level, this.manager, this.bodyTrackers);
                 long cycleEndTime = System.nanoTime();
                 long cycleDurationMs = (cycleEndTime - cycleStartTime) / 1_000_000;
                 long sleepTime = Math.max(0, NETWORK_THREAD_TICK_RATE_MS - cycleDurationMs);

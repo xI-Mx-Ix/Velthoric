@@ -20,7 +20,7 @@ import net.xmx.velthoric.item.physicsgun.packet.*;
 import net.xmx.velthoric.physics.body.packet.batch.*;
 import net.xmx.velthoric.physics.mounting.input.C2SMountInputPacket;
 import net.xmx.velthoric.physics.mounting.request.C2SRequestMountPacket;
-import net.xmx.velthoric.physics.vehicle.sync.S2CUpdateWheelsPacket;
+import net.xmx.velthoric.physics.vehicle.sync.S2CVehicleStatePacket;
 
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -70,10 +70,10 @@ public class VxPacketHandler {
         );
 
         registerPacket(
-                S2CUpdateWheelsPacket.class,
-                S2CUpdateWheelsPacket::encode,
-                S2CUpdateWheelsPacket::new,
-                S2CUpdateWheelsPacket::handle
+                S2CVehicleStatePacket.class,
+                S2CVehicleStatePacket::encode,
+                S2CVehicleStatePacket::new,
+                S2CVehicleStatePacket::handle
         );
 
         registerPacket(
