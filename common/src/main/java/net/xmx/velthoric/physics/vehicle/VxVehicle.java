@@ -4,20 +4,28 @@
  */
 package net.xmx.velthoric.physics.vehicle;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.Body;
+import com.github.stephengold.joltjni.Quat;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.VehicleCollisionTester;
+import com.github.stephengold.joltjni.VehicleCollisionTesterCastCylinder;
+import com.github.stephengold.joltjni.VehicleConstraint;
+import com.github.stephengold.joltjni.VehicleConstraintSettings;
+import com.github.stephengold.joltjni.Wheel;
+import com.github.stephengold.joltjni.WheelSettingsWv;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.Mth;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
-import net.xmx.velthoric.physics.mounting.VxMountable;
-import net.xmx.velthoric.physics.body.manager.VxJoltBridge;
-import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
+import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
+import net.xmx.velthoric.physics.body.manager.VxJoltBridge;
 import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
+import net.xmx.velthoric.physics.mounting.VxMountable;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheelRenderState;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -44,7 +52,13 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
     protected VehicleCollisionTester collisionTester;
     protected VehicleConstraint constraint;
     private boolean vehicleStateDirty = false;
-    private float speedKmh = 0.0f;
+
+    /**
+     * Represents the vehicle's speed in km/h.
+     * On the server, this value is calculated directly from the physics simulation each tick.
+     * On the client, this value is updated via network packets from the server to ensure synchronization.
+     */
+    protected float speedKmh = 0.0f;
 
     // --- Client-Side Fields ---
     @Environment(EnvType.CLIENT)
@@ -53,12 +67,14 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
     private VxWheelRenderState[] targetWheelStates;
     @Environment(EnvType.CLIENT)
     protected List<VxWheelRenderState> interpolatedWheelStates;
-    @Environment(EnvType.CLIENT)
-    protected float clientSpeedKmh = 0.0f;
 
 
     /**
      * Server-side constructor.
+     *
+     * @param type  The body type from the registry.
+     * @param world The physics world this body belongs to.
+     * @param id    The unique identifier for this body.
      */
     protected VxVehicle(VxBodyType<? extends VxVehicle> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
@@ -66,6 +82,9 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
     /**
      * Client-side constructor.
+     *
+     * @param type The body type from the registry.
+     * @param id   The unique identifier for this body.
      */
     @Environment(EnvType.CLIENT)
     protected VxVehicle(VxBodyType<? extends VxVehicle> type, UUID id) {
@@ -177,23 +196,23 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
     }
 
     /**
-     * Updates the target vehicle state. This is called by the network layer
-     * when vehicle state updates are received. Client-side only.
+     * Updates the target vehicle state on the client. This is called by the network layer
+     * when vehicle state updates are received from the server.
      *
      * @param speedKmh The new speed in kilometers per hour.
      */
     @Environment(EnvType.CLIENT)
     public void updateVehicleState(float speedKmh) {
-        this.clientSpeedKmh = speedKmh;
+        this.speedKmh = speedKmh;
     }
 
     /**
-     * Updates the target state for a specific wheel. This is called by the network layer
-     * when wheel state updates are received. Client-side only.
+     * Updates the target state for a specific wheel on the client. This is called by the network layer
+     * when wheel state updates are received.
      *
      * @param wheelIndex The index of the wheel to update.
-     * @param rotation The new rotation angle.
-     * @param steer The new steer angle.
+     * @param rotation   The new rotation angle.
+     * @param steer      The new steer angle.
      * @param suspension The new suspension length.
      */
     @Environment(EnvType.CLIENT)
@@ -239,37 +258,65 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         }
     }
 
+    /**
+     * Gets the synchronized wheel settings. Client-side only.
+     *
+     * @return A list of wheel settings.
+     */
     @Environment(EnvType.CLIENT)
     public List<WheelSettingsWv> getWheelSettings() {
         return this.getSyncData(DATA_WHEELS_SETTINGS);
     }
 
+    /**
+     * Gets the client-side list of interpolated wheel states for rendering.
+     *
+     * @return A list of wheel render states.
+     */
     @Environment(EnvType.CLIENT)
     public List<VxWheelRenderState> getInterpolatedWheelStates() {
         return interpolatedWheelStates;
     }
 
+    /**
+     * Marks the vehicle's dynamic state as dirty, flagging it for network synchronization.
+     */
     public void markVehicleStateDirty() {
         this.vehicleStateDirty = true;
     }
 
+    /**
+     * Checks if the vehicle's dynamic state is dirty and needs to be synchronized.
+     *
+     * @return True if the state is dirty, false otherwise.
+     */
     public boolean isVehicleStateDirty() {
         return vehicleStateDirty;
     }
 
+    /**
+     * Clears the dirty flag for the vehicle's dynamic state.
+     */
     public void clearVehicleStateDirty() {
         this.vehicleStateDirty = false;
     }
 
+    /**
+     * Gets the vehicle's speed in kilometers per hour.
+     * On the server, this value is calculated from the physics simulation.
+     * On the client, this value is synchronized from the server.
+     *
+     * @return The speed in km/h.
+     */
     public float getSpeedKmh() {
         return this.speedKmh;
     }
 
-    @Environment(EnvType.CLIENT)
-    public float getClientSpeedKmh() {
-        return this.clientSpeedKmh;
-    }
-
+    /**
+     * Gets the list of wheels attached to this vehicle.
+     *
+     * @return The list of VxWheel instances.
+     */
     public List<VxWheel> getWheels() {
         return wheels;
     }
