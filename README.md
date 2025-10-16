@@ -82,6 +82,16 @@ You can target objects by `type`, `bodytype`, `distance`, `limit`, and `sort`.
 * **BoxThrower** – Spawn and launch boxes instantly.
 * **ChainCreator** – Connect two objects (or one to the ground) with a chain.
 
+### 💻 **Supported Platforms**
+
+- Windows x86_64
+- Linux x86_64
+- Linux Arm64
+- MacOS x86_64
+- MacOS Arm64
+
+> **Note:** All other platforms (e.g., 32-bit systems, Android) are **not supported** and will **crash**.
+
 ### ⚠️ **Bug Reports & Mod Compatibility**
 
 Found a bug, crash, or an incompatible mod? Please report it on the **issue tracker**:
