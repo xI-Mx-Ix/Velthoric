@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/velthoric_icon.png" alt="Velthoric Icon" width="128" height="128" style="border-radius: 16px;">
+  <img src="https://raw.githubusercontent.com/xI-Mx-Ix/Velthoric/refs/heads/master/assets/velthoric_icon_rounded_corners.png" alt="Velthoric Icon" width="128" height="128">
 </p>
 
 <div align="center">
