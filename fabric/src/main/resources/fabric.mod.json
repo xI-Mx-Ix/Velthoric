@@ -8,7 +8,7 @@
     "${mod_authors}"
   ],
   "license": "${mod_license}",
-  "icon": "assets/velthoric/velthoric.png",
+  "icon": "assets/velthoric/velthoric_icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [
