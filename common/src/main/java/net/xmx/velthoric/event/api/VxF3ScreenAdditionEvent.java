@@ -8,7 +8,7 @@ import dev.architectury.event.Event;
 import dev.architectury.event.EventFactory;
 import java.util.List;
 
-public class VxDebugEvent {
+public class VxF3ScreenAdditionEvent {
 
     /**
      * Fired when the debug screen text is being gathered.

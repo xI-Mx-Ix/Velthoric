@@ -16,6 +16,7 @@
     "event.level.MixinServerLevel_VxLevelEvent",
     "event.server.MixinMinecraftServer_VxServerLifecycleEvent",
     "misc.ExplosionMixin_TriggerExplosion",
+    "misc.accessor.MixinDebugScreenOverlayAccessor",
     "mounting.entity.MixinEntity",
     "mounting.render.MixinEntityRenderer",
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
@@ -23,7 +24,7 @@
   ],
   "client": [
     "debug.EntityRenderDispatcherAccessor",
-    "event.debug.MixinDebugScreenOverlay_VxDebugEvent",
+    "event.debug.MixinDebugScreenOverlay_VxF3ScreenAdditionEvent",
     "event.network.MixinClientLevel_VxClientPlayerNetworkEvent",
     "event.network.MixinClientPacketListener_VxClientPlayerNetworkEvent",
     "event.render.MixinLevelRenderer_VxRenderEvent",

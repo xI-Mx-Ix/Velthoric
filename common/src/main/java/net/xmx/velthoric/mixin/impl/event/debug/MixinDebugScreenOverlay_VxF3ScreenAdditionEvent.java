@@ -5,7 +5,7 @@
 package net.xmx.velthoric.mixin.impl.event.debug;
 
 import net.minecraft.client.gui.components.DebugScreenOverlay;
-import net.xmx.velthoric.event.api.VxDebugEvent;
+import net.xmx.velthoric.event.api.VxF3ScreenAdditionEvent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -16,11 +16,11 @@ import java.util.List;
  * @author xI-Mx-Ix
  */
 @Mixin(DebugScreenOverlay.class)
-public class MixinDebugScreenOverlay_VxDebugEvent {
+public class MixinDebugScreenOverlay_VxF3ScreenAdditionEvent {
 
     @Inject(method = "getGameInformation", at = @At("RETURN"))
     private void velthoric_fireAddDebugInfoEvent(CallbackInfoReturnable<List<String>> cir) {
         List<String> gameInfo = cir.getReturnValue();
-        VxDebugEvent.AddDebugInfo.EVENT.invoker().onAddDebugInfo(new VxDebugEvent.AddDebugInfo(gameInfo));
+        VxF3ScreenAdditionEvent.AddDebugInfo.EVENT.invoker().onAddDebugInfo(new VxF3ScreenAdditionEvent.AddDebugInfo(gameInfo));
     }
 }
