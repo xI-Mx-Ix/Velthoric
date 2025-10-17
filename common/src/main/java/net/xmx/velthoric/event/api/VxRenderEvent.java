@@ -11,6 +11,9 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
 import org.joml.Matrix4f;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class VxRenderEvent {
 
     /**

@@ -11,33 +11,34 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
 
+/**
+ * A container for server-side chunk events.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxChunkEvent {
-    protected final LevelChunk chunk;
-
-    public VxChunkEvent(LevelChunk chunk) {
-        this.chunk = chunk;
-    }
-
-    public LevelChunk getLevelChunk() {
-        return chunk;
-    }
-
-    public ChunkPos getChunkPos() {
-        return chunk.getPos();
-    }
-
-    public ServerLevel getLevel() {
-        return (ServerLevel) chunk.getLevel();
-    }
 
     /**
      * Fired when a chunk is loaded on the server.
      */
-    public static class Load extends VxChunkEvent {
+    public static class Load {
         public static final Event<Listener> EVENT = EventFactory.createLoop();
+        private final LevelChunk chunk;
 
         public Load(LevelChunk chunk) {
-            super(chunk);
+            this.chunk = chunk;
+        }
+
+        public LevelChunk getLevelChunk() {
+            return chunk;
+        }
+
+        public ChunkPos getChunkPos() {
+            return chunk.getPos();
+        }
+
+        public ServerLevel getLevel() {
+            return (ServerLevel) chunk.getLevel();
         }
 
         @FunctionalInterface
@@ -49,11 +50,24 @@ public class VxChunkEvent {
     /**
      * Fired when a chunk is unloaded on the server.
      */
-    public static class Unload extends VxChunkEvent {
+    public static class Unload {
         public static final Event<Listener> EVENT = EventFactory.createLoop();
+        private final LevelChunk chunk;
 
         public Unload(LevelChunk chunk) {
-            super(chunk);
+            this.chunk = chunk;
+        }
+
+        public LevelChunk getLevelChunk() {
+            return chunk;
+        }
+
+        public ChunkPos getChunkPos() {
+            return chunk.getPos();
+        }
+
+        public ServerLevel getLevel() {
+            return (ServerLevel) chunk.getLevel();
         }
 
         @FunctionalInterface
@@ -63,19 +77,32 @@ public class VxChunkEvent {
     }
 
     /**
-     * Fired when a chunk is watched by a player.
+     * Fired when a chunk becomes watched by a player.
      */
-    public static class Watch extends VxChunkEvent {
-        private final ServerPlayer player;
+    public static class Watch {
         public static final Event<Listener> EVENT = EventFactory.createLoop();
+        private final LevelChunk chunk;
+        private final ServerPlayer player;
 
         public Watch(LevelChunk chunk, ServerPlayer player) {
-            super(chunk);
+            this.chunk = chunk;
             this.player = player;
         }
 
         public ServerPlayer getPlayer() {
             return player;
+        }
+
+        public LevelChunk getLevelChunk() {
+            return chunk;
+        }
+
+        public ChunkPos getChunkPos() {
+            return chunk.getPos();
+        }
+
+        public ServerLevel getLevel() {
+            return (ServerLevel) chunk.getLevel();
         }
 
         @FunctionalInterface
@@ -85,19 +112,32 @@ public class VxChunkEvent {
     }
 
     /**
-     * Fired when a chunk is unwatched by a player.
+     * Fired when a chunk is no longer watched by a player.
      */
-    public static class Unwatch extends VxChunkEvent {
-        private final ServerPlayer player;
+    public static class Unwatch {
         public static final Event<Listener> EVENT = EventFactory.createLoop();
+        private final LevelChunk chunk;
+        private final ServerPlayer player;
 
         public Unwatch(LevelChunk chunk, ServerPlayer player) {
-            super(chunk);
+            this.chunk = chunk;
             this.player = player;
         }
 
         public ServerPlayer getPlayer() {
             return player;
+        }
+
+        public LevelChunk getLevelChunk() {
+            return chunk;
+        }
+
+        public ChunkPos getChunkPos() {
+            return chunk.getPos();
+        }
+
+        public ServerLevel getLevel() {
+            return (ServerLevel) chunk.getLevel();
         }
 
         @FunctionalInterface

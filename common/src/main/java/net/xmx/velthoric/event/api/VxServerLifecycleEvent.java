@@ -8,25 +8,26 @@ import dev.architectury.event.Event;
 import dev.architectury.event.EventFactory;
 import net.minecraft.server.MinecraftServer;
 
-public abstract class VxServerLifecycleEvent {
-    protected final MinecraftServer server;
-
-    public VxServerLifecycleEvent(MinecraftServer server) {
-        this.server = server;
-    }
-
-    public MinecraftServer getServer() {
-        return server;
-    }
+/**
+ * A container for server lifecycle events.
+ *
+ * @author xI-Mx-Ix
+ */
+public class VxServerLifecycleEvent {
 
     /**
      * Fired when the server is starting.
      */
-    public static class Starting extends VxServerLifecycleEvent {
+    public static class Starting {
         public static final Event<Listener> EVENT = EventFactory.createLoop();
+        private final MinecraftServer server;
 
         public Starting(MinecraftServer server) {
-            super(server);
+            this.server = server;
+        }
+
+        public MinecraftServer getServer() {
+            return server;
         }
 
         @FunctionalInterface
@@ -38,11 +39,16 @@ public abstract class VxServerLifecycleEvent {
     /**
      * Fired when the server is stopping.
      */
-    public static class Stopping extends VxServerLifecycleEvent {
+    public static class Stopping {
         public static final Event<Listener> EVENT = EventFactory.createLoop();
+        private final MinecraftServer server;
 
         public Stopping(MinecraftServer server) {
-            super(server);
+            this.server = server;
+        }
+
+        public MinecraftServer getServer() {
+            return server;
         }
 
         @FunctionalInterface

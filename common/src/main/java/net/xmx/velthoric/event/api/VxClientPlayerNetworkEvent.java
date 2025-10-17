@@ -12,6 +12,9 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.Connection;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class VxClientPlayerNetworkEvent {
 
     public static class Disconnect {

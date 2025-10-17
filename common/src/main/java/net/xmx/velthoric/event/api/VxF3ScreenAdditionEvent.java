@@ -8,6 +8,9 @@ import dev.architectury.event.Event;
 import dev.architectury.event.EventFactory;
 import java.util.List;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class VxF3ScreenAdditionEvent {
 
     /**
