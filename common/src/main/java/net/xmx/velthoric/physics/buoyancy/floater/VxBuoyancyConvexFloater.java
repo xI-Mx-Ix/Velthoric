@@ -93,7 +93,10 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
 
         convexPart.getSubmergedVolume(partWorldTransform.toMat44(), scale, waterPlane, submergedVolumeArr, submergedVolumeArr, centerOfBuoyancyWorld, bodyCom);
 
-        float submergedVolume = submergedVolumeArr[0];
+        // The submerged volume calculation can return a negative value if the shape is fully
+        // submerged in the direction of the plane normal. The absolute value ensures that the
+        // calculated forces are always applied in the correct direction.
+        float submergedVolume = Math.abs(submergedVolumeArr[0]);
         if (submergedVolume < 1e-6f) {
             return; // Not submerged.
         }
