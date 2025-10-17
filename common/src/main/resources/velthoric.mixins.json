@@ -13,6 +13,7 @@
     "event.level.MixinMinecraftServer_VxLevelEvent",
     "event.level.MixinServerLevel_VxLevelEvent",
     "event.server.MixinMinecraftServer_VxServerLifecycleEvent",
+    "joltjni.MixinConvexShape",
     "misc.ExplosionMixin_TriggerExplosion",
     "mounting.entity.MixinEntity",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
@@ -20,22 +21,22 @@
   "client": [
     "debug.EntityRenderDispatcherAccessor",
     "event.debug.MixinDebugScreenOverlay_VxF3ScreenAdditionEvent",
+    "event.input.MixinKeyboardHandler_VxKeyEvent",
+    "event.input.MixinMouseHandler_VxMouseEvent",
     "event.network.MixinClientLevel_VxClientPlayerNetworkEvent",
     "event.network.MixinClientPacketListener_VxClientPlayerNetworkEvent",
     "event.render.MixinLevelRenderer_VxRenderEvent",
     "misc.MixinDebugScreenOverlay",
-    "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
     "misc.MixinMinecraft",
+    "misc.accessor.MixinDebugScreenOverlayAccessor",
     "mounting.input.MixinLocalPlayer",
     "mounting.render.MixinCamera",
     "mounting.render.MixinEntityRenderDispatcher",
+    "mounting.render.MixinEntityRenderer",
     "mounting.render.MixinGameRenderer",
     "mounting.request.MixinMinecraft",
-    "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
-    "event.input.MixinKeyboardHandler_VxKeyEvent",
-    "mounting.render.MixinEntityRenderer",
-    "event.input.MixinMouseHandler_VxMouseEvent",
-    "misc.accessor.MixinDebugScreenOverlayAccessor"
+    "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
+    "physicsgun.PlayerRendererMixin_PhysicsGunArmPose"
   ],
   "injectors": {
     "defaultRequire": 1
