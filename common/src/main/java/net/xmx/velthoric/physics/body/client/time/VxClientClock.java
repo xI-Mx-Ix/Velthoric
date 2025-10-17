@@ -4,7 +4,6 @@
  */
 package net.xmx.velthoric.physics.body.client.time;
 
-
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
@@ -16,10 +15,8 @@ import net.fabricmc.api.Environment;
  * @author xI-Mx-Ix
  */
 @Environment(EnvType.CLIENT)
-public class VxClientClock {
-
-    // The singleton instance of the clock.
-    private static final VxClientClock INSTANCE = new VxClientClock();
+public enum VxClientClock {
+    INSTANCE;
 
     // Flag indicating if the clock is currently paused. Volatile for thread safety.
     private volatile boolean isPaused = false;
@@ -27,16 +24,6 @@ public class VxClientClock {
     private long pauseStartTimeNanos = 0L;
     // The total accumulated time the clock has been paused.
     private long totalAccumulatedPauseTimeNanos = 0L;
-
-    // Private constructor to enforce singleton pattern.
-    private VxClientClock() {}
-
-    /**
-     * @return The singleton instance of the {@link VxClientClock}.
-     */
-    public static VxClientClock getInstance() {
-        return INSTANCE;
-    }
 
     /**
      * Gets the current game time in nanoseconds.

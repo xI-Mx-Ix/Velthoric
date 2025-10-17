@@ -50,7 +50,7 @@ public class VxClientBodyManager {
     // The interpolator responsible for calculating smooth body transforms.
     private final VxClientBodyInterpolator interpolator = new VxClientBodyInterpolator();
     // The client-side clock, which can be paused.
-    private final VxClientClock clock = VxClientClock.getInstance();
+    private final VxClientClock clock = VxClientClock.INSTANCE;
 
     // Map of all active client-side physics body handles.
     private final Map<UUID, VxBody> managedBodies = new ConcurrentHashMap<>();

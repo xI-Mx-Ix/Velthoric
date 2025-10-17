@@ -30,7 +30,7 @@ public abstract class MixinMinecraft {
     @Inject(method = "runTick", at = @At("HEAD"))
     private void velthoric$onRunTick(boolean renderLevel, CallbackInfo ci) {
         Minecraft mc = (Minecraft) (Object) this;
-        VxClientClock clientClock = VxClientClock.getInstance();
+        VxClientClock clientClock = VxClientClock.INSTANCE;
 
         boolean isGamePausable = this.singleplayerServer != null && !this.singleplayerServer.isPublished();
 
