@@ -20,6 +20,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
+import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.body.util.VxVoxelShapeUtil;
@@ -52,8 +53,8 @@ public class BlockRigidBody extends VxRigidBody {
     }
 
     @Override
-    protected void defineSyncData() {
-        this.synchronizedData.define(DATA_BLOCK_STATE_ID, Block.getId(Blocks.STONE.defaultBlockState()));
+    protected void defineSyncData(VxSynchronizedData.Builder builder) {
+        builder.define(DATA_BLOCK_STATE_ID, Block.getId(Blocks.STONE.defaultBlockState()));
     }
 
     public void setRepresentedBlockState(BlockState blockState) {

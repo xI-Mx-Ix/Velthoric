@@ -61,8 +61,10 @@ public abstract class VxBody {
         this.type = type;
         this.physicsWorld = physicsWorld;
         this.physicsId = id;
-        this.synchronizedData = new VxSynchronizedData(EnvType.SERVER);
-        this.defineSyncData();
+        // Use the builder to construct the synchronized data
+        VxSynchronizedData.Builder builder = new VxSynchronizedData.Builder();
+        this.defineSyncData(builder);
+        this.synchronizedData = builder.build(EnvType.SERVER);
     }
 
     /**
@@ -74,8 +76,10 @@ public abstract class VxBody {
     protected VxBody(VxBodyType<? extends VxBody> type, UUID id) {
         this.type = type;
         this.physicsId = id;
-        this.synchronizedData = new VxSynchronizedData(EnvType.CLIENT);
-        this.defineSyncData();
+        // Use the builder to construct the synchronized data
+        VxSynchronizedData.Builder builder = new VxSynchronizedData.Builder();
+        this.defineSyncData(builder);
+        this.synchronizedData = builder.build(EnvType.CLIENT);
         // Server-only fields are left null on the client.
         this.physicsWorld = null;
     }
@@ -112,9 +116,10 @@ public abstract class VxBody {
 
     /**
      * Called in the constructor to define all synchronized data fields for this body type.
-     * Implementations should call {@code synchronizedData.define(ACCESSOR, defaultValue)}.
+     * Implementations should call {@code builder.define(ACCESSOR, defaultValue)}.
+     * @param builder The builder to define data on.
      */
-    protected abstract void defineSyncData();
+    protected abstract void defineSyncData(VxSynchronizedData.Builder builder);
 
     /**
      * Gets the value of a synchronized data field.

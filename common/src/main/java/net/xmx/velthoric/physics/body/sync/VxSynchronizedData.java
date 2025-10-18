@@ -23,30 +23,18 @@ import java.util.Objects;
  */
 public class VxSynchronizedData {
 
-    private final Int2ObjectMap<Entry<?>> entries = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectMap<Entry<?>> entries;
     private final EnvType environment;
     private boolean isDirty;
 
-    public VxSynchronizedData(EnvType environment) {
+    private VxSynchronizedData(EnvType environment, Int2ObjectMap<Entry<?>> entries) {
         this.environment = environment;
-    }
-
-    /**
-     * Defines a new synchronized data entry with a default value.
-     * @param accessor The accessor for the data.
-     * @param defaultValue The initial value.
-     * @param <T> The data type.
-     */
-    public <T> void define(VxDataAccessor<T> accessor, T defaultValue) {
-        int id = accessor.getId();
-        if (this.entries.containsKey(id)) {
-            throw new IllegalArgumentException("Duplicate data accessor id: " + id);
-        }
-        this.entries.put(id, new Entry<>(accessor, defaultValue));
+        this.entries = entries;
     }
 
     /**
      * Retrieves the current value for a given data accessor.
+     *
      * @param accessor The key for the data.
      * @param <T> The data type.
      * @return The current value.
@@ -63,9 +51,10 @@ public class VxSynchronizedData {
     /**
      * Sets a new value for a given data accessor.
      * On the server, this will mark the entry as dirty if the value has changed.
+     *
      * @param accessor The key for the data.
-     * @param value The new value.
-     * @param <T> The data type.
+     * @param value    The new value.
+     * @param <T>      The data type.
      */
     public <T> void set(VxDataAccessor<T> accessor, T value) {
         Entry<T> entry = this.getEntry(accessor);
@@ -93,6 +82,7 @@ public class VxSynchronizedData {
 
     /**
      * Gathers all dirty entries for network synchronization.
+     *
      * @return A list of dirty entries, or null if nothing is dirty.
      */
     @Nullable
@@ -111,6 +101,7 @@ public class VxSynchronizedData {
 
     /**
      * Gathers all defined entries, for initial spawn synchronization.
+     *
      * @return A list containing all entries.
      */
     public List<Entry<?>> getAllEntries() {
@@ -130,7 +121,8 @@ public class VxSynchronizedData {
 
     /**
      * Writes a list of entries to a buffer.
-     * @param buf The buffer to write to.
+     *
+     * @param buf            The buffer to write to.
      * @param entriesToWrite The list of entries to serialize.
      */
     @SuppressWarnings("unchecked")
@@ -146,7 +138,8 @@ public class VxSynchronizedData {
     /**
      * Reads entries from a buffer, applies them to this data store,
      * and calls the on-update hook on the provided body for each entry.
-     * @param buf The buffer to read from.
+     *
+     * @param buf  The buffer to read from.
      * @param body The body instance whose data is being updated, used to call the hook.
      */
     public void readEntries(VxByteBuf buf, VxBody body) {
@@ -157,10 +150,7 @@ public class VxSynchronizedData {
             }
             Entry<?> entry = this.entries.get(id);
             if (entry != null) {
-                // 1. Read and apply the data value (existing logic)
                 this.readEntry(buf, entry);
-
-                // 2. Call the hook on the body, notifying it of the specific change (new logic)
                 body.onSyncedDataUpdated(entry.getAccessor());
             }
         }
@@ -172,7 +162,43 @@ public class VxSynchronizedData {
     }
 
     /**
+     * A builder for creating {@link VxSynchronizedData} instances.
+     * It collects data definitions before constructing the final immutable map.
+     */
+    public static class Builder {
+        private final Int2ObjectMap<Entry<?>> entries = new Int2ObjectOpenHashMap<>();
+
+        /**
+         * Defines a new synchronized data entry with a default value.
+         *
+         * @param accessor     The accessor for the data.
+         * @param defaultValue The initial value.
+         * @param <T>          The data type.
+         * @return This builder instance for chaining.
+         */
+        public <T> Builder define(VxDataAccessor<T> accessor, T defaultValue) {
+            int id = accessor.getId();
+            if (this.entries.containsKey(id)) {
+                throw new IllegalArgumentException("Duplicate data accessor id: " + id);
+            }
+            this.entries.put(id, new Entry<>(accessor, defaultValue));
+            return this;
+        }
+
+        /**
+         * Builds the {@link VxSynchronizedData} instance.
+         *
+         * @param environment The environment (client or server) this data belongs to.
+         * @return A new {@link VxSynchronizedData} instance.
+         */
+        public VxSynchronizedData build(EnvType environment) {
+            return new VxSynchronizedData(environment, new Int2ObjectOpenHashMap<>(this.entries));
+        }
+    }
+
+    /**
      * Represents a single piece of synchronized data.
+     *
      * @param <T> The data type.
      */
     public static class Entry<T> {

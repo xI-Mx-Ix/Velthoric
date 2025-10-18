@@ -24,6 +24,7 @@ import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
+import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.mounting.VxMountable;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
@@ -95,8 +96,8 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
     }
 
     @Override
-    protected void defineSyncData() {
-        this.synchronizedData.define(DATA_WHEELS_SETTINGS, Collections.emptyList());
+    protected void defineSyncData(VxSynchronizedData.Builder builder) {
+        builder.define(DATA_WHEELS_SETTINGS, Collections.emptyList());
     }
 
     @Override

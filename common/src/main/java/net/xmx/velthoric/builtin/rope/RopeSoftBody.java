@@ -16,6 +16,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
+import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
 import net.xmx.velthoric.physics.body.type.factory.VxSoftBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -56,8 +57,8 @@ public class RopeSoftBody extends VxSoftBody {
     }
 
     @Override
-    protected void defineSyncData() {
-        this.synchronizedData.define(DATA_ROPE_RADIUS, 0.1f);
+    protected void defineSyncData(VxSynchronizedData.Builder builder) {
+        builder.define(DATA_ROPE_RADIUS, 0.1f);
     }
 
     public void setConfiguration(float ropeLength, int numSegments, float ropeRadius, float mass, float compliance) {

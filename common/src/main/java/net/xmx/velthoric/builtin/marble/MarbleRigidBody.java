@@ -14,6 +14,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
+import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -46,8 +47,8 @@ public class MarbleRigidBody extends VxRigidBody {
     }
 
     @Override
-    protected void defineSyncData() {
-        this.synchronizedData.define(DATA_RADIUS, 0.15f);
+    protected void defineSyncData(VxSynchronizedData.Builder builder) {
+        builder.define(DATA_RADIUS, 0.15f);
     }
 
     public void setRadius(float radius) {

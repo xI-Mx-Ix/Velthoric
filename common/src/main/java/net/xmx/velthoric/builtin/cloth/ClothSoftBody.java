@@ -14,6 +14,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
+import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
 import net.xmx.velthoric.physics.body.type.factory.VxSoftBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -56,9 +57,9 @@ public class ClothSoftBody extends VxSoftBody {
     }
 
     @Override
-    protected void defineSyncData() {
-        this.synchronizedData.define(DATA_WIDTH_SEGMENTS, 15);
-        this.synchronizedData.define(DATA_HEIGHT_SEGMENTS, 15);
+    protected void defineSyncData(VxSynchronizedData.Builder builder) {
+        builder.define(DATA_WIDTH_SEGMENTS, 15);
+        builder.define(DATA_HEIGHT_SEGMENTS, 15);
     }
 
     public void setConfiguration(int widthSegments, int heightSegments, float clothWidth, float clothHeight, float mass, float compliance) {

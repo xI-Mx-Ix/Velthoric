@@ -17,6 +17,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
+import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -60,9 +61,9 @@ public class VxChainPartRigidBody extends VxRigidBody {
      * The length and radius are synced from server to client.
      */
     @Override
-    protected void defineSyncData() {
-        this.synchronizedData.define(DATA_LENGTH, 0.8f);
-        this.synchronizedData.define(DATA_RADIUS, 0.1f);
+    protected void defineSyncData(VxSynchronizedData.Builder builder) {
+        builder.define(DATA_LENGTH, 0.8f);
+        builder.define(DATA_RADIUS, 0.1f);
     }
 
     /**

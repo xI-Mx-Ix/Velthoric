@@ -12,6 +12,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.mounting.input.VxMountInput;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
@@ -73,9 +74,9 @@ public abstract class VxCar extends VxVehicle {
     }
 
     @Override
-    protected void defineSyncData() {
-        super.defineSyncData();
-        this.synchronizedData.define(DATA_CHASSIS_HALF_EXTENTS, new Vec3(1.1f, 0.5f, 2.4f));
+    protected void defineSyncData(VxSynchronizedData.Builder builder) {
+        super.defineSyncData(builder);
+        builder.define(DATA_CHASSIS_HALF_EXTENTS, new Vec3(1.1f, 0.5f, 2.4f));
     }
 
     @Override
