@@ -9,7 +9,6 @@
     "body.MixinEntityStorage_Persistence",
     "body.MixinServerLevel_Persistence",
     "command.MixinArgumentTypeInfos",
-    "event.chunk.MixinChunkMap_VxChunkEvent",
     "event.level.MixinMinecraftServer_VxLevelEvent",
     "event.level.MixinServerLevel_VxLevelEvent",
     "event.level.client.MixinMinecraft_VxClientLevelEvent",
