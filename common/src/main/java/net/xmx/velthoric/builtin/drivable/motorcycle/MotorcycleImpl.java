@@ -118,7 +118,7 @@ public class MotorcycleImpl extends VxMotorcycle {
     }
 
     @Override
-    public List<VxSeat> defineSeats() {
+    public void defineSeats(VxSeat.Builder builder) {
         Vector3f riderOffset = new Vector3f(0.0f, 0.7f, -0.2f);
         AABB localAABB = new AABB(
                 riderOffset.x - 0.3, riderOffset.y - 0.4, riderOffset.z - 0.3,
@@ -130,7 +130,7 @@ public class MotorcycleImpl extends VxMotorcycle {
         UUID seatId = UUID.nameUUIDFromBytes((this.getPhysicsId().toString() + seatIdentifier).getBytes(StandardCharsets.UTF_8));
         VxSeat driverSeat = new VxSeat(seatId, seatIdentifier, localAABB, riderOffset, true);
 
-        return List.of(driverSeat);
+        builder.addSeat(driverSeat);
     }
 
     @Override

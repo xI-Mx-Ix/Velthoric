@@ -10,7 +10,6 @@ import net.xmx.velthoric.physics.mounting.input.VxMountInput;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -44,13 +43,27 @@ public interface VxMountable {
     VxTransform getTransform();
 
     /**
-     * Defines all seats for this mountable body.
-     * This method is called by the appropriate manager when the body is created
-     * to automatically register its seats.
+     * Defines all seats for this mountable body by adding them to the provided builder.
+     * This method is called by the {@link net.xmx.velthoric.physics.mounting.manager.VxMountingManager}
+     * when the body is created to automatically register its seats.
+     * <p>
+     * Example implementation:
+     * <pre>{@code
+     * @Override
+     * public void defineSeats(VxSeat.Builder builder) {
+     *     builder.addSeat(new VxSeat(
+     *         UUID.randomUUID(),
+     *         "driver_seat",
+     *         new AABB(-0.5, 0.0, -0.5, 0.5, 1.0, 0.5),
+     *         new Vector3f(0.0f, 0.5f, 0.0f),
+     *         true
+     *     ));
+     * }
+     * }</pre>
      *
-     * @return A list of {@link VxSeat} objects to be added to this entity. Can be null or empty.
+     * @param builder The {@link VxSeat.Builder} to which seats should be added.
      */
-    List<VxSeat> defineSeats();
+    void defineSeats(VxSeat.Builder builder);
 
     /**
      * Called when a player successfully starts mounting this body.

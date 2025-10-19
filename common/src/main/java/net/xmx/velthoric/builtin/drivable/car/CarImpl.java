@@ -145,7 +145,7 @@ public class CarImpl extends VxCar {
     }
 
     @Override
-    public List<VxSeat> defineSeats() {
+    public void defineSeats(VxSeat.Builder builder) {
         // Front seat (driver)
         Vector3f frontOffset = new Vector3f(0.0f, 0.5f, 0.5f);
         AABB frontAABB = new AABB(
@@ -170,9 +170,9 @@ public class CarImpl extends VxCar {
         );
         VxSeat rearSeat = new VxSeat(rearId, rearIdentifier, rearAABB, rearOffset, false);
 
-        return List.of(frontSeat, rearSeat);
+        builder.addSeat(frontSeat);
+        builder.addSeat(rearSeat);
     }
-
 
     @Override
     public int createJoltBody(VxRigidBodyFactory factory) {

@@ -10,9 +10,12 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.math.VxTransform;
+import net.xmx.velthoric.physics.mounting.VxMountable;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -145,5 +148,33 @@ public class VxSeat {
      */
     public boolean isDriverSeat() {
         return this.isDriverSeat;
+    }
+
+    /**
+     * A builder class for defining and collecting a list of {@link VxSeat} objects.
+     * This is used to streamline the seat definition process for a {@link VxMountable}.
+     */
+    public static class Builder {
+        private final List<VxSeat> seats = new ArrayList<>();
+
+        /**
+         * Adds a new seat to the collection.
+         *
+         * @param seat The {@link VxSeat} to add.
+         * @return This builder instance for method chaining.
+         */
+        public Builder addSeat(VxSeat seat) {
+            this.seats.add(seat);
+            return this;
+        }
+
+        /**
+         * Builds and returns the final list of defined seats.
+         *
+         * @return A new {@link List} containing all the added seats.
+         */
+        public List<VxSeat> build() {
+            return new ArrayList<>(this.seats);
+        }
     }
 }

@@ -155,11 +155,12 @@ public class VxClientBodyManager {
 
         // If the body is mountable, register its seats on the client.
         if (body instanceof VxMountable mountable) {
-            List<VxSeat> seats = mountable.defineSeats();
-            if (seats != null) {
-                for (VxSeat seat : seats) {
-                    VxClientMountingManager.INSTANCE.addSeat(id, seat);
-                }
+            VxSeat.Builder seatBuilder = new VxSeat.Builder();
+            mountable.defineSeats(seatBuilder);
+            List<VxSeat> seats = seatBuilder.build();
+
+            for (VxSeat seat : seats) {
+                VxClientMountingManager.INSTANCE.addSeat(id, seat);
             }
         }
 

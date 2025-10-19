@@ -55,11 +55,12 @@ public class VxMountingManager {
      */
     public void onBodyAdded(VxBody body) {
         if (body instanceof VxMountable mountable) {
-            List<VxSeat> seats = mountable.defineSeats();
-            if (seats != null) {
-                for (VxSeat seat : seats) {
-                    addSeat(body.getPhysicsId(), seat);
-                }
+            VxSeat.Builder seatBuilder = new VxSeat.Builder();
+            mountable.defineSeats(seatBuilder);
+            List<VxSeat> seats = seatBuilder.build();
+
+            for (VxSeat seat : seats) {
+                addSeat(body.getPhysicsId(), seat);
             }
         }
     }
