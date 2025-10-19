@@ -21,7 +21,6 @@ import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -123,11 +122,8 @@ public class MotorcycleImpl extends VxMotorcycle {
                 riderOffset.x - 0.3, riderOffset.y - 0.4, riderOffset.z - 0.3,
                 riderOffset.x + 0.3, riderOffset.y + 0.4, riderOffset.z + 0.3
         );
-        // Generate a deterministic UUID based on the body's ID and a seat identifier string.
-        // This ensures the seat ID is identical on both server and client.
         String seatIdentifier = "driver_seat";
-        UUID seatId = UUID.nameUUIDFromBytes((this.getPhysicsId().toString() + seatIdentifier).getBytes(StandardCharsets.UTF_8));
-        VxSeat driverSeat = new VxSeat(seatId, seatIdentifier, localAABB, riderOffset, true);
+        VxSeat driverSeat = new VxSeat(this.getPhysicsId(), seatIdentifier, localAABB, riderOffset, true);
 
         builder.addSeat(driverSeat);
     }

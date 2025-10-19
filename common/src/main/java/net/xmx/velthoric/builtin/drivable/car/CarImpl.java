@@ -21,7 +21,6 @@ import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -152,10 +151,7 @@ public class CarImpl extends VxCar {
                 frontOffset.x + 0.3, frontOffset.y + 0.4, frontOffset.z + 0.3
         );
         String frontIdentifier = "front_seat";
-        UUID frontId = UUID.nameUUIDFromBytes(
-                (this.getPhysicsId().toString() + frontIdentifier).getBytes(StandardCharsets.UTF_8)
-        );
-        VxSeat frontSeat = new VxSeat(frontId, frontIdentifier, frontAABB, frontOffset, true);
+        VxSeat frontSeat = new VxSeat(this.getPhysicsId(), frontIdentifier, frontAABB, frontOffset, true);
 
         // Rear seat (passenger)
         Vector3f rearOffset = new Vector3f(0.0f, 0.5f, -0.5f);
@@ -164,10 +160,7 @@ public class CarImpl extends VxCar {
                 rearOffset.x + 0.3, rearOffset.y + 0.4, rearOffset.z + 0.3
         );
         String rearIdentifier = "rear_seat";
-        UUID rearId = UUID.nameUUIDFromBytes(
-                (this.getPhysicsId().toString() + rearIdentifier).getBytes(StandardCharsets.UTF_8)
-        );
-        VxSeat rearSeat = new VxSeat(rearId, rearIdentifier, rearAABB, rearOffset, false);
+        VxSeat rearSeat = new VxSeat(this.getPhysicsId(), rearIdentifier, rearAABB, rearOffset, false);
 
         builder.addSeat(frontSeat);
         builder.addSeat(rearSeat);
