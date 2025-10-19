@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.body;
+package net.xmx.velthoric.mixin.impl.persistence;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProgressListener;
@@ -25,7 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * @author xI-Mx-Ix
  */
 @Mixin(ServerLevel.class)
-public class MixinServerLevel_Persistence {
+public class MixinServerLevel_PersistOnLevelSave {
 
     @Inject(
             method = "save(Lnet/minecraft/util/ProgressListener;ZZ)V",

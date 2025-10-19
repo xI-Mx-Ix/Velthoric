@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.body;
+package net.xmx.velthoric.mixin.impl.persistence;
 
 import net.minecraft.server.level.ChunkHolder;
 import net.minecraft.server.level.ChunkMap;
@@ -24,7 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * @author xI-Mx-Ix
  */
 @Mixin(ChunkMap.class)
-public class MixinChunkMap_UnloadBodies {
+public class MixinChunkMap_UnloadBodiesAndConstraints {
 
     @Shadow @Final ServerLevel level;
 

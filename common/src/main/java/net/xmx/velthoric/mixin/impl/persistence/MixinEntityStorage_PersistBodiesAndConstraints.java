@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.body;
+package net.xmx.velthoric.mixin.impl.persistence;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.thread.ProcessorMailbox;
@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
  * @author xI-Mx-Ix
  */
 @Mixin(EntityStorage.class)
-public abstract class MixinEntityStorage_Persistence implements EntityPersistentStorage<Entity> {
+public abstract class MixinEntityStorage_PersistBodiesAndConstraints implements EntityPersistentStorage<Entity> {
 
     @Shadow @Final private ServerLevel level;
     @Shadow @Final private ProcessorMailbox<Runnable> entityDeserializerQueue;

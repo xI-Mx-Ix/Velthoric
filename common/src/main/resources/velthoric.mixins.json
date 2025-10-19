@@ -5,9 +5,9 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "body.MixinChunkMap_ChunkTracking",
-    "body.MixinChunkMap_UnloadBodies",
-    "body.MixinEntityStorage_Persistence",
-    "body.MixinServerLevel_Persistence",
+    "persistence.MixinChunkMap_UnloadBodiesAndConstraints",
+    "persistence.MixinEntityStorage_PersistBodiesAndConstraints",
+    "persistence.MixinServerLevel_PersistOnLevelSave",
     "command.MixinArgumentTypeInfos",
     "event.level.MixinMinecraftServer_VxLevelEvent",
     "event.level.MixinServerLevel_VxLevelEvent",
