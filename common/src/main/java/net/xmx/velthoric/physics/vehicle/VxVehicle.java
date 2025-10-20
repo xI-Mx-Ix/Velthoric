@@ -17,6 +17,8 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.Mth;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
 import net.xmx.velthoric.physics.body.manager.VxJoltBridge;
@@ -243,6 +245,18 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
             }
         }
 
+        int dataIndex = this.getDataStoreIndex();
+        boolean isJustActivated = false;
+        boolean isBodyActive = false;
+        if (dataIndex != -1) {
+            VxClientBodyDataStore store = VxClientBodyManager.getInstance().getStore();
+            isBodyActive = store.state1_isActive[dataIndex];
+            boolean wasBodyActive = store.state0_isActive[dataIndex];
+            if (isBodyActive && !wasBodyActive) {
+                isJustActivated = true;
+            }
+        }
+
         if (targetWheelStates.length > 0) {
             for (int i = 0; i < targetWheelStates.length; i++) {
                 VxWheelRenderState prev = prevWheelStates[i];
@@ -250,9 +264,21 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
                 if (prev == null || target == null) continue;
 
-                float rot = Mth.lerp(partialTicks, prev.rotationAngle(), target.rotationAngle());
-                float steer = Mth.lerp(partialTicks, prev.steerAngle(), target.steerAngle());
-                float susp = Mth.lerp(partialTicks, prev.suspensionLength(), target.suspensionLength());
+                float alpha;
+                if (isJustActivated) {
+                    // On the frame of activation, snap to the target state to prevent interpolation "rewind".
+                    alpha = 1.0f;
+                } else if (!isBodyActive) {
+                    // When inactive, snap to the target state to prevent wobbling from partialTicks reset.
+                    alpha = 1.0f;
+                } else {
+                    // Default behavior: interpolate smoothly.
+                    alpha = partialTicks;
+                }
+
+                float rot = Mth.lerp(alpha, prev.rotationAngle(), target.rotationAngle());
+                float steer = Mth.lerp(alpha, prev.steerAngle(), target.steerAngle());
+                float susp = Mth.lerp(alpha, prev.suspensionLength(), target.suspensionLength());
 
                 interpolatedWheelStates.set(i, new VxWheelRenderState(rot, steer, susp));
             }
