@@ -10,9 +10,11 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.network.syncher.EntityDataSerializer;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.ragdoll.VxBodyPart;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -392,6 +394,58 @@ public final class VxDataSerializers {
                     .collect(Collectors.toList());
         }
     });
+
+    public static final VxDataSerializer<String> STRING = register(new VxDataSerializer<>() {
+        @Override
+        public void write(VxByteBuf buf, String value) {
+            buf.writeUtf(value);
+        }
+
+        @Override
+        public String read(VxByteBuf buf) {
+            return buf.readUtf();
+        }
+
+        @Override
+        public String copy(String value) {
+            return value;
+        }
+    });
+
+    public static final VxDataSerializer<UUID> UUID = register(new VxDataSerializer<>() {
+        @Override
+        public void write(VxByteBuf buf, UUID value) {
+            buf.writeUUID(value);
+        }
+
+        @Override
+        public UUID read(VxByteBuf buf) {
+            return buf.readUUID();
+        }
+
+        @Override
+        public UUID copy(UUID value) {
+            return value;
+        }
+    });
+
+    public static final VxDataSerializer<VxBodyPart> BODY_PART = register(new VxDataSerializer<>() {
+        @Override
+        public void write(VxByteBuf buf, VxBodyPart value) {
+            buf.writeEnum(value);
+        }
+
+        @Override
+        public VxBodyPart read(VxByteBuf buf) {
+            return buf.readEnum(VxBodyPart.class);
+        }
+
+        @Override
+        public VxBodyPart copy(VxBodyPart value) {
+            return value;
+        }
+    });
+
 
     private VxDataSerializers() {
     }

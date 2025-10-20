@@ -25,6 +25,7 @@ public final class VxTestCommand {
         registerTest(new SpawnChainedBoxes());
         registerTest(new SpawnMarbleTest());
         registerTest(new SpawnBoxNet());
+        registerTest(new SpawnRagdollTest());
     }
 
     private static void registerTest(IVxTestCommand test) {

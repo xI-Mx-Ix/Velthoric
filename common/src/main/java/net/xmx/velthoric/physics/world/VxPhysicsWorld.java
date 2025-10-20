@@ -16,6 +16,7 @@ import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.buoyancy.VxBuoyancyManager;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.mounting.manager.VxMountingManager;
+import net.xmx.velthoric.physics.ragdoll.VxRagdollManager;
 import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import net.xmx.velthoric.physics.world.pcmd.ICommand;
 import net.xmx.velthoric.physics.world.pcmd.RunTaskCommand;
@@ -54,6 +55,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxTerrainSystem terrainSystem;
     private final VxMountingManager mountingManager;
     private final VxBuoyancyManager buoyancyManager;
+    private final VxRagdollManager ragdollManager;
 
     private final FrameTimer physicsFrameTimer = new FrameTimer();
 
@@ -75,6 +77,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.terrainSystem = new VxTerrainSystem(this, this.level);
         this.mountingManager = new VxMountingManager(this);
         this.buoyancyManager = new VxBuoyancyManager(this);
+        this.ragdollManager = new VxRagdollManager(this);
     }
 
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
@@ -318,6 +321,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return this.buoyancyManager;
     }
 
+    public VxRagdollManager getRagdollManager() {
+        return this.ragdollManager;
+    }
+
     public ServerLevel getLevel() {
         return this.level;
     }
@@ -371,6 +378,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     public static VxBuoyancyManager getBuoyancyManager(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
         return world != null ? world.getBuoyancyManager() : null;
+    }
+
+    @Nullable
+    public static VxRagdollManager getRagdollManager(ResourceKey<Level> dimensionKey) {
+        VxPhysicsWorld world = get(dimensionKey);
+        return world != null ? world.getRagdollManager() : null;
     }
 
     public static Collection<VxPhysicsWorld> getAll() {
