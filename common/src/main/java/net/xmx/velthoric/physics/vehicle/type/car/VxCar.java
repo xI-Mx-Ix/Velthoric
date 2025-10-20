@@ -12,12 +12,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
-import net.xmx.velthoric.physics.mounting.input.VxMountInput;
-import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
+import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
+import net.xmx.velthoric.physics.mounting.input.VxMountInput;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.controller.VxWheeledVehicleController;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -86,25 +86,54 @@ public abstract class VxCar extends VxVehicle {
         }
     }
 
+    /**
+     * Handles driver input for the car, translating player controls into vehicle actions.
+     * This implementation provides a more intuitive driving model:
+     * - Pressing 'back' while moving forward applies the brakes.
+     * - Pressing 'back' while stationary or moving backward engages the reverse throttle.
+     * - The handbrake is applied with the 'up' input (e.g., spacebar).
+     *
+     * @param player The player driving the vehicle.
+     * @param input  The current state of the player's inputs.
+     */
     @Override
     public void handleDriverInput(ServerPlayer player, VxMountInput input) {
         if (this.controller == null) {
             return;
         }
 
-        float forward = 0.0f;
-        if (input.isForward()) forward = 1.0f;
-        else if (input.isBackward()) forward = -1.0f;
+        // Use a small speed threshold to determine if the vehicle is moving forward.
+        boolean isMovingForward = getSpeedKmh() > 1.0f;
 
-        float right = 0.0f;
-        if (input.isRight()) right = 1.0f;
-        else if (input.isLeft()) right = -1.0f;
+        float forwardInput = 0.0f;
+        float brakeInput = 0.0f;
 
-        float brake = (forward == 0.0f) ? 1.0f : 0.0f;
-        float handBrake = input.isUp() ? 1.0f : 0.0f;
+        if (input.isForward()) {
+            // Apply forward throttle.
+            forwardInput = 1.0f;
+        } else if (input.isBackward()) {
+            if (isMovingForward) {
+                // If moving forward and pressing "back", apply the main brakes.
+                brakeInput = 1.0f;
+            } else {
+                // If stationary or already moving backward, apply reverse throttle.
+                forwardInput = -1.0f;
+            }
+        }
 
+        float rightInput = 0.0f;
+        if (input.isRight()) {
+            rightInput = 1.0f;
+        } else if (input.isLeft()) {
+            rightInput = -1.0f;
+        }
+
+        // The 'up' input (e.g., spacebar) controls the handbrake.
+        float handBrakeInput = input.isUp() ? 1.0f : 0.0f;
+
+        // Ensure the vehicle body is active in the physics simulation before applying input.
         physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(this.getBodyId());
-        this.controller.setInput(forward, right, brake, handBrake);
+        this.controller.setInput(forwardInput, rightInput, brakeInput, handBrakeInput);
     }
 
     @Override

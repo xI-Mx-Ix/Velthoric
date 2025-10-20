@@ -15,8 +15,6 @@ import net.xmx.velthoric.builtin.cloth.ClothRenderer;
 import net.xmx.velthoric.builtin.cloth.ClothSoftBody;
 import net.xmx.velthoric.builtin.drivable.car.CarImpl;
 import net.xmx.velthoric.builtin.drivable.car.CarRenderer;
-import net.xmx.velthoric.builtin.drivable.motorcycle.MotorcycleImpl;
-import net.xmx.velthoric.builtin.drivable.motorcycle.MotorcycleRenderer;
 import net.xmx.velthoric.builtin.marble.MarbleRenderer;
 import net.xmx.velthoric.builtin.marble.MarbleRigidBody;
 import net.xmx.velthoric.builtin.rope.RopeRenderer;
@@ -66,10 +64,6 @@ public class VxRegisteredBodies {
             .<CarImpl>create(CarImpl::new)
             .build(new ResourceLocation("velthoric", "car"));
 
-    public static final VxBodyType<MotorcycleImpl> MOTORCYCLE = VxBodyType.Builder
-            .<MotorcycleImpl>create(MotorcycleImpl::new)
-            .build(new ResourceLocation("velthoric", "motorcycle"));
-
     public static final VxBodyType<VxChainPartRigidBody> CHAIN_PART = VxBodyType.Builder
             .<VxChainPartRigidBody>create(VxChainPartRigidBody::new)
             .noSummon()
@@ -88,7 +82,6 @@ public class VxRegisteredBodies {
         registry.register(CLOTH);
         registry.register(ROPE);
         registry.register(CAR);
-        registry.register(MOTORCYCLE);
         registry.register(CHAIN_PART);
     }
 
@@ -106,7 +99,6 @@ public class VxRegisteredBodies {
         registry.registerClientFactory(CLOTH.getTypeId(), (type, id) -> new ClothSoftBody((VxBodyType<ClothSoftBody>) type, id));
         registry.registerClientFactory(ROPE.getTypeId(), (type, id) -> new RopeSoftBody((VxBodyType<RopeSoftBody>) type, id));
         registry.registerClientFactory(CAR.getTypeId(), (type, id) -> new CarImpl((VxBodyType<CarImpl>) type, id));
-        registry.registerClientFactory(MOTORCYCLE.getTypeId(), (type, id) -> new MotorcycleImpl((VxBodyType<MotorcycleImpl>) type, id));
         registry.registerClientFactory(CHAIN_PART.getTypeId(), (type, id) -> new VxChainPartRigidBody((VxBodyType<VxChainPartRigidBody>) type, id));
     }
 
@@ -124,7 +116,6 @@ public class VxRegisteredBodies {
         registry.registerClientRenderer(CLOTH.getTypeId(), new ClothRenderer());
         registry.registerClientRenderer(ROPE.getTypeId(), new RopeRenderer());
         registry.registerClientRenderer(CAR.getTypeId(), new CarRenderer());
-        registry.registerClientRenderer(MOTORCYCLE.getTypeId(), new MotorcycleRenderer());
         registry.registerClientRenderer(CHAIN_PART.getTypeId(), new VxChainPartRenderer());
     }
 }

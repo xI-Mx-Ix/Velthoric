@@ -13,9 +13,9 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.natives.VxLayers;
-import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.vehicle.type.car.VxCar;
 import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -62,6 +62,7 @@ public class CarImpl extends VxCar {
         float suspensionFrequency = 1.8f;
         float suspensionDamping = 0.6f;
 
+        // --- Front-Left Wheel ---
         WheelSettingsWv flWheel = new WheelSettingsWv();
         flWheel.setPosition(new Vec3(-halfVehicleWidth, -0.2f, halfVehicleLength));
         flWheel.setRadius(wheelRadius);
@@ -73,6 +74,7 @@ public class CarImpl extends VxCar {
         flWheel.setMaxSteerAngle(maxSteerAngleRad);
         flWheel.setMaxBrakeTorque(5000.0f);
 
+        // --- Front-Right Wheel ---
         WheelSettingsWv frWheel = new WheelSettingsWv();
         frWheel.setPosition(new Vec3(halfVehicleWidth, -0.2f, halfVehicleLength));
         frWheel.setRadius(wheelRadius);
@@ -84,6 +86,7 @@ public class CarImpl extends VxCar {
         frWheel.setMaxSteerAngle(maxSteerAngleRad);
         frWheel.setMaxBrakeTorque(5000.0f);
 
+        // --- Rear-Left Wheel ---
         WheelSettingsWv rlWheel = new WheelSettingsWv();
         rlWheel.setPosition(new Vec3(-halfVehicleWidth, -0.2f, -halfVehicleLength));
         rlWheel.setRadius(wheelRadius);
@@ -95,6 +98,7 @@ public class CarImpl extends VxCar {
         rlWheel.getSuspensionSpring().setDamping(suspensionDamping);
         rlWheel.setMaxBrakeTorque(2500.0f);
 
+        // --- Rear-Right Wheel ---
         WheelSettingsWv rrWheel = new WheelSettingsWv();
         rrWheel.setPosition(new Vec3(halfVehicleWidth, -0.2f, -halfVehicleLength));
         rrWheel.setRadius(wheelRadius);
@@ -112,6 +116,7 @@ public class CarImpl extends VxCar {
         this.wheels.add(new VxWheel(rrWheel));
         this.setSyncData(DATA_WHEELS_SETTINGS, this.wheels.stream().map(VxWheel::getSettings).collect(Collectors.toList()));
 
+        // --- Controller Settings ---
         WheeledVehicleControllerSettings controllerSettings = new WheeledVehicleControllerSettings();
         VehicleEngineSettings engineSettings = controllerSettings.getEngine();
         engineSettings.setMaxTorque(2600.0f);
@@ -131,9 +136,26 @@ public class CarImpl extends VxCar {
         differential.setRightWheel(3);
         differential.setDifferentialRatio(3.42f);
 
+        // --- Final Constraint Settings ---
         VehicleConstraintSettings settings = new VehicleConstraintSettings();
         settings.addWheels(flWheel, frWheel, rlWheel, rrWheel);
         settings.setController(controllerSettings);
+
+        // Configure anti-roll bars to reduce body roll during turns.
+        settings.setNumAntiRollBars(2);
+
+        // Front anti-roll bar connects the two front wheels.
+        VehicleAntiRollBar frontArb = settings.getAntiRollBar(0);
+        frontArb.setLeftWheel(0);
+        frontArb.setRightWheel(1);
+        frontArb.setStiffness(3500.0f);
+
+        // Rear anti-roll bar connects the two rear wheels.
+        VehicleAntiRollBar rearArb = settings.getAntiRollBar(1);
+        rearArb.setLeftWheel(2);
+        rearArb.setRightWheel(3);
+        rearArb.setStiffness(3500.0f);
+
         return settings;
     }
 
@@ -168,18 +190,24 @@ public class CarImpl extends VxCar {
 
     @Override
     public int createJoltBody(VxRigidBodyFactory factory) {
-        try (
-                ShapeSettings shapeSettings = new BoxShapeSettings(this.getSyncData(DATA_CHASSIS_HALF_EXTENTS));
-                BodyCreationSettings bcs = new BodyCreationSettings()
-        ) {
-            bcs.setShapeSettings(shapeSettings);
-            bcs.setMotionType(EMotionType.Dynamic);
-            bcs.setObjectLayer(VxLayers.DYNAMIC);
-            bcs.setMotionQuality(EMotionQuality.LinearCast);
-            bcs.getMassPropertiesOverride().setMass(2000f);
-            bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
+        try (ShapeSettings chassisShape = new BoxShapeSettings(this.getSyncData(DATA_CHASSIS_HALF_EXTENTS))) {
+            // A non-AutoCloseable object for the center of mass offset.
+            Vec3 centerOfMassOffset = new Vec3(0f, -0.3f, 0f);
 
-            return factory.create(shapeSettings, bcs);
+            // Use the offset shape to lower the center of mass for better stability.
+            try (
+                    ShapeSettings finalShapeSettings = new OffsetCenterOfMassShapeSettings(centerOfMassOffset, chassisShape);
+                    BodyCreationSettings bcs = new BodyCreationSettings()
+            ) {
+                bcs.setShapeSettings(finalShapeSettings);
+                bcs.setMotionType(EMotionType.Dynamic);
+                bcs.setObjectLayer(VxLayers.DYNAMIC);
+                bcs.setMotionQuality(EMotionQuality.LinearCast);
+                bcs.getMassPropertiesOverride().setMass(2000f);
+                bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
+
+                return factory.create(finalShapeSettings, bcs);
+            }
         }
     }
 }
