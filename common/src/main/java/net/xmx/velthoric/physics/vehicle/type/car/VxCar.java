@@ -18,6 +18,7 @@ import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.mounting.input.VxMountInput;
+import net.xmx.velthoric.physics.vehicle.VxSteering;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.controller.VxWheeledVehicleController;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -27,7 +28,7 @@ import java.util.UUID;
 /**
  * An abstract base class for car-like vehicles. It extends {@link VxVehicle}
  * by adding synchronized data for chassis properties, handling standard
- * four-wheel driver input, and managing its own {@link VxWheeledVehicleController}.
+ * four-wheel driver input with smooth steering, and managing its own {@link VxWheeledVehicleController}.
  *
  * @author xI-Mx-Ix
  */
@@ -36,6 +37,8 @@ public abstract class VxCar extends VxVehicle {
     public static final VxDataAccessor<Vec3> DATA_CHASSIS_HALF_EXTENTS = VxDataAccessor.create(VxCar.class, VxDataSerializers.VEC3);
 
     private VxWheeledVehicleController controller;
+    private final VxSteering steering = new VxSteering(4.0f);
+    private VxMountInput currentInput = VxMountInput.NEUTRAL;
 
     /**
      * Server-side constructor.
@@ -80,38 +83,24 @@ public abstract class VxCar extends VxVehicle {
     }
 
     @Override
-    public void onStopMounting(ServerPlayer player) {
-        if (this.controller != null) {
-            this.controller.setInput(0.0f, 0.0f, 0.0f, 0.0f);
-        }
-    }
-
-    /**
-     * Handles driver input for the car, translating player controls into vehicle actions.
-     * This implementation provides a more intuitive driving model:
-     * - Pressing 'back' while moving forward applies the brakes.
-     * - Pressing 'back' while stationary or moving backward engages the reverse throttle.
-     * - The handbrake is applied with the 'up' input (e.g., spacebar).
-     *
-     * @param player The player driving the vehicle.
-     * @param input  The current state of the player's inputs.
-     */
-    @Override
-    public void handleDriverInput(ServerPlayer player, VxMountInput input) {
+    public void physicsTick(VxPhysicsWorld world) {
+        super.physicsTick(world);
         if (this.controller == null) {
             return;
         }
 
-        // Use a small speed threshold to determine if the vehicle is moving forward.
-        boolean isMovingForward = getSpeedKmh() > 1.0f;
+        // Interpolate the steering angle towards its target every tick.
+        final float tickDelta = 1.0f / 20.0f; // Assumes a fixed 20 TPS physics tick rate.
+        this.steering.update(tickDelta);
 
+        // Determine vehicle inputs based on the last received state from the player.
+        boolean isMovingForward = getSpeedKmh() > 1.0f;
         float forwardInput = 0.0f;
         float brakeInput = 0.0f;
 
-        if (input.isForward()) {
-            // Apply forward throttle.
+        if (this.currentInput.isForward()) {
             forwardInput = 1.0f;
-        } else if (input.isBackward()) {
+        } else if (this.currentInput.isBackward()) {
             if (isMovingForward) {
                 // If moving forward and pressing "back", apply the main brakes.
                 brakeInput = 1.0f;
@@ -121,19 +110,41 @@ public abstract class VxCar extends VxVehicle {
             }
         }
 
-        float rightInput = 0.0f;
-        if (input.isRight()) {
-            rightInput = 1.0f;
-        } else if (input.isLeft()) {
-            rightInput = -1.0f;
-        }
-
         // The 'up' input (e.g., spacebar) controls the handbrake.
-        float handBrakeInput = input.isUp() ? 1.0f : 0.0f;
+        float handBrakeInput = this.currentInput.isUp() ? 1.0f : 0.0f;
 
-        // Ensure the vehicle body is active in the physics simulation before applying input.
+        // Apply the smoothly interpolated steering and other inputs to the physics controller.
         physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(this.getBodyId());
-        this.controller.setInput(forwardInput, rightInput, brakeInput, handBrakeInput);
+        this.controller.setInput(forwardInput, this.steering.getCurrentAngle(), brakeInput, handBrakeInput);
+    }
+
+    @Override
+    public void onStopMounting(ServerPlayer player) {
+        if (this.controller != null) {
+            this.controller.setInput(0.0f, 0.0f, 0.0f, 0.0f);
+        }
+        this.currentInput = VxMountInput.NEUTRAL;
+        this.steering.reset();
+    }
+
+    /**
+     * Handles driver input by updating the target state, which is then processed in physicsTick.
+     *
+     * @param player The player driving the vehicle.
+     * @param input  The current state of the player's inputs.
+     */
+    @Override
+    public void handleDriverInput(ServerPlayer player, VxMountInput input) {
+        this.currentInput = input;
+
+        // Determine the target steering direction from player input.
+        float targetRight = 0.0f;
+        if (input.isRight()) {
+            targetRight = 1.0f;
+        } else if (input.isLeft()) {
+            targetRight = -1.0f;
+        }
+        this.steering.setTargetAngle(targetRight);
     }
 
     @Override

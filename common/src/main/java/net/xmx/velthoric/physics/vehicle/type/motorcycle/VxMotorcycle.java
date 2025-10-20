@@ -21,6 +21,7 @@ import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.mounting.input.VxMountInput;
+import net.xmx.velthoric.physics.vehicle.VxSteering;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.controller.VxMotorcycleController;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
@@ -40,7 +41,8 @@ public abstract class VxMotorcycle extends VxVehicle {
 
     private VxMotorcycleController controller;
     private float previousForward = 1.0f;
-    private float currentRight = 0.0f;
+    private final VxSteering steering = new VxSteering(4.0f);
+    private VxMountInput currentInput = VxMountInput.NEUTRAL;
 
     /**
      * Server-side constructor.
@@ -79,42 +81,23 @@ public abstract class VxMotorcycle extends VxVehicle {
     }
 
     @Override
-    protected void defineSyncData(VxSynchronizedData.Builder builder) {
-        super.defineSyncData(builder);
-        // Defines the single source of truth for the chassis dimensions.
-        // Used by the server to create the physics shape and by the client for rendering.
-        builder.define(DATA_CHASSIS_HALF_EXTENTS, new Vec3(0.2f, 0.3f, 0.4f));
-    }
-
-    @Override
-    public void onStopMounting(ServerPlayer player) {
-        if (this.controller != null) {
-            this.controller.setInput(0.0f, 0.0f, 0.0f, 0.0f);
-            this.currentRight = 0.0f;
-            this.previousForward = 1.0f;
-        }
-    }
-
-    /**
-     * Handles driver input for the motorcycle. This implementation provides a
-     * responsive driving model where braking and reversing are context-sensitive,
-     * and steering is smoothly interpolated.
-     *
-     * @param player The player driving the vehicle.
-     * @param input  The current state of the player's inputs.
-     */
-    @Override
-    public void handleDriverInput(ServerPlayer player, VxMountInput input) {
+    public void physicsTick(VxPhysicsWorld world) {
+        super.physicsTick(world);
         if (this.controller == null || this.physicsWorld == null) {
             return;
         }
 
+        // Interpolate steering angle every tick.
+        final float tickDelta = 1.0f / 20.0f; // Assumes a fixed 20 TPS physics tick rate.
+        this.steering.update(tickDelta);
+
+        // Calculate throttle and brake inputs based on last received state.
         float forwardInput = 0.0f;
         float brakeInput = 0.0f;
 
-        if (input.isForward()) {
+        if (this.currentInput.isForward()) {
             forwardInput = 1.0f;
-        } else if (input.isBackward()) {
+        } else if (this.currentInput.isBackward()) {
             forwardInput = -1.0f;
         }
 
@@ -139,6 +122,39 @@ public abstract class VxMotorcycle extends VxVehicle {
             }
         }
 
+        float handBrakeInput = this.currentInput.isUp() ? 1.0f : 0.0f;
+
+        // Apply interpolated steering and other inputs to the physics controller.
+        physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(this.getBodyId());
+        this.controller.setInput(forwardInput, this.steering.getCurrentAngle(), brakeInput, handBrakeInput);
+    }
+
+    @Override
+    protected void defineSyncData(VxSynchronizedData.Builder builder) {
+        super.defineSyncData(builder);
+        builder.define(DATA_CHASSIS_HALF_EXTENTS, new Vec3(0.2f, 0.3f, 0.4f));
+    }
+
+    @Override
+    public void onStopMounting(ServerPlayer player) {
+        if (this.controller != null) {
+            this.controller.setInput(0.0f, 0.0f, 0.0f, 0.0f);
+        }
+        this.currentInput = VxMountInput.NEUTRAL;
+        this.steering.reset();
+        this.previousForward = 1.0f;
+    }
+
+    /**
+     * Handles driver input by updating the target state, which is then processed in physicsTick.
+     *
+     * @param player The player driving the vehicle.
+     * @param input  The current state of the player's inputs.
+     */
+    @Override
+    public void handleDriverInput(ServerPlayer player, VxMountInput input) {
+        this.currentInput = input;
+
         // Determine the target steering direction from player input.
         float targetRight = 0.0f;
         if (input.isRight()) {
@@ -146,21 +162,7 @@ public abstract class VxMotorcycle extends VxVehicle {
         } else if (input.isLeft()) {
             targetRight = -1.0f;
         }
-
-        // Interpolate the current steering value towards the target value over time
-        // to produce smooth, non-jerky turning.
-        final float steerSpeed = 4.0f;
-        final float tickDelta = 1.0f / 20.0f; // Assumes a fixed 20 TPS physics tick rate.
-        if (targetRight > currentRight) {
-            currentRight = Math.min(currentRight + steerSpeed * tickDelta, targetRight);
-        } else if (targetRight < currentRight) {
-            currentRight = Math.max(currentRight - steerSpeed * tickDelta, targetRight);
-        }
-
-        float handBrakeInput = input.isUp() ? 1.0f : 0.0f;
-
-        physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(this.getBodyId());
-        this.controller.setInput(forwardInput, currentRight, brakeInput, handBrakeInput);
+        this.steering.setTargetAngle(targetRight);
     }
 
     @Override
