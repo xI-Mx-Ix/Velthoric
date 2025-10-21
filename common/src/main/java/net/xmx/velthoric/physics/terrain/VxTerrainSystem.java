@@ -11,7 +11,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.terrain.cache.VxTerrainShapeCache;
 import net.xmx.velthoric.physics.terrain.generation.VxTerrainGenerator;
-import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.physics.terrain.management.VxTerrainManager;
 import net.xmx.velthoric.physics.terrain.management.VxTerrainTracker;
@@ -175,7 +174,7 @@ public final class VxTerrainSystem implements Runnable {
         chunksToRebuild.removeAll(batch);
 
         for (VxSectionPos pos : batch) {
-            terrainManager.rebuildChunk(pos, VxTaskPriority.MEDIUM);
+            terrainManager.rebuildChunk(pos);
         }
     }
 
@@ -216,7 +215,8 @@ public final class VxTerrainSystem implements Runnable {
      */
     public boolean isTerrainBody(int bodyId) {
         if (bodyId <= 0) return false;
-        for (int id : chunkDataStore.bodyIds) {
+        // Uses a thread-safe copy of the body ID array for safe iteration.
+        for (int id : chunkDataStore.getBodyIds()) {
             if (id == bodyId) return true;
         }
         return false;

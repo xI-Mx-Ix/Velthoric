@@ -9,7 +9,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
-import net.xmx.velthoric.physics.terrain.job.VxTaskPriority;
 import net.xmx.velthoric.physics.terrain.storage.VxChunkDataStore;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
@@ -227,10 +226,10 @@ public final class VxTerrainTracker {
             }
         }
 
-        requiredActiveSet.forEach(pos -> terrainManager.prioritizeChunk(pos, VxTaskPriority.CRITICAL));
+        requiredActiveSet.forEach(pos -> terrainManager.prioritizeChunk(pos));
 
         Set<VxSectionPos> currentlyActive = chunkDataStore.getActiveIndices().stream()
-                .filter(index -> chunkDataStore.states[index] == 4 /* STATE_READY_ACTIVE */)
+                .filter(index -> chunkDataStore.getState(index) == VxTerrainManager.STATE_READY_ACTIVE)
                 .map(chunkDataStore::getPosForIndex)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
