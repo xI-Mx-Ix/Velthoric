@@ -11,14 +11,17 @@ import net.xmx.velthoric.physics.terrain.management.VxTerrainManager;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
  * A data-oriented and thread-safe store for the state of all terrain chunk physics bodies.
  * <p>
- * This class uses a "Structure of Arrays" (SoA) layout, where each property of a chunk
- * is stored in a separate array. It manages the mapping from a {@link VxSectionPos} to a
- * stable integer index, allowing for fast lookups. All state-mutating operations and accesses
- * are synchronized to prevent race conditions between the terrain worker threads and the main thread.
+ * This class uses a "Structure of Arrays" (SoA) layout and modern concurrency utilities
+ * like Atomic arrays and fine-grained locking to avoid becoming a bottleneck under high thread contention.
+ * Access to individual chunk data is lock-free, while structural changes (adding/removing chunks)
+ * use a dedicated lock.
  *
  * @author xI-Mx-Ix
  */
@@ -26,275 +29,213 @@ public final class VxChunkDataStore extends AbstractDataStore {
     private static final int INITIAL_CAPACITY = 4096;
     public static final int UNUSED_BODY_ID = 0;
 
-    private final Map<VxSectionPos, Integer> posToIndex = new HashMap<>();
-    private final List<VxSectionPos> indexToPos = new ArrayList<>();
+    // --- Concurrency and Allocation ---
+    private final Object allocationLock = new Object(); // Dedicated lock for structural changes (add/remove/resize)
+    private final ConcurrentHashMap<VxSectionPos, Integer> posToIndex = new ConcurrentHashMap<>();
+    private volatile AtomicReferenceArray<VxSectionPos> indexToPos;
     private final Deque<Integer> freeIndices = new ArrayDeque<>();
     private int count = 0;
-    private int capacity = 0;
+    private volatile int capacity = 0;
 
-    // --- Chunk State Data (SoA) ---
-    // All state arrays are private to enforce synchronized access via methods.
-    private int[] states;
-    private int[] bodyIds;
-    private ShapeRefC[] shapeRefs;
-    private boolean[] isPlaceholder;
-    private int[] rebuildVersions;
-    private int[] referenceCounts;
+    // --- Chunk State Data (SoA) using Atomic Arrays for lock-free access ---
+    private AtomicIntegerArray states;
+    private AtomicIntegerArray bodyIds;
+    private AtomicReferenceArray<ShapeRefC> shapeRefs;
+    private AtomicIntegerArray isPlaceholder; // Using 1 for true, 0 for false
+    private AtomicIntegerArray rebuildVersions;
+    private AtomicIntegerArray referenceCounts;
 
     public VxChunkDataStore() {
         allocate(INITIAL_CAPACITY);
     }
 
     private void allocate(int newCapacity) {
-        // This method is only called from synchronized contexts, so it's safe.
-        states = grow(states, newCapacity);
-        bodyIds = grow(bodyIds, newCapacity);
-        shapeRefs = grow(shapeRefs, newCapacity);
-        isPlaceholder = grow(isPlaceholder, newCapacity);
-        rebuildVersions = grow(rebuildVersions, newCapacity);
-        referenceCounts = grow(referenceCounts, newCapacity);
+        // This method is only called from within the allocationLock, so it's safe.
+        states = growAtomic(states, newCapacity);
+        bodyIds = growAtomic(bodyIds, newCapacity);
+        shapeRefs = growAtomic(shapeRefs, newCapacity);
+        isPlaceholder = growAtomic(isPlaceholder, newCapacity, 1); // Default to placeholder=true
+        rebuildVersions = growAtomic(rebuildVersions, newCapacity);
+        referenceCounts = growAtomic(referenceCounts, newCapacity);
 
-        Arrays.fill(isPlaceholder, count, newCapacity, true);
+        // A volatile write ensures visibility of the new arrays to other threads before capacity is updated.
+        indexToPos = growAtomic(indexToPos, newCapacity);
+
         this.capacity = newCapacity;
     }
 
     /**
      * Reserves a new index for a terrain chunk or retrieves an existing one.
-     * This operation is fully synchronized.
+     * This operation is highly concurrent, using a lock only for the slow path of new allocations.
      *
      * @param pos The world-space position of the chunk section.
      * @return The data store index for the chunk.
      */
-    public synchronized int addChunk(VxSectionPos pos) {
+    public int addChunk(VxSectionPos pos) {
+        // Fast path: Check if it already exists, completely lock-free.
         Integer existingIndex = posToIndex.get(pos);
         if (existingIndex != null) {
             return existingIndex;
         }
 
-        if (count == capacity) {
-            allocate(capacity + (capacity >> 1)); // Grow by 50%
-        }
-        int index = freeIndices.isEmpty() ? count++ : freeIndices.pop();
+        // Slow path: A new index must be allocated, requiring a lock.
+        synchronized (allocationLock) {
+            // Double-check in case another thread added it while we were waiting for the lock.
+            existingIndex = posToIndex.get(pos);
+            if (existingIndex != null) {
+                return existingIndex;
+            }
 
-        posToIndex.put(pos, index);
-        if (index >= indexToPos.size()) {
-            indexToPos.add(pos);
-        } else {
+            if (count == capacity) {
+                allocate(capacity + (capacity >> 1)); // Grow by 50%
+            }
+            int index = freeIndices.isEmpty() ? count++ : freeIndices.pop();
+
+            posToIndex.put(pos, index);
             indexToPos.set(index, pos);
-        }
 
-        resetIndex(index);
-        return index;
+            resetIndex(index);
+            return index;
+        }
     }
 
     /**
      * Releases the index for a given chunk position, making it available for reuse.
      * This also handles the cleanup of associated resources like {@link ShapeRefC}.
-     * This operation is fully synchronized.
      *
      * @param pos The position of the chunk to remove.
      * @return The released index, or null if the chunk was not found.
      */
     @Nullable
-    public synchronized Integer removeChunk(VxSectionPos pos) {
-        Integer index = posToIndex.remove(pos);
-        if (index != null) {
-            if (shapeRefs[index] != null) {
-                shapeRefs[index].close();
-                shapeRefs[index] = null;
+    public Integer removeChunk(VxSectionPos pos) {
+        // Structural change, requires the lock.
+        synchronized (allocationLock) {
+            Integer index = posToIndex.remove(pos);
+            if (index != null) {
+                ShapeRefC shape = shapeRefs.getAndSet(index, null);
+                if (shape != null) {
+                    shape.close();
+                }
+                freeIndices.push(index);
+                indexToPos.set(index, null);
+                return index;
             }
-            freeIndices.push(index);
-            indexToPos.set(index, null);
-            return index;
         }
         return null;
     }
 
     /**
      * Clears all data and resets the store to its initial state.
-     * All held shape references are properly closed.
-     * This operation is fully synchronized.
      */
-    public synchronized void clear() {
-        for (int i = 0; i < count; i++) {
-            if (shapeRefs[i] != null) {
-                shapeRefs[i].close();
+    public void clear() {
+        synchronized (allocationLock) {
+            for (int i = 0; i < count; i++) {
+                ShapeRefC shape = shapeRefs.get(i);
+                if (shape != null) {
+                    shape.close();
+                }
             }
+            posToIndex.clear();
+            freeIndices.clear();
+            count = 0;
+            allocate(INITIAL_CAPACITY);
         }
-        posToIndex.clear();
-        indexToPos.clear();
-        freeIndices.clear();
-        count = 0;
-        allocate(INITIAL_CAPACITY);
     }
 
-    // --- Thread-Safe Accessors and Atomic Operations ---
+    // --- Lock-Free Accessors and Atomic Operations ---
 
-    /**
-     * Safely gets the current state of a chunk.
-     *
-     * @param index The data store index.
-     * @return The current state.
-     */
-    public synchronized int getState(int index) {
-        return states[index];
+    public int getState(int index) {
+        return states.get(index);
     }
 
-    /**
-     * Safely sets the state for a given index.
-     *
-     * @param index The data store index.
-     * @param state The new state.
-     */
-    public synchronized void setState(int index, int state) {
-        this.states[index] = state;
+    public void setState(int index, int state) {
+        this.states.set(index, state);
     }
 
-    /**
-     * Safely gets the body ID for a given index.
-     *
-     * @param index The data store index.
-     * @return The physics body ID.
-     */
-    public synchronized int getBodyId(int index) {
-        return bodyIds[index];
+    public int getBodyId(int index) {
+        return bodyIds.get(index);
     }
 
-    /**
-     * Safely sets the body ID for a given index.
-     *
-     * @param index The data store index.
-     * @param bodyId The new physics body ID.
-     */
-    public synchronized void setBodyId(int index, int bodyId) {
-        this.bodyIds[index] = bodyId;
+    public void setBodyId(int index, int bodyId) {
+        this.bodyIds.set(index, bodyId);
+    }
+
+    public boolean isPlaceholder(int index) {
+        return isPlaceholder.get(index) == 1;
+    }
+
+    public void setPlaceholder(int index, boolean placeholder) {
+        this.isPlaceholder.set(index, placeholder ? 1 : 0);
+    }
+
+    public int incrementAndGetRefCount(int index) {
+        return this.referenceCounts.incrementAndGet(index);
+    }
+
+    public int decrementAndGetRefCount(int index) {
+        return this.referenceCounts.decrementAndGet(index);
+    }
+
+    public boolean isVersionStale(int index, int version) {
+        return version < rebuildVersions.get(index);
     }
 
     /**
-     * Safely checks if a chunk is currently represented by a placeholder shape.
-     *
-     * @param index The data store index.
-     * @return True if the chunk is a placeholder.
-     */
-    public synchronized boolean isPlaceholder(int index) {
-        return isPlaceholder[index];
-    }
-
-    /**
-     * Safely sets the placeholder status for a chunk.
-     *
-     * @param index The data store index.
-     * @param placeholder The new placeholder status.
-     */
-    public synchronized void setPlaceholder(int index, boolean placeholder) {
-        this.isPlaceholder[index] = placeholder;
-    }
-
-    /**
-     * Atomically increments the reference count for a chunk and returns the new value.
-     *
-     * @param index The data store index.
-     * @return The reference count after incrementing.
-     */
-    public synchronized int incrementAndGetRefCount(int index) {
-        return ++this.referenceCounts[index];
-    }
-
-    /**
-     * Atomically decrements the reference count for a chunk and returns the new value.
-     *
-     * @param index The data store index.
-     * @return The reference count after decrementing.
-     */
-    public synchronized int decrementAndGetRefCount(int index) {
-        return --this.referenceCounts[index];
-    }
-
-    /**
-     * Checks if a generation task with a given version is stale.
-     *
-     * @param index The data store index.
-     * @param version The version of the task to check.
-     * @return True if the task's version is older than the current version, false otherwise.
-     */
-    public synchronized boolean isVersionStale(int index, int version) {
-        return version < rebuildVersions[index];
-    }
-
-    /**
-     * Atomically attempts to mark a chunk for shape generation.
-     * <p>
-     * This method checks if the chunk is in a state that allows it to be rebuilt. If so,
-     * it transitions the state, increments the chunk's internal version number, and returns the
-     * new version. This ensures that only one generation task can be scheduled at a time.
+     * Atomically attempts to mark a chunk for shape generation using a lock-free
+     * Compare-And-Set (CAS) loop. This is critical for performance.
      *
      * @param index The index of the chunk to schedule.
      * @return The new, unique version number for the generation task if successful, or -1 if the
      *         chunk cannot be scheduled (e.g., it is already being processed).
      */
-    public synchronized int scheduleForGeneration(int index) {
-        if (states[index] == VxTerrainManager.STATE_REMOVING ||
-                states[index] == VxTerrainManager.STATE_LOADING_SCHEDULED ||
-                states[index] == VxTerrainManager.STATE_GENERATING_SHAPE) {
-            return -1; // Indicate that the operation failed because the chunk is busy.
+    public int scheduleForGeneration(int index) {
+        while (true) {
+            int currentState = states.get(index);
+            if (currentState == VxTerrainManager.STATE_REMOVING ||
+                    currentState == VxTerrainManager.STATE_LOADING_SCHEDULED ||
+                    currentState == VxTerrainManager.STATE_GENERATING_SHAPE) {
+                return -1; // Indicate that the operation failed because the chunk is busy.
+            }
+            // Atomically try to switch state from its current value to LOADING_SCHEDULED.
+            if (states.compareAndSet(index, currentState, VxTerrainManager.STATE_LOADING_SCHEDULED)) {
+                // If successful, we have exclusive rights. Increment version and return.
+                return rebuildVersions.incrementAndGet(index);
+            }
+            // If CAS failed, another thread changed the state. Loop and retry.
         }
-        states[index] = VxTerrainManager.STATE_LOADING_SCHEDULED;
-        return ++rebuildVersions[index];
     }
 
     /**
-     * Safely sets the shape for a given index, ensuring the previous shape is closed.
+     * Safely sets the shape, ensuring the previous shape is closed.
      *
      * @param index The data store index.
      * @param shape The new shape reference.
      */
-    public synchronized void setShape(int index, ShapeRefC shape) {
-        if (shapeRefs[index] != null && shapeRefs[index] != shape) {
-            shapeRefs[index].close();
+    public void setShape(int index, ShapeRefC shape) {
+        ShapeRefC oldShape = shapeRefs.getAndSet(index, shape);
+        if (oldShape != null && oldShape != shape) {
+            oldShape.close();
         }
-        shapeRefs[index] = shape;
     }
 
-    /**
-     * Gets the data store index for a given chunk position.
-     *
-     * @param pos The position of the chunk.
-     * @return The index, or null if not found.
-     */
     @Nullable
-    public synchronized Integer getIndexForPos(VxSectionPos pos) {
+    public Integer getIndexForPos(VxSectionPos pos) {
         return posToIndex.get(pos);
     }
 
-    /**
-     * Gets the chunk position for a given data store index.
-     *
-     * @param index The index.
-     * @return The position, or null if the index is invalid or unused.
-     */
     @Nullable
-    public synchronized VxSectionPos getPosForIndex(int index) {
-        if (index < 0 || index >= indexToPos.size()) {
+    public VxSectionPos getPosForIndex(int index) {
+        if (index < 0 || index >= capacity) {
             return null;
         }
         return indexToPos.get(index);
     }
 
-    /**
-     * Returns a thread-safe copy of the currently managed positions.
-     *
-     * @return A new Set containing all managed positions.
-     */
-    public synchronized Set<VxSectionPos> getManagedPositions() {
+    public Set<VxSectionPos> getManagedPositions() {
         return new HashSet<>(posToIndex.keySet());
     }
 
-    /**
-     * Returns a thread-safe copy of the indices for all currently managed chunks.
-     *
-     * @return A new List containing all active indices.
-     */
-    public synchronized Collection<Integer> getActiveIndices() {
+    public Collection<Integer> getActiveIndices() {
         return new ArrayList<>(posToIndex.values());
     }
 
@@ -303,32 +244,60 @@ public final class VxChunkDataStore extends AbstractDataStore {
      *
      * @return A new array containing all body IDs.
      */
-    public synchronized int[] getBodyIds() {
-        return Arrays.copyOf(bodyIds, count);
+    public int[] getBodyIds() {
+        synchronized (allocationLock) { // Lock needed to get a consistent view of `count` and the `bodyIds` array
+            int currentCount = this.count;
+            int[] bodyIdsCopy = new int[currentCount];
+            for (int i = 0; i < currentCount; i++) {
+                bodyIdsCopy[i] = this.bodyIds.get(i);
+            }
+            return bodyIdsCopy;
+        }
     }
 
-    /**
-     * Gets the number of actively managed chunks.
-     * @return The total chunk count.
-     */
-    public synchronized int getChunkCount() {
-        return this.count - freeIndices.size();
+    public int getChunkCount() {
+        return posToIndex.size();
     }
 
-    /**
-     * Gets the current capacity of the internal arrays.
-     * @return The capacity.
-     */
-    public synchronized int getCapacity() {
+    public int getCapacity() {
         return this.capacity;
     }
 
     private void resetIndex(int index) {
-        states[index] = VxTerrainManager.STATE_UNLOADED;
-        bodyIds[index] = UNUSED_BODY_ID;
-        shapeRefs[index] = null;
-        isPlaceholder[index] = true;
-        rebuildVersions[index] = 0;
-        referenceCounts[index] = 0;
+        states.set(index, VxTerrainManager.STATE_UNLOADED);
+        bodyIds.set(index, UNUSED_BODY_ID);
+        shapeRefs.set(index, null);
+        isPlaceholder.set(index, 1); // true
+        rebuildVersions.set(index, 0);
+        referenceCounts.set(index, 0);
+    }
+
+    // --- Helper methods for growing atomic arrays ---
+
+    private static AtomicIntegerArray growAtomic(AtomicIntegerArray oldArray, int newCapacity) {
+        return growAtomic(oldArray, newCapacity, 0);
+    }
+
+    private static AtomicIntegerArray growAtomic(AtomicIntegerArray oldArray, int newCapacity, int defaultValue) {
+        AtomicIntegerArray newArray = new AtomicIntegerArray(newCapacity);
+        if (oldArray != null) {
+            for (int i = 0; i < oldArray.length(); i++) {
+                newArray.set(i, oldArray.get(i));
+            }
+        }
+        for (int i = (oldArray != null ? oldArray.length() : 0); i < newCapacity; i++) {
+            newArray.set(i, defaultValue);
+        }
+        return newArray;
+    }
+
+    private static <T> AtomicReferenceArray<T> growAtomic(AtomicReferenceArray<T> oldArray, int newCapacity) {
+        AtomicReferenceArray<T> newArray = new AtomicReferenceArray<>(newCapacity);
+        if (oldArray != null) {
+            for (int i = 0; i < oldArray.length(); i++) {
+                newArray.set(i, oldArray.get(i));
+            }
+        }
+        return newArray;
     }
 }
