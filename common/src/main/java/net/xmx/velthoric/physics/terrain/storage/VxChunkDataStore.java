@@ -281,7 +281,8 @@ public final class VxChunkDataStore extends AbstractDataStore {
     private static AtomicIntegerArray growAtomic(AtomicIntegerArray oldArray, int newCapacity, int defaultValue) {
         AtomicIntegerArray newArray = new AtomicIntegerArray(newCapacity);
         if (oldArray != null) {
-            for (int i = 0; i < oldArray.length(); i++) {
+            int copyLength = Math.min(oldArray.length(), newCapacity);
+            for (int i = 0; i < copyLength; i++) {
                 newArray.set(i, oldArray.get(i));
             }
         }
@@ -294,7 +295,8 @@ public final class VxChunkDataStore extends AbstractDataStore {
     private static <T> AtomicReferenceArray<T> growAtomic(AtomicReferenceArray<T> oldArray, int newCapacity) {
         AtomicReferenceArray<T> newArray = new AtomicReferenceArray<>(newCapacity);
         if (oldArray != null) {
-            for (int i = 0; i < oldArray.length(); i++) {
+            int copyLength = Math.min(oldArray.length(), newCapacity);
+            for (int i = 0; i < copyLength; i++) {
                 newArray.set(i, oldArray.get(i));
             }
         }
