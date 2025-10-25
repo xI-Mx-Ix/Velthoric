@@ -4,6 +4,8 @@
  */
 package net.xmx.velthoric.mixin.impl.mounting.entity;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
@@ -23,6 +25,8 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.Optional;
 
 /**
  * Modifies the Entity class to correctly calculate eye position and view vectors for entities
@@ -90,10 +94,8 @@ public abstract class MixinEntity {
 
             if (this.level.isClientSide()) {
                 // On the client, use interpolated rotation for smooth visuals.
-                float partialTicks = Minecraft.getInstance().getFrameTime();
-                vehicleRotation = VxMountingRenderUtils.INSTANCE.getInterpolatedRotation(proxy, partialTicks)
-                        .map(q -> new Quaterniond(q.getX(), q.getY(), q.getZ(), q.getW()))
-                        .orElse(null);
+                // Safely get the rotation from a client-only helper method.
+                vehicleRotation = velthoric_getInterpolatedRotationClient(proxy).orElse(null);
                 if (vehicleRotation == null) return;
             } else {
                 // On the server, use the exact physics rotation for accurate game logic.
@@ -109,5 +111,20 @@ public abstract class MixinEntity {
             vehicleRotation.transform(transformedVector);
             cir.setReturnValue(VxConversions.toMinecraft(transformedVector));
         });
+    }
+
+    /**
+     * A helper method to encapsulate client-only logic for retrieving the interpolated rotation.
+     * This method is stripped out in a server environment by the Fabric loader, preventing a crash.
+     *
+     * @param proxy The mounting entity.
+     * @return An Optional containing the interpolated rotation if on the client, otherwise empty.
+     */
+    @Unique
+    @Environment(EnvType.CLIENT)
+    private Optional<Quaterniond> velthoric_getInterpolatedRotationClient(VxMountingEntity proxy) {
+        float partialTicks = Minecraft.getInstance().getFrameTime();
+        return VxMountingRenderUtils.INSTANCE.getInterpolatedRotation(proxy, partialTicks)
+                .map(q -> new Quaterniond(q.getX(), q.getY(), q.getZ(), q.getW()));
     }
 }
