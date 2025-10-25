@@ -1,5 +1,6 @@
 plugins {
     id 'com.gradleup.shadow'
+    id "com.hypherionmc.modutils.modpublisher"
 }
 
 architectury {
@@ -97,4 +98,31 @@ shadowJar {
 
 remapJar {
     inputFile.set shadowJar.archiveFile
+}
+
+publisher {
+    apiKeys {
+        modrinth rootProject.modrinth_token
+        curseforge rootProject.curseforge_token
+    }
+    setDebug(false)
+    setCurseID("1367260")
+    setModrinthID("velthoric")
+    setVersionType("beta")
+    setChangelog(rootProject.resolveChangelog())
+    setProjectVersion(rootProject.mod_version)
+    setDisplayName("Velthoric ${rootProject.mod_version}")
+    setGameVersions(rootProject.minecraft_version)
+    setLoaders("fabric", "quilt")
+    setArtifact(remapJar)
+
+    modrinthDepends {
+        required "architectury-api"
+        required "fabric-api"
+    }
+
+    curseDepends {
+        required "architectury-api"
+        required "fabric-api"
+    }
 }

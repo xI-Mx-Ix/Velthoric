@@ -27,16 +27,9 @@ hell nah/
 # Temporary Java backup files created by some editors (tilde suffix)
 *.java~
 
-# ProGuard configuration files (used for code obfuscation, not versioned)
-proguard.pro
-
-# Debug or test-related text files, not needed in version control
-random_names.txt
-
 # IntelliJ IDEA project files, to keep the repo clean
 .idea/
 *.iml
 out/
 
-# Resource files with "All Rights Reserved" license, not to be included
-common/src/main/resources/assets/velthoric/obj/
+credentials.properties
