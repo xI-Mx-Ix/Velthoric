@@ -8,7 +8,6 @@ import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -26,9 +25,7 @@ import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.physics.body.type.VxBody;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
-import org.joml.Quaterniond;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Final;
@@ -90,7 +87,9 @@ public abstract class MixinGameRenderer {
      * to match their smooth, interpolated physics state for the current frame.
      *
      * @param tickDelta The fraction of a tick for interpolation.
-     * @param ci Callback info provided by Mixin.
+     * @param startTime The start time of the frame.
+     * @param tick      Whether a game tick is occurring.
+     * @param ci        Callback info provided by Mixin.
      */
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(FJLcom/mojang/blaze3d/vertex/PoseStack;)V", shift = At.Shift.BEFORE))
     private void velthoric_preRenderLevel(float tickDelta, long startTime, boolean tick, CallbackInfo ci) {
@@ -176,7 +175,10 @@ public abstract class MixinGameRenderer {
      * Injects after the world is rendered to restore the original positions of all modified entities.
      * This ensures that game logic for the next tick is not affected by the visual adjustments.
      *
-     * @param ci Callback info provided by Mixin.
+     * @param tickDelta The fraction of a tick for interpolation.
+     * @param startTime The start time of the frame.
+     * @param tick      Whether a game tick is occurring.
+     * @param ci        Callback info provided by Mixin.
      */
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(FJLcom/mojang/blaze3d/vertex/PoseStack;)V", shift = At.Shift.AFTER))
     private void velthoric_postRenderLevel(float tickDelta, long startTime, boolean tick, CallbackInfo ci) {
@@ -196,15 +198,18 @@ public abstract class MixinGameRenderer {
     /**
      * Wraps the call to `LevelRenderer.prepareCullFrustum` to modify the camera setup when
      * the player is mounted on a physics body. It applies the inverse of the vehicle's
-     * rotation to the PoseStack and updates the `inverseViewRotationMatrix`, which is essential
-     * for rendering the world correctly from a rotated viewpoint.
+     * rotation to the PoseStack, which is essential for rendering the world correctly
+     * from a rotated viewpoint. The renderer automatically derives the correct view matrix
+     * from this modified PoseStack.
      *
-     * @param instance The LevelRenderer instance.
-     * @param poseStack The PoseStack for rendering transformations.
-     * @param cameraPos The camera's position vector.
+     * @param instance         The LevelRenderer instance.
+     * @param poseStack        The PoseStack for rendering transformations.
+     * @param cameraPos        The camera's position vector.
      * @param projectionMatrix The projection matrix.
-     * @param original A handle to the original method call.
-     * @param partialTicks The fraction of a tick for interpolation.
+     * @param original         A handle to the original method call.
+     * @param partialTicks     The fraction of a tick for interpolation passed to renderLevel.
+     * @param finishTimeNano   The finish time in nanoseconds for the frame.
+     * @param matrixStack      The PoseStack instance passed from renderLevel.
      */
     @WrapOperation(
             method = "renderLevel",
@@ -221,7 +226,7 @@ public abstract class MixinGameRenderer {
             Operation<Void> original,
             float partialTicks,
             long finishTimeNano,
-            PoseStack matrixStack // This is the actual parameter name from the method signature
+            PoseStack matrixStack
     ) {
         Entity player = this.minecraft.player;
         if (player == null || !(player.getVehicle() instanceof VxMountingEntity proxy)) {
@@ -248,13 +253,10 @@ public abstract class MixinGameRenderer {
             );
 
             // Apply the inverse of the physics rotation to the view matrix.
-            Quaternionf invPhysRotation = new Quaternionf(new Quaterniond(physRotation).conjugate());
+            Quaternionf invPhysRotation = new Quaternionf(physRotation).conjugate();
             matrixStack.mulPose(invPhysRotation);
 
-            Matrix3f matrix3f = new Matrix3f(matrixStack.last().normal());
-            matrix3f.invert();
-            RenderSystem.setInverseViewRotationMatrix(matrix3f);
-
+            // Recalculate projection matrix based on current FOV
             double fov = this.getFov(this.mainCamera, partialTicks, true);
             Matrix4f newProjectionMatrix = this.getProjectionMatrix(Math.max(fov, this.minecraft.options.fov().get()));
 
@@ -270,13 +272,13 @@ public abstract class MixinGameRenderer {
      * on physics bodies. This ensures that raycasts for interaction or projectiles correctly
      * target the entity's visible, rotated bounding box.
      *
-     * @param shooter The entity performing the pick.
-     * @param start The start vector of the raycast.
-     * @param end The end vector of the raycast.
-     * @param searchBox The broad-phase search box.
-     * @param filter The original predicate for filtering entities.
+     * @param shooter       The entity performing the pick.
+     * @param start         The start vector of the raycast.
+     * @param end           The end vector of the raycast.
+     * @param searchBox     The broad-phase search box.
+     * @param filter        The original predicate for filtering entities.
      * @param maxDistanceSq The maximum squared distance for a valid hit.
-     * @param original A handle to the original method call.
+     * @param original      A handle to the original method call.
      * @return The closest valid {@link EntityHitResult}, or null if no entity was hit.
      */
     @WrapOperation(
@@ -343,7 +345,7 @@ public abstract class MixinGameRenderer {
     /**
      * Retrieves the interpolated transformation of a physics body for a given partial tick.
      *
-     * @param clientBody The client-side physics body.
+     * @param clientBody   The client-side physics body.
      * @param partialTicks The fraction of a tick for interpolation.
      * @return An interpolated {@link VxTransform}.
      */
