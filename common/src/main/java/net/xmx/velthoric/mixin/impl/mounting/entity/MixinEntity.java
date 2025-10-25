@@ -4,18 +4,15 @@
  */
 package net.xmx.velthoric.mixin.impl.mounting.entity;
 
-import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
-import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
-import net.xmx.velthoric.physics.body.client.VxClientBodyInterpolator;
-import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
+import net.xmx.velthoric.math.VxConversions;
+import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.body.type.VxBody;
+import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
+import net.xmx.velthoric.physics.mounting.util.VxMountingRenderUtils;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
@@ -29,8 +26,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Modifies the Entity class to correctly calculate eye position and view vectors for entities
- * that are mounted on a physics-driven body. This ensures that camera placement, raycasting,
- * and projectile spawning originate from the correct, rotated locations.
+ * that are mounted on a physics-driven body.
  *
  * @author xI-Mx-Ix
  */
@@ -42,96 +38,63 @@ public abstract class MixinEntity {
     @Shadow private Level level;
 
     /**
-     * A reusable RVec3 to store interpolated position data, avoiding re-allocation each frame.
+     * A reusable transform object to store interpolated physics state, avoiding re-allocation each frame.
      */
     @Unique
-    private static final RVec3 velthoric_interpolatedPosition = new RVec3();
-
-    /**
-     * A reusable Quat to store interpolated rotation data, avoiding re-allocation each frame.
-     */
-    @Unique
-    private static final Quat velthoric_interpolatedRotation = new Quat();
+    private final VxTransform velthoric_interpolatedTransform = new VxTransform();
 
     /**
      * Injects into `getEyePosition` to return the correctly transformed eye position of an entity
-     * mounted on a physics body. It combines the vehicle's interpolated position, the passenger's
-     * local offset, and the entity's eye height, all transformed by the vehicle's rotation.
-     *
-     * @param partialTicks The fraction of a tick for interpolation.
-     * @param cir The callback info, used to set the return value.
+     * mounted on a physics body.
      */
     @Inject(method = "getEyePosition(F)Lnet/minecraft/world/phys/Vec3;", at = @At("HEAD"), cancellable = true)
     private void velthoric_getEyePositionOnPhysicsBody(float partialTicks, CallbackInfoReturnable<Vec3> cir) {
-        if (!this.level.isClientSide()) {
+        if (!this.level.isClientSide() || !(getVehicle() instanceof VxMountingEntity proxy)) {
             return;
         }
 
-        if (getVehicle() instanceof VxMountingEntity proxy) {
-            proxy.getPhysicsBodyId().ifPresent(id -> {
-                VxClientBodyManager manager = VxClientBodyManager.getInstance();
-                VxClientBodyDataStore store = manager.getStore();
-                VxClientBodyInterpolator interpolator = manager.getInterpolator();
-                Integer index = store.getIndexForId(id);
+        VxMountingRenderUtils.INSTANCE.getInterpolatedTransform(proxy, partialTicks, velthoric_interpolatedTransform)
+                .ifPresent(transform -> {
+                    // Correctly construct a JOML Quaterniond from a Jolt Quat's components.
+                    var joltRotation = transform.getRotation();
+                    Quaterniond physRotation = new Quaterniond(joltRotation.getX(), joltRotation.getY(), joltRotation.getZ(), joltRotation.getW());
 
-                if (index == null || !store.render_isInitialized[index]) {
-                    return;
-                }
+                    Vector3f rideOffset = new Vector3f(proxy.getMountPositionOffset());
+                    physRotation.transform(rideOffset);
+                    Vector3d playerBasePos = VxConversions.toJoml(transform.getTranslation(), new Vector3d()).add(rideOffset.x, rideOffset.y, rideOffset.z);
 
-                interpolator.interpolateFrame(store, index, partialTicks, velthoric_interpolatedPosition, velthoric_interpolatedRotation);
+                    Vector3d eyeOffset = new Vector3d(0.0, this.getEyeHeight(), 0.0);
+                    physRotation.transform(eyeOffset);
 
-                Quaterniond physRotation = new Quaterniond(
-                        velthoric_interpolatedRotation.getX(),
-                        velthoric_interpolatedRotation.getY(),
-                        velthoric_interpolatedRotation.getZ(),
-                        velthoric_interpolatedRotation.getW()
-                );
-
-                // Calculate base position with ride offset
-                Vector3f rideOffset = new Vector3f(proxy.getMountPositionOffset());
-                physRotation.transform(rideOffset);
-                Vector3d playerBasePos = new Vector3d(
-                        velthoric_interpolatedPosition.xx(),
-                        velthoric_interpolatedPosition.yy(),
-                        velthoric_interpolatedPosition.zz()
-                ).add(rideOffset.x(), rideOffset.y(), rideOffset.z());
-
-                // Calculate and apply rotated eye height offset
-                Vector3d eyeOffset = new Vector3d(0.0, this.getEyeHeight(), 0.0);
-                physRotation.transform(eyeOffset);
-
-                Vector3d finalEyePos = playerBasePos.add(eyeOffset);
-                cir.setReturnValue(new Vec3(finalEyePos.x, finalEyePos.y, finalEyePos.z));
-            });
-        }
+                    Vector3d finalEyePos = playerBasePos.add(eyeOffset);
+                    cir.setReturnValue(VxConversions.toMinecraft(finalEyePos));
+                });
     }
 
     /**
-     * Injects into the view vector calculation method to apply the vehicle's rotation.
-     * This transforms the entity's local view vector (based on yaw/pitch) into world space,
-     * accounting for the vehicle's orientation. This is critical for both client-side visuals
-     * and server-side game logic (e.g., aiming).
-     *
-     * @param cir The callback info, used to set the return value.
+     * Injects into the view vector calculation method to apply the vehicle's rotation, transforming
+     * the entity's local view vector into world space.
      */
     @Inject(method = "calculateViewVector(FF)Lnet/minecraft/world/phys/Vec3;", at = @At("RETURN"), cancellable = true)
     private void velthoric_transformViewVector(float xRot, float yRot, CallbackInfoReturnable<Vec3> cir) {
-        Entity self = (Entity)(Object)this;
+        // This is the standard way to reference the instance in a Mixin, avoiding IDE false positives.
+        Entity self = (Entity) (Object) this;
         if (!(self.getVehicle() instanceof VxMountingEntity proxy)) {
             return;
         }
 
         proxy.getPhysicsBodyId().ifPresent(id -> {
-            // Get the original, untransformed local view vector.
             Vec3 localViewVector = cir.getReturnValue();
-            Vector3d transformedVector = new Vector3d(localViewVector.x, localViewVector.y, localViewVector.z);
+            Vector3d transformedVector = VxConversions.toJoml(localViewVector, new Vector3d());
             Quaterniond vehicleRotation;
 
             if (this.level.isClientSide()) {
                 // On the client, use interpolated rotation for smooth visuals.
-                vehicleRotation = velthoric_getClientRotation(id);
+                float partialTicks = Minecraft.getInstance().getFrameTime();
+                vehicleRotation = VxMountingRenderUtils.INSTANCE.getInterpolatedRotation(proxy, partialTicks)
+                        .map(q -> new Quaterniond(q.getX(), q.getY(), q.getZ(), q.getW()))
+                        .orElse(null);
                 if (vehicleRotation == null) return;
-
             } else {
                 // On the server, use the exact physics rotation for accurate game logic.
                 VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(this.level.dimension());
@@ -143,47 +106,8 @@ public abstract class MixinEntity {
                 vehicleRotation = new Quaterniond(rot.getX(), rot.getY(), rot.getZ(), rot.getW());
             }
 
-            // Apply the vehicle's rotation to the local view vector.
             vehicleRotation.transform(transformedVector);
-            cir.setReturnValue(new Vec3(transformedVector.x, transformedVector.y, transformedVector.z));
+            cir.setReturnValue(VxConversions.toMinecraft(transformedVector));
         });
-    }
-
-    /**
-     * Client-only method to get the interpolated rotation of a physics body.
-     * Separated to avoid loading client-only classes on the server.
-     */
-    @Unique
-    @Environment(EnvType.CLIENT)
-    private Quaterniond velthoric_getClientRotation(java.util.UUID id) {
-        VxClientBodyManager manager = VxClientBodyManager.getInstance();
-        VxClientBodyDataStore store = manager.getStore();
-        Integer index = store.getIndexForId(id);
-
-        if (index == null || !store.render_isInitialized[index]) {
-            return null;
-        }
-
-        // Use the partialTicks passed to getEyePosition or default to 1.0f
-        // You may need to store this value if you need accurate interpolation
-        float partialTicks = velthoric_getPartialTicksClient();
-        manager.getInterpolator().interpolateRotation(store, index, partialTicks, velthoric_interpolatedRotation);
-
-        return new Quaterniond(
-                velthoric_interpolatedRotation.getX(),
-                velthoric_interpolatedRotation.getY(),
-                velthoric_interpolatedRotation.getZ(),
-                velthoric_interpolatedRotation.getW()
-        );
-    }
-
-    /**
-     * Gets the partial tick time from Minecraft client instance.
-     * This method is client-only and properly annotated.
-     */
-    @Unique
-    @Environment(EnvType.CLIENT)
-    private float velthoric_getPartialTicksClient() {
-        return net.minecraft.client.Minecraft.getInstance().getFrameTime();
     }
 }
