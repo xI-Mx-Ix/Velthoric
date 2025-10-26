@@ -8,8 +8,8 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.init.registry.ModRegistries;
+import net.xmx.velthoric.natives.VxNativeManager;
 import net.xmx.velthoric.network.VxPacketHandler;
-import net.xmx.velthoric.natives.VxNativeJolt;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -23,7 +23,7 @@ public class VxMainClass {
         VxPacketHandler.register();
         RegisterEvents.register();
         try {
-            VxNativeJolt.initialize();
+            VxNativeManager.initialize();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

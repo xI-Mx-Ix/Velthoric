@@ -9,8 +9,9 @@ import com.github.stephengold.joltjni.JoltPhysicsObject;
 import com.github.stephengold.joltjni.BroadPhaseLayerInterface;
 import com.github.stephengold.joltjni.ObjectLayerPairFilter;
 import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilter;
-import dev.architectury.platform.Platform;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.vxnative.Arch;
+import net.xmx.vxnative.OS;
 import net.xmx.vxnative.VxNativeLibraryLoader;
 
 import java.nio.file.Path;
@@ -30,19 +31,26 @@ public class VxNativeJolt {
      * Initializes the Jolt physics system.
      * This method loads the native library, sets up the necessary Jolt components,
      * registers default callbacks, and initializes the collision layer logic.
-     * It ensures that initialization only occurs once.
      *
+     * @param extractionPath The root directory where native libraries should be extracted.
      * @throws IllegalStateException if the Jolt Factory cannot be created.
      */
-    public static void initialize() {
+    public static void initialize(Path extractionPath) {
         if (isInitialized) {
             return;
         }
 
-        VxMainClass.LOGGER.debug("Performing Physics initialization...");
+        VxMainClass.LOGGER.debug("Performing Jolt Physics initialization...");
 
-        Path extractionPath = Platform.getGameFolder().resolve("velthoric").resolve("natives");
-        VxNativeLibraryLoader.load(extractionPath);
+        String resourcePath = getNativeLibraryResourcePath();
+        if (resourcePath == null) {
+            throw new UnsupportedOperationException("Unsupported platform for JoltJNI: " +
+                    System.getProperty("os.name") + " (" + System.getProperty("os.arch") + ")");
+        }
+
+        String libFileName = resourcePath.substring(resourcePath.lastIndexOf('/') + 1);
+
+        VxNativeLibraryLoader.load(extractionPath, resourcePath, libFileName);
 
         Jolt.registerDefaultAllocator();
         Jolt.installDefaultAssertCallback();
@@ -53,29 +61,32 @@ public class VxNativeJolt {
             throw new IllegalStateException("Jolt Factory could not be created.");
         }
         Jolt.registerTypes();
-
-        // Delegate the creation and configuration of collision filters to the VxLayers class.
         VxLayers.initialize();
 
         isInitialized = true;
-        VxMainClass.LOGGER.debug("Physics initialization complete.");
+        VxMainClass.LOGGER.debug("Jolt Physics initialization complete.");
+    }
+
+    private static String getNativeLibraryResourcePath() {
+        OS os = OS.detect();
+        Arch arch = Arch.detect();
+
+        if (os == null || arch == null) return null;
+
+        String libName = System.mapLibraryName("joltjni");
+        return String.format("/%s/%s/com/github/stephengold/%s", os.folder, arch.folder, libName);
     }
 
     /**
      * Shuts down the Jolt physics system.
-     * This method cleans up all allocated resources, including layer interfaces and the Jolt factory.
-     * It ensures that shutdown only occurs if the system was previously initialized.
+     * This method cleans up all allocated resources.
      */
     public static void shutdown() {
         if (!isInitialized) {
             return;
         }
-
         VxMainClass.LOGGER.debug("Performing Physics shutdown...");
-
-        // Delegate the cleanup of layer interfaces to the VxLayers class.
         VxLayers.shutdown();
-
         Jolt.destroyFactory();
         isInitialized = false;
         VxMainClass.LOGGER.debug("Physics shutdown complete.");
@@ -83,7 +94,6 @@ public class VxNativeJolt {
 
     /**
      * Checks if the Jolt physics system has been initialized.
-     *
      * @return true if initialized, false otherwise.
      */
     public static boolean isInitialized() {
@@ -92,7 +102,6 @@ public class VxNativeJolt {
 
     /**
      * Gets the configured broad-phase layer interface.
-     *
      * @return The singleton instance of BroadPhaseLayerInterface.
      */
     public static BroadPhaseLayerInterface getBroadPhaseLayerInterface() {
@@ -101,7 +110,6 @@ public class VxNativeJolt {
 
     /**
      * Gets the configured object vs. broad-phase layer filter.
-     *
      * @return The singleton instance of ObjectVsBroadPhaseLayerFilter.
      */
     public static ObjectVsBroadPhaseLayerFilter getObjectVsBroadPhaseLayerFilter() {
@@ -110,7 +118,6 @@ public class VxNativeJolt {
 
     /**
      * Gets the configured object layer pair filter.
-     *
      * @return The singleton instance of ObjectLayerPairFilter.
      */
     public static ObjectLayerPairFilter getObjectLayerPairFilter() {

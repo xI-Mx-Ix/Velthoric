@@ -139,7 +139,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     @Override
     public void run() {
         try {
-            VxNativeJolt.initialize();
             initializePhysicsSystem();
 
             this.lastTimeNanos = System.nanoTime();
