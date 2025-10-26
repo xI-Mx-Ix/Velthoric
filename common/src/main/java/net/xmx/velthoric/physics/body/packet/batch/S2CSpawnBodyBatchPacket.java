@@ -16,10 +16,9 @@ import net.xmx.velthoric.physics.body.packet.VxSpawnData;
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Supplier;
-import java.util.zip.DataFormatException;
 
 /**
- * A network packet that contains a batch of physics bodies to be spawned on the client.
+ * A network packet that contains a compressed batch of physics bodies to be spawned on the client.
  * This is more efficient than sending a separate packet for each individual body.
  *
  * @author xI-Mx-Ix
@@ -43,16 +42,17 @@ public class S2CSpawnBodyBatchPacket {
      * @param buf The buffer to read from.
      */
     public S2CSpawnBodyBatchPacket(FriendlyByteBuf buf) {
+        int uncompressedSize = buf.readVarInt();
         byte[] compressedData = buf.readByteArray();
         try {
-            byte[] decompressedData = VxPacketUtils.decompress(compressedData);
+            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
             FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
             int size = decompressedBuf.readVarInt();
             this.spawnDataList = new ObjectArrayList<>(size);
             for (int i = 0; i < size; i++) {
                 this.spawnDataList.add(new VxSpawnData(decompressedBuf));
             }
-        } catch (IOException | DataFormatException e) {
+        } catch (IOException e) {
             throw new IllegalStateException("Failed to decompress spawn body batch packet", e);
         }
     }
@@ -73,6 +73,7 @@ public class S2CSpawnBodyBatchPacket {
             tempBuf.readBytes(uncompressedData);
 
             byte[] compressedData = VxPacketUtils.compress(uncompressedData);
+            buf.writeVarInt(uncompressedData.length); // Write uncompressed size for client
             buf.writeByteArray(compressedData);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to compress spawn body batch packet", e);

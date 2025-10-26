@@ -6,17 +6,20 @@ package net.xmx.velthoric.physics.body.packet.batch;
 
 import com.github.stephengold.joltjni.RVec3;
 import dev.architectury.networking.NetworkManager;
+import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
 
+import java.io.IOException;
 import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
- * A network packet that synchronizes a batch of physics body states using a Structure of Arrays (SoA) layout.
+ * A network packet that synchronizes a compressed batch of physics body states using a Structure of Arrays (SoA) layout.
  * This is highly efficient as it packs related data together, improving cache locality and reducing overhead
- * compared to sending an array of state objects (AoS).
+ * compared to sending an array of state objects (AoS). The payload is compressed to further reduce bandwidth.
  *
  * @author xI-Mx-Ix
  */
@@ -72,37 +75,46 @@ public class S2CUpdateBodyStateBatchPacket {
      * @param buf The buffer to read from.
      */
     public S2CUpdateBodyStateBatchPacket(FriendlyByteBuf buf) {
-        this.count = buf.readVarInt();
-        this.ids = new UUID[count];
-        this.timestamps = new long[count];
-        this.posX = new double[count];
-        this.posY = new double[count];
-        this.posZ = new double[count];
-        this.rotX = new float[count];
-        this.rotY = new float[count];
-        this.rotZ = new float[count];
-        this.rotW = new float[count];
-        this.velX = new float[count];
-        this.velY = new float[count];
-        this.velZ = new float[count];
-        this.isActive = new boolean[count];
+        try {
+            int uncompressedSize = buf.readVarInt();
+            byte[] compressedData = buf.readByteArray();
+            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
+            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
 
-        for (int i = 0; i < count; i++) {
-            ids[i] = buf.readUUID();
-            timestamps[i] = buf.readLong();
-            posX[i] = buf.readDouble();
-            posY[i] = buf.readDouble();
-            posZ[i] = buf.readDouble();
-            rotX[i] = buf.readFloat();
-            rotY[i] = buf.readFloat();
-            rotZ[i] = buf.readFloat();
-            rotW[i] = buf.readFloat();
-            isActive[i] = buf.readBoolean();
-            if (isActive[i]) {
-                velX[i] = buf.readFloat();
-                velY[i] = buf.readFloat();
-                velZ[i] = buf.readFloat();
+            this.count = decompressedBuf.readVarInt();
+            this.ids = new UUID[count];
+            this.timestamps = new long[count];
+            this.posX = new double[count];
+            this.posY = new double[count];
+            this.posZ = new double[count];
+            this.rotX = new float[count];
+            this.rotY = new float[count];
+            this.rotZ = new float[count];
+            this.rotW = new float[count];
+            this.velX = new float[count];
+            this.velY = new float[count];
+            this.velZ = new float[count];
+            this.isActive = new boolean[count];
+
+            for (int i = 0; i < count; i++) {
+                ids[i] = decompressedBuf.readUUID();
+                timestamps[i] = decompressedBuf.readLong();
+                posX[i] = decompressedBuf.readDouble();
+                posY[i] = decompressedBuf.readDouble();
+                posZ[i] = decompressedBuf.readDouble();
+                rotX[i] = decompressedBuf.readFloat();
+                rotY[i] = decompressedBuf.readFloat();
+                rotZ[i] = decompressedBuf.readFloat();
+                rotW[i] = decompressedBuf.readFloat();
+                isActive[i] = decompressedBuf.readBoolean();
+                if (isActive[i]) {
+                    velX[i] = decompressedBuf.readFloat();
+                    velY[i] = decompressedBuf.readFloat();
+                    velZ[i] = decompressedBuf.readFloat();
+                }
             }
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to decompress body state batch packet", e);
         }
     }
 
@@ -113,33 +125,43 @@ public class S2CUpdateBodyStateBatchPacket {
      * @param buf The buffer to write to.
      */
     public void encode(FriendlyByteBuf buf) {
-        buf.writeVarInt(count);
-        for (int i = 0; i < count; i++) {
-            // This now safely handles the case where the ids[i] could be null
-            // if an error happened during packet construction, although the dispatcher
-            // now prevents this. A defensive check is good practice.
-            UUID uuid = ids[i];
-            if (uuid == null) {
-                // This should not happen with the new dispatcher logic, but as a fallback,
-                // write a sentinel UUID to prevent crashing the client. The client should ignore it.
-                buf.writeUUID(new UUID(0, 0));
-            } else {
-                buf.writeUUID(uuid);
+        FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            tempBuf.writeVarInt(count);
+            for (int i = 0; i < count; i++) {
+                UUID uuid = ids[i];
+                if (uuid == null) {
+                    tempBuf.writeUUID(new UUID(0, 0));
+                } else {
+                    tempBuf.writeUUID(uuid);
+                }
+                tempBuf.writeLong(timestamps[i]);
+                tempBuf.writeDouble(posX[i]);
+                tempBuf.writeDouble(posY[i]);
+                tempBuf.writeDouble(posZ[i]);
+                tempBuf.writeFloat(rotX[i]);
+                tempBuf.writeFloat(rotY[i]);
+                tempBuf.writeFloat(rotZ[i]);
+                tempBuf.writeFloat(rotW[i]);
+                tempBuf.writeBoolean(isActive[i]);
+                if (isActive[i]) {
+                    tempBuf.writeFloat(velX[i]);
+                    tempBuf.writeFloat(velY[i]);
+                    tempBuf.writeFloat(velZ[i]);
+                }
             }
-            buf.writeLong(timestamps[i]);
-            buf.writeDouble(posX[i]);
-            buf.writeDouble(posY[i]);
-            buf.writeDouble(posZ[i]);
-            buf.writeFloat(rotX[i]);
-            buf.writeFloat(rotY[i]);
-            buf.writeFloat(rotZ[i]);
-            buf.writeFloat(rotW[i]);
-            buf.writeBoolean(isActive[i]);
-            if (isActive[i]) {
-                buf.writeFloat(velX[i]);
-                buf.writeFloat(velY[i]);
-                buf.writeFloat(velZ[i]);
-            }
+
+            byte[] uncompressedData = new byte[tempBuf.readableBytes()];
+            tempBuf.readBytes(uncompressedData);
+            byte[] compressedData = VxPacketUtils.compress(uncompressedData);
+
+            buf.writeVarInt(uncompressedData.length);
+            buf.writeByteArray(compressedData);
+
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to compress body state batch packet", e);
+        } finally {
+            tempBuf.release();
         }
     }
 

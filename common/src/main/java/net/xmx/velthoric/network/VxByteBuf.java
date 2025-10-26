@@ -17,6 +17,9 @@ import com.github.stephengold.joltjni.VertexList;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.FriendlyByteBuf;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class VxByteBuf extends FriendlyByteBuf {
 
     public VxByteBuf(ByteBuf source) {

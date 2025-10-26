@@ -4,96 +4,82 @@
  */
 package net.xmx.velthoric.network;
 
-import java.io.ByteArrayOutputStream;
+import com.github.luben.zstd.Zstd;
+import com.github.luben.zstd.ZstdCompressCtx;
+import com.github.luben.zstd.ZstdDecompressCtx;
+
 import java.io.IOException;
-import java.util.zip.DataFormatException;
-import java.util.zip.Deflater;
-import java.util.zip.Inflater;
+import java.util.Arrays;
 
 /**
- * A highly optimized utility class for compressing and decompressing packet data using ZLIB.
- * It leverages ThreadLocal instances of Deflater, Inflater, and buffers to avoid
- * repeated memory allocations, significantly reducing garbage collection pressure under high load.
+ * A highly optimized utility class for compressing and decompressing packet data using Zstd via zstd-jni.
+ * It leverages ThreadLocal instances of compression/decompression contexts to avoid repeated
+ * memory allocations and reduce context-switching overhead, significantly minimizing
+ * garbage collection pressure under high network load. This implementation uses the byte[] API
+ * to ensure compatibility and avoid direct buffer allocation issues.
+ *
+ * @author xI-Mx-Ix
  */
 public class VxPacketUtils {
 
-    // A thread-local Deflater instance. Each thread gets its own, which is reset and reused.
-    private static final ThreadLocal<Deflater> DEFLATER = ThreadLocal.withInitial(Deflater::new);
+    /**
+     * The default compression level for Zstd. Level 3 is a good balance
+     * between speed and compression ratio for real-time game data.
+     */
+    private static final int COMPRESSION_LEVEL = 3;
 
-    // A thread-local Inflater instance.
-    private static final ThreadLocal<Inflater> INFLATER = ThreadLocal.withInitial(Inflater::new);
-
-    // A thread-local reusable output stream. Its internal buffer grows as needed and is not
-    // deallocated between uses, preventing constant reallocation.
-    private static final ThreadLocal<ByteArrayOutputStream> OUTPUT_STREAM = ThreadLocal.withInitial(ByteArrayOutputStream::new);
-
-    // A thread-local reusable byte buffer for chunking data during compression/decompression.
-    // 8KB is a good general-purpose size.
-    private static final ThreadLocal<byte[]> BUFFER = ThreadLocal.withInitial(() -> new byte[8192]);
+    private static final ThreadLocal<ZstdCompressCtx> COMPRESS_CTX = ThreadLocal.withInitial(() -> new ZstdCompressCtx().setLevel(COMPRESSION_LEVEL));
+    private static final ThreadLocal<ZstdDecompressCtx> DECOMPRESS_CTX = ThreadLocal.withInitial(ZstdDecompressCtx::new);
 
     /**
-     * Compresses a byte array using a reusable, thread-local Deflater.
+     * Compresses a byte array using a reusable, thread-local Zstd compression context.
      * This method is optimized to minimize memory allocations.
      *
-     * @param data The data to compress.
+     * @param data The uncompressed data.
      * @return The compressed data.
      * @throws IOException If a compression error occurs.
      */
     public static byte[] compress(byte[] data) throws IOException {
-        // Get the Deflater and buffers for the current thread.
-        Deflater deflater = DEFLATER.get();
-        ByteArrayOutputStream outputStream = OUTPUT_STREAM.get();
-        byte[] buffer = BUFFER.get();
-
-        // Reset the state of the reusable objects before use.
-        deflater.reset();
-        outputStream.reset();
-
-        // Set the data to be compressed.
-        deflater.setInput(data);
-        deflater.finish();
-
-        // Compress the data in chunks into the reusable output stream.
-        while (!deflater.finished()) {
-            int count = deflater.deflate(buffer);
-            outputStream.write(buffer, 0, count);
+        ZstdCompressCtx ctx = COMPRESS_CTX.get();
+        // Zstd.compressBound provides the worst-case size for the compressed data.
+        long maxCompressedSize = Zstd.compressBound(data.length);
+        if (maxCompressedSize > Integer.MAX_VALUE) {
+            throw new IOException("Data is too large to compress.");
         }
 
-        // The toByteArray() call is the only necessary allocation, creating the final result array.
-        return outputStream.toByteArray();
-        // Note: We do NOT call deflater.end() as we want to reuse the object.
+        byte[] compressed = new byte[(int) maxCompressedSize];
+        long compressedSize = ctx.compress(compressed, data);
+
+        if (Zstd.isError(compressedSize)) {
+            throw new IOException("Zstd compression failed: " + Zstd.getErrorName(compressedSize));
+        }
+
+        // Return a correctly sized array, as the allocated buffer is likely larger than needed.
+        return Arrays.copyOf(compressed, (int) compressedSize);
     }
 
     /**
-     * Decompresses a byte array using a reusable, thread-local Inflater.
-     * This method is optimized to minimize memory allocations.
+     * Decompresses a byte array using a reusable, thread-local Zstd decompression context.
+     * The original, uncompressed size must be known.
      *
-     * @param data The data to decompress.
+     * @param data           The compressed data.
+     * @param uncompressedSize The size of the original uncompressed data.
      * @return The original, decompressed data.
      * @throws IOException If a decompression error occurs.
-     * @throws DataFormatException If the compressed data format is invalid.
      */
-    public static byte[] decompress(byte[] data) throws IOException, DataFormatException {
-        // Get the Inflater and buffers for the current thread.
-        Inflater inflater = INFLATER.get();
-        ByteArrayOutputStream outputStream = OUTPUT_STREAM.get();
-        byte[] buffer = BUFFER.get();
+    public static byte[] decompress(byte[] data, int uncompressedSize) throws IOException {
+        ZstdDecompressCtx ctx = DECOMPRESS_CTX.get();
+        byte[] decompressed = new byte[uncompressedSize];
 
-        // Reset the state of the reusable objects before use.
-        inflater.reset();
-        outputStream.reset();
+        long decompressedSize = ctx.decompress(decompressed, data);
 
-        // Set the data to be decompressed.
-        inflater.setInput(data);
-
-        // Decompress the data in chunks into the reusable output stream.
-        while (!inflater.finished()) {
-            int count = inflater.inflate(buffer);
-            outputStream.write(buffer, 0, count);
+        if (Zstd.isError(decompressedSize)) {
+            throw new IOException("Zstd decompression failed: " + Zstd.getErrorName(decompressedSize));
+        }
+        if (decompressedSize != uncompressedSize) {
+            throw new IOException("Decompressed size mismatch. Expected " + uncompressedSize + ", got " + decompressedSize);
         }
 
-        // The toByteArray() call creates the final result array.
-        return outputStream.toByteArray();
-        // Note: We do NOT call inflater.end() as we want to reuse the object.
+        return decompressed;
     }
 }

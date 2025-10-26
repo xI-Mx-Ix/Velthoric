@@ -26,6 +26,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+/**
+ * @author xI-Mx-Ix
+ */
 public class VxPacketHandler {
 
     public static final NetworkChannel CHANNEL = NetworkChannel.create(

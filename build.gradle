@@ -47,6 +47,9 @@ subprojects {
             parchment("org.parchmentmc.data:parchment-1.20.2:2023.10.08@zip")
         }
 
+        implementation 'com.github.luben:zstd-jni:1.5.7-6'
+        minecraftRuntimeLibraries 'com.github.luben:zstd-jni:1.5.7-6'
+
         // Java-only Jolt library
         implementation "com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}"
         minecraftRuntimeLibraries "com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}"

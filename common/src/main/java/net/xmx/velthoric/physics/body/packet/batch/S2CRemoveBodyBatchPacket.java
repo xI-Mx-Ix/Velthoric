@@ -15,17 +15,15 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
-import java.util.zip.DataFormatException;
 
 /**
  * A network packet that contains a batch of UUIDs for physics bodies to be removed
- * from the client. Batching reduces network overhead compared to sending one packet per removal.
+ * from the client. Batching and compression reduce network overhead compared to sending one packet per removal.
  *
  * @author xI-Mx-Ix
  */
 public class S2CRemoveBodyBatchPacket {
 
-    // The list of body UUIDs to be removed.
     private final List<UUID> ids;
 
     /**
@@ -43,16 +41,17 @@ public class S2CRemoveBodyBatchPacket {
      * @param buf The buffer to read from.
      */
     public S2CRemoveBodyBatchPacket(FriendlyByteBuf buf) {
+        int uncompressedSize = buf.readVarInt();
         byte[] compressedData = buf.readByteArray();
         try {
-            byte[] decompressedData = VxPacketUtils.decompress(compressedData);
+            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
             FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
             int size = decompressedBuf.readVarInt();
             this.ids = new ObjectArrayList<>(size);
             for (int i = 0; i < size; i++) {
                 this.ids.add(decompressedBuf.readUUID());
             }
-        } catch (IOException | DataFormatException e) {
+        } catch (IOException e) {
             throw new IllegalStateException("Failed to decompress remove body batch packet", e);
         }
     }
@@ -73,6 +72,7 @@ public class S2CRemoveBodyBatchPacket {
             tempBuf.readBytes(uncompressedData);
 
             byte[] compressedData = VxPacketUtils.compress(uncompressedData);
+            buf.writeVarInt(uncompressedData.length); // Write uncompressed size for the client
             buf.writeByteArray(compressedData);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to compress remove body batch packet", e);

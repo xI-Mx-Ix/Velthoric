@@ -54,6 +54,9 @@ public class VxNetworkDispatcher {
     private final Map<ServerPlayer, ObjectArrayList<UUID>> pendingRemovals = new HashMap<>();
     private ExecutorService networkSyncExecutor;
 
+    // A reusable buffer for the network thread to avoid allocations in tight loops.
+    private static final ThreadLocal<VxByteBuf> THREAD_LOCAL_BYTE_BUF = ThreadLocal.withInitial(() -> new VxByteBuf(Unpooled.buffer(1024)));
+
     public VxNetworkDispatcher(ServerLevel level, VxBodyManager manager) {
         this.level = level;
         this.manager = manager;
@@ -278,14 +281,16 @@ public class VxNetworkDispatcher {
         }
 
         Map<ServerPlayer, Map<UUID, byte[]>> updatesByPlayer = new Object2ObjectOpenHashMap<>();
+        VxByteBuf buffer = THREAD_LOCAL_BYTE_BUF.get(); // Use thread-local buffer
+
         for (int dirtyIndex : dirtyDataIndices) {
             UUID bodyId = dataStore.getIdForIndex(dirtyIndex);
             if (bodyId == null) continue;
             VxBody body = manager.getVxBody(bodyId);
             if (body == null) continue;
 
-            io.netty.buffer.ByteBuf buffer = Unpooled.buffer();
-            if (body.writeDirtySyncData(new VxByteBuf(buffer))) {
+            buffer.clear(); // Clear buffer for reuse
+            if (body.writeDirtySyncData(buffer)) {
                 byte[] data = new byte[buffer.readableBytes()];
                 buffer.readBytes(data);
                 Set<ServerPlayer> trackers = bodyTrackers.get(bodyId);
@@ -295,7 +300,6 @@ public class VxNetworkDispatcher {
                     }
                 }
             }
-            buffer.release();
         }
 
         if (!updatesByPlayer.isEmpty()) {
