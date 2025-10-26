@@ -131,7 +131,7 @@ public abstract class MixinGameRenderer {
      * Injects after the world is rendered to restore the original positions of all modified entities.
      * This ensures that game logic for the next tick is not affected by the visual adjustments.
      */
-    @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(FJLcom/mojang/blaze3d/vertex/PoseStack;)V", shift = At.Shift.AFTER))
+    @Inject(method = "render", at = @At("TAIL"))
     private void velthoric_postRenderLevel(float tickDelta, long startTime, boolean tick, CallbackInfo ci) {
         ClientLevel clientWorld = minecraft.level;
         if (clientWorld == null) return;
