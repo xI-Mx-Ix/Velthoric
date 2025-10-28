@@ -4,14 +4,17 @@
  */
 package net.xmx.velthoric.physics.vehicle.type.car;
 
+import com.github.stephengold.joltjni.Body;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.VehicleCollisionTester;
 import com.github.stephengold.joltjni.VehicleConstraintSettings;
 import com.github.stephengold.joltjni.WheeledVehicleController;
+import com.github.stephengold.joltjni.operator.Op;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.body.manager.VxJoltBridge;
 import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
@@ -39,6 +42,12 @@ public abstract class VxCar extends VxVehicle {
     private VxWheeledVehicleController controller;
     private final VxSteering steering = new VxSteering(4.0f);
     private VxMountInput currentInput = VxMountInput.NEUTRAL;
+
+    /**
+     * Tracks the last known forward/reverse input direction (1.0f for forward, -1.0f for backward).
+     * Used to determine when the driver intends to switch direction.
+     */
+    private float previousForward = 1.0f;
 
     /**
      * Server-side constructor.
@@ -85,7 +94,7 @@ public abstract class VxCar extends VxVehicle {
     @Override
     public void physicsTick(VxPhysicsWorld world) {
         super.physicsTick(world);
-        if (this.controller == null) {
+        if (this.controller == null || this.physicsWorld == null) {
             return;
         }
 
@@ -94,20 +103,45 @@ public abstract class VxCar extends VxVehicle {
         this.steering.update(tickDelta);
 
         // Determine vehicle inputs based on the last received state from the player.
-        boolean isMovingForward = getSpeedKmh() > 1.0f;
         float forwardInput = 0.0f;
         float brakeInput = 0.0f;
 
         if (this.currentInput.isForward()) {
             forwardInput = 1.0f;
         } else if (this.currentInput.isBackward()) {
-            if (isMovingForward) {
-                // If moving forward and pressing "back", apply the main brakes.
-                brakeInput = 1.0f;
+            forwardInput = -1.0f;
+        }
+
+        // If the player attempts to switch from moving forward to reverse (or vice-versa),
+        // the vehicle must first come to a stop by braking.
+        if (previousForward * forwardInput < 0.0f) {
+            Body joltBody = VxJoltBridge.INSTANCE.getJoltBody(this.physicsWorld, this.getBodyId());
+            if (joltBody == null) {
+                // Fallback if the Jolt body isn't available: use simple speed check.
+                if (getSpeedKmh() > 1.0f) {
+                    forwardInput = 0.0f;
+                    brakeInput = 1.0f;
+                } else {
+                    previousForward = forwardInput;
+                }
             } else {
-                // If stationary or already moving backward, apply reverse throttle.
-                forwardInput = -1.0f;
+                // Get vehicle velocity in the body's local space to check forward/backward movement.
+                Vec3 localVelocity = Op.star(joltBody.getRotation().conjugated(), joltBody.getLinearVelocity());
+                float zVelocity = localVelocity.getZ();
+
+                // Check if the vehicle is still moving significantly in the opposite direction.
+                if ((forwardInput > 0.0f && zVelocity < -0.1f) || (forwardInput < 0.0f && zVelocity > 0.1f)) {
+                    // Apply brake instead of throttle until the vehicle stops.
+                    forwardInput = 0.0f;
+                    brakeInput = 1.0f;
+                } else {
+                    // Once stopped, accept the new direction.
+                    previousForward = forwardInput;
+                }
             }
+        } else if (forwardInput != 0.0f) {
+            // Update the direction if not currently braking to change direction.
+            previousForward = forwardInput;
         }
 
         // The 'up' input (e.g., spacebar) controls the handbrake.
@@ -125,6 +159,7 @@ public abstract class VxCar extends VxVehicle {
         }
         this.currentInput = VxMountInput.NEUTRAL;
         this.steering.reset();
+        this.previousForward = 1.0f; // Reset direction state on dismount.
     }
 
     /**

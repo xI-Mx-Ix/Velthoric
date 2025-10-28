@@ -39,8 +39,13 @@ public abstract class VxMotorcycle extends VxVehicle {
 
     public static final VxDataAccessor<Vec3> DATA_CHASSIS_HALF_EXTENTS = VxDataAccessor.create(VxMotorcycle.class, VxDataSerializers.VEC3);
 
-    private VxMotorcycleController controller;
+    /**
+     * Tracks the last known forward/reverse input direction (1.0f for forward, -1.0f for backward).
+     * Used to determine when the driver intends to switch direction.
+     */
     private float previousForward = 1.0f;
+
+    private VxMotorcycleController controller;
     private final VxSteering steering = new VxSteering(4.0f);
     private VxMountInput currentInput = VxMountInput.NEUTRAL;
 
