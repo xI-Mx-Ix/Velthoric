@@ -118,6 +118,26 @@ public class VxMountingEntity extends Entity {
         this.entityData.set(SEAT_ID, Optional.of(seatId));
     }
 
+    /**
+     *
+     * This is the core fix. When a player dismounts (e.g., by pressing Shift),
+     * this method is called on the server before the entity has a chance to be discarded
+     * by its own tick logic. We use this hook to reliably notify the MountingManager.
+     *
+     * @param passenger The entity that is dismounting.
+     */
+    @Override
+    protected void removePassenger(Entity passenger) {
+        super.removePassenger(passenger);
+
+        if (!this.level().isClientSide() && passenger instanceof ServerPlayer player) {
+            VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(this.level().dimension());
+            if (physicsWorld != null) {
+                physicsWorld.getMountingManager().stopMounting(player);
+            }
+        }
+    }
+
     @Override
     public boolean isInvisible() {
         return true;

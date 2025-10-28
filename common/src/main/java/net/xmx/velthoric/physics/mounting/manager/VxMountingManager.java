@@ -188,20 +188,26 @@ public class VxMountingManager {
     }
 
     /**
-     * Makes a player stop mounting their current body.
+     * Makes a player stop mounting their current body. This is the central method for dismounting.
      *
      * @param player The player to stop mounting.
      */
     public void stopMounting(ServerPlayer player) {
+        // 1. Check if the player is currently mounting anything.
         if (!isMounting(player)) {
             return;
         }
+
+        // 2. Get the mountable body BEFORE cleaning up the player's data from the maps.
+        //    This is the crucial step to avoid a race condition.
+        Optional<VxMountable> mountableOpt = getMountableForPlayer(player);
+
+        // 3. Now that we have a reference to the vehicle, clean up the player's tracking data.
         UUID playerUuid = player.getUUID();
         UUID physicsId = playerToPhysicsIdMap.remove(playerUuid);
         playerToSeatMap.remove(playerUuid);
 
         if (physicsId != null) {
-            getMountableForPlayer(player).ifPresent(mountable -> mountable.onStopMounting(player));
             Map<UUID, ServerPlayer> riders = bodyToRidersMap.get(physicsId);
             if (riders != null) {
                 riders.remove(playerUuid);
@@ -210,6 +216,11 @@ public class VxMountingManager {
                 }
             }
         }
+
+        // 4. Trigger the onStopMounting hook on the previously retrieved vehicle.
+        mountableOpt.ifPresent(mountable -> mountable.onStopMounting(player));
+
+        // 5. Finalize the dismount and discard the proxy entity.
         Entity vehicle = player.getVehicle();
         if (vehicle instanceof VxMountingEntity) {
             player.stopRiding();
