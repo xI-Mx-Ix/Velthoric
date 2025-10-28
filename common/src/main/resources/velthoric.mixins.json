@@ -13,7 +13,6 @@
     "event.level.MixinServerLevel_VxLevelEvent",
     "event.level.client.MixinMinecraft_VxClientLevelEvent",
     "event.server.MixinMinecraftServer_VxServerLifecycleEvent",
-    "joltjni.MixinConvexShape",
     "misc.ExplosionMixin_TriggerExplosion",
     "mounting.entity.MixinEntity",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
