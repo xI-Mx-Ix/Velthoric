@@ -52,47 +52,68 @@ public final class VxSummonCommand {
         );
     }
 
-    private static int execute(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+    private static int execute(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         ServerLevel level = source.getLevel();
         Vec3 pos;
+
+        // Try to get the position argument, default to the command sender's position if not provided
         try {
             pos = Vec3Argument.getVec3(context, "position");
         } catch (IllegalArgumentException e) {
             pos = source.getPosition();
         }
+
+        // Get the type argument (ResourceLocation)
         ResourceLocation typeId = ResourceLocationArgument.getId(context, "type");
 
-        VxBodyType<?> type = VxBodyRegistry.getInstance().getRegistrationData(typeId);
+        try {
+            // Lookup the registered body type
+            VxBodyType<?> type = VxBodyRegistry.getInstance().getRegistrationData(typeId);
 
-        if (type == null) {
-            source.sendFailure(Component.literal("physics body type not found: " + typeId));
+            if (type == null) {
+                source.sendFailure(Component.literal("Physics body type not found: " + typeId));
+                return 0;
+            }
+
+            // Check if this body type can be summoned
+            if (!type.isSummonable()) {
+                source.sendFailure(Component.literal("Physics body type '" + typeId + "' cannot be summoned."));
+                return 0;
+            }
+
+            // Get the physics world for this dimension
+            VxPhysicsWorld world = VxPhysicsWorld.get(level.dimension());
+            if (world == null) {
+                source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
+                return 0;
+            }
+
+            // Prepare transform for the new body (position + identity rotation)
+            VxTransform transform = new VxTransform(new RVec3(pos.x, pos.y, pos.z), Quat.sIdentity());
+
+            // Create the physics body instance
+            VxBody body = type.create(world, UUID.randomUUID());
+            if (body == null) {
+                source.sendFailure(Component.literal("Failed to create an instance of " + typeId));
+                return 0;
+            }
+
+            // Add the constructed body to the world with activation
+            world.getBodyManager().addConstructedBody(body, EActivation.Activate, transform);
+
+            // Notify the command sender of success
+            source.sendSuccess(() -> Component.literal(
+                    String.format("Successfully summoned physics body '%s' with ID: %s", typeId, body.getPhysicsId())
+            ), true);
+
+            return 1; // Command executed successfully
+
+        } catch (Exception e) {
+            // Catch any unexpected errors and log them
+            source.sendFailure(Component.literal("An unexpected error occurred while executing the command."));
+            e.printStackTrace(); // Stacktrace in console
             return 0;
         }
-
-        if (!type.isSummonable()) {
-            source.sendFailure(Component.literal("physics body type '" + typeId + "' cannot be summoned."));
-            return 0;
-        }
-
-        VxPhysicsWorld world = VxPhysicsWorld.get(level.dimension());
-        if (world == null) {
-            source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
-            return 0;
-        }
-
-        VxBodyManager manager = world.getBodyManager();
-        VxTransform transform = new VxTransform(new RVec3(pos.x, pos.y, pos.z), Quat.sIdentity());
-
-        VxBody body = type.create(world, UUID.randomUUID());
-        if (body == null) {
-            source.sendFailure(Component.literal("Failed to create an instance of " + typeId));
-            return 0;
-        }
-
-        manager.addConstructedBody(body, EActivation.Activate, transform);
-
-        source.sendSuccess(() -> Component.literal(String.format("Successfully summoned physics body '%s' with ID: %s", typeId, body.getPhysicsId())), true);
-        return 1;
     }
 }
