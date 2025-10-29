@@ -197,10 +197,47 @@ public class VxClientBodyDataStore extends AbstractDataStore {
     }
 
     /**
-     * @return The total number of bodies in the store.
+     * @return The total number of active bodies in the store.
      */
     public int getBodyCount() {
-        return this.count;
+        return uuidToIndex.size();
+    }
+
+    /**
+     * @return The total number of bodies the store can hold before reallocating.
+     */
+    public int getCapacity() {
+        return this.capacity;
+    }
+
+    /**
+     * @return The number of free indices available for reuse.
+     */
+    public int getFreeIndicesCount() {
+        return this.freeIndices.size();
+    }
+
+    /**
+     * Calculates the approximate memory usage of all data arrays in the store.
+     *
+     * @return The estimated memory usage in bytes.
+     */
+    public long getMemoryUsageBytes() {
+        if (capacity == 0) {
+            return 0;
+        }
+
+        long bytes = 0;
+
+        // Primitive arrays
+        bytes += (long) capacity * 8 * 2;  // 2 long[]
+        bytes += (long) capacity * 4 * 34; // 34 float[]
+        bytes += capacity;          // 3 boolean[] (estimating 1 byte per boolean)
+
+        // Reference arrays (assuming 8 bytes per reference on a 64-bit JVM)
+        bytes += (long) capacity * 8 * 6;
+
+        return bytes;
     }
 
     /**
