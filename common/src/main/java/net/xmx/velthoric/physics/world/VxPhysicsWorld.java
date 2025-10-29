@@ -8,10 +8,10 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.FrameTimer;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.natives.VxNativeJolt;
+import net.xmx.velthoric.physics.body.client.time.VxFrameTimer;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.buoyancy.VxBuoyancyManager;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
@@ -57,7 +57,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxBuoyancyManager buoyancyManager;
     private final VxRagdollManager ragdollManager;
 
-    private final FrameTimer physicsFrameTimer = new FrameTimer();
+    private final VxFrameTimer physicsFrameTimer = new VxFrameTimer();
 
     private PhysicsSystem physicsSystem;
     private JobSystemThreadPool jobSystem;
@@ -345,7 +345,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return this.physicsSystem;
     }
 
-    public FrameTimer getPhysicsFrameTimer() {
+    public VxFrameTimer getPhysicsFrameTimer() {
         return this.physicsFrameTimer;
     }
 

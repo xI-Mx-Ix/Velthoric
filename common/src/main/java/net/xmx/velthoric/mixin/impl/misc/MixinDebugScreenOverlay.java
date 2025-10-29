@@ -5,10 +5,10 @@
 package net.xmx.velthoric.mixin.impl.misc;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.DebugScreenOverlay;
 import net.xmx.velthoric.debug.VxPhysicsDebugChart;
-import net.xmx.velthoric.mixin.impl.misc.accessor.MixinDebugScreenOverlayAccessor;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,6 +24,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinDebugScreenOverlay {
 
     @Shadow @Final private Minecraft minecraft;
+    @Shadow @Final private Font font;
+
+    @Shadow protected abstract int getSampleColor(int value, int r, int g, int b);
 
     /**
      * Injects a call at the end of the render method to draw the physics chart.
@@ -46,9 +49,16 @@ public abstract class MixinDebugScreenOverlay {
                 // The base Y position for the chart, leaving space for other elements.
                 int baseY = screenHeight - 70;
 
-                // Cast this instance to the accessor to provide access to private members.
-                MixinDebugScreenOverlayAccessor accessor = (MixinDebugScreenOverlayAccessor) this;
-                VxPhysicsDebugChart.draw(guiGraphics, accessor, physicsWorld.getPhysicsFrameTimer(), xPos, graphWidth, baseY);
+                // Call the draw method, passing the font and a lambda for color sampling.
+                VxPhysicsDebugChart.draw(
+                        guiGraphics,
+                        this.font,
+                        physicsWorld.getPhysicsFrameTimer(),
+                        xPos,
+                        graphWidth,
+                        baseY,
+                        (value) -> this.getSampleColor(value, 0, 30, 60)
+                );
             }
         }
     }

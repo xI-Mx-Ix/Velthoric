@@ -27,7 +27,6 @@
     "event.render.MixinLevelRenderer_VxRenderEvent",
     "misc.MixinDebugScreenOverlay",
     "misc.MixinMinecraft",
-    "misc.accessor.MixinDebugScreenOverlayAccessor",
     "mounting.input.MixinLocalPlayer",
     "mounting.render.MixinCamera",
     "mounting.render.MixinEntityRenderDispatcher",

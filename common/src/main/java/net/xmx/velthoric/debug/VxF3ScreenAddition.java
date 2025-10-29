@@ -20,6 +20,13 @@ import net.xmx.velthoric.physics.body.type.VxSoftBody;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * A utility class for adding debug information to the F3 screen.
+ * This class is used to display information about the physics engine and the
+ * number of physics bodies in the game.
+ *
+ * @author xI-Mx-Ix
+ */
 @Environment(EnvType.CLIENT)
 public class VxF3ScreenAddition {
 
