@@ -30,7 +30,8 @@ public class S2CUpdateVerticesBatchPacket {
     private final float[][] vertexData;
 
     /**
-     * Constructs the packet from raw data arrays.
+     * Constructs the packet from raw data arrays. This is used on the sending side
+     * and by the decode method after data has been read from the buffer.
      *
      * @param count      The number of objects in this batch.
      * @param ids        Array of soft body UUIDs.
@@ -43,50 +44,18 @@ public class S2CUpdateVerticesBatchPacket {
     }
 
     /**
-     * Constructs the packet by decoding it from a network buffer.
-     *
-     * @param buf The buffer to read from.
-     */
-    public S2CUpdateVerticesBatchPacket(FriendlyByteBuf buf) {
-        try {
-            int uncompressedSize = buf.readVarInt();
-            byte[] compressedData = buf.readByteArray();
-            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
-            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
-
-            this.count = decompressedBuf.readVarInt();
-            this.ids = new UUID[count];
-            this.vertexData = new float[count][];
-
-            for (int i = 0; i < count; i++) {
-                ids[i] = decompressedBuf.readUUID();
-                if (decompressedBuf.readBoolean()) { // Check if vertex data is present for this body
-                    int length = decompressedBuf.readVarInt();
-                    vertexData[i] = new float[length];
-                    for (int j = 0; j < length; j++) {
-                        vertexData[i][j] = decompressedBuf.readFloat();
-                    }
-                } else {
-                    vertexData[i] = null;
-                }
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to decompress vertex batch packet", e);
-        }
-    }
-
-    /**
      * Encodes the packet's data into a network buffer for sending.
      *
+     * @param msg The packet instance to encode.
      * @param buf The buffer to write to.
      */
-    public void encode(FriendlyByteBuf buf) {
+    public static void encode(S2CUpdateVerticesBatchPacket msg, FriendlyByteBuf buf) {
         FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            tempBuf.writeVarInt(count);
-            for (int i = 0; i < count; i++) {
-                tempBuf.writeUUID(ids[i]);
-                float[] vertices = vertexData[i];
+            tempBuf.writeVarInt(msg.count);
+            for (int i = 0; i < msg.count; i++) {
+                tempBuf.writeUUID(msg.ids[i]);
+                float[] vertices = msg.vertexData[i];
                 if (vertices != null && vertices.length > 0) {
                     tempBuf.writeBoolean(true);
                     tempBuf.writeVarInt(vertices.length);
@@ -108,6 +77,41 @@ public class S2CUpdateVerticesBatchPacket {
             throw new IllegalStateException("Failed to compress vertex batch packet", e);
         } finally {
             tempBuf.release();
+        }
+    }
+
+    /**
+     * Decodes the packet from a network buffer.
+     *
+     * @param buf The buffer to read from.
+     * @return A new instance of the packet.
+     */
+    public static S2CUpdateVerticesBatchPacket decode(FriendlyByteBuf buf) {
+        try {
+            int uncompressedSize = buf.readVarInt();
+            byte[] compressedData = buf.readByteArray();
+            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
+            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
+
+            int count = decompressedBuf.readVarInt();
+            UUID[] ids = new UUID[count];
+            float[][] vertexData = new float[count][];
+
+            for (int i = 0; i < count; i++) {
+                ids[i] = decompressedBuf.readUUID();
+                if (decompressedBuf.readBoolean()) { // Check if vertex data is present for this body
+                    int length = decompressedBuf.readVarInt();
+                    vertexData[i] = new float[length];
+                    for (int j = 0; j < length; j++) {
+                        vertexData[i][j] = decompressedBuf.readFloat();
+                    }
+                } else {
+                    vertexData[i] = null;
+                }
+            }
+            return new S2CUpdateVerticesBatchPacket(count, ids, vertexData);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to decompress vertex batch packet", e);
         }
     }
 

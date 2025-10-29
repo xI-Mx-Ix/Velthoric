@@ -32,21 +32,24 @@ public class C2SMountInputPacket {
     }
 
     /**
-     * Constructs the packet by deserializing data from a network buffer.
+     * Encodes the packet's data into a network buffer.
      *
-     * @param buf The buffer to read from.
+     * @param msg The packet instance to encode.
+     * @param buf The buffer to write to.
      */
-    public C2SMountInputPacket(FriendlyByteBuf buf) {
-        this.input = new VxMountInput(buf);
+    public static void encode(C2SMountInputPacket msg, FriendlyByteBuf buf) {
+        msg.input.encode(buf);
     }
 
     /**
-     * Serializes the packet's data into a network buffer.
+     * Decodes the packet from a network buffer.
      *
-     * @param buf The buffer to write to.
+     * @param buf The buffer to read from.
+     * @return A new instance of the packet.
      */
-    public void encode(FriendlyByteBuf buf) {
-        this.input.encode(buf);
+    public static C2SMountInputPacket decode(FriendlyByteBuf buf) {
+        VxMountInput input = new VxMountInput(buf);
+        return new C2SMountInputPacket(input);
     }
 
     /**

@@ -46,13 +46,13 @@ public abstract class MixinLocalPlayer {
             );
 
             if (!currentInput.equals(this.velthoric_lastRideInput)) {
-                VxPacketHandler.CHANNEL.sendToServer(new C2SMountInputPacket(currentInput));
+                VxPacketHandler.sendToServer(new C2SMountInputPacket(currentInput));
                 this.velthoric_lastRideInput = currentInput;
             }
         } else {
 
             if (this.velthoric_lastRideInput != null && !this.velthoric_lastRideInput.equals(VxMountInput.NEUTRAL)) {
-                VxPacketHandler.CHANNEL.sendToServer(new C2SMountInputPacket(VxMountInput.NEUTRAL));
+                VxPacketHandler.sendToServer(new C2SMountInputPacket(VxMountInput.NEUTRAL));
             }
             this.velthoric_lastRideInput = null;
         }

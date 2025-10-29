@@ -81,7 +81,7 @@ public class VxVehicleNetworkDispatcher {
                 }
 
                 // Step 4: Create a single packet with all vehicle data.
-                S2CVehicleStatePacket packet = new S2CVehicleStatePacket(vehicle.getPhysicsId(), speedKmh, wheelCount, rotations, steers, suspensions);
+                S2CVehicleStatePacket packet = new S2CVehicleStatePacket(vehicle.getPhysicsId(), speedKmh, rotations, steers, suspensions);
 
                 // Step 5: Send the packet to every player tracking this vehicle.
                 for (ServerPlayer player : trackers) {

@@ -17,7 +17,6 @@ import java.util.function.Supplier;
  * A server-to-client packet that synchronizes the dynamic state of a vehicle.
  * This includes its speed, and for wheeled vehicles, the state of each wheel
  * (rotation, steering angle, suspension length).
- * It is sent periodically for vehicles whose state has been updated.
  *
  * @author xI-Mx-Ix
  */
@@ -30,65 +29,54 @@ public class S2CVehicleStatePacket {
     private final float[] suspensionLengths;
 
     /**
-     * Constructor used on the server to create the packet.
-     * @param vehicleId The UUID of the vehicle being updated.
-     * @param speedKmh The current speed of the vehicle in km/h.
-     * @param wheelCount The number of wheels on the vehicle.
-     * @param rotationAngles Array of rotation angles for each wheel.
-     * @param steerAngles Array of steering angles for each wheel.
-     * @param suspensionLengths Array of suspension lengths for each wheel.
+     * Constructs the packet from raw data. Used on the sending side and by the decode method.
      */
-    public S2CVehicleStatePacket(UUID vehicleId, float speedKmh, int wheelCount, float[] rotationAngles, float[] steerAngles, float[] suspensionLengths) {
+    public S2CVehicleStatePacket(UUID vehicleId, float speedKmh, float[] rotationAngles, float[] steerAngles, float[] suspensionLengths) {
         this.vehicleId = vehicleId;
         this.speedKmh = speedKmh;
-        // Create copies to ensure the data is immutable once the packet is created.
-        this.rotationAngles = new float[wheelCount];
-        this.steerAngles = new float[wheelCount];
-        this.suspensionLengths = new float[wheelCount];
-        if (wheelCount > 0) {
-            System.arraycopy(rotationAngles, 0, this.rotationAngles, 0, wheelCount);
-            System.arraycopy(steerAngles, 0, this.steerAngles, 0, wheelCount);
-            System.arraycopy(suspensionLengths, 0, this.suspensionLengths, 0, wheelCount);
-        }
-    }
-
-    /**
-     * Constructor used on the client to decode the packet from a buffer.
-     * @param buf The network buffer to read from.
-     */
-    public S2CVehicleStatePacket(FriendlyByteBuf buf) {
-        this.vehicleId = buf.readUUID();
-        this.speedKmh = buf.readFloat();
-        int wheelCount = buf.readVarInt();
-        this.rotationAngles = new float[wheelCount];
-        this.steerAngles = new float[wheelCount];
-        this.suspensionLengths = new float[wheelCount];
-        for (int i = 0; i < wheelCount; i++) {
-            this.rotationAngles[i] = buf.readFloat();
-            this.steerAngles[i] = buf.readFloat();
-            this.suspensionLengths[i] = buf.readFloat();
-        }
+        this.rotationAngles = rotationAngles;
+        this.steerAngles = steerAngles;
+        this.suspensionLengths = suspensionLengths;
     }
 
     /**
      * Encodes the packet data into a network buffer for sending.
+     * @param msg The packet instance to encode.
      * @param buf The buffer to write to.
      */
-    public void encode(FriendlyByteBuf buf) {
-        buf.writeUUID(vehicleId);
-        buf.writeFloat(speedKmh);
-        buf.writeVarInt(rotationAngles.length);
-        for (int i = 0; i < rotationAngles.length; i++) {
-            buf.writeFloat(rotationAngles[i]);
-            buf.writeFloat(steerAngles[i]);
-            buf.writeFloat(suspensionLengths[i]);
+    public static void encode(S2CVehicleStatePacket msg, FriendlyByteBuf buf) {
+        buf.writeUUID(msg.vehicleId);
+        buf.writeFloat(msg.speedKmh);
+        buf.writeVarInt(msg.rotationAngles.length);
+        for (int i = 0; i < msg.rotationAngles.length; i++) {
+            buf.writeFloat(msg.rotationAngles[i]);
+            buf.writeFloat(msg.steerAngles[i]);
+            buf.writeFloat(msg.suspensionLengths[i]);
         }
     }
 
     /**
+     * Decodes the packet from a network buffer.
+     * @param buf The network buffer to read from.
+     * @return A new instance of the packet.
+     */
+    public static S2CVehicleStatePacket decode(FriendlyByteBuf buf) {
+        UUID vehicleId = buf.readUUID();
+        float speedKmh = buf.readFloat();
+        int wheelCount = buf.readVarInt();
+        float[] rotationAngles = new float[wheelCount];
+        float[] steerAngles = new float[wheelCount];
+        float[] suspensionLengths = new float[wheelCount];
+        for (int i = 0; i < wheelCount; i++) {
+            rotationAngles[i] = buf.readFloat();
+            steerAngles[i] = buf.readFloat();
+            suspensionLengths[i] = buf.readFloat();
+        }
+        return new S2CVehicleStatePacket(vehicleId, speedKmh, rotationAngles, steerAngles, suspensionLengths);
+    }
+
+    /**
      * Handles the packet on the client side.
-     * This is executed on the client's network thread and queues the main logic
-     * to run on the client's main thread to ensure thread safety.
      *
      * @param msg The received packet.
      * @param contextSupplier A supplier for the network context.

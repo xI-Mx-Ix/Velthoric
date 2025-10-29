@@ -36,23 +36,26 @@ public class C2SRequestMountPacket {
     }
 
     /**
-     * Constructs the packet by deserializing data from a network buffer.
+     * Encodes the packet's data into a network buffer.
      *
-     * @param buf The buffer to read from.
+     * @param msg The packet instance to encode.
+     * @param buf The buffer to write to.
      */
-    public C2SRequestMountPacket(FriendlyByteBuf buf) {
-        this.physicsId = buf.readUUID();
-        this.seatId = buf.readUUID();
+    public static void encode(C2SRequestMountPacket msg, FriendlyByteBuf buf) {
+        buf.writeUUID(msg.physicsId);
+        buf.writeUUID(msg.seatId);
     }
 
     /**
-     * Serializes the packet's data into a network buffer.
+     * Decodes the packet from a network buffer.
      *
-     * @param buf The buffer to write to.
+     * @param buf The buffer to read from.
+     * @return A new instance of the packet.
      */
-    public void encode(FriendlyByteBuf buf) {
-        buf.writeUUID(this.physicsId);
-        buf.writeUUID(this.seatId);
+    public static C2SRequestMountPacket decode(FriendlyByteBuf buf) {
+        UUID physicsId = buf.readUUID();
+        UUID seatId = buf.readUUID();
+        return new C2SRequestMountPacket(physicsId, seatId);
     }
 
     /**

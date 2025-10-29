@@ -36,36 +36,16 @@ public class S2CRemoveBodyBatchPacket {
     }
 
     /**
-     * Constructs a packet by decoding it from a network buffer.
-     *
-     * @param buf The buffer to read from.
-     */
-    public S2CRemoveBodyBatchPacket(FriendlyByteBuf buf) {
-        int uncompressedSize = buf.readVarInt();
-        byte[] compressedData = buf.readByteArray();
-        try {
-            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
-            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
-            int size = decompressedBuf.readVarInt();
-            this.ids = new ObjectArrayList<>(size);
-            for (int i = 0; i < size; i++) {
-                this.ids.add(decompressedBuf.readUUID());
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to decompress remove body batch packet", e);
-        }
-    }
-
-    /**
      * Encodes the packet's data into a network buffer for sending.
      *
+     * @param msg The packet instance to encode.
      * @param buf The buffer to write to.
      */
-    public void encode(FriendlyByteBuf buf) {
+    public static void encode(S2CRemoveBodyBatchPacket msg, FriendlyByteBuf buf) {
         FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            tempBuf.writeVarInt(ids.size());
-            for (UUID id : ids) {
+            tempBuf.writeVarInt(msg.ids.size());
+            for (UUID id : msg.ids) {
                 tempBuf.writeUUID(id);
             }
             byte[] uncompressedData = new byte[tempBuf.readableBytes()];
@@ -78,6 +58,29 @@ public class S2CRemoveBodyBatchPacket {
             throw new IllegalStateException("Failed to compress remove body batch packet", e);
         } finally {
             tempBuf.release();
+        }
+    }
+
+    /**
+     * Decodes the packet from a network buffer.
+     *
+     * @param buf The buffer to read from.
+     * @return A new instance of the packet.
+     */
+    public static S2CRemoveBodyBatchPacket decode(FriendlyByteBuf buf) {
+        int uncompressedSize = buf.readVarInt();
+        byte[] compressedData = buf.readByteArray();
+        try {
+            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
+            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
+            int size = decompressedBuf.readVarInt();
+            List<UUID> ids = new ObjectArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                ids.add(decompressedBuf.readUUID());
+            }
+            return new S2CRemoveBodyBatchPacket(ids);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to decompress remove body batch packet", e);
         }
     }
 

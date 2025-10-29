@@ -37,36 +37,16 @@ public class S2CSpawnBodyBatchPacket {
     }
 
     /**
-     * Constructs the packet by deserializing data from a network buffer.
+     * Encodes the packet's data into a network buffer.
      *
-     * @param buf The buffer to read from.
-     */
-    public S2CSpawnBodyBatchPacket(FriendlyByteBuf buf) {
-        int uncompressedSize = buf.readVarInt();
-        byte[] compressedData = buf.readByteArray();
-        try {
-            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
-            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
-            int size = decompressedBuf.readVarInt();
-            this.spawnDataList = new ObjectArrayList<>(size);
-            for (int i = 0; i < size; i++) {
-                this.spawnDataList.add(new VxSpawnData(decompressedBuf));
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to decompress spawn body batch packet", e);
-        }
-    }
-
-    /**
-     * Serializes the packet's data into a network buffer.
-     *
+     * @param msg The packet instance to encode.
      * @param buf The buffer to write to.
      */
-    public void encode(FriendlyByteBuf buf) {
+    public static void encode(S2CSpawnBodyBatchPacket msg, FriendlyByteBuf buf) {
         FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            tempBuf.writeVarInt(spawnDataList.size());
-            for (VxSpawnData data : spawnDataList) {
+            tempBuf.writeVarInt(msg.spawnDataList.size());
+            for (VxSpawnData data : msg.spawnDataList) {
                 data.encode(tempBuf);
             }
             byte[] uncompressedData = new byte[tempBuf.readableBytes()];
@@ -79,6 +59,29 @@ public class S2CSpawnBodyBatchPacket {
             throw new IllegalStateException("Failed to compress spawn body batch packet", e);
         } finally {
             tempBuf.release();
+        }
+    }
+
+    /**
+     * Decodes the packet from a network buffer.
+     *
+     * @param buf The buffer to read from.
+     * @return A new instance of the packet.
+     */
+    public static S2CSpawnBodyBatchPacket decode(FriendlyByteBuf buf) {
+        int uncompressedSize = buf.readVarInt();
+        byte[] compressedData = buf.readByteArray();
+        try {
+            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
+            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
+            int size = decompressedBuf.readVarInt();
+            List<VxSpawnData> spawnDataList = new ObjectArrayList<>(size);
+            for (int i = 0; i < size; i++) {
+                spawnDataList.add(new VxSpawnData(decompressedBuf));
+            }
+            return new S2CSpawnBodyBatchPacket(spawnDataList);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to decompress spawn body batch packet", e);
         }
     }
 

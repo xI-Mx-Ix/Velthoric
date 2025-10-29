@@ -36,39 +36,16 @@ public class S2CSynchronizedDataBatchPacket {
     }
 
     /**
-     * Constructs the packet by deserializing data from a network buffer.
+     * Encodes the packet's data into a network buffer.
      *
-     * @param buf The buffer to read from.
-     */
-    public S2CSynchronizedDataBatchPacket(FriendlyByteBuf buf) {
-        try {
-            int uncompressedSize = buf.readVarInt();
-            byte[] compressedData = buf.readByteArray();
-            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
-            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
-
-            int size = decompressedBuf.readVarInt();
-            this.dataUpdates = new Object2ObjectArrayMap<>(size);
-            for (int i = 0; i < size; i++) {
-                UUID id = decompressedBuf.readUUID();
-                byte[] data = decompressedBuf.readByteArray();
-                this.dataUpdates.put(id, data);
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to decompress sync data batch packet", e);
-        }
-    }
-
-    /**
-     * Serializes the packet's data into a network buffer.
-     *
+     * @param msg The packet instance to encode.
      * @param buf The buffer to write to.
      */
-    public void encode(FriendlyByteBuf buf) {
+    public static void encode(S2CSynchronizedDataBatchPacket msg, FriendlyByteBuf buf) {
         FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            tempBuf.writeVarInt(dataUpdates.size());
-            for (Map.Entry<UUID, byte[]> entry : dataUpdates.entrySet()) {
+            tempBuf.writeVarInt(msg.dataUpdates.size());
+            for (Map.Entry<UUID, byte[]> entry : msg.dataUpdates.entrySet()) {
                 tempBuf.writeUUID(entry.getKey());
                 tempBuf.writeByteArray(entry.getValue());
             }
@@ -83,6 +60,32 @@ public class S2CSynchronizedDataBatchPacket {
             throw new IllegalStateException("Failed to compress sync data batch packet", e);
         } finally {
             tempBuf.release();
+        }
+    }
+
+    /**
+     * Decodes the packet from a network buffer.
+     *
+     * @param buf The buffer to read from.
+     * @return A new instance of the packet.
+     */
+    public static S2CSynchronizedDataBatchPacket decode(FriendlyByteBuf buf) {
+        try {
+            int uncompressedSize = buf.readVarInt();
+            byte[] compressedData = buf.readByteArray();
+            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
+            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
+
+            int size = decompressedBuf.readVarInt();
+            Map<UUID, byte[]> dataUpdates = new Object2ObjectArrayMap<>(size);
+            for (int i = 0; i < size; i++) {
+                UUID id = decompressedBuf.readUUID();
+                byte[] data = decompressedBuf.readByteArray();
+                dataUpdates.put(id, data);
+            }
+            return new S2CSynchronizedDataBatchPacket(dataUpdates);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to decompress sync data batch packet", e);
         }
     }
 

@@ -34,23 +34,8 @@ public class S2CUpdateBodyStateBatchPacket {
     private final boolean[] isActive;
 
     /**
-     * Constructs the packet from raw data arrays. The provided arrays may be larger than
-     * {@code count}; only the first {@code count} elements will be used.
-     *
-     * @param count      The number of valid bodies in this batch.
-     * @param ids        Array of body UUIDs.
-     * @param timestamps Array of server-side timestamps for each state.
-     * @param posX       Array of X positions.
-     * @param posY       Array of Y positions.
-     * @param posZ       Array of Z positions.
-     * @param rotX       Array of X rotation components.
-     * @param rotY       Array of Y rotation components.
-     * @param rotZ       Array of Z rotation components.
-     * @param rotW       Array of W rotation components.
-     * @param velX       Array of X linear velocities.
-     * @param velY       Array of Y linear velocities.
-     * @param velZ       Array of Z linear velocities.
-     * @param isActive   Array of active states.
+     * Constructs the packet from raw data arrays. This is used on the sending side
+     * and by the decode method after data has been read from the buffer.
      */
     public S2CUpdateBodyStateBatchPacket(int count, UUID[] ids, long[] timestamps, double[] posX, double[] posY, double[] posZ, float[] rotX, float[] rotY, float[] rotZ, float[] rotW, float[] velX, float[] velY, float[] velZ, boolean[] isActive) {
         this.count = count;
@@ -70,31 +55,80 @@ public class S2CUpdateBodyStateBatchPacket {
     }
 
     /**
-     * Constructs the packet by decoding it from a network buffer.
+     * Encodes the packet's data into a network buffer for sending.
+     * It only writes the first {@code count} elements from the internal arrays.
+     *
+     * @param msg The packet instance to encode.
+     * @param buf The buffer to write to.
+     */
+    public static void encode(S2CUpdateBodyStateBatchPacket msg, FriendlyByteBuf buf) {
+        FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            tempBuf.writeVarInt(msg.count);
+            for (int i = 0; i < msg.count; i++) {
+                UUID uuid = msg.ids[i];
+                if (uuid == null) {
+                    tempBuf.writeUUID(new UUID(0, 0));
+                } else {
+                    tempBuf.writeUUID(uuid);
+                }
+                tempBuf.writeLong(msg.timestamps[i]);
+                tempBuf.writeDouble(msg.posX[i]);
+                tempBuf.writeDouble(msg.posY[i]);
+                tempBuf.writeDouble(msg.posZ[i]);
+                tempBuf.writeFloat(msg.rotX[i]);
+                tempBuf.writeFloat(msg.rotY[i]);
+                tempBuf.writeFloat(msg.rotZ[i]);
+                tempBuf.writeFloat(msg.rotW[i]);
+                tempBuf.writeBoolean(msg.isActive[i]);
+                if (msg.isActive[i]) {
+                    tempBuf.writeFloat(msg.velX[i]);
+                    tempBuf.writeFloat(msg.velY[i]);
+                    tempBuf.writeFloat(msg.velZ[i]);
+                }
+            }
+
+            byte[] uncompressedData = new byte[tempBuf.readableBytes()];
+            tempBuf.readBytes(uncompressedData);
+            byte[] compressedData = VxPacketUtils.compress(uncompressedData);
+
+            buf.writeVarInt(uncompressedData.length);
+            buf.writeByteArray(compressedData);
+
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to compress body state batch packet", e);
+        } finally {
+            tempBuf.release();
+        }
+    }
+
+    /**
+     * Decodes the packet from a network buffer.
      *
      * @param buf The buffer to read from.
+     * @return A new instance of the packet.
      */
-    public S2CUpdateBodyStateBatchPacket(FriendlyByteBuf buf) {
+    public static S2CUpdateBodyStateBatchPacket decode(FriendlyByteBuf buf) {
         try {
             int uncompressedSize = buf.readVarInt();
             byte[] compressedData = buf.readByteArray();
             byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
             FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
 
-            this.count = decompressedBuf.readVarInt();
-            this.ids = new UUID[count];
-            this.timestamps = new long[count];
-            this.posX = new double[count];
-            this.posY = new double[count];
-            this.posZ = new double[count];
-            this.rotX = new float[count];
-            this.rotY = new float[count];
-            this.rotZ = new float[count];
-            this.rotW = new float[count];
-            this.velX = new float[count];
-            this.velY = new float[count];
-            this.velZ = new float[count];
-            this.isActive = new boolean[count];
+            int count = decompressedBuf.readVarInt();
+            UUID[] ids = new UUID[count];
+            long[] timestamps = new long[count];
+            double[] posX = new double[count];
+            double[] posY = new double[count];
+            double[] posZ = new double[count];
+            float[] rotX = new float[count];
+            float[] rotY = new float[count];
+            float[] rotZ = new float[count];
+            float[] rotW = new float[count];
+            float[] velX = new float[count];
+            float[] velY = new float[count];
+            float[] velZ = new float[count];
+            boolean[] isActive = new boolean[count];
 
             for (int i = 0; i < count; i++) {
                 ids[i] = decompressedBuf.readUUID();
@@ -113,55 +147,10 @@ public class S2CUpdateBodyStateBatchPacket {
                     velZ[i] = decompressedBuf.readFloat();
                 }
             }
+
+            return new S2CUpdateBodyStateBatchPacket(count, ids, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to decompress body state batch packet", e);
-        }
-    }
-
-    /**
-     * Encodes the packet's data into a network buffer for sending.
-     * It only writes the first {@code count} elements from the internal arrays.
-     *
-     * @param buf The buffer to write to.
-     */
-    public void encode(FriendlyByteBuf buf) {
-        FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
-        try {
-            tempBuf.writeVarInt(count);
-            for (int i = 0; i < count; i++) {
-                UUID uuid = ids[i];
-                if (uuid == null) {
-                    tempBuf.writeUUID(new UUID(0, 0));
-                } else {
-                    tempBuf.writeUUID(uuid);
-                }
-                tempBuf.writeLong(timestamps[i]);
-                tempBuf.writeDouble(posX[i]);
-                tempBuf.writeDouble(posY[i]);
-                tempBuf.writeDouble(posZ[i]);
-                tempBuf.writeFloat(rotX[i]);
-                tempBuf.writeFloat(rotY[i]);
-                tempBuf.writeFloat(rotZ[i]);
-                tempBuf.writeFloat(rotW[i]);
-                tempBuf.writeBoolean(isActive[i]);
-                if (isActive[i]) {
-                    tempBuf.writeFloat(velX[i]);
-                    tempBuf.writeFloat(velY[i]);
-                    tempBuf.writeFloat(velZ[i]);
-                }
-            }
-
-            byte[] uncompressedData = new byte[tempBuf.readableBytes()];
-            tempBuf.readBytes(uncompressedData);
-            byte[] compressedData = VxPacketUtils.compress(uncompressedData);
-
-            buf.writeVarInt(uncompressedData.length);
-            buf.writeByteArray(compressedData);
-
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to compress body state batch packet", e);
-        } finally {
-            tempBuf.release();
         }
     }
 

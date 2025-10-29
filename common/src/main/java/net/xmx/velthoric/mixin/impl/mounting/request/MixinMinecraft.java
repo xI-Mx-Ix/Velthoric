@@ -102,7 +102,7 @@ public abstract class MixinMinecraft {
         }
 
         if (closestBody != null) {
-            VxPacketHandler.CHANNEL.sendToServer(new C2SRequestMountPacket(closestBody.getPhysicsId(), closestSeat.getId()));
+            VxPacketHandler.sendToServer(new C2SRequestMountPacket(closestBody.getPhysicsId(), closestSeat.getId()));
             return true;
         }
 
