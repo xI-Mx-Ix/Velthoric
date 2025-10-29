@@ -38,13 +38,13 @@ public class MixinServerLevel_PersistOnLevelSave {
                     // flush body manager
                     VxBodyManager bodyManager = VxPhysicsWorld.getBodyManager(world.getLevel().dimension());
                     if (bodyManager != null) {
-                        bodyManager.flushPersistence();
+                        bodyManager.flushPersistence(flush);
                     }
 
                     // flush constraint manager
                     VxConstraintManager constraintManager = VxPhysicsWorld.getConstraintManager(world.getLevel().dimension());
                     if (constraintManager != null) {
-                        constraintManager.flushPersistence();
+                        constraintManager.flushPersistence(flush);
                     }
                 } catch (Exception e) {
                     VxMainClass.LOGGER.error(

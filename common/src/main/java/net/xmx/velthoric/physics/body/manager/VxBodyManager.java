@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -77,7 +78,7 @@ public class VxBodyManager {
     public void shutdown() {
         networkDispatcher.stop();
         VxMainClass.LOGGER.debug("Flushing physics body persistence for world {}...", world.getDimensionKey().location());
-        flushPersistence();
+        flushPersistence(true);
         VxMainClass.LOGGER.debug("Physics body persistence flushed for world {}.", world.getDimensionKey().location());
         clear();
         bodyStorage.shutdown();
@@ -160,6 +161,10 @@ public class VxBodyManager {
 
     @Nullable
     public VxBody addSerializedBody(VxSerializedBodyData data) {
+        if (managedBodies.containsKey(data.id())) {
+            return managedBodies.get(data.id());
+        }
+
         VxBody body = VxBodyRegistry.getInstance().create(data.typeId(), world, data.id());
         if (body == null) {
             VxMainClass.LOGGER.error("Failed to create body of type {} with ID {} from storage.", data.typeId(), data.id());
@@ -198,10 +203,9 @@ public class VxBodyManager {
     }
 
     public void removeBody(UUID id, VxRemovalReason reason) {
-        final VxBody body = this.managedBodies.remove(id);
+        final VxBody body = this.managedBodies.get(id);
 
         if (body == null) {
-            VxMainClass.LOGGER.warn("Attempted to remove non-existent body: {}", id);
             if (reason == VxRemovalReason.DISCARD) {
                 bodyStorage.removeData(id);
             }
@@ -209,21 +213,30 @@ public class VxBodyManager {
             return;
         }
 
+        processBodyRemoval(body, reason);
+    }
+
+    private void processBodyRemoval(VxBody body, VxRemovalReason reason) {
+        managedBodies.remove(body.getPhysicsId());
+
         if (reason == VxRemovalReason.SAVE) {
             bodyStorage.storeBody(body);
         } else if (reason == VxRemovalReason.DISCARD) {
-            bodyStorage.removeData(id);
+            bodyStorage.removeData(body.getPhysicsId());
         }
 
         world.getMountingManager().onBodyRemoved(body);
         networkDispatcher.onBodyRemoved(body);
-        chunkManager.stopTracking(body);
-        body.onBodyRemoved(world, reason);
-        world.getConstraintManager().removeConstraintsForBody(id, reason == VxRemovalReason.DISCARD);
 
+        if (reason != VxRemovalReason.UNLOAD) {
+            chunkManager.stopTracking(body);
+        }
+
+        body.onBodyRemoved(world, reason);
+        world.getConstraintManager().removeConstraintsForBody(body.getPhysicsId(), reason == VxRemovalReason.DISCARD);
         VxJoltBridge.INSTANCE.destroyJoltBody(world, body.getBodyId());
 
-        dataStore.removeBody(id);
+        dataStore.removeBody(body.getPhysicsId());
         if (body.getBodyId() != 0) {
             joltBodyIdToVxBodyMap.remove(body.getBodyId());
         }
@@ -242,17 +255,27 @@ public class VxBodyManager {
         });
     }
 
+    /**
+     * Efficiently unloads all physics bodies from a chunk from memory.
+     * This is called when a chunk is being unloaded and relies on a separate process
+     * to have already saved the chunk data to disk.
+     *
+     * @param chunkPos The position of the chunk to unload.
+     */
     public void onChunkUnload(ChunkPos chunkPos) {
-        List<VxBody> bodiesInChunk = getBodiesInChunk(chunkPos);
-        if (bodiesInChunk.isEmpty()) return;
-        for (VxBody body : List.copyOf(bodiesInChunk)) {
-            removeBody(body.getPhysicsId(), VxRemovalReason.SAVE);
+        // Step 1: Atomically get all bodies from the chunk and remove them from the tracking map. This is fast.
+        List<VxBody> bodiesToUnload = chunkManager.removeAllInChunk(chunkPos);
+
+        if (bodiesToUnload.isEmpty()) {
+            return;
+        }
+
+        // Step 2: Loop through the bodies and perform only the in-memory cleanup.
+        // We use VxRemovalReason.UNLOAD, which skips any further persistence calls.
+        for (VxBody body : bodiesToUnload) {
+            processBodyRemoval(body, VxRemovalReason.UNLOAD);
         }
     }
-
-    //================================================================================
-    // Data Accessors & State Modification
-    //================================================================================
 
     @Nullable
     public VxBody getByJoltBodyId(int bodyId) {
@@ -307,16 +330,25 @@ public class VxBodyManager {
     //================================================================================
 
     public void saveBodiesInChunk(ChunkPos pos) {
-        List<VxBody> bodiesInChunk = getBodiesInChunk(pos);
+        List<VxBody> bodiesInChunk = chunkManager.getBodiesInChunk(pos);
         if (!bodiesInChunk.isEmpty()) {
             bodyStorage.storeBodies(List.copyOf(bodiesInChunk));
         }
     }
 
-    public void flushPersistence() {
+    /**
+     * Flushes all pending persistence operations to disk.
+     *
+     * @param block If true, this method will block the calling thread until all I/O is complete.
+     *              This should only be true during a server shutdown.
+     */
+    public void flushPersistence(boolean block) {
         try {
-            bodyStorage.saveDirtyRegions().join();
-            bodyStorage.getRegionIndex().save();
+            CompletableFuture<Void> future = bodyStorage.saveDirtyRegions();
+            bodyStorage.getRegionIndex().save(); // The index is small and critical, saving it synchronously is okay.
+            if (block) {
+                future.join(); // Only block if explicitly required (e.g., on shutdown).
+            }
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to flush physics body persistence for world {}", world.getLevel().dimension().location(), e);
         }

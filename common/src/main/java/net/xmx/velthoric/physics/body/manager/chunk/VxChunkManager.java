@@ -12,9 +12,9 @@ import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.manager.VxNetworkDispatcher;
 import net.xmx.velthoric.physics.body.type.VxBody;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Manages the spatial partitioning of physics bodies into chunks.
@@ -31,7 +31,7 @@ public class VxChunkManager {
 
     /**
      * A spatial map that groups objects by the chunk they are in for efficient proximity queries.
-     * The key is the long-encoded chunk position.
+     * The list is a simple ArrayList, as all access is externally synchronized on the map itself.
      */
     private final Long2ObjectMap<List<VxBody>> bodiesByChunk = new Long2ObjectOpenHashMap<>();
 
@@ -59,7 +59,7 @@ public class VxChunkManager {
         dataStore.chunkKey[index] = key;
 
         synchronized (bodiesByChunk) {
-            bodiesByChunk.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>()).add(body);
+            bodiesByChunk.computeIfAbsent(key, k -> new ArrayList<>()).add(body);
         }
     }
 
@@ -101,9 +101,9 @@ public class VxChunkManager {
             dataStore.chunkKey[index] = toKey;
         }
 
-        // Remove from the old chunk's list.
-        if (fromKey != Long.MAX_VALUE) {
-            synchronized (bodiesByChunk) {
+        synchronized (bodiesByChunk) {
+            // Remove from the old chunk's list.
+            if (fromKey != Long.MAX_VALUE) {
                 List<VxBody> fromList = bodiesByChunk.get(fromKey);
                 if (fromList != null) {
                     fromList.remove(body);
@@ -112,11 +112,10 @@ public class VxChunkManager {
                     }
                 }
             }
+            // Add to the new chunk's list.
+            bodiesByChunk.computeIfAbsent(toKey, k -> new ArrayList<>()).add(body);
         }
-        // Add to the new chunk's list.
-        synchronized (bodiesByChunk) {
-            bodiesByChunk.computeIfAbsent(toKey, k -> new CopyOnWriteArrayList<>()).add(body);
-        }
+
         // Notify the network dispatcher about the movement for client-side tracking updates.
         networkDispatcher.onBodyMoved(body, new ChunkPos(fromKey), new ChunkPos(toKey));
     }
@@ -126,11 +125,25 @@ public class VxChunkManager {
      * Retrieves a list of all bodies within a specific chunk.
      *
      * @param pos The position of the chunk.
-     * @return A list of objects in that chunk, which may be empty. The returned list is safe for concurrent iteration.
+     * @return A list of objects in that chunk, which may be empty.
      */
     public List<VxBody> getBodiesInChunk(ChunkPos pos) {
         synchronized (bodiesByChunk) {
             return bodiesByChunk.getOrDefault(pos.toLong(), Collections.emptyList());
+        }
+    }
+
+    /**
+     * Atomically removes all bodies associated with a chunk and returns them.
+     * This is a highly efficient bulk operation for chunk unloading.
+     *
+     * @param pos The position of the chunk to clear.
+     * @return The list of bodies that were in the chunk, or an empty list if none.
+     */
+    public List<VxBody> removeAllInChunk(ChunkPos pos) {
+        synchronized (bodiesByChunk) {
+            List<VxBody> removed = bodiesByChunk.remove(pos.toLong());
+            return removed != null ? removed : Collections.emptyList();
         }
     }
 }

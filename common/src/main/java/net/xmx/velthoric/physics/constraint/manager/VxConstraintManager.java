@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -61,7 +62,7 @@ public class VxConstraintManager {
      */
     public void shutdown() {
         VxMainClass.LOGGER.debug("Flushing physics constraint persistence for world {}...", world.getDimensionKey().location());
-        flushPersistence();
+        flushPersistence(true);
         VxMainClass.LOGGER.debug("Physics constraint persistence flushed for world {}.", world.getDimensionKey().location());
 
         activeConstraints.clear();
@@ -96,15 +97,20 @@ public class VxConstraintManager {
     }
 
     /**
-     * Forces all pending constraint data in the storage system to be written to disk
-     * and waits for the operation to complete. This is a blocking, synchronous operation.
+     * Flushes all pending persistence operations to disk.
+     *
+     * @param block If true, this method will block the calling thread until all I/O is complete.
+     *              This should only be true during a server shutdown.
      */
-    public void flushPersistence() {
+    public void flushPersistence(boolean block) {
         try {
-            constraintStorage.saveDirtyRegions().join();
-            constraintStorage.getRegionIndex().save();
+            CompletableFuture<Void> future = constraintStorage.saveDirtyRegions();
+            constraintStorage.getRegionIndex().save(); // The index is small and critical, saving it synchronously is okay.
+            if (block) {
+                future.join(); // Only block if explicitly required (e.g., on shutdown).
+            }
         } catch (Exception e) {
-            VxMainClass.LOGGER.error("Failed to flush physics constraint persistence for world {}", bodyManager.getPhysicsWorld().getLevel().dimension().location(), e);
+            VxMainClass.LOGGER.error("Failed to flush physics constraint persistence for world {}", world.getLevel().dimension().location(), e);
         }
     }
 
