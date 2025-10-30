@@ -5,6 +5,8 @@
 package net.xmx.velthoric.physics.buoyancy;
 
 import com.github.stephengold.joltjni.BodyLockMultiWrite;
+import net.xmx.velthoric.physics.buoyancy.phase.VxBuoyancyBroadPhase;
+import net.xmx.velthoric.physics.buoyancy.phase.VxBuoyancyNarrowPhase;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.Arrays;

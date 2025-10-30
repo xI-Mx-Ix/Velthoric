@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.buoyancy;
+package net.xmx.velthoric.physics.buoyancy.phase;
 
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.core.BlockPos;
@@ -12,6 +12,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.material.FluidState;
 import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
 import net.xmx.velthoric.physics.body.type.VxBody;
+import net.xmx.velthoric.physics.buoyancy.VxBuoyancyDataStore;
+import net.xmx.velthoric.physics.buoyancy.VxFluidType;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
