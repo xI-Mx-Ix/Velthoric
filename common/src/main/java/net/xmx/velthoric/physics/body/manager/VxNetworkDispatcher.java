@@ -48,10 +48,10 @@ public class VxNetworkDispatcher {
     private static final int MAX_REMOVALS_PER_PACKET = 512;
 
     // --- Player tracking data structures ---
-    private final Map<UUID, Set<UUID>> playerTrackedBodies = new ConcurrentHashMap<>();
-    private final Map<UUID, Set<ServerPlayer>> bodyTrackers = new ConcurrentHashMap<>();
+    private final Map<UUID, Set<Integer>> playerTrackedBodies = new ConcurrentHashMap<>();
+    private final Map<Integer, Set<ServerPlayer>> bodyTrackers = new ConcurrentHashMap<>();
     private final Map<ServerPlayer, ObjectArrayList<VxSpawnData>> pendingSpawns = new HashMap<>();
-    private final Map<ServerPlayer, ObjectArrayList<UUID>> pendingRemovals = new HashMap<>();
+    private final Map<ServerPlayer, IntArrayList> pendingRemovals = new HashMap<>();
     private ExecutorService networkSyncExecutor;
 
     // A reusable buffer for the network thread to avoid allocations in tight loops.
@@ -164,10 +164,10 @@ public class VxNetworkDispatcher {
      */
     private void groupUpdatesByPlayer(IntArrayList dirtyIndices, Map<ServerPlayer, IntArrayList> updatesByPlayer) {
         for (int dirtyIndex : dirtyIndices) {
-            UUID bodyId = dataStore.getIdForIndex(dirtyIndex);
-            if (bodyId == null) continue;
+            int networkId = dataStore.networkId[dirtyIndex];
+            if (networkId == -1) continue;
 
-            Set<ServerPlayer> trackers = bodyTrackers.get(bodyId);
+            Set<ServerPlayer> trackers = bodyTrackers.get(networkId);
             if (trackers != null) {
                 for (ServerPlayer player : trackers) {
                     updatesByPlayer.computeIfAbsent(player, k -> new IntArrayList()).add(dirtyIndex);
@@ -188,7 +188,7 @@ public class VxNetworkDispatcher {
             return;
         }
 
-        UUID[] ids = new UUID[MAX_STATES_PER_PACKET];
+        int[] networkIds = new int[MAX_STATES_PER_PACKET];
         long[] timestamps = new long[MAX_STATES_PER_PACKET];
         double[] posX = new double[MAX_STATES_PER_PACKET], posY = new double[MAX_STATES_PER_PACKET], posZ = new double[MAX_STATES_PER_PACKET];
         float[] rotX = new float[MAX_STATES_PER_PACKET], rotY = new float[MAX_STATES_PER_PACKET], rotZ = new float[MAX_STATES_PER_PACKET], rotW = new float[MAX_STATES_PER_PACKET];
@@ -197,10 +197,10 @@ public class VxNetworkDispatcher {
         int currentBatchCount = 0;
 
         for (int index : indices) {
-            UUID uuid = dataStore.getIdForIndex(index);
-            if (uuid == null) continue;
+            int networkId = dataStore.networkId[index];
+            if (networkId == -1) continue;
 
-            ids[currentBatchCount] = uuid;
+            networkIds[currentBatchCount] = networkId;
             timestamps[currentBatchCount] = dataStore.lastUpdateTimestamp[index];
             posX[currentBatchCount] = dataStore.posX[index];
             posY[currentBatchCount] = dataStore.posY[index];
@@ -216,14 +216,14 @@ public class VxNetworkDispatcher {
             currentBatchCount++;
 
             if (currentBatchCount == MAX_STATES_PER_PACKET) {
-                S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(currentBatchCount, ids, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
+                S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(currentBatchCount, networkIds, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
                 VxPacketHandler.sendToPlayer(packet, player);
                 currentBatchCount = 0;
             }
         }
 
         if (currentBatchCount > 0) {
-            S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(currentBatchCount, ids, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
+            S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(currentBatchCount, networkIds, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
             VxPacketHandler.sendToPlayer(packet, player);
         }
     }
@@ -243,19 +243,19 @@ public class VxNetworkDispatcher {
         for (int i = 0; i < indices.size(); i += MAX_VERTICES_PER_PACKET) {
             int end = Math.min(i + MAX_VERTICES_PER_PACKET, indices.size());
             List<Integer> sublist = indices.subList(i, end);
-            ObjectArrayList<UUID> idList = new ObjectArrayList<>();
+            IntArrayList networkIdList = new IntArrayList();
             ObjectArrayList<float[]> vertexList = new ObjectArrayList<>();
 
             for (int index : sublist) {
-                UUID uuid = dataStore.getIdForIndex(index);
-                if (uuid != null) {
-                    idList.add(uuid);
+                int networkId = dataStore.networkId[index];
+                if (networkId != -1) {
+                    networkIdList.add(networkId);
                     vertexList.add(dataStore.vertexData[index]);
                 }
             }
 
-            if (!idList.isEmpty()) {
-                S2CUpdateVerticesBatchPacket packet = new S2CUpdateVerticesBatchPacket(idList.size(), idList.toArray(new UUID[0]), vertexList.toArray(new float[0][]));
+            if (!networkIdList.isEmpty()) {
+                S2CUpdateVerticesBatchPacket packet = new S2CUpdateVerticesBatchPacket(networkIdList.size(), networkIdList.toIntArray(), vertexList.toArray(new float[0][]));
                 VxPacketHandler.sendToPlayer(packet, player);
             }
         }
@@ -280,7 +280,7 @@ public class VxNetworkDispatcher {
             return;
         }
 
-        Map<ServerPlayer, Map<UUID, byte[]>> updatesByPlayer = new Object2ObjectOpenHashMap<>();
+        Map<ServerPlayer, Map<Integer, byte[]>> updatesByPlayer = new Object2ObjectOpenHashMap<>();
         VxByteBuf buffer = THREAD_LOCAL_BYTE_BUF.get(); // Use thread-local buffer
 
         for (int dirtyIndex : dirtyDataIndices) {
@@ -293,10 +293,10 @@ public class VxNetworkDispatcher {
             if (body.writeDirtySyncData(buffer)) {
                 byte[] data = new byte[buffer.readableBytes()];
                 buffer.readBytes(data);
-                Set<ServerPlayer> trackers = bodyTrackers.get(bodyId);
+                Set<ServerPlayer> trackers = bodyTrackers.get(body.getNetworkId());
                 if (trackers != null) {
                     for (ServerPlayer player : trackers) {
-                        updatesByPlayer.computeIfAbsent(player, k -> new Object2ObjectArrayMap<>()).put(bodyId, data);
+                        updatesByPlayer.computeIfAbsent(player, k -> new Object2ObjectArrayMap<>()).put(body.getNetworkId(), data);
                     }
                 }
             }
@@ -331,10 +331,10 @@ public class VxNetworkDispatcher {
      * @param body The physics body that was removed.
      */
     public void onBodyRemoved(VxBody body) {
-        Set<ServerPlayer> trackers = bodyTrackers.get(body.getPhysicsId());
+        Set<ServerPlayer> trackers = bodyTrackers.get(body.getNetworkId());
         if (trackers != null) {
             for (ServerPlayer player : new ArrayList<>(trackers)) {
-                untrackBodyForPlayer(player, body.getPhysicsId());
+                untrackBodyForPlayer(player, body.getNetworkId());
             }
         }
     }
@@ -364,7 +364,7 @@ public class VxNetworkDispatcher {
 
         for (ServerPlayer player : playersTrackingFrom) {
             if (!playersTrackingTo.contains(player)) {
-                untrackBodyForPlayer(player, body.getPhysicsId());
+                untrackBodyForPlayer(player, body.getNetworkId());
             }
         }
     }
@@ -395,7 +395,7 @@ public class VxNetworkDispatcher {
         if (bodiesInChunk.isEmpty()) return;
 
         for (VxBody body : bodiesInChunk) {
-            untrackBodyForPlayer(player, body.getPhysicsId());
+            untrackBodyForPlayer(player, body.getNetworkId());
         }
     }
 
@@ -409,12 +409,12 @@ public class VxNetworkDispatcher {
      * @param body   The body to be tracked.
      */
     public void trackBodyForPlayer(ServerPlayer player, VxBody body) {
-        Set<UUID> trackedByPlayer = playerTrackedBodies.computeIfAbsent(player.getUUID(), k -> ConcurrentHashMap.newKeySet());
-        if (trackedByPlayer.add(body.getPhysicsId())) {
-            bodyTrackers.computeIfAbsent(body.getPhysicsId(), k -> ConcurrentHashMap.newKeySet()).add(player);
+        Set<Integer> trackedByPlayer = playerTrackedBodies.computeIfAbsent(player.getUUID(), k -> ConcurrentHashMap.newKeySet());
+        if (trackedByPlayer.add(body.getNetworkId())) {
+            bodyTrackers.computeIfAbsent(body.getNetworkId(), k -> ConcurrentHashMap.newKeySet()).add(player);
             synchronized (pendingSpawns) {
-                ObjectArrayList<UUID> removals = pendingRemovals.get(player);
-                if (removals != null && removals.remove(body.getPhysicsId())) {
+                IntArrayList removals = pendingRemovals.get(player);
+                if (removals != null && removals.rem(body.getNetworkId())) {
                     return;
                 }
                 pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>())
@@ -430,24 +430,24 @@ public class VxNetworkDispatcher {
      * to prevent a body from being spawned and immediately removed on the client.
      *
      * @param player The player who will stop tracking the body.
-     * @param bodyId The UUID of the body to stop tracking.
+     * @param networkId The network ID of the body to stop tracking.
      */
-    public void untrackBodyForPlayer(ServerPlayer player, UUID bodyId) {
-        Set<UUID> trackedByPlayer = playerTrackedBodies.get(player.getUUID());
-        if (trackedByPlayer != null && trackedByPlayer.remove(bodyId)) {
-            Set<ServerPlayer> trackers = bodyTrackers.get(bodyId);
+    public void untrackBodyForPlayer(ServerPlayer player, int networkId) {
+        Set<Integer> trackedByPlayer = playerTrackedBodies.get(player.getUUID());
+        if (trackedByPlayer != null && trackedByPlayer.remove(networkId)) {
+            Set<ServerPlayer> trackers = bodyTrackers.get(networkId);
             if (trackers != null) {
                 trackers.remove(player);
                 if (trackers.isEmpty()) {
-                    bodyTrackers.remove(bodyId);
+                    bodyTrackers.remove(networkId);
                 }
             }
             synchronized (pendingSpawns) {
                 ObjectArrayList<VxSpawnData> spawns = pendingSpawns.get(player);
-                if (spawns != null && spawns.removeIf(spawnData -> spawnData.id.equals(bodyId))) {
+                if (spawns != null && spawns.removeIf(spawnData -> spawnData.networkId == networkId)) {
                     return;
                 }
-                pendingRemovals.computeIfAbsent(player, k -> new ObjectArrayList<>()).add(bodyId);
+                pendingRemovals.computeIfAbsent(player, k -> new IntArrayList()).add(networkId);
             }
         }
     }
@@ -459,14 +459,14 @@ public class VxNetworkDispatcher {
      */
     public void onPlayerDisconnect(ServerPlayer player) {
         UUID playerId = player.getUUID();
-        Set<UUID> trackedBodies = playerTrackedBodies.remove(playerId);
+        Set<Integer> trackedBodies = playerTrackedBodies.remove(playerId);
         if (trackedBodies != null) {
-            for (UUID bodyId : trackedBodies) {
-                Set<ServerPlayer> trackers = bodyTrackers.get(bodyId);
+            for (Integer networkId : trackedBodies) {
+                Set<ServerPlayer> trackers = bodyTrackers.get(networkId);
                 if (trackers != null) {
                     trackers.remove(player);
                     if (trackers.isEmpty()) {
-                        bodyTrackers.remove(bodyId);
+                        bodyTrackers.remove(networkId);
                     }
                 }
             }

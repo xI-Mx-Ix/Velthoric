@@ -13,7 +13,6 @@ import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
 
 import java.io.IOException;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -26,7 +25,7 @@ import java.util.function.Supplier;
 public class S2CUpdateBodyStateBatchPacket {
 
     private final int count;
-    private final UUID[] ids;
+    private final int[] networkIds;
     private final long[] timestamps;
     private final double[] posX, posY, posZ;
     private final float[] rotX, rotY, rotZ, rotW;
@@ -37,9 +36,9 @@ public class S2CUpdateBodyStateBatchPacket {
      * Constructs the packet from raw data arrays. This is used on the sending side
      * and by the decode method after data has been read from the buffer.
      */
-    public S2CUpdateBodyStateBatchPacket(int count, UUID[] ids, long[] timestamps, double[] posX, double[] posY, double[] posZ, float[] rotX, float[] rotY, float[] rotZ, float[] rotW, float[] velX, float[] velY, float[] velZ, boolean[] isActive) {
+    public S2CUpdateBodyStateBatchPacket(int count, int[] networkIds, long[] timestamps, double[] posX, double[] posY, double[] posZ, float[] rotX, float[] rotY, float[] rotZ, float[] rotW, float[] velX, float[] velY, float[] velZ, boolean[] isActive) {
         this.count = count;
-        this.ids = ids;
+        this.networkIds = networkIds;
         this.timestamps = timestamps;
         this.posX = posX;
         this.posY = posY;
@@ -66,12 +65,7 @@ public class S2CUpdateBodyStateBatchPacket {
         try {
             tempBuf.writeVarInt(msg.count);
             for (int i = 0; i < msg.count; i++) {
-                UUID uuid = msg.ids[i];
-                if (uuid == null) {
-                    tempBuf.writeUUID(new UUID(0, 0));
-                } else {
-                    tempBuf.writeUUID(uuid);
-                }
+                tempBuf.writeVarInt(msg.networkIds[i]);
                 tempBuf.writeLong(msg.timestamps[i]);
                 tempBuf.writeDouble(msg.posX[i]);
                 tempBuf.writeDouble(msg.posY[i]);
@@ -116,7 +110,7 @@ public class S2CUpdateBodyStateBatchPacket {
             FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
 
             int count = decompressedBuf.readVarInt();
-            UUID[] ids = new UUID[count];
+            int[] networkIds = new int[count];
             long[] timestamps = new long[count];
             double[] posX = new double[count];
             double[] posY = new double[count];
@@ -131,7 +125,7 @@ public class S2CUpdateBodyStateBatchPacket {
             boolean[] isActive = new boolean[count];
 
             for (int i = 0; i < count; i++) {
-                ids[i] = decompressedBuf.readUUID();
+                networkIds[i] = decompressedBuf.readVarInt();
                 timestamps[i] = decompressedBuf.readLong();
                 posX[i] = decompressedBuf.readDouble();
                 posY[i] = decompressedBuf.readDouble();
@@ -148,7 +142,7 @@ public class S2CUpdateBodyStateBatchPacket {
                 }
             }
 
-            return new S2CUpdateBodyStateBatchPacket(count, ids, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
+            return new S2CUpdateBodyStateBatchPacket(count, networkIds, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to decompress body state batch packet", e);
         }
@@ -168,12 +162,7 @@ public class S2CUpdateBodyStateBatchPacket {
             long clientReceiptTime = manager.getClock().getGameTimeNanos();
 
             for (int i = 0; i < msg.count; i++) {
-                // Ignore sentinel UUIDs from potential encoding fallbacks.
-                if (msg.ids[i].getMostSignificantBits() == 0 && msg.ids[i].getLeastSignificantBits() == 0) {
-                    continue;
-                }
-
-                Integer index = store.getIndexForId(msg.ids[i]);
+                Integer index = store.getIndexForNetworkId(msg.networkIds[i]);
                 if (index == null) continue; // Body might have been removed client-side.
 
                 // Add a clock sync sample for each received state.

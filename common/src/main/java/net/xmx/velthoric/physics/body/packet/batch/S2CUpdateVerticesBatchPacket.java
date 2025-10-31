@@ -13,7 +13,6 @@ import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -26,7 +25,7 @@ import java.util.function.Supplier;
 public class S2CUpdateVerticesBatchPacket {
 
     private final int count;
-    private final UUID[] ids;
+    private final int[] networkIds;
     private final float[][] vertexData;
 
     /**
@@ -34,12 +33,12 @@ public class S2CUpdateVerticesBatchPacket {
      * and by the decode method after data has been read from the buffer.
      *
      * @param count      The number of objects in this batch.
-     * @param ids        Array of soft body UUIDs.
+     * @param networkIds Array of soft body network IDs.
      * @param vertexData A 2D array containing the vertex data for each body.
      */
-    public S2CUpdateVerticesBatchPacket(int count, UUID[] ids, float[] @Nullable [] vertexData) {
+    public S2CUpdateVerticesBatchPacket(int count, int[] networkIds, float[] @Nullable [] vertexData) {
         this.count = count;
-        this.ids = ids;
+        this.networkIds = networkIds;
         this.vertexData = vertexData;
     }
 
@@ -54,7 +53,7 @@ public class S2CUpdateVerticesBatchPacket {
         try {
             tempBuf.writeVarInt(msg.count);
             for (int i = 0; i < msg.count; i++) {
-                tempBuf.writeUUID(msg.ids[i]);
+                tempBuf.writeVarInt(msg.networkIds[i]);
                 float[] vertices = msg.vertexData[i];
                 if (vertices != null && vertices.length > 0) {
                     tempBuf.writeBoolean(true);
@@ -94,11 +93,11 @@ public class S2CUpdateVerticesBatchPacket {
             FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
 
             int count = decompressedBuf.readVarInt();
-            UUID[] ids = new UUID[count];
+            int[] networkIds = new int[count];
             float[][] vertexData = new float[count][];
 
             for (int i = 0; i < count; i++) {
-                ids[i] = decompressedBuf.readUUID();
+                networkIds[i] = decompressedBuf.readVarInt();
                 if (decompressedBuf.readBoolean()) { // Check if vertex data is present for this body
                     int length = decompressedBuf.readVarInt();
                     vertexData[i] = new float[length];
@@ -109,7 +108,7 @@ public class S2CUpdateVerticesBatchPacket {
                     vertexData[i] = null;
                 }
             }
-            return new S2CUpdateVerticesBatchPacket(count, ids, vertexData);
+            return new S2CUpdateVerticesBatchPacket(count, networkIds, vertexData);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to decompress vertex batch packet", e);
         }
@@ -128,7 +127,7 @@ public class S2CUpdateVerticesBatchPacket {
             VxClientBodyDataStore store = manager.getStore();
 
             for (int i = 0; i < msg.count; i++) {
-                Integer index = store.getIndexForId(msg.ids[i]);
+                Integer index = store.getIndexForNetworkId(msg.networkIds[i]);
                 if (index == null) continue; // Bodies might have been removed.
 
                 // This directly updates the target vertex data in state1.

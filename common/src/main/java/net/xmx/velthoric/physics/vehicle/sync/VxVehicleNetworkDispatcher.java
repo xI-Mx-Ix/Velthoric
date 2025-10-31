@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * Handles the network synchronization of dynamic vehicle states.
@@ -34,9 +33,9 @@ public class VxVehicleNetworkDispatcher {
      *
      * @param level The server level.
      * @param manager The body manager containing all physics bodies.
-     * @param bodyTrackers A map that tracks which players are watching which bodies.
+     * @param bodyTrackers A map that tracks which players are watching which bodies, keyed by network ID.
      */
-    public void dispatchUpdates(ServerLevel level, VxBodyManager manager, Map<UUID, Set<ServerPlayer>> bodyTrackers) {
+    public void dispatchUpdates(ServerLevel level, VxBodyManager manager, Map<Integer, Set<ServerPlayer>> bodyTrackers) {
         // Step 1: Collect all vehicles that have been marked with a dirty state.
         List<VxVehicle> dirtyVehicles = new ArrayList<>();
         for (VxBody body : manager.getAllBodies()) {
@@ -56,8 +55,8 @@ public class VxVehicleNetworkDispatcher {
         // for thread safety with Netty.
         level.getServer().execute(() -> {
             for (VxVehicle vehicle : dirtyVehicles) {
-                // Find all players who are currently tracking this vehicle.
-                Set<ServerPlayer> trackers = bodyTrackers.get(vehicle.getPhysicsId());
+                // Find all players who are currently tracking this vehicle using its network ID.
+                Set<ServerPlayer> trackers = bodyTrackers.get(vehicle.getNetworkId());
                 if (trackers == null || trackers.isEmpty()) {
                     continue; // Skip if no one is watching this vehicle.
                 }
@@ -80,8 +79,8 @@ public class VxVehicleNetworkDispatcher {
                     }
                 }
 
-                // Step 4: Create a single packet with all vehicle data.
-                S2CVehicleStatePacket packet = new S2CVehicleStatePacket(vehicle.getPhysicsId(), speedKmh, rotations, steers, suspensions);
+                // Step 4: Create a single packet with all vehicle data, using the network ID.
+                S2CVehicleStatePacket packet = new S2CVehicleStatePacket(vehicle.getNetworkId(), speedKmh, rotations, steers, suspensions);
 
                 // Step 5: Send the packet to every player tracking this vehicle.
                 for (ServerPlayer player : trackers) {

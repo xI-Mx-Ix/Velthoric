@@ -42,6 +42,7 @@ public class VxBodyDataStore extends AbstractDataStore {
     public EBodyType[] bodyType;
     public EMotionType[] motionType;
     public long[] chunkKey;
+    public int[] networkId;
 
     // --- Sync & Management Data ---
     /** Flag indicating that the game logic has modified this body's state, requiring a sync to Jolt. */
@@ -84,6 +85,7 @@ public class VxBodyDataStore extends AbstractDataStore {
         bodyType = grow(bodyType, newCapacity);
         motionType = grow(motionType, newCapacity);
         chunkKey = grow(chunkKey, newCapacity);
+        networkId = grow(networkId, newCapacity);
 
         isGameStateDirty = grow(isGameStateDirty, newCapacity);
         isTransformDirty = grow(isTransformDirty, newCapacity);
@@ -186,6 +188,7 @@ public class VxBodyDataStore extends AbstractDataStore {
         bodyType[index] = null;
         motionType[index] = null;
         chunkKey[index] = Long.MAX_VALUE;
+        networkId[index] = -1;
         isGameStateDirty[index] = false;
         isTransformDirty[index] = false;
         isVertexDataDirty[index] = false;

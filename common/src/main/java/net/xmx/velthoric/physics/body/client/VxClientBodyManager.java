@@ -53,7 +53,7 @@ public class VxClientBodyManager {
     // The client-side clock, which can be paused.
     private final VxClientClock clock = VxClientClock.INSTANCE;
 
-    // Map of all active client-side physics body handles.
+    // Map of all active client-side physics body handles, keyed by their persistent UUID.
     private final Map<UUID, VxBody> managedBodies = new ConcurrentHashMap<>();
 
     // The calculated time offset between the client and server clocks.
@@ -128,11 +128,12 @@ public class VxClientBodyManager {
      * Spawns a new physics body on the client based on data from a spawn packet.
      *
      * @param id          The UUID of the new body.
+     * @param networkId   The session-specific network ID for the body.
      * @param typeId      The ResourceLocation identifying the body's type.
      * @param data        A buffer containing the initial transform and custom sync data.
      * @param timestamp   The server-side timestamp of the spawn event.
      */
-    public void spawnBody(UUID id, ResourceLocation typeId, VxByteBuf data, long timestamp) {
+    public void spawnBody(UUID id, int networkId, ResourceLocation typeId, VxByteBuf data, long timestamp) {
         if (store.hasBody(id)) {
             VxMainClass.LOGGER.warn("Client received spawn request for already existing body: {}", id);
             return;
@@ -164,7 +165,7 @@ public class VxClientBodyManager {
             }
         }
 
-        int index = store.addBody(id);
+        int index = store.addBody(id, networkId);
         body.setDataStoreIndex(index);
         managedBodies.put(id, body);
 
@@ -224,23 +225,35 @@ public class VxClientBodyManager {
     }
 
     /**
-     * Removes a physics body from the client.
+     * Removes a physics body from the client using its network ID.
      *
-     * @param id The UUID of the body to remove.
+     * @param networkId The network ID of the body to remove.
      */
-    public void removeBody(UUID id) {
-        managedBodies.remove(id);
-        store.removeBody(id);
-        VxClientMountingManager.INSTANCE.removeSeatsForBody(id);
+    public void removeBody(int networkId) {
+        Integer index = store.getIndexForNetworkId(networkId);
+        if (index != null) {
+            UUID id = store.getUuidForIndex(index);
+            if (id != null) {
+                managedBodies.remove(id);
+                VxClientMountingManager.INSTANCE.removeSeatsForBody(id);
+            }
+        }
+        store.removeBodyByNetworkId(networkId);
     }
 
     /**
      * Updates the synchronized data for a specific body.
      *
-     * @param id   The UUID of the body to update.
+     * @param networkId The network ID of the body to update.
      * @param data The buffer containing the new synchronized data.
      */
-    public void updateSynchronizedData(UUID id, ByteBuf data) {
+    public void updateSynchronizedData(int networkId, ByteBuf data) {
+        Integer index = store.getIndexForNetworkId(networkId);
+        if (index == null) return;
+
+        UUID id = store.getUuidForIndex(index);
+        if (id == null) return;
+
         VxBody body = managedBodies.get(id);
         if (body != null) {
             try {

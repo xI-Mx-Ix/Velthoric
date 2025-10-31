@@ -26,8 +26,12 @@ public class VxClientBodyDataStore extends AbstractDataStore {
     // --- Core Mappings ---
     // Maps a physics body's UUID to its integer index in the data arrays.
     private final Map<UUID, Integer> uuidToIndex = new HashMap<>();
+    // Maps a session-specific network ID to its integer index.
+    private final Map<Integer, Integer> networkIdToIndex = new HashMap<>();
     // Maps an integer index back to the corresponding UUID.
     private final List<UUID> indexToUuid = new ArrayList<>();
+    // Maps an integer index back to the corresponding network ID.
+    private final List<Integer> indexToNetworkId = new ArrayList<>();
     // A queue of recycled indices from removed bodies to be reused.
     private final Deque<Integer> freeIndices = new ArrayDeque<>();
     // The number of active bodies currently in the store.
@@ -140,9 +144,10 @@ public class VxClientBodyDataStore extends AbstractDataStore {
      * Adds a new body to the data store and returns its assigned index.
      *
      * @param id The UUID of the body to add.
+     * @param networkId The session-specific network ID of the body.
      * @return The index assigned to the new body.
      */
-    public int addBody(UUID id) {
+    public int addBody(UUID id, int networkId) {
         // Grow the arrays if capacity is reached.
         if (count == capacity) {
             allocate(capacity * 2);
@@ -151,25 +156,34 @@ public class VxClientBodyDataStore extends AbstractDataStore {
         int index = freeIndices.isEmpty() ? count++ : freeIndices.pop();
 
         uuidToIndex.put(id, index);
+        networkIdToIndex.put(networkId, index);
+
         if (index >= indexToUuid.size()) {
             indexToUuid.add(id);
+            indexToNetworkId.add(networkId);
         } else {
             indexToUuid.set(index, id);
+            indexToNetworkId.set(index, networkId);
         }
         return index;
     }
 
     /**
-     * Removes a body from the data store, freeing its index for reuse.
+     * Removes a body from the data store using its network ID.
      *
-     * @param id The UUID of the body to remove.
+     * @param networkId The network ID of the body to remove.
      */
-    public void removeBody(UUID id) {
-        Integer index = uuidToIndex.remove(id);
+    public void removeBodyByNetworkId(int networkId) {
+        Integer index = networkIdToIndex.remove(networkId);
         if (index != null) {
+            UUID id = indexToUuid.get(index);
+            if (id != null) {
+                uuidToIndex.remove(id);
+            }
             resetIndex(index);
             freeIndices.push(index);
             indexToUuid.set(index, null);
+            indexToNetworkId.set(index, -1);
         }
     }
 
@@ -178,7 +192,9 @@ public class VxClientBodyDataStore extends AbstractDataStore {
      */
     public void clear() {
         uuidToIndex.clear();
+        networkIdToIndex.clear();
         indexToUuid.clear();
+        indexToNetworkId.clear();
         freeIndices.clear();
         count = 0;
         // Reallocate with initial capacity to free up memory.
@@ -194,6 +210,31 @@ public class VxClientBodyDataStore extends AbstractDataStore {
     @Nullable
     public Integer getIndexForId(UUID id) {
         return uuidToIndex.get(id);
+    }
+
+    /**
+     * Gets the index for a given body network ID.
+     *
+     * @param networkId The network ID of the body.
+     * @return The integer index, or null if the body is not in the store.
+     */
+    @Nullable
+    public Integer getIndexForNetworkId(int networkId) {
+        return networkIdToIndex.get(networkId);
+    }
+
+    /**
+     * Gets the UUID for a given index.
+     *
+     * @param index The index of the body.
+     * @return The UUID, or null if the index is invalid or free.
+     */
+    @Nullable
+    public UUID getUuidForIndex(int index) {
+        if (index >= 0 && index < indexToUuid.size()) {
+            return indexToUuid.get(index);
+        }
+        return null;
     }
 
     /**
@@ -232,7 +273,7 @@ public class VxClientBodyDataStore extends AbstractDataStore {
         // Primitive arrays
         bytes += (long) capacity * 8 * 2;  // 2 long[]
         bytes += (long) capacity * 4 * 34; // 34 float[]
-        bytes += capacity;          // 3 boolean[] (estimating 1 byte per boolean)
+        bytes += capacity * 2L;          // 2 boolean[] (estimating 1 byte per boolean)
 
         // Reference arrays (assuming 8 bytes per reference on a 64-bit JVM)
         bytes += (long) capacity * 8 * 6;

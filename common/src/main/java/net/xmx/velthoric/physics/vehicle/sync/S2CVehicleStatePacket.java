@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.vehicle.sync;
 
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
@@ -16,13 +17,14 @@ import java.util.function.Supplier;
 /**
  * A server-to-client packet that synchronizes the dynamic state of a vehicle.
  * This includes its speed, and for wheeled vehicles, the state of each wheel
- * (rotation, steering angle, suspension length).
+ * (rotation, steering angle, suspension length). This packet uses an integer network ID
+ * for efficient identification.
  *
  * @author xI-Mx-Ix
  */
 public class S2CVehicleStatePacket {
 
-    private final UUID vehicleId;
+    private final int networkId;
     private final float speedKmh;
     private final float[] rotationAngles;
     private final float[] steerAngles;
@@ -31,8 +33,8 @@ public class S2CVehicleStatePacket {
     /**
      * Constructs the packet from raw data. Used on the sending side and by the decode method.
      */
-    public S2CVehicleStatePacket(UUID vehicleId, float speedKmh, float[] rotationAngles, float[] steerAngles, float[] suspensionLengths) {
-        this.vehicleId = vehicleId;
+    public S2CVehicleStatePacket(int networkId, float speedKmh, float[] rotationAngles, float[] steerAngles, float[] suspensionLengths) {
+        this.networkId = networkId;
         this.speedKmh = speedKmh;
         this.rotationAngles = rotationAngles;
         this.steerAngles = steerAngles;
@@ -45,7 +47,7 @@ public class S2CVehicleStatePacket {
      * @param buf The buffer to write to.
      */
     public static void encode(S2CVehicleStatePacket msg, FriendlyByteBuf buf) {
-        buf.writeUUID(msg.vehicleId);
+        buf.writeVarInt(msg.networkId);
         buf.writeFloat(msg.speedKmh);
         buf.writeVarInt(msg.rotationAngles.length);
         for (int i = 0; i < msg.rotationAngles.length; i++) {
@@ -61,7 +63,7 @@ public class S2CVehicleStatePacket {
      * @return A new instance of the packet.
      */
     public static S2CVehicleStatePacket decode(FriendlyByteBuf buf) {
-        UUID vehicleId = buf.readUUID();
+        int networkId = buf.readVarInt();
         float speedKmh = buf.readFloat();
         int wheelCount = buf.readVarInt();
         float[] rotationAngles = new float[wheelCount];
@@ -72,7 +74,7 @@ public class S2CVehicleStatePacket {
             steerAngles[i] = buf.readFloat();
             suspensionLengths[i] = buf.readFloat();
         }
-        return new S2CVehicleStatePacket(vehicleId, speedKmh, rotationAngles, steerAngles, suspensionLengths);
+        return new S2CVehicleStatePacket(networkId, speedKmh, rotationAngles, steerAngles, suspensionLengths);
     }
 
     /**
@@ -85,7 +87,17 @@ public class S2CVehicleStatePacket {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             VxClientBodyManager manager = VxClientBodyManager.getInstance();
-            VxBody body = manager.getBody(msg.vehicleId);
+            VxClientBodyDataStore store = manager.getStore();
+
+            // Look up the body's internal index using the efficient network ID.
+            Integer index = store.getIndexForNetworkId(msg.networkId);
+            if (index == null) return;
+
+            // Get the persistent UUID from the index to find the body instance.
+            UUID vehicleUuid = store.getUuidForIndex(index);
+            if (vehicleUuid == null) return;
+
+            VxBody body = manager.getBody(vehicleUuid);
 
             if (body instanceof VxVehicle vehicle) {
                 // Update the vehicle's overall state

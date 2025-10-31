@@ -6,14 +6,13 @@ package net.xmx.velthoric.physics.body.packet.batch;
 
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
-import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -24,14 +23,14 @@ import java.util.function.Supplier;
  */
 public class S2CSynchronizedDataBatchPacket {
 
-    private final Map<UUID, byte[]> dataUpdates;
+    private final Map<Integer, byte[]> dataUpdates;
 
     /**
-     * Constructs a new packet with a map of object IDs to their custom data.
+     * Constructs a new packet with a map of object network IDs to their custom data.
      *
-     * @param dataUpdates A map where the key is the body's UUID and the value is the serialized custom data.
+     * @param dataUpdates A map where the key is the body's network ID and the value is the serialized custom data.
      */
-    public S2CSynchronizedDataBatchPacket(Map<UUID, byte[]> dataUpdates) {
+    public S2CSynchronizedDataBatchPacket(Map<Integer, byte[]> dataUpdates) {
         this.dataUpdates = dataUpdates;
     }
 
@@ -45,8 +44,8 @@ public class S2CSynchronizedDataBatchPacket {
         FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
         try {
             tempBuf.writeVarInt(msg.dataUpdates.size());
-            for (Map.Entry<UUID, byte[]> entry : msg.dataUpdates.entrySet()) {
-                tempBuf.writeUUID(entry.getKey());
+            for (Map.Entry<Integer, byte[]> entry : msg.dataUpdates.entrySet()) {
+                tempBuf.writeVarInt(entry.getKey());
                 tempBuf.writeByteArray(entry.getValue());
             }
 
@@ -77,9 +76,9 @@ public class S2CSynchronizedDataBatchPacket {
             FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
 
             int size = decompressedBuf.readVarInt();
-            Map<UUID, byte[]> dataUpdates = new Object2ObjectArrayMap<>(size);
+            Map<Integer, byte[]> dataUpdates = new Int2ObjectArrayMap<>(size);
             for (int i = 0; i < size; i++) {
-                UUID id = decompressedBuf.readUUID();
+                int id = decompressedBuf.readVarInt();
                 byte[] data = decompressedBuf.readByteArray();
                 dataUpdates.put(id, data);
             }
@@ -100,7 +99,7 @@ public class S2CSynchronizedDataBatchPacket {
         context.queue(() -> {
             VxClientBodyManager manager = VxClientBodyManager.getInstance();
             // Apply each custom data update to the corresponding client-side body.
-            for (Map.Entry<UUID, byte[]> entry : msg.dataUpdates.entrySet()) {
+            for (Map.Entry<Integer, byte[]> entry : msg.dataUpdates.entrySet()) {
                 manager.updateSynchronizedData(entry.getKey(), Unpooled.wrappedBuffer(entry.getValue()));
             }
         });

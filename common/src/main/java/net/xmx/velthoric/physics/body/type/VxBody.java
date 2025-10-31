@@ -44,9 +44,13 @@ public abstract class VxBody {
      */
     private int bodyId = 0;
     /**
-     *  The index of this body's data in the data store. -1 if not yet added.
+     * The index of this body's data in the data store. -1 if not yet added.
      */
     private int dataStoreIndex = -1;
+    /**
+     * The session-specific network ID for this body. -1 if not assigned. Server-side only.
+     */
+    private int networkId = -1;
 
     // --- Server-Only Fields ---
     protected final VxPhysicsWorld physicsWorld;
@@ -339,5 +343,21 @@ public abstract class VxBody {
      */
     public void setDataStoreIndex(int dataStoreIndex) {
         this.dataStoreIndex = dataStoreIndex;
+    }
+
+    /**
+     * Gets the session-specific network ID.
+     * @return The network ID. Server-side only.
+     */
+    public int getNetworkId() {
+        return networkId;
+    }
+
+    /**
+     * Sets the session-specific network ID. Called by the VxBodyManager on addition.
+     * @param networkId The new network ID. Server-side only.
+     */
+    public void setNetworkId(int networkId) {
+        this.networkId = networkId;
     }
 }

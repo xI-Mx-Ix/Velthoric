@@ -100,7 +100,7 @@ public class S2CSpawnBodyBatchPacket {
                 // Wrap the raw byte data into a buffer for the manager to read.
                 VxByteBuf dataBuf = new VxByteBuf(Unpooled.wrappedBuffer(data.data));
                 try {
-                    manager.spawnBody(data.id, data.typeIdentifier, dataBuf, data.timestamp);
+                    manager.spawnBody(data.id, data.networkId, data.typeIdentifier, dataBuf, data.timestamp);
                 } finally {
                     // Ensure the buffer is released to prevent memory leaks.
                     if (dataBuf.refCnt() > 0) {

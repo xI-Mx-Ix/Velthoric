@@ -20,6 +20,7 @@ import java.util.UUID;
  */
 public class VxSpawnData {
     public final UUID id;
+    public final int networkId;
     public final ResourceLocation typeIdentifier;
     public final long timestamp;
     public final byte[] data;
@@ -33,6 +34,7 @@ public class VxSpawnData {
      */
     public VxSpawnData(VxBody obj, long timestamp) {
         this.id = obj.getPhysicsId();
+        this.networkId = obj.getNetworkId();
         this.typeIdentifier = obj.getType().getTypeId();
         this.timestamp = timestamp;
 
@@ -58,6 +60,7 @@ public class VxSpawnData {
      */
     public VxSpawnData(FriendlyByteBuf buf) {
         this.id = buf.readUUID();
+        this.networkId = buf.readVarInt();
         this.typeIdentifier = buf.readResourceLocation();
         this.timestamp = buf.readLong();
         this.data = buf.readByteArray();
@@ -70,6 +73,7 @@ public class VxSpawnData {
      */
     public void encode(FriendlyByteBuf buf) {
         buf.writeUUID(id);
+        buf.writeVarInt(networkId);
         buf.writeResourceLocation(typeIdentifier);
         buf.writeLong(timestamp);
         buf.writeByteArray(data);
@@ -82,7 +86,7 @@ public class VxSpawnData {
      */
     public int estimateSize() {
         String typeStr = typeIdentifier.toString();
-        // Calculate size: UUID (16) + RL (varint + string) + Timestamp (8) + Data (varint + bytes)
-        return 16 + FriendlyByteBuf.getVarIntSize(typeStr.length()) + typeStr.length() + 8 + FriendlyByteBuf.getVarIntSize(data.length) + data.length;
+        // Calculate size: UUID (16) + NetworkID (varint) + RL (varint + string) + Timestamp (8) + Data (varint + bytes)
+        return 16 + FriendlyByteBuf.getVarIntSize(networkId) + FriendlyByteBuf.getVarIntSize(typeStr.length()) + typeStr.length() + 8 + FriendlyByteBuf.getVarIntSize(data.length) + data.length;
     }
 }
