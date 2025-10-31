@@ -6,10 +6,14 @@ package net.xmx.velthoric.physics.body.manager;
 
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.xmx.velthoric.physics.body.AbstractDataStore;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.UUID;
 
 /**
  * A data-oriented store for the live state of all physics bodies on the server.
@@ -24,9 +28,9 @@ public class VxBodyDataStore extends AbstractDataStore {
     // The initial capacity for the data arrays.
     private static final int INITIAL_CAPACITY = 256;
 
-    private final Map<UUID, Integer> uuidToIndex = new HashMap<>();
-    private final List<UUID> indexToUuid = new ArrayList<>();
-    private final Deque<Integer> freeIndices = new ArrayDeque<>();
+    private final Object2IntMap<UUID> uuidToIndex = new Object2IntOpenHashMap<>();
+    private final ObjectArrayList<UUID> indexToUuid = new ObjectArrayList<>();
+    private final IntArrayList freeIndices = new IntArrayList();
     private int count = 0;
     private int capacity = 0;
 
@@ -58,6 +62,7 @@ public class VxBodyDataStore extends AbstractDataStore {
 
     public VxBodyDataStore() {
         allocate(INITIAL_CAPACITY);
+        uuidToIndex.defaultReturnValue(-1);
     }
 
     private void allocate(int newCapacity) {
@@ -105,13 +110,13 @@ public class VxBodyDataStore extends AbstractDataStore {
      */
     public synchronized int addBody(UUID id, EBodyType type) {
         if (uuidToIndex.containsKey(id)) {
-            return uuidToIndex.get(id);
+            return uuidToIndex.getInt(id);
         }
 
         if (count == capacity) {
             allocate(capacity * 2);
         }
-        int index = freeIndices.isEmpty() ? count++ : freeIndices.pop();
+        int index = freeIndices.isEmpty() ? count++ : freeIndices.removeInt(freeIndices.size() - 1);
 
         uuidToIndex.put(id, index);
         if (index >= indexToUuid.size()) {
@@ -133,10 +138,10 @@ public class VxBodyDataStore extends AbstractDataStore {
      */
     @Nullable
     public synchronized Integer removeBody(UUID id) {
-        Integer index = uuidToIndex.remove(id);
-        if (index != null) {
+        int index = uuidToIndex.removeInt(id);
+        if (index != -1) {
             resetIndex(index);
-            freeIndices.push(index);
+            freeIndices.add(index);
             indexToUuid.set(index, null);
             return index;
         }
@@ -156,7 +161,8 @@ public class VxBodyDataStore extends AbstractDataStore {
 
     @Nullable
     public synchronized Integer getIndexForId(UUID id) {
-        return uuidToIndex.get(id);
+        int index = uuidToIndex.getInt(id);
+        return index == -1 ? null : index;
     }
 
     @Nullable

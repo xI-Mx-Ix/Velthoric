@@ -5,11 +5,19 @@
 package net.xmx.velthoric.physics.body.client;
 
 import com.github.stephengold.joltjni.RVec3;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.xmx.velthoric.physics.body.AbstractDataStore;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.UUID;
 
 /**
  * A client-side data store for physics bodies using a Structure of Arrays (SoA) layout.
@@ -25,15 +33,13 @@ public class VxClientBodyDataStore extends AbstractDataStore {
 
     // --- Core Mappings ---
     // Maps a physics body's UUID to its integer index in the data arrays.
-    private final Map<UUID, Integer> uuidToIndex = new HashMap<>();
+    private final Object2IntMap<UUID> uuidToIndex = new Object2IntOpenHashMap<>();
     // Maps a session-specific network ID to its integer index.
-    private final Map<Integer, Integer> networkIdToIndex = new HashMap<>();
+    private final Int2IntMap networkIdToIndex = new Int2IntOpenHashMap();
     // Maps an integer index back to the corresponding UUID.
-    private final List<UUID> indexToUuid = new ArrayList<>();
-    // Maps an integer index back to the corresponding network ID.
-    private final List<Integer> indexToNetworkId = new ArrayList<>();
-    // A queue of recycled indices from removed bodies to be reused.
-    private final Deque<Integer> freeIndices = new ArrayDeque<>();
+    private final ObjectArrayList<UUID> indexToUuid = new ObjectArrayList<>();
+    // A list of recycled indices from removed bodies to be reused, acting as a stack.
+    private final IntArrayList freeIndices = new IntArrayList();
     // The number of active bodies currently in the store.
     private int count = 0;
     // The current allocated size of the data arrays.
@@ -79,6 +85,8 @@ public class VxClientBodyDataStore extends AbstractDataStore {
      */
     public VxClientBodyDataStore() {
         allocate(INITIAL_CAPACITY);
+        uuidToIndex.defaultReturnValue(-1);
+        networkIdToIndex.defaultReturnValue(-1);
     }
 
     /**
@@ -153,17 +161,15 @@ public class VxClientBodyDataStore extends AbstractDataStore {
             allocate(capacity * 2);
         }
         // Reuse an old index if available, otherwise use a new one.
-        int index = freeIndices.isEmpty() ? count++ : freeIndices.pop();
+        int index = freeIndices.isEmpty() ? count++ : freeIndices.removeInt(freeIndices.size() - 1);
 
         uuidToIndex.put(id, index);
         networkIdToIndex.put(networkId, index);
 
         if (index >= indexToUuid.size()) {
             indexToUuid.add(id);
-            indexToNetworkId.add(networkId);
         } else {
             indexToUuid.set(index, id);
-            indexToNetworkId.set(index, networkId);
         }
         return index;
     }
@@ -174,16 +180,15 @@ public class VxClientBodyDataStore extends AbstractDataStore {
      * @param networkId The network ID of the body to remove.
      */
     public void removeBodyByNetworkId(int networkId) {
-        Integer index = networkIdToIndex.remove(networkId);
-        if (index != null) {
+        int index = networkIdToIndex.remove(networkId);
+        if (index != -1) {
             UUID id = indexToUuid.get(index);
             if (id != null) {
-                uuidToIndex.remove(id);
+                uuidToIndex.removeInt(id);
             }
             resetIndex(index);
-            freeIndices.push(index);
+            freeIndices.add(index);
             indexToUuid.set(index, null);
-            indexToNetworkId.set(index, -1);
         }
     }
 
@@ -194,7 +199,6 @@ public class VxClientBodyDataStore extends AbstractDataStore {
         uuidToIndex.clear();
         networkIdToIndex.clear();
         indexToUuid.clear();
-        indexToNetworkId.clear();
         freeIndices.clear();
         count = 0;
         // Reallocate with initial capacity to free up memory.
@@ -209,7 +213,8 @@ public class VxClientBodyDataStore extends AbstractDataStore {
      */
     @Nullable
     public Integer getIndexForId(UUID id) {
-        return uuidToIndex.get(id);
+        int index = uuidToIndex.getInt(id);
+        return index == -1 ? null : index;
     }
 
     /**
@@ -220,7 +225,8 @@ public class VxClientBodyDataStore extends AbstractDataStore {
      */
     @Nullable
     public Integer getIndexForNetworkId(int networkId) {
-        return networkIdToIndex.get(networkId);
+        int index = networkIdToIndex.get(networkId);
+        return index == -1 ? null : index;
     }
 
     /**
