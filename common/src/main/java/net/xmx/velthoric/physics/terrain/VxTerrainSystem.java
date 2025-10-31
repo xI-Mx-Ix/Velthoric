@@ -95,22 +95,22 @@ public final class VxTerrainSystem implements Runnable {
                     stackTraceBuilder.append("\tat ").append(ste).append("\n");
                 }
                 VxMainClass.LOGGER.fatal("Terrain system thread for '{}' did not terminate in 30 seconds. Forcing shutdown.\n{}", level.dimension().location(), stackTraceBuilder.toString());
+                VxMainClass.LOGGER.warn("Skipping resource cleanup for '{}' to prevent data corruption due to the deadlocked thread.", level.dimension().location());
             } else {
                 VxMainClass.LOGGER.debug("Terrain system for '{}' shut down gracefully.", level.dimension().location());
+                VxMainClass.LOGGER.debug("Cleaning up terrain physics bodies for '{}'...", level.dimension().location());
+                terrainManager.cleanupAllBodies();
+
+                // Clean up caches and generator
+                shapeCache.clear();
+                terrainGenerator.close();
+
+                chunkDataStore.clear();
+                chunksToRebuild.clear();
+                terrainTracker.clear();
+
+                VxMainClass.LOGGER.debug("Terrain system for '{}' has been fully shut down.", level.dimension().location());
             }
-
-            VxMainClass.LOGGER.debug("Cleaning up terrain physics bodies for '{}'...", level.dimension().location());
-            terrainManager.cleanupAllBodies();
-
-            // Clean up caches and generator
-            shapeCache.clear();
-            terrainGenerator.close();
-
-            chunkDataStore.clear();
-            chunksToRebuild.clear();
-            terrainTracker.clear();
-
-            VxMainClass.LOGGER.debug("Terrain system for '{}' has been fully shut down.", level.dimension().location());
         }
     }
 
