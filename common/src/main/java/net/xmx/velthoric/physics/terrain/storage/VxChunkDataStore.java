@@ -145,38 +145,66 @@ public final class VxChunkDataStore extends AbstractDataStore {
     // --- Lock-Free Accessors and Atomic Operations ---
 
     public int getState(int index) {
+        if (index < 0 || index >= capacity) {
+            return VxTerrainManager.STATE_REMOVING;
+        }
         return states.get(index);
     }
 
     public void setState(int index, int state) {
+        if (index < 0 || index >= capacity) {
+            return;
+        }
         this.states.set(index, state);
     }
 
     public int getBodyId(int index) {
+        if (index < 0 || index >= capacity) {
+            return UNUSED_BODY_ID;
+        }
         return bodyIds.get(index);
     }
 
     public void setBodyId(int index, int bodyId) {
+        if (index < 0 || index >= capacity) {
+            return;
+        }
         this.bodyIds.set(index, bodyId);
     }
 
     public boolean isPlaceholder(int index) {
+        if (index < 0 || index >= capacity) {
+            return true;
+        }
         return isPlaceholder.get(index) == 1;
     }
 
     public void setPlaceholder(int index, boolean placeholder) {
+        if (index < 0 || index >= capacity) {
+            return;
+        }
         this.isPlaceholder.set(index, placeholder ? 1 : 0);
     }
 
     public int incrementAndGetRefCount(int index) {
+        if (index < 0 || index >= capacity) {
+            return 0;
+        }
         return this.referenceCounts.incrementAndGet(index);
     }
 
     public int decrementAndGetRefCount(int index) {
+        if (index < 0 || index >= capacity) {
+            return 0;
+        }
         return this.referenceCounts.decrementAndGet(index);
     }
 
     public boolean isVersionStale(int index, int version) {
+        // This is the direct cause of the reported crash.
+        if (index < 0 || index >= capacity) {
+            return true;
+        }
         return version < rebuildVersions.get(index);
     }
 
@@ -189,6 +217,9 @@ public final class VxChunkDataStore extends AbstractDataStore {
      *         chunk cannot be scheduled (e.g., it is already being processed).
      */
     public int scheduleForGeneration(int index) {
+        if (index < 0 || index >= capacity) {
+            return -1;
+        }
         while (true) {
             int currentState = states.get(index);
             if (currentState == VxTerrainManager.STATE_REMOVING ||
@@ -212,6 +243,12 @@ public final class VxChunkDataStore extends AbstractDataStore {
      * @param shape The new shape reference.
      */
     public void setShape(int index, ShapeRefC shape) {
+        if (index < 0 || index >= capacity) {
+            if (shape != null) {
+                shape.close();
+            }
+            return;
+        }
         ShapeRefC oldShape = shapeRefs.getAndSet(index, shape);
         if (oldShape != null && oldShape != shape) {
             oldShape.close();
@@ -249,7 +286,10 @@ public final class VxChunkDataStore extends AbstractDataStore {
             int currentCount = this.count;
             int[] bodyIdsCopy = new int[currentCount];
             for (int i = 0; i < currentCount; i++) {
-                bodyIdsCopy[i] = this.bodyIds.get(i);
+                // Ensure we don't go out of bounds if a resize happens unexpectedly, though lock should prevent this.
+                if (i < this.bodyIds.length()) {
+                    bodyIdsCopy[i] = this.bodyIds.get(i);
+                }
             }
             return bodyIdsCopy;
         }
