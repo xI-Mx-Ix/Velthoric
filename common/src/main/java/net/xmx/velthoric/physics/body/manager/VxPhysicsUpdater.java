@@ -203,7 +203,11 @@ public class VxPhysicsUpdater {
         // --- Pass 2: Efficiently sync remaining data using a single multi-lock ---
         if (!localBodyIdsToLock.isEmpty()) {
             ConstBodyLockInterfaceNoLock lockInterface = world.getPhysicsSystem().getBodyLockInterfaceNoLock();
-            int[] bodyIdArray = localBodyIdsToLock.stream().mapToInt(Integer::intValue).toArray();
+
+            int[] bodyIdArray = new int[localBodyIdsToLock.size()];
+            for (int j = 0; j < localBodyIdsToLock.size(); j++) {
+                bodyIdArray[j] = localBodyIdsToLock.get(j);
+            }
 
             try (BodyLockMultiRead multiLock = new BodyLockMultiRead(lockInterface, bodyIdArray)) {
                 for (int j = 0; j < bodyIdArray.length; ++j) {
