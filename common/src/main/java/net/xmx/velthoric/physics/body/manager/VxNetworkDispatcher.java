@@ -5,7 +5,7 @@
 package net.xmx.velthoric.physics.body.manager;
 
 import io.netty.buffer.Unpooled;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -48,8 +48,14 @@ public class VxNetworkDispatcher {
     private static final int MAX_REMOVALS_PER_PACKET = 512;
 
     // --- Player tracking data structures ---
-    private final Map<UUID, Set<Integer>> playerTrackedBodies = new ConcurrentHashMap<>();
-    private final Map<Integer, Set<ServerPlayer>> bodyTrackers = new ConcurrentHashMap<>();
+    // Maps a player's UUID to a set of primitive network IDs of the bodies they are tracking.
+    // Using IntSet avoids Integer object allocation (autoboxing).
+    private final Map<UUID, IntSet> playerTrackedBodies = new ConcurrentHashMap<>();
+
+    // Maps a primitive network ID to the set of players tracking that body.
+    // This is the core optimization: Int2ObjectMap avoids autoboxing the networkId on every lookup.
+    private final Int2ObjectMap<Set<ServerPlayer>> bodyTrackers = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
+
     private final Map<ServerPlayer, ObjectArrayList<VxSpawnData>> pendingSpawns = new HashMap<>();
     private final Map<ServerPlayer, IntArrayList> pendingRemovals = new HashMap<>();
     private ExecutorService networkSyncExecutor;
@@ -331,6 +337,7 @@ public class VxNetworkDispatcher {
      * @param body The physics body that was removed.
      */
     public void onBodyRemoved(VxBody body) {
+        // The get() call on an Int2ObjectMap is free of autoboxing.
         Set<ServerPlayer> trackers = bodyTrackers.get(body.getNetworkId());
         if (trackers != null) {
             for (ServerPlayer player : new ArrayList<>(trackers)) {
@@ -403,13 +410,16 @@ public class VxNetworkDispatcher {
      * @param body   The body to be tracked.
      */
     public void trackBodyForPlayer(ServerPlayer player, VxBody body) {
-        Set<Integer> trackedByPlayer = playerTrackedBodies.computeIfAbsent(player.getUUID(), k -> ConcurrentHashMap.newKeySet());
+        // Use a synchronized IntOpenHashSet to store primitive ints, avoiding autoboxing.
+        IntSet trackedByPlayer = playerTrackedBodies.computeIfAbsent(player.getUUID(), k -> IntSets.synchronize(new IntOpenHashSet()));
         if (trackedByPlayer.add(body.getNetworkId())) {
+            // computeIfAbsent on an Int2ObjectMap is free of autoboxing.
             bodyTrackers.computeIfAbsent(body.getNetworkId(), k -> ConcurrentHashMap.newKeySet()).add(player);
             synchronized (pendingSpawns) {
                 IntArrayList removals = pendingRemovals.get(player);
+                // The check and removal from the pending removals list is an important optimization.
                 if (removals != null && removals.rem(body.getNetworkId())) {
-                    return;
+                    return; // The spawn cancels out the pending removal.
                 }
                 pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>())
                         .add(new VxSpawnData(body, System.nanoTime()));
@@ -427,8 +437,9 @@ public class VxNetworkDispatcher {
      * @param networkId The network ID of the body to stop tracking.
      */
     public void untrackBodyForPlayer(ServerPlayer player, int networkId) {
-        Set<Integer> trackedByPlayer = playerTrackedBodies.get(player.getUUID());
+        IntSet trackedByPlayer = playerTrackedBodies.get(player.getUUID());
         if (trackedByPlayer != null && trackedByPlayer.remove(networkId)) {
+            // All map operations now use a primitive int key, avoiding autoboxing.
             Set<ServerPlayer> trackers = bodyTrackers.get(networkId);
             if (trackers != null) {
                 trackers.remove(player);
@@ -438,8 +449,9 @@ public class VxNetworkDispatcher {
             }
             synchronized (pendingSpawns) {
                 ObjectArrayList<VxSpawnData> spawns = pendingSpawns.get(player);
+                // The check and removal from the pending spawns list is an important optimization.
                 if (spawns != null && spawns.removeIf(spawnData -> spawnData.networkId == networkId)) {
-                    return;
+                    return; // The removal cancels out the pending spawn.
                 }
                 pendingRemovals.computeIfAbsent(player, k -> new IntArrayList()).add(networkId);
             }
@@ -453,9 +465,12 @@ public class VxNetworkDispatcher {
      */
     public void onPlayerDisconnect(ServerPlayer player) {
         UUID playerId = player.getUUID();
-        Set<Integer> trackedBodies = playerTrackedBodies.remove(playerId);
+        IntSet trackedBodies = playerTrackedBodies.remove(playerId);
         if (trackedBodies != null) {
-            for (Integer networkId : trackedBodies) {
+            // Use an iterator to process the primitive ints without creating Integer objects.
+            final IntIterator iterator = trackedBodies.iterator();
+            while (iterator.hasNext()) {
+                int networkId = iterator.nextInt();
                 Set<ServerPlayer> trackers = bodyTrackers.get(networkId);
                 if (trackers != null) {
                     trackers.remove(player);
