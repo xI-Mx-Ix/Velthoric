@@ -20,7 +20,9 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -43,6 +45,10 @@ public class VxPhysicsUpdater {
     private final ThreadLocal<Quat> tempRot = ThreadLocal.withInitial(Quat::new);
     private final ThreadLocal<Vec3> tempLinVel = ThreadLocal.withInitial(Vec3::new);
     private final ThreadLocal<Vec3> tempAngVel = ThreadLocal.withInitial(Vec3::new);
+
+    // Reusable lists for batch processing to avoid reallocation.
+    private final ThreadLocal<List<Integer>> bodyIdsToLock = ThreadLocal.withInitial(ArrayList::new);
+    private final ThreadLocal<List<Integer>> dataIndicesToLock = ThreadLocal.withInitial(ArrayList::new);
 
 
     public VxPhysicsUpdater(VxBodyManager manager) {
@@ -122,13 +128,18 @@ public class VxPhysicsUpdater {
 
     /**
      * Reads the state of Jolt bodies and writes it back into the data store.
-     * It synchronizes a body's state if it is currently active, OR if it was active
-     * on the previous tick and has just become inactive. This ensures clients receive
-     * a final update when a body comes to rest, keeping it visible and correctly positioned.
+     * This is heavily optimized to run in two passes:
+     * 1. A lock-free pass using BodyInterface for common data (transform, velocity, motion type).
+     *    It collects bodies that need further data (AABB, soft body vertices).
+     * 2. A single multi-lock pass to efficiently retrieve the remaining data for the collected bodies.
      */
     private void postUpdateSync(long timestampNanos, VxPhysicsWorld world, BodyInterface bodyInterface) {
-        ConstBodyLockInterfaceNoLock lockInterface = world.getPhysicsSystem().getBodyLockInterfaceNoLock();
+        List<Integer> localBodyIdsToLock = this.bodyIdsToLock.get();
+        List<Integer> localDataIndicesToLock = this.dataIndicesToLock.get();
+        localBodyIdsToLock.clear();
+        localDataIndicesToLock.clear();
 
+        // --- Pass 1: Lock-free synchronization using BodyInterface ---
         for (int i = 0; i < dataStore.getCapacity(); ++i) {
             UUID id = dataStore.getIdForIndex(i);
             if (id == null) continue;
@@ -145,11 +156,10 @@ public class VxPhysicsUpdater {
             if (isJoltBodyActive || wasDataStoreBodyActive) {
                 obj.physicsTick(world);
 
-                // --- Phase 4.1: Sync transform and velocities using performant BodyInterface methods ---
+                // Sync transform, velocities, and motion type using performant BodyInterface methods
                 final RVec3 pos = tempPos.get();
                 final Quat rot = tempRot.get();
                 bodyInterface.getPositionAndRotation(bodyId, pos, rot);
-
                 dataStore.posX[i] = pos.x();
                 dataStore.posY[i] = pos.y();
                 dataStore.posZ[i] = pos.z();
@@ -170,14 +180,45 @@ public class VxPhysicsUpdater {
                 dataStore.angVelY[i] = angVel.getY();
                 dataStore.angVelZ[i] = angVel.getZ();
 
-                // --- Phase 4.2: Use a lock only for data not available on BodyInterface ---
-                try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {
-                    if (lock.succeededAndIsInBroadPhase()) {
-                        ConstBody body = lock.getBody();
+                dataStore.motionType[i] = bodyInterface.getMotionType(bodyId);
 
-                        dataStore.motionType[i] = body.getMotionType();
+                // Collect this body to be included in the multi-lock for AABB and soft body data.
+                localBodyIdsToLock.add(bodyId);
+                localDataIndicesToLock.add(i);
 
-                        // Sync World Space AABB for terrain tracking
+                // Update management flags
+                dataStore.isActive[i] = isJoltBodyActive;
+                dataStore.lastUpdateTimestamp[i] = timestampNanos;
+                dataStore.isTransformDirty[i] = true;
+
+                final long lastKey = dataStore.chunkKey[i];
+                final long currentKey = new ChunkPos(SectionPos.posToSectionCoord(pos.x()), SectionPos.posToSectionCoord(pos.z())).toLong();
+                if (lastKey != currentKey) {
+                    manager.getChunkManager().updateBodyTracking(obj, lastKey, currentKey);
+                    dataStore.chunkKey[i] = currentKey;
+                }
+            }
+        }
+
+        // --- Pass 2: Efficiently sync remaining data using a single multi-lock ---
+        if (!localBodyIdsToLock.isEmpty()) {
+            ConstBodyLockInterfaceNoLock lockInterface = world.getPhysicsSystem().getBodyLockInterfaceNoLock();
+            int[] bodyIdArray = localBodyIdsToLock.stream().mapToInt(Integer::intValue).toArray();
+
+            try (BodyLockMultiRead multiLock = new BodyLockMultiRead(lockInterface, bodyIdArray)) {
+                for (int j = 0; j < bodyIdArray.length; ++j) {
+                    ConstBody body = multiLock.getBody(j);
+                    if (body != null) { // A null check is needed as multi-lock can fail for individual bodies
+                        int i = localDataIndicesToLock.get(j);
+
+                        // FIX: Check if the body was removed between pass 1 and 2
+                        UUID id = dataStore.getIdForIndex(i);
+                        if (id == null) continue;
+
+                        VxBody obj = manager.getVxBody(id);
+                        if (obj == null) continue;
+
+                        // Sync World Space AABB
                         ConstAaBox bounds = body.getWorldSpaceBounds();
                         Vec3 min = bounds.getMin();
                         Vec3 max = bounds.getMax();
@@ -190,6 +231,8 @@ public class VxPhysicsUpdater {
 
                         // Sync soft body vertices if applicable
                         if (obj instanceof VxSoftBody softBody) {
+                            RVec3 pos = tempPos.get();
+                            pos.set(dataStore.posX[i], dataStore.posY[i], dataStore.posZ[i]);
                             float[] newVertexData = getSoftBodyVertices(body, pos);
                             if (newVertexData != null && !Arrays.equals(newVertexData, dataStore.vertexData[i])) {
                                 dataStore.vertexData[i] = newVertexData;
@@ -199,18 +242,6 @@ public class VxPhysicsUpdater {
                         }
                     }
                 }
-
-                // --- Phase 4.3: Update management flags ---
-                dataStore.isActive[i] = isJoltBodyActive;
-                dataStore.lastUpdateTimestamp[i] = timestampNanos;
-
-                final long lastKey = dataStore.chunkKey[i];
-                final long currentKey = new ChunkPos(SectionPos.posToSectionCoord(pos.x()), SectionPos.posToSectionCoord(pos.z())).toLong();
-                if (lastKey != currentKey) {
-                    manager.getChunkManager().updateBodyTracking(obj, lastKey, currentKey);
-                }
-
-                dataStore.isTransformDirty[i] = true;
             }
         }
     }
