@@ -71,48 +71,52 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     /**
-     * Stores a collection of bodies by grouping them by region and saving each region in a single batch operation.
-     * This is much more efficient than saving each body individually.
-     *
+     * Stores a collection of bodies by delegating each one to the single-store method.
      * @param bodies The collection of VxBody instances to store.
      */
     public void storeBodies(Collection<VxBody> bodies) {
         if (bodies == null || bodies.isEmpty()) return;
-
-        Map<RegionPos, List<VxBody>> bodiesByRegion = bodies.stream()
-                .filter(Objects::nonNull)
-                .filter(body -> body.getDataStoreIndex() != -1)
-                .collect(Collectors.groupingBy(body -> {
-                    ChunkPos chunkPos = bodyManager.getBodyChunkPos(body.getDataStoreIndex());
-                    return new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
-                }));
-
-        bodiesByRegion.forEach((regionPos, regionBodies) -> {
-            getRegion(regionPos).thenAcceptAsync(region -> {
-                for (VxBody body : regionBodies) {
-                    int index = body.getDataStoreIndex();
-                    if (index == -1) continue;
-
-                    byte[] data = serializeBodyData(body, index);
-                    region.entries.put(body.getPhysicsId(), data);
-                    regionIndex.put(body.getPhysicsId(), regionPos);
-                    indexBodyData(body.getPhysicsId(), data);
-                }
-                region.dirty.set(true);
-            }, ioExecutor).exceptionally(ex -> {
-                VxMainClass.LOGGER.error("Failed to store body batch in region {}", regionPos, ex);
-                return null;
-            });
-        });
+        for (VxBody body : bodies) {
+            storeBody(body);
+        }
     }
 
     /**
-     * Stores a single body. For performance, prefer using storeBodies for multiple bodies.
+     * Stores a single body. This is now the primary method for saving.
+     * It asynchronously retrieves the correct region, serializes the body,
+     * and adds it to the in-memory representation of the region, marking it as dirty.
+     * The actual file write happens later in a batched operation.
+     *
      * @param body The body to store.
      */
     public void storeBody(VxBody body) {
         if (body == null || body.getDataStoreIndex() == -1) return;
-        storeBodies(Collections.singletonList(body));
+
+        ChunkPos chunkPos = bodyManager.getBodyChunkPos(body.getDataStoreIndex());
+        RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
+
+        // Retrieve the region asynchronously (will load if not in memory)
+        getRegion(regionPos).thenAcceptAsync(region -> {
+            int index = body.getDataStoreIndex();
+            // Re-check in case the body was removed in the meantime
+            if (index == -1) return;
+
+            // Serialize the body and add it to the region's in-memory data
+            byte[] data = serializeBodyData(body, index);
+            region.entries.put(body.getPhysicsId(), data);
+
+            // Update the global index
+            regionIndex.put(body.getPhysicsId(), regionPos);
+
+            // Update the chunk->UUID index for fast loading
+            indexBodyData(body.getPhysicsId(), data);
+
+            // Mark the region as "dirty" so it will be written in the next save operation
+            region.dirty.set(true);
+        }, ioExecutor).exceptionally(ex -> {
+            VxMainClass.LOGGER.error("Failed to queue body {} for storage in region {}", body.getPhysicsId(), regionPos, ex);
+            return null;
+        });
     }
 
     public void loadBodiesInChunk(ChunkPos chunkPos) {

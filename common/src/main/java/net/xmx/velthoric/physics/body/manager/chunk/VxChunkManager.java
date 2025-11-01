@@ -122,14 +122,21 @@ public class VxChunkManager {
 
 
     /**
-     * Retrieves a list of all bodies within a specific chunk.
+     * Executes a given action for each body in the specified chunk in a thread-safe manner.
+     * This avoids creating a new list, preventing GC pressure.
      *
-     * @param pos The position of the chunk.
-     * @return A list of objects in that chunk, which may be empty.
+     * @param pos    The position of the chunk.
+     * @param action The action to perform on each body.
      */
-    public List<VxBody> getBodiesInChunk(ChunkPos pos) {
+    public void forEachBodyInChunk(ChunkPos pos, java.util.function.Consumer<VxBody> action) {
         synchronized (bodiesByChunk) {
-            return bodiesByChunk.getOrDefault(pos.toLong(), Collections.emptyList());
+            List<VxBody> bodies = bodiesByChunk.get(pos.toLong());
+            if (bodies != null && !bodies.isEmpty()) {
+                // Iteration happens inside the synchronized block to ensure consistency
+                for (VxBody body : bodies) {
+                    action.accept(body);
+                }
+            }
         }
     }
 

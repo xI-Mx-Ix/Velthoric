@@ -311,10 +311,6 @@ public class VxBodyManager {
         return managedBodies.values();
     }
 
-    public List<VxBody> getBodiesInChunk(ChunkPos pos) {
-        return chunkManager.getBodiesInChunk(pos);
-    }
-
     public void getTransform(int dataStoreIndex, VxTransform out) {
         if (dataStoreIndex >= 0 && dataStoreIndex < dataStore.getCapacity()) {
             out.getTranslation().set(dataStore.posX[dataStoreIndex], dataStore.posY[dataStoreIndex], dataStore.posZ[dataStoreIndex]);
@@ -350,10 +346,7 @@ public class VxBodyManager {
     //================================================================================
 
     public void saveBodiesInChunk(ChunkPos pos) {
-        List<VxBody> bodiesInChunk = chunkManager.getBodiesInChunk(pos);
-        if (!bodiesInChunk.isEmpty()) {
-            bodyStorage.storeBodies(List.copyOf(bodiesInChunk));
-        }
+        chunkManager.forEachBodyInChunk(pos, bodyStorage::storeBody);
     }
 
     /**

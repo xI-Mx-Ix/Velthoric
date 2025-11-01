@@ -376,12 +376,9 @@ public class VxNetworkDispatcher {
      * @param chunkPos The position of the newly tracked chunk.
      */
     public void trackBodiesInChunkForPlayer(ServerPlayer player, ChunkPos chunkPos) {
-        List<VxBody> bodiesInChunk = manager.getBodiesInChunk(chunkPos);
-        if (bodiesInChunk.isEmpty()) return;
-
-        for (VxBody body : bodiesInChunk) {
+        manager.getChunkManager().forEachBodyInChunk(chunkPos, body -> {
             trackBodyForPlayer(player, body);
-        }
+        });
     }
 
     /**
@@ -391,12 +388,9 @@ public class VxNetworkDispatcher {
      * @param chunkPos The position of the untracked chunk.
      */
     public void untrackBodiesInChunkForPlayer(ServerPlayer player, ChunkPos chunkPos) {
-        List<VxBody> bodiesInChunk = manager.getBodiesInChunk(chunkPos);
-        if (bodiesInChunk.isEmpty()) return;
-
-        for (VxBody body : bodiesInChunk) {
+        manager.getChunkManager().forEachBodyInChunk(chunkPos, body -> {
             untrackBodyForPlayer(player, body.getNetworkId());
-        }
+        });
     }
 
     /**
