@@ -83,7 +83,7 @@ public final class VxBuoyancyNarrowPhase {
      */
     private void processBuoyancyForBody(Body body, float deltaTime, int index, VxBuoyancyDataStore dataStore) {
         if (!body.isActive()) {
-            physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(body.getId());
+            return;
         }
 
         MotionProperties motionProperties = body.getMotionProperties();
