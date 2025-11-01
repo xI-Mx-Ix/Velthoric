@@ -7,8 +7,6 @@ package net.xmx.velthoric.physics.body.manager;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
-import it.unimi.dsi.fastutil.ints.Int2IntMap;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
@@ -61,11 +59,6 @@ public class VxBodyManager {
     private final Int2ObjectMap<VxBody> joltBodyIdToVxBodyMap = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
 
     /**
-     * A fast lookup from a session-specific network ID to the body's index in the data store.
-     */
-    private final Int2IntMap networkIdToDataStoreIndex = new Int2IntOpenHashMap();
-
-    /**
      * A pool of recycled network IDs from removed bodies.
      */
     private final Deque<Integer> freeNetworkIds = new ArrayDeque<>();
@@ -101,7 +94,6 @@ public class VxBodyManager {
     private void clear() {
         managedBodies.clear();
         joltBodyIdToVxBodyMap.clear();
-        networkIdToDataStoreIndex.clear();
         freeNetworkIds.clear();
         nextNetworkId = 1;
         dataStore.clear();
@@ -255,7 +247,6 @@ public class VxBodyManager {
 
         if (body.getNetworkId() != -1) {
             freeNetworkIds.add(body.getNetworkId());
-            networkIdToDataStoreIndex.remove(body.getNetworkId());
         }
 
         dataStore.removeBody(body.getPhysicsId());
@@ -277,7 +268,6 @@ public class VxBodyManager {
             int networkId = freeNetworkIds.isEmpty() ? nextNetworkId++ : freeNetworkIds.pop();
             body.setNetworkId(networkId);
             dataStore.networkId[index] = networkId;
-            networkIdToDataStoreIndex.put(networkId, index);
 
             dataStore.isActive[index] = true;
             chunkManager.startTracking(body);
