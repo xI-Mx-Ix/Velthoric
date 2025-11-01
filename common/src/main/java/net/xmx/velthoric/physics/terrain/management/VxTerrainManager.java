@@ -159,31 +159,33 @@ public final class VxTerrainManager {
             return; // Chunk is already being processed or removed.
         }
 
-        final int previousState = chunkDataStore.getState(index);
-
         level.getServer().execute(() -> {
+            // Check if a newer generation task has already been scheduled. If so, this one is stale.
             if (chunkDataStore.isVersionStale(index, version)) {
-                if (chunkDataStore.getState(index) == STATE_LOADING_SCHEDULED) {
-                    chunkDataStore.setState(index, previousState);
-                }
+                // Do not reset the state here. A newer task is now responsible for it.
+                // Just let this stale task die quietly.
                 return;
             }
 
             LevelChunk chunk = level.getChunkSource().getChunk(pos.x(), pos.z(), false);
             if (chunk == null) {
+                // If chunk is not available, reset state to UNLOADED so it can be retried later.
                 chunkDataStore.setState(index, STATE_UNLOADED);
                 return;
             }
 
+            // Create the snapshot on the main thread as required.
             VxChunkSnapshot snapshot = VxChunkSnapshot.snapshotFromChunk(level, chunk, pos);
+
+            // Only proceed if the state is still what we set it to. This prevents conflicts.
             if (chunkDataStore.getState(index) == STATE_LOADING_SCHEDULED) {
+                // If we successfully transition to the next state, we "own" the generation process.
                 chunkDataStore.setState(index, STATE_GENERATING_SHAPE);
                 jobSystem.submit(() -> processShapeGenerationOnWorker(pos, index, version, snapshot, isInitialBuild));
-            } else {
-                chunkDataStore.setState(index, previousState);
             }
         });
     }
+
 
     /**
      * Executes the shape generation on a worker thread. This method is called by the job system.
