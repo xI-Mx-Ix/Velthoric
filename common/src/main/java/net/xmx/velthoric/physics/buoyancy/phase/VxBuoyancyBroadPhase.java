@@ -49,7 +49,7 @@ public final class VxBuoyancyBroadPhase {
 
         for (int i = 0; i < ds.getCapacity(); ++i) {
             // Early exit for static bodies or inactive slots.
-            if (ds.motionType[i] == EMotionType.Static || ds.getIdForIndex(i) == null) {
+            if (ds.motionType[i] == EMotionType.Static || ds.getIdForIndex(i) == null || !ds.isActive[i]) {
                 continue;
             }
 
