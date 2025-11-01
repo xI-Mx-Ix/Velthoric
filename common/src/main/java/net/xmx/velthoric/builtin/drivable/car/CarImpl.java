@@ -12,7 +12,7 @@ import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
-import net.xmx.velthoric.natives.VxLayers;
+import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;

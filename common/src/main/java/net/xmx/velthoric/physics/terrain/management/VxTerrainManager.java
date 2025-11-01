@@ -10,7 +10,7 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.natives.VxLayers;
+import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
 import net.xmx.velthoric.physics.terrain.generation.VxChunkSnapshot;
 import net.xmx.velthoric.physics.terrain.generation.VxTerrainGenerator;

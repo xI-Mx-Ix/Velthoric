@@ -15,7 +15,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.natives.VxLayers;
+import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.sync.VxDataAccessor;

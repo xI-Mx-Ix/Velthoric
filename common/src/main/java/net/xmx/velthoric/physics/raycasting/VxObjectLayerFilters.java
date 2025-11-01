@@ -5,7 +5,7 @@
 package net.xmx.velthoric.physics.raycasting;
 
 import com.github.stephengold.joltjni.ObjectLayerFilter;
-import net.xmx.velthoric.natives.VxLayers;
+import net.xmx.velthoric.physics.world.VxLayers;
 
 /**
  * Provides pre-configured object layer filters for physics queries.

@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.natives;
+package net.xmx.velthoric.physics.world;
 
 import com.github.stephengold.joltjni.*;
 
