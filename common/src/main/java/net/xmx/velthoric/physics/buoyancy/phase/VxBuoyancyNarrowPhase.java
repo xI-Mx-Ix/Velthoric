@@ -15,6 +15,7 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.RotatedTranslatedShape;
 import com.github.stephengold.joltjni.ScaledShape;
 import com.github.stephengold.joltjni.BodyLockMultiWrite;
+import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EShapeType;
 import com.github.stephengold.joltjni.readonly.ConstConvexShape;
 import com.github.stephengold.joltjni.readonly.ConstShape;
@@ -41,6 +42,7 @@ public final class VxBuoyancyNarrowPhase {
     private final ThreadLocal<RMat44> tempRMat44 = ThreadLocal.withInitial(RMat44::new);
     private final ThreadLocal<RVec3> tempRVec3 = ThreadLocal.withInitial(RVec3::new);
     private final ThreadLocal<Mat44> tempMat44 = ThreadLocal.withInitial(Mat44::new);
+    private final ThreadLocal<Vec3> tempScaleVec = ThreadLocal.withInitial(() -> new Vec3(1, 1, 1));
 
 
     /**
@@ -170,8 +172,11 @@ public final class VxBuoyancyNarrowPhase {
             CompoundShape compound = (CompoundShape) shape;
             for (int i = 0; i < compound.getNumSubShapes(); i++) {
                 ConstSubShape subShape = compound.getSubShape(i);
-                // Note: local transform of a sub-shape does not include scale.
-                Mat44 localTransform = subShape.getLocalTransformNoScale(null);
+
+                // The method returns a new Mat44 object.
+                Vec3 scale = tempScaleVec.get();
+                Mat44 localTransform = subShape.getLocalTransformNoScale(scale);
+
                 RMat44 subShapeWorldTransform = tempRMat44.get();
                 subShapeWorldTransform.set(currentTransform.multiply(localTransform));
 
