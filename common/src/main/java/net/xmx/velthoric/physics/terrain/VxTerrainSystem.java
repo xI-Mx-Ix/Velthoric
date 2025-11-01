@@ -7,6 +7,7 @@ package net.xmx.velthoric.physics.terrain;
 import com.github.stephengold.joltjni.BodyInterface;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.terrain.cache.VxTerrainShapeCache;
@@ -35,6 +36,7 @@ public final class VxTerrainSystem implements Runnable {
 
     private final VxPhysicsWorld physicsWorld;
     private final ServerLevel level;
+    private final MinecraftServer server;
     private final VxTerrainJobSystem jobSystem;
     private final Thread workerThread;
     private final AtomicBoolean isInitialized = new AtomicBoolean(false);
@@ -51,6 +53,7 @@ public final class VxTerrainSystem implements Runnable {
     public VxTerrainSystem(VxPhysicsWorld physicsWorld, ServerLevel level) {
         this.physicsWorld = physicsWorld;
         this.level = level;
+        this.server = level.getServer();
 
         this.jobSystem = new VxTerrainJobSystem();
         this.shapeCache = new VxTerrainShapeCache(2048); // A reasonable capacity
@@ -116,20 +119,24 @@ public final class VxTerrainSystem implements Runnable {
 
     /**
      * The main loop for the terrain system worker thread. Periodically updates body trackers
-     * and processes chunks that need to be rebuilt.
+     * and processes chunks that need to be rebuilt. It now checks if the server is running.
      */
     @Override
     public void run() {
-        while (isInitialized.get() && !Thread.currentThread().isInterrupted()) {
+        while (isInitialized.get() && !Thread.currentThread().isInterrupted() && server.isRunning()) {
             try {
-                terrainTracker.update();
-                processRebuildQueue();
+                if (physicsWorld.isRunning()) {
+                    terrainTracker.update();
+                    processRebuildQueue();
+                }
                 Thread.sleep(50);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                VxMainClass.LOGGER.error("Error in TerrainSystem worker thread", e);
+                if (server.isRunning() && isInitialized.get()) {
+                    VxMainClass.LOGGER.error("Error in TerrainSystem worker thread", e);
+                }
             }
         }
     }
@@ -140,7 +147,8 @@ public final class VxTerrainSystem implements Runnable {
      * @param worldPos The position of the block that changed.
      */
     public void onBlockUpdate(BlockPos worldPos) {
-        if (!isInitialized.get()) {
+        // Guard against starting new work during shutdown.
+        if (!isInitialized.get() || !server.isRunning()) {
             return;
         }
 
