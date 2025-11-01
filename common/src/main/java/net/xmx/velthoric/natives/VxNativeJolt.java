@@ -4,54 +4,49 @@
  */
 package net.xmx.velthoric.natives;
 
+import com.github.stephengold.joltjni.BroadPhaseLayerInterface;
 import com.github.stephengold.joltjni.Jolt;
 import com.github.stephengold.joltjni.JoltPhysicsObject;
-import com.github.stephengold.joltjni.BroadPhaseLayerInterface;
 import com.github.stephengold.joltjni.ObjectLayerPairFilter;
 import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilter;
-import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.vxnative.Arch;
-import net.xmx.vxnative.OS;
-import net.xmx.vxnative.VxNativeLibraryLoader;
+import net.xmx.velthoric.UnsupportedOperatingSystemException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 
 /**
  * Manages the lifecycle of the Jolt physics native library.
- * This includes loading the native library, initializing the Jolt factory,
- * setting up allocators and callbacks, and managing the physics layer interfaces.
+ * This class orchestrates the loading and initialization of Jolt-specific components
+ * by delegating the core loading process to a central manager.
  *
  * @author xI-Mx-Ix
  */
 public class VxNativeJolt {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("Velthoric JoltJNI");
     private static volatile boolean isInitialized = false;
 
     /**
      * Initializes the Jolt physics system.
-     * This method loads the native library, sets up the necessary Jolt components,
-     * registers default callbacks, and initializes the collision layer logic.
+     * This method delegates the native library loading to the central VxNativeManager,
+     * then proceeds with Jolt-specific setup like registering allocators and callbacks.
      *
      * @param extractionPath The root directory where native libraries should be extracted.
      * @throws IllegalStateException if the Jolt Factory cannot be created.
+     * @throws UnsupportedOperatingSystemException if the current platform is not supported.
      */
     public static void initialize(Path extractionPath) {
         if (isInitialized) {
             return;
         }
 
-        VxMainClass.LOGGER.debug("Performing Jolt Physics initialization...");
+        LOGGER.debug("Performing JoltJNI initialization...");
 
-        String resourcePath = getNativeLibraryResourcePath();
-        if (resourcePath == null) {
-            throw new UnsupportedOperationException("Unsupported platform for JoltJNI: " +
-                    System.getProperty("os.name") + " (" + System.getProperty("os.arch") + ")");
-        }
+        // Delegate the platform detection and loading to the central manager.
+        VxNativeManager.loadLibrary(extractionPath, "joltjni");
 
-        String libFileName = resourcePath.substring(resourcePath.lastIndexOf('/') + 1);
-
-        VxNativeLibraryLoader.load(extractionPath, resourcePath, libFileName);
-
+        // Proceed with Jolt-specific initialization now that the native library is loaded.
         Jolt.registerDefaultAllocator();
         Jolt.installDefaultAssertCallback();
         Jolt.installDefaultTraceCallback();
@@ -61,39 +56,30 @@ public class VxNativeJolt {
             throw new IllegalStateException("Jolt Factory could not be created.");
         }
         Jolt.registerTypes();
-        VxLayers.initialize();
+        VxLayers.initialize(); // Assuming VxLayers is another class for layer setup.
 
         isInitialized = true;
-        VxMainClass.LOGGER.debug("Jolt Physics initialization complete.");
-    }
-
-    private static String getNativeLibraryResourcePath() {
-        OS os = OS.detect();
-        Arch arch = Arch.detect();
-
-        if (os == null || arch == null) return null;
-
-        String libName = System.mapLibraryName("joltjni");
-        return String.format("/%s/%s/com/github/stephengold/%s", os.folder, arch.folder, libName);
+        LOGGER.debug("JoltJNI native library loaded and initialized successfully via Velthoric loader.");
     }
 
     /**
      * Shuts down the Jolt physics system.
-     * This method cleans up all allocated resources.
+     * This method cleans up all allocated Jolt resources.
      */
     public static void shutdown() {
         if (!isInitialized) {
             return;
         }
-        VxMainClass.LOGGER.debug("Performing Physics shutdown...");
+        LOGGER.debug("Performing JoltJNI shutdown...");
         VxLayers.shutdown();
         Jolt.destroyFactory();
         isInitialized = false;
-        VxMainClass.LOGGER.debug("Physics shutdown complete.");
+        LOGGER.debug("JoltJNI shutdown complete.");
     }
 
     /**
      * Checks if the Jolt physics system has been initialized.
+     *
      * @return true if initialized, false otherwise.
      */
     public static boolean isInitialized() {
@@ -102,6 +88,7 @@ public class VxNativeJolt {
 
     /**
      * Gets the configured broad-phase layer interface.
+     *
      * @return The singleton instance of BroadPhaseLayerInterface.
      */
     public static BroadPhaseLayerInterface getBroadPhaseLayerInterface() {
@@ -110,6 +97,7 @@ public class VxNativeJolt {
 
     /**
      * Gets the configured object vs. broad-phase layer filter.
+     *
      * @return The singleton instance of ObjectVsBroadPhaseLayerFilter.
      */
     public static ObjectVsBroadPhaseLayerFilter getObjectVsBroadPhaseLayerFilter() {
@@ -118,6 +106,7 @@ public class VxNativeJolt {
 
     /**
      * Gets the configured object layer pair filter.
+     *
      * @return The singleton instance of ObjectLayerPairFilter.
      */
     public static ObjectLayerPairFilter getObjectLayerPairFilter() {

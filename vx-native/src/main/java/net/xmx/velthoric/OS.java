@@ -2,15 +2,17 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.vxnative;
+package net.xmx.velthoric;
 
 import java.util.Locale;
 
 /**
+ * Enumerates the supported operating systems and their corresponding directory names.
+ *
  * @author xI-Mx-Ix
  */
 public enum OS {
-    WINDOWS("windows"),
+    WINDOWS("win"),
     OSX("osx"),
     LINUX("linux");
 
@@ -18,6 +20,11 @@ public enum OS {
 
     OS(String folder) { this.folder = folder; }
 
+    /**
+     * Detects the current operating system.
+     *
+     * @return the corresponding {@link OS} enum, or {@code null} if the OS is not supported.
+     */
     public static OS detect() {
         String osName = System.getProperty("os.name", "generic").toLowerCase(Locale.ROOT);
         if (osName.contains("win")) return WINDOWS;

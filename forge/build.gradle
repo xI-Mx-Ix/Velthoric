@@ -50,19 +50,14 @@ dependencies {
     modImplementation "dev.architectury:architectury-forge:$rootProject.architectury_api_version"
 
     implementation project(path: ":vx-native", configuration: "namedElements")
-    shadowBundle project(path: ":vx-native", configuration: "namedElements")
     minecraftRuntimeLibraries project(path: ":vx-native", configuration: "namedElements")
+    shadowBundle project(path: ":vx-native", configuration: "namedElements")
 
     implementation 'com.github.luben:zstd-jni:1.5.7-6'
     minecraftRuntimeLibraries 'com.github.luben:zstd-jni:1.5.7-6'
     shadowBundle 'com.github.luben:zstd-jni:1.5.7-6'
 
     shadowBundle("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}")
-    shadowBundle("com.github.stephengold:jolt-jni-Windows64:${jolt_jni_version}:ReleaseSp")
-    shadowBundle("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}:ReleaseSp")
-    shadowBundle("com.github.stephengold:jolt-jni-Linux_ARM64:${jolt_jni_version}:ReleaseSp")
-    shadowBundle("com.github.stephengold:jolt-jni-MacOSX64:${jolt_jni_version}:ReleaseSp")
-    shadowBundle("com.github.stephengold:jolt-jni-MacOSX_ARM64:${jolt_jni_version}:ReleaseSp")
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionForge')
@@ -93,6 +88,13 @@ processResources {
 shadowJar {
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = 'dev-shadow'
+
+    // Natives are bundled in vx-native, no need to include them here
+    exclude 'aix/**'
+    exclude 'darwin/**'
+    exclude 'freebsd/**'
+    exclude 'linux/**'
+    exclude 'win/**'
 }
 
 remapJar {

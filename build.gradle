@@ -20,7 +20,11 @@ subprojects {
     apply plugin: 'maven-publish'
 
     base {
-        archivesName = "$rootProject.archives_name-$project.name"
+        if (project.name == 'vx-native') {
+            archivesName = project.name
+        } else {
+            archivesName = "$rootProject.archives_name-$project.name"
+        }
     }
 
     repositories {
