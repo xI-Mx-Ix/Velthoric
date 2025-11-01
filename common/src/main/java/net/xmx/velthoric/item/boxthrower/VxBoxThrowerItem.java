@@ -12,9 +12,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.level.Level;
 
-public class VxBoxThrowertem extends Item {
+public class VxBoxThrowerItem extends Item {
 
-    public VxBoxThrowertem() {
+    public VxBoxThrowerItem() {
         super(new Properties().stacksTo(1).rarity(Rarity.RARE));
     }
 
