@@ -23,6 +23,7 @@ import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
+import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -334,42 +335,61 @@ public class VxBodyManager {
         }
     }
 
-    /**
-     * Internal use only. Registers a mapping from a Jolt body ID to a VxBody instance.
-     */
     public void registerJoltBodyId(int bodyId, VxBody body) {
         joltBodyIdToVxBodyMap.put(bodyId, body);
     }
 
-    //================================================================================
-    // Persistence
-    //================================================================================
-
+    /**
+     * Saves all physics bodies within a given chunk in a single batched operation.
+     * It creates a snapshot of all bodies on the physics thread and then passes the
+     * serialized data to the storage system for asynchronous writing.
+     *
+     * @param pos The position of the chunk to save.
+     */
     public void saveBodiesInChunk(ChunkPos pos) {
-        chunkManager.forEachBodyInChunk(pos, bodyStorage::storeBody);
+        List<VxBody> bodiesInChunk = new ArrayList<>();
+        chunkManager.forEachBodyInChunk(pos, bodiesInChunk::add);
+
+        if (bodiesInChunk.isEmpty()) {
+            return;
+        }
+
+        // Schedule a single, batched task on the physics thread.
+        world.execute(() -> {
+            Map<VxAbstractRegionStorage.RegionPos, Map<UUID, byte[]>> dataByRegion = new HashMap<>();
+
+            for (VxBody body : bodiesInChunk) {
+                int index = body.getDataStoreIndex();
+                if (index == -1) continue;
+
+                // Create the data snapshot for this body.
+                byte[] snapshot = bodyStorage.serializeBodyData(body, index);
+                if (snapshot == null) continue;
+
+                // Group the snapshot by its region position for efficient batch writing.
+                ChunkPos chunkPos = getBodyChunkPos(index);
+                VxAbstractRegionStorage.RegionPos regionPos = new VxAbstractRegionStorage.RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
+                dataByRegion.computeIfAbsent(regionPos, k -> new HashMap<>()).put(body.getPhysicsId(), snapshot);
+            }
+
+            // Pass the grouped snapshots to the storage system.
+            if (!dataByRegion.isEmpty()) {
+                bodyStorage.storeBodyBatch(dataByRegion);
+            }
+        });
     }
 
-    /**
-     * Flushes all pending persistence operations to disk.
-     *
-     * @param block If true, this method will block the calling thread until all I/O is complete.
-     *              This should only be true during a server shutdown.
-     */
     public void flushPersistence(boolean block) {
         try {
             CompletableFuture<Void> future = bodyStorage.saveDirtyRegions();
-            bodyStorage.getRegionIndex().save(); // The index is small and critical, saving it synchronously is okay.
+            bodyStorage.getRegionIndex().save();
             if (block) {
-                future.join(); // Only block if explicitly required (e.g., on shutdown).
+                future.join();
             }
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to flush physics body persistence for world {}", world.getLevel().dimension().location(), e);
         }
     }
-
-    //================================================================================
-    // Getters for Subsystems
-    //================================================================================
 
     public VxPhysicsWorld getPhysicsWorld() {
         return world;

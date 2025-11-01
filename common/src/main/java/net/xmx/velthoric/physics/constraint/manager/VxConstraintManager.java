@@ -13,14 +13,12 @@ import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.persistence.VxConstraintStorage;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
+import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -71,43 +69,29 @@ public class VxConstraintManager {
     }
 
     /**
-     * Saves all constraints associated with a given chunk using a single batch operation.
-     * A constraint is considered to be in a chunk if its first (or only) real body is in that chunk.
+     * Saves all constraints associated with a given chunk by creating a safe snapshot on the physics thread
+     * and passing it to the storage system.
      *
      * @param pos The position of the chunk.
      */
     public void saveConstraintsInChunk(ChunkPos pos) {
-        long chunkKey = pos.toLong();
         List<VxConstraint> constraintsToSave = new ArrayList<>();
         for (VxConstraint constraint : activeConstraints.values()) {
-            UUID bodyId = !constraint.getBody1Id().equals(WORLD_BODY_ID) ? constraint.getBody1Id() : constraint.getBody2Id();
-            if (bodyId.equals(WORLD_BODY_ID)) continue;
-
-            VxBody body = bodyManager.getVxBody(bodyId);
-            if (body != null) {
-                int index = body.getDataStoreIndex();
-                if (index != -1 && bodyManager.getDataStore().chunkKey[index] == chunkKey) {
-                    constraintsToSave.add(constraint);
-                }
+            if (isConstraintInChunk(constraint, pos)) {
+                constraintsToSave.add(constraint);
             }
         }
         if (!constraintsToSave.isEmpty()) {
-            constraintStorage.storeConstraints(constraintsToSave);
+            processAndStoreConstraints(constraintsToSave);
         }
     }
 
-    /**
-     * Flushes all pending persistence operations to disk.
-     *
-     * @param block If true, this method will block the calling thread until all I/O is complete.
-     *              This should only be true during a server shutdown.
-     */
     public void flushPersistence(boolean block) {
         try {
             CompletableFuture<Void> future = constraintStorage.saveDirtyRegions();
-            constraintStorage.getRegionIndex().save(); // The index is small and critical, saving it synchronously is okay.
+            constraintStorage.getRegionIndex().save();
             if (block) {
-                future.join(); // Only block if explicitly required (e.g., on shutdown).
+                future.join();
             }
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to flush physics constraint persistence for world {}", world.getLevel().dimension().location(), e);
@@ -116,35 +100,25 @@ public class VxConstraintManager {
 
     /**
      * Handles the unloading of all constraints within a specific chunk.
-     * This method first saves all relevant constraints to ensure their state is persisted,
-     * then removes them from the active simulation.
+     * This method saves the constraints before removing them from the active simulation.
      *
      * @param pos The position of the chunk being unloaded.
      */
     public void onChunkUnload(ChunkPos pos) {
-        long chunkKey = pos.toLong();
-        List<VxConstraint> constraintsToSaveAndRemove = new ArrayList<>();
-
+        List<VxConstraint> constraintsToUnload = new ArrayList<>();
         for (VxConstraint constraint : activeConstraints.values()) {
-            UUID bodyId = !constraint.getBody1Id().equals(WORLD_BODY_ID) ? constraint.getBody1Id() : constraint.getBody2Id();
-            if (bodyId.equals(WORLD_BODY_ID)) continue;
-
-            VxBody body = bodyManager.getVxBody(bodyId);
-            if (body != null) {
-                int index = body.getDataStoreIndex();
-                if (index != -1 && bodyManager.getDataStore().chunkKey[index] == chunkKey) {
-                    constraintsToSaveAndRemove.add(constraint);
-                }
+            if (isConstraintInChunk(constraint, pos)) {
+                constraintsToUnload.add(constraint);
             }
         }
 
-        if (constraintsToSaveAndRemove.isEmpty()) {
+        if (constraintsToUnload.isEmpty()) {
             return;
         }
 
-        constraintStorage.storeConstraints(constraintsToSaveAndRemove);
+        processAndStoreConstraints(constraintsToUnload);
 
-        for (VxConstraint constraint : constraintsToSaveAndRemove) {
+        for (VxConstraint constraint : constraintsToUnload) {
             removeConstraint(constraint.getConstraintId(), false);
         }
     }
@@ -213,7 +187,6 @@ public class VxConstraintManager {
                     joltConstraint = isBody1World
                             ? bodyInterface.createConstraint(loadedSettings, worldBodyJoltId, realBody.getBodyId())
                             : bodyInterface.createConstraint(loadedSettings, realBody.getBodyId(), worldBodyJoltId);
-
                 } else {
                     // Handle standard two-body constraints
                     VxBody body1 = bodyManager.getVxBody(constraint.getBody1Id());
@@ -225,9 +198,7 @@ public class VxConstraintManager {
                     }
                     joltConstraint = bodyInterface.createConstraint(loadedSettings, body1.getBodyId(), body2.getBodyId());
                 }
-
                 finishActivation(constraint, joltConstraint, loadedSettings);
-
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Exception during constraint activation for {}", constraint.getConstraintId(), e);
             }
@@ -330,5 +301,53 @@ public class VxConstraintManager {
 
     public VxDependencyDataSystem getDataSystem() {
         return dataSystem;
+    }
+
+    /**
+     * Helper method to determine if a constraint belongs to a given chunk based on its primary body.
+     */
+    private boolean isConstraintInChunk(VxConstraint constraint, ChunkPos pos) {
+        UUID bodyId = !constraint.getBody1Id().equals(WORLD_BODY_ID) ? constraint.getBody1Id() : constraint.getBody2Id();
+        if (bodyId.equals(WORLD_BODY_ID)) return false;
+
+        VxBody body = bodyManager.getVxBody(bodyId);
+        if (body != null) {
+            int index = body.getDataStoreIndex();
+            return index != -1 && bodyManager.getDataStore().chunkKey[index] == pos.toLong();
+        }
+        return false;
+    }
+
+    /**
+     * Takes a list of constraints, serializes them safely on the physics thread,
+     * groups them by region, and passes them to the storage system for writing.
+     *
+     * @param constraints The list of constraints to process and store.
+     */
+    private void processAndStoreConstraints(List<VxConstraint> constraints) {
+        world.execute(() -> {
+            Map<VxAbstractRegionStorage.RegionPos, Map<UUID, byte[]>> dataByRegion = new HashMap<>();
+
+            for (VxConstraint constraint : constraints) {
+                UUID chunkBodyId = !constraint.getBody1Id().equals(WORLD_BODY_ID)
+                        ? constraint.getBody1Id()
+                        : constraint.getBody2Id();
+                if (chunkBodyId.equals(WORLD_BODY_ID)) continue;
+
+                VxBody chunkBody = bodyManager.getVxBody(chunkBodyId);
+                if (chunkBody == null || chunkBody.getDataStoreIndex() == -1) continue;
+
+                ChunkPos chunkPos = bodyManager.getBodyChunkPos(chunkBody.getDataStoreIndex());
+                byte[] snapshot = constraintStorage.serializeConstraintData(constraint, chunkPos);
+                if (snapshot == null) continue;
+
+                VxAbstractRegionStorage.RegionPos regionPos = new VxAbstractRegionStorage.RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
+                dataByRegion.computeIfAbsent(regionPos, k -> new HashMap<>()).put(constraint.getConstraintId(), snapshot);
+            }
+
+            if (!dataByRegion.isEmpty()) {
+                constraintStorage.storeConstraintBatch(dataByRegion);
+            }
+        });
     }
 }

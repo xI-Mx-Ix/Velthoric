@@ -24,7 +24,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
 
 /**
  * Manages the persistent storage of physics bodies on disk using a region-based file system.
@@ -71,50 +70,60 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     /**
-     * Stores a collection of bodies by delegating each one to the single-store method.
-     * @param bodies The collection of VxBody instances to store.
-     */
-    public void storeBodies(Collection<VxBody> bodies) {
-        if (bodies == null || bodies.isEmpty()) return;
-        for (VxBody body : bodies) {
-            storeBody(body);
-        }
-    }
-
-    /**
-     * Stores a single body. This is now the primary method for saving.
-     * It asynchronously retrieves the correct region, serializes the body,
-     * and adds it to the in-memory representation of the region, marking it as dirty.
-     * The actual file write happens later in a batched operation.
+     * Stores a single body. This is a convenience method that wraps the batch-saving logic.
      *
      * @param body The body to store.
      */
     public void storeBody(VxBody body) {
         if (body == null || body.getDataStoreIndex() == -1) return;
 
-        ChunkPos chunkPos = bodyManager.getBodyChunkPos(body.getDataStoreIndex());
-        RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
-
-        // Retrieve the region asynchronously (will load if not in memory)
-        getRegion(regionPos).thenAcceptAsync(region -> {
+        bodyManager.getPhysicsWorld().execute(() -> {
             int index = body.getDataStoreIndex();
-            // Re-check in case the body was removed in the meantime
             if (index == -1) return;
 
-            // Serialize the body and add it to the region's in-memory data
-            byte[] data = serializeBodyData(body, index);
-            region.entries.put(body.getPhysicsId(), data);
+            byte[] snapshot = serializeBodyData(body, index);
+            if (snapshot == null) return;
 
-            // Update the global index
-            regionIndex.put(body.getPhysicsId(), regionPos);
+            ChunkPos chunkPos = bodyManager.getBodyChunkPos(index);
+            RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
+            storeBodyBatch(regionPos, Map.of(body.getPhysicsId(), snapshot));
+        });
+    }
 
-            // Update the chunk->UUID index for fast loading
-            indexBodyData(body.getPhysicsId(), data);
+    /**
+     * Stores a batch of pre-serialized body data snapshots, grouped by region.
+     * This is the main entry point for batched saving operations.
+     *
+     * @param snapshotsByRegion A map where each key is a region position and the value is a map of body snapshots for that region.
+     */
+    public void storeBodyBatch(Map<RegionPos, Map<UUID, byte[]>> snapshotsByRegion) {
+        snapshotsByRegion.forEach(this::storeBodyBatch);
+    }
 
-            // Mark the region as "dirty" so it will be written in the next save operation
+    /**
+     * Stores a batch of body snapshots for a single region. This schedules the actual
+     * I/O operation to be executed on the I/O worker thread.
+     *
+     * @param regionPos The position of the region where the data should be stored.
+     * @param snapshotBatch A map of body UUIDs to their serialized data for this region.
+     */
+    public void storeBodyBatch(RegionPos regionPos, Map<UUID, byte[]> snapshotBatch) {
+        if (snapshotBatch == null || snapshotBatch.isEmpty()) {
+            return;
+        }
+
+        getRegion(regionPos).thenAcceptAsync(region -> {
+            for (Map.Entry<UUID, byte[]> entry : snapshotBatch.entrySet()) {
+                UUID bodyId = entry.getKey();
+                byte[] data = entry.getValue();
+
+                region.entries.put(bodyId, data);
+                regionIndex.put(bodyId, regionPos);
+                indexBodyData(bodyId, data);
+            }
             region.dirty.set(true);
         }, ioExecutor).exceptionally(ex -> {
-            VxMainClass.LOGGER.error("Failed to queue body {} for storage in region {}", body.getPhysicsId(), regionPos, ex);
+            VxMainClass.LOGGER.error("Failed to queue body batch for storage in region {}", regionPos, ex);
             return null;
         });
     }
@@ -207,7 +216,8 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
-    private byte[] serializeBodyData(VxBody body, int index) {
+    @Nullable
+    public byte[] serializeBodyData(VxBody body, int index) {
         ByteBuf buffer = Unpooled.buffer();
         VxByteBuf friendlyBuf = new VxByteBuf(buffer);
         try {
@@ -215,6 +225,9 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             byte[] data = new byte[buffer.readableBytes()];
             buffer.readBytes(data);
             return data;
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Error during body serialization for {}", body.getPhysicsId(), e);
+            return null;
         } finally {
             if (buffer.refCnt() > 0) {
                 buffer.release();

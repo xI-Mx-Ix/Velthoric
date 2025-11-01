@@ -12,9 +12,9 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
-import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,75 +64,42 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     /**
-     * Stores a collection of constraints by grouping them by region and saving each region in a single batch operation.
-     * The region is determined by the chunk position of one of the constraint's bodies.
+     * Stores a batch of pre-serialized constraint data snapshots, grouped by region.
      *
-     * @param constraints The constraints to store.
+     * @param snapshotsByRegion A map where each key is a region position and the value is a map of snapshots for that region.
      */
-    public void storeConstraints(Collection<VxConstraint> constraints) {
-        if (constraints == null || constraints.isEmpty()) return;
+    public void storeConstraintBatch(Map<RegionPos, Map<UUID, byte[]>> snapshotsByRegion) {
+        snapshotsByRegion.forEach(this::storeConstraintBatch);
+    }
 
-        Map<RegionPos, List<VxConstraint>> constraintsByRegion = new HashMap<>();
-        for (VxConstraint constraint : constraints) {
-            if (constraint == null) continue;
-
-            // Determine the body to use for chunk lookup. For world constraints, use the single real body.
-            UUID chunkBodyId = !constraint.getBody1Id().equals(VxConstraintManager.WORLD_BODY_ID)
-                    ? constraint.getBody1Id()
-                    : constraint.getBody2Id();
-
-            if (chunkBodyId.equals(VxConstraintManager.WORLD_BODY_ID)) {
-                continue; // Cannot store a constraint that has no real bodies.
-            }
-
-            VxBody chunkBody = constraintManager.getBodyManager().getVxBody(chunkBodyId);
-            if (chunkBody != null) {
-                int index = chunkBody.getDataStoreIndex();
-                if (index == -1) continue;
-                ChunkPos chunkPos = constraintManager.getBodyManager().getBodyChunkPos(index);
-                RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
-                constraintsByRegion.computeIfAbsent(regionPos, k -> new ArrayList<>()).add(constraint);
-            }
+    /**
+     * Stores a batch of constraint snapshots for a single region. This schedules the actual
+     * I/O operation to be executed on the I/O worker thread.
+     *
+     * @param regionPos The position of the region.
+     * @param snapshotBatch A map of constraint UUIDs to their serialized data.
+     */
+    public void storeConstraintBatch(RegionPos regionPos, Map<UUID, byte[]> snapshotBatch) {
+        if (snapshotBatch == null || snapshotBatch.isEmpty()) {
+            return;
         }
 
-        constraintsByRegion.forEach((regionPos, regionConstraints) -> {
-            getRegion(regionPos).thenAcceptAsync(region -> {
-                for (VxConstraint constraint : regionConstraints) {
-                    UUID chunkBodyId = !constraint.getBody1Id().equals(VxConstraintManager.WORLD_BODY_ID) ? constraint.getBody1Id() : constraint.getBody2Id();
-                    if (chunkBodyId.equals(VxConstraintManager.WORLD_BODY_ID)) continue;
+        getRegion(regionPos).thenAcceptAsync(region -> {
+            for (Map.Entry<UUID, byte[]> entry : snapshotBatch.entrySet()) {
+                UUID constraintId = entry.getKey();
+                byte[] data = entry.getValue();
 
-                    VxBody chunkBody = constraintManager.getBodyManager().getVxBody(chunkBodyId);
-                    if (chunkBody == null || chunkBody.getDataStoreIndex() == -1) continue;
-
-                    ChunkPos chunkPos = constraintManager.getBodyManager().getBodyChunkPos(chunkBody.getDataStoreIndex());
-                    byte[] data = serializeConstraintData(constraint, chunkPos);
-                    region.entries.put(constraint.getConstraintId(), data);
-                    regionIndex.put(constraint.getConstraintId(), regionPos);
-                    indexConstraintData(constraint.getConstraintId(), data);
-                }
-                region.dirty.set(true);
-            }, ioExecutor).exceptionally(ex -> {
-                VxMainClass.LOGGER.error("Failed to store constraint batch in region {}", regionPos, ex);
-                return null;
-            });
+                region.entries.put(constraintId, data);
+                regionIndex.put(constraintId, regionPos);
+                indexConstraintData(constraintId, data);
+            }
+            region.dirty.set(true);
+        }, ioExecutor).exceptionally(ex -> {
+            VxMainClass.LOGGER.error("Failed to store constraint batch in region {}", regionPos, ex);
+            return null;
         });
     }
 
-    /**
-     * Stores a single constraint. For better performance, use storeConstraints when saving multiple constraints.
-     *
-     * @param constraint The constraint to store.
-     */
-    public void storeConstraint(VxConstraint constraint) {
-        if (constraint == null) return;
-        storeConstraints(Collections.singletonList(constraint));
-    }
-
-    /**
-     * Initiates loading for all constraints associated with a given chunk.
-     *
-     * @param chunkPos The position of the chunk to load constraints for.
-     */
     public void loadConstraintsInChunk(ChunkPos chunkPos) {
         RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
         getRegion(regionPos).thenRunAsync(() -> {
@@ -201,7 +168,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     private VxConstraint deserializeConstraint(UUID id, byte[] data) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
         try {
-            buf.readLong(); // Skip chunk key, which is storage-specific metadata.
+            buf.readLong();
             return VxConstraintCodec.deserialize(id, buf);
         } finally {
             if (buf.refCnt() > 0) buf.release();
@@ -211,16 +178,21 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     /**
      * Serializes a constraint into a byte array using the VxConstraintCodec.
      */
-    private byte[] serializeConstraintData(VxConstraint constraint, ChunkPos pos) {
+    @Nullable
+    public byte[] serializeConstraintData(VxConstraint constraint, ChunkPos pos) {
         ByteBuf buffer = Unpooled.buffer();
         FriendlyByteBuf buf = new FriendlyByteBuf(buffer);
         try {
-            buf.writeLong(pos.toLong()); // Write storage-specific metadata first.
+            buf.writeLong(pos.toLong());
             VxConstraintCodec.serialize(constraint, buf);
             byte[] data = new byte[buffer.readableBytes()];
             buffer.readBytes(data);
             return data;
-        } finally {
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Error during constraint serialization for {}", constraint.getConstraintId(), e);
+            return null;
+        }
+        finally {
             if (buffer.refCnt() > 0) buffer.release();
         }
     }
