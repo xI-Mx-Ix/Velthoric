@@ -68,7 +68,8 @@ public class VxPhysicsDebugChart {
 
             long durationNanos = log[logIndex];
             // Scale the bar height. Target is 60 physics ticks per second (60 Hz).
-            int scaledHeight = frameTimer.scaleSampleTo(durationNanos, chartHeight, 60);
+            // A 1/60s tick should correspond to a 30px height to leave headroom in the 60px chart.
+            int scaledHeight = frameTimer.scaleSampleTo(durationNanos, 30, 60);
             int color = colorSampler.applyAsInt(Mth.clamp(scaledHeight, 0, chartHeight));
             guiGraphics.fill(RenderType.guiOverlay(), currentX, baseY - scaledHeight, currentX + 1, baseY, color);
         }
