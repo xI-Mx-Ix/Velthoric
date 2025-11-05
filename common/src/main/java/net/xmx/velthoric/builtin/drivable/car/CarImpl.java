@@ -52,15 +52,19 @@ public class CarImpl extends VxCar {
     protected VehicleConstraintSettings createConstraintSettings() {
         this.wheels = new ArrayList<>(4);
 
+        // --- Wheel and Suspension Physical Properties ---
         float wheelRadius = 0.55f;
         float wheelWidth = 0.35f;
-        float halfVehicleWidth = 1.0f;
+        // Increased vehicle width for a more stable platform.
+        float halfVehicleWidth = 1.15f;
         float halfVehicleLength = 2.0f;
         float suspensionMinLength = 0.3f;
         float suspensionMaxLength = 0.7f;
         float maxSteerAngleRad = (float) Math.toRadians(35.0);
+
+        // Suspension stiffness and damping. Slightly softer for better compliance.
         float suspensionFrequency = 1.8f;
-        float suspensionDamping = 0.6f;
+        float suspensionDamping = 0.8f;
 
         // --- Front-Left Wheel ---
         WheelSettingsWv flWheel = new WheelSettingsWv();
@@ -72,7 +76,7 @@ public class CarImpl extends VxCar {
         flWheel.getSuspensionSpring().setFrequency(suspensionFrequency);
         flWheel.getSuspensionSpring().setDamping(suspensionDamping);
         flWheel.setMaxSteerAngle(maxSteerAngleRad);
-        flWheel.setMaxBrakeTorque(5000.0f);
+        flWheel.setMaxBrakeTorque(8000.0f);
 
         // --- Front-Right Wheel ---
         WheelSettingsWv frWheel = new WheelSettingsWv();
@@ -84,7 +88,7 @@ public class CarImpl extends VxCar {
         frWheel.getSuspensionSpring().setFrequency(suspensionFrequency);
         frWheel.getSuspensionSpring().setDamping(suspensionDamping);
         frWheel.setMaxSteerAngle(maxSteerAngleRad);
-        frWheel.setMaxBrakeTorque(5000.0f);
+        frWheel.setMaxBrakeTorque(8000.0f);
 
         // --- Rear-Left Wheel ---
         WheelSettingsWv rlWheel = new WheelSettingsWv();
@@ -96,7 +100,7 @@ public class CarImpl extends VxCar {
         rlWheel.setSuspensionMaxLength(suspensionMaxLength);
         rlWheel.getSuspensionSpring().setFrequency(suspensionFrequency);
         rlWheel.getSuspensionSpring().setDamping(suspensionDamping);
-        rlWheel.setMaxBrakeTorque(2500.0f);
+        rlWheel.setMaxBrakeTorque(4000.0f);
 
         // --- Rear-Right Wheel ---
         WheelSettingsWv rrWheel = new WheelSettingsWv();
@@ -108,7 +112,7 @@ public class CarImpl extends VxCar {
         rrWheel.setSuspensionMaxLength(suspensionMaxLength);
         rrWheel.getSuspensionSpring().setFrequency(suspensionFrequency);
         rrWheel.getSuspensionSpring().setDamping(suspensionDamping);
-        rrWheel.setMaxBrakeTorque(2500.0f);
+        rrWheel.setMaxBrakeTorque(4000.0f);
 
         this.wheels.add(new VxWheel(flWheel));
         this.wheels.add(new VxWheel(frWheel));
@@ -116,45 +120,59 @@ public class CarImpl extends VxCar {
         this.wheels.add(new VxWheel(rrWheel));
         this.setSyncData(DATA_WHEELS_SETTINGS, this.wheels.stream().map(VxWheel::getSettings).collect(Collectors.toList()));
 
-        // --- Controller Settings ---
+        // --- Controller Settings for a powerful, sporty vehicle ---
         WheeledVehicleControllerSettings controllerSettings = new WheeledVehicleControllerSettings();
+
         VehicleEngineSettings engineSettings = controllerSettings.getEngine();
-        engineSettings.setMaxTorque(2600.0f);
-        engineSettings.setMaxRpm(26500.0f);
+        engineSettings.setMaxTorque(7500.0f);
+        engineSettings.setMaxRpm(9000.0f);
         engineSettings.setMinRpm(1000.0f);
 
         VehicleTransmissionSettings transmissionSettings = controllerSettings.getTransmission();
         transmissionSettings.setMode(ETransmissionMode.Auto);
-        transmissionSettings.setGearRatios(3.5f, 2.0f, 1.4f, 1.0f, 0.75f);
-        transmissionSettings.setReverseGearRatios(-3.0f);
-        transmissionSettings.setShiftUpRpm(16000.0f);
-        transmissionSettings.setShiftDownRpm(2000.0f);
+        transmissionSettings.setGearRatios(4.0f, 2.5f, 1.8f, 1.3f, 1.0f);
+        transmissionSettings.setReverseGearRatios(-3.5f);
+        transmissionSettings.setShiftUpRpm(8000.0f);
+        transmissionSettings.setShiftDownRpm(3000.0f);
 
-        controllerSettings.setNumDifferentials(1);
-        VehicleDifferentialSettings differential = controllerSettings.getDifferential(0);
-        differential.setLeftWheel(2);
-        differential.setRightWheel(3);
-        differential.setDifferentialRatio(3.42f);
+        controllerSettings.setNumDifferentials(2);
+
+        // A limited slip differential ensures torque is transferred to the wheel with more grip,
+        // which is crucial for stability and traction during cornering. A higher value means
+        // more locking between the left and right wheels.
+        float limitedSlipRatio = 3.0f;
+
+        VehicleDifferentialSettings rearDifferential = controllerSettings.getDifferential(0);
+        rearDifferential.setLeftWheel(2);
+        rearDifferential.setRightWheel(3);
+        rearDifferential.setDifferentialRatio(4.11f);
+        rearDifferential.setEngineTorqueRatio(0.6f); // 60% of engine torque goes to the rear axle.
+        rearDifferential.setLimitedSlipRatio(limitedSlipRatio);
+
+        VehicleDifferentialSettings frontDifferential = controllerSettings.getDifferential(1);
+        frontDifferential.setLeftWheel(0);
+        frontDifferential.setRightWheel(1);
+        frontDifferential.setDifferentialRatio(4.11f);
+        frontDifferential.setEngineTorqueRatio(0.4f); // 40% of engine torque goes to the front axle.
+        frontDifferential.setLimitedSlipRatio(limitedSlipRatio);
 
         // --- Final Constraint Settings ---
         VehicleConstraintSettings settings = new VehicleConstraintSettings();
         settings.addWheels(flWheel, frWheel, rlWheel, rrWheel);
         settings.setController(controllerSettings);
 
-        // Configure anti-roll bars to reduce body roll during turns.
         settings.setNumAntiRollBars(2);
 
-        // Front anti-roll bar connects the two front wheels.
+        // Reduced anti-roll bar stiffness to allow for more body roll, preventing lift-off.
         VehicleAntiRollBar frontArb = settings.getAntiRollBar(0);
         frontArb.setLeftWheel(0);
         frontArb.setRightWheel(1);
-        frontArb.setStiffness(3500.0f);
+        frontArb.setStiffness(3000.0f);
 
-        // Rear anti-roll bar connects the two rear wheels.
         VehicleAntiRollBar rearArb = settings.getAntiRollBar(1);
         rearArb.setLeftWheel(2);
         rearArb.setRightWheel(3);
-        rearArb.setStiffness(3500.0f);
+        rearArb.setStiffness(3000.0f);
 
         return settings;
     }
@@ -192,7 +210,8 @@ public class CarImpl extends VxCar {
     public int createJoltBody(VxRigidBodyFactory factory) {
         try (ShapeSettings chassisShape = new BoxShapeSettings(this.getSyncData(DATA_CHASSIS_HALF_EXTENTS))) {
             // A non-AutoCloseable object for the center of mass offset.
-            Vec3 centerOfMassOffset = new Vec3(0f, -0.3f, 0f);
+            // A much lower center of mass is crucial for high-speed stability.
+            Vec3 centerOfMassOffset = new Vec3(0f, -0.6f, 0f);
 
             // Use the offset shape to lower the center of mass for better stability.
             try (
@@ -203,7 +222,8 @@ public class CarImpl extends VxCar {
                 bcs.setMotionType(EMotionType.Dynamic);
                 bcs.setObjectLayer(VxLayers.DYNAMIC);
                 bcs.setMotionQuality(EMotionQuality.LinearCast);
-                bcs.getMassPropertiesOverride().setMass(2000f);
+                // Reduced mass for a sportier and more nimble feel.
+                bcs.getMassPropertiesOverride().setMass(1600f);
                 bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
 
                 return factory.create(finalShapeSettings, bcs);
