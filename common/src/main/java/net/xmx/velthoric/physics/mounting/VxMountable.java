@@ -47,16 +47,26 @@ public interface VxMountable {
      * This method is called by the {@link net.xmx.velthoric.physics.mounting.manager.VxMountingManager}
      * when the body is created to automatically register its seats.
      * <p>
+     * The seat's UUID is generated deterministically from the physics body's UUID and the seat's unique
+     * name. This is crucial for ensuring the seat IDs are consistent between the server and the client.
+     * <p>
      * Example implementation:
      * <pre>{@code
      * @Override
      * public void defineSeats(VxSeat.Builder builder) {
      *     builder.addSeat(new VxSeat(
-     *         UUID.randomUUID(),
-     *         "driver_seat",
+     *         this.getPhysicsId(), // Use the body's own physics ID
+     *         "driver_seat",      // A unique name for this seat
      *         new AABB(-0.5, 0.0, -0.5, 0.5, 1.0, 0.5),
      *         new Vector3f(0.0f, 0.5f, 0.0f),
-     *         true
+     *         true // This is a driver seat
+     *     ));
+     *     builder.addSeat(new VxSeat(
+     *         this.getPhysicsId(),
+     *         "passenger_seat_1", // Another unique name
+     *         new AABB(-0.5, 0.0, 0.5, 0.5, 1.0, 1.5),
+     *         new Vector3f(0.0f, 0.5f, 1.0f),
+     *         false // Not a driver seat
      *     ));
      * }
      * }</pre>
