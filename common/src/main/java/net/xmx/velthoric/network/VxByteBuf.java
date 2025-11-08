@@ -26,14 +26,14 @@ public class VxByteBuf extends FriendlyByteBuf {
         super(source);
     }
 
-    public Vec3 readVec3() {
+    public Vec3 readJoltVec3() {
         float x = this.readFloat();
         float y = this.readFloat();
         float z = this.readFloat();
         return new Vec3(x, y, z);
     }
 
-    public void writeVec3(Vec3 vec) {
+    public void writeJoltVec3(Vec3 vec) {
         this.writeFloat(vec.getX());
         this.writeFloat(vec.getY());
         this.writeFloat(vec.getZ());

@@ -158,12 +158,12 @@ public final class VxDataSerializers {
     public static final VxDataSerializer<Vec3> VEC3 = register(new VxDataSerializer<>() {
         @Override
         public void write(VxByteBuf buf, Vec3 value) {
-            buf.writeVec3(value);
+            buf.writeJoltVec3(value);
         }
 
         @Override
         public Vec3 read(VxByteBuf buf) {
-            return buf.readVec3();
+            return buf.readJoltVec3();
         }
 
         @Override
@@ -303,18 +303,18 @@ public final class VxDataSerializers {
             @Override
             public void write(VxByteBuf buf, WheelSettingsWv value) {
 
-                buf.writeVec3(value.getPosition());
+                buf.writeJoltVec3(value.getPosition());
                 buf.writeFloat(value.getRadius());
                 buf.writeFloat(value.getWidth());
-                buf.writeVec3(value.getSuspensionDirection());
+                buf.writeJoltVec3(value.getSuspensionDirection());
                 buf.writeFloat(value.getSuspensionMinLength());
                 buf.writeFloat(value.getSuspensionMaxLength());
                 buf.writeFloat(value.getSuspensionPreloadLength());
-                buf.writeVec3(value.getSuspensionForcePoint());
+                buf.writeJoltVec3(value.getSuspensionForcePoint());
                 buf.writeBoolean(value.getEnableSuspensionForcePoint());
-                buf.writeVec3(value.getSteeringAxis());
-                buf.writeVec3(value.getWheelUp());
-                buf.writeVec3(value.getWheelForward());
+                buf.writeJoltVec3(value.getSteeringAxis());
+                buf.writeJoltVec3(value.getWheelUp());
+                buf.writeJoltVec3(value.getWheelForward());
 
                 SpringSettings spring = value.getSuspensionSpring();
                 buf.writeVarInt(spring.getMode().ordinal());
@@ -334,18 +334,18 @@ public final class VxDataSerializers {
             public WheelSettingsWv read(VxByteBuf buf) {
                 WheelSettingsWv settings = new WheelSettingsWv();
 
-                settings.setPosition(buf.readVec3());
+                settings.setPosition(buf.readJoltVec3());
                 settings.setRadius(buf.readFloat());
                 settings.setWidth(buf.readFloat());
-                settings.setSuspensionDirection(buf.readVec3());
+                settings.setSuspensionDirection(buf.readJoltVec3());
                 settings.setSuspensionMinLength(buf.readFloat());
                 settings.setSuspensionMaxLength(buf.readFloat());
                 settings.setSuspensionPreloadLength(buf.readFloat());
-                settings.setSuspensionForcePoint(buf.readVec3());
+                settings.setSuspensionForcePoint(buf.readJoltVec3());
                 settings.setEnableSuspensionForcePoint(buf.readBoolean());
-                settings.setSteeringAxis(buf.readVec3());
-                settings.setWheelUp(buf.readVec3());
-                settings.setWheelForward(buf.readVec3());
+                settings.setSteeringAxis(buf.readJoltVec3());
+                settings.setWheelUp(buf.readJoltVec3());
+                settings.setWheelForward(buf.readJoltVec3());
 
                 SpringSettings spring = settings.getSuspensionSpring();
                 spring.setMode(ESpringMode.values()[buf.readVarInt()]);

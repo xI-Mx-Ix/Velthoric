@@ -87,13 +87,13 @@ public class BoxRigidBody extends VxRigidBody {
     @Override
     public void writePersistenceData(VxByteBuf buf) {
         Vec3 halfExtents = getSyncData(DATA_HALF_EXTENTS);
-        buf.writeVec3(halfExtents);
+        buf.writeJoltVec3(halfExtents);
         buf.writeInt(getSyncData(DATA_COLOR_ORDINAL));
     }
 
     @Override
     public void readPersistenceData(VxByteBuf buf) {
-        this.setSyncData(DATA_HALF_EXTENTS, buf.readVec3());
+        this.setSyncData(DATA_HALF_EXTENTS, buf.readJoltVec3());
         this.setSyncData(DATA_COLOR_ORDINAL, buf.readInt());
     }
 }

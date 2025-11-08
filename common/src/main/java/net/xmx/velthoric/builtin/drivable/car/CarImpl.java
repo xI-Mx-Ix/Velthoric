@@ -135,26 +135,25 @@ public class CarImpl extends VxCar {
         transmissionSettings.setShiftUpRpm(8000.0f);
         transmissionSettings.setShiftDownRpm(3000.0f);
 
-        controllerSettings.setNumDifferentials(2);
+        // --- RWD SETUP ---
+        // Set the number of differentials to 1 (only for the rear axle).
+        controllerSettings.setNumDifferentials(1);
 
         // A limited slip differential ensures torque is transferred to the wheel with more grip,
         // which is crucial for stability and traction during cornering. A higher value means
         // more locking between the left and right wheels.
         float limitedSlipRatio = 3.0f;
 
+        // Configure the single rear differential.
         VehicleDifferentialSettings rearDifferential = controllerSettings.getDifferential(0);
-        rearDifferential.setLeftWheel(2);
-        rearDifferential.setRightWheel(3);
+        rearDifferential.setLeftWheel(2);  // Index of Rear-Left wheel
+        rearDifferential.setRightWheel(3); // Index of Rear-Right wheel
         rearDifferential.setDifferentialRatio(4.11f);
-        rearDifferential.setEngineTorqueRatio(0.6f); // 60% of engine torque goes to the rear axle.
+        // Set the engine torque ratio to 1.0, so 100% of the torque goes to this axle.
+        rearDifferential.setEngineTorqueRatio(1.0f);
         rearDifferential.setLimitedSlipRatio(limitedSlipRatio);
 
-        VehicleDifferentialSettings frontDifferential = controllerSettings.getDifferential(1);
-        frontDifferential.setLeftWheel(0);
-        frontDifferential.setRightWheel(1);
-        frontDifferential.setDifferentialRatio(4.11f);
-        frontDifferential.setEngineTorqueRatio(0.4f); // 40% of engine torque goes to the front axle.
-        frontDifferential.setLimitedSlipRatio(limitedSlipRatio);
+        // The front differential settings are removed.
 
         // --- Final Constraint Settings ---
         VehicleConstraintSettings settings = new VehicleConstraintSettings();
@@ -222,6 +221,8 @@ public class CarImpl extends VxCar {
                 bcs.setMotionType(EMotionType.Dynamic);
                 bcs.setObjectLayer(VxLayers.DYNAMIC);
                 bcs.setMotionQuality(EMotionQuality.LinearCast);
+                bcs.setMaxLinearVelocity(10000000f);
+                bcs.setMaxAngularVelocity(10000000f);
                 // Reduced mass for a sportier and more nimble feel.
                 bcs.getMassPropertiesOverride().setMass(1600f);
                 bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
