@@ -81,7 +81,7 @@ public abstract class VxAbstractRegionStorage<K, V> {
     }
 
     public CompletableFuture<Void> saveDirtyRegions() {
-        List<CompletableFuture<Void>> saveFutures = new ArrayList<>();
+        List<CompletableFuture<?>> saveFutures = new ArrayList<>();
         loadedRegions.forEach((pos, data) -> {
             if (data.dirty.get() && data.saving.compareAndSet(false, true)) {
                 CompletableFuture<Void> saveTask = CompletableFuture.runAsync(() -> {
@@ -102,7 +102,7 @@ public abstract class VxAbstractRegionStorage<K, V> {
         });
 
         if (regionIndex != null) {
-            regionIndex.save();
+            saveFutures.add(regionIndex.save());
         }
         return CompletableFuture.allOf(saveFutures.toArray(new CompletableFuture[0]));
     }

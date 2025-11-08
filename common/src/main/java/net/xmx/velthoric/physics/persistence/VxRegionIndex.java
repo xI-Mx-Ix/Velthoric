@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.CRC32;
@@ -98,13 +99,32 @@ public class VxRegionIndex {
 
     /**
      * Saves the in-memory index to its file on disk if it has changed.
+     * This method schedules the save operation to be performed asynchronously.
+     *
+     * @return a {@link CompletableFuture} that completes when the save operation is finished.
+     */
+    public CompletableFuture<Void> save() {
+        if (!dirty.get()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return CompletableFuture.runAsync(() -> {
+            if (dirty.compareAndSet(true, false)) {
+                flushToDisk();
+            }
+        }, VxPersistenceManager.getExecutor()).exceptionally(ex -> {
+            VxMainClass.LOGGER.error("Failed to asynchronously save region index to {}", indexPath, ex);
+            dirty.set(true); // If saving failed, mark as dirty again to retry on the next save cycle.
+            return null;
+        });
+    }
+
+    /**
+     * Performs the synchronous, blocking file write operation for the index.
      * This method uses an atomic write-and-rename approach to prevent corruption.
      * It writes the data to a temporary file first, and only upon successful completion,
      * it renames the temporary file to the final destination file.
      */
-    public void save() {
-        if (!dirty.compareAndSet(true, false)) return;
-
+    private void flushToDisk() {
         if (index.isEmpty()) {
             try {
                 Files.deleteIfExists(indexPath);
@@ -149,8 +169,8 @@ public class VxRegionIndex {
             Files.move(tempPath, indexPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 
         } catch (IOException e) {
-            VxMainClass.LOGGER.error("Failed to save region index to {}", indexPath, e);
-            dirty.set(true); // If saving failed, mark as dirty again to retry on the next save cycle.
+            // Let the CompletableFuture handle the exception.
+            throw new RuntimeException("Failed to save region index to " + indexPath, e);
         } finally {
             if (dataBuf.refCnt() > 0) {
                 dataBuf.release();
