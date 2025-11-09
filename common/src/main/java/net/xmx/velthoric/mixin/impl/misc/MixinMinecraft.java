@@ -5,6 +5,7 @@
 package net.xmx.velthoric.mixin.impl.misc;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.server.IntegratedServer;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.body.client.time.VxClientClock;
@@ -17,6 +18,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Mixin to handle the global physics pause state based on the game's pause menu.
+ * It also ensures the pause state is reset when disconnecting from a world.
+ *
+ * @author xI-Mx-Ix
+ */
 @Mixin(Minecraft.class)
 public abstract class MixinMinecraft {
 
@@ -27,6 +34,11 @@ public abstract class MixinMinecraft {
     @Nullable
     private IntegratedServer singleplayerServer;
 
+    /**
+     * Injects into the main client tick to detect changes in the pause state.
+     * When the game is paused in a pausable single-player world, it pauses the physics simulation.
+     * When resumed, it resumes the simulation.
+     */
     @Inject(method = "runTick", at = @At("HEAD"))
     private void velthoric$onRunTick(boolean renderLevel, CallbackInfo ci) {
         Minecraft mc = (Minecraft) (Object) this;
@@ -34,6 +46,7 @@ public abstract class MixinMinecraft {
 
         boolean isGamePausable = this.singleplayerServer != null && !this.singleplayerServer.isPublished();
 
+        // If the game is not currently pausable (e.g., in multiplayer), ensure physics is running.
         if (!isGamePausable) {
             if (velthoric$wasPaused) {
                 VxMainClass.LOGGER.debug("Game is no longer pausable. Ensuring physics is running.");
@@ -57,6 +70,20 @@ public abstract class MixinMinecraft {
                 clientClock.resume();
             }
             velthoric$wasPaused = isNowPaused;
+        }
+    }
+
+    /**
+     * Injects when a level is cleared (e.g., on disconnect).
+     * This resets the static pause state tracker to prevent it from carrying over
+     * to a new game session.
+     */
+    @Inject(method = "clearLevel(Lnet/minecraft/client/gui/screens/Screen;)V", at = @At("HEAD"))
+    private void velthoric$onClearLevel(Screen screen, CallbackInfo ci) {
+        if (velthoric$wasPaused) {
+            velthoric$wasPaused = false;
+            VxPauseUtil.setPaused(false);
+            VxClientClock.INSTANCE.resume(); // Ensure clock is not left in a paused state
         }
     }
 }
