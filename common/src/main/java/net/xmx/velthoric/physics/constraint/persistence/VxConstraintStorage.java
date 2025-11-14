@@ -16,7 +16,9 @@ import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -74,7 +76,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     /**
      * Stores a batch of constraint snapshots for a single region. This schedules the actual
-     * I/O operation to be executed on the I/O worker thread.
+     * I/O operation to be executed on the I/O worker thread and triggers an async save.
      *
      * @param regionPos The position of the region.
      * @param snapshotBatch A map of constraint UUIDs to their serialized data.
@@ -94,6 +96,8 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                 indexConstraintData(constraintId, data);
             }
             region.dirty.set(true);
+            // Trigger an asynchronous save for this region now, instead of waiting for a full flush.
+            saveRegion(regionPos);
         }, ioExecutor).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to store constraint batch in region {}", regionPos, ex);
             return null;

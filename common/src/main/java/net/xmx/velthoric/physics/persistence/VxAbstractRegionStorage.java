@@ -21,6 +21,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.CRC32;
@@ -82,29 +83,44 @@ public abstract class VxAbstractRegionStorage<K, V> {
 
     public CompletableFuture<Void> saveDirtyRegions() {
         List<CompletableFuture<?>> saveFutures = new ArrayList<>();
-        loadedRegions.forEach((pos, data) -> {
-            if (data.dirty.get() && data.saving.compareAndSet(false, true)) {
-                CompletableFuture<Void> saveTask = CompletableFuture.runAsync(() -> {
-                    try {
-                        if (data.dirty.compareAndSet(true, false)) {
-                            saveRegionToFile(pos, data);
-                        }
-                    } finally {
-                        data.saving.set(false);
-                    }
-                }, ioExecutor).exceptionally(ex -> {
-                    data.saving.set(false);
-                    VxMainClass.LOGGER.error("Exception in save task for region {}-{}", filePrefix, pos, ex);
-                    return null;
-                });
-                saveFutures.add(saveTask);
-            }
-        });
+        loadedRegions.forEach((pos, data) -> saveFutures.add(this.saveRegion(pos)));
 
         if (regionIndex != null) {
             saveFutures.add(regionIndex.save());
         }
+        saveFutures.removeIf(Objects::isNull);
         return CompletableFuture.allOf(saveFutures.toArray(new CompletableFuture[0]));
+    }
+
+    /**
+     * Schedules an asynchronous save for a specific region if it is marked as dirty.
+     * This method is thread-safe and prevents multiple concurrent saves for the same region.
+     *
+     * @param pos The position of the region to save.
+     * @return A CompletableFuture that completes when the save operation is finished, or null if the region was not saved.
+     */
+    public CompletableFuture<Void> saveRegion(RegionPos pos) {
+        RegionData<K, V> data = loadedRegions.get(pos);
+
+        // Do nothing if the region is not loaded, not dirty, or already being saved.
+        if (data == null || !data.dirty.get() || !data.saving.compareAndSet(false, true)) {
+            return null;
+        }
+
+        return CompletableFuture.runAsync(() -> {
+            try {
+                // Double-check dirty flag inside the synchronized task
+                if (data.dirty.compareAndSet(true, false)) {
+                    saveRegionToFile(pos, data);
+                }
+            } finally {
+                data.saving.set(false);
+            }
+        }, ioExecutor).exceptionally(ex -> {
+            data.saving.set(false); // Ensure saving flag is reset on failure
+            VxMainClass.LOGGER.error("Exception in save task for region {}-{}", filePrefix, pos, ex);
+            return null;
+        });
     }
 
     protected CompletableFuture<RegionData<K, V>> getRegion(RegionPos pos) {
