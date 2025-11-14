@@ -18,8 +18,6 @@ import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.physics.ragdoll.VxRagdollManager;
 import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
-import net.xmx.velthoric.physics.world.pcmd.ICommand;
-import net.xmx.velthoric.physics.world.pcmd.RunTaskCommand;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -63,7 +61,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private JobSystemThreadPool jobSystem;
     private TempAllocator tempAllocator;
 
-    private final Queue<ICommand> commandQueue = new ConcurrentLinkedQueue<>();
+    private final Queue<Runnable> commandQueue = new ConcurrentLinkedQueue<>();
     private volatile Thread physicsThreadExecutor;
     private volatile boolean isRunning = false;
     private float timeAccumulator = 0.0f;
@@ -206,12 +204,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     private void processCommandQueue() {
         for (int i = 0; i < MAX_COMMANDS_PER_TICK; i++) {
-            ICommand command = this.commandQueue.poll();
+            Runnable command = this.commandQueue.poll();
             if (command == null) {
                 break;
             }
             try {
-                command.execute(this);
+                command.run();
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Exception while executing physics command", e);
             }
@@ -289,7 +287,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.commandQueue.clear();
     }
 
-    public void queueCommand(ICommand command) {
+    public void queueCommand(Runnable command) {
         if (command != null && this.isRunning) {
             this.commandQueue.offer(command);
         }
@@ -297,7 +295,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     @Override
     public void execute(@NotNull Runnable task) {
-        RunTaskCommand.queue(this, task);
+        this.queueCommand(task);
     }
 
     public VxBodyManager getBodyManager() {
