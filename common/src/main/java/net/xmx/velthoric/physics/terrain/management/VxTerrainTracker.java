@@ -42,7 +42,7 @@ public final class VxTerrainTracker {
      * A smaller value creates more, smaller clusters, behaving more like per-body tracking.
      * A value of 16 (a 256x256 block area) provides a good balance.
      */
-    private static final int GRID_CELL_SIZE_IN_CHUNKS = 16;
+    private static final int GRID_CELL_SIZE_IN_CHUNKS = 4;
 
     /**
      * The radius, in chunks, around a moving body's bounding box to keep active.
