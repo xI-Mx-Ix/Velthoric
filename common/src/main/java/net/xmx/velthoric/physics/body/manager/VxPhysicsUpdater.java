@@ -215,7 +215,7 @@ public class VxPhysicsUpdater {
                     if (body != null) { // A null check is needed as multi-lock can fail for individual bodies
                         int i = localDataIndicesToLock.get(j);
 
-                        // FIX: Check if the body was removed between pass 1 and 2
+                        // Check if the body was removed between pass 1 and 2
                         UUID id = dataStore.getIdForIndex(i);
                         if (id == null) continue;
 

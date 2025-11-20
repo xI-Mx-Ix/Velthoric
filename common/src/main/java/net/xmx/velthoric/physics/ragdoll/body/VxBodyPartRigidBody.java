@@ -66,11 +66,11 @@ public class VxBodyPartRigidBody extends VxRigidBody {
 
         ShapeSettings shapeSettings;
 
-        // Wir wählen die Form basierend auf dem Körperteil aus, um die Steifheit zu reduzieren.
-        // Kapseln und abgerundete Boxen verhindern das Verhaken, das bei scharfen Kanten auftritt.
+        // We select the shape based on the body part to reduce stiffness.
+        // Capsules and rounded boxes prevent snagging that occurs with sharp edges.
         switch (partType) {
             case TORSO: {
-                // Der Torso bleibt eine Box, aber mit einem großzügigen konvexen Radius, um die Kanten stark abzurunden.
+                // The torso remains a box, but with a generous convex radius to strongly round off the edges.
                 Vec3 halfExtents = new Vec3(fullSize.getX() * 0.5f, fullSize.getY() * 0.5f, fullSize.getZ() * 0.5f);
                 float convexRadius = 0.1f;
                 shapeSettings = new BoxShapeSettings(halfExtents, convexRadius);
@@ -82,23 +82,23 @@ public class VxBodyPartRigidBody extends VxRigidBody {
             case LEFT_LEG:
             case RIGHT_LEG:
             default: {
-                // Für Gliedmaßen und den Kopf verwenden wir eine TaperedCapsuleShape.
-                // Sie hat keine Kanten und sorgt für ein sehr weiches, flüssiges Kollisionsverhalten.
+                // For limbs and the head, we use a TaperedCapsuleShape.
+                // It has no edges and ensures very soft, fluid collision behavior.
                 float halfHeight = fullSize.getY() / 2.0f;
 
-                // Der Radius wird aus dem Durchschnitt der Breite (X) und Tiefe (Z) berechnet.
+                // The radius is calculated from the average of the width (X) and depth (Z).
                 float baseRadius = (fullSize.getX() + fullSize.getZ()) / 4.0f;
 
                 float topRadius = baseRadius;
                 float bottomRadius = baseRadius;
 
-                // Optional: Fügen Sie eine leichte Verjüngung für Arme und Beine hinzu, um sie natürlicher aussehen zu lassen.
+                // Optional: Add a slight taper for arms and legs to make them look more natural.
                 if (partType == VxBodyPart.LEFT_ARM || partType == VxBodyPart.RIGHT_ARM || partType == VxBodyPart.LEFT_LEG || partType == VxBodyPart.RIGHT_LEG) {
-                    topRadius = baseRadius * 1.1f;    // Oben etwas breiter (z.B. Schulter/Oberschenkel)
-                    bottomRadius = baseRadius * 0.9f; // Unten etwas schmaler (z.B. Hand/Fuß)
+                    topRadius = baseRadius * 1.1f;    // Slightly wider at the top (e.g., shoulder/thigh)
+                    bottomRadius = baseRadius * 0.9f; // Slightly narrower at the bottom (e.g., hand/foot)
                 }
 
-                // Die Kapselform muss eine minimale Höhe haben. Wir ziehen den größten Radius von der halben Höhe ab.
+                // The capsule shape must have a minimum height. We subtract the largest radius from half the height.
                 float capsuleHalfHeight = Math.max(0.01f, halfHeight - Math.max(topRadius, bottomRadius));
 
                 shapeSettings = new TaperedCapsuleShapeSettings(capsuleHalfHeight, topRadius, bottomRadius);
@@ -113,10 +113,7 @@ public class VxBodyPartRigidBody extends VxRigidBody {
             bcs.setRestitution(0.3f);
             return factory.create(shapeSettings, bcs);
         } finally {
-            // Wichtig: Die erstellten ShapeSettings müssen geschlossen werden, um Speicherlecks zu vermeiden.
-            if (shapeSettings != null) {
-                shapeSettings.close();
-            }
+            shapeSettings.close();
         }
     }
 
@@ -132,8 +129,6 @@ public class VxBodyPartRigidBody extends VxRigidBody {
     @Override
     public void readPersistenceData(VxByteBuf buf) {
         super.readPersistenceData(buf);
-        // Hinweis: DATA_HALF_EXTENTS wird hier gelesen, aber in createJoltBody nicht mehr direkt verwendet,
-        // da die Größe jetzt aus VxBodyPart kommt. Dies könnte man refaktorisieren, aber es funktioniert auch so.
         setSyncData(DATA_HALF_EXTENTS, VxDataSerializers.VEC3.read(buf));
         setSyncData(DATA_BODY_PART, VxDataSerializers.BODY_PART.read(buf));
         setSyncData(DATA_SKIN_ID, VxDataSerializers.STRING.read(buf));

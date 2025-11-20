@@ -28,6 +28,11 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
+/**
+ * Command to summon a physics body.
+ *
+ * @author xI-Mx-Ix
+ */
 public final class VxSummonCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -68,7 +73,7 @@ public final class VxSummonCommand {
         ResourceLocation typeId = ResourceLocationArgument.getId(context, "type");
 
         try {
-            // Lookup the registered body type
+            // Look up the registered body type
             VxBodyType<?> type = VxBodyRegistry.getInstance().getRegistrationData(typeId);
 
             if (type == null) {

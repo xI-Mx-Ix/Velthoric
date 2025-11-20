@@ -201,7 +201,6 @@ public final class VxChunkDataStore extends AbstractDataStore {
     }
 
     public boolean isVersionStale(int index, int version) {
-        // This is the direct cause of the reported crash.
         if (index < 0 || index >= capacity) {
             return true;
         }
