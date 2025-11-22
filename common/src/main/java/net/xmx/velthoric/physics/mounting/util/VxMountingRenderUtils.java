@@ -40,7 +40,7 @@ public enum VxMountingRenderUtils {
      *         found and initialized; otherwise, an empty Optional.
      */
     public Optional<VxTransform> getInterpolatedTransform(VxMountingEntity proxy, float partialTicks, VxTransform transformOut) {
-        return proxy.getPhysicsBodyId().flatMap(id ->
+        return proxy.getPhysicsId().flatMap(id ->
                 getValidBodyIndex(id).map(index -> {
                     VxClientBodyManager manager = VxClientBodyManager.getInstance();
                     manager.getInterpolator().interpolateFrame(
@@ -69,7 +69,7 @@ public enum VxMountingRenderUtils {
             return;
         }
 
-        proxy.getPhysicsBodyId().flatMap(this::getValidBodyIndex).ifPresent(index -> {
+        proxy.getPhysicsId().flatMap(this::getValidBodyIndex).ifPresent(index -> {
             VxClientBodyManager manager = VxClientBodyManager.getInstance();
             manager.getInterpolator().interpolateRotation(
                     manager.getStore(),
@@ -89,7 +89,7 @@ public enum VxMountingRenderUtils {
      * @return An Optional containing the interpolated rotation quaternion.
      */
     public Optional<Quat> getInterpolatedRotation(VxMountingEntity proxy, float partialTicks) {
-        return proxy.getPhysicsBodyId().flatMap(this::getValidBodyIndex).map(index -> {
+        return proxy.getPhysicsId().flatMap(this::getValidBodyIndex).map(index -> {
             VxClientBodyManager manager = VxClientBodyManager.getInstance();
             manager.getInterpolator().interpolateRotation(manager.getStore(), index, partialTicks, this.tempRotation);
             return this.tempRotation;

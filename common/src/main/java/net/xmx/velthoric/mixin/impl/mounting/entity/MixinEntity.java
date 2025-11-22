@@ -87,7 +87,7 @@ public abstract class MixinEntity {
             return;
         }
 
-        proxy.getPhysicsBodyId().ifPresent(id -> {
+        proxy.getPhysicsId().ifPresent(id -> {
             Vec3 localViewVector = cir.getReturnValue();
             Vector3d transformedVector = VxConversions.toJoml(localViewVector, new Vector3d());
             Quaterniond vehicleRotation;

@@ -36,7 +36,7 @@ public class VxMountingManager {
 
     private final VxPhysicsWorld world;
     /**
-     *  Maps a physics body's UUID to a map of its seats, where each seat is keyed by its own UUID.
+     * Maps a physics body's UUID to a map of its seats, where each seat is keyed by its own UUID.
      */
     private final Object2ObjectMap<UUID, Map<UUID, VxSeat>> bodyToSeatsMap = new Object2ObjectOpenHashMap<>();
     private final Object2ObjectMap<UUID, UUID> playerToPhysicsIdMap = new Object2ObjectOpenHashMap<>();
@@ -81,7 +81,7 @@ public class VxMountingManager {
      * Adds a seat to a physics body, indexed by the seat's UUID.
      *
      * @param physicsId The UUID of the body.
-     * @param seat     The seat to add.
+     * @param seat      The seat to add.
      */
     public void addSeat(UUID physicsId, VxSeat seat) {
         this.bodyToSeatsMap.computeIfAbsent(physicsId, k -> new ConcurrentHashMap<>()).put(seat.getId(), seat);
@@ -91,7 +91,7 @@ public class VxMountingManager {
      * Removes a seat from a physics body using its UUID.
      *
      * @param physicsId The UUID of the body.
-     * @param seatId The UUID of the seat to remove.
+     * @param seatId    The UUID of the seat to remove.
      */
     public void removeSeat(UUID physicsId, UUID seatId) {
         Map<UUID, VxSeat> seats = this.bodyToSeatsMap.get(physicsId);
@@ -107,9 +107,9 @@ public class VxMountingManager {
      * Handles a request from a client to start mounting a body.
      * This method validates the request before initiating the mount.
      *
-     * @param player   The player making the request.
+     * @param player    The player making the request.
      * @param physicsId The UUID of the target body.
-     * @param seatId   The UUID of the target seat.
+     * @param seatId    The UUID of the target seat.
      */
     public void requestMounting(ServerPlayer player, UUID physicsId, UUID seatId) {
         VxBody body = world.getBodyManager().getVxBody(physicsId);
@@ -146,6 +146,7 @@ public class VxMountingManager {
 
     /**
      * Makes a player start mounting a specific seat on a mountable body.
+     * Spawns a new proxy entity and establishes the mounting link.
      *
      * @param player    The player to start mounting.
      * @param mountable The mountable body.
@@ -180,11 +181,44 @@ public class VxMountingManager {
         world.getLevel().addFreshEntity(proxy);
         player.startRiding(proxy, true);
 
-        bodyToRidersMap.computeIfAbsent(mountable.getPhysicsId(), k -> Maps.newHashMap()).put(player.getUUID(), player);
-        playerToPhysicsIdMap.put(player.getUUID(), mountable.getPhysicsId());
-        playerToSeatMap.put(player.getUUID(), seat);
+        registerMountingInternal(player, mountable.getPhysicsId(), seat);
 
         mountable.onStartMounting(player, seat);
+    }
+
+    /**
+     * Restores a mounting session for a player who is already sitting on a {@link VxMountingEntity}.
+     * This is typically called when the server restarts or a chunk reloads.
+     * <p>
+     * If the physics body is not yet loaded, this method does nothing. The calling entity
+     * is expected to retry in subsequent ticks until the body becomes available.
+     *
+     * @param player    The player who is mounting.
+     * @param physicsId The UUID of the physics body.
+     * @param seatId    The UUID of the seat.
+     */
+    public void restoreMounting(ServerPlayer player, UUID physicsId, UUID seatId) {
+        Optional<VxSeat> seatOpt = getSeat(physicsId, seatId);
+
+        // If the seat exists (meaning the physics body is loaded), restore the internal tracking.
+        if (seatOpt.isPresent()) {
+            registerMountingInternal(player, physicsId, seatOpt.get());
+        }
+        // If seatOpt is empty, it means the physics body has not loaded yet.
+        // We do nothing here; the VxMountingEntity tick logic will retry later.
+    }
+
+    /**
+     * Registers the player and seat mapping in the internal maps.
+     *
+     * @param player    The player.
+     * @param physicsId The physics body ID.
+     * @param seat      The seat object.
+     */
+    private void registerMountingInternal(ServerPlayer player, UUID physicsId, VxSeat seat) {
+        bodyToRidersMap.computeIfAbsent(physicsId, k -> Maps.newHashMap()).put(player.getUUID(), player);
+        playerToPhysicsIdMap.put(player.getUUID(), physicsId);
+        playerToSeatMap.put(player.getUUID(), seat);
     }
 
     /**
@@ -198,11 +232,10 @@ public class VxMountingManager {
             return;
         }
 
-        // 2. Get the mountable body BEFORE cleaning up the player's data from the maps.
-        //    This is the crucial step to avoid a race condition.
+        // 2. Get the mountable body BEFORE cleaning up the player's data.
         Optional<VxMountable> mountableOpt = getMountableForPlayer(player);
 
-        // 3. Now that we have a reference to the vehicle, clean up the player's tracking data.
+        // 3. Clean up the player's tracking data.
         UUID playerUuid = player.getUUID();
         UUID physicsId = playerToPhysicsIdMap.remove(playerUuid);
         playerToSeatMap.remove(playerUuid);
@@ -217,7 +250,7 @@ public class VxMountingManager {
             }
         }
 
-        // 4. Trigger the onStopMounting hook on the previously retrieved vehicle.
+        // 4. Trigger the hook on the vehicle.
         mountableOpt.ifPresent(mountable -> mountable.onStopMounting(player));
 
         // 5. Finalize the dismount and discard the proxy entity.
@@ -230,6 +263,8 @@ public class VxMountingManager {
 
     /**
      * Called every server game tick to update the positions and states of all mounted entities.
+     * If a physics body associated with a rider is not yet loaded, the rider remains mounted
+     * but their position is not updated until the body loads.
      */
     public void onGameTick() {
         List<ServerPlayer> playersToStopMounting = new ArrayList<>();
@@ -240,8 +275,12 @@ public class VxMountingManager {
             if (riders == null) continue;
 
             VxBody physBody = world.getBodyManager().getVxBody(physicsId);
+
+            // If the physics body is null, it means it hasn't loaded yet or was removed properly.
+            // If it's loading (e.g., restart), we skip updates to prevent dismounting.
+            // If it was removed, the riders should have been cleared in onBodyRemoved,
+            // so this state implies a pending load.
             if (physBody == null) {
-                playersToStopMounting.addAll(riders.values());
                 continue;
             }
 
@@ -269,6 +308,8 @@ public class VxMountingManager {
 
                         vehicle.setPos(finalX, finalY, finalZ);
                         vehicle.setYRot(yawDegrees);
+                        vehicle.setYHeadRot(yawDegrees);
+                        vehicle.hurtMarked = true; // Force update to client
                     } else {
                         playersToStopMounting.add(rider);
                     }
@@ -326,7 +367,7 @@ public class VxMountingManager {
      * Checks if a specific seat on a body is occupied.
      *
      * @param physicsId The UUID of the body.
-     * @param seat     The seat to check.
+     * @param seat      The seat to check.
      * @return True if the seat is occupied.
      */
     public boolean isSeatOccupied(UUID physicsId, VxSeat seat) {
@@ -347,7 +388,7 @@ public class VxMountingManager {
      * Gets a specific seat from a body by its UUID.
      *
      * @param physicsId The UUID of the body.
-     * @param seatId   The UUID of the seat.
+     * @param seatId    The UUID of the seat.
      * @return An Optional containing the seat if found.
      */
     public Optional<VxSeat> getSeat(UUID physicsId, UUID seatId) {
