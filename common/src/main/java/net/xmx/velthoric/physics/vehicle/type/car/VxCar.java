@@ -40,7 +40,7 @@ public abstract class VxCar extends VxVehicle {
     public static final VxDataAccessor<Vec3> DATA_CHASSIS_HALF_EXTENTS = VxDataAccessor.create(VxCar.class, VxDataSerializers.VEC3);
 
     private VxWheeledVehicleController controller;
-    private final VxSteering steering = new VxSteering(4.0f);
+    private final VxSteering steering = new VxSteering(1.5f);
     private VxMountInput currentInput = VxMountInput.NEUTRAL;
 
     /**

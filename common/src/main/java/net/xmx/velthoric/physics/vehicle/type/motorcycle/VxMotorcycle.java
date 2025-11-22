@@ -46,7 +46,7 @@ public abstract class VxMotorcycle extends VxVehicle {
     private float previousForward = 1.0f;
 
     private VxMotorcycleController controller;
-    private final VxSteering steering = new VxSteering(4.0f);
+    private final VxSteering steering = new VxSteering(1.5f);
     private VxMountInput currentInput = VxMountInput.NEUTRAL;
 
     /**
