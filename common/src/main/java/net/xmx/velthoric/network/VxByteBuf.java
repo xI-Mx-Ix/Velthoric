@@ -168,7 +168,7 @@ public class VxByteBuf extends FriendlyByteBuf {
         }
     }
 
-    public static int getVarIntSize(int value) {
+    public static int varIntSize(int value) {
         int size = 0;
         do {
             value >>>= 7;
