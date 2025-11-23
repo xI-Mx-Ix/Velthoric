@@ -50,9 +50,6 @@ dependencies {
 
     modImplementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
 
-    implementation(annotationProcessor("io.github.llamalad7:mixinextras-common:0.4.1"))
-    implementation(include("io.github.llamalad7:mixinextras-forge:0.4.1"))
-
     implementation project(path: ":vx-native", configuration: "namedElements")
     minecraftRuntimeLibraries project(path: ":vx-native", configuration: "namedElements")
     shadowBundle project(path: ":vx-native", configuration: "namedElements")
@@ -79,7 +76,8 @@ processResources {
             mod_license: rootProject.mod_license,
             mod_version: rootProject.mod_version,
             mod_authors: rootProject.mod_authors,
-            mod_description: rootProject.mod_description
+            mod_description: rootProject.mod_description,
+            architectury_api_version: rootProject.architectury_api_version
     ]
 
     inputs.properties replaceProperties

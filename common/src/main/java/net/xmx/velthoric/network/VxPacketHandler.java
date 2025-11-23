@@ -5,8 +5,6 @@
 package net.xmx.velthoric.network;
 
 import dev.architectury.networking.NetworkManager;
-import dev.architectury.platform.Platform;
-import dev.architectury.utils.Env;
 import dev.architectury.utils.GameInstance;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -36,9 +34,8 @@ import java.util.function.Supplier;
 
 /**
  * Handles the registration and sending of all network packets for the mod.
- * This class uses Architectury's NetworkManager directly for packet handling
- * and assigns human-readable names to each packet for easier debugging.
- * Updated for Minecraft 1.21+ CustomPacketPayload API.
+ * This class bridges existing packet logic with the modern CustomPacketPayload API
+ * and Architectury's NetworkManager.
  *
  * @author xI-Mx-Ix
  */
@@ -47,7 +44,8 @@ public class VxPacketHandler {
     private static final String CHANNEL_NAMESPACE = "velthoric";
 
     /**
-     * Internal wrapper to adapt existing POJO packets to the new CustomPacketPayload API.
+     * Internal wrapper to adapt existing POJO packets to the CustomPacketPayload API.
+     *
      * @param <T> The type of the inner packet message.
      */
     private record PacketWrapper<T>(T message, CustomPacketPayload.Type<PacketWrapper<T>> type) implements CustomPacketPayload {
@@ -58,54 +56,49 @@ public class VxPacketHandler {
     }
 
     /**
-     * Internal record to store information about a registered packet type.
-     * Uses the wrapper type definition.
+     * Internal record to store configuration about a registered packet type.
      */
     private record PacketInfo<T>(CustomPacketPayload.Type<PacketWrapper<T>> type) {}
 
     private static final Map<Class<?>, PacketInfo<?>> PACKETS = new HashMap<>();
 
     /**
-     * Registers a packet type with the network manager.
-     * Automatically creates a StreamCodec and PacketPayloadWrapper to bridge old logic to new API.
+     * Registers a packet type with the network manager for a specific direction.
+     * Automatically creates a StreamCodec and PacketPayloadWrapper to bridge logic to the new API.
      *
-     * @param type The class of the packet.
-     * @param name The unique name for the packet, used as the path in its ResourceLocation.
+     * @param type    The class of the packet.
+     * @param name    The unique name for the packet, used as the path in its ResourceLocation.
      * @param encoder The method to encode the packet into a byte buffer.
      * @param decoder The method to decode the packet from a byte buffer.
      * @param handler The method to handle the received packet.
-     * @param <T> The type of the packet.
+     * @param side    The network side that receives this packet (e.g., C2S for actions, S2C for syncs).
+     * @param <T>     The type of the packet.
      */
     private static <T> void registerPacket(Class<T> type,
                                            String name,
                                            BiConsumer<T, FriendlyByteBuf> encoder,
                                            Function<FriendlyByteBuf, T> decoder,
-                                           BiConsumer<T, Supplier<NetworkManager.PacketContext>> handler) {
+                                           BiConsumer<T, Supplier<NetworkManager.PacketContext>> handler,
+                                           NetworkManager.Side side) {
         ResourceLocation id = ResourceLocation.tryBuild(CHANNEL_NAMESPACE, name);
         CustomPacketPayload.Type<PacketWrapper<T>> payloadType = new CustomPacketPayload.Type<>(id);
 
         // Store the packet info for looking up the Type later when sending
         PACKETS.put(type, new PacketInfo<>(payloadType));
 
-        // Create a codec that delegates to the provided legacy encoder/decoder
-        // RegistryFriendlyByteBuf extends FriendlyByteBuf, so we can pass it directly
+        // Create a codec that delegates to the provided legacy encoder/decoder.
         StreamCodec<RegistryFriendlyByteBuf, PacketWrapper<T>> codec = StreamCodec.of(
                 (buf, wrapper) -> encoder.accept(wrapper.message(), buf),
                 (buf) -> new PacketWrapper<>(decoder.apply(buf), payloadType)
         );
 
-        // Create a receiver that unwraps the payload and calls the legacy handler
+        // Create a receiver that unwraps the payload and calls the legacy handler.
         NetworkManager.NetworkReceiver<PacketWrapper<T>> receiver = (wrapper, context) -> {
             handler.accept(wrapper.message(), () -> context);
         };
 
-        // Register using the new API (Type + Codec + Receiver)
-        NetworkManager.registerReceiver(NetworkManager.c2s(), payloadType, codec, receiver);
-
-        // On the client, also register for server-to-client communication
-        if (Platform.getEnvironment() == Env.CLIENT) {
-            NetworkManager.registerReceiver(NetworkManager.s2c(), payloadType, codec, receiver);
-        }
+        // Register the receiver only for the specified side to avoid duplicate registration errors on NeoForge.
+        NetworkManager.registerReceiver(side, payloadType, codec, receiver);
     }
 
     /**
@@ -113,12 +106,15 @@ public class VxPacketHandler {
      * This method must be called during mod initialization.
      */
     public static void register() {
+        // --- Client to Server Packets ---
+
         registerPacket(
                 VxChainCreatorActionPacket.class,
                 "chain_creator_action",
                 VxChainCreatorActionPacket::encode,
                 VxChainCreatorActionPacket::decode,
-                VxChainCreatorActionPacket::handle
+                VxChainCreatorActionPacket::handle,
+                NetworkManager.Side.C2S
         );
 
         registerPacket(
@@ -126,15 +122,8 @@ public class VxPacketHandler {
                 "request_mount",
                 C2SRequestMountPacket::encode,
                 C2SRequestMountPacket::decode,
-                C2SRequestMountPacket::handle
-        );
-
-        registerPacket(
-                S2CSynchronizedDataBatchPacket.class,
-                "sync_data_batch",
-                S2CSynchronizedDataBatchPacket::encode,
-                S2CSynchronizedDataBatchPacket::decode,
-                S2CSynchronizedDataBatchPacket::handle
+                C2SRequestMountPacket::handle,
+                NetworkManager.Side.C2S
         );
 
         registerPacket(
@@ -142,55 +131,8 @@ public class VxPacketHandler {
                 "mount_input",
                 C2SMountInputPacket::encode,
                 C2SMountInputPacket::decode,
-                C2SMountInputPacket::handle
-        );
-
-        registerPacket(
-                S2CVehicleStatePacket.class,
-                "vehicle_state",
-                S2CVehicleStatePacket::encode,
-                S2CVehicleStatePacket::decode,
-                S2CVehicleStatePacket::handle
-        );
-
-        registerPacket(
-                S2CSpawnBodyBatchPacket.class,
-                "spawn_body_batch",
-                S2CSpawnBodyBatchPacket::encode,
-                S2CSpawnBodyBatchPacket::decode,
-                S2CSpawnBodyBatchPacket::handle
-        );
-
-        registerPacket(
-                S2CRemoveBodyBatchPacket.class,
-                "remove_body_batch",
-                S2CRemoveBodyBatchPacket::encode,
-                S2CRemoveBodyBatchPacket::decode,
-                S2CRemoveBodyBatchPacket::handle
-        );
-
-        registerPacket(
-                S2CUpdateBodyStateBatchPacket.class,
-                "update_body_state_batch",
-                S2CUpdateBodyStateBatchPacket::encode,
-                S2CUpdateBodyStateBatchPacket::decode,
-                S2CUpdateBodyStateBatchPacket::handle
-        );
-
-        registerPacket(
-                S2CUpdateVerticesBatchPacket.class,
-                "update_vertices_batch",
-                S2CUpdateVerticesBatchPacket::encode,
-                S2CUpdateVerticesBatchPacket::decode,
-                S2CUpdateVerticesBatchPacket::handle
-        );
-
-        registerPacket(
-                VxPhysicsGunSyncPacket.class,
-                "physics_gun_sync",
-                VxPhysicsGunSyncPacket::encode,
-                VxPhysicsGunSyncPacket::decode,
-                VxPhysicsGunSyncPacket::handle
+                C2SMountInputPacket::handle,
+                NetworkManager.Side.C2S
         );
 
         registerPacket(
@@ -198,7 +140,8 @@ public class VxPacketHandler {
                 "magnetizer_action",
                 VxMagnetizerActionPacket::encode,
                 VxMagnetizerActionPacket::decode,
-                VxMagnetizerActionPacket::handle
+                VxMagnetizerActionPacket::handle,
+                NetworkManager.Side.C2S
         );
 
         registerPacket(
@@ -206,7 +149,8 @@ public class VxPacketHandler {
                 "physics_gun_action",
                 VxPhysicsGunActionPacket::encode,
                 VxPhysicsGunActionPacket::decode,
-                VxPhysicsGunActionPacket::handle
+                VxPhysicsGunActionPacket::handle,
+                NetworkManager.Side.C2S
         );
 
         registerPacket(
@@ -214,15 +158,82 @@ public class VxPacketHandler {
                 "box_thrower_action",
                 VxBoxThrowerActionPacket::encode,
                 VxBoxThrowerActionPacket::decode,
-                VxBoxThrowerActionPacket::handle
+                VxBoxThrowerActionPacket::handle,
+                NetworkManager.Side.C2S
+        );
+
+        // --- Server to Client Packets ---
+
+        registerPacket(
+                S2CSynchronizedDataBatchPacket.class,
+                "sync_data_batch",
+                S2CSynchronizedDataBatchPacket::encode,
+                S2CSynchronizedDataBatchPacket::decode,
+                S2CSynchronizedDataBatchPacket::handle,
+                NetworkManager.Side.S2C
+        );
+
+        registerPacket(
+                S2CVehicleStatePacket.class,
+                "vehicle_state",
+                S2CVehicleStatePacket::encode,
+                S2CVehicleStatePacket::decode,
+                S2CVehicleStatePacket::handle,
+                NetworkManager.Side.S2C
+        );
+
+        registerPacket(
+                S2CSpawnBodyBatchPacket.class,
+                "spawn_body_batch",
+                S2CSpawnBodyBatchPacket::encode,
+                S2CSpawnBodyBatchPacket::decode,
+                S2CSpawnBodyBatchPacket::handle,
+                NetworkManager.Side.S2C
+        );
+
+        registerPacket(
+                S2CRemoveBodyBatchPacket.class,
+                "remove_body_batch",
+                S2CRemoveBodyBatchPacket::encode,
+                S2CRemoveBodyBatchPacket::decode,
+                S2CRemoveBodyBatchPacket::handle,
+                NetworkManager.Side.S2C
+        );
+
+        registerPacket(
+                S2CUpdateBodyStateBatchPacket.class,
+                "update_body_state_batch",
+                S2CUpdateBodyStateBatchPacket::encode,
+                S2CUpdateBodyStateBatchPacket::decode,
+                S2CUpdateBodyStateBatchPacket::handle,
+                NetworkManager.Side.S2C
+        );
+
+        registerPacket(
+                S2CUpdateVerticesBatchPacket.class,
+                "update_vertices_batch",
+                S2CUpdateVerticesBatchPacket::encode,
+                S2CUpdateVerticesBatchPacket::decode,
+                S2CUpdateVerticesBatchPacket::handle,
+                NetworkManager.Side.S2C
+        );
+
+        registerPacket(
+                VxPhysicsGunSyncPacket.class,
+                "physics_gun_sync",
+                VxPhysicsGunSyncPacket::encode,
+                VxPhysicsGunSyncPacket::decode,
+                VxPhysicsGunSyncPacket::handle,
+                NetworkManager.Side.S2C
         );
     }
 
     /**
      * Retrieves the stored PacketInfo for a given message object.
+     *
      * @param message The packet message instance.
      * @return The PacketInfo associated with the message's class.
-     * @throws IllegalArgumentException if the packet has not been registered.
+     * @throws NullPointerException if the packet has not been registered.
      */
     @SuppressWarnings("unchecked")
     private static <MSG> PacketInfo<MSG> getPacketInfo(MSG message) {
@@ -232,20 +243,22 @@ public class VxPacketHandler {
 
     /**
      * Sends a packet from the client to the server.
+     *
      * @param message The packet to send.
-     * @param <MSG> The type of the packet.
+     * @param <MSG>   The type of the packet.
      */
     public static <MSG> void sendToServer(MSG message) {
         PacketInfo<MSG> info = getPacketInfo(message);
-        // Wrap the message into the Payload wrapper and send it
+        // Wrap the message into the Payload wrapper and send it via Architectury
         NetworkManager.sendToServer(new PacketWrapper<>(message, info.type()));
     }
 
     /**
      * Sends a packet from the server to a specific player.
+     *
      * @param message The packet to send.
-     * @param player The player to send the packet to.
-     * @param <MSG> The type of the packet.
+     * @param player  The player to send the packet to.
+     * @param <MSG>   The type of the packet.
      */
     public static <MSG> void sendToPlayer(MSG message, ServerPlayer player) {
         PacketInfo<MSG> info = getPacketInfo(message);
@@ -254,9 +267,10 @@ public class VxPacketHandler {
 
     /**
      * Sends a packet to all players in a specific dimension.
-     * @param message The packet to send.
+     *
+     * @param message      The packet to send.
      * @param dimensionKey The key of the dimension to send the packet to.
-     * @param <MSG> The type of the packet.
+     * @param <MSG>        The type of the packet.
      */
     public static <MSG> void sendToDimension(MSG message, ResourceKey<Level> dimensionKey) {
         if (GameInstance.getServer() != null) {
@@ -270,8 +284,9 @@ public class VxPacketHandler {
 
     /**
      * Sends a packet to all players currently on the server.
+     *
      * @param message The packet to send.
-     * @param <MSG> The type of the packet.
+     * @param <MSG>   The type of the packet.
      */
     public static <MSG> void sendToAll(MSG message) {
         if (GameInstance.getServer() != null) {
