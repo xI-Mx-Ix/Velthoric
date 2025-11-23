@@ -41,6 +41,13 @@ public class ClothRenderer extends VxSoftBodyRenderer<ClothSoftBody> {
         VertexConsumer buffer = bufferSource.getBuffer(RenderType.translucent());
         TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(BLUE_WOOL_TEXTURE);
 
+        float minU = sprite.getU0();
+        float maxU = sprite.getU1();
+        float minV = sprite.getV0();
+        float maxV = sprite.getV1();
+        float deltaU = maxU - minU;
+        float deltaV = maxV - minV;
+
         BiFunction<Integer, Integer, Vector3f> getVertexWorldPos = (x, y) -> {
             int index = (y * numVerticesX + x) * 3;
             if (index + 2 >= renderVertexData.length) return new Vector3f();
@@ -54,10 +61,10 @@ public class ClothRenderer extends VxSoftBodyRenderer<ClothSoftBody> {
                 Vector3f v3 = getVertexWorldPos.apply(x + 1, y + 1);
                 Vector3f v4 = getVertexWorldPos.apply(x, y + 1);
 
-                float u1 = sprite.getU((float) x / widthSegments * 16f);
-                float u2 = sprite.getU((float) (x + 1) / widthSegments * 16f);
-                float v1Coord = sprite.getV((float) y / heightSegments * 16f);
-                float v2Coord = sprite.getV((float) (y + 1) / heightSegments * 16f);
+                float u1 = minU + (deltaU * ((float) x / widthSegments));
+                float u2 = minU + (deltaU * ((float) (x + 1) / widthSegments));
+                float v1Coord = minV + (deltaV * ((float) y / heightSegments));
+                float v2Coord = minV + (deltaV * ((float) (y + 1) / heightSegments));
 
                 Vector3f edge1 = new Vector3f(v2).sub(v1);
                 Vector3f edge2 = new Vector3f(v4).sub(v1);
