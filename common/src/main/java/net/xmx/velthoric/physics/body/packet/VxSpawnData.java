@@ -87,6 +87,6 @@ public class VxSpawnData {
     public int estimateSize() {
         String typeStr = typeIdentifier.toString();
         // Calculate size: UUID (16) + NetworkID (varint) + RL (varint + string) + Timestamp (8) + Data (varint + bytes)
-        return 16 + FriendlyByteBuf.getVarIntSize(networkId) + FriendlyByteBuf.getVarIntSize(typeStr.length()) + typeStr.length() + 8 + FriendlyByteBuf.getVarIntSize(data.length) + data.length;
+        return 16 + VxByteBuf.varIntSize(networkId) + VxByteBuf.varIntSize(typeStr.length()) + typeStr.length() + 8 + VxByteBuf.varIntSize(data.length) + data.length;
     }
 }

@@ -75,7 +75,7 @@ public final class VxBodyCodec {
     public static VxSerializedBodyData deserialize(VxByteBuf buf) {
         try {
             UUID id = buf.readUUID();
-            ResourceLocation typeId = new ResourceLocation(buf.readUtf());
+            ResourceLocation typeId = ResourceLocation.tryParse(buf.readUtf());
 
             VxTransform transform = new VxTransform();
             transform.fromBuffer(buf);

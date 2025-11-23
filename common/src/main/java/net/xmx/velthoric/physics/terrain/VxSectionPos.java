@@ -10,6 +10,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Represents the position of a 16x16x16 chunk section in the world.
@@ -149,7 +150,9 @@ public final class VxSectionPos {
      */
     public AABB getAABB() {
         BlockPos origin = getOrigin();
-        return new AABB(origin, origin.offset(CHUNK_SIZE, CHUNK_SIZE, CHUNK_SIZE));
+        Vec3 start = new Vec3(origin.getX(), origin.getY(), origin.getZ());
+        Vec3 end = new Vec3(origin.getX() + CHUNK_SIZE, origin.getY() + CHUNK_SIZE, origin.getZ() + CHUNK_SIZE);
+        return new AABB(start, end);
     }
 
     /**

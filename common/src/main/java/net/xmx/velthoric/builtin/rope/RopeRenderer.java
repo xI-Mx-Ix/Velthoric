@@ -25,7 +25,7 @@ import net.xmx.velthoric.physics.body.client.body.renderer.VxSoftBodyRenderer;
  */
 public class RopeRenderer extends VxSoftBodyRenderer<RopeSoftBody> {
 
-    private static final ResourceLocation YELLOW_WOOL_BLOCK_TEXTURE = new ResourceLocation("minecraft:block/yellow_wool");
+    private static final ResourceLocation YELLOW_WOOL_BLOCK_TEXTURE = ResourceLocation.tryParse("minecraft:block/yellow_wool");
     private static final int SIDES = 12;
     private static final Vec3 JOLT_UNIT_X = new Vec3(1, 0, 0);
     private static final Vec3 JOLT_UNIT_Y = new Vec3(0, 1, 0);
