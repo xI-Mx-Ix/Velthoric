@@ -7,19 +7,24 @@ fabric/build
 fabric/.gradle
 forge/build
 forge/.gradle
+neoforge/build
+neoforge/.gradle
 
 # Run folders (temporary runtime folders created when starting Minecraft)
 forge/run
 fabric/run
+neoforge/run
 
 # Specific runtime folders for client instances
 forge/run-client
 fabric/run-client
 fabric/run-client-2
+neoforge/run-client
 
 # Specific runtime folders for server instances
 forge/run-server
 fabric/run-server
+neoforge/run-server
 
 # Folder for JVM crash logs
 hell nah/
