@@ -16,7 +16,6 @@ loom {
         client {
             runDir "run-client"
             programArgs '--username', 'dev'
-            //vmArg "-Dfabric.log.level=debug"
         }
     }
 
@@ -44,10 +43,10 @@ dependencies {
 
     include(implementation(annotationProcessor("io.github.llamalad7:mixinextras-fabric:$mixinextras_version")))
 
-    modImplementation "curse.maven:lithium-360438:6097158"
     modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
-    modImplementation "curse.maven:sodium-394468:6260639"
-    modImplementation "curse.maven:modmenu-308702:5162837"
+    modImplementation "curse.maven:sodium-394468:6382649"
+    modImplementation "curse.maven:modmenu-308702:5810603"
+    modImplementation "curse.maven:lithium-360438:7246287"
 
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
 
@@ -75,8 +74,6 @@ processResources {
             mod_authors: rootProject.mod_authors,
             mod_description: rootProject.mod_description,
             minecraft_version_range: rootProject.minecraft_version_range,
-            forge_version: rootProject.forge_version,
-            forge_version_range: rootProject.forge_version_range,
             loader_version_range: rootProject.loader_version_range,
 
             fabric_loader_version: rootProject.fabric_loader_version,

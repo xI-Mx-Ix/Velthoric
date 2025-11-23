@@ -62,8 +62,8 @@ public abstract class MixinMinecraft {
             return false;
         }
 
-        float partialTicks = Minecraft.getInstance().getDeltaFrameTime();
-        double maxDist = Minecraft.getInstance().gameMode.getPickRange();
+        float partialTicks = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
+        double maxDist = this.player.isCreative() ? 5.0 : 4.5;
         Vec3 cameraPos = this.player.getEyePosition(partialTicks);
         Vec3 viewVec = this.player.getViewVector(partialTicks);
         Vec3 endVec = cameraPos.add(viewVec.x * maxDist, viewVec.y * maxDist, viewVec.z * maxDist);

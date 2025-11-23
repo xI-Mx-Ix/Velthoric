@@ -78,7 +78,7 @@ public abstract class MixinMinecraft {
      * This resets the static pause state tracker to prevent it from carrying over
      * to a new game session.
      */
-    @Inject(method = "clearLevel(Lnet/minecraft/client/gui/screens/Screen;)V", at = @At("HEAD"))
+    @Inject(method = "clearClientLevel(Lnet/minecraft/client/gui/screens/Screen;)V", at = @At("HEAD"))
     private void velthoric$onClearLevel(Screen screen, CallbackInfo ci) {
         if (velthoric$wasPaused) {
             velthoric$wasPaused = false;

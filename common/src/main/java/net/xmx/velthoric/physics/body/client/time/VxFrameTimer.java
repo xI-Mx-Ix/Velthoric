@@ -60,6 +60,17 @@ public final class VxFrameTimer {
     }
 
     /**
+     * Resets the frame timer, clearing all recorded frame data.
+     * This method is useful when you want to start fresh measurements
+     * or when implementing the SampleStorage reset() contract.
+     */
+    public void reset() {
+        this.startIndex = 0;
+        this.logLength = 0;
+        this.currentIndex = 0;
+    }
+
+    /**
      * Scales a given time sample to a specific height for chart rendering.
      *
      * @param durationNanos  The duration in nanoseconds to be scaled.

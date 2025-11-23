@@ -189,9 +189,9 @@ public class VxMountingEntity extends Entity {
     }
 
     @Override
-    protected void defineSynchedData() {
-        this.entityData.define(PHYSICS_ID, Optional.empty());
-        this.entityData.define(SEAT_ID, Optional.empty());
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        builder.define(PHYSICS_ID, Optional.empty());
+        builder.define(SEAT_ID, Optional.empty());
     }
 
     /**
@@ -272,11 +272,6 @@ public class VxMountingEntity extends Entity {
     @Override
     public boolean isInvisible() {
         return true;
-    }
-
-    @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return new ClientboundAddEntityPacket(this);
     }
 
     /**

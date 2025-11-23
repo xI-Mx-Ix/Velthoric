@@ -54,10 +54,16 @@ public class MarbleRenderer extends VxRigidBodyRenderer<MarbleRigidBody> {
         poseStack.popPose();
     }
 
-    private void addVertex(VertexConsumer consumer, Matrix4f pose, Matrix3f normal, float x, float y, float u, float v, int packedLight) {
-        consumer.vertex(pose, x, y, 0.0f)
-                .color(255, 255, 255, 255).uv(u, v)
-                .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(packedLight)
-                .normal(normal, 0.0f, 1.0f, 0.0f).endVertex();
+    private void addVertex(VertexConsumer consumer, Matrix4f pose, Matrix3f normalMatrix, float x, float y, float u, float v, int packedLight) {
+        float nx = normalMatrix.m10;
+        float ny = normalMatrix.m11;
+        float nz = normalMatrix.m12;
+
+        consumer.addVertex(pose, x, y, 0.0f)
+                .setColor(255, 255, 255, 255)
+                .setUv(u, v)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(packedLight)
+                .setNormal(nx, ny, nz);
     }
 }

@@ -33,10 +33,9 @@ public abstract class MixinEntityRenderer {
      */
     @Inject(method = "renderNameTag", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;mulPose(Lorg/joml/Quaternionf;)V", ordinal = 0))
     private <T extends Entity> void velthoric_invertPhysicsRotationBeforeCameraOrientation(
-            T entity, Component displayName, PoseStack poseStack, MultiBufferSource buffer,
-            int packedLight, CallbackInfo ci) {
+            T entity, Component displayName, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, float partialTick, CallbackInfo ci) {
 
-        float partialTicks = Minecraft.getInstance().getFrameTime();
+        float partialTicks = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
         VxMountingRenderUtils.INSTANCE.ifMountedOnBody(entity, partialTicks, physQuat -> {
             Quaternionf physRotation = VxConversions.toJoml(physQuat, new Quaternionf());
             physRotation.conjugate(); // Invert the rotation

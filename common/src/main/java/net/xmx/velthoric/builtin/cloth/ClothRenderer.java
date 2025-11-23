@@ -25,7 +25,7 @@ import java.util.function.BiFunction;
  */
 public class ClothRenderer extends VxSoftBodyRenderer<ClothSoftBody> {
 
-    private static final ResourceLocation BLUE_WOOL_TEXTURE = new ResourceLocation("minecraft:block/blue_wool");
+    private static final ResourceLocation BLUE_WOOL_TEXTURE = ResourceLocation.tryParse("minecraft:block/blue_wool");
 
     @Override
     public void render(ClothSoftBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
@@ -79,9 +79,10 @@ public class ClothRenderer extends VxSoftBodyRenderer<ClothSoftBody> {
     }
 
     private void addVertex(VertexConsumer buffer, PoseStack poseStack, Vector3f pos, float u, float v, Vector3f normal, int packedLight) {
-        PoseStack.Pose last = poseStack.last();
-        buffer.vertex(last.pose(), pos.x(), pos.y(), pos.z())
-                .color(255, 255, 255, 255).uv(u, v).uv2(packedLight)
-                .normal(last.normal(), normal.x(), normal.y(), normal.z()).endVertex();
+        buffer.addVertex(poseStack.last(), pos.x(), pos.y(), pos.z())
+                .setColor(255, 255, 255, 255)
+                .setUv(u, v)
+                .setLight(packedLight)
+                .setNormal(poseStack.last(), normal.x(), normal.y(), normal.z());
     }
 }

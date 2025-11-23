@@ -122,7 +122,13 @@ public class VxDebugRenderer {
      */
     private static void drawLine(VertexConsumer consumer, PoseStack poseStack, Vec3 p1, Vec3 p2, float r, float g, float b, float a) {
         PoseStack.Pose last = poseStack.last();
-        consumer.vertex(last.pose(), (float)p1.x, (float)p1.y, (float)p1.z).color(r, g, b, a).normal(last.normal(), 0, 1, 0).endVertex();
-        consumer.vertex(last.pose(), (float)p2.x, (float)p2.y, (float)p2.z).color(r, g, b, a).normal(last.normal(), 0, 1, 0).endVertex();
+
+        consumer.addVertex(last.pose(), (float)p1.x, (float)p1.y, (float)p1.z)
+                .setColor(r, g, b, a)
+                .setNormal(last, 0, 1, 0);
+
+        consumer.addVertex(last.pose(), (float)p2.x, (float)p2.y, (float)p2.z)
+                .setColor(r, g, b, a)
+                .setNormal(last, 0, 1, 0);
     }
 }

@@ -6,8 +6,8 @@ package net.xmx.velthoric.mixin.impl.mounting.render;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.GameRenderer;
@@ -15,8 +15,8 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.math.VxConversions;
 import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
@@ -37,17 +37,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Predicate;
 
 /**
- * Applies several modifications to the GameRenderer for entities mounted on physics bodies.
- * This includes:
- * 1.  Temporarily moving mounted entities to their smoothly interpolated physics positions
- *     before rendering and restoring them after, ensuring fluid motion without affecting game logic.
- * 2.  Adjusting the camera's view matrix to account for the vehicle's rotation, allowing
- *     the world to be rendered correctly from a tilted perspective.
- * 3.  Replacing standard AABB-based entity picking with more precise OBB-based picking for mounted
- *     entities, ensuring accurate interaction with their rotated visual models.
+ * Enhances the GameRenderer to support physics-based entity mounting.
  *
  * @author xI-Mx-Ix
  */
@@ -63,18 +55,21 @@ public abstract class MixinGameRenderer {
     @Unique
     private final Map<Integer, VxMountingEntityState> velthoric_originalStates = new HashMap<>();
 
-    /**
-     * A reusable transform object to store interpolated physics state, avoiding re-allocation each frame.
-     */
     @Unique
     private final VxTransform velthoric_interpolatedTransform = new VxTransform();
 
     /**
-     * Injects before the world is rendered to override the positions of any mounted entities
-     * to match their smooth, interpolated physics state for the current frame.
+     * Prepares entities for rendering by temporarily moving them to their interpolated physics positions.
      */
-    @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;renderLevel(FJLcom/mojang/blaze3d/vertex/PoseStack;)V", shift = At.Shift.BEFORE))
-    private void velthoric_preRenderLevel(float tickDelta, long startTime, boolean tick, CallbackInfo ci) {
+    @Inject(
+            method = "renderLevel",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/renderer/LevelRenderer;renderLevel(Lnet/minecraft/client/DeltaTracker;ZLnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/GameRenderer;Lnet/minecraft/client/renderer/LightTexture;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V",
+                    shift = At.Shift.BEFORE
+            )
+    )
+    private void velthoric_preRenderLevel(DeltaTracker deltaTracker, CallbackInfo ci) {
         ClientLevel clientWorld = minecraft.level;
         if (clientWorld == null) return;
 
@@ -84,17 +79,13 @@ public abstract class MixinGameRenderer {
             if (entity instanceof VxMountingEntity proxy && !proxy.getPassengers().isEmpty()) {
                 Entity passenger = proxy.getFirstPassenger();
                 if (passenger != null) {
-                    velthoric_adjustEntityForRender(proxy, tickDelta);
-                    velthoric_adjustEntityForRender(passenger, tickDelta);
+                    velthoric_adjustEntityForRender(proxy, deltaTracker.getGameTimeDeltaPartialTick(true));
+                    velthoric_adjustEntityForRender(passenger, deltaTracker.getGameTimeDeltaPartialTick(true));
                 }
             }
         }
     }
 
-    /**
-     * Adjusts a single entity's position and rotation state for the current render frame based on
-     * its physics vehicle's interpolated transform.
-     */
     @Unique
     private void velthoric_adjustEntityForRender(Entity entity, float tickDelta) {
         VxMountingEntity proxy;
@@ -127,12 +118,8 @@ public abstract class MixinGameRenderer {
         });
     }
 
-    /**
-     * Injects after the world is rendered to restore the original positions of all modified entities.
-     * This ensures that game logic for the next tick is not affected by the visual adjustments.
-     */
-    @Inject(method = "render", at = @At("TAIL"))
-    private void velthoric_postRenderLevel(float tickDelta, long startTime, boolean tick, CallbackInfo ci) {
+    @Inject(method = "renderLevel", at = @At("RETURN"))
+    private void velthoric_postRenderLevel(DeltaTracker deltaTracker, CallbackInfo ci) {
         ClientLevel clientWorld = minecraft.level;
         if (clientWorld == null) return;
 
@@ -147,59 +134,95 @@ public abstract class MixinGameRenderer {
     }
 
     /**
-     * Wraps the call to {@code LevelRenderer.prepareCullFrustum} to modify the camera setup when
-     * the player is mounted on a physics body.
+     * Intercepts the frustum preparation.
+     * <p>
+     * <b>Crucial Fix:</b> We do NOT rotate the {@code viewMatrix} here. {@link MixinCamera} has already
+     * rotated the Camera object itself. The {@code viewMatrix} passed to this method is derived from
+     * that rotated Camera. Modifying it again here would double-apply the rotation or invert it,
+     * causing the frustum to be misaligned (inverted culling).
+     * <p>
+     * We only intervene to ensure the Projection Matrix (FOV) is correct if the mod changes FOV logic.
      */
-    @WrapOperation(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/LevelRenderer;prepareCullFrustum(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/world/phys/Vec3;Lorg/joml/Matrix4f;)V"))
-    private void velthoric_setupCameraWithPhysicsBody(LevelRenderer instance, PoseStack poseStack, Vec3 cameraPos, Matrix4f projectionMatrix, Operation<Void> original) {
+    @WrapOperation(
+            method = "renderLevel",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/renderer/LevelRenderer;prepareCullFrustum(Lnet/minecraft/world/phys/Vec3;Lorg/joml/Matrix4f;Lorg/joml/Matrix4f;)V"
+            )
+    )
+    private void velthoric_setupCameraWithPhysicsBody(LevelRenderer instance, Vec3 cameraPos, Matrix4f viewMatrix, Matrix4f projectionMatrix, Operation<Void> original) {
         Entity player = this.minecraft.player;
         if (player != null) {
-            final float partialTicks = this.minecraft.getFrameTime();
-            VxMountingRenderUtils.INSTANCE.ifMountedOnBody(player, partialTicks, physQuat -> {
-                Quaternionf physRotation = VxConversions.toJoml(physQuat, new Quaternionf());
-                poseStack.mulPose(physRotation.conjugate());
+            final float partialTicks = this.minecraft.getTimer().getGameTimeDeltaPartialTick(true);
 
+            boolean[] handled = {false};
+            VxMountingRenderUtils.INSTANCE.ifMountedOnBody(player, partialTicks, physQuat -> {
                 double fov = this.getFov(this.mainCamera, partialTicks, true);
                 Matrix4f newProjectionMatrix = this.getProjectionMatrix(Math.max(fov, this.minecraft.options.fov().get()));
-                original.call(instance, poseStack, this.mainCamera.getPosition(), newProjectionMatrix);
-                return; // Exit lambda and method
+
+                // Pass the original viewMatrix. It is already correct because Camera.setup() ran first.
+                original.call(instance, cameraPos, viewMatrix, newProjectionMatrix);
+                handled[0] = true;
             });
+
+            if (handled[0]) {
+                return;
+            }
         }
-        original.call(instance, poseStack, cameraPos, projectionMatrix);
+
+        original.call(instance, cameraPos, viewMatrix, projectionMatrix);
     }
 
-    /**
-     * Wraps the entity picking logic to substitute AABB checks with OBB checks for entities mounted
-     * on physics bodies.
-     */
-    @WrapOperation(method = "pick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/projectile/ProjectileUtil;getEntityHitResult(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/AABB;Ljava/util/function/Predicate;D)Lnet/minecraft/world/phys/EntityHitResult;"))
-    private EntityHitResult velthoric_pickEntityWithOBB(Entity shooter, Vec3 start, Vec3 end, AABB searchBox, Predicate<Entity> filter, double maxDistanceSq, Operation<EntityHitResult> original) {
-        Predicate<Entity> vanillaFilter = filter.and(entity -> !(entity.getVehicle() instanceof VxMountingEntity));
-        EntityHitResult vanillaResult = original.call(shooter, start, end, searchBox, vanillaFilter, maxDistanceSq);
+    @WrapOperation(
+            method = "pick(F)V",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/renderer/GameRenderer;pick(Lnet/minecraft/world/entity/Entity;DDF)Lnet/minecraft/world/phys/HitResult;"
+            )
+    )
+    private HitResult velthoric_wrapPick(GameRenderer instance, Entity entity, double blockReach, double entityReach, float partialTicks, Operation<HitResult> original) {
+        HitResult vanillaResult = original.call(instance, entity, blockReach, entityReach, partialTicks);
 
-        double closestHitDistSq = vanillaResult != null ? start.distanceToSqr(vanillaResult.getLocation()) : maxDistanceSq;
-        EntityHitResult bestOverallResult = vanillaResult;
+        if (!(vanillaResult instanceof EntityHitResult)) {
+            Vec3 eyePos = entity.getEyePosition(partialTicks);
+            Vec3 viewVector = entity.getViewVector(partialTicks);
+            Vec3 reachVec = eyePos.add(viewVector.scale(entityReach));
 
-        List<Entity> potentialTargets = this.minecraft.level.getEntities(shooter, searchBox, filter);
+            AABB searchBox = entity.getBoundingBox().expandTowards(viewVector.scale(entityReach)).inflate(1.0);
+
+            EntityHitResult obbResult = velthoric_pickMountedEntities(entity, eyePos, reachVec, searchBox, entityReach * entityReach);
+            if (obbResult != null) {
+                return obbResult;
+            }
+        }
+
+        return vanillaResult;
+    }
+
+    @Unique
+    private EntityHitResult velthoric_pickMountedEntities(Entity shooter, Vec3 start, Vec3 end, AABB searchBox, double maxDistanceSq) {
+        double closestDistSq = maxDistanceSq;
+        EntityHitResult bestResult = null;
+
+        List<Entity> potentialTargets = this.minecraft.level.getEntities(shooter, searchBox,
+                e -> !e.isSpectator() && e.isPickable());
 
         for (Entity target : potentialTargets) {
             if (target.getVehicle() instanceof VxMountingEntity) {
                 Optional<EntityHitResult> obbHit = velthoric_performObbRaycast(target, start, end);
                 if (obbHit.isPresent()) {
                     double distSq = start.distanceToSqr(obbHit.get().getLocation());
-                    if (distSq < closestHitDistSq) {
-                        closestHitDistSq = distSq;
-                        bestOverallResult = obbHit.get();
+                    if (distSq < closestDistSq) {
+                        closestDistSq = distSq;
+                        bestResult = obbHit.get();
                     }
                 }
             }
         }
-        return bestOverallResult;
+
+        return bestResult;
     }
 
-    /**
-     * Performs a raycast against the Oriented Bounding Box (OBB) of a single target entity.
-     */
     @Unique
     private Optional<EntityHitResult> velthoric_performObbRaycast(Entity target, Vec3 start, Vec3 end) {
         if (!(target.getVehicle() instanceof VxMountingEntity proxy)) {
@@ -211,12 +234,9 @@ public abstract class MixinGameRenderer {
                 .map(hitPos -> new EntityHitResult(target, hitPos));
     }
 
-    /**
-     * Creates an OBB for a target entity based on its physics vehicle's state.
-     */
     @Unique
     private Optional<VxOBB> velthoric_createTargetOBB(Entity target, VxMountingEntity proxy) {
-        float partialTicks = this.minecraft.getFrameTime();
+        float partialTicks = this.minecraft.getTimer().getGameTimeDeltaPartialTick(true);
 
         return VxMountingRenderUtils.INSTANCE.getInterpolatedTransform(proxy, partialTicks, velthoric_interpolatedTransform).map(transform -> {
             Vector3f rideOffset = new Vector3f(proxy.getMountPositionOffset());

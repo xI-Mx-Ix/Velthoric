@@ -12,6 +12,6 @@ rootProject.name = 'Velthoric'
 
 include 'common'
 include 'fabric'
-include 'forge'
+include 'neoforge'
 
 include 'vx-native'

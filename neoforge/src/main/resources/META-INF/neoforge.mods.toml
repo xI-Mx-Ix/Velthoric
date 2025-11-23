@@ -1,0 +1,38 @@
+modLoader = "javafml"
+loaderVersion = "${loader_version_range}"
+license = "${mod_license}"
+showAsResourcePack = false
+
+[[mods]]
+modId = "${mod_id}"
+version = "${mod_version}"
+displayName = "${mod_name}"
+authors = "${mod_authors}"
+description = '''${mod_description}'''
+logoFile = "assets/velthoric/velthoric.png"
+
+# Mixin configuration for your mod
+[[mixins]]
+config = "velthoric.mixins.json"
+
+# Dependencies for this mod
+[[dependencies."${mod_id}"]]
+modId = "neoforge"
+type = "required"
+versionRange = "${neoforge_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies."${mod_id}"]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies."${mod_id}"]]
+modId = "architectury"
+type = "required"
+versionRange = ">=${architectury_api_version}" # Using >= for better version compatibility
+ordering = "AFTER"
+side = "BOTH"

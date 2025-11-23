@@ -8,8 +8,10 @@ import dev.architectury.networking.NetworkManager;
 import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
 import dev.architectury.utils.GameInstance;
-import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -36,6 +38,8 @@ import java.util.function.Supplier;
  * Handles the registration and sending of all network packets for the mod.
  * This class uses Architectury's NetworkManager directly for packet handling
  * and assigns human-readable names to each packet for easier debugging.
+ * Updated for Minecraft 1.21+ CustomPacketPayload API.
+ *
  * @author xI-Mx-Ix
  */
 public class VxPacketHandler {
@@ -43,17 +47,27 @@ public class VxPacketHandler {
     private static final String CHANNEL_NAMESPACE = "velthoric";
 
     /**
-     * Internal record to store information about a registered packet.
-     * @param id The unique ResourceLocation for the packet.
-     * @param encoder The function to write the packet data to a buffer.
-     * @param <T> The type of the packet message.
+     * Internal wrapper to adapt existing POJO packets to the new CustomPacketPayload API.
+     * @param <T> The type of the inner packet message.
      */
-    private record PacketInfo<T>(ResourceLocation id, BiConsumer<T, FriendlyByteBuf> encoder) {}
+    private record PacketWrapper<T>(T message, CustomPacketPayload.Type<PacketWrapper<T>> type) implements CustomPacketPayload {
+        @Override
+        public Type<PacketWrapper<T>> type() {
+            return type;
+        }
+    }
+
+    /**
+     * Internal record to store information about a registered packet type.
+     * Uses the wrapper type definition.
+     */
+    private record PacketInfo<T>(CustomPacketPayload.Type<PacketWrapper<T>> type) {}
 
     private static final Map<Class<?>, PacketInfo<?>> PACKETS = new HashMap<>();
 
     /**
      * Registers a packet type with the network manager.
+     * Automatically creates a StreamCodec and PacketPayloadWrapper to bridge old logic to new API.
      *
      * @param type The class of the packet.
      * @param name The unique name for the packet, used as the path in its ResourceLocation.
@@ -67,23 +81,30 @@ public class VxPacketHandler {
                                            BiConsumer<T, FriendlyByteBuf> encoder,
                                            Function<FriendlyByteBuf, T> decoder,
                                            BiConsumer<T, Supplier<NetworkManager.PacketContext>> handler) {
-        ResourceLocation packetId = new ResourceLocation(CHANNEL_NAMESPACE, name);
+        ResourceLocation id = ResourceLocation.tryBuild(CHANNEL_NAMESPACE, name);
+        CustomPacketPayload.Type<PacketWrapper<T>> payloadType = new CustomPacketPayload.Type<>(id);
 
-        // Store the packet's ID and encoder for sending later.
-        // The cast is safe because we are pairing the class type with its corresponding info.
-        PACKETS.put(type, new PacketInfo<>(packetId, encoder));
+        // Store the packet info for looking up the Type later when sending
+        PACKETS.put(type, new PacketInfo<>(payloadType));
 
-        // Create a receiver that decodes the packet and then passes it to the handler.
-        NetworkManager.NetworkReceiver receiver = (buf, context) -> {
-            T packet = decoder.apply(buf);
-            handler.accept(packet, () -> context);
+        // Create a codec that delegates to the provided legacy encoder/decoder
+        // RegistryFriendlyByteBuf extends FriendlyByteBuf, so we can pass it directly
+        StreamCodec<RegistryFriendlyByteBuf, PacketWrapper<T>> codec = StreamCodec.of(
+                (buf, wrapper) -> encoder.accept(wrapper.message(), buf),
+                (buf) -> new PacketWrapper<>(decoder.apply(buf), payloadType)
+        );
+
+        // Create a receiver that unwraps the payload and calls the legacy handler
+        NetworkManager.NetworkReceiver<PacketWrapper<T>> receiver = (wrapper, context) -> {
+            handler.accept(wrapper.message(), () -> context);
         };
 
-        // Register the receiver for client-to-server communication.
-        NetworkManager.registerReceiver(NetworkManager.c2s(), packetId, receiver);
-        // On the client, also register for server-to-client communication.
+        // Register using the new API (Type + Codec + Receiver)
+        NetworkManager.registerReceiver(NetworkManager.c2s(), payloadType, codec, receiver);
+
+        // On the client, also register for server-to-client communication
         if (Platform.getEnvironment() == Env.CLIENT) {
-            NetworkManager.registerReceiver(NetworkManager.s2c(), packetId, receiver);
+            NetworkManager.registerReceiver(NetworkManager.s2c(), payloadType, codec, receiver);
         }
     }
 
@@ -205,8 +226,6 @@ public class VxPacketHandler {
      */
     @SuppressWarnings("unchecked")
     private static <MSG> PacketInfo<MSG> getPacketInfo(MSG message) {
-        // Retrieve the info and cast it to the specific message type.
-        // This cast is safe due to the way PacketInfo is stored in the PACKETS map.
         PacketInfo<MSG> info = (PacketInfo<MSG>) PACKETS.get(message.getClass());
         return Objects.requireNonNull(info, "Unregistered packet type: " + message.getClass().getName());
     }
@@ -218,9 +237,8 @@ public class VxPacketHandler {
      */
     public static <MSG> void sendToServer(MSG message) {
         PacketInfo<MSG> info = getPacketInfo(message);
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-        info.encoder.accept(message, buf);
-        NetworkManager.sendToServer(info.id, buf);
+        // Wrap the message into the Payload wrapper and send it
+        NetworkManager.sendToServer(new PacketWrapper<>(message, info.type()));
     }
 
     /**
@@ -231,9 +249,7 @@ public class VxPacketHandler {
      */
     public static <MSG> void sendToPlayer(MSG message, ServerPlayer player) {
         PacketInfo<MSG> info = getPacketInfo(message);
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-        info.encoder.accept(message, buf);
-        NetworkManager.sendToPlayer(player, info.id, buf);
+        NetworkManager.sendToPlayer(player, new PacketWrapper<>(message, info.type()));
     }
 
     /**
@@ -247,9 +263,7 @@ public class VxPacketHandler {
             ServerLevel level = GameInstance.getServer().getLevel(dimensionKey);
             if (level != null) {
                 PacketInfo<MSG> info = getPacketInfo(message);
-                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-                info.encoder.accept(message, buf);
-                NetworkManager.sendToPlayers(level.players(), info.id, buf);
+                NetworkManager.sendToPlayers(level.players(), new PacketWrapper<>(message, info.type()));
             }
         }
     }
@@ -262,9 +276,7 @@ public class VxPacketHandler {
     public static <MSG> void sendToAll(MSG message) {
         if (GameInstance.getServer() != null) {
             PacketInfo<MSG> info = getPacketInfo(message);
-            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-            info.encoder.accept(message, buf);
-            NetworkManager.sendToPlayers(GameInstance.getServer().getPlayerList().getPlayers(), info.id, buf);
+            NetworkManager.sendToPlayers(GameInstance.getServer().getPlayerList().getPlayers(), new PacketWrapper<>(message, info.type()));
         }
     }
 }

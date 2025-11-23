@@ -17,6 +17,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.event.api.VxRenderEvent;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.mixin.impl.culling.LevelRendererAccessor;
 import net.xmx.velthoric.mixin.impl.debug.EntityRenderDispatcherAccessor;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
@@ -24,13 +25,10 @@ import net.xmx.velthoric.physics.body.client.body.renderer.VxBodyRenderer;
 import net.xmx.velthoric.physics.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
-import org.joml.Matrix4f;
 
 /**
  * The main client-side renderer for all physics bodies.
- * This class hooks into Minecraft's rendering pipeline. It performs frustum culling,
- * delegates state calculation to the {@link VxBody}, and then delegates the
- * final drawing call to a registered {@link VxBodyRenderer}.
+ * This class hooks into Minecraft's rendering pipeline.
  *
  * @author xI-Mx-Ix
  */
@@ -73,11 +71,11 @@ public class VxPhysicsRenderer {
         PoseStack poseStack = event.getPoseStack();
         float partialTicks = event.getPartialTick();
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
-        Matrix4f projectionMatrix = event.getProjectionMatrix();
 
-        // Set up the frustum for culling objects outside the camera's view.
-        Frustum frustum = new Frustum(poseStack.last().pose(), projectionMatrix);
-        frustum.prepare(cameraPos.x, cameraPos.y, cameraPos.z);
+        // Retrieve the vanilla Frustum via our Mixin accessor.
+        // This ensures we use the EXACT same culling logic as the rest of the game,
+        // preventing issues where the frustum is inverted or desynchronized from the camera.
+        Frustum frustum = ((LevelRendererAccessor) mc.levelRenderer).velthoric_getCullingFrustum();
 
         poseStack.pushPose();
         // Translate the world so rendering is relative to the camera position.
@@ -89,6 +87,8 @@ public class VxPhysicsRenderer {
                 if (!body.isInitialized()) {
                     continue;
                 }
+
+                // Check visibility against the vanilla frustum.
                 AABB objectAABB = body.getCullingAABB(CULLING_BOUNDS_INFLATION);
                 if (!frustum.isVisible(objectAABB)) {
                     continue;
@@ -135,7 +135,6 @@ public class VxPhysicsRenderer {
         VxBodyRenderer renderer = VxBodyRegistry.getInstance().getClientRenderer(typeId);
 
         if (renderer != null) {
-            // This unchecked call is necessary due to the generic nature of the registry.
             renderer.render(body, poseStack, bufferSource, partialTicks, packedLight, renderState);
         } else {
             VxMainClass.LOGGER.warn("No renderer registered for physics body type: {}", typeId);

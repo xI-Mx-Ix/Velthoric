@@ -78,9 +78,13 @@ public class SphereRenderer extends VxRigidBodyRenderer<SphereRigidBody> {
 
     private void addVertex(VertexConsumer consumer, Matrix4f poseMatrix, Matrix3f normalMatrix, Vector3f pos, int r, int g, int b, int a, int packedLight) {
         Vector3f normal = new Vector3f(pos).normalize();
-        consumer.vertex(poseMatrix, pos.x, pos.y, pos.z)
-                .color(r, g, b, a).uv(0, 0)
-                .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(packedLight)
-                .normal(normalMatrix, normal.x, normal.y, normal.z).endVertex();
+        normal.mul(normalMatrix);
+
+        consumer.addVertex(poseMatrix, pos.x, pos.y, pos.z)
+                .setColor(r, g, b, a)
+                .setUv(0, 0)
+                .setOverlay(OverlayTexture.NO_OVERLAY)
+                .setLight(packedLight)
+                .setNormal(normal.x, normal.y, normal.z);
     }
 }

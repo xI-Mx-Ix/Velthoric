@@ -6,90 +6,151 @@ package net.xmx.velthoric.debug;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.debugchart.AbstractDebugChart;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
+import net.minecraft.util.debugchart.SampleStorage;
 import net.xmx.velthoric.physics.body.client.time.VxFrameTimer;
 
-import java.util.function.ToIntFunction;
+import java.util.Locale;
 
 /**
- * A utility class for rendering a performance chart for the physics engine.
+ * A debug chart implementation for visualizing physics engine performance.
+ * Extends Minecraft's AbstractDebugChart to maintain consistency with the vanilla debug overlay.
  * This chart displays the time taken for each physics tick in milliseconds.
  *
  * @author xI-Mx-Ix
  */
-public class VxPhysicsDebugChart {
+public class VxPhysicsDebugChart extends AbstractDebugChart {
+
+    private static final int COLOR_RED = 0xFFFF0000;
+    private static final int COLOR_YELLOW = 0xFFFFFF00;
+    private static final int COLOR_GREEN = 0xFF00FF00;
 
     /**
-     * Renders the physics tick performance chart on the screen.
-     *
-     * @param guiGraphics  The GuiGraphics instance used for rendering.
-     * @param font         The Font instance for drawing text.
-     * @param frameTimer   The VxFrameTimer instance containing the physics tick data.
-     * @param x            The starting X position for the chart.
-     * @param width        The width of the chart.
-     * @param baseY        The base Y position for the bottom of the chart.
-     * @param colorSampler A function that takes a sample value and returns the corresponding color.
+     * Target physics tick rate in Hz (ticks per second).
+     * At 60 Hz, each tick should take approximately 16.67ms.
      */
-    public static void draw(GuiGraphics guiGraphics, Font font, VxFrameTimer frameTimer, int x, int width, int baseY, ToIntFunction<Integer> colorSampler) {
-        int recordedFrames = frameTimer.getFrameCount();
-        if (recordedFrames == 0) {
-            return; // Don't draw anything if there's no data.
+    private static final int TARGET_TICK_RATE = 60;
+
+    /**
+     * Target time per tick in milliseconds (1000ms / 60 ticks = 16.67ms per tick).
+     */
+    private static final double TARGET_TIME_MS = 1000.0 / TARGET_TICK_RATE;
+
+    private final VxFrameTimer frameTimer;
+
+    /**
+     * Constructs a new physics debug chart.
+     *
+     * @param font The font to use for rendering text.
+     * @param frameTimer The frame timer that provides physics timing data.
+     */
+    public VxPhysicsDebugChart(Font font, VxFrameTimer frameTimer) {
+        super(font, new PhysicsSampleStorage(frameTimer));
+        this.frameTimer = frameTimer;
+    }
+
+    @Override
+    protected void renderAdditionalLinesAndLabels(GuiGraphics guiGraphics, int x, int width, int height) {
+        // Draw the chart title
+        this.drawStringWithShade(guiGraphics, "Physics", x + 1, height - 60 + 1);
+
+        // Draw reference lines for 30 FPS equivalent (33.33ms) and 60 FPS equivalent (16.67ms)
+        int thirtyFpsHeight = this.getSampleHeight(TARGET_TIME_MS * 2.0); // ~33ms line
+        int sixtyFpsHeight = this.getSampleHeight(TARGET_TIME_MS);        // ~17ms line
+
+        this.drawStringWithShade(guiGraphics, "30 Hz", x + 1, height - thirtyFpsHeight - 8);
+        guiGraphics.hLine(RenderType.guiOverlay(), x, x + width - 1, height - thirtyFpsHeight, 0xFF888888);
+
+        this.drawStringWithShade(guiGraphics, "60 Hz", x + 1, height - sixtyFpsHeight - 8);
+        guiGraphics.hLine(RenderType.guiOverlay(), x, x + width - 1, height - sixtyFpsHeight, 0xFF888888);
+    }
+
+    @Override
+    protected String toDisplayString(double value) {
+        return String.format(Locale.ROOT, "%.1f ms", toMilliseconds(value));
+    }
+
+    @Override
+    protected int getSampleHeight(double value) {
+        // Scale the height so that TARGET_TIME_MS corresponds to half the chart height (30px)
+        // This gives us headroom to see spikes above the target tick time
+        double ms = toMilliseconds(value);
+        return (int) Math.round((ms / TARGET_TIME_MS) * 30.0);
+    }
+
+    @Override
+    protected int getSampleColor(long value) {
+        double ms = toMilliseconds((double) value);
+
+        // Color gradient:
+        // Green: 0ms - TARGET_TIME_MS (good performance, at or below target)
+        // Yellow: TARGET_TIME_MS - TARGET_TIME_MS*2 (acceptable performance)
+        // Red: TARGET_TIME_MS*2+ (poor performance, significantly over target)
+        return this.getSampleColor(
+                ms,
+                0.0,                    // Min value (green starts)
+                COLOR_GREEN,
+                TARGET_TIME_MS,         // Mid value (yellow starts)
+                COLOR_YELLOW,
+                TARGET_TIME_MS * 2.0,   // Max value (red starts)
+                COLOR_RED
+        );
+    }
+
+    /**
+     * Converts a nanosecond value to milliseconds.
+     *
+     * @param nanos The value in nanoseconds.
+     * @return The value in milliseconds.
+     */
+    private static double toMilliseconds(double nanos) {
+        return nanos / 1_000_000.0;
+    }
+
+    /**
+     * Custom SampleStorage implementation that wraps VxFrameTimer.
+     * This adapter allows the physics frame timer to be used with AbstractDebugChart.
+     */
+    private static class PhysicsSampleStorage implements SampleStorage {
+        private final VxFrameTimer frameTimer;
+
+        public PhysicsSampleStorage(VxFrameTimer frameTimer) {
+            this.frameTimer = frameTimer;
         }
 
-        long[] log = frameTimer.getLog();
-        int logEnd = frameTimer.getLogEnd();
-        final int chartHeight = 60; // Use a height of 60px to be consistent with Minecraft's charts.
-
-        // Determine how many bars to actually draw based on available width and data.
-        int barsToDisplay = Math.min(recordedFrames, width);
-
-        long totalTime = 0L;
-        int minTime = Integer.MAX_VALUE;
-        int maxTime = Integer.MIN_VALUE;
-
-        // Calculate min, max, and average time from the data that will be displayed.
-        // We read the log backwards from the last recorded entry.
-        for (int i = 0; i < barsToDisplay; ++i) {
-            int logIndex = frameTimer.wrapIndex(logEnd - 1 - i);
-            int timeMs = (int) (log[logIndex] / 1000000L);
-            minTime = Math.min(minTime, timeMs);
-            maxTime = Math.max(maxTime, timeMs);
-            totalTime += timeMs;
+        @Override
+        public long get(int index) {
+            if (index < 0 || index >= size()) {
+                return 0L;
+            }
+            // Convert from oldest-to-newest index to the frame timer's internal indexing
+            int logEnd = frameTimer.getLogEnd();
+            int frameCount = frameTimer.getFrameCount();
+            int logIndex = frameTimer.wrapIndex(logEnd - frameCount + index);
+            return frameTimer.getLog()[logIndex];
         }
 
-        // Draw the dark background for the chart using the full, fixed width.
-        guiGraphics.fill(RenderType.guiOverlay(), x, baseY - chartHeight, x + width, baseY, -1873784752);
-
-        // Draw each bar in the chart, aligned to the right edge.
-        for (int i = 0; i < barsToDisplay; ++i) {
-            int currentX = x + width - 1 - i;
-            int logIndex = frameTimer.wrapIndex(logEnd - 1 - i);
-
-            long durationNanos = log[logIndex];
-            // Scale the bar height. Target is 60 physics ticks per second (60 Hz).
-            // A 1/60s tick should correspond to a 30px height to leave headroom in the 60px chart.
-            int scaledHeight = frameTimer.scaleSampleTo(durationNanos, 30, 60);
-            int color = colorSampler.applyAsInt(Mth.clamp(scaledHeight, 0, chartHeight));
-            guiGraphics.fill(RenderType.guiOverlay(), currentX, baseY - scaledHeight, currentX + 1, baseY, color);
+        @Override
+        public long get(int index, int dimension) {
+            // Physics chart only has one dimension, so we ignore the dimension parameter
+            return get(index);
         }
 
-        // Draw the border around the chart using the full, fixed width.
-        guiGraphics.hLine(RenderType.guiOverlay(), x, x + width - 1, baseY - chartHeight, -1);
-        guiGraphics.hLine(RenderType.guiOverlay(), x, x + width - 1, baseY - 1, -1);
-        guiGraphics.vLine(RenderType.guiOverlay(), x, baseY - chartHeight, baseY, -1);
-        guiGraphics.vLine(RenderType.guiOverlay(), x + width - 1, baseY - chartHeight, baseY, -1);
+        @Override
+        public int size() {
+            return frameTimer.getFrameCount();
+        }
 
-        // Draw the title box and text.
-        guiGraphics.fill(RenderType.guiOverlay(), x + 1, baseY - chartHeight + 1, x + 40, baseY - chartHeight + 10, -1873784752);
-        guiGraphics.drawString(font, "Physics", x + 2, baseY - chartHeight + 2, 14737632, false);
+        @Override
+        public int capacity() {
+            return frameTimer.getLog().length;
+        }
 
-        // Draw the min, average, and max time text above the chart, aligned to the fixed width.
-        String minText = (minTime == Integer.MAX_VALUE ? 0 : minTime) + " ms min";
-        String avgText = (barsToDisplay > 0 ? totalTime / (long) barsToDisplay : 0) + " ms avg";
-        String maxText = (maxTime == Integer.MIN_VALUE ? 0 : maxTime) + " ms max";
-        guiGraphics.drawString(font, minText, x + 2, baseY - chartHeight - 9, 14737632, false);
-        guiGraphics.drawCenteredString(font, avgText, x + width / 2, baseY - chartHeight - 9, 14737632);
-        guiGraphics.drawString(font, maxText, x + width - font.width(maxText), baseY - chartHeight - 9, 14737632);
+        @Override
+        public void reset() {
+            frameTimer.reset();
+        }
     }
 }

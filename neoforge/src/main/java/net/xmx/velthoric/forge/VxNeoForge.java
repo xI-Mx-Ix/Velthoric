@@ -5,20 +5,16 @@
 package net.xmx.velthoric.forge;
 
 import dev.architectury.platform.Platform;
-import dev.architectury.platform.forge.EventBuses;
 import dev.architectury.utils.Env;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.neoforged.fml.common.Mod;
 import net.xmx.velthoric.init.VxMainClass;
 
 @Mod(VxMainClass.MODID)
-public final class VxForge {
-    public VxForge() {
-        EventBuses.registerModEventBus(VxMainClass.MODID, FMLJavaModLoadingContext.get().getModEventBus());
+public final class VxNeoForge {
+    public VxNeoForge() {
         VxMainClass.onInit();
         if (Platform.getEnvironment() == Env.CLIENT) {
             VxMainClass.onClientInit();
         }
     }
 }
-

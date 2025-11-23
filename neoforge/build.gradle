@@ -4,10 +4,6 @@ plugins {
 }
 
 loom {
-    forge {
-        mixinConfig "velthoric.mixins.json"
-    }
-
     runs {
         server {
             runDir "run-server"
@@ -23,7 +19,7 @@ loom {
 
 architectury {
     platformSetupLoomIde()
-    forge()
+    neoForge()
 }
 
 configurations {
@@ -33,7 +29,7 @@ configurations {
     }
     compileClasspath.extendsFrom common
     runtimeClasspath.extendsFrom common
-    developmentForge.extendsFrom common
+    developmentNeoForge.extendsFrom common
 
     shadowBundle {
         canBeResolved = true
@@ -41,13 +37,21 @@ configurations {
     }
 }
 
+repositories {
+    maven {
+        name = 'NeoForged'
+        url = 'https://maven.neoforged.net/releases'
+    }
+    mavenCentral()
+}
+
 dependencies {
-    forge "net.minecraftforge:forge:$rootProject.forge_version"
+    neoForge "net.neoforged:neoforge:$rootProject.neoforge_version"
 
-    implementation(annotationProcessor("io.github.llamalad7:mixinextras-common:$mixinextras_version"))
-    implementation(include("io.github.llamalad7:mixinextras-forge:$mixinextras_version"))
+    modImplementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
 
-    modImplementation "dev.architectury:architectury-forge:$rootProject.architectury_api_version"
+    implementation(annotationProcessor("io.github.llamalad7:mixinextras-common:0.4.1"))
+    implementation(include("io.github.llamalad7:mixinextras-forge:0.4.1"))
 
     implementation project(path: ":vx-native", configuration: "namedElements")
     minecraftRuntimeLibraries project(path: ":vx-native", configuration: "namedElements")
@@ -67,8 +71,8 @@ processResources {
     var replaceProperties = [
             minecraft_version: rootProject.minecraft_version,
             minecraft_version_range: rootProject.minecraft_version_range,
-            forge_version: rootProject.forge_version,
-            forge_version_range: rootProject.forge_version_range,
+            neoforge_version: rootProject.neoforge_version,
+            neoforge_version_range: rootProject.neoforge_version_range,
             loader_version_range: rootProject.loader_version_range,
             mod_id: rootProject.mod_id,
             mod_name: rootProject.mod_name,
@@ -80,9 +84,23 @@ processResources {
 
     inputs.properties replaceProperties
 
-    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
         expand replaceProperties + [project: project]
     }
+}
+
+loom {
+    runs {
+        server {
+            runDir "run-server"
+        }
+        client {
+            runDir "run-client"
+            programArgs '--username', 'dev'
+        }
+    }
+
+    accessWidenerPath = project(":common").loom.accessWidenerPath
 }
 
 shadowJar {

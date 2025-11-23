@@ -119,7 +119,7 @@ public class VxRagdollBodyPartRenderer extends VxRigidBodyRenderer<VxBodyPartRig
     private ResourceLocation getSkinTexture(VxBodyPartRigidBody body) {
         String skinIdStr = body.getSyncData(VxBodyPartRigidBody.DATA_SKIN_ID);
         if (skinIdStr == null || skinIdStr.isEmpty()) {
-            return DefaultPlayerSkin.getDefaultSkin();
+            return DefaultPlayerSkin.getDefaultTexture();
         }
 
         try {
@@ -127,13 +127,13 @@ public class VxRagdollBodyPartRenderer extends VxRigidBodyRenderer<VxBodyPartRig
             if (Minecraft.getInstance().getConnection() != null) {
                 PlayerInfo playerInfo = Minecraft.getInstance().getConnection().getPlayerInfo(playerUuid);
                 if (playerInfo != null) {
-                    return playerInfo.getSkinLocation();
+                    return playerInfo.getSkin().texture();
                 }
             }
         } catch (IllegalArgumentException e) {
-            // This can be expanded to support non-player entities by mapping their type to a texture.
+            // fallback for non-player entities
         }
 
-        return DefaultPlayerSkin.getDefaultSkin();
+        return DefaultPlayerSkin.getDefaultTexture();
     }
 }

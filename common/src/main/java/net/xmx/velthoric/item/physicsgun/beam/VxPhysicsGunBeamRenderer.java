@@ -30,6 +30,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Renders the Physics Gun beam effect between the player's gun and the held object.
+ * Updated for modern Minecraft Rendering API (1.21+).
+ */
 public class VxPhysicsGunBeamRenderer {
 
     private static final int BEAM_SEGMENTS = 20;
@@ -37,6 +41,7 @@ public class VxPhysicsGunBeamRenderer {
     private static final float BEAM_CURVE_STRENGTH = 0.3f;
     private static final float BEAM_MAX_LENGTH = 100.0f;
 
+    // Reusable Jolt objects to reduce allocation
     private static final RVec3 INTERPOLATED_POSITION = new RVec3();
     private static final Quat INTERPOLATED_ROTATION = new Quat();
 
@@ -44,6 +49,9 @@ public class VxPhysicsGunBeamRenderer {
         VxRenderEvent.ClientRenderLevelStageEvent.EVENT.register(VxPhysicsGunBeamRenderer::onRenderLevelStage);
     }
 
+    /**
+     * Main render callback. Handles drawing beams for all active grabs and attempting grabs.
+     */
     public static void onRenderLevelStage(VxRenderEvent.ClientRenderLevelStageEvent event) {
         if (event.getStage() != VxRenderEvent.ClientRenderLevelStageEvent.Stage.AFTER_ENTITIES) return;
         Minecraft mc = Minecraft.getInstance();
@@ -62,18 +70,20 @@ public class VxPhysicsGunBeamRenderer {
         Vec3 camPos = camera.getPosition();
 
         poseStack.pushPose();
+        // Translate to camera position to handle world coordinates correctly
         poseStack.translate(-camPos.x, -camPos.y, -camPos.z);
         Matrix4f matrix = poseStack.last().pose();
 
         Tesselator tesselator = Tesselator.getInstance();
-        BufferBuilder bufferBuilder = tesselator.getBuilder();
 
+        // Set up the render state
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         RenderSystem.enableDepthTest();
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
 
+        // 1. Render beams for objects currently held (Active Grabs)
         Map<UUID, VxPhysicsGunClientManager.ClientGrabData> activeGrabs = clientManager.getActiveGrabs();
         for (var entry : activeGrabs.entrySet()) {
             UUID playerUuid = entry.getKey();
@@ -88,6 +98,7 @@ public class VxPhysicsGunBeamRenderer {
 
             if (index == null || !store.render_isInitialized[index] || !(body instanceof VxRigidBody)) continue;
 
+            // Interpolate physics body position for smooth rendering
             interpolator.interpolateFrame(store, index, partialTicks, INTERPOLATED_POSITION, INTERPOLATED_ROTATION);
 
             Vec3 startPoint = getGunTipPosition(player, partialTicks);
@@ -95,6 +106,7 @@ public class VxPhysicsGunBeamRenderer {
             Quat rotation = INTERPOLATED_ROTATION;
             Vec3 localHitPoint = grabData.localHitPoint();
 
+            // Transform local hit point to world space using Jolt math
             com.github.stephengold.joltjni.Vec3 localHitJolt = new com.github.stephengold.joltjni.Vec3(
                     (float) localHitPoint.x(), (float) localHitPoint.y(), (float) localHitPoint.z()
             );
@@ -105,13 +117,20 @@ public class VxPhysicsGunBeamRenderer {
 
             Vec3 playerLookVec = getPlayerLookVector(player, partialTicks);
 
-            bufferBuilder.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
+            // Begin a new buffer for this strip
+            BufferBuilder bufferBuilder = tesselator.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
+
             drawThickCurvedBeam(bufferBuilder, matrix, camPos, startPoint, endPoint, playerLookVec);
-            tesselator.end();
+
+            // Build the mesh and upload it to the GPU
+            MeshData meshData = bufferBuilder.buildOrThrow();
+            BufferUploader.drawWithShader(meshData);
         }
 
+        // 2. Render beams for players attempting to grab (Raycast Beams)
         Set<UUID> playersTryingToGrab = clientManager.getPlayersTryingToGrab();
         for (UUID playerUuid : playersTryingToGrab) {
+            // Skip if this player is already holding something (handled above)
             if (activeGrabs.containsKey(playerUuid)) continue;
 
             Player player = mc.level.getPlayerByUUID(playerUuid);
@@ -121,21 +140,28 @@ public class VxPhysicsGunBeamRenderer {
             Vec3 playerLookVec = getPlayerLookVector(player, partialTicks);
             Vec3 traceStart = player.getEyePosition(partialTicks);
 
+            // Raycast against physics bodies first
             Optional<Vec3> physicsHitPoint = raycastClientPhysicsBodies(traceStart, playerLookVec, BEAM_MAX_LENGTH, store, interpolator, partialTicks);
 
             Vec3 endPoint;
             if (physicsHitPoint.isPresent()) {
                 endPoint = physicsHitPoint.get();
             } else {
+                // If no physics body hit, raycast against the world (blocks)
                 Vec3 traceEnd = traceStart.add(playerLookVec.scale(BEAM_MAX_LENGTH));
                 ClipContext clipContext = new ClipContext(traceStart, traceEnd, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player);
                 BlockHitResult blockHitResult = mc.level.clip(clipContext);
                 endPoint = (blockHitResult.getType() == HitResult.Type.MISS) ? traceEnd : blockHitResult.getLocation();
             }
 
-            bufferBuilder.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
+            // Begin a new buffer for this strip
+            BufferBuilder bufferBuilder = tesselator.begin(VertexFormat.Mode.TRIANGLE_STRIP, DefaultVertexFormat.POSITION_COLOR);
+
             drawThickCurvedBeam(bufferBuilder, matrix, camPos, startPoint, endPoint, playerLookVec);
-            tesselator.end();
+
+            // Build the mesh and upload it to the GPU
+            MeshData meshData = bufferBuilder.buildOrThrow();
+            BufferUploader.drawWithShader(meshData);
         }
 
         RenderSystem.enableCull();
@@ -143,6 +169,9 @@ public class VxPhysicsGunBeamRenderer {
         poseStack.popPose();
     }
 
+    /**
+     * Performs a simple raycast against client-side physics bodies.
+     */
     private static Optional<Vec3> raycastClientPhysicsBodies(Vec3 rayOrigin, Vec3 rayDirection, float maxDistance, VxClientBodyDataStore store, VxClientBodyInterpolator interpolator, float partialTicks) {
         double closestHitDist = maxDistance;
         Vec3 hitPoint = null;
@@ -181,7 +210,10 @@ public class VxPhysicsGunBeamRenderer {
         return Optional.ofNullable(hitPoint);
     }
 
-    private static void drawThickCurvedBeam(BufferBuilder bufferBuilder, Matrix4f matrix, Vec3 camPos, Vec3 start, Vec3 end, Vec3 playerLookVec) {
+    /**
+     * Draws a curved beam using Bezier interpolation and adding thickness via triangle strips.
+     */
+    private static void drawThickCurvedBeam(VertexConsumer bufferBuilder, Matrix4f matrix, Vec3 camPos, Vec3 start, Vec3 end, Vec3 playerLookVec) {
         float r = 0.9725f;
         float g = 0.2863f;
         float b = 0.0117f;
@@ -190,22 +222,36 @@ public class VxPhysicsGunBeamRenderer {
         double distance = start.distanceTo(end);
         Vec3 p0 = start;
         Vec3 p3 = end;
+        // Control point 1: Extends from the gun in the look direction
         Vec3 p1 = p0.add(playerLookVec.scale(distance * BEAM_CURVE_STRENGTH));
+
+        // Control point 2: Approaches the target
         Vec3 tangentAtEnd = p0.subtract(p3).normalize();
         Vec3 p2 = p3.add(tangentAtEnd.scale(distance * BEAM_CURVE_STRENGTH));
+
         Vec3 lastPos = p0;
 
         for (int i = 0; i <= BEAM_SEGMENTS; i++) {
             float t = (float) i / BEAM_SEGMENTS;
             Vec3 currentPos = getCubicBezierPoint(t, p0, p1, p2, p3);
+
+            // Calculate billboard effect (facing camera)
             Vec3 viewDir = currentPos.subtract(camPos).normalize();
             Vec3 segmentDir = (i == 0) ? p1.subtract(p0).normalize() : currentPos.subtract(lastPos).normalize();
+
             if (segmentDir.lengthSqr() < 1.0E-6) {
                 segmentDir = playerLookVec;
             }
+
             Vec3 side = segmentDir.cross(viewDir).normalize().scale(BEAM_WIDTH / 2.0);
-            bufferBuilder.vertex(matrix, (float) (currentPos.x + side.x), (float) (currentPos.y + side.y), (float) (currentPos.z + side.z)).color(r, g, b, baseAlpha).endVertex();
-            bufferBuilder.vertex(matrix, (float) (currentPos.x - side.x), (float) (currentPos.y - side.y), (float) (currentPos.z - side.z)).color(r, g, b, baseAlpha).endVertex();
+
+            // Use addVertex instead of vertex, and ensure the matrix is applied
+            bufferBuilder.addVertex(matrix, (float) (currentPos.x + side.x), (float) (currentPos.y + side.y), (float) (currentPos.z + side.z))
+                    .setColor(r, g, b, baseAlpha);
+
+            bufferBuilder.addVertex(matrix, (float) (currentPos.x - side.x), (float) (currentPos.y - side.y), (float) (currentPos.z - side.z))
+                    .setColor(r, g, b, baseAlpha);
+
             lastPos = currentPos;
         }
     }
@@ -243,6 +289,7 @@ public class VxPhysicsGunBeamRenderer {
             org.joml.Vector3f upVector = camera.getUpVector();
             Vec3 camUp = new Vec3(upVector.x(), upVector.y(), upVector.z());
             Vec3 camRight = camForward.cross(camUp).normalize();
+
             return camera.getPosition()
                     .add(camForward.scale(0.5))
                     .add(camRight.scale(0.3))
@@ -252,6 +299,7 @@ public class VxPhysicsGunBeamRenderer {
             Vec3 lookVec = player.getViewVector(partialTicks);
             Vec3 upVec = player.getUpVector(partialTicks);
             Vec3 rightVec = lookVec.cross(upVec).normalize();
+
             return eyePos
                     .add(lookVec.scale(0.3))
                     .add(rightVec.scale(-0.35))

@@ -36,7 +36,7 @@ public class VxF3ScreenAddition {
         List<String> infoList = event.getInfoList();
         Minecraft mc = Minecraft.getInstance();
 
-        if (!mc.options.renderDebug || mc.level == null) {
+        if (mc.level == null) {
             return;
         }
 

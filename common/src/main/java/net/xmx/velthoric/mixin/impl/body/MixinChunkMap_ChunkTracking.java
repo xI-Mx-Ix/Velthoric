@@ -4,16 +4,13 @@
  */
 package net.xmx.velthoric.mixin.impl.body;
 
-import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.manager.VxNetworkDispatcher;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,6 +18,8 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import java.util.function.Consumer;
 
 /**
  * Mixin to hook into {@link ChunkMap} to dispatch physics bodies to players
@@ -52,46 +51,43 @@ public abstract class MixinChunkMap_ChunkTracking {
     }
 
     /**
-     * Injects into Minecraft's chunk tracking logic. This is called only for
-     * chunks whose visibility status is changing for an individual player, making it the most
-     * efficient place to trigger client-side body spawning and removal.
+     * Injects into the chunk marking logic to track when chunks are being sent to players.
+     * This is called when a chunk is marked to be sent to a player, making it the ideal
+     * moment to send the spawn packets for any physics bodies within that chunk.
      *
-     * @param player The player whose view is being updated.
-     * @param chunkPos The position of the chunk changing visibility.
-     * @param packetCache A mutable object for the chunk packet, not used here.
-     * @param wasVisible True if the chunk was visible to the player before this update.
-     * @param isVisible True if the chunk is now visible to the player.
+     * @param player The player who will receive the chunk.
+     * @param chunkPos The position of the chunk being marked.
      * @param ci Callback info.
      */
-    @Inject(method = "updateChunkTracking", at = @At("HEAD"))
-    private void velthoric$onUpdateChunkTracking(ServerPlayer player, ChunkPos chunkPos, MutableObject<ClientboundLevelChunkWithLightPacket> packetCache, boolean wasVisible, boolean isVisible, CallbackInfo ci) {
-        // This method is only invoked when wasVisible != isVisible.
-        if (isVisible == wasVisible) return;
-
+    @Inject(method = "markChunkPendingToSend", at = @At("TAIL"))
+    private void velthoric$onMarkChunkPendingToSend(ServerPlayer player, ChunkPos chunkPos, CallbackInfo ci) {
         VxNetworkDispatcher dispatcher = velthoric$getDispatcher();
-        if (dispatcher == null) return;
-
-        if (!isVisible) {
-            dispatcher.untrackBodiesInChunkForPlayer(player, chunkPos);
+        if (dispatcher != null) {
+            // Player is now tracking this chunk, so send all physics bodies within it.
+            dispatcher.trackBodiesInChunkForPlayer(player, chunkPos);
         }
     }
 
     /**
-     * Injects after a chunk has been fully loaded and sent to the player. This is the ideal
-     * moment to send the spawn packets for any physics bodies within that chunk, as the client
-     * is now guaranteed to have the chunk context.
+     * Injects into the chunk drop logic to track when chunks are being removed from a player's view.
+     * This ensures physics bodies are properly untracked when the chunk is no longer visible.
      *
-     * @param serverPlayer The player who has received the chunk.
-     * @param mutableObject The chunk packet data, not used here.
-     * @param levelChunk The chunk that was loaded.
-     * @param ci Callback info.
+     * @param player The player whose view is being updated.
+     * @param chunkPos The position of the chunk being dropped.
      */
-    @Inject(method = "playerLoadedChunk", at = @At("TAIL"))
-    private void velthoric$onPlayerLoadedChunk(ServerPlayer serverPlayer, MutableObject<ClientboundLevelChunkWithLightPacket> mutableObject, LevelChunk levelChunk, CallbackInfo ci) {
-        VxNetworkDispatcher dispatcher = velthoric$getDispatcher();
-        if (dispatcher != null) {
-            // Player is now tracking this chunk, so send all physics bodies within it.
-            dispatcher.trackBodiesInChunkForPlayer(serverPlayer, levelChunk.getPos());
+    @Inject(method = "dropChunk", at = @At("HEAD"))
+    private static void velthoric$onDropChunk(ServerPlayer player, ChunkPos chunkPos, CallbackInfo ci) {
+        if (player.level() instanceof ServerLevel serverLevel) {
+            VxPhysicsWorld world = VxPhysicsWorld.get(serverLevel.dimension());
+            if (world != null) {
+                VxBodyManager manager = world.getBodyManager();
+                if (manager != null) {
+                    VxNetworkDispatcher dispatcher = manager.getNetworkDispatcher();
+                    if (dispatcher != null) {
+                        dispatcher.untrackBodiesInChunkForPlayer(player, chunkPos);
+                    }
+                }
+            }
         }
     }
 

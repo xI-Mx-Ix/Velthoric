@@ -42,45 +42,45 @@ public class VxRegisteredBodies {
     public static final VxBodyType<BlockRigidBody> BLOCK = VxBodyType.Builder
             .<BlockRigidBody>create(BlockRigidBody::new)
             .noSummon()
-            .build(new ResourceLocation("velthoric", "block"));
+            .build(ResourceLocation.tryBuild("velthoric", "block"));
 
     public static final VxBodyType<SphereRigidBody> SPHERE = VxBodyType.Builder
             .<SphereRigidBody>create(SphereRigidBody::new)
-            .build(new ResourceLocation("velthoric", "sphere"));
+            .build(ResourceLocation.tryBuild("velthoric", "sphere"));
 
     public static final VxBodyType<BoxRigidBody> BOX = VxBodyType.Builder
             .<BoxRigidBody>create(BoxRigidBody::new)
-            .build(new ResourceLocation("velthoric", "box"));
+            .build(ResourceLocation.tryBuild("velthoric", "box"));
 
     public static final VxBodyType<MarbleRigidBody> MARBLE = VxBodyType.Builder
             .<MarbleRigidBody>create(MarbleRigidBody::new)
-            .build(new ResourceLocation("velthoric", "marble"));
+            .build(ResourceLocation.tryBuild("velthoric", "marble"));
 
     public static final VxBodyType<ClothSoftBody> CLOTH = VxBodyType.Builder
             .<ClothSoftBody>create(ClothSoftBody::new)
-            .build(new ResourceLocation("velthoric", "cloth"));
+            .build(ResourceLocation.tryBuild("velthoric", "cloth"));
 
     public static final VxBodyType<RopeSoftBody> ROPE = VxBodyType.Builder
             .<RopeSoftBody>create(RopeSoftBody::new)
-            .build(new ResourceLocation("velthoric", "rope"));
+            .build(ResourceLocation.tryBuild("velthoric", "rope"));
 
     public static final VxBodyType<CarImpl> CAR = VxBodyType.Builder
             .<CarImpl>create(CarImpl::new)
-            .build(new ResourceLocation("velthoric", "car"));
+            .build(ResourceLocation.tryBuild("velthoric", "car"));
 
     public static final VxBodyType<MotorcycleImpl> MOTORCYCLE = VxBodyType.Builder
             .<MotorcycleImpl>create(MotorcycleImpl::new)
-            .build(new ResourceLocation("velthoric", "motorcycle"));
+            .build(ResourceLocation.tryBuild("velthoric", "motorcycle"));
 
     public static final VxBodyType<VxChainPartRigidBody> CHAIN_PART = VxBodyType.Builder
             .<VxChainPartRigidBody>create(VxChainPartRigidBody::new)
             .noSummon()
-            .build(new ResourceLocation("velthoric", "chain_part"));
+            .build(ResourceLocation.tryBuild("velthoric", "chain_part"));
 
     public static final VxBodyType<VxBodyPartRigidBody> BODY_PART = VxBodyType.Builder
             .<VxBodyPartRigidBody>create(VxBodyPartRigidBody::new)
             .noSummon()
-            .build(new ResourceLocation("velthoric", "body_part"));
+            .build(ResourceLocation.tryBuild("velthoric", "body_part"));
 
     /**
      * Registers all server-side physics body types. This should be called
