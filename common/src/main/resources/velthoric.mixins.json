@@ -5,9 +5,6 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "body.MixinChunkMap_ChunkTracking",
-    "persistence.MixinChunkMap_UnloadBodiesAndConstraints",
-    "persistence.MixinEntityStorage_PersistBodiesAndConstraints",
-    "persistence.MixinServerLevel_PersistOnLevelSave",
     "command.MixinArgumentTypeInfos",
     "event.level.MixinMinecraftServer_VxLevelEvent",
     "event.level.MixinServerLevel_VxLevelEvent",
@@ -15,9 +12,13 @@
     "event.server.MixinMinecraftServer_VxServerLifecycleEvent",
     "misc.ExplosionMixin_TriggerExplosion",
     "mounting.entity.MixinEntity",
+    "persistence.MixinChunkMap_UnloadBodiesAndConstraints",
+    "persistence.MixinEntityStorage_PersistBodiesAndConstraints",
+    "persistence.MixinServerLevel_PersistOnLevelSave",
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
   ],
   "client": [
+    "culling.LevelRendererAccessor",
     "debug.EntityRenderDispatcherAccessor",
     "event.debug.MixinDebugScreenOverlay_VxF3ScreenAdditionEvent",
     "event.input.MixinKeyboardHandler_VxKeyEvent",
