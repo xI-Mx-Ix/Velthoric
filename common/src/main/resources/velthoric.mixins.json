@@ -8,7 +8,6 @@
     "command.MixinArgumentTypeInfos",
     "event.level.MixinMinecraftServer_VxLevelEvent",
     "event.level.MixinServerLevel_VxLevelEvent",
-    "event.level.client.MixinMinecraft_VxClientLevelEvent",
     "event.server.MixinMinecraftServer_VxServerLifecycleEvent",
     "misc.ExplosionMixin_TriggerExplosion",
     "mounting.entity.MixinEntity",
@@ -36,6 +35,7 @@
     "mounting.render.MixinGameRenderer",
     "mounting.request.MixinMinecraft",
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
+    "event.level.client.MixinMinecraft_VxClientLevelEvent",
     "physicsgun.PlayerRendererMixin_PhysicsGunArmPose"
   ],
   "injectors": {
