@@ -87,20 +87,6 @@ processResources {
     }
 }
 
-loom {
-    runs {
-        server {
-            runDir "run-server"
-        }
-        client {
-            runDir "run-client"
-            programArgs '--username', 'dev'
-        }
-    }
-
-    accessWidenerPath = project(":common").loom.accessWidenerPath
-}
-
 shadowJar {
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = 'dev-shadow'
