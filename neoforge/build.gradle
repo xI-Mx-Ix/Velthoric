@@ -116,7 +116,7 @@ publisher {
     setProjectVersion(rootProject.mod_version)
     setDisplayName("Velthoric ${rootProject.mod_version} for NeoForge ${rootProject.minecraft_version}")
     setGameVersions(rootProject.minecraft_version)
-    setLoaders("forge", "neoforge")
+    setLoaders("neoforge")
     setArtifact(remapJar)
 
     modrinthDepends {
