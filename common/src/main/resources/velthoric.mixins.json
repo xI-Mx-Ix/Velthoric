@@ -27,7 +27,7 @@
     "event.network.MixinClientLevel_VxClientPlayerNetworkEvent",
     "event.network.MixinClientPacketListener_VxClientPlayerNetworkEvent",
     "event.render.MixinLevelRenderer_VxRenderEvent",
-    "misc.MixinDebugScreenOverlay",
+    "debug.MixinDebugScreenOverlay",
     "misc.MixinMinecraft",
     "mounting.input.MixinLocalPlayer",
     "mounting.render.MixinCamera",
