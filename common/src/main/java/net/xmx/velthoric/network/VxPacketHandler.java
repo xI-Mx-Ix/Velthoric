@@ -5,7 +5,9 @@
 package net.xmx.velthoric.network;
 
 import dev.architectury.networking.NetworkManager;
+import dev.architectury.platform.Platform;
 import dev.architectury.utils.GameInstance;
+import net.fabricmc.api.EnvType;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -97,8 +99,23 @@ public class VxPacketHandler {
             handler.accept(wrapper.message(), () -> context);
         };
 
-        // Register the receiver only for the specified side to avoid duplicate registration errors on NeoForge.
-        NetworkManager.registerReceiver(side, payloadType, codec, receiver);
+        // Logic to safely register packets across NeoForge and Fabric (Server & Client).
+        if (side == NetworkManager.Side.C2S) {
+            // Client -> Server packets are received on the server.
+            // This is safe to register everywhere.
+            NetworkManager.registerReceiver(side, payloadType, codec, receiver);
+        } else {
+            // Server -> Client packets (S2C).
+            if (Platform.getEnv() == EnvType.CLIENT) {
+                // The Client receives these packets, so we register the full receiver.
+                NetworkManager.registerReceiver(side, payloadType, codec, receiver);
+            } else {
+                // The Server SENDS these packets.
+                // It does NOT receive them, so we cannot register a receiver (causes crash on Fabric).
+                // HOWEVER, we MUST register the Payload Type, otherwise the server won't have the Codec to encode the packet.
+                NetworkManager.registerS2CPayloadType(payloadType, codec);
+            }
+        }
     }
 
     /**
