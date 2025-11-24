@@ -115,7 +115,7 @@ publisher {
     setVersionType("beta")
     setChangelog(rootProject.resolveChangelog())
     setProjectVersion(rootProject.mod_version)
-    setDisplayName("Velthoric ${rootProject.mod_version}")
+    setDisplayName("Velthoric ${rootProject.mod_version} for Fabric ${rootProject.minecraft_version}")
     setGameVersions(rootProject.minecraft_version)
     setLoaders("fabric", "quilt")
     setArtifact(remapJar)
