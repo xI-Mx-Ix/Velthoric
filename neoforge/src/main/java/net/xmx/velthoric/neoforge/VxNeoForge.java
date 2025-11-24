@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.forge;
+package net.xmx.velthoric.neoforge;
 
 import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
