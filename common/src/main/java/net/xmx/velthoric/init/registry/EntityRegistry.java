@@ -13,6 +13,11 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
 
+/**
+ * This class handles the registration of entity types.
+ *
+ * @author xI-Mx-Ix
+ */
 public class EntityRegistry {
 
     public static final RegistrySupplier<EntityType<VxMountingEntity>> MOUNTING_ENTITY =

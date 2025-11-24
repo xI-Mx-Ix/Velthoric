@@ -32,7 +32,8 @@ import java.util.UUID;
 
 /**
  * Renders the Physics Gun beam effect between the player's gun and the held object.
- * Updated for modern Minecraft Rendering API (1.21+).
+ *
+ * @author xI-Mx-Ix
  */
 public class VxPhysicsGunBeamRenderer {
 

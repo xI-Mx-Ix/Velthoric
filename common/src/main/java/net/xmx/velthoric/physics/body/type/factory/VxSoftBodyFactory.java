@@ -11,6 +11,8 @@ import com.github.stephengold.joltjni.SoftBodySharedSettings;
 /**
  * A functional interface that serves as a factory for creating Jolt soft bodies.
  * This follows the same inversion of control pattern as {@link VxRigidBodyFactory}.
+ *
+ * @author xI-Mx-Ix
  */
 @FunctionalInterface
 public interface VxSoftBodyFactory {

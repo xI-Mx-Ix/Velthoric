@@ -11,6 +11,11 @@ import dev.architectury.utils.Env;
 import net.minecraft.commands.CommandSourceStack;
 import net.xmx.velthoric.command.*;
 
+/**
+ * This class handles the registration of commands.
+ *
+ * @author xI-Mx-Ix
+ */
 public class CommandRegistry {
 
     public static void registerCommon(CommandDispatcher<CommandSourceStack> dispatcher) {

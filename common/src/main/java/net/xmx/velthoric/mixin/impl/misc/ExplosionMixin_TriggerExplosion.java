@@ -18,6 +18,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Mixin class to intercept the explosion trigger.
+ * <p>
+ * This mixin is used to apply the explosion to the physics world.
+ * </p>
+ *
+ * @author xI-Mx-Ix
+ */
 @Mixin(Explosion.class)
 public abstract class ExplosionMixin_TriggerExplosion {
 

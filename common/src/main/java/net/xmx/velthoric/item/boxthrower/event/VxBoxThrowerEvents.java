@@ -10,6 +10,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.init.registry.ItemRegistry;
 import net.xmx.velthoric.item.boxthrower.VxBoxThrowerManager;
 
+/**
+ * Handles events related to the box thrower.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxBoxThrowerEvents {
 
     public static void registerEvents() {

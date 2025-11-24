@@ -9,6 +9,13 @@ import dev.architectury.utils.Env;
 import net.fabricmc.api.ModInitializer;
 import net.xmx.velthoric.init.VxMainClass;
 
+/**
+ * Main class for Fabric integration.
+ * <p>
+ * Initializes the mod and handles client-side initialization if running on the client.
+ *
+ * @author xI-Mx-Ix
+ */
 public final class VxFabric implements ModInitializer {
 
     @Override
@@ -19,4 +26,3 @@ public final class VxFabric implements ModInitializer {
         }
     }
 }
-

@@ -9,6 +9,11 @@ import com.github.stephengold.joltjni.Vec3;
 
 import java.util.UUID;
 
+/**
+ * Information about a grabbed physics body.
+ *
+ * @author xI-Mx-Ix
+ */
 public record VxGrabbedBodyInfo(
         UUID physicsId,
         int bodyId,

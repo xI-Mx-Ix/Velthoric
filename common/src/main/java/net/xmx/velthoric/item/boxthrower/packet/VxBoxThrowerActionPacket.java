@@ -11,6 +11,11 @@ import net.xmx.velthoric.item.boxthrower.VxBoxThrowerManager;
 
 import java.util.function.Supplier;
 
+/**
+ * A packet for box thrower actions.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxBoxThrowerActionPacket {
 
     private final ActionType actionType;

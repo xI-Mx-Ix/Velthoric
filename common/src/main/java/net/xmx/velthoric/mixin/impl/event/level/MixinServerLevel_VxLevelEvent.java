@@ -23,4 +23,3 @@ public class MixinServerLevel_VxLevelEvent {
         VxLevelEvent.Save.EVENT.invoker().onLevelSave(new VxLevelEvent.Save(level));
     }
 }
-

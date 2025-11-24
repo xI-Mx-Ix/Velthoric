@@ -12,6 +12,8 @@ import com.github.stephengold.joltjni.Jolt;
  * A functional interface that serves as a factory for creating Jolt rigid bodies.
  * This enables an inversion of control pattern, allowing a VxBody to define its creation
  * settings without needing direct access to the physics world or body manager.
+ *
+ * @author xI-Mx-Ix
  */
 @FunctionalInterface
 public interface VxRigidBodyFactory {

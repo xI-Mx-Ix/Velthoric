@@ -15,6 +15,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * Mixin class to intercept the arm pose calculation for the physics gun.
+ * <p>
+ * This mixin is used to change the arm pose to CROSSBOW_HOLD when the player is holding a physics gun.
+ * </p>
+ *
+ * @author xI-Mx-Ix
+ */
 @Mixin(PlayerRenderer.class)
 public class PlayerRendererMixin_PhysicsGunArmPose {
 
