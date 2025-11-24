@@ -1,42 +1,37 @@
 # Contributing to Velthoric
 
-Welcome, and thanks for your interest in contributing to **Velthoric**!  
-Velthoric is a physics-focused Minecraft project built out of passion for experimenting with game mechanics and engine-like features. While the project primarily exists to support our own goals, we’re happy to see others use, learn from, and contribute to it.
+Hi there! Thanks for checking out **Velthoric**.
 
-Please understand that Velthoric is not an “enterprise-grade” framework. We value contributions, but our own roadmap and priorities will always come first.
+Velthoric is a physics-focused Minecraft project born out of a passion for experimenting with game mechanics and engine-like features. We build this primarily to learn and explore new ideas, but we are always happy to see others use the code, learn from it, or contribute their own improvements.
+
+Since this is a passion project, we develop it at our own pace. We value your contributions highly, though please keep in mind that our own roadmap and vision for the mod will guide what gets merged.
 
 ## How to Contribute
 
 ### Reporting Issues
-If you find a bug, crash, or unexpected behavior:
-- Open a GitHub issue with as much detail as possible.
-- Include steps to reproduce, your environment (MC + Forge/Fabric version), and any logs or screenshots that help us understand the problem.
+Found a bug, a crash, or something that just feels "off"?
+- **Open a GitHub Issue:** The more details, the better.
+- **Be Specific:** Please include steps to reproduce the issue, your environment (Minecraft version + NeoForge/Fabric version), and any logs or screenshots.
 
-Feature suggestions are welcome too - just be constructive and specific.
+Feature suggestions are welcome, too! Just let us know what you have in mind.
 
 ### Pull Requests (PRs)
-We gladly accept PRs that align with the project’s direction. To improve the chance of your PR being merged:
+We love seeing PRs that help improve Velthoric. Here is how to make the process smooth for everyone:
 
-1. **Open an Issue First (optional but recommended):** For larger changes, start with a discussion so your work fits with Velthoric’s goals.
-2. **Commit Directly to `master`:** Make your commits directly to the `master` branch, and ensure each commit is clear and descriptive.
-3. **Follow Coding Style:** Keep formatting and structure consistent with the existing codebase.
-4. **Write Clear Commits:** Each commit should be meaningful and explain *what* changed and *why*.
-5. **Test Thoroughly:** Make sure your changes don’t break existing features and don’t cause performance regressions.
-6. **Keep PRs Focused:** Avoid unrelated changes - small, focused PRs are easier to review and accept.
-7. **Submit Against `master`:** All PRs should target the `master` branch.
+1.  **Chat with us first (optional):** For big changes or new features, it’s often a good idea to open an Issue first to discuss your idea. This ensures your work aligns with the project's goals before you start coding.
+2.  **Target the correct branch:** Please submit your Pull Request to the branch that corresponds to the Minecraft version you are working on (e.g. if you are fixing something for the latest version, target that specific version branch).
+3.  **Keep it clean:** Try to keep your code style consistent with the rest of the project.
+4.  **Write clear commits:** A short explanation of *what* you changed and *why* helps us review your code much faster.
+5.  **Test your changes:** Please make sure your changes work in-game and don't break existing mechanics.
 
 ### Code Reviews
-All contributions are reviewed before merging.  
-Feedback may include requests for style changes, performance improvements, or clarifications. Please treat reviews as collaboration, not criticism.
+We review all contributions before merging. We might ask for small changes or clarifications—please treat this as a collaboration to make the code the best it can be.
 
 ## What to Expect
-- **Priorities:** Our own use cases take precedence. Not every idea or PR will be accepted, even if technically valid.
-- **Response Times:** This is a passion project - we’ll do our best to review in a timely manner, but patience is appreciated.
-- **Feedback Loop:** If changes are requested on a PR, please update your branch accordingly.
-- **No Guarantees:** Every contribution is valued, but not all contributions will be merged.
+- **Priorities:** We try to review PRs as fast as we can, but since we do this in our free time, it might take a moment.
+- **Selection:** We want Velthoric to stay focused. While we appreciate every effort, we might not merge a PR if it doesn't fit the current direction of the mod.
 
 ## Thank You!
-We appreciate your time, effort, and interest in Velthoric.  
-Whether you file an issue, fix a bug, or build a new feature - your help makes this project better for everyone.
+Whether you’re fixing a typo, squashing a bug, or adding a cool new physics mechanic—thank you for your time and effort. You help make Velthoric better!
 
 Happy coding!
