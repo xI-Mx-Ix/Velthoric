@@ -30,8 +30,17 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
+/**
+ * Parses a physics body selector string (e.g., {@code @x[...]}).
+ * <p>
+ * This class handles the syntax parsing, option extraction (limit, distance, type, etc.),
+ * and provides context-aware suggestions for the command UI.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxBodySelectorParser {
 
+    // Exception types for various syntax errors
     public static final SimpleCommandExceptionType ERROR_MISSING_SELECTOR_TYPE = new SimpleCommandExceptionType(Component.literal("Missing selector type"));
     public static final DynamicCommandExceptionType ERROR_UNKNOWN_SELECTOR_TYPE = new DynamicCommandExceptionType((obj) -> Component.literal("Unknown selector type '" + obj + "'"));
     public static final SimpleCommandExceptionType ERROR_EXPECTED_END_OF_OPTIONS = new SimpleCommandExceptionType(Component.literal("Expected ']' to end selector options"));
@@ -43,6 +52,7 @@ public class VxBodySelectorParser {
 
     private static final List<String> OPTION_KEYS = Arrays.asList("limit", "distance", "type", "bodytype", "sort");
 
+    // Sorter: Nearest bodies first
     public static final BiConsumer<Vec3, List<VxBody>> ORDER_NEAREST_VX = (sourcePos, list) ->
             list.sort((a, b) -> {
                 var posA = a.getTransform().getTranslation();
@@ -50,6 +60,7 @@ public class VxBodySelectorParser {
                 return Doubles.compare(sourcePos.distanceToSqr(posA.x(), posA.y(), posA.z()), sourcePos.distanceToSqr(posB.x(), posB.y(), posB.z()));
             });
 
+    // Sorter: Furthest bodies first
     public static final BiConsumer<Vec3, List<VxBody>> ORDER_FURTHEST_VX = (sourcePos, list) ->
             list.sort((a, b) -> {
                 var posA = a.getTransform().getTranslation();
@@ -57,21 +68,32 @@ public class VxBodySelectorParser {
                 return Doubles.compare(sourcePos.distanceToSqr(posB.x(), posB.y(), posB.z()), sourcePos.distanceToSqr(posA.x(), posA.y(), posA.z()));
             });
 
+    // Sorter: Random order
     public static final BiConsumer<Vec3, List<VxBody>> ORDER_RANDOM_VX = (sourcePos, list) -> Collections.shuffle(list);
 
     private final StringReader reader;
+
+    // Parsed values
     private int limit = Integer.MAX_VALUE;
     private MinMaxBounds.Doubles distance = MinMaxBounds.Doubles.ANY;
     @Nullable private ResourceLocation type;
     private boolean typeInverse = false;
     @Nullable private EBodyType bodyType;
     private BiConsumer<Vec3, List<VxBody>> order = (pos, list) -> {};
+
+    // Function to provide suggestions based on the current parsing state
     private BiFunction<SuggestionsBuilder, Consumer<SuggestionsBuilder>, CompletableFuture<Suggestions>> suggestions = (b, c) -> b.buildFuture();
 
     public VxBodySelectorParser(StringReader reader) {
         this.reader = reader;
     }
 
+    /**
+     * Main entry point for parsing the selector.
+     *
+     * @return The compiled selector object.
+     * @throws CommandSyntaxException If parsing fails.
+     */
     public VxBodySelector parse() throws CommandSyntaxException {
         this.suggestions = this::suggestSelector;
         if (!reader.canRead() || reader.peek() != '@') {
@@ -99,6 +121,9 @@ public class VxBodySelectorParser {
         return new VxBodySelector(limit, distance, type, typeInverse, bodyType, order);
     }
 
+    /**
+     * Parses the options block enclosed in brackets {@code [...]}.
+     */
     private void parseOptions() throws CommandSyntaxException {
         this.suggestions = this::suggestOptionsKey;
         reader.skipWhitespace();
@@ -136,6 +161,11 @@ public class VxBodySelectorParser {
         this.suggestions = (b, c) -> b.buildFuture();
     }
 
+    /**
+     * Parses the value for a specific option key.
+     *
+     * @param name The name of the option (e.g., "limit", "type").
+     */
     private void parseOptionValue(String name) throws CommandSyntaxException {
         int cursor = reader.getCursor();
         switch (name) {
@@ -196,6 +226,10 @@ public class VxBodySelectorParser {
     public CompletableFuture<Suggestions> fillSuggestions(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         return this.suggestions.apply(builder.createOffset(this.reader.getCursor()), consumer);
     }
+
+    // =================================================================
+    // Suggestion Providers
+    // =================================================================
 
     private CompletableFuture<Suggestions> suggestSelector(SuggestionsBuilder builder, Consumer<SuggestionsBuilder> consumer) {
         builder.suggest("@x");

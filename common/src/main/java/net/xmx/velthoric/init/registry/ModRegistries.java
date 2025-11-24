@@ -11,6 +11,11 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.xmx.velthoric.init.VxMainClass;
 
+/**
+ * This class handles the registration of items, creative tabs, entity types, and commands.
+ *
+ * @author xI-Mx-Ix
+ */
 public class ModRegistries {
 
     public static final DeferredRegister<Item> ITEMS =

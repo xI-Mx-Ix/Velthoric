@@ -10,6 +10,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.init.registry.ItemRegistry;
 import net.xmx.velthoric.item.magnetizer.VxMagnetizerManager;
 
+/**
+ * Handles events related to the magnetizer.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxMagnetizerEvents {
 
     public static void registerEvents() {
@@ -38,4 +43,3 @@ public class VxMagnetizerEvents {
         VxMagnetizerManager.getInstance().stop(player);
     }
 }
-

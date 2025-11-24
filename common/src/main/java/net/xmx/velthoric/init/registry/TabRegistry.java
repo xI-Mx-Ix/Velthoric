@@ -11,6 +11,11 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 
+/**
+ * Handles the registration of creative tabs.
+ *
+ * @author xI-Mx-Ix
+ */
 public class TabRegistry {
 	public static final RegistrySupplier<CreativeModeTab> VELTHORIC =
 			ModRegistries.CREATIVE_MODE_TABS.register("velthoric", () ->
@@ -30,4 +35,3 @@ public class TabRegistry {
 		ModRegistries.CREATIVE_MODE_TABS.register();
 	}
 }
-

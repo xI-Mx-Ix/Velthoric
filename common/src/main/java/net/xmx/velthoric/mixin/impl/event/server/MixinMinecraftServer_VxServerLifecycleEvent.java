@@ -19,12 +19,11 @@ public abstract class MixinMinecraftServer_VxServerLifecycleEvent {
 
     @Inject(method = "runServer", at = @At(value = "HEAD"))
     private void vx$runServerStart(CallbackInfo ci) {
-        VxServerLifecycleEvent.Starting.EVENT.invoker().onServerStarting(new VxServerLifecycleEvent.Starting((MinecraftServer)(Object)this));
+        VxServerLifecycleEvent.Starting.EVENT.invoker().onServerStarting(new VxServerLifecycleEvent.Starting((MinecraftServer) (Object) this));
     }
 
     @Inject(method = "stopServer", at = @At(value = "HEAD"))
     private void vx$stopServer(CallbackInfo ci) {
-        VxServerLifecycleEvent.Stopping.EVENT.invoker().onServerStopping(new VxServerLifecycleEvent.Stopping((MinecraftServer)(Object)this));
+        VxServerLifecycleEvent.Stopping.EVENT.invoker().onServerStopping(new VxServerLifecycleEvent.Stopping((MinecraftServer) (Object) this));
     }
 }
-

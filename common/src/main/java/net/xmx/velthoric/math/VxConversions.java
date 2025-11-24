@@ -18,6 +18,8 @@ import org.joml.Vector3f;
  * This class centralizes type conversions to ensure consistency, handle precision differences,
  * and reduce boilerplate code.
  * The class cannot be instantiated.
+ *
+ * @author xI-Mx-Ix
  */
 public final class VxConversions {
 

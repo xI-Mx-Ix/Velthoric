@@ -11,6 +11,13 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.xmx.velthoric.init.VxMainClass;
 
+/**
+ * Main class for NeoForge integration.
+ * <p>
+ * Initializes the mod and handles client-side initialization if running on the client.
+ *
+ * @author xI-Mx-Ix
+ */
 @Mod(VxMainClass.MODID)
 public final class VxForge {
     public VxForge() {

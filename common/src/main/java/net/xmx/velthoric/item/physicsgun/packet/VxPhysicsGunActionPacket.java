@@ -11,6 +11,15 @@ import net.xmx.velthoric.item.physicsgun.manager.VxPhysicsGunServerManager;
 
 import java.util.function.Supplier;
 
+/**
+ * A packet that is sent from the client to the server to perform actions on the physics gun.
+ * <p>
+ * This packet is used to perform actions on the physics gun, such as starting a grab attempt, stopping a grab attempt,
+ * updating the scroll, updating the rotation, freezing an object, starting rotation mode, and stopping rotation mode.
+ * </p>
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxPhysicsGunActionPacket {
 
     private final ActionType actionType;

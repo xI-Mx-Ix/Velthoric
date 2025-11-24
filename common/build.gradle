@@ -15,4 +15,3 @@ dependencies {
 loom {
     accessWidenerPath = file("src/main/resources/velthoric.accesswidener")
 }
-

@@ -8,6 +8,14 @@ import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
+/**
+ * Mixin class to access the renderHitBoxes field of the EntityRenderDispatcher class.
+ * <p>
+ * This mixin is used to access the renderHitBoxes field of the EntityRenderDispatcher class.
+ * </p>
+ *
+ * @author xI-Mx-Ix
+ */
 @Mixin(EntityRenderDispatcher.class)
 public interface EntityRenderDispatcherAccessor {
 

@@ -14,6 +14,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Mixin class to intercept block state changes in the server level.
+ * <p>
+ * This mixin is used to update the terrain system when a block state changes.
+ * </p>
+ *
+ * @author xI-Mx-Ix
+ */
 @Mixin(ServerLevel.class)
 public abstract class ServerLevelMixin_BlockStateChangeTerrain {
 

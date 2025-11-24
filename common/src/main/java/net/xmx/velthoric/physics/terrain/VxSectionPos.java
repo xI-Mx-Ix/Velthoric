@@ -17,6 +17,8 @@ import net.minecraft.world.phys.Vec3;
  * Used to uniquely identify sections in the terrain system.
  *
  * Each coordinate refers to a section index, not world-space coordinates.
+ *
+ * @author xI-Mx-Ix
  */
 public final class VxSectionPos {
 

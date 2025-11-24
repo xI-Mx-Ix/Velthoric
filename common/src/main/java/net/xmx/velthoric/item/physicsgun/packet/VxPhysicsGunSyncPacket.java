@@ -17,6 +17,14 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+/**
+ * A packet that is sent from the server to the client to sync the physics gun state.
+ * <p>
+ * This packet is used to sync the physics gun state between the server and the client.
+ * </p>
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxPhysicsGunSyncPacket {
 
     private final Map<UUID, VxPhysicsGunClientManager.ClientGrabData> activeGrabs;

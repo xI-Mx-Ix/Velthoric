@@ -14,6 +14,14 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * A manager for the physics gun on the client side.
+ * <p>
+ * This manager is used to store the state of the physics gun on the client side.
+ * </p>
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxPhysicsGunClientManager {
 
     private static final VxPhysicsGunClientManager INSTANCE = new VxPhysicsGunClientManager();

@@ -12,8 +12,12 @@ import net.xmx.velthoric.item.chaincreator.VxChainCreatorItem;
 import net.xmx.velthoric.item.magnetizer.VxMagnetizerItem;
 import net.xmx.velthoric.item.physicsgun.VxPhysicsGunItem;
 
+/**
+ * This class handles the registration of items.
+ *
+ * @author xI-Mx-Ix
+ */
 public class ItemRegistry {
-
     public static final RegistrySupplier<Item> PHYSICS_CREATOR_STICK = ModRegistries.ITEMS.register("physics_creator", VxPhysicsCreatorItem::new);
     public static final RegistrySupplier<Item> PHYSICS_GUN = ModRegistries.ITEMS.register("physics_gun", VxPhysicsGunItem::new);
     public static final RegistrySupplier<Item> MAGNETIZER = ModRegistries.ITEMS.register("magnetizer", VxMagnetizerItem::new);

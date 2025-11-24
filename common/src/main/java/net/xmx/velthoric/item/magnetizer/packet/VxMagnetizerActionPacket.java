@@ -11,6 +11,11 @@ import net.xmx.velthoric.item.magnetizer.VxMagnetizerManager;
 
 import java.util.function.Supplier;
 
+/**
+ * A packet for magnetizer actions.
+ *
+ * @author xI-Mx-Ix
+ */
 public class VxMagnetizerActionPacket {
 
     private final ActionType actionType;
