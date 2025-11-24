@@ -16,8 +16,8 @@ import java.util.function.ToIntFunction;
  * A utility class responsible for rendering the physics performance visualization.
  * <p>
  * This chart displays a history of physics tick durations in milliseconds.
- * It handles the layering of background, data bars, and overlay borders to ensure
- * a clean visual presentation.
+ * It handles coordinate calculations to ensure the chart background,
+ * borders, and data bars align precisely with vanilla debug charts.
  *
  * @author xI-Mx-Ix
  */
@@ -26,11 +26,9 @@ public class VxPhysicsDebugChart {
     /**
      * Renders the physics tick performance chart on the screen.
      * <p>
-     * The rendering order is strictly defined to prevent visual artifacts:
-     * 1. Backgrounds (Chart area and Title box)
-     * 2. Data Bars (The dynamic content)
-     * 3. Borders (White outlines, drawn last to sit on top of the bars)
-     * 4. Text Labels
+     * The rendering process strictly follows the vanilla AbstractDebugChart logic:
+     * - The background and borders use the full 'width'.
+     * - The data bars are rendered inside the borders (width - 2).
      *
      * @param guiGraphics  The Minecraft GuiGraphics instance used for rendering primitives.
      * @param font         The text renderer instance.
@@ -47,22 +45,21 @@ public class VxPhysicsDebugChart {
         // Draw the semi-transparent dark background rect for the entire chart area.
         guiGraphics.fill(RenderType.guiOverlay(), x, baseY - chartHeight, x + width, baseY, -1873784752);
 
-        // Draw the background box for the "Physics" title to ensure text readability.
-        guiGraphics.fill(RenderType.guiOverlay(), x + 1, baseY - chartHeight + 1, x + 40, baseY - chartHeight + 10, -1873784752);
-
         int recordedFrames = frameTimer.getFrameCount();
         long totalTime = 0L;
         int minTime = Integer.MAX_VALUE;
         int maxTime = Integer.MIN_VALUE;
         int barsToDisplay = 0;
 
-        // Only process and render bars if data exists.
         if (recordedFrames > 0) {
             long[] log = frameTimer.getLog();
             int logEnd = frameTimer.getLogEnd();
 
-            // Determine the number of bars to draw, limited by chart width.
-            barsToDisplay = Math.min(recordedFrames, width);
+            // Calculate the number of bars to draw.
+            // We subtract 2 pixels from the width to account for the left and right borders,
+            // matching vanilla AbstractDebugChart rendering logic.
+            int availableBarWidth = width - 2;
+            barsToDisplay = Math.min(recordedFrames, availableBarWidth);
 
             // First Pass: Calculate Statistics (Min/Max/Avg)
             for (int i = 0; i < barsToDisplay; ++i) {
@@ -74,50 +71,50 @@ public class VxPhysicsDebugChart {
             }
 
             // Second Pass: Render the Bars
-            // We draw these BEFORE the borders so that if a bar reaches the edge,
-            // the white border line draws OVER it, maintaining a clean outline.
+            // Bars are drawn from right to left.
             for (int i = 0; i < barsToDisplay; ++i) {
-                // Determine X position: Start from right edge and move left.
-                int currentX = x + width - 1 - i;
-                int logIndex = frameTimer.wrapIndex(logEnd - 1 - i);
+                // Determine the X position.
+                // The rightmost bar is located at (x + width - 2).
+                // The leftmost possible bar is at (x + 1).
+                int currentX = x + width - 2 - i;
 
+                int logIndex = frameTimer.wrapIndex(logEnd - 1 - i);
                 long durationNanos = log[logIndex];
 
                 // Scale bar height: 30px height = 60Hz target (16.6ms).
                 int scaledHeight = frameTimer.scaleSampleTo(durationNanos, 30, 60);
-
-                // Determine color based on load.
                 int color = colorSampler.applyAsInt(Mth.clamp(scaledHeight, 0, chartHeight));
 
                 // Draw the bar.
-                // Note: The bottom Y coordinate is 'baseY'. The fill method excludes the max coordinate,
-                // but pixel alignment often causes the last row to overlap with the border line position.
                 guiGraphics.fill(RenderType.guiOverlay(), currentX, baseY - scaledHeight, currentX + 1, baseY, color);
             }
         }
 
-        // Draw the white border lines AFTER the bars.
-        // This ensures the borders are always visible and not overwritten by the colored bars
-        // on the rightmost column or bottommost row.
-
-        // Horizontal lines (top and bottom)
+        // Horizontal lines (Top and Bottom)
         guiGraphics.hLine(RenderType.guiOverlay(), x, x + width - 1, baseY - chartHeight, -1);
         guiGraphics.hLine(RenderType.guiOverlay(), x, x + width - 1, baseY - 1, -1);
 
-        // Vertical lines (left and right)
+        // Vertical lines (Left and Right)
         guiGraphics.vLine(RenderType.guiOverlay(), x, baseY - chartHeight, baseY, -1);
         guiGraphics.vLine(RenderType.guiOverlay(), x + width - 1, baseY - chartHeight, baseY, -1);
 
-        // Title
+        // Render Text Labels
         guiGraphics.drawString(font, "Physics", x + 2, baseY - chartHeight + 2, 14737632, false);
 
-        // Statistics (only if data exists, otherwise default to 0)
-        String minText = (minTime == Integer.MAX_VALUE ? 0 : minTime) + " ms min";
-        String avgText = (barsToDisplay > 0 ? totalTime / (long) barsToDisplay : 0) + " ms avg";
-        String maxText = (maxTime == Integer.MIN_VALUE ? 0 : maxTime) + " ms max";
+        if (barsToDisplay > 0) {
+            String minText = minTime + " ms min";
+            String avgText = (totalTime / (long) barsToDisplay) + " ms avg";
+            String maxText = maxTime + " ms max";
 
-        guiGraphics.drawString(font, minText, x + 2, baseY - chartHeight - 9, 14737632, false);
-        guiGraphics.drawCenteredString(font, avgText, x + width / 2, baseY - chartHeight - 9, 14737632);
-        guiGraphics.drawString(font, maxText, x + width - font.width(maxText), baseY - chartHeight - 9, 14737632);
+            guiGraphics.drawString(font, minText, x + 2, baseY - chartHeight - 9, 14737632, false);
+            guiGraphics.drawCenteredString(font, avgText, x + width / 2, baseY - chartHeight - 9, 14737632);
+            // Align max text with the inner right border edge (width - 2)
+            guiGraphics.drawString(font, maxText, x + width - font.width(maxText) - 2, baseY - chartHeight - 9, 14737632);
+        } else {
+            guiGraphics.drawString(font, "0 ms min", x + 2, baseY - chartHeight - 9, 14737632, false);
+            guiGraphics.drawCenteredString(font, "0 ms avg", x + width / 2, baseY - chartHeight - 9, 14737632);
+            String maxText = "0 ms max";
+            guiGraphics.drawString(font, maxText, x + width - font.width(maxText) - 2, baseY - chartHeight - 9, 14737632);
+        }
     }
 }
