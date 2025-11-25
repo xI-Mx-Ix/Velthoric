@@ -9,7 +9,7 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import java.util.Objects;
 
 /**
- * A type-safe key used to access a piece of synchronized data on a physics bodies.
+ * A type-safe key used to access a piece of synchronized data on a physics body.
  * It holds a unique ID and the serializer for its data type.
  * This class now manages ID creation in a deterministic way, similar to Minecraft's SynchedEntityData,
  * to ensure client and server IDs always match.
