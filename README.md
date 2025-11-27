@@ -40,7 +40,7 @@ Velthoric brings **high-performance physics** to Minecraft using the full Jolt P
 ### 🛠️ **Developer API**
 
 Create custom physics objects, control rendering, manipulate bodies, and extend the system.  
-Documentation can be found [here](https://xi-mx-ix.github.io/Velthoric-Docs).
+Documentation can be found [here](https://xi-mx-ix.github.io/velthoric-docs).
 
 ### 🎯 **Testing Commands**
 
