@@ -5,6 +5,7 @@
 package net.xmx.velthoric.physics.body.persistence;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
@@ -12,7 +13,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
@@ -36,14 +36,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     private final VxBodyManager bodyManager;
-    private final VxBodyDataStore dataStore;
     private final ConcurrentMap<Long, List<UUID>> chunkToUuidIndex = new ConcurrentHashMap<>();
+
+    // Tracks bodies currently being loaded to prevent duplicate async requests.
     private final ConcurrentMap<UUID, CompletableFuture<VxBody>> pendingLoads = new ConcurrentHashMap<>();
 
     public VxBodyStorage(ServerLevel level, VxBodyManager bodyManager) {
         super(level, "body", "body");
         this.bodyManager = bodyManager;
-        this.dataStore = bodyManager.getDataStore();
     }
 
     @Override
@@ -97,6 +97,7 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      * @param snapshotsByRegion A map where each key is a region position and the value is a map of body snapshots for that region.
      */
     public void storeBodyBatch(Map<RegionPos, Map<UUID, byte[]>> snapshotsByRegion) {
+        if (snapshotsByRegion == null) return;
         snapshotsByRegion.forEach(this::storeBodyBatch);
     }
 
@@ -137,6 +138,7 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             if (idsToLoad == null || idsToLoad.isEmpty()) return;
 
             for (UUID id : List.copyOf(idsToLoad)) {
+                // Skip if loaded or currently loading
                 if (bodyManager.getVxBody(id) != null || pendingLoads.containsKey(id)) {
                     continue;
                 }
@@ -148,20 +150,34 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         });
     }
 
+    /**
+     * Initiates the asynchronous loading of a body by its UUID.
+     *
+     * @param id The UUID of the body to load.
+     * @return A CompletableFuture that completes with the loaded body, or null if not found.
+     */
     public CompletableFuture<VxBody> loadBody(UUID id) {
         VxBody existingBody = bodyManager.getVxBody(id);
         if (existingBody != null) {
             return CompletableFuture.completedFuture(existingBody);
         }
-        return pendingLoads.computeIfAbsent(id, this::loadBodyAsync);
-    }
 
-    private CompletableFuture<VxBody> loadBodyAsync(UUID id) {
+        // Check if a load is already in progress to avoid duplicates
+        CompletableFuture<VxBody> pending = pendingLoads.get(id);
+        if (pending != null) {
+            return pending;
+        }
+
         RegionPos regionPos = regionIndex.get(id);
         if (regionPos == null) {
             return CompletableFuture.completedFuture(null);
         }
 
+        // Atomically start the load operation if one isn't already present.
+        return pendingLoads.computeIfAbsent(id, k -> startLoadAsync(k, regionPos));
+    }
+
+    private CompletableFuture<VxBody> startLoadAsync(UUID id, RegionPos regionPos) {
         return getRegion(regionPos)
                 .thenApplyAsync(region -> region.entries.get(id), ioExecutor)
                 .thenApplyAsync(this::deserializeBody, ioExecutor)
@@ -170,6 +186,7 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                         return CompletableFuture.completedFuture(null);
                     }
                     CompletableFuture<VxBody> bodyFuture = new CompletableFuture<>();
+                    // Body creation must happen on the server main thread (or physics thread) to interact with managers safely
                     bodyManager.getPhysicsWorld().execute(() -> {
                         try {
                             // Helper method in BodyManager to reconstruct body from VxSerializedBodyData
@@ -185,6 +202,8 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                     if (ex != null) {
                         VxMainClass.LOGGER.error("Exception loading physics body {}", id, ex);
                     }
+                    // Cleanup the pending map. This is safe here as whenComplete runs after
+                    // computeIfAbsent has finished returning the future.
                     pendingLoads.remove(id);
                 });
     }
@@ -219,9 +238,9 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
-    @Nullable
-    public byte[] serializeBodyData(VxBody body) {
-        ByteBuf buffer = Unpooled.buffer();
+    public byte @Nullable [] serializeBodyData(VxBody body) {
+        // Use pooled allocator to reduce GC pressure during serialization
+        ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer(256);
         VxByteBuf friendlyBuf = new VxByteBuf(buffer);
         try {
             VxBodyCodec.serialize(body, friendlyBuf);

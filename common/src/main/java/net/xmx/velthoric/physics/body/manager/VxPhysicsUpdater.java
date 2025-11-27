@@ -15,13 +15,10 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.physics.body.type.VxBody;
-import net.xmx.velthoric.physics.body.type.VxSoftBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
-import org.jetbrains.annotations.Nullable;
 
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,6 +47,8 @@ public class VxPhysicsUpdater {
     private final ThreadLocal<List<Integer>> bodyIdsToLock = ThreadLocal.withInitial(ArrayList::new);
     private final ThreadLocal<List<Integer>> dataIndicesToLock = ThreadLocal.withInitial(ArrayList::new);
 
+    // Reusable direct buffer for native soft body operations to prevent allocation every tick.
+    private final ThreadLocal<FloatBuffer> softBodyBufferCache = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(1024));
 
     public VxPhysicsUpdater(VxBodyManager manager) {
         this.manager = manager;
@@ -204,6 +203,7 @@ public class VxPhysicsUpdater {
         if (!localBodyIdsToLock.isEmpty()) {
             ConstBodyLockInterfaceNoLock lockInterface = world.getPhysicsSystem().getBodyLockInterfaceNoLock();
 
+            // Create array primitive for Jolt API
             int[] bodyIdArray = new int[localBodyIdsToLock.size()];
             for (int j = 0; j < localBodyIdsToLock.size(); j++) {
                 bodyIdArray[j] = localBodyIdsToLock.get(j);
@@ -219,9 +219,6 @@ public class VxPhysicsUpdater {
                         UUID id = dataStore.getIdForIndex(i);
                         if (id == null) continue;
 
-                        VxBody obj = manager.getVxBody(id);
-                        if (obj == null) continue;
-
                         // Sync World Space AABB
                         ConstAaBox bounds = body.getWorldSpaceBounds();
                         Vec3 min = bounds.getMin();
@@ -234,15 +231,10 @@ public class VxPhysicsUpdater {
                         dataStore.aabbMaxZ[i] = max.getZ();
 
                         // Sync soft body vertices if applicable
-                        if (obj instanceof VxSoftBody) {
+                        if (dataStore.bodyType[i] == com.github.stephengold.joltjni.enumerate.EBodyType.SoftBody) {
                             RVec3 pos = tempPos.get();
                             pos.set(dataStore.posX[i], dataStore.posY[i], dataStore.posZ[i]);
-                            float[] newVertexData = getSoftBodyVertices(body, pos);
-                            if (newVertexData != null && !Arrays.equals(newVertexData, dataStore.vertexData[i])) {
-                                dataStore.vertexData[i] = newVertexData;
-                                dataStore.isVertexDataDirty[i] = true;
-                                // Vertex data is now handled entirely in the DataStore, no need to update the wrapper.
-                            }
+                            updateSoftBodyVertices(body, pos, i);
                         }
                     }
                 }
@@ -251,25 +243,60 @@ public class VxPhysicsUpdater {
     }
 
     /**
-     * Extracts the vertex positions of a soft body from Jolt.
+     * Efficiently extracts vertex positions for a soft body.
+     * This method reuses a ThreadLocal direct FloatBuffer to avoid allocating new memory each tick.
+     * It also checks if the vertices have actually changed before updating the array in the store
+     * to minimize downstream processing and network syncs.
+     *
      * @param body The locked ConstBody instance of the soft body.
      * @param bodyPosition The current position of the body's center of mass.
-     * @return An array of vertex coordinates, or null on failure.
+     * @param dataIndex The index of the body in the DataStore.
      */
-    private float @Nullable [] getSoftBodyVertices(ConstBody body, RVec3Arg bodyPosition) {
-        if (body.isSoftBody()) {
-            ConstSoftBodyMotionProperties motionProps = (ConstSoftBodyMotionProperties) body.getMotionProperties();
-            int numVertices = motionProps.getSettings().countVertices();
-            if (numVertices > 0) {
-                int bufferSize = numVertices * 3;
-                FloatBuffer vertexBuffer = Jolt.newDirectFloatBuffer(bufferSize);
-                motionProps.putVertexLocations(bodyPosition, vertexBuffer);
-                vertexBuffer.flip();
-                float[] vertexArray = new float[bufferSize];
-                vertexBuffer.get(vertexArray);
-                return vertexArray;
+    private void updateSoftBodyVertices(ConstBody body, RVec3Arg bodyPosition, int dataIndex) {
+        ConstSoftBodyMotionProperties motionProps = (ConstSoftBodyMotionProperties) body.getMotionProperties();
+        int numVertices = motionProps.getSettings().countVertices();
+        if (numVertices <= 0) return;
+
+        int requiredFloats = numVertices * 3;
+
+        // 1. Get or resize the reusable direct buffer
+        FloatBuffer buffer = softBodyBufferCache.get();
+        if (buffer.capacity() < requiredFloats) {
+            // Grow buffer with some headroom
+            buffer = Jolt.newDirectFloatBuffer(Math.max(requiredFloats, buffer.capacity() * 2));
+            softBodyBufferCache.set(buffer);
+        }
+        buffer.clear();
+        buffer.limit(requiredFloats);
+
+        // 2. Fetch data from Jolt into the reused buffer (Native -> Direct Buffer)
+        motionProps.putVertexLocations(bodyPosition, buffer);
+        buffer.flip(); // Prepare for reading
+
+        // 3. Compare with existing array in DataStore to detect changes
+        float[] existing = dataStore.vertexData[dataIndex];
+        boolean changed = false;
+
+        if (existing == null || existing.length != requiredFloats) {
+            // Initial allocation or size change requires a new array
+            existing = new float[requiredFloats];
+            dataStore.vertexData[dataIndex] = existing;
+            changed = true;
+            buffer.get(existing); // Copy all data
+        } else {
+            // Check for differences without allocating a new array
+            for (int k = 0; k < requiredFloats; k++) {
+                float newVal = buffer.get(k);
+                // Use a small epsilon for float comparison to avoid noise updates
+                if (Math.abs(existing[k] - newVal) > 1e-6f) {
+                    existing[k] = newVal;
+                    changed = true;
+                }
             }
         }
-        return null;
+
+        if (changed) {
+            dataStore.isVertexDataDirty[dataIndex] = true;
+        }
     }
 }

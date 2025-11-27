@@ -34,6 +34,17 @@ public abstract class AbstractDataStore {
     }
 
     /**
+     * Grows a double array, preserving its contents.
+     *
+     * @param src  The source array (can be null).
+     * @param size The desired new size.
+     * @return A new array of the specified size.
+     */
+    protected double[] grow(double[] src, int size) {
+        return src == null ? new double[size] : Arrays.copyOf(src, size);
+    }
+
+    /**
      * Grows a float array, preserving its contents.
      *
      * @param src  The source array (can be null).

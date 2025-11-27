@@ -268,10 +268,10 @@ public abstract class VxBody {
             VxBodyDataStore store = this.physicsWorld.getBodyManager().getDataStore();
             int idx = this.dataStoreIndex;
 
-            // Cast doubles to float, as the DataStore uses float arrays
-            store.posX[idx] = (float) px;
-            store.posY[idx] = (float) py;
-            store.posZ[idx] = (float) pz;
+            // Store directly as doubles to preserve precision from persistence
+            store.posX[idx] = px;
+            store.posY[idx] = py;
+            store.posZ[idx] = pz;
 
             store.rotX[idx] = rx; store.rotY[idx] = ry; store.rotZ[idx] = rz; store.rotW[idx] = rw;
             store.velX[idx] = vx; store.velY[idx] = vy; store.velZ[idx] = vz;

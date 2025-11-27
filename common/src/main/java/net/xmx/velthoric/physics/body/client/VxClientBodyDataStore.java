@@ -48,7 +48,7 @@ public class VxClientBodyDataStore extends AbstractDataStore {
     // --- State Buffers for Interpolation ---
     // State 0: The "from" state for interpolation.
     public long[] state0_timestamp;
-    public float[] state0_posX, state0_posY, state0_posZ;
+    public double[] state0_posX, state0_posY, state0_posZ;
     public float[] state0_rotX, state0_rotY, state0_rotZ, state0_rotW;
     public float[] state0_velX, state0_velY, state0_velZ;
     public boolean[] state0_isActive;
@@ -56,7 +56,8 @@ public class VxClientBodyDataStore extends AbstractDataStore {
 
     // State 1: The "to" state for interpolation. This is the most recent state from the server.
     public long[] state1_timestamp;
-    public float[] state1_posX, state1_posY, state1_posZ;
+    /** Double precision "to" X position. */
+    public double[] state1_posX, state1_posY, state1_posZ;
     public float[] state1_rotX, state1_rotY, state1_rotZ, state1_rotW;
     public float[] state1_velX, state1_velY, state1_velZ;
     public boolean[] state1_isActive;
@@ -64,12 +65,12 @@ public class VxClientBodyDataStore extends AbstractDataStore {
 
     // --- Render State Buffers ---
     // The state from the *previous render frame*, used for frame-to-frame interpolation.
-    public float[] prev_posX, prev_posY, prev_posZ;
+    public double[] prev_posX, prev_posY, prev_posZ;
     public float[] prev_rotX, prev_rotY, prev_rotZ, prev_rotW;
     public float[] @Nullable [] prev_vertexData;
 
     // The target render state for the *current render frame*, calculated each tick.
-    public float[] render_posX, render_posY, render_posZ;
+    public double[] render_posX, render_posY, render_posZ;
     public float[] render_rotX, render_rotY, render_rotZ, render_rotW;
     public float[] @Nullable [] render_vertexData;
     public boolean[] render_isInitialized;
@@ -277,8 +278,9 @@ public class VxClientBodyDataStore extends AbstractDataStore {
         long bytes = 0;
 
         // Primitive arrays
-        bytes += (long) capacity * 8 * 2;  // 2 long[]
-        bytes += (long) capacity * 4 * 34; // 34 float[]
+        bytes += (long) capacity * 8 * 2;  // 2 long[] timestamps
+        bytes += (long) capacity * 8 * 9;  // 9 double[] positions (state0, state1, prev, render)
+        bytes += (long) capacity * 4 * 25; // 25 float[] (rotations, velocities, etc)
         bytes += capacity * 2L;          // 2 boolean[] (estimating 1 byte per boolean)
 
         // Reference arrays (assuming 8 bytes per reference on a 64-bit JVM)
@@ -325,5 +327,11 @@ public class VxClientBodyDataStore extends AbstractDataStore {
         }
         state0_velX[index] = state0_velY[index] = state0_velZ[index] = 0;
         state1_velX[index] = state1_velY[index] = state1_velZ[index] = 0;
+
+        // Reset position doubles
+        state0_posX[index] = state0_posY[index] = state0_posZ[index] = 0.0;
+        state1_posX[index] = state1_posY[index] = state1_posZ[index] = 0.0;
+        prev_posX[index] = prev_posY[index] = prev_posZ[index] = 0.0;
+        render_posX[index] = render_posY[index] = render_posZ[index] = 0.0;
     }
 }
