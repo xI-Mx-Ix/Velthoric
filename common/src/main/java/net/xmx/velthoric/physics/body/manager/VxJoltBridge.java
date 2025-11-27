@@ -153,11 +153,13 @@ public enum VxJoltBridge {
     /**
      * Creates and adds a soft body to the Jolt physics simulation.
      *
-     * @param body       The soft body wrapper.
-     * @param manager    The body manager, used for cleanup on failure.
-     * @param activation The initial activation state.
+     * @param body            The soft body wrapper.
+     * @param manager         The body manager, used for cleanup on failure.
+     * @param linearVelocity  The initial linear velocity (can be null).
+     * @param angularVelocity The initial angular velocity (can be null).
+     * @param activation      The initial activation state.
      */
-    public void createAndAddJoltSoftBody(VxSoftBody body, VxBodyManager manager, EActivation activation) {
+    public void createAndAddJoltSoftBody(VxSoftBody body, VxBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation) {
         try {
             VxPhysicsWorld world = manager.getPhysicsWorld();
             VxBodyDataStore dataStore = manager.getDataStore();
@@ -179,6 +181,16 @@ public enum VxJoltBridge {
                 manager.removeBody(body.getPhysicsId(), VxRemovalReason.DISCARD); // Clean up failed addition.
                 return;
             }
+
+            // Apply initial velocities to the soft body if provided.
+            BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
+            if (linearVelocity != null) {
+                bodyInterface.setLinearVelocity(bodyId, linearVelocity);
+            }
+            if (angularVelocity != null) {
+                bodyInterface.setAngularVelocity(bodyId, angularVelocity);
+            }
+
             body.setBodyId(bodyId);
             manager.registerJoltBodyId(bodyId, body);
             body.onBodyAdded(world);
