@@ -5,9 +5,6 @@
 package net.xmx.velthoric.physics.mounting.entity;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -72,6 +69,21 @@ public class VxMountingEntity extends Entity {
             if (getPassengers().isEmpty()) {
                 discard();
                 return;
+            }
+
+            // Check if the associated physics body still exists.
+            // If the body was removed (e.g., destroyed), the seat proxy must be removed as well.
+            Optional<UUID> physicsIdOpt = getPhysicsId();
+            if (physicsIdOpt.isPresent()) {
+                VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level().dimension());
+                if (physicsWorld != null) {
+                    // Query the manager to see if the body with this ID exists.
+                    // If getVxBody returns null, the body no longer exists.
+                    if (physicsWorld.getBodyManager().getVxBody(physicsIdOpt.get()) == null) {
+                        this.discard();
+                        return;
+                    }
+                }
             }
 
             // Checks if this entity needs to re-establish its connection to the mounting manager.
