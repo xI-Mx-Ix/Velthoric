@@ -35,7 +35,7 @@ public class VxBodyDataStore extends AbstractDataStore {
     private int capacity = 0;
 
     // --- Physics State Data (SoA) ---
-    public float[] posX, posY, posZ;
+    public double[] posX, posY, posZ;
     public float[] rotX, rotY, rotZ, rotW;
     public float[] velX, velY, velZ;
     public float[] angVelX, angVelY, angVelZ;
@@ -159,12 +159,24 @@ public class VxBodyDataStore extends AbstractDataStore {
         allocate(INITIAL_CAPACITY);
     }
 
+    /**
+     * Gets the index for a given body UUID.
+     *
+     * @param id The UUID of the body.
+     * @return The integer index, or null if the body is not in the store.
+     */
     @Nullable
     public synchronized Integer getIndexForId(UUID id) {
         int index = uuidToIndex.getInt(id);
         return index == -1 ? null : index;
     }
 
+    /**
+     * Gets the UUID for a given index.
+     *
+     * @param index The index of the body.
+     * @return The UUID, or null if the index is invalid or free.
+     */
     @Nullable
     public synchronized UUID getIdForIndex(int index) {
         if (index < 0 || index >= indexToUuid.size()) {
@@ -173,16 +185,22 @@ public class VxBodyDataStore extends AbstractDataStore {
         return indexToUuid.get(index);
     }
 
+    /**
+     * @return The total number of active bodies in the store.
+     */
     public synchronized int getBodyCount() {
         return this.count - freeIndices.size();
     }
 
+    /**
+     * @return The total number of bodies the store can hold before reallocating.
+     */
     public int getCapacity() {
         return this.capacity;
     }
 
     private void resetIndex(int index) {
-        posX[index] = posY[index] = posZ[index] = 0f;
+        posX[index] = posY[index] = posZ[index] = 0.0;
         rotX[index] = rotY[index] = rotZ[index] = 0f;
         rotW[index] = 1f;
         velX[index] = velY[index] = velZ[index] = 0f;

@@ -107,11 +107,11 @@ public class VxClientBodyInterpolator {
         }
 
         long timeDiff = toTime - fromTime;
-        float alpha = (float) (renderTimestamp - fromTime) / timeDiff;
+        double alpha = (double) (renderTimestamp - fromTime) / timeDiff;
 
-        if (alpha > 1.0f) {
+        if (alpha > 1.0) {
             // Extrapolation: The render time is past the latest known state.
-            float extrapolationTime = (float) (renderTimestamp - toTime) / 1_000_000_000.0f;
+            double extrapolationTime = (double) (renderTimestamp - toTime) / 1_000_000_000.0;
             float velX = store.state1_velX[i];
             float velY = store.state1_velY[i];
             float velZ = store.state1_velZ[i];
@@ -139,16 +139,19 @@ public class VxClientBodyInterpolator {
         }
 
         // Clamp alpha to prevent interpolating backwards.
-        alpha = Math.max(0.0f, alpha);
+        alpha = Math.max(0.0, alpha);
 
         // Interpolation: The render time is between the two known states.
-        store.render_posX[i] = Mth.lerp(alpha, store.state0_posX[i], store.state1_posX[i]);
-        store.render_posY[i] = Mth.lerp(alpha, store.state0_posY[i], store.state1_posY[i]);
-        store.render_posZ[i] = Mth.lerp(alpha, store.state0_posZ[i], store.state1_posZ[i]);
+        // Using double precision for position interpolation.
+        store.render_posX[i] = store.state0_posX[i] + alpha * (store.state1_posX[i] - store.state0_posX[i]);
+        store.render_posY[i] = store.state0_posY[i] + alpha * (store.state1_posY[i] - store.state0_posY[i]);
+        store.render_posZ[i] = store.state0_posZ[i] + alpha * (store.state1_posZ[i] - store.state0_posZ[i]);
 
+        // Rotations use float math as per Jolt Quat implementation
+        float alphaF = (float) alpha;
         tempFromRot.set(store.state0_rotX[i], store.state0_rotY[i], store.state0_rotZ[i], store.state0_rotW[i]);
         tempToRot.set(store.state1_rotX[i], store.state1_rotY[i], store.state1_rotZ[i], store.state1_rotW[i]);
-        VxOperations.slerp(tempFromRot, tempToRot, alpha, tempRenderRot);
+        VxOperations.slerp(tempFromRot, tempToRot, alphaF, tempRenderRot);
         store.render_rotX[i] = tempRenderRot.getX();
         store.render_rotY[i] = tempRenderRot.getY();
         store.render_rotZ[i] = tempRenderRot.getZ();
@@ -161,7 +164,7 @@ public class VxClientBodyInterpolator {
                 store.render_vertexData[i] = new float[toVerts.length];
             }
             for (int j = 0; j < toVerts.length; j++) {
-                store.render_vertexData[i][j] = Mth.lerp(alpha, fromVerts[j], toVerts[j]);
+                store.render_vertexData[i][j] = Mth.lerp(alphaF, fromVerts[j], toVerts[j]);
             }
         } else {
             store.render_vertexData[i] = toVerts != null ? toVerts : fromVerts;
@@ -211,11 +214,11 @@ public class VxClientBodyInterpolator {
      * @param outPos       The RVec3 object to store the resulting position in.
      */
     public void interpolatePosition(VxClientBodyDataStore store, int i, float partialTicks, RVec3 outPos) {
-        outPos.set(
-                Mth.lerp(partialTicks, store.prev_posX[i], store.render_posX[i]),
-                Mth.lerp(partialTicks, store.prev_posY[i], store.render_posY[i]),
-                Mth.lerp(partialTicks, store.prev_posZ[i], store.render_posZ[i])
-        );
+        // Use double precision for the position interpolation to maintain accuracy
+        double x = store.prev_posX[i] + (double) partialTicks * (store.render_posX[i] - store.prev_posX[i]);
+        double y = store.prev_posY[i] + (double) partialTicks * (store.render_posY[i] - store.prev_posY[i]);
+        double z = store.prev_posZ[i] + (double) partialTicks * (store.render_posZ[i] - store.prev_posZ[i]);
+        outPos.set(x, y, z);
     }
 
     /**
