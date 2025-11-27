@@ -4,6 +4,7 @@
  */
 package net.xmx.velthoric.physics.body.manager;
 
+import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
@@ -182,30 +183,32 @@ public class VxBodyManager {
         }
 
         addInternal(body);
+
+        // Read all internal persistence data (transform, velocity, vertices, user data)
+        // directly from the buffer into the Body and the DataStore.
+        // This MUST happen after addInternal so the body has a valid DataStore index.
+        body.readInternalPersistenceData(data.bodyData());
+        data.bodyData().release();
+
         int index = body.getDataStoreIndex();
-
-        boolean shouldActivate = data.linearVelocity().lengthSq() > 0.0001f || data.angularVelocity().lengthSq() > 0.0001f;
-        EActivation activation = shouldActivate ? EActivation.Activate : EActivation.DontActivate;
-
-        if (index != -1) {
-            dataStore.motionType[index] = data.motionType();
-            dataStore.posX[index] = data.transform().getTranslation().x();
-            dataStore.posY[index] = data.transform().getTranslation().y();
-            dataStore.posZ[index] = data.transform().getTranslation().z();
-            dataStore.rotX[index] = data.transform().getRotation().getX();
-            dataStore.rotY[index] = data.transform().getRotation().getY();
-            dataStore.rotZ[index] = data.transform().getRotation().getZ();
-            dataStore.rotW[index] = data.transform().getRotation().getW();
+        if (index == -1) {
+            return null; // Should not happen
         }
 
-        body.readPersistenceData(data.persistenceData());
-        data.persistenceData().release();
+        // Retrieve the restored values from the DataStore to configure Jolt
+        Vec3 linearVelocity = new Vec3(dataStore.velX[index], dataStore.velY[index], dataStore.velZ[index]);
+        Vec3 angularVelocity = new Vec3(dataStore.angVelX[index], dataStore.angVelY[index], dataStore.angVelZ[index]);
+        EMotionType motionType = dataStore.motionType[index];
+
+        // Determine activation based on velocity
+        boolean shouldActivate = linearVelocity.lengthSq() > 0.0001f || angularVelocity.lengthSq() > 0.0001f;
+        EActivation activation = shouldActivate ? EActivation.Activate : EActivation.DontActivate;
 
         world.getMountingManager().onBodyAdded(body);
         networkDispatcher.onBodyAdded(body);
 
         if (body instanceof VxRigidBody rigidBody) {
-            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, data.linearVelocity(), data.angularVelocity(), activation, data.motionType());
+            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, linearVelocity, angularVelocity, activation, motionType);
         } else if (body instanceof VxSoftBody softBody) {
             VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(softBody, this, activation);
         }
@@ -340,6 +343,48 @@ public class VxBodyManager {
     }
 
     /**
+     * Retrieves the current vertex positions for a soft body.
+     * This method prioritizes the cached data store for performance but will
+     * query Jolt directly if the cache is empty.
+     *
+     * @param body The soft body to retrieve vertices for.
+     * @return An array of vertex coordinates (x, y, z), or null/empty if not available.
+     */
+    public float @Nullable [] retrieveSoftBodyVertices(VxSoftBody body) {
+        int index = body.getDataStoreIndex();
+        if (index == -1) return null;
+
+        // Try to get cached vertices from the last physics tick
+        float[] cached = dataStore.vertexData[index];
+        if (cached != null && cached.length > 0) {
+            return cached;
+        }
+
+        // Fallback: Query Jolt directly if cached data is missing (e.g., before first tick)
+        return VxJoltBridge.INSTANCE.retrieveSoftBodyVertices(world, body);
+    }
+
+    /**
+     * Updates the vertex positions for a soft body.
+     * This updates the data store and, if the body is currently added to Jolt,
+     * updates the physics simulation immediately.
+     *
+     * @param body     The soft body to update.
+     * @param vertices The new vertex coordinates (x, y, z).
+     */
+    public void updateSoftBodyVertices(VxSoftBody body, float[] vertices) {
+        int index = body.getDataStoreIndex();
+        if (index == -1) return;
+
+        // Update cache
+        dataStore.vertexData[index] = vertices;
+        dataStore.isVertexDataDirty[index] = true;
+
+        // Apply to Jolt
+        VxJoltBridge.INSTANCE.setSoftBodyVertices(world, body, vertices);
+    }
+
+    /**
      * Saves all physics bodies within a given chunk in a single batched operation.
      * It creates a snapshot of all bodies on the physics thread and then passes the
      * serialized data to the storage system for asynchronous writing.
@@ -363,7 +408,7 @@ public class VxBodyManager {
                 if (index == -1) continue;
 
                 // Create the data snapshot for this body.
-                byte[] snapshot = bodyStorage.serializeBodyData(body, index);
+                byte[] snapshot = bodyStorage.serializeBodyData(body);
                 if (snapshot == null) continue;
 
                 // Group the snapshot by its region position for efficient batch writing.

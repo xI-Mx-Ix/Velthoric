@@ -234,14 +234,14 @@ public class VxPhysicsUpdater {
                         dataStore.aabbMaxZ[i] = max.getZ();
 
                         // Sync soft body vertices if applicable
-                        if (obj instanceof VxSoftBody softBody) {
+                        if (obj instanceof VxSoftBody) {
                             RVec3 pos = tempPos.get();
                             pos.set(dataStore.posX[i], dataStore.posY[i], dataStore.posZ[i]);
                             float[] newVertexData = getSoftBodyVertices(body, pos);
                             if (newVertexData != null && !Arrays.equals(newVertexData, dataStore.vertexData[i])) {
                                 dataStore.vertexData[i] = newVertexData;
                                 dataStore.isVertexDataDirty[i] = true;
-                                softBody.setLastSyncedVertexData(newVertexData);
+                                // Vertex data is now handled entirely in the DataStore, no need to update the wrapper.
                             }
                         }
                     }

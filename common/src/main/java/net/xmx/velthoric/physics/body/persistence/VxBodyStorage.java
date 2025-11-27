@@ -80,13 +80,11 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         if (body == null || body.getDataStoreIndex() == -1) return;
 
         bodyManager.getPhysicsWorld().execute(() -> {
-            int index = body.getDataStoreIndex();
-            if (index == -1) return;
-
-            byte[] snapshot = serializeBodyData(body, index);
+            byte[] snapshot = serializeBodyData(body);
             if (snapshot == null) return;
 
-            ChunkPos chunkPos = bodyManager.getBodyChunkPos(index);
+            // Calculate chunk pos for region determination
+            ChunkPos chunkPos = bodyManager.getBodyChunkPos(body.getDataStoreIndex());
             RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
             storeBodyBatch(regionPos, Map.of(body.getPhysicsId(), snapshot));
         });
@@ -174,6 +172,7 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                     CompletableFuture<VxBody> bodyFuture = new CompletableFuture<>();
                     bodyManager.getPhysicsWorld().execute(() -> {
                         try {
+                            // Helper method in BodyManager to reconstruct body from VxSerializedBodyData
                             VxBody body = bodyManager.addSerializedBody(data);
                             bodyFuture.complete(body);
                         } catch (Exception e) {
@@ -221,11 +220,11 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     @Nullable
-    public byte[] serializeBodyData(VxBody body, int index) {
+    public byte[] serializeBodyData(VxBody body) {
         ByteBuf buffer = Unpooled.buffer();
         VxByteBuf friendlyBuf = new VxByteBuf(buffer);
         try {
-            VxBodyCodec.serialize(body, index, dataStore, friendlyBuf);
+            VxBodyCodec.serialize(body, friendlyBuf);
             byte[] data = new byte[buffer.readableBytes()];
             buffer.readBytes(data);
             return data;
@@ -258,11 +257,15 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     private long getChunkKeyFromData(byte[] data) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
         try {
+            // Structure: UUID (16 bytes) -> Type String -> InternalPersistenceData
             buf.readUUID();
             buf.readUtf();
+
+            // InternalPersistenceData starts with Position (3 doubles)
             double posX = buf.readDouble();
-            buf.readDouble();
-            double posZ = buf.readDouble();
+            buf.readDouble(); // Y
+            double posZ = buf.readDouble(); // Z
+
             int chunkX = SectionPos.posToSectionCoord(posX);
             int chunkZ = SectionPos.posToSectionCoord(posZ);
             return new ChunkPos(chunkX, chunkZ).toLong();
