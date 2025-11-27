@@ -8,12 +8,12 @@ import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.type.factory.VxSoftBodyFactory;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 
@@ -26,9 +26,6 @@ import java.util.UUID;
  * @author xI-Mx-Ix
  */
 public abstract class VxSoftBody extends VxBody {
-
-    // Caches the last vertex data that was synchronized to clients.
-    protected float @Nullable [] lastSyncedVertexData;
 
     /**
      * Server-side constructor for a soft body.
@@ -53,22 +50,6 @@ public abstract class VxSoftBody extends VxBody {
     }
 
     /**
-     * @return The last vertex data that was sent to clients.
-     */
-    public float @Nullable [] getLastSyncedVertexData() {
-        return this.lastSyncedVertexData;
-    }
-
-    /**
-     * Sets the cached last synced vertex data.
-     *
-     * @param data The vertex data array.
-     */
-    public void setLastSyncedVertexData(float @Nullable [] data) {
-        this.lastSyncedVertexData = data;
-    }
-
-    /**
      * Defines and creates the Jolt soft body using the provided factory.
      * This method must be implemented by subclasses to define the properties
      * of the soft body.
@@ -77,6 +58,46 @@ public abstract class VxSoftBody extends VxBody {
      * @return The body ID assigned by Jolt.
      */
     public abstract int createJoltBody(VxSoftBodyFactory factory);
+
+    @Override
+    public void writeInternalPersistenceData(VxByteBuf buf) {
+        // Write standard physics state (transform, velocities, user data)
+        super.writeInternalPersistenceData(buf);
+
+        if (this.physicsWorld == null) return;
+
+        // Retrieve current vertex data from the manager or Jolt interface
+        // Assuming the manager exposes a way to get the live vertex positions for persistence
+        float[] vertices = this.physicsWorld.getBodyManager().retrieveSoftBodyVertices(this);
+
+        if (vertices != null) {
+            buf.writeInt(vertices.length);
+            for (float val : vertices) {
+                buf.writeFloat(val);
+            }
+        } else {
+            buf.writeInt(0);
+        }
+    }
+
+    @Override
+    public void readInternalPersistenceData(VxByteBuf buf) {
+        // Read standard physics state
+        super.readInternalPersistenceData(buf);
+
+        // Read soft body specific vertex data
+        int vertexCount = buf.readInt();
+        if (vertexCount > 0) {
+            float[] vertices = new float[vertexCount];
+            for (int i = 0; i < vertexCount; i++) {
+                vertices[i] = buf.readFloat();
+            }
+            // Apply the vertices to the physics simulation if needed, or store for initialization
+            if (this.physicsWorld != null) {
+                this.physicsWorld.getBodyManager().updateSoftBodyVertices(this, vertices);
+            }
+        }
+    }
 
     @Override
     @Environment(EnvType.CLIENT)

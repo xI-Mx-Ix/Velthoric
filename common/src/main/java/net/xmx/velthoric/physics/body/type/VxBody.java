@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.body.type;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
@@ -13,6 +14,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
@@ -187,6 +189,99 @@ public abstract class VxBody {
 
 
     // --- Server-Side Persistence ---
+
+    /**
+     * Writes the comprehensive internal state of this body to the buffer for persistence.
+     * This includes standard physics data (position, rotation, velocity) and delegates
+     * to {@link #writePersistenceData(VxByteBuf)} for custom user data.
+     * <p>
+     * Subclasses (like {@link VxSoftBody}) should override this to save additional
+     * internal state (e.g., vertex data) but must call super or handle the standard data manually.
+     *
+     * @param buf The buffer to write the state to.
+     */
+    public void writeInternalPersistenceData(VxByteBuf buf) {
+        if (this.physicsWorld == null || this.dataStoreIndex == -1) {
+            return;
+        }
+        VxBodyDataStore store = this.physicsWorld.getBodyManager().getDataStore();
+        int idx = this.dataStoreIndex;
+
+        // Write Position (as double for precision storage)
+        buf.writeDouble(store.posX[idx]);
+        buf.writeDouble(store.posY[idx]);
+        buf.writeDouble(store.posZ[idx]);
+
+        // Write Rotation
+        buf.writeFloat(store.rotX[idx]);
+        buf.writeFloat(store.rotY[idx]);
+        buf.writeFloat(store.rotZ[idx]);
+        buf.writeFloat(store.rotW[idx]);
+
+        // Write Velocities
+        buf.writeFloat(store.velX[idx]);
+        buf.writeFloat(store.velY[idx]);
+        buf.writeFloat(store.velZ[idx]);
+        buf.writeFloat(store.angVelX[idx]);
+        buf.writeFloat(store.angVelY[idx]);
+        buf.writeFloat(store.angVelZ[idx]);
+
+        // Write Motion Type
+        EMotionType motionType = store.motionType[idx];
+        buf.writeByte(motionType != null ? motionType.ordinal() : EMotionType.Static.ordinal());
+
+        // Write User Persistence Data
+        this.writePersistenceData(buf);
+    }
+
+    /**
+     * Reads the internal state written by {@link #writeInternalPersistenceData(VxByteBuf)}.
+     * This reconstructs the physics state and custom user data.
+     *
+     * @param buf The buffer containing the body state.
+     */
+    public void readInternalPersistenceData(VxByteBuf buf) {
+        // Read Position (read as double)
+        double px = buf.readDouble();
+        double py = buf.readDouble();
+        double pz = buf.readDouble();
+
+        // Read Rotation
+        float rx = buf.readFloat();
+        float ry = buf.readFloat();
+        float rz = buf.readFloat();
+        float rw = buf.readFloat();
+
+        // Read Velocities
+        float vx = buf.readFloat();
+        float vy = buf.readFloat();
+        float vz = buf.readFloat();
+        float avx = buf.readFloat();
+        float avy = buf.readFloat();
+        float avz = buf.readFloat();
+
+        // Read Motion Type
+        int motionOrdinal = buf.readByte();
+
+        // Apply read values to the current data store if connected, or hold them for initialization
+        if (this.physicsWorld != null && this.dataStoreIndex != -1) {
+            VxBodyDataStore store = this.physicsWorld.getBodyManager().getDataStore();
+            int idx = this.dataStoreIndex;
+
+            // Cast doubles to float, as the DataStore uses float arrays
+            store.posX[idx] = (float) px;
+            store.posY[idx] = (float) py;
+            store.posZ[idx] = (float) pz;
+
+            store.rotX[idx] = rx; store.rotY[idx] = ry; store.rotZ[idx] = rz; store.rotW[idx] = rw;
+            store.velX[idx] = vx; store.velY[idx] = vy; store.velZ[idx] = vz;
+            store.angVelX[idx] = avx; store.angVelY[idx] = avy; store.angVelZ[idx] = avz;
+            store.motionType[idx] = EMotionType.values()[Math.max(0, Math.min(motionOrdinal, EMotionType.values().length - 1))];
+        }
+
+        // Read User Persistence Data
+        this.readPersistenceData(buf);
+    }
 
     /**
      * Writes data needed to save this body to disk.

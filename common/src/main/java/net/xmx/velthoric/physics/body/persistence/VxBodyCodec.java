@@ -4,13 +4,9 @@
  */
 package net.xmx.velthoric.physics.body.persistence;
 
-import com.github.stephengold.joltjni.Vec3;
-import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,42 +27,25 @@ public final class VxBodyCodec {
 
     /**
      * Serializes a {@link VxBody} and its current physics state into a buffer.
-     * It writes the body's unique ID, type, transform (position and rotation), velocities,
-     * and any custom data provided by the body's implementation.
+     * It writes the body's unique ID and type, then delegates to the body to write its
+     * internal persistence data (transform, velocities, vertices, etc.).
      *
      * @param body      The physics body to serialize.
-     * @param index     The body's index in the {@link VxBodyDataStore}, used to access its live physics state.
-     * @param dataStore The data store containing the live physics state arrays.
      * @param buf       The buffer to write the serialized data into.
      */
-    public static void serialize(VxBody body, int index, VxBodyDataStore dataStore, VxByteBuf buf) {
+    public static void serialize(VxBody body, VxByteBuf buf) {
         buf.writeUUID(body.getPhysicsId());
         buf.writeUtf(body.getType().getTypeId().toString());
 
-        buf.writeDouble(dataStore.posX[index]);
-        buf.writeDouble(dataStore.posY[index]);
-        buf.writeDouble(dataStore.posZ[index]);
-        buf.writeFloat(dataStore.rotX[index]);
-        buf.writeFloat(dataStore.rotY[index]);
-        buf.writeFloat(dataStore.rotZ[index]);
-        buf.writeFloat(dataStore.rotW[index]);
-
-        buf.writeFloat(dataStore.velX[index]);
-        buf.writeFloat(dataStore.velY[index]);
-        buf.writeFloat(dataStore.velZ[index]);
-        buf.writeFloat(dataStore.angVelX[index]);
-        buf.writeFloat(dataStore.angVelY[index]);
-        buf.writeFloat(dataStore.angVelZ[index]);
-
-        buf.writeByte(dataStore.motionType[index] != null ? dataStore.motionType[index].ordinal() : EMotionType.Static.ordinal());
-
-        body.writePersistenceData(buf);
+        // Delegate the writing of the actual physics and user data to the body itself.
+        // This ensures subclasses like VxSoftBody can save their specific vertex data.
+        body.writeInternalPersistenceData(buf);
     }
 
     /**
      * Deserializes physics body data from a buffer into a {@link VxSerializedBodyData} record.
-     * This record contains all necessary information to recreate the body later.
-     * Includes sanity checks for velocity values to prevent physics instabilities from corrupt data.
+     * This record contains the ID, Type, and a buffer slice of the remaining data
+     * (the payload written by {@link VxBody#writeInternalPersistenceData(VxByteBuf)}).
      *
      * @param buf The buffer to read the serialized data from.
      * @return A {@link VxSerializedBodyData} record, or null if deserialization fails.
@@ -77,23 +56,11 @@ public final class VxBodyCodec {
             UUID id = buf.readUUID();
             ResourceLocation typeId = ResourceLocation.tryParse(buf.readUtf());
 
-            VxTransform transform = new VxTransform();
-            transform.fromBuffer(buf);
+            // The rest of the buffer is the body's internal data (Transform, Velocity, Vertices, User Data).
+            // We copy this into a new buffer slice to be handed to the body instance later.
+            VxByteBuf bodyData = new VxByteBuf(buf.readBytes(buf.readableBytes()));
 
-            Vec3 linearVelocity = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
-            Vec3 angularVelocity = new Vec3(buf.readFloat(), buf.readFloat(), buf.readFloat());
-
-            EMotionType motionType = EMotionType.values()[buf.readByte()];
-
-            if (!linearVelocity.isFinite() || linearVelocity.isNan() || !angularVelocity.isFinite() || angularVelocity.isNan()) {
-                VxMainClass.LOGGER.warn("Deserialized invalid velocity for body {}. Resetting to zero.", id);
-                linearVelocity.set(0f, 0f, 0f);
-                angularVelocity.set(0f, 0f, 0f);
-            }
-
-            VxByteBuf persistenceData = new VxByteBuf(buf.readBytes(buf.readableBytes()));
-
-            return new VxSerializedBodyData(typeId, id, transform, linearVelocity, angularVelocity, motionType, persistenceData);
+            return new VxSerializedBodyData(typeId, id, bodyData);
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to deserialize physics body from data", e);
             return null;
