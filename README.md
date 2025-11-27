@@ -31,11 +31,17 @@ Velthoric brings **high-performance physics** to Minecraft using the full Jolt P
 
 ### ⚡ **Core Features**
 
-* **Rigid & Soft Bodies** – Full simulation of solid and deformable objects.
-* **Narrow & Broad Phase Collisions** – Efficient collision detection for all objects.
-* **Constraints** – Support for joints and other physics constraints.
-* **Shapes** – Various collision shapes supported.
-* **Raycasting & Shape Casting** – Detect and interact with objects using rays or shapes.
+The entire system is built on a highly performant **Structure of Arrays (SoA)** architecture to handle thousands of objects efficiently.
+
+* **Rigid & Soft Bodies:** Full simulation of solid objects as well as deformable things like cloth and ropes.
+* **Drivable Vehicles:** Cars and motorcycles with working suspension and wheel physics.
+* **Collision Detection:** Efficient broad and narrow phase detection that supports complex shapes and convex hulls.
+* **Humanoid Ragdolls:** Create physical ragdolls from living entities.
+* **Buoyancy:** Objects float in water and lava based on their volume and density.
+* **Block Conversion:** Convert any standard Minecraft block into a dynamic physics object.
+* **Constraints:** Connect bodies using joints and other physics constraints.
+* **Raycasting:** Precise ray and shape casting against the physics world.
+* **Persistence:** Physics bodies are saved with the world and synchronized efficiently between server and client.
 
 ### 🛠️ **Developer API**
 
