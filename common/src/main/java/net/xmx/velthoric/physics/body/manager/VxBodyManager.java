@@ -160,13 +160,18 @@ public class VxBodyManager {
             dataStore.rotW[index] = transform.getRotation().getW();
         }
 
+        // Retrieve the velocity from the data store. This allows the configurator
+        // to set initial velocity values before the body is added to the simulation.
+        Vec3 linearVelocity = new Vec3(dataStore.velX[index], dataStore.velY[index], dataStore.velZ[index]);
+        Vec3 angularVelocity = new Vec3(dataStore.angVelX[index], dataStore.angVelY[index], dataStore.angVelZ[index]);
+
         world.getMountingManager().onBodyAdded(body);
         networkDispatcher.onBodyAdded(body);
 
         if (body instanceof VxRigidBody rigidBody) {
-            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, null, null, activation, EMotionType.Dynamic);
+            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, linearVelocity, angularVelocity, activation, EMotionType.Dynamic);
         } else if (body instanceof VxSoftBody softBody) {
-            VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(softBody, this, activation);
+            VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(softBody, this, linearVelocity, angularVelocity, activation);
         }
     }
 
@@ -210,7 +215,8 @@ public class VxBodyManager {
         if (body instanceof VxRigidBody rigidBody) {
             VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, linearVelocity, angularVelocity, activation, motionType);
         } else if (body instanceof VxSoftBody softBody) {
-            VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(softBody, this, activation);
+            // Apply the restored velocity to the SoftBody creation process
+            VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(softBody, this, linearVelocity, angularVelocity, activation);
         }
         return body;
     }
