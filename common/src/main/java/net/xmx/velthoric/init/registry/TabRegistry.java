@@ -27,6 +27,7 @@ public class TabRegistry {
 								output.accept(ItemRegistry.PHYSICS_GUN.get());
 								output.accept(ItemRegistry.MAGNETIZER.get());
 								output.accept(ItemRegistry.BOX_LAUNCHER.get());
+								output.accept(ItemRegistry.RAGDOLL_LAUNCHER.get());
 								output.accept(ItemRegistry.CHAIN_CREATOR.get());
 							})
 					));
