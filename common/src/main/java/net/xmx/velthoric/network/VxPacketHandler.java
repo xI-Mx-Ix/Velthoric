@@ -17,7 +17,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.xmx.velthoric.item.chaincreator.packet.VxChainCreatorActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunSyncPacket;
 import net.xmx.velthoric.item.tool.packet.VxToolActionPacket;
@@ -124,15 +123,6 @@ public class VxPacketHandler {
      */
     public static void register() {
         // --- Client to Server Packets ---
-
-        registerPacket(
-                VxChainCreatorActionPacket.class,
-                "chain_creator_action",
-                VxChainCreatorActionPacket::encode,
-                VxChainCreatorActionPacket::decode,
-                VxChainCreatorActionPacket::handle,
-                NetworkManager.Side.C2S
-        );
 
         registerPacket(
                 C2SRequestMountPacket.class,
