@@ -8,7 +8,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.init.registry.ModRegistries;
-import net.xmx.velthoric.item.tool.registry.VxToolModeRegistry;
+import net.xmx.velthoric.init.registry.KeyMappings;
 import net.xmx.velthoric.natives.VxNativeManager;
 import net.xmx.velthoric.network.VxPacketHandler;
 import org.apache.logging.log4j.LogManager;
@@ -36,7 +36,6 @@ public class VxMainClass {
         VxPacketHandler.register();
         RegisterEvents.register();
         VxNativeManager.initialize();
-        VxToolModeRegistry.register();
     }
 
     /**
@@ -48,5 +47,6 @@ public class VxMainClass {
         VxRegisteredBodies.registerClientFactories();
         VxRegisteredBodies.registerClientRenderers();
         RegisterEvents.registerClient();
+        KeyMappings.register();
     }
 }
