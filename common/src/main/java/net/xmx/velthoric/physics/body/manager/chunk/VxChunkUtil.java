@@ -17,6 +17,7 @@ import net.minecraft.world.level.ChunkPos;
  * @author xI-Mx-Ix
  */
 public class VxChunkUtil {
+
     /**
      * Helper method to calculate if a chunk is within range of another chunk.
      *
