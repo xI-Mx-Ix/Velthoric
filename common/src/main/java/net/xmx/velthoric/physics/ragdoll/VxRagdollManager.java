@@ -5,6 +5,7 @@
 package net.xmx.velthoric.physics.ragdoll;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.enumerate.ESwingType;
 import com.github.stephengold.joltjni.operator.Op;
@@ -16,6 +17,7 @@ import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.ragdoll.body.VxBodyPartRigidBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -41,43 +43,80 @@ public class VxRagdollManager {
 
     /**
      * Creates a humanoid ragdoll based on the state of a living entity at a specific world position.
-     * This method queues the creation logic to be executed on the physics thread.
+     * The ragdoll is spawned with the entity's orientation but without any initial linear velocity.
+     * This ensures the ragdoll appears "normally" without being launched.
      *
      * @param entity The entity to create a ragdoll from.
      * @param spawnPosition The world position where the ragdoll should be spawned.
      */
     public void createHumanoidRagdoll(LivingEntity entity, RVec3 spawnPosition) {
-        world.execute(() -> {
-            VxTransform initialTransform = new VxTransform(
-                    spawnPosition,
-                    Quat.sEulerAngles(0, entity.getYRot() * ((float)Math.PI / 180f), 0)
-            );
+        // Delegate to internal method with null velocity to indicate a normal spawn
+        world.execute(() -> spawnHumanoidRagdollInternal(entity, spawnPosition, null));
+    }
 
-            String skinId = (entity instanceof Player) ? entity.getUUID().toString() : "";
+    /**
+     * Creates a humanoid ragdoll and applies an initial linear velocity to all its parts.
+     * Useful for launching ragdolls from items or explosions.
+     *
+     * @param entity The entity to create a ragdoll from.
+     * @param spawnPosition The world position where the ragdoll should be spawned.
+     * @param initialVelocity The initial velocity to apply to every body part.
+     */
+    public void launchHumanoidRagdoll(LivingEntity entity, RVec3 spawnPosition, Vec3 initialVelocity) {
+        world.execute(() -> spawnHumanoidRagdollInternal(entity, spawnPosition, initialVelocity));
+    }
 
-            Map<VxBodyPart, VxBodyPartRigidBody> parts = new EnumMap<>(VxBodyPart.class);
+    /**
+     * Internal method to handle the common logic of spawning a humanoid ragdoll.
+     * This handles calculating the correct rotation so the ragdoll faces the direction
+     * the entity is looking, creating the body parts, and linking them.
+     *
+     * @param entity The source entity.
+     * @param spawnPosition The spawn location.
+     * @param initialVelocity The optional initial velocity (can be null).
+     */
+    private void spawnHumanoidRagdollInternal(LivingEntity entity, RVec3 spawnPosition, @Nullable Vec3 initialVelocity) {
+        // Minecraft Yaw is in degrees and rotates clockwise.
+        // Jolt/Math usually expects counter-clockwise rotation in radians.
+        // We invert the yaw (-yaw) to align the physics rotation with the visual look direction.
+        float rotY = (float) Math.toRadians(-entity.getYRot());
+        Quat rotation = Quat.sRotation(new Vec3(0, 1, 0), rotY);
 
-            for (VxBodyPart partType : VxBodyPart.values()) {
-                VxBodyPartRigidBody partBody = createBodyPart(partType, initialTransform, skinId);
-                parts.put(partType, partBody);
+        VxTransform initialTransform = new VxTransform(spawnPosition, rotation);
+
+        String skinId = (entity instanceof Player) ? entity.getUUID().toString() : "";
+        Map<VxBodyPart, VxBodyPartRigidBody> parts = new EnumMap<>(VxBodyPart.class);
+
+        // Create all body parts
+        for (VxBodyPart partType : VxBodyPart.values()) {
+            VxBodyPartRigidBody partBody = createBodyPart(partType, initialTransform, skinId);
+            parts.put(partType, partBody);
+        }
+
+        // Apply the initial velocity to all created parts if provided
+        if (initialVelocity != null && initialVelocity.lengthSq() > 0.0001f) {
+            BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
+            for (VxBodyPartRigidBody part : parts.values()) {
+                if (part != null) {
+                    bodyInterface.setLinearVelocity(part.getBodyId(), initialVelocity);
+                    bodyInterface.activateBody(part.getBodyId());
+                }
             }
+        }
 
-            VxBodyPartRigidBody torso = parts.get(VxBodyPart.TORSO);
-            if (torso == null) return;
+        VxBodyPartRigidBody torso = parts.get(VxBodyPart.TORSO);
+        if (torso == null) return;
 
-            // Increased joint limits for a much looser, more "floppy" ragdoll behavior.
+        // Connect joints with specific limits for ragdoll movement
+        createSwingTwistJoint(torso, parts.get(VxBodyPart.HEAD), VxBodyPart.HEAD, 80f, 120f, 80f);
 
-            // Connect Head to Torso with much looser constraints.
-            createSwingTwistJoint(torso, parts.get(VxBodyPart.HEAD), VxBodyPart.HEAD, 80f, 120f, 80f);
+        // Arms - large swing limits for flailing
+        createSwingTwistJoint(torso, parts.get(VxBodyPart.LEFT_ARM), VxBodyPart.LEFT_ARM, 120f, 175f, 175f);
+        createSwingTwistJoint(torso, parts.get(VxBodyPart.RIGHT_ARM), VxBodyPart.RIGHT_ARM, 120f, 175f, 175f);
 
-            // Arms are given very large swing limits to allow them to flail freely.
-            createSwingTwistJoint(torso, parts.get(VxBodyPart.LEFT_ARM), VxBodyPart.LEFT_ARM, 120f, 175f, 175f);
-            createSwingTwistJoint(torso, parts.get(VxBodyPart.RIGHT_ARM), VxBodyPart.RIGHT_ARM, 120f, 175f, 175f);
-
-            // Legs are also made much looser.
-            createSwingTwistJoint(torso, parts.get(VxBodyPart.LEFT_LEG), VxBodyPart.LEFT_LEG, 80f, 140f, 100f);
-            createSwingTwistJoint(torso, parts.get(VxBodyPart.RIGHT_LEG), VxBodyPart.RIGHT_LEG, 80f, 140f, 100f);
-        });
+        // Legs
+        createSwingTwistJoint(torso, parts.get(VxBodyPart.LEFT_LEG), VxBodyPart.LEFT_LEG, 80f, 140f, 100f);
+        createSwingTwistJoint(torso, parts.get(VxBodyPart.RIGHT_LEG), VxBodyPart.RIGHT_LEG, 80f, 140f, 100f);
     }
 
     private VxBodyPartRigidBody createBodyPart(VxBodyPart partType, VxTransform initialTransform, String skinId) {
@@ -102,6 +141,7 @@ public class VxRagdollManager {
         return bodyManager.createRigidBody(
                 VxRegisteredBodies.BODY_PART,
                 partTransform,
+                EActivation.Activate, // Ensure body is active on creation
                 body -> {
                     body.setSyncData(VxBodyPartRigidBody.DATA_HALF_EXTENTS, halfExtents);
                     body.setSyncData(VxBodyPartRigidBody.DATA_BODY_PART, partType);
@@ -142,56 +182,4 @@ public class VxRagdollManager {
             constraintManager.createConstraint(settings, torso.getPhysicsId(), limb.getPhysicsId());
         }
     }
-
-    /**
-     * Creates a humanoid ragdoll and applies an initial linear velocity to all its parts.
-     * Useful for launching ragdolls from items or explosions.
-     *
-     * @param entity The entity to create a ragdoll from.
-     * @param spawnPosition The world position where the ragdoll should be spawned.
-     * @param initialVelocity The initial velocity to apply to every body part.
-     */
-    public void launchHumanoidRagdoll(LivingEntity entity, RVec3 spawnPosition, Vec3 initialVelocity) {
-        world.execute(() -> {
-            VxTransform initialTransform = new VxTransform(
-                    spawnPosition,
-                    Quat.sEulerAngles(0, entity.getYRot() * ((float)Math.PI / 180f), 0)
-            );
-
-            String skinId = (entity instanceof Player) ? entity.getUUID().toString() : "";
-            Map<VxBodyPart, VxBodyPartRigidBody> parts = new EnumMap<>(VxBodyPart.class);
-
-            // Create all body parts
-            for (VxBodyPart partType : VxBodyPart.values()) {
-                VxBodyPartRigidBody partBody = createBodyPart(partType, initialTransform, skinId);
-                parts.put(partType, partBody);
-            }
-
-            // Apply the initial velocity to all created parts
-            if (initialVelocity.lengthSq() > 0.0001f) {
-                BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
-                for (VxBodyPartRigidBody part : parts.values()) {
-                    if (part != null) {
-                        bodyInterface.setLinearVelocity(part.getBodyId(), initialVelocity);
-                        bodyInterface.activateBody(part.getBodyId());
-                    }
-                }
-            }
-
-            VxBodyPartRigidBody torso = parts.get(VxBodyPart.TORSO);
-            if (torso == null) return;
-
-            // Connect joints with specific limits for ragdoll movement
-            createSwingTwistJoint(torso, parts.get(VxBodyPart.HEAD), VxBodyPart.HEAD, 80f, 120f, 80f);
-
-            // Arms
-            createSwingTwistJoint(torso, parts.get(VxBodyPart.LEFT_ARM), VxBodyPart.LEFT_ARM, 120f, 175f, 175f);
-            createSwingTwistJoint(torso, parts.get(VxBodyPart.RIGHT_ARM), VxBodyPart.RIGHT_ARM, 120f, 175f, 175f);
-
-            // Legs
-            createSwingTwistJoint(torso, parts.get(VxBodyPart.LEFT_LEG), VxBodyPart.LEFT_LEG, 80f, 140f, 100f);
-            createSwingTwistJoint(torso, parts.get(VxBodyPart.RIGHT_LEG), VxBodyPart.RIGHT_LEG, 80f, 140f, 100f);
-        });
-    }
-
 }

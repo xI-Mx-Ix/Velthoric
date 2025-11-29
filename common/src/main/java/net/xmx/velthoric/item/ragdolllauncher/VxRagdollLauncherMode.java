@@ -64,11 +64,11 @@ public class VxRagdollLauncherMode extends VxToolMode {
         net.minecraft.world.phys.Vec3 eyePos = player.getEyePosition();
         net.minecraft.world.phys.Vec3 lookVec = player.getLookAngle();
 
-        // Calculate spawn position
+        // Calculate spawn position slightly in front of the player to avoid clipping
         net.minecraft.world.phys.Vec3 spawnPosMc = eyePos.add(lookVec.scale(2.0f));
         RVec3 joltSpawnPos = new RVec3((float) spawnPosMc.x, (float) spawnPosMc.y, (float) spawnPosMc.z);
 
-        // Calculate velocity vector
+        // Calculate velocity vector based on look direction
         Vec3 joltVelocity = new Vec3(
                 (float) lookVec.x,
                 (float) lookVec.y,
@@ -76,7 +76,7 @@ public class VxRagdollLauncherMode extends VxToolMode {
         );
         joltVelocity.scaleInPlace(speed);
 
-        // Delegate the actual creation to the ragdoll manager
+        // Delegate the actual creation and launching to the ragdoll manager
         ragdollManager.launchHumanoidRagdoll(player, joltSpawnPos, joltVelocity);
     }
 }
