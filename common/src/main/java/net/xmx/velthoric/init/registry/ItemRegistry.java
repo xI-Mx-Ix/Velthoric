@@ -8,10 +8,14 @@ import dev.architectury.registry.registries.RegistrySupplier;
 import net.minecraft.world.item.Item;
 import net.xmx.velthoric.item.VxPhysicsCreatorItem;
 import net.xmx.velthoric.item.boxlauncher.VxBoxLauncherItem;
+import net.xmx.velthoric.item.boxlauncher.VxBoxLauncherMode;
 import net.xmx.velthoric.item.chaincreator.VxChainCreatorItem;
 import net.xmx.velthoric.item.magnetizer.VxMagnetizerItem;
+import net.xmx.velthoric.item.magnetizer.VxMagnetizerMode;
 import net.xmx.velthoric.item.physicsgun.VxPhysicsGunItem;
 import net.xmx.velthoric.item.ragdolllauncher.VxRagdollLauncherItem;
+import net.xmx.velthoric.item.ragdolllauncher.VxRagdollLauncherMode;
+import net.xmx.velthoric.item.tool.registry.VxToolRegistry;
 
 /**
  * This class handles the registration of items.
@@ -28,5 +32,9 @@ public class ItemRegistry {
 
     public static void register() {
         ModRegistries.ITEMS.register();
+
+        VxToolRegistry.register(ItemRegistry.BOX_LAUNCHER.get(), new VxBoxLauncherMode());
+        VxToolRegistry.register(ItemRegistry.MAGNETIZER.get(), new VxMagnetizerMode());
+        VxToolRegistry.register(ItemRegistry.RAGDOLL_LAUNCHER.get(), new VxRagdollLauncherMode());
     }
 }

@@ -5,9 +5,10 @@
 package net.xmx.velthoric.item.tool.event;
 
 import dev.architectury.event.EventResult;
-import dev.architectury.event.events.client.ClientTickEvent;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.Item;
+import net.xmx.velthoric.init.registry.KeyMappings;
+import net.xmx.velthoric.event.api.VxKeyEvent;
 import net.xmx.velthoric.event.api.VxMouseEvent;
 import net.xmx.velthoric.item.tool.VxToolMode;
 import net.xmx.velthoric.item.tool.gui.VxToolConfigScreen;
@@ -17,42 +18,78 @@ import net.xmx.velthoric.network.VxPacketHandler;
 import org.lwjgl.glfw.GLFW;
 
 /**
- * Handles client-side input for the Tool API.
+ * Handles client-side input events for the Tool API, including mouse clicks
+ * and keyboard interactions.
  *
  * @author xI-Mx-Ix
  */
 public class VxToolClientEvents {
 
+    /**
+     * Registers the necessary event listeners for mouse and keyboard input.
+     */
     public static void registerEvents() {
         VxMouseEvent.Press.EVENT.register(VxToolClientEvents::onMousePress);
-        ClientTickEvent.CLIENT_POST.register(VxToolClientEvents::onClientTick);
+        VxKeyEvent.EVENT.register(VxToolClientEvents::onKeyPress);
     }
 
-    private static void onClientTick(Minecraft minecraft) {
-        if (minecraft.player == null || minecraft.screen != null) return;
+    /**
+     * Handles keyboard events to trigger the tool configuration screen.
+     * This method checks if the configured keybinding is pressed while holding a valid tool.
+     * It ensures the menu only opens if no other GUI is currently active.
+     *
+     * @param event The keyboard event data.
+     * @return The result of the event handling.
+     */
+    private static EventResult onKeyPress(VxKeyEvent event) {
+        Minecraft minecraft = Minecraft.getInstance();
 
-        // Check for TAB press
-        if (GLFW.glfwGetKey(minecraft.getWindow().getWindow(), GLFW.GLFW_KEY_TAB) == GLFW.GLFW_PRESS) {
-            Item heldItem = minecraft.player.getMainHandItem().getItem();
-            VxToolMode mode = VxToolRegistry.get(heldItem);
-            
-            if (mode != null) {
-                // Open the config UI
-                minecraft.setScreen(new VxToolConfigScreen(heldItem, mode));
+        // Ensure the player exists and no GUI screen is currently open
+        if (minecraft.player == null || minecraft.screen != null) {
+            return EventResult.pass();
+        }
+
+        // Check if the event action is a key press
+        if (event.getAction() == GLFW.GLFW_PRESS) {
+            // Check if the pressed key matches the configured tool config keybinding
+            if (KeyMappings.OPEN_TOOL_CONFIG.matches(event.getKey(), event.getScanCode())) {
+                Item heldItem = minecraft.player.getMainHandItem().getItem();
+                VxToolMode mode = VxToolRegistry.get(heldItem);
+
+                if (mode != null) {
+                    // Open the configuration screen for the held tool
+                    minecraft.setScreen(new VxToolConfigScreen(heldItem, mode));
+                    return EventResult.interruptFalse();
+                }
             }
         }
+
+        return EventResult.pass();
     }
 
+    /**
+     * Handles mouse press events to trigger tool actions (Primary/Secondary).
+     * Prevents tool usage if a GUI screen is currently active.
+     *
+     * @param event The mouse press event data.
+     * @return The result of the event handling.
+     */
     private static EventResult onMousePress(VxMouseEvent.Press event) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.screen != null) return EventResult.pass();
+
+        // Prevent tool usage if a screen is open or player is null
+        if (minecraft.player == null || minecraft.screen != null) {
+            return EventResult.pass();
+        }
 
         Item heldItem = minecraft.player.getMainHandItem().getItem();
-        if (VxToolRegistry.get(heldItem) == null) return EventResult.pass();
+        if (VxToolRegistry.get(heldItem) == null) {
+            return EventResult.pass();
+        }
 
-        // Map mouse buttons to actions
+        // Map mouse buttons to tool action states
         VxToolMode.ActionState action = VxToolMode.ActionState.IDLE;
-        
+
         if (event.getAction() == GLFW.GLFW_PRESS) {
             if (event.getButton() == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
                 action = VxToolMode.ActionState.PRIMARY_ACTIVE;
@@ -63,9 +100,9 @@ public class VxToolClientEvents {
             action = VxToolMode.ActionState.IDLE;
         }
 
+        // If an action was determined, send it to the server and consume the event
         if (action != VxToolMode.ActionState.IDLE || event.getAction() == GLFW.GLFW_RELEASE) {
             VxPacketHandler.sendToServer(new VxToolActionPacket(action));
-            // Interrupt to prevent vanilla usage
             return EventResult.interruptFalse();
         }
 

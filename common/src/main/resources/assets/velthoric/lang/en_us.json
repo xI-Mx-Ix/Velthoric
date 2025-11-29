@@ -4,5 +4,7 @@
   "item.velthoric.box_launcher": "Box Launcher",
   "item.velthoric.magnetizer": "Magnetizer",
   "item.velthoric.chain_creator": "Chain Creator",
-  "item.velthoric.ragdoll_launcher": "Ragdoll Launcher"
+  "item.velthoric.ragdoll_launcher": "Ragdoll Launcher",
+  "key.velthoric.tool_config": "Open Tool Config",
+  "category.velthoric": "Velthoric"
 }
