@@ -2,22 +2,22 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.item.magnetizer;
+package net.xmx.velthoric.item.ragdolllauncher;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 
 /**
- * The Magnetizer item.
+ * The Ragdoll Launcher item.
  * <p>
- * Logic is handled by {@link VxMagnetizerMode}.
+ * Logic is handled by {@link VxRagdollLauncherMode}.
  *
  * @author xI-Mx-Ix
  */
-public class VxMagnetizerItem extends Item {
+public class VxRagdollLauncherItem extends Item {
 
-    public VxMagnetizerItem() {
+    public VxRagdollLauncherItem() {
         super(new Properties().stacksTo(1).rarity(Rarity.EPIC));
     }
 
