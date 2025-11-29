@@ -18,7 +18,7 @@ import net.minecraft.world.item.Rarity;
 public class VxBoxLauncherItem extends Item {
 
     public VxBoxLauncherItem() {
-        super(new Properties().stacksTo(1).rarity(Rarity.RARE));
+        super(new Properties().stacksTo(1).rarity(Rarity.EPIC));
     }
 
     @Override
