@@ -25,13 +25,28 @@ public class VxToolProperty<T> {
         this.type = type;
     }
 
-    public String getName() { return name; }
-    public T getValue() { return value; }
+    public String getName() {
+        return name;
+    }
+
+    public T getValue() {
+        return value;
+    }
     
     @SuppressWarnings("unchecked")
-    public void setValue(Object value) { this.value = (T) value; }
+    public void setValue(Object value) {
+        this.value = (T) value;
+    }
     
-    public Number getMin() { return min; }
-    public Number getMax() { return max; }
-    public Class<T> getType() { return type; }
+    public Number getMin() {
+        return min;
+    }
+
+    public Number getMax() {
+        return max;
+    }
+
+    public Class<T> getType() {
+        return type;
+    }
 }
