@@ -16,7 +16,7 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
  * The logic implementation for the Ragdoll Launcher tool.
  * <p>
  * This mode spawns complex humanoid ragdoll structures and launches them
- * in the direction the player is looking.
+ * directly towards the point the player is looking at.
  *
  * @author xI-Mx-Ix
  */
@@ -30,7 +30,7 @@ public class VxRagdollLauncherMode extends VxToolMode {
 
     @Override
     public void onServerTick(ServerPlayer player, VxToolConfig config, ActionState state) {
-        // Only launch on primary fire
+        // Execute launch logic only when the primary action is active
         if (state != ActionState.PRIMARY_ACTIVE) {
             return;
         }
@@ -44,7 +44,7 @@ public class VxRagdollLauncherMode extends VxToolMode {
         int count = config.getInt("Count Per Tick");
 
         physicsWorld.execute(() -> {
-            // Create a manager instance for this batch
+            // Instantiate the manager to handle physics body creation
             VxRagdollManager ragdollManager = new VxRagdollManager(physicsWorld);
 
             for (int i = 0; i < count; i++) {
@@ -54,21 +54,27 @@ public class VxRagdollLauncherMode extends VxToolMode {
     }
 
     /**
-     * Spawns a single ragdoll and applies velocity.
+     * Calculates the exact spawn position and velocity vector based on the player's
+     * camera orientation and delegates the creation to the manager.
      *
      * @param player         The player launching the ragdoll.
      * @param ragdollManager The manager handling ragdoll creation.
-     * @param speed          The speed to launch at.
+     * @param speed          The magnitude of the launch velocity.
      */
     private void spawnAndLaunchRagdoll(ServerPlayer player, VxRagdollManager ragdollManager, float speed) {
+        // Retrieve the precise eye position and look vector from the player
         net.minecraft.world.phys.Vec3 eyePos = player.getEyePosition();
         net.minecraft.world.phys.Vec3 lookVec = player.getLookAngle();
 
-        // Calculate spawn position slightly in front of the player to avoid clipping
+        // Calculate a spawn position slightly in front of the camera to prevent self-collision.
+        // Scaling the look vector ensures the spawn point aligns with the crosshair.
         net.minecraft.world.phys.Vec3 spawnPosMc = eyePos.add(lookVec.scale(2.0f));
+
+        // Convert Minecraft coordinates to Jolt physics coordinates (Double precision)
         RVec3 joltSpawnPos = new RVec3((float) spawnPosMc.x, (float) spawnPosMc.y, (float) spawnPosMc.z);
 
-        // Calculate velocity vector based on look direction
+        // create the velocity vector directly from the look vector.
+        // This ensures the ragdoll travels in the exact direction the camera is facing (including pitch).
         Vec3 joltVelocity = new Vec3(
                 (float) lookVec.x,
                 (float) lookVec.y,
@@ -76,7 +82,7 @@ public class VxRagdollLauncherMode extends VxToolMode {
         );
         joltVelocity.scaleInPlace(speed);
 
-        // Delegate the actual creation and launching to the ragdoll manager
+        // Launch the ragdoll with the calculated position and velocity
         ragdollManager.launchHumanoidRagdoll(player, joltSpawnPos, joltVelocity);
     }
 }
