@@ -16,6 +16,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.physics.body.manager.chunk.VxChunkUtil;
 import net.xmx.velthoric.physics.body.packet.VxSpawnData;
 import net.xmx.velthoric.physics.body.packet.batch.*;
 import net.xmx.velthoric.physics.body.type.VxBody;
@@ -340,9 +341,9 @@ public class VxNetworkDispatcher {
     /**
      * Called by the BodyManager when a body is added to the world.
      * <p>
-     * This method iterates over all players on the server and checks their {@code ChunkTrackingView}.
-     * This ensures that players who are waiting for a chunk (pending state) are correctly identified
-     * as trackers, preventing the body from being ignored during the initial spawn phase.
+     * This method iterates over all players on the server and checks if the body's chunk
+     * is within their calculated view distance. This works regardless of whether the chunk
+     * is currently loaded, pending, or sent, ensuring no race conditions occur during tracking.
      *
      * @param body The physics body that was added.
      */
@@ -352,10 +353,8 @@ public class VxNetworkDispatcher {
         ChunkPos bodyChunk = manager.getBodyChunkPos(index);
 
         // Iterate over all players to find who should see this body.
-        // Checking the ChunkTrackingView is the source of truth for "intent to see",
-        // covering both loaded chunks and chunks currently in the pending queue.
         for (ServerPlayer player : this.level.players()) {
-            if (player.getChunkTrackingView().contains(bodyChunk.x, bodyChunk.z)) {
+            if (VxChunkUtil.isPlayerWatchingChunk(player, bodyChunk)) {
                 trackBodyForPlayer(player, body);
             }
         }
@@ -380,8 +379,7 @@ public class VxNetworkDispatcher {
      * Called by the VxChunkMap when a body has moved across a chunk boundary.
      * <p>
      * This method determines which players need to start or stop tracking the body based on
-     * the visibility of the 'from' and 'to' chunks in their tracking view. This handles
-     * cases where players are moving fast or chunks are pending.
+     * the calculated visibility of the 'from' and 'to' chunks relative to the player's position.
      *
      * @param body The body that moved.
      * @param from The chunk the body moved from.
@@ -392,10 +390,10 @@ public class VxNetworkDispatcher {
 
         int networkId = body.getNetworkId();
 
-        // Iterate all players to handle tracking updates based on their view.
+        // Iterate all players to handle tracking updates based on their view distance.
         for (ServerPlayer player : this.level.players()) {
-            boolean seesTo = player.getChunkTrackingView().contains(to.x, to.z);
-            boolean seesFrom = player.getChunkTrackingView().contains(from.x, from.z);
+            boolean seesTo = VxChunkUtil.isPlayerWatchingChunk(player, to);
+            boolean seesFrom = VxChunkUtil.isPlayerWatchingChunk(player, from);
 
             if (seesTo && !seesFrom) {
                 // Player entered range: Start tracking.
