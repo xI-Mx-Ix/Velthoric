@@ -142,4 +142,56 @@ public class VxRagdollManager {
             constraintManager.createConstraint(settings, torso.getPhysicsId(), limb.getPhysicsId());
         }
     }
+
+    /**
+     * Creates a humanoid ragdoll and applies an initial linear velocity to all its parts.
+     * Useful for launching ragdolls from items or explosions.
+     *
+     * @param entity The entity to create a ragdoll from.
+     * @param spawnPosition The world position where the ragdoll should be spawned.
+     * @param initialVelocity The initial velocity to apply to every body part.
+     */
+    public void launchHumanoidRagdoll(LivingEntity entity, RVec3 spawnPosition, Vec3 initialVelocity) {
+        world.execute(() -> {
+            VxTransform initialTransform = new VxTransform(
+                    spawnPosition,
+                    Quat.sEulerAngles(0, entity.getYRot() * ((float)Math.PI / 180f), 0)
+            );
+
+            String skinId = (entity instanceof Player) ? entity.getUUID().toString() : "";
+            Map<VxBodyPart, VxBodyPartRigidBody> parts = new EnumMap<>(VxBodyPart.class);
+
+            // Create all body parts
+            for (VxBodyPart partType : VxBodyPart.values()) {
+                VxBodyPartRigidBody partBody = createBodyPart(partType, initialTransform, skinId);
+                parts.put(partType, partBody);
+            }
+
+            // Apply the initial velocity to all created parts
+            if (initialVelocity.lengthSq() > 0.0001f) {
+                BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
+                for (VxBodyPartRigidBody part : parts.values()) {
+                    if (part != null) {
+                        bodyInterface.setLinearVelocity(part.getBodyId(), initialVelocity);
+                        bodyInterface.activateBody(part.getBodyId());
+                    }
+                }
+            }
+
+            VxBodyPartRigidBody torso = parts.get(VxBodyPart.TORSO);
+            if (torso == null) return;
+
+            // Connect joints with specific limits for ragdoll movement
+            createSwingTwistJoint(torso, parts.get(VxBodyPart.HEAD), VxBodyPart.HEAD, 80f, 120f, 80f);
+
+            // Arms
+            createSwingTwistJoint(torso, parts.get(VxBodyPart.LEFT_ARM), VxBodyPart.LEFT_ARM, 120f, 175f, 175f);
+            createSwingTwistJoint(torso, parts.get(VxBodyPart.RIGHT_ARM), VxBodyPart.RIGHT_ARM, 120f, 175f, 175f);
+
+            // Legs
+            createSwingTwistJoint(torso, parts.get(VxBodyPart.LEFT_LEG), VxBodyPart.LEFT_LEG, 80f, 140f, 100f);
+            createSwingTwistJoint(torso, parts.get(VxBodyPart.RIGHT_LEG), VxBodyPart.RIGHT_LEG, 80f, 140f, 100f);
+        });
+    }
+
 }

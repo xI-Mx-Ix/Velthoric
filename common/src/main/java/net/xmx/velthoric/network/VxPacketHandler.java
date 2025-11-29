@@ -17,11 +17,11 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.xmx.velthoric.item.boxthrower.packet.VxBoxThrowerActionPacket;
 import net.xmx.velthoric.item.chaincreator.packet.VxChainCreatorActionPacket;
-import net.xmx.velthoric.item.magnetizer.packet.VxMagnetizerActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunSyncPacket;
+import net.xmx.velthoric.item.tool.packet.VxToolActionPacket;
+import net.xmx.velthoric.item.tool.packet.VxToolConfigPacket;
 import net.xmx.velthoric.physics.body.packet.batch.*;
 import net.xmx.velthoric.physics.mounting.input.C2SMountInputPacket;
 import net.xmx.velthoric.physics.mounting.request.C2SRequestMountPacket;
@@ -153,15 +153,6 @@ public class VxPacketHandler {
         );
 
         registerPacket(
-                VxMagnetizerActionPacket.class,
-                "magnetizer_action",
-                VxMagnetizerActionPacket::encode,
-                VxMagnetizerActionPacket::decode,
-                VxMagnetizerActionPacket::handle,
-                NetworkManager.Side.C2S
-        );
-
-        registerPacket(
                 VxPhysicsGunActionPacket.class,
                 "physics_gun_action",
                 VxPhysicsGunActionPacket::encode,
@@ -171,11 +162,20 @@ public class VxPacketHandler {
         );
 
         registerPacket(
-                VxBoxThrowerActionPacket.class,
-                "box_thrower_action",
-                VxBoxThrowerActionPacket::encode,
-                VxBoxThrowerActionPacket::decode,
-                VxBoxThrowerActionPacket::handle,
+                VxToolActionPacket.class,
+                "tool_action",
+                VxToolActionPacket::encode,
+                VxToolActionPacket::decode,
+                VxToolActionPacket::handle,
+                NetworkManager.Side.C2S
+        );
+
+        registerPacket(
+                VxToolConfigPacket.class,
+                "tool_config",
+                VxToolConfigPacket::encode,
+                VxToolConfigPacket::decode,
+                VxToolConfigPacket::handle,
                 NetworkManager.Side.C2S
         );
 

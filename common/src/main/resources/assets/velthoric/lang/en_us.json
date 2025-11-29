@@ -1,7 +1,8 @@
 {
   "item.velthoric.physics_creator": "Physics Creator",
   "item.velthoric.physics_gun": "Physics Gun",
-  "item.velthoric.box_thrower": "Box Thrower",
+  "item.velthoric.box_launcher": "Box Launcher",
   "item.velthoric.magnetizer": "Magnetizer",
-  "item.velthoric.chain_creator": "Chain Creator"
+  "item.velthoric.chain_creator": "Chain Creator",
+  "item.velthoric.ragdoll_launcher": "Ragdoll Launcher"
 }
