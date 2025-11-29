@@ -9,6 +9,7 @@ import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
@@ -27,9 +28,10 @@ import java.util.concurrent.Executors;
 
 /**
  * Manages network synchronization of physics bodies.
- * This class handles which bodies are visible to each player and sends spawn,
- * removal, and state update packets. It uses a dedicated thread for state
- * synchronization to offload work from the main server thread.
+ * <p>
+ * This class handles the visibility of physics bodies for players, manages the lifecycle of
+ * spawn and removal packets, and synchronizes state updates (transform, velocity, custom data).
+ * It utilizes a dedicated thread for state synchronization to offload work from the main server thread.
  *
  * @author xI-Mx-Ix
  */
@@ -48,21 +50,44 @@ public class VxNetworkDispatcher {
     private static final int MAX_REMOVALS_PER_PACKET = 512;
 
     // --- Player tracking data structures ---
-    // Maps a player's UUID to a set of primitive network IDs of the bodies they are tracking.
-    // Using IntSet avoids Integer object allocation (autoboxing).
+
+    /**
+     * Maps a player's UUID to a set of primitive network IDs of the bodies they are tracking.
+     * Using IntSet avoids Integer object allocation (autoboxing).
+     */
     private final Map<UUID, IntSet> playerTrackedBodies = new ConcurrentHashMap<>();
 
-    // Maps a primitive network ID to the set of players tracking that body.
-    // This is the core optimization: Int2ObjectMap avoids autoboxing the networkId on every lookup.
+    /**
+     * Maps a primitive network ID to the set of players tracking that body.
+     * This allows efficient broadcasting of updates to specific observers.
+     */
     private final Int2ObjectMap<Set<ServerPlayer>> bodyTrackers = Int2ObjectMaps.synchronize(new Int2ObjectOpenHashMap<>());
 
-    private final Map<ServerPlayer, ObjectArrayList<VxSpawnData>> pendingSpawns = new HashMap<>();
+    /**
+     * Stores the list of bodies that need to be spawned for a player.
+     * <p>
+     * We store the {@link VxBody} reference directly instead of pre-calculating {@link VxSpawnData}.
+     * This ensures that if the body moves while the chunk is pending (waiting to be sent to the client),
+     * the spawn packet we eventually send will contain the <b>current</b> position, not the old one.
+     */
+    private final Map<ServerPlayer, ObjectArrayList<VxBody>> pendingSpawns = new HashMap<>();
+
+    /**
+     * Stores the list of network IDs that need to be removed for a player.
+     */
     private final Map<ServerPlayer, IntArrayList> pendingRemovals = new HashMap<>();
+
     private ExecutorService networkSyncExecutor;
 
     // A reusable buffer for the network thread to avoid allocations in tight loops.
     private static final ThreadLocal<VxByteBuf> THREAD_LOCAL_BYTE_BUF = ThreadLocal.withInitial(() -> new VxByteBuf(Unpooled.buffer(1024)));
 
+    /**
+     * Constructs a new network dispatcher.
+     *
+     * @param level   The server level.
+     * @param manager The body manager.
+     */
     public VxNetworkDispatcher(ServerLevel level, VxBodyManager manager) {
         this.level = level;
         this.manager = manager;
@@ -72,6 +97,7 @@ public class VxNetworkDispatcher {
 
     /**
      * Retrieves the body manager associated with this dispatcher.
+     *
      * @return The {@link VxBodyManager} instance.
      */
     public VxBodyManager getManager() {
@@ -166,7 +192,7 @@ public class VxNetworkDispatcher {
      * Groups a list of dirty body indices by the players who are tracking them.
      *
      * @param dirtyIndices    A list of indices from the data store that are marked as dirty.
-     * @param updatesByPlayer A map to populate, where each player is mapped to a list of dirty indices they should be updated about.
+     * @param updatesByPlayer A map to populate, where each player is mapped to a list of dirty indices.
      */
     private void groupUpdatesByPlayer(IntArrayList dirtyIndices, Map<ServerPlayer, IntArrayList> updatesByPlayer) {
         for (int dirtyIndex : dirtyIndices) {
@@ -190,9 +216,7 @@ public class VxNetworkDispatcher {
      * @param indices The list of data store indices for the bodies to be updated.
      */
     private void sendBodyStatePackets(ServerPlayer player, IntArrayList indices) {
-        if (indices.isEmpty()) {
-            return;
-        }
+        if (indices.isEmpty()) return;
 
         int[] networkIds = new int[MAX_STATES_PER_PACKET];
         long[] timestamps = new long[MAX_STATES_PER_PACKET];
@@ -242,9 +266,7 @@ public class VxNetworkDispatcher {
      * @param indices The list of data store indices for the bodies whose vertex data has changed.
      */
     private void sendVertexDataPackets(ServerPlayer player, IntArrayList indices) {
-        if (indices.isEmpty()) {
-            return;
-        }
+        if (indices.isEmpty()) return;
 
         for (int i = 0; i < indices.size(); i += MAX_VERTICES_PER_PACKET) {
             int end = Math.min(i + MAX_VERTICES_PER_PACKET, indices.size());
@@ -282,9 +304,7 @@ public class VxNetworkDispatcher {
             }
         }
 
-        if (dirtyDataIndices.isEmpty()) {
-            return;
-        }
+        if (dirtyDataIndices.isEmpty()) return;
 
         Map<ServerPlayer, Map<Integer, byte[]>> updatesByPlayer = new Object2ObjectOpenHashMap<>();
         VxByteBuf buffer = THREAD_LOCAL_BYTE_BUF.get(); // Use thread-local buffer
@@ -319,25 +339,35 @@ public class VxNetworkDispatcher {
 
     /**
      * Called by the BodyManager when a body is added to the world.
-     * It checks for any players who should be tracking this new body and sends spawn packets.
+     * <p>
+     * This method iterates over all players on the server and checks their {@code ChunkTrackingView}.
+     * This ensures that players who are waiting for a chunk (pending state) are correctly identified
+     * as trackers, preventing the body from being ignored during the initial spawn phase.
+     *
      * @param body The physics body that was added.
      */
     public void onBodyAdded(VxBody body) {
         int index = body.getDataStoreIndex();
         if (index == -1) return;
         ChunkPos bodyChunk = manager.getBodyChunkPos(index);
-        for (ServerPlayer player : this.level.getChunkSource().chunkMap.getPlayers(bodyChunk, false)) {
-            trackBodyForPlayer(player, body);
+
+        // Iterate over all players to find who should see this body.
+        // Checking the ChunkTrackingView is the source of truth for "intent to see",
+        // covering both loaded chunks and chunks currently in the pending queue.
+        for (ServerPlayer player : this.level.players()) {
+            if (player.getChunkTrackingView().contains(bodyChunk.x, bodyChunk.z)) {
+                trackBodyForPlayer(player, body);
+            }
         }
     }
 
     /**
      * Called by the BodyManager when a body is removed from the physics world.
      * It ensures that all players who were tracking the body receive a removal packet.
+     *
      * @param body The physics body that was removed.
      */
     public void onBodyRemoved(VxBody body) {
-        // The get() call on an Int2ObjectMap is free of autoboxing.
         Set<ServerPlayer> trackers = bodyTrackers.get(body.getNetworkId());
         if (trackers != null) {
             for (ServerPlayer player : new ArrayList<>(trackers)) {
@@ -348,30 +378,31 @@ public class VxNetworkDispatcher {
 
     /**
      * Called by the VxChunkMap when a body has moved across a chunk boundary.
-     * This method determines which players need to start or stop tracking the body
-     * based on the visibility of the 'from' and 'to' chunks.
+     * <p>
+     * This method determines which players need to start or stop tracking the body based on
+     * the visibility of the 'from' and 'to' chunks in their tracking view. This handles
+     * cases where players are moving fast or chunks are pending.
      *
      * @param body The body that moved.
      * @param from The chunk the body moved from.
-     * @param to The chunk the body moved to.
+     * @param to   The chunk the body moved to.
      */
     public void onBodyMoved(VxBody body, ChunkPos from, ChunkPos to) {
-        if (from.equals(to)) {
-            return;
-        }
+        if (from.equals(to)) return;
 
-        Set<ServerPlayer> playersTrackingFrom = new HashSet<>(this.level.getChunkSource().chunkMap.getPlayers(from, false));
-        Set<ServerPlayer> playersTrackingTo = new HashSet<>(this.level.getChunkSource().chunkMap.getPlayers(to, false));
+        int networkId = body.getNetworkId();
 
-        for (ServerPlayer player : playersTrackingTo) {
-            if (!playersTrackingFrom.contains(player)) {
+        // Iterate all players to handle tracking updates based on their view.
+        for (ServerPlayer player : this.level.players()) {
+            boolean seesTo = player.getChunkTrackingView().contains(to.x, to.z);
+            boolean seesFrom = player.getChunkTrackingView().contains(from.x, from.z);
+
+            if (seesTo && !seesFrom) {
+                // Player entered range: Start tracking.
                 trackBodyForPlayer(player, body);
-            }
-        }
-
-        for (ServerPlayer player : playersTrackingFrom) {
-            if (!playersTrackingTo.contains(player)) {
-                untrackBodyForPlayer(player, body.getNetworkId());
+            } else if (!seesTo && seesFrom) {
+                // Player left range: Stop tracking.
+                untrackBodyForPlayer(player, networkId);
             }
         }
     }
@@ -379,7 +410,8 @@ public class VxNetworkDispatcher {
     /**
      * Called by a mixin when a player starts tracking a new chunk.
      * Queues spawn packets for all physics bodies within that chunk for the player.
-     * @param player The player who started tracking the chunk.
+     *
+     * @param player   The player who started tracking the chunk.
      * @param chunkPos The position of the newly tracked chunk.
      */
     public void trackBodiesInChunkForPlayer(ServerPlayer player, ChunkPos chunkPos) {
@@ -391,7 +423,8 @@ public class VxNetworkDispatcher {
     /**
      * Called by a mixin when a player stops tracking a chunk.
      * Queues removal packets for all physics bodies within that chunk for the player.
-     * @param player The player who stopped tracking the chunk.
+     *
+     * @param player   The player who stopped tracking the chunk.
      * @param chunkPos The position of the untracked chunk.
      */
     public void untrackBodiesInChunkForPlayer(ServerPlayer player, ChunkPos chunkPos) {
@@ -402,15 +435,15 @@ public class VxNetworkDispatcher {
 
     /**
      * Instructs the dispatcher to track a physics body for a player.
-     * This method updates tracking data structures and queues a spawn packet. It atomically
-     * handles cases where a 'remove' request for the same body is already pending,
+     * <p>
+     * This method updates tracking data structures and queues the body for spawning.
+     * It atomically handles cases where a 'remove' request for the same body is already pending,
      * cancelling them out to prevent redundant network traffic.
      *
      * @param player The player who will start tracking the body.
      * @param body   The body to be tracked.
      */
     public void trackBodyForPlayer(ServerPlayer player, VxBody body) {
-        // Use a synchronized IntOpenHashSet to store primitive ints, avoiding autoboxing.
         IntSet trackedByPlayer = playerTrackedBodies.computeIfAbsent(player.getUUID(), k -> IntSets.synchronize(new IntOpenHashSet()));
         if (trackedByPlayer.add(body.getNetworkId())) {
             // computeIfAbsent on an Int2ObjectMap is free of autoboxing.
@@ -421,25 +454,25 @@ public class VxNetworkDispatcher {
                 if (removals != null && removals.rem(body.getNetworkId())) {
                     return; // The spawn cancels out the pending removal.
                 }
-                pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>())
-                        .add(new VxSpawnData(body, System.nanoTime()));
+                // Store the body object directly. We will create the VxSpawnData later.
+                pendingSpawns.computeIfAbsent(player, k -> new ObjectArrayList<>()).add(body);
             }
         }
     }
 
     /**
      * Instructs the dispatcher to stop tracking a physics body for a player.
-     * This method updates tracking data structures and queues a removal packet. It atomically
-     * handles cases where a 'spawn' request is already pending, cancelling them out
+     * <p>
+     * This method updates tracking data structures and queues a removal packet.
+     * It atomically handles cases where a 'spawn' request is already pending, cancelling them out
      * to prevent a body from being spawned and immediately removed on the client.
      *
-     * @param player The player who will stop tracking the body.
+     * @param player    The player who will stop tracking the body.
      * @param networkId The network ID of the body to stop tracking.
      */
     public void untrackBodyForPlayer(ServerPlayer player, int networkId) {
         IntSet trackedByPlayer = playerTrackedBodies.get(player.getUUID());
         if (trackedByPlayer != null && trackedByPlayer.remove(networkId)) {
-            // All map operations now use a primitive int key, avoiding autoboxing.
             Set<ServerPlayer> trackers = bodyTrackers.get(networkId);
             if (trackers != null) {
                 trackers.remove(player);
@@ -448,9 +481,9 @@ public class VxNetworkDispatcher {
                 }
             }
             synchronized (pendingSpawns) {
-                ObjectArrayList<VxSpawnData> spawns = pendingSpawns.get(player);
-                // The check and removal from the pending spawns list is an important optimization.
-                if (spawns != null && spawns.removeIf(spawnData -> spawnData.networkId == networkId)) {
+                ObjectArrayList<VxBody> spawns = pendingSpawns.get(player);
+                // Remove the body from the pending list by checking its network ID
+                if (spawns != null && spawns.removeIf(b -> b.getNetworkId() == networkId)) {
                     return; // The removal cancels out the pending spawn.
                 }
                 pendingRemovals.computeIfAbsent(player, k -> new IntArrayList()).add(networkId);
@@ -460,14 +493,13 @@ public class VxNetworkDispatcher {
 
     /**
      * Handles a player disconnecting. Cleans up all associated tracking data.
-     * This method is called by a mixin when a player leaves the server.
+     *
      * @param player The player who disconnected.
      */
     public void onPlayerDisconnect(ServerPlayer player) {
         UUID playerId = player.getUUID();
         IntSet trackedBodies = playerTrackedBodies.remove(playerId);
         if (trackedBodies != null) {
-            // Use an iterator to process the primitive ints without creating Integer objects.
             final IntIterator iterator = trackedBodies.iterator();
             while (iterator.hasNext()) {
                 int networkId = iterator.nextInt();
@@ -488,51 +520,114 @@ public class VxNetworkDispatcher {
 
     /**
      * Processes the queue of pending body removals for all players.
-     * This method is called on the main server thread. It sends batched removal packets to clients.
+     * <p>
+     * This method iterates through the pending removals map, batches the IDs into packets,
+     * and sends them to the respective players. It uses an iterator to clear the map efficiently.
      */
     private void processPendingRemovals() {
         if (pendingRemovals.isEmpty()) return;
+
         synchronized (pendingRemovals) {
-            pendingRemovals.forEach((player, removalList) -> {
+            Iterator<Map.Entry<ServerPlayer, IntArrayList>> iterator = pendingRemovals.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<ServerPlayer, IntArrayList> entry = iterator.next();
+                ServerPlayer player = entry.getKey();
+                IntArrayList removalList = entry.getValue();
+
                 if (!removalList.isEmpty()) {
                     for (int i = 0; i < removalList.size(); i += MAX_REMOVALS_PER_PACKET) {
                         int end = Math.min(i + MAX_REMOVALS_PER_PACKET, removalList.size());
                         VxPacketHandler.sendToPlayer(new S2CRemoveBodyBatchPacket(removalList.subList(i, end)), player);
                     }
                 }
-            });
-            pendingRemovals.clear();
+                iterator.remove();
+            }
         }
     }
 
     /**
      * Processes the queue of pending body spawns for all players.
-     * This method is called on the main server thread. It creates and sends batched spawn packets,
-     * respecting the maximum packet payload size to avoid network issues.
+     * <p>
+     * This method acts as a gatekeeper. It checks if the chunk containing the body has
+     * actually been sent to the player (via the vanilla ChunkMap). If the chunk is fully sent,
+     * the spawn packet is created and dispatched. If the chunk is still pending (throttled),
+     * the spawn request remains in the queue for the next tick.
      */
     private void processPendingSpawns() {
         if (pendingSpawns.isEmpty()) return;
+
         synchronized (pendingSpawns) {
-            pendingSpawns.forEach((player, spawnDataList) -> {
-                if (!spawnDataList.isEmpty()) {
-                    ObjectArrayList<VxSpawnData> batch = new ObjectArrayList<>();
-                    int currentBatchSizeBytes = 0;
-                    for (VxSpawnData data : spawnDataList) {
-                        int dataSize = data.estimateSize();
-                        if (!batch.isEmpty() && currentBatchSizeBytes + dataSize > MAX_PACKET_PAYLOAD_SIZE) {
-                            VxPacketHandler.sendToPlayer(new S2CSpawnBodyBatchPacket(batch), player);
-                            batch.clear();
-                            currentBatchSizeBytes = 0;
-                        }
-                        batch.add(data);
-                        currentBatchSizeBytes += dataSize;
-                    }
-                    if (!batch.isEmpty()) {
-                        VxPacketHandler.sendToPlayer(new S2CSpawnBodyBatchPacket(batch), player);
+            Iterator<Map.Entry<ServerPlayer, ObjectArrayList<VxBody>>> it = pendingSpawns.entrySet().iterator();
+            ChunkMap chunkMap = this.level.getChunkSource().chunkMap;
+
+            while (it.hasNext()) {
+                Map.Entry<ServerPlayer, ObjectArrayList<VxBody>> entry = it.next();
+                ServerPlayer player = entry.getKey();
+                ObjectArrayList<VxBody> allBodies = entry.getValue();
+
+                if (allBodies.isEmpty()) {
+                    it.remove();
+                    continue;
+                }
+
+                ObjectArrayList<VxSpawnData> toSend = new ObjectArrayList<>();
+                ObjectArrayList<VxBody> toKeep = new ObjectArrayList<>();
+
+                for (VxBody body : allBodies) {
+                    // Check if the body is still valid/active
+                    if (body.getDataStoreIndex() == -1) continue;
+
+                    ChunkPos chunkPos = manager.getBodyChunkPos(body.getDataStoreIndex());
+
+                    // Check if the player actually has the chunk loaded and SENT.
+                    // chunkMap.getPlayers(pos, false) returns the list of players who have the chunk
+                    // AND for whom the chunk is NOT pending send (not in the bandwidth throttling queue).
+                    if (chunkMap.getPlayers(chunkPos, false).contains(player)) {
+                        // Chunk is ready, create spawn data with current timestamp and position
+                        toSend.add(new VxSpawnData(body, System.nanoTime()));
+                    } else {
+                        // Chunk is not ready on client yet, defer this spawn to the next tick
+                        toKeep.add(body);
                     }
                 }
-            });
-            pendingSpawns.clear();
+
+                // Send the batch of bodies for chunks that are ready
+                if (!toSend.isEmpty()) {
+                    sendSpawnBatch(player, toSend);
+                }
+
+                // Update the map: remove entry if empty, otherwise keep deferred spawns
+                if (toKeep.isEmpty()) {
+                    it.remove();
+                } else {
+                    entry.setValue(toKeep);
+                }
+            }
+        }
+    }
+
+    /**
+     * Helper method to batch and send spawn packets.
+     *
+     * @param player        The player to send the packets to.
+     * @param spawnDataList The list of spawn data objects to send.
+     */
+    private void sendSpawnBatch(ServerPlayer player, ObjectArrayList<VxSpawnData> spawnDataList) {
+        ObjectArrayList<VxSpawnData> batch = new ObjectArrayList<>();
+        int currentBatchSizeBytes = 0;
+        for (VxSpawnData data : spawnDataList) {
+            int dataSize = data.estimateSize();
+            // Respect the maximum packet payload size to avoid network disconnection
+            if (!batch.isEmpty() && currentBatchSizeBytes + dataSize > MAX_PACKET_PAYLOAD_SIZE) {
+                VxPacketHandler.sendToPlayer(new S2CSpawnBodyBatchPacket(batch), player);
+                batch.clear();
+                currentBatchSizeBytes = 0;
+            }
+            batch.add(data);
+            currentBatchSizeBytes += dataSize;
+        }
+        if (!batch.isEmpty()) {
+            VxPacketHandler.sendToPlayer(new S2CSpawnBodyBatchPacket(batch), player);
         }
     }
 }
