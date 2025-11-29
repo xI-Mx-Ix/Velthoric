@@ -7,8 +7,6 @@ package net.xmx.velthoric.init;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.debug.VxF3ScreenAddition;
-import net.xmx.velthoric.item.chaincreator.event.VxChainCreatorClientEvents;
-import net.xmx.velthoric.item.chaincreator.event.VxChainCreatorEvents;
 import net.xmx.velthoric.item.physicsgun.beam.VxPhysicsGunBeamRenderer;
 import net.xmx.velthoric.item.physicsgun.event.VxPhysicsGunClientEvents;
 import net.xmx.velthoric.item.physicsgun.event.VxPhysicsGunEvents;
@@ -27,7 +25,6 @@ public class RegisterEvents {
     public static void register() {
         VxLifecycleEvents.registerEvents();
         VxPhysicsGunEvents.registerEvents();
-        VxChainCreatorEvents.registerEvents();
         VxToolEvents.registerEvents();
     }
 
@@ -38,7 +35,6 @@ public class RegisterEvents {
         VxF3ScreenAddition.registerEvents();
         VxPhysicsRenderer.registerEvents();
         VxPhysicsGunBeamRenderer.registerEvents();
-        VxChainCreatorClientEvents.registerEvents();
         VxPhysicsGunClientEvents.registerEvents();
         VxToolClientEvents.registerEvents();
     }

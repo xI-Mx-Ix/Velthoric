@@ -15,7 +15,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.xmx.velthoric.item.chaincreator.packet.VxChainCreatorActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunSyncPacket;
 import net.xmx.velthoric.item.tool.packet.VxToolActionPacket;
@@ -92,14 +91,6 @@ public class VxPacketHandler {
      * This method must be called during mod initialization.
      */
     public static void register() {
-        registerPacket(
-                VxChainCreatorActionPacket.class,
-                "chain_creator_action",
-                VxChainCreatorActionPacket::encode,
-                VxChainCreatorActionPacket::decode,
-                VxChainCreatorActionPacket::handle
-        );
-
         registerPacket(
                 C2SRequestMountPacket.class,
                 "request_mount",

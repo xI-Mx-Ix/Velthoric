@@ -10,6 +10,7 @@ import net.xmx.velthoric.item.VxPhysicsCreatorItem;
 import net.xmx.velthoric.item.boxlauncher.VxBoxLauncherItem;
 import net.xmx.velthoric.item.boxlauncher.VxBoxLauncherMode;
 import net.xmx.velthoric.item.chaincreator.VxChainCreatorItem;
+import net.xmx.velthoric.item.chaincreator.VxChainCreatorMode;
 import net.xmx.velthoric.item.magnetizer.VxMagnetizerItem;
 import net.xmx.velthoric.item.magnetizer.VxMagnetizerMode;
 import net.xmx.velthoric.item.physicsgun.VxPhysicsGunItem;
@@ -36,5 +37,6 @@ public class ItemRegistry {
         VxToolRegistry.register(ItemRegistry.BOX_LAUNCHER.get(), new VxBoxLauncherMode());
         VxToolRegistry.register(ItemRegistry.MAGNETIZER.get(), new VxMagnetizerMode());
         VxToolRegistry.register(ItemRegistry.RAGDOLL_LAUNCHER.get(), new VxRagdollLauncherMode());
+        VxToolRegistry.register(ItemRegistry.CHAIN_CREATOR.get(), new VxChainCreatorMode());
     }
 }

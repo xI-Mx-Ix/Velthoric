@@ -14,7 +14,8 @@ import net.minecraft.world.level.Level;
 
 /**
  * An item used to create physics-based chains between two points in the world.
- * Player input is handled via Mixins and network packets, which trigger server-side logic in the {@link VxChainCreatorManager}.
+ * The logic for this item is implemented in {@link VxChainCreatorMode}
+ * and handled via the Velthoric Tool API.
  *
  * @author xI-Mx-Ix
  */
@@ -25,8 +26,8 @@ public class VxChainCreatorItem extends Item {
     }
 
     /**
-     * This method is called when the player uses the item. Returning 'pass' allows the client
-     * to handle the press and release actions of the mouse button, which are captured by a Mixin.
+     * Returns pass to allow the client-side tool event handlers to process input
+     * without interference from vanilla item usage logic.
      */
     @Override
     public InteractionResultHolder<ItemStack> use(Level pLevel, Player pPlayer, InteractionHand pUsedHand) {
