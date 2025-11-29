@@ -43,23 +43,24 @@ public class VxRagdollManager {
 
     /**
      * Creates a humanoid ragdoll based on the state of a living entity at a specific world position.
-     * The ragdoll is spawned with the entity's orientation but without any initial linear velocity.
-     * This ensures the ragdoll appears "normally" without being launched.
+     * The ragdoll is spawned with the entity's Yaw orientation but remains upright (no Pitch),
+     * suitable for spawning a dead body or a statue.
      *
-     * @param entity The entity to create a ragdoll from.
+     * @param entity        The entity to create a ragdoll from.
      * @param spawnPosition The world position where the ragdoll should be spawned.
      */
     public void createHumanoidRagdoll(LivingEntity entity, RVec3 spawnPosition) {
-        // Delegate to internal method with null velocity to indicate a normal spawn
+        // Pass null for velocity to indicate a static/standing spawn
         world.execute(() -> spawnHumanoidRagdollInternal(entity, spawnPosition, null));
     }
 
     /**
      * Creates a humanoid ragdoll and applies an initial linear velocity to all its parts.
-     * Useful for launching ragdolls from items or explosions.
+     * The ragdoll is oriented to match the entity's full look direction (Yaw and Pitch),
+     * making it suitable for projectile-like launching.
      *
-     * @param entity The entity to create a ragdoll from.
-     * @param spawnPosition The world position where the ragdoll should be spawned.
+     * @param entity          The entity to create a ragdoll from.
+     * @param spawnPosition   The world position where the ragdoll should be spawned.
      * @param initialVelocity The initial velocity to apply to every body part.
      */
     public void launchHumanoidRagdoll(LivingEntity entity, RVec3 spawnPosition, Vec3 initialVelocity) {
@@ -67,33 +68,43 @@ public class VxRagdollManager {
     }
 
     /**
-     * Internal method to handle the common logic of spawning a humanoid ragdoll.
-     * This handles calculating the correct rotation so the ragdoll faces the direction
-     * the entity is looking, creating the body parts, and linking them.
+     * Internal method to handle the creation, orientation, and linking of ragdoll parts.
      *
-     * @param entity The source entity.
-     * @param spawnPosition The spawn location.
-     * @param initialVelocity The optional initial velocity (can be null).
+     * @param entity          The source entity.
+     * @param spawnPosition   The spawn location.
+     * @param initialVelocity The optional initial velocity. If provided, the ragdoll includes Pitch in its rotation.
      */
     private void spawnHumanoidRagdollInternal(LivingEntity entity, RVec3 spawnPosition, @Nullable Vec3 initialVelocity) {
-        // Minecraft Yaw is in degrees and rotates clockwise.
-        // Jolt/Math usually expects counter-clockwise rotation in radians.
-        // We invert the yaw (-yaw) to align the physics rotation with the visual look direction.
+        // Calculate Rotation
+        // Minecraft Yaw rotates clockwise in degrees. Invert for standard counter-clockwise math.
         float rotY = (float) Math.toRadians(-entity.getYRot());
-        Quat rotation = Quat.sRotation(new Vec3(0, 1, 0), rotY);
+        Quat yawRotation = Quat.sRotation(new Vec3(0, 1, 0), rotY);
 
-        VxTransform initialTransform = new VxTransform(spawnPosition, rotation);
+        Quat finalRotation;
+
+        if (initialVelocity != null) {
+            float rotX = (float) Math.toRadians(entity.getXRot());
+
+            Quat pitchRotation = Quat.sRotation(new Vec3(1, 0, 0), rotX);
+
+            // Multiply rotations using Op.star (Yaw * Pitch)
+            finalRotation = Op.star(yawRotation, pitchRotation);
+        } else {
+            finalRotation = yawRotation;
+        }
+
+        VxTransform initialTransform = new VxTransform(spawnPosition, finalRotation);
 
         String skinId = (entity instanceof Player) ? entity.getUUID().toString() : "";
         Map<VxBodyPart, VxBodyPartRigidBody> parts = new EnumMap<>(VxBodyPart.class);
 
-        // Create all body parts
+        // Generate rigid bodies for all defined body parts based on the calculated transform
         for (VxBodyPart partType : VxBodyPart.values()) {
             VxBodyPartRigidBody partBody = createBodyPart(partType, initialTransform, skinId);
             parts.put(partType, partBody);
         }
 
-        // Apply the initial velocity to all created parts if provided
+        // Apply velocity if requested
         if (initialVelocity != null && initialVelocity.lengthSq() > 0.0001f) {
             BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
             for (VxBodyPartRigidBody part : parts.values()) {
@@ -104,13 +115,14 @@ public class VxRagdollManager {
             }
         }
 
+        // Link parts with constraints
         VxBodyPartRigidBody torso = parts.get(VxBodyPart.TORSO);
         if (torso == null) return;
 
-        // Connect joints with specific limits for ragdoll movement
+        // Neck
         createSwingTwistJoint(torso, parts.get(VxBodyPart.HEAD), VxBodyPart.HEAD, 80f, 120f, 80f);
 
-        // Arms - large swing limits for flailing
+        // Arms - High freedom of movement
         createSwingTwistJoint(torso, parts.get(VxBodyPart.LEFT_ARM), VxBodyPart.LEFT_ARM, 120f, 175f, 175f);
         createSwingTwistJoint(torso, parts.get(VxBodyPart.RIGHT_ARM), VxBodyPart.RIGHT_ARM, 120f, 175f, 175f);
 
@@ -119,29 +131,34 @@ public class VxRagdollManager {
         createSwingTwistJoint(torso, parts.get(VxBodyPart.RIGHT_LEG), VxBodyPart.RIGHT_LEG, 80f, 140f, 100f);
     }
 
+    /**
+     * Creates a single rigid body for a specific body part, calculating its position relative
+     * to the ragdoll's root transform.
+     */
     private VxBodyPartRigidBody createBodyPart(VxBodyPart partType, VxTransform initialTransform, String skinId) {
         Vec3 size = partType.getSize();
         Vec3 halfExtents = Op.star(0.5f, size);
 
-        // Calculate initial position relative to the main transform
+        // Determine the offset of this part relative to the Torso (0,0,0)
         Vec3 partOffsetVec = partType.getAttachmentPointOnTorso();
         RVec3 partOffset = partOffsetVec.toRVec3();
 
-        // The body part's own center is offset from its joint location.
-        // For example, the arm's center is halfway down its length, so we shift it down from the joint.
+        // Adjust for the part's pivot point (center of mass offset)
         RVec3 pivotOffset = Op.minus(partType.getLocalPivot().toRVec3());
 
-        // Combine offsets and rotate them by the initial orientation
+        // Combine offsets and rotate them into world space using the ragdoll's global orientation
         RVec3 finalOffset = Op.plus(partOffset, pivotOffset);
         finalOffset.rotateInPlace(initialTransform.getRotation());
 
         RVec3 partPosition = Op.plus(initialTransform.getTranslation(), finalOffset);
+
+        // The individual part inherits the global rotation (including pitch if launched)
         VxTransform partTransform = new VxTransform(partPosition, initialTransform.getRotation());
 
         return bodyManager.createRigidBody(
                 VxRegisteredBodies.BODY_PART,
                 partTransform,
-                EActivation.Activate, // Ensure body is active on creation
+                EActivation.Activate,
                 body -> {
                     body.setSyncData(VxBodyPartRigidBody.DATA_HALF_EXTENTS, halfExtents);
                     body.setSyncData(VxBodyPartRigidBody.DATA_BODY_PART, partType);
@@ -157,15 +174,14 @@ public class VxRagdollManager {
             settings.setSpace(EConstraintSpace.LocalToBodyCom);
             settings.setSwingType(ESwingType.Pyramid);
 
-            // Set pivot points in local space of each body
+            // Pivot points are defined in the local space of the respective bodies
             Vec3 pivotOnTorso = limbType.getAttachmentPointOnTorso();
             settings.setPosition1(pivotOnTorso.toRVec3());
 
             Vec3 pivotOnLimb = limbType.getLocalPivot();
             settings.setPosition2(pivotOnLimb.toRVec3());
 
-            // Explicitly define the joint axes to prevent incorrect rotation.
-            // The primary axis (twist) is Y (up), the secondary axis (plane) is X (forward).
+            // Define the primary axes for the joint constraints (Up and Right relative to the body part)
             Vec3 primaryAxis = new Vec3(0, 1, 0);
             Vec3 secondaryAxis = new Vec3(1, 0, 0);
             settings.setTwistAxis1(primaryAxis);
@@ -173,7 +189,6 @@ public class VxRagdollManager {
             settings.setTwistAxis2(primaryAxis);
             settings.setPlaneAxis2(secondaryAxis);
 
-            // Convert degrees to radians for Jolt
             settings.setTwistMinAngle((float) Math.toRadians(-twist));
             settings.setTwistMaxAngle((float) Math.toRadians(twist));
             settings.setPlaneHalfConeAngle((float) Math.toRadians(swingY));
