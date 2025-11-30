@@ -9,7 +9,7 @@ version = "${mod_version}"
 displayName = "${mod_name}"
 authors = "${mod_authors}"
 description = '''${mod_description}'''
-logoFile = "assets/velthoric/velthoric.png"
+logoFile = "assets/velthoric/velthoric_icon.png"
 
 # Mixin configuration for your mod
 [[mixins]]
