@@ -34,9 +34,9 @@ public class ItemRegistry {
     public static void register() {
         ModRegistries.ITEMS.register();
 
-        VxToolRegistry.register(ItemRegistry.BOX_LAUNCHER.get(), new VxBoxLauncherMode());
-        VxToolRegistry.register(ItemRegistry.MAGNETIZER.get(), new VxMagnetizerMode());
-        VxToolRegistry.register(ItemRegistry.RAGDOLL_LAUNCHER.get(), new VxRagdollLauncherMode());
-        VxToolRegistry.register(ItemRegistry.CHAIN_CREATOR.get(), new VxChainCreatorMode());
+        ItemRegistry.BOX_LAUNCHER.listen(item -> VxToolRegistry.register(item, new VxBoxLauncherMode()));
+        ItemRegistry.MAGNETIZER.listen(item -> VxToolRegistry.register(item, new VxMagnetizerMode()));
+        ItemRegistry.RAGDOLL_LAUNCHER.listen(item -> VxToolRegistry.register(item, new VxRagdollLauncherMode()));
+        ItemRegistry.CHAIN_CREATOR.listen(item -> VxToolRegistry.register(item, new VxChainCreatorMode()));
     }
 }
