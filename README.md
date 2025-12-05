@@ -83,10 +83,13 @@ You can target objects by `type`, `bodytype`, `distance`, `limit`, and `sort`.
 
 ### 🔧 **Included Tools**
 
-* **PhysicsGun** – Pick up, move, rotate, and yeet objects.
-* **Magnetizer** – Pull or push objects where you aim.
-* **BoxThrower** – Spawn and launch boxes instantly.
-* **ChainCreator** – Connect two objects (or one to the ground) with a chain.
+* **PhysicsGun**: Grab, move, rotate, and throw objects around.
+* **Magnetizer**: Push things away or pull them closer to you.
+* **BoxLauncher**: Spawn and shoot boxes wherever you want.
+* **RagdollLauncher**: Launch ragdolls and watch them tumble.
+* **ChainCreator**: Connect objects together or tie them to the ground.
+
+⚙️ **Customization**: Just press **TAB** to configure your tools. You can adjust settings like **strength**, **range**, and more to fit your style.
 
 ### 💻 **Supported Platforms**
 
