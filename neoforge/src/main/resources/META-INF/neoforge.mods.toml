@@ -15,6 +15,9 @@ logoFile = "assets/velthoric/velthoric_icon.png"
 [[mixins]]
 config = "velthoric.mixins.json"
 
+[[mixins]]
+config = "vx-events.mixins.json"
+
 # Dependencies for this mod
 [[dependencies."${mod_id}"]]
 modId = "neoforge"

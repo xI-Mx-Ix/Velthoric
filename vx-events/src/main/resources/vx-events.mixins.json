@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.xmx.velthoric.event.mixin.impl",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "event.level.MixinMinecraftServer_VxLevelEvent",
+    "event.level.MixinServerLevel_VxLevelEvent",
+    "event.server.MixinMinecraftServer_VxServerLifecycleEvent"
+  ],
+  "client": [
+    "event.debug.MixinDebugScreenOverlay_VxF3ScreenAdditionEvent",
+    "event.input.MixinKeyboardHandler_VxKeyEvent",
+    "event.input.MixinMouseHandler_VxMouseEvent",
+    "event.network.ClientCommonPacketListenerImplAccessor",
+    "event.network.MixinClientLevel_VxClientPlayerNetworkEvent",
+    "event.network.MixinClientPacketListener_VxClientPlayerNetworkEvent",
+    "event.render.MixinLevelRenderer_VxRenderEvent",
+    "event.level.client.MixinMinecraft_VxClientLevelEvent"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

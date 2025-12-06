@@ -15,3 +15,4 @@ include 'fabric'
 include 'neoforge'
 
 include 'vx-native'
+include 'vx-events'

@@ -16,7 +16,8 @@
     ]
   },
   "mixins": [
-    "velthoric.mixins.json"
+    "velthoric.mixins.json",
+    "vx-events.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${fabric_loader_version}",

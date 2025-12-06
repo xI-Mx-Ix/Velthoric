@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.event.input;
+package net.xmx.velthoric.event.mixin.impl.event.input;
 
 import dev.architectury.event.EventResult;
 import net.minecraft.client.KeyboardHandler;
