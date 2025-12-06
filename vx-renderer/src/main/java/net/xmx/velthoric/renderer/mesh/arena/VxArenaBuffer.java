@@ -12,20 +12,23 @@ import net.xmx.velthoric.renderer.mesh.VxMeshDefinition;
 import net.xmx.velthoric.renderer.mesh.impl.VxArenaMesh;
 
 import java.nio.ByteBuffer;
-import java.util.LinkedList;
-import java.util.ListIterator;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Objects;
 
 /**
  * Manages a single, large, dynamically-growing Vertex Buffer Object (VBO) and a corresponding
  * Vertex Array Object (VAO) as a singleton to store many smaller meshes efficiently.
  * <p>
- * This implementation uses a free-list allocator to manage memory, allowing
- * sub-meshes to be deallocated and their space to be reused. If the buffer runs out of space,
- * it automatically resizes itself, preserving existing data.
+ * <b>Performance Improvements:</b>
+ * <ul>
+ *   <li>Uses {@link VxMemorySegment} with an internal object pool to eliminate allocation during free/allocate cycles.</li>
+ *   <li>Replaces {@code LinkedList} with {@code ArrayList} for better CPU cache locality.</li>
+ *   <li>Implements Binary Search for deallocation to quickly locate the correct merge position.</li>
+ * </ul>
  * <p>
- * Instead of managing raw OpenGL handles directly, this class now delegates the low-level
- * buffer management to {@link VxVertexBuffer}, allowing for cleaner resource handling.
+ * This class abstracts the low-level GL calls via {@link VxVertexBuffer}.
  *
  * @author xI-Mx-Ix
  */
@@ -35,39 +38,27 @@ public class VxArenaBuffer {
     private static VxArenaBuffer instance;
 
     /**
-     * Represents a contiguous block of free memory within the VBO.
-     * Used by the internal allocator to track reusable gaps.
-     */
-    private static class FreeBlock {
-        long offsetBytes;
-        long sizeBytes;
-
-        FreeBlock(long offsetBytes, long sizeBytes) {
-            this.offsetBytes = offsetBytes;
-            this.sizeBytes = sizeBytes;
-        }
-
-        @Override
-        public String toString() {
-            return "FreeBlock{" + "offset=" + offsetBytes + ", size=" + sizeBytes + '}';
-        }
-    }
-
-    /**
      * The underlying vertex buffer wrapper that handles the actual GL calls.
      */
     private VxVertexBuffer buffer;
 
     /**
-     * The high-water mark for the buffer, indicating the next available byte at the end of the used section.
+     * The high-water mark for the buffer, indicating the next available byte at the very end of the allocated memory.
+     * Everything before this index is either used or tracked in {@link #freeSegments}.
      */
     private long usedBytes = 0;
 
     /**
-     * A list of available memory regions, sorted by offset.
-     * This list is central to the free-list allocation strategy.
+     * A sorted list of available memory segments (gaps).
+     * Using ArrayList provides fast iteration and random access for binary search.
      */
-    private final LinkedList<FreeBlock> freeBlocks = new LinkedList<>();
+    private final ArrayList<VxMemorySegment> freeSegments = new ArrayList<>();
+
+    /**
+     * An object pool for {@link VxMemorySegment} instances.
+     * This prevents creating new objects every time a mesh is deleted, significantly reducing GC pressure.
+     */
+    private final ArrayDeque<VxMemorySegment> segmentPool = new ArrayDeque<>();
 
     /**
      * Private constructor to enforce the singleton pattern.
@@ -77,7 +68,6 @@ public class VxArenaBuffer {
      */
     private VxArenaBuffer(int capacityInVertices) {
         long capacityBytes = (long) capacityInVertices * VxVertexLayout.STRIDE;
-        // Initialize the dedicated buffer wrapper with dynamic usage hint.
         this.buffer = new VxVertexBuffer(capacityBytes, true);
     }
 
@@ -95,7 +85,6 @@ public class VxArenaBuffer {
 
     /**
      * Resizes the VBO to a new, larger capacity, copying all existing data.
-     * This method creates a new VBO wrapper, copies data from the old one, and then swaps them.
      *
      * @param requiredBytes The minimum number of additional bytes needed.
      */
@@ -122,9 +111,10 @@ public class VxArenaBuffer {
 
     /**
      * Allocates space in the buffer for a new mesh and uploads its data.
-     * It first attempts to find a suitable block from the free-list. If none is
-     * found, it allocates new space from the end of the buffer. If the buffer is full,
-     * it will be automatically resized.
+     * <p>
+     * Strategy: First-Fit. It iterates through the sorted {@code freeSegments}.
+     * If a suitable gap is found, it is used (and split if too large).
+     * If no gap is found, the buffer "high-water mark" is bumped.
      *
      * @param definition The mesh definition to add to the arena.
      * @return A {@link VxArenaMesh} handle representing the mesh's data in the shared buffer.
@@ -137,26 +127,34 @@ public class VxArenaBuffer {
         int modelSizeBytes = modelBuffer.remaining();
         long allocationOffset = -1;
 
-        // First-fit strategy: find the first free block that is large enough.
-        ListIterator<FreeBlock> iterator = this.freeBlocks.listIterator();
-        while (iterator.hasNext()) {
-            FreeBlock block = iterator.next();
-            if (block.sizeBytes >= modelSizeBytes) {
-                allocationOffset = block.offsetBytes;
-
-                // If the block is larger than needed, shrink it. Otherwise, remove it completely.
-                if (block.sizeBytes > modelSizeBytes) {
-                    block.offsetBytes += modelSizeBytes;
-                    block.sizeBytes -= modelSizeBytes;
-                } else {
-                    iterator.remove();
-                }
+        // 1. Try to find a free block that fits (First-Fit).
+        // Standard loop is faster than iterator for ArrayList access.
+        int segmentIndex = -1;
+        for (int i = 0; i < freeSegments.size(); i++) {
+            VxMemorySegment segment = freeSegments.get(i);
+            if (segment.size >= modelSizeBytes) {
+                allocationOffset = segment.offset;
+                segmentIndex = i;
                 break;
             }
         }
 
-        // If no suitable free block was found, allocate from the end (bump allocation).
-        if (allocationOffset == -1) {
+        if (segmentIndex != -1) {
+            // Found a reusable gap.
+            VxMemorySegment segment = freeSegments.get(segmentIndex);
+
+            if (segment.size > modelSizeBytes) {
+                // The gap is bigger than needed. Split it.
+                // We modify the segment in-place to avoid allocation.
+                segment.offset += modelSizeBytes;
+                segment.size -= modelSizeBytes;
+            } else {
+                // Exact fit. Remove the segment completely and recycle the object.
+                freeSegments.remove(segmentIndex);
+                recycleSegment(segment);
+            }
+        } else {
+            // 2. No suitable gap found. Allocate from the end (Bump Allocation).
             if (this.usedBytes + modelSizeBytes > this.buffer.getCapacityBytes()) {
                 resize(modelSizeBytes);
             }
@@ -164,17 +162,19 @@ public class VxArenaBuffer {
             this.usedBytes += modelSizeBytes;
         }
 
-        // Upload the new mesh data into the determined slot in the VBO via the wrapper.
+        // Upload the new mesh data into the determined slot.
         this.buffer.uploadSubData(allocationOffset, modelBuffer);
 
-        // Create the mesh handle passing the necessary group maps for hierarchical rendering.
         return new VxArenaMesh(this, allocationOffset, modelSizeBytes, definition.allDrawCommands, definition.getGroupDrawCommands());
     }
 
     /**
-     * Frees the memory associated with a sub-mesh, making it available for
-     * future allocations. This method adds the freed block to the free-list and
-     * attempts to merge it with adjacent free blocks to reduce fragmentation.
+     * Frees the memory associated with a sub-mesh.
+     * <p>
+     * This method:
+     * 1. Updates the high-water mark if freeing the tail.
+     * 2. Uses binary search to find the correct insertion index in {@code freeSegments}.
+     * 3. Merges (coalesces) with adjacent free blocks to reduce fragmentation.
      *
      * @param subMesh The sub-mesh to deallocate.
      */
@@ -185,64 +185,65 @@ public class VxArenaBuffer {
         long offset = subMesh.getOffsetBytes();
         long size = subMesh.getSizeBytes();
 
-        // Optimization: if we are freeing the last element, we can just rewind the high-water mark.
+        // Optimization: if we are freeing the very last allocated block, simply rewind the counter.
         if (offset + size == this.usedBytes) {
             this.usedBytes = offset;
-            // Also check if this newly freed space can merge with the last free block.
-            if (!this.freeBlocks.isEmpty() && this.freeBlocks.getLast().offsetBytes + this.freeBlocks.getLast().sizeBytes == this.usedBytes) {
-                this.usedBytes = this.freeBlocks.removeLast().offsetBytes;
+            
+            // Check if the previous block is also free, to rewind even further.
+            if (!freeSegments.isEmpty()) {
+                VxMemorySegment last = freeSegments.get(freeSegments.size() - 1);
+                if (last.getEnd() == this.usedBytes) {
+                    this.usedBytes = last.offset;
+                    freeSegments.remove(freeSegments.size() - 1);
+                    recycleSegment(last);
+                }
             }
             return;
         }
 
-        // Insert the new free block into the sorted list.
-        ListIterator<FreeBlock> iterator = this.freeBlocks.listIterator();
-        while (iterator.hasNext()) {
-            if (iterator.next().offsetBytes > offset) {
-                iterator.previous();
-                break;
-            }
-        }
-        iterator.add(new FreeBlock(offset, size));
+        // 1. Create (or reuse) a segment for this freed block.
+        VxMemorySegment newSegment = obtainSegment(offset, size);
 
-        // Attempt to merge with previous and next blocks to reduce fragmentation.
-        // 1. Check previous
-        if (iterator.hasPrevious()) {
-            FreeBlock previous = iterator.previous(); // Go to the newly added block
-            if (iterator.hasPrevious()) {
-                FreeBlock before = iterator.previous(); // Go to the block before it
-                // Merge with the block before
-                if (before.offsetBytes + before.sizeBytes == previous.offsetBytes) {
-                    before.sizeBytes += previous.sizeBytes;
-                    iterator.next(); // Go back to `before`
-                    iterator.next(); // Go back to `previous`
-                    iterator.remove(); // Remove `previous`
-                    iterator.previous(); // Move cursor back to the merged block
-                } else {
-                    iterator.next(); // Go back to the newly added block
-                }
-            } else {
-                iterator.next(); // Go back to the newly added block
-            }
+        // 2. Find insertion point to keep list sorted.
+        // Collections.binarySearch returns (-(insertion point) - 1) if not found.
+        int index = Collections.binarySearch(freeSegments, newSegment);
+        
+        if (index < 0) {
+            index = -(index + 1);
+        } else {
+            // Exact match on offset should basically never happen unless double-free logic error.
+            VxRConstants.LOGGER.error("Double free detected in VxArenaBuffer for offset {}", offset);
+            return;
         }
 
-        FreeBlock current = iterator.previous(); // The block we are potentially merging into
-        iterator.next(); // Advance cursor past it
+        // Insert the new segment at the sorted position.
+        freeSegments.add(index, newSegment);
 
-        // 2. Check next
-        if (iterator.hasNext()) {
-            FreeBlock next = iterator.next();
-            // Merge with the block after
-            if (current.offsetBytes + current.sizeBytes == next.offsetBytes) {
-                current.sizeBytes += next.sizeBytes;
-                iterator.remove();
+        // 3. Coalesce (Merge) Right Neighbor first (index + 1).
+        if (index < freeSegments.size() - 1) {
+            VxMemorySegment right = freeSegments.get(index + 1);
+            if (newSegment.getEnd() == right.offset) {
+                // Merge current and right.
+                newSegment.size += right.size;
+                freeSegments.remove(index + 1);
+                recycleSegment(right);
+            }
+        }
+
+        // 4. Coalesce (Merge) Left Neighbor (index - 1).
+        if (index > 0) {
+            VxMemorySegment left = freeSegments.get(index - 1);
+            if (left.getEnd() == newSegment.offset) {
+                // Merge left and current.
+                left.size += newSegment.size;
+                freeSegments.remove(index);
+                recycleSegment(newSegment);
             }
         }
     }
 
     /**
-     * Binds the shared VAO to prepare for rendering a batch of ArenaSubMeshes.
-     * This delegates to the underlying {@link VxVertexBuffer#bind()}.
+     * Binds the shared VAO to prepare for rendering.
      */
     public void preRender() {
         if (this.buffer != null) {
@@ -251,8 +252,7 @@ public class VxArenaBuffer {
     }
 
     /**
-     * Deletes the shared VBO and VAO, freeing all GPU memory.
-     * This invalidates the singleton instance, which will be recreated on the next `getInstance()` call.
+     * Deletes the shared VBO and VAO and clears all memory trackers.
      */
     public void delete() {
         RenderSystem.assertOnRenderThread();
@@ -260,7 +260,31 @@ public class VxArenaBuffer {
             this.buffer.delete();
             this.buffer = null;
         }
-        this.freeBlocks.clear();
+        
+        // Recycle all segments back to pool (optional, but good for restart cleanliness)
+        for (VxMemorySegment seg : freeSegments) {
+            recycleSegment(seg);
+        }
+        freeSegments.clear();
         this.usedBytes = 0;
+    }
+
+    // --- Object Pooling for GC Efficiency ---
+
+    /**
+     * Obtains a segment instance from the pool or creates a new one.
+     */
+    private VxMemorySegment obtainSegment(long offset, long size) {
+        if (!segmentPool.isEmpty()) {
+            return segmentPool.pop().set(offset, size);
+        }
+        return new VxMemorySegment(offset, size);
+    }
+
+    /**
+     * Returns a segment instance to the pool for reuse.
+     */
+    private void recycleSegment(VxMemorySegment segment) {
+        segmentPool.push(segment);
     }
 }
