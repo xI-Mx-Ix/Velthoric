@@ -16,3 +16,4 @@ include 'neoforge'
 
 include 'vx-native'
 include 'vx-events'
+include 'vx-renderer'

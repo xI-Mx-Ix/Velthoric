@@ -18,6 +18,9 @@ config = "velthoric.mixins.json"
 [[mixins]]
 config = "vx-events.mixins.json"
 
+[[mixins]]
+config = "vx-renderer.mixins.json"
+
 # Dependencies for this mod
 [[dependencies."${mod_id}"]]
 modId = "neoforge"

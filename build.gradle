@@ -20,7 +20,7 @@ subprojects {
     apply plugin: 'maven-publish'
 
     base {
-        if (project.name == 'vx-native' || project.name == 'vx-events') {
+        if (project.name == 'vx-native' || project.name == 'vx-events' || project.name == 'vx-renderer') {
             archivesName = project.name
         } else {
             archivesName = "$rootProject.archives_name-$project.name"
@@ -44,7 +44,8 @@ subprojects {
 
         def refmaps = [
                 'vx-events': 'vx-events-refmap.json',
-                'common'   : 'velthoric-refmap.json'
+                'common'   : 'velthoric-refmap.json',
+                'renderer' : 'vx-renderer-refmap.json'
         ]
 
         refmaps.each { proj, refmap ->

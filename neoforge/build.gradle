@@ -64,6 +64,9 @@ dependencies {
     common(project(path: ":vx-events", configuration: "namedElements")) { transitive false }
     shadowBundle project(path: ":vx-events", configuration: "transformProductionNeoForge")
 
+    common(project(path: ":vx-renderer", configuration: "namedElements")) { transitive false }
+    shadowBundle project(path: ":vx-renderer", configuration: "transformProductionNeoForge")
+
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
 }
