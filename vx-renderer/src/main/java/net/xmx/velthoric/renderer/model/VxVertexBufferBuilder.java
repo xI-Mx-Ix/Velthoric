@@ -11,8 +11,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 /**
- * A helper class to construct a ByteBuffer containing interleaved vertex data for a single mesh group.
- * It handles dynamic resizing of the underlying buffer as more vertices are added.
+ * A helper class to construct a ByteBuffer containing interleaved vertex data.
+ * Used by the {@link VxModelBaker}.
  *
  * @author xI-Mx-Ix
  */
@@ -25,7 +25,6 @@ public class VxVertexBufferBuilder {
     public static final int STRIDE = 36;
 
     private ByteBuffer buffer;
-    private int vertexCount = 0;
 
     /**
      * Constructs a new VertexBufferBuilder with an initial capacity.
@@ -51,22 +50,27 @@ public class VxVertexBufferBuilder {
                             int pIdx, int uIdx, int nIdx, float[] materialColor, Vector3f calculatedNormal) {
         ensureCapacity();
 
-        // Position (3 floats)
+        // Position
         buffer.putFloat(pos.getFloat(pIdx * 3));
         buffer.putFloat(pos.getFloat(pIdx * 3 + 1));
         buffer.putFloat(pos.getFloat(pIdx * 3 + 2));
 
-        // Color (4 bytes) - modulated by material and vertex color
-        float r = materialColor[0] * colors.getFloat(pIdx * 3);
-        float g = materialColor[1] * colors.getFloat(pIdx * 3 + 1);
-        float b = materialColor[2] * colors.getFloat(pIdx * 3 + 2);
+        // Color (Fallback to white if index out of bounds, though parsing ensures validity)
+        float cR = (colors.size() > pIdx * 3) ? colors.getFloat(pIdx * 3) : 1.0f;
+        float cG = (colors.size() > pIdx * 3 + 1) ? colors.getFloat(pIdx * 3 + 1) : 1.0f;
+        float cB = (colors.size() > pIdx * 3 + 2) ? colors.getFloat(pIdx * 3 + 2) : 1.0f;
+
+        float r = materialColor[0] * cR;
+        float g = materialColor[1] * cG;
+        float b = materialColor[2] * cB;
+
         int r_byte = (int)(r * 255.0f) & 0xFF;
         int g_byte = (int)(g * 255.0f) & 0xFF;
         int b_byte = (int)(b * 255.0f) & 0xFF;
         int a_byte = (int)(materialColor[3] * 255.0f) & 0xFF;
         buffer.putInt(a_byte << 24 | b_byte << 16 | g_byte << 8 | r_byte);
 
-        // Texture Coordinates (2 floats)
+        // UV
         if (uIdx != -1) {
             buffer.putFloat(uv.getFloat(uIdx * 2));
             buffer.putFloat(uv.getFloat(uIdx * 2 + 1));
@@ -75,11 +79,11 @@ public class VxVertexBufferBuilder {
             buffer.putFloat(0.0f);
         }
 
-        // Lightmap UV (2 shorts) - initialized to 0, set at render time
+        // Lightmap UV
         buffer.putShort((short) 0);
         buffer.putShort((short) 0);
 
-        // Normal (3 bytes)
+        // Normal
         if (nIdx != -1) {
             buffer.put((byte) (norm.getFloat(nIdx * 3) * 127));
             buffer.put((byte) (norm.getFloat(nIdx * 3 + 1) * 127));
@@ -94,19 +98,14 @@ public class VxVertexBufferBuilder {
             buffer.put((byte) 0);
         }
 
-        // Tangent (3 bytes) + Padding (2 bytes) - initialized to 0, calculated later
+        // Tangent + Padding
         buffer.put((byte) 0);
         buffer.put((byte) 0);
         buffer.put((byte) 0);
         buffer.putShort((short)0);
 
-        vertexCount++;
     }
 
-    /**
-     * Ensures the buffer has enough remaining capacity for at least one more vertex.
-     * If not, a new, larger buffer is allocated and the old data is copied over.
-     */
     private void ensureCapacity() {
         if (buffer.remaining() < STRIDE) {
             ByteBuffer newBuffer = ByteBuffer.allocateDirect(buffer.capacity() * 2).order(ByteOrder.nativeOrder());
@@ -117,25 +116,17 @@ public class VxVertexBufferBuilder {
     }
 
     /**
-     * @return The number of vertices that have been written to this builder.
+     * Prepares the buffer for reading, returns it, and resets the builder for reuse.
+     * @return The data.
      */
-    public int getVertexCount() {
-        return vertexCount;
-    }
-
-    /**
-     * @return True if no vertices have been added, false otherwise.
-     */
-    public boolean isEmpty() {
-        return vertexCount == 0;
-    }
-
-    /**
-     * Finalizes the buffer by flipping it, making it ready for reading.
-     * @return The completed ByteBuffer containing all vertex data.
-     */
-    public ByteBuffer build() {
+    public ByteBuffer buildAndReset() {
         buffer.flip();
-        return buffer;
+        ByteBuffer result = ByteBuffer.allocateDirect(buffer.remaining()).order(ByteOrder.nativeOrder());
+        result.put(buffer);
+        result.flip();
+
+        // Reset state
+        buffer.clear();
+        return result;
     }
 }

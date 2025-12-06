@@ -7,29 +7,23 @@ package net.xmx.velthoric.renderer.model.parser;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.renderer.gl.VxDrawCommand;
 import net.xmx.velthoric.renderer.gl.VxMaterial;
 import net.xmx.velthoric.renderer.VxRConstants;
-import net.xmx.velthoric.renderer.mesh.VxMeshDefinition;
-import net.xmx.velthoric.renderer.model.VxVertexBufferBuilder;
-import net.xmx.velthoric.renderer.model.generator.VxNormalGenerator;
-import net.xmx.velthoric.renderer.model.generator.VxTangentGenerator;
-import org.joml.Vector3f;
+import net.xmx.velthoric.renderer.model.raw.VxRawGroup;
+import net.xmx.velthoric.renderer.model.raw.VxRawMesh;
+import net.xmx.velthoric.renderer.model.raw.VxRawModel;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.*;
+import java.util.Map;
 
 /**
- * A parser for OBJ model files that produces a generic {@link VxMeshDefinition}.
+ * A parser for OBJ model files that produces a {@link VxRawModel}.
  * <p>
- * This parser respects the OBJ 'g' (group) and 'o' (object) tags. It segments the
- * mesh data into internal buckets, allowing the resulting {@link VxMeshDefinition}
- * to provide independent draw calls for each named group.
+ * This parser extracts all geometry data into an editable format using a Structure-of-Arrays
+ * approach for performance. It does not perform buffer flattening, but it does handle index parsing.
  *
  * @author xI-Mx-Ix
  */
@@ -39,33 +33,19 @@ public class VxObjParser {
      * Parses an OBJ model from a given {@link ResourceLocation}.
      *
      * @param location The location of the .obj file.
-     * @return A {@link VxMeshDefinition} containing the geometry and grouped draw commands.
+     * @return A {@link VxRawModel} containing the raw geometry data.
      * @throws IOException If the file cannot be read.
      */
-    public static VxMeshDefinition parse(ResourceLocation location) throws IOException {
-        // Raw global data pools
-        FloatArrayList positions = new FloatArrayList();
-        FloatArrayList texCoords = new FloatArrayList();
-        FloatArrayList normals = new FloatArrayList();
-        FloatArrayList vertexColors = new FloatArrayList();
-
-        // Map structure: GroupName -> (MaterialName -> VertexBufferBuilder)
-        // We must separate geometry not just by group, but also by material within that group.
-        Map<String, Map<String, VxVertexBufferBuilder>> groupedBuilders = new LinkedHashMap<>();
-
-        // Material cache
-        Map<String, VxMaterial> globalMaterials = new HashMap<>();
+    public static VxRawModel parse(ResourceLocation location) throws IOException {
+        VxRawModel rawModel = new VxRawModel();
 
         String defaultGroup = "default";
         String defaultMaterial = "default";
+        String currentGroupName = defaultGroup;
+        String currentMaterialName = defaultMaterial;
 
-        String currentGroup = defaultGroup;
-        String currentMaterial = defaultMaterial;
-
-        // Initialize default containers
-        globalMaterials.put(defaultMaterial, new VxMaterial(defaultMaterial));
-        groupedBuilders.computeIfAbsent(currentGroup, k -> new LinkedHashMap<>())
-                .put(currentMaterial, new VxVertexBufferBuilder());
+        // Ensure default material exists
+        rawModel.materials.put(defaultMaterial, new VxMaterial(defaultMaterial));
 
         try (InputStream stream = Minecraft.getInstance().getResourceManager().getResource(location).get().open();
              BufferedReader reader = new BufferedReader(new InputStreamReader(stream))) {
@@ -80,92 +60,34 @@ public class VxObjParser {
                 String keyword = tokens[0];
 
                 switch (keyword) {
-                    case "v" -> parseVertex(tokens, positions, vertexColors);
-                    case "vt" -> parseVec2(tokens, texCoords);
-                    case "vn" -> parseVec3(tokens, normals);
+                    case "v" -> parseVertex(tokens, rawModel.positions, rawModel.colors);
+                    case "vt" -> parseVec2(tokens, rawModel.texCoords);
+                    case "vn" -> parseVec3(tokens, rawModel.normals);
                     case "g", "o" -> {
-                        // Switch context to a new group
-                        currentGroup = tokens.length > 1 ? tokens[1] : defaultGroup;
-                        groupedBuilders.computeIfAbsent(currentGroup, k -> new LinkedHashMap<>());
+                        currentGroupName = tokens.length > 1 ? tokens[1] : defaultGroup;
                     }
                     case "usemtl" -> {
-                        // Switch context to a new material
-                        currentMaterial = tokens.length > 1 ? tokens[1] : defaultMaterial;
-                        globalMaterials.computeIfAbsent(currentMaterial, VxMaterial::new);
+                        currentMaterialName = tokens.length > 1 ? tokens[1] : defaultMaterial;
+                        rawModel.materials.computeIfAbsent(currentMaterialName, VxMaterial::new);
                     }
                     case "mtllib" -> {
                         if (tokens.length > 1) {
                             String mtlPath = resolveRelativePath(location, tokens[1]);
-                            globalMaterials.putAll(loadMtl(location.withPath(mtlPath), location));
+                            Map<String, VxMaterial> loaded = loadMtl(location.withPath(mtlPath), location);
+                            rawModel.materials.putAll(loaded);
                         }
                     }
                     case "f" -> {
-                        // Get the builder specifically for the current Group/Material pair
-                        VxVertexBufferBuilder builder = groupedBuilders
-                                .get(currentGroup)
-                                .computeIfAbsent(currentMaterial, k -> new VxVertexBufferBuilder());
-
-                        parseFace(tokens, positions, texCoords, normals, vertexColors, builder, globalMaterials.get(currentMaterial));
+                        VxRawGroup group = rawModel.getGroup(currentGroupName);
+                        // Get the flat index mesh for the current material
+                        VxRawMesh mesh = group.getMesh(currentMaterialName);
+                        parseFace(tokens, mesh);
                     }
                 }
             }
         }
 
-        // --- Buffer Assembly ---
-
-        // 1. Calculate total vertex count needed
-        int totalVertexCount = 0;
-        for (var groupEntry : groupedBuilders.values()) {
-            for (var builder : groupEntry.values()) {
-                totalVertexCount += builder.getVertexCount();
-            }
-        }
-
-        if (totalVertexCount == 0) {
-            return new VxMeshDefinition(ByteBuffer.allocate(0), Collections.emptyList(), Collections.emptyMap());
-        }
-
-        // 2. Allocate one single buffer for the whole model
-        ByteBuffer combinedBuffer = ByteBuffer.allocateDirect(totalVertexCount * VxVertexBufferBuilder.STRIDE).order(ByteOrder.nativeOrder());
-
-        Map<String, List<VxDrawCommand>> groupCommands = new HashMap<>();
-        List<VxDrawCommand> allCommands = new ArrayList<>();
-
-        int currentVertexOffset = 0;
-
-        // 3. Flatten the builders into the single buffer and generate commands
-        for (Map.Entry<String, Map<String, VxVertexBufferBuilder>> groupEntry : groupedBuilders.entrySet()) {
-            String groupName = groupEntry.getKey();
-            List<VxDrawCommand> commandsForThisGroup = new ArrayList<>();
-
-            for (Map.Entry<String, VxVertexBufferBuilder> matEntry : groupEntry.getValue().entrySet()) {
-                VxVertexBufferBuilder builder = matEntry.getValue();
-                if (builder.isEmpty()) continue;
-
-                // Write builder data to the combined buffer
-                combinedBuffer.put(builder.build());
-
-                // Create the draw command
-                VxMaterial mat = globalMaterials.getOrDefault(matEntry.getKey(), new VxMaterial(defaultMaterial));
-                VxDrawCommand cmd = new VxDrawCommand(mat, currentVertexOffset, builder.getVertexCount());
-
-                commandsForThisGroup.add(cmd);
-                allCommands.add(cmd);
-
-                currentVertexOffset += builder.getVertexCount();
-            }
-
-            if (!commandsForThisGroup.isEmpty()) {
-                groupCommands.put(groupName, commandsForThisGroup);
-            }
-        }
-
-        // 4. Finalize buffer and calculate tangents
-        combinedBuffer.flip();
-        VxTangentGenerator.calculate(combinedBuffer, totalVertexCount);
-        combinedBuffer.rewind();
-
-        return new VxMeshDefinition(combinedBuffer, allCommands, groupCommands);
+        return rawModel;
     }
 
     // --- Helper Methods ---
@@ -182,10 +104,6 @@ public class VxObjParser {
             cols.add(Float.parseFloat(tokens[4]));
             cols.add(Float.parseFloat(tokens[5]));
             cols.add(Float.parseFloat(tokens[6]));
-        } else {
-            cols.add(1.0f);
-            cols.add(1.0f);
-            cols.add(1.0f);
         }
     }
 
@@ -209,56 +127,48 @@ public class VxObjParser {
     /**
      * Parses a face line "f v1/vt1/vn1 ...". Handles triangulation.
      */
-    private static void parseFace(String[] tokens, FloatArrayList pos, FloatArrayList uv, FloatArrayList norm, FloatArrayList colors, VxVertexBufferBuilder builder, VxMaterial material) {
-        // Note: tokens[0] is "f", vertices start at tokens[1]
+    private static void parseFace(String[] tokens, VxRawMesh mesh) {
         int vertexCount = tokens.length - 1;
         if (vertexCount < 3) return;
 
-        int[] posIndices = new int[vertexCount];
-        int[] uvIndices = new int[vertexCount];
-        int[] normIndices = new int[vertexCount];
-        boolean hasNormals = false;
+        // Temporary arrays for fan triangulation indices
+        int[] v = new int[vertexCount];
+        int[] vt = new int[vertexCount];
+        int[] vn = new int[vertexCount];
 
         for (int i = 0; i < vertexCount; i++) {
             String[] subIndices = tokens[i + 1].split("/");
-            posIndices[i] = Integer.parseInt(subIndices[0]) - 1;
-            uvIndices[i] = (subIndices.length > 1 && !subIndices[1].isEmpty()) ? Integer.parseInt(subIndices[1]) - 1 : -1;
-            if (subIndices.length > 2 && !subIndices[2].isEmpty()) {
-                normIndices[i] = Integer.parseInt(subIndices[2]) - 1;
-                hasNormals = true;
-            } else {
-                normIndices[i] = -1;
-            }
-        }
 
-        Vector3f calculatedNormal = null;
-        if (!hasNormals) {
-            calculatedNormal = VxNormalGenerator.calculateFaceNormal(pos, posIndices[0], posIndices[1], posIndices[2]);
+            // OBJ indices are 1-based, convert to 0-based
+            v[i] = Integer.parseInt(subIndices[0]) - 1;
+
+            vt[i] = (subIndices.length > 1 && !subIndices[1].isEmpty())
+                    ? Integer.parseInt(subIndices[1]) - 1 : -1;
+
+            vn[i] = (subIndices.length > 2 && !subIndices[2].isEmpty())
+                    ? Integer.parseInt(subIndices[2]) - 1 : -1;
         }
 
         // Triangulate (Triangle Fan)
+        // Adds indices directly to the IntArrayList in VxRawMesh
         for (int i = 1; i < vertexCount - 1; ++i) {
-            builder.writeVertex(pos, uv, norm, colors, posIndices[0], uvIndices[0], normIndices[0], material.baseColorFactor, calculatedNormal);
-            builder.writeVertex(pos, uv, norm, colors, posIndices[i], uvIndices[i], normIndices[i], material.baseColorFactor, calculatedNormal);
-            builder.writeVertex(pos, uv, norm, colors, posIndices[i + 1], uvIndices[i + 1], normIndices[i + 1], material.baseColorFactor, calculatedNormal);
+            mesh.addFace(
+                    v[0], v[i], v[i + 1],
+                    vt[0], vt[i], vt[i + 1],
+                    vn[0], vn[i], vn[i + 1]
+            );
         }
     }
 
-    /**
-     * Loads a material library from the given path.
-     */
     private static Map<String, VxMaterial> loadMtl(ResourceLocation mtlLocation, ResourceLocation modelLocation) {
         try (InputStream stream = Minecraft.getInstance().getResourceManager().getResource(mtlLocation).get().open()) {
             return VxMtlParser.parse(stream, modelLocation);
         } catch (IOException e) {
-            VxRConstants.LOGGER.warn("Could not load material library: {}. Using default material.", mtlLocation);
-            return new HashMap<>();
+            VxRConstants.LOGGER.warn("Could not load material library: {}", mtlLocation);
+            return Map.of();
         }
     }
 
-    /**
-     * Resolves relative paths found in the OBJ file to full resource locations.
-     */
     private static String resolveRelativePath(ResourceLocation modelLocation, String relativePath) {
         String modelPath = modelLocation.getPath();
         if (modelPath.contains("/")) {
