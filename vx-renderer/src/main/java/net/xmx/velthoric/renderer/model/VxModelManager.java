@@ -80,7 +80,7 @@ public final class VxModelManager {
      * @param location The resource location of the model file.
      * @return An Optional containing the {@link VxArenaMesh} handle, or empty if loading or allocation fails.
      */
-    public static Optional<VxArenaMesh> getArenaSubMesh(ResourceLocation location) {
+    public static Optional<VxArenaMesh> getArenaMesh(ResourceLocation location) {
         VxArenaMesh cached = ARENA_SUB_MESH_CACHE.get(location);
         if (cached != null) {
             return Optional.of(cached);

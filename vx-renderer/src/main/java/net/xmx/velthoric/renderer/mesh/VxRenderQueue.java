@@ -88,6 +88,21 @@ public class VxRenderQueue {
     private static final Vector3f AUX_LIGHT1 = new Vector3f();
 
     /**
+     * Reusable scratch matrix for the combined Model-View transformation.
+     */
+    private static final Matrix4f AUX_MODEL_VIEW = new Matrix4f();
+
+    /**
+     * Reusable scratch matrix for the combined Normal transformation (View Rotation * Model Normal).
+     */
+    private static final Matrix3f AUX_NORMAL_VIEW = new Matrix3f();
+
+    /**
+     * Reusable scratch matrix to hold the rotation component of the camera's view matrix.
+     */
+    private static final Matrix3f VIEW_ROTATION = new Matrix3f();
+
+    /**
      * Private constructor for Singleton pattern.
      * Pre-allocates the arrays and the matrix objects within them.
      */
@@ -185,19 +200,26 @@ public class VxRenderQueue {
     /**
      * Flushes the queue, executing all render calls in a single batch.
      * This iterates over the SoA data and executes the rendering logic.
+     *
+     * @param viewMatrix       The camera view matrix (transforms World to Camera space).
+     * @param projectionMatrix The projection matrix.
      */
-    public void flush() {
+    public void flush(Matrix4f viewMatrix, Matrix4f projectionMatrix) {
         if (count == 0) return;
 
         RenderSystem.assertOnRenderThread();
         VxGlState.saveCurrentState();
 
         try {
+            // Extract the rotation component from the view matrix.
+            // This is required to correctly rotate normal vectors into view space.
+            viewMatrix.get3x3(VIEW_ROTATION);
+
             // Detect rendering pipeline and dispatch to the correct batch method
             if (VxShaderDetector.isShaderpackActive()) {
-                renderBatchShaderpack();
+                renderBatchShaderpack(viewMatrix, projectionMatrix);
             } else {
-                renderBatchVanilla();
+                renderBatchVanilla(viewMatrix, projectionMatrix);
             }
         } finally {
             VxGlState.restorePreviousState();
@@ -209,10 +231,13 @@ public class VxRenderQueue {
     /**
      * Renders the batch using the Vanilla pipeline.
      * Includes lighting correction for static VBOs.
+     *
+     * @param viewMatrix       The camera view matrix.
+     * @param projectionMatrix The projection matrix.
      */
-    private void renderBatchVanilla() {
+    private void renderBatchVanilla(Matrix4f viewMatrix, Matrix4f projectionMatrix) {
         // 1. Setup Common Global State (Uniforms that don't change per mesh)
-        ShaderInstance shader = setupCommonRenderState();
+        ShaderInstance shader = setupCommonRenderState(projectionMatrix);
         if (shader == null) return;
 
         // Bind Minecraft's lightmap texture to texture unit 2.
@@ -230,9 +255,17 @@ public class VxRenderQueue {
             Matrix3f normalMat = this.normalMatrices[i];
             int packedLight = this.packedLights[i];
 
+            // Compute the Model-View Matrix: ViewMatrix * ModelMatrix
+            // This transforms the object from local space to camera space.
+            AUX_MODEL_VIEW.set(viewMatrix).mul(modelMat);
+
+            // Compute the View-Normal Matrix: ViewRotation * NormalMatrix
+            // This rotates the normals according to the camera's orientation.
+            AUX_NORMAL_VIEW.set(VIEW_ROTATION).mul(normalMat);
+
             // --- Lighting Correction Start ---
-            // 1. Retrieve the current normal matrix (Model -> View rotation).
-            AUX_NORMAL_MAT.set(normalMat);
+            // 1. Use the view-adjusted normal matrix for lighting calculations.
+            AUX_NORMAL_MAT.set(AUX_NORMAL_VIEW);
 
             // 2. Invert the matrix to get View -> Model rotation.
             // For pure rotation matrices, transpose is equivalent to inverse.
@@ -247,14 +280,15 @@ public class VxRenderQueue {
             if (shader.LIGHT1_DIRECTION != null) shader.LIGHT1_DIRECTION.set(AUX_LIGHT1);
             // --- Lighting Correction End ---
 
-            // Update ModelView Matrix uniform
-            if (shader.MODEL_VIEW_MATRIX != null) shader.MODEL_VIEW_MATRIX.set(modelMat);
+            // Update ModelView Matrix uniform with the combined matrix
+            if (shader.MODEL_VIEW_MATRIX != null) shader.MODEL_VIEW_MATRIX.set(AUX_MODEL_VIEW);
 
             // Upload Normal Matrix uniform
             int normalMatrixLocation = Uniform.glGetUniformLocation(shader.getId(), "NormalMat");
             if (normalMatrixLocation != -1) {
                 MATRIX_BUFFER_9.position(0);
-                normalMat.get(MATRIX_BUFFER_9);
+                // Use the view-adjusted normals
+                AUX_NORMAL_VIEW.get(MATRIX_BUFFER_9);
                 RenderSystem.glUniformMatrix3(normalMatrixLocation, false, MATRIX_BUFFER_9);
             }
 
@@ -290,10 +324,13 @@ public class VxRenderQueue {
     /**
      * Renders the batch using the Shaderpack pipeline (e.g., Iris).
      * Uses PBR textures and standard normal matrix handling.
+     *
+     * @param viewMatrix       The camera view matrix.
+     * @param projectionMatrix The projection matrix.
      */
-    private void renderBatchShaderpack() {
+    private void renderBatchShaderpack(Matrix4f viewMatrix, Matrix4f projectionMatrix) {
         // 1. Setup Common Global State
-        ShaderInstance shader = setupCommonRenderState();
+        ShaderInstance shader = setupCommonRenderState(projectionMatrix);
         if (shader == null) return;
 
         // Set up all samplers before applying the shader.
@@ -309,14 +346,20 @@ public class VxRenderQueue {
             Matrix3f normalMat = this.normalMatrices[i];
             int packedLight = this.packedLights[i];
 
+            // Compute the Model-View Matrix: ViewMatrix * ModelMatrix
+            AUX_MODEL_VIEW.set(viewMatrix).mul(modelMat);
+
+            // Compute the View-Normal Matrix: ViewRotation * NormalMatrix
+            AUX_NORMAL_VIEW.set(VIEW_ROTATION).mul(normalMat);
+
             // Update ModelView Matrix uniform
-            if (shader.MODEL_VIEW_MATRIX != null) shader.MODEL_VIEW_MATRIX.set(modelMat);
+            if (shader.MODEL_VIEW_MATRIX != null) shader.MODEL_VIEW_MATRIX.set(AUX_MODEL_VIEW);
 
             // Upload Normal Matrix uniform
             int normalMatrixLocation = Uniform.glGetUniformLocation(shader.getId(), "NormalMat");
             if (normalMatrixLocation != -1) {
                 MATRIX_BUFFER_9.position(0);
-                normalMat.get(MATRIX_BUFFER_9);
+                AUX_NORMAL_VIEW.get(MATRIX_BUFFER_9);
                 RenderSystem.glUniformMatrix3(normalMatrixLocation, false, MATRIX_BUFFER_9);
             }
 
@@ -354,9 +397,10 @@ public class VxRenderQueue {
      * Sets up the common render state and shader uniforms used by both rendering paths.
      * This is called once per batch flush.
      *
+     * @param projectionMatrix The projection matrix to upload to the shader.
      * @return The configured {@link ShaderInstance} to be used for rendering, or null if setup fails.
      */
-    private ShaderInstance setupCommonRenderState() {
+    private ShaderInstance setupCommonRenderState(Matrix4f projectionMatrix) {
         // --- Common OpenGL State ---
         RenderSystem.enableDepthTest();
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
@@ -372,7 +416,7 @@ public class VxRenderQueue {
         RenderSystem.setShader(() -> shader);
 
         // --- Common Uniform Setup (Constant for the frame/pass) ---
-        if (shader.PROJECTION_MATRIX != null) shader.PROJECTION_MATRIX.set(RenderSystem.getProjectionMatrix());
+        if (shader.PROJECTION_MATRIX != null) shader.PROJECTION_MATRIX.set(projectionMatrix);
         if (shader.TEXTURE_MATRIX != null) shader.TEXTURE_MATRIX.set(RenderSystem.getTextureMatrix());
         if (shader.COLOR_MODULATOR != null) shader.COLOR_MODULATOR.set(RenderSystem.getShaderColor());
         if (shader.FOG_START != null) shader.FOG_START.set(RenderSystem.getShaderFogStart());
