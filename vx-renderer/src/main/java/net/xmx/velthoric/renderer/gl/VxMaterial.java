@@ -2,9 +2,10 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.renderer;
+package net.xmx.velthoric.renderer.gl;
 
 import net.minecraft.resources.ResourceLocation;
+import net.xmx.velthoric.renderer.VxRConstants;
 
 /**
  * Represents a PBR material with properties loaded from an MTL file.

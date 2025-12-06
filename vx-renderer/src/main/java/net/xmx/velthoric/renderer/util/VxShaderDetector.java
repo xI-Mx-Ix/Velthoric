@@ -2,7 +2,9 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.renderer;
+package net.xmx.velthoric.renderer.util;
+
+import net.xmx.velthoric.renderer.VxRConstants;
 
 import java.lang.reflect.Method;
 

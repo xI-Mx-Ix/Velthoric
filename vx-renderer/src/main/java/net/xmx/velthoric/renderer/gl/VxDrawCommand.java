@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.renderer;
+package net.xmx.velthoric.renderer.gl;
 
 /**
  * Represents a single, self-contained draw call for a portion of a mesh.

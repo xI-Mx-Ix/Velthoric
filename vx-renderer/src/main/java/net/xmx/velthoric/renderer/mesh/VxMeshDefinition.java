@@ -4,7 +4,7 @@
  */
 package net.xmx.velthoric.renderer.mesh;
 
-import net.xmx.velthoric.renderer.VxDrawCommand;
+import net.xmx.velthoric.renderer.gl.VxDrawCommand;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;

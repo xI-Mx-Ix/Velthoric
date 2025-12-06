@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.renderer.mesh;
+package net.xmx.velthoric.renderer.gl;
 
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;

@@ -6,10 +6,10 @@ package net.xmx.velthoric.renderer.mesh.arena;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.xmx.velthoric.renderer.VxRConstants;
+import net.xmx.velthoric.renderer.gl.VxVertexBuffer;
+import net.xmx.velthoric.renderer.gl.VxVertexLayout;
 import net.xmx.velthoric.renderer.mesh.VxMeshDefinition;
-import net.xmx.velthoric.renderer.mesh.VxVertexLayout;
-import org.lwjgl.opengl.GL30;
-import org.lwjgl.opengl.GL31;
+import net.xmx.velthoric.renderer.mesh.impl.VxArenaMesh;
 
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
@@ -23,6 +23,9 @@ import java.util.Objects;
  * This implementation uses a free-list allocator to manage memory, allowing
  * sub-meshes to be deallocated and their space to be reused. If the buffer runs out of space,
  * it automatically resizes itself, preserving existing data.
+ * <p>
+ * Instead of managing raw OpenGL handles directly, this class now delegates the low-level
+ * buffer management to {@link VxVertexBuffer}, allowing for cleaner resource handling.
  *
  * @author xI-Mx-Ix
  */
@@ -50,10 +53,15 @@ public class VxArenaBuffer {
         }
     }
 
-    private int vaoId;
-    private int vboId;
-    private long capacityBytes;
-    private long usedBytes = 0; // High-water mark for the buffer
+    /**
+     * The underlying vertex buffer wrapper that handles the actual GL calls.
+     */
+    private VxVertexBuffer buffer;
+
+    /**
+     * The high-water mark for the buffer, indicating the next available byte at the end of the used section.
+     */
+    private long usedBytes = 0;
 
     /**
      * A list of available memory regions, sorted by offset.
@@ -63,28 +71,14 @@ public class VxArenaBuffer {
 
     /**
      * Private constructor to enforce the singleton pattern.
-     * Initializes the GPU resources with the initial capacity.
+     * Initializes the GPU resources via {@link VxVertexBuffer} with the initial capacity.
      *
      * @param capacityInVertices The initial maximum number of vertices this buffer can hold.
      */
     private VxArenaBuffer(int capacityInVertices) {
-        RenderSystem.assertOnRenderThread();
-        this.capacityBytes = (long) capacityInVertices * VxVertexLayout.STRIDE;
-
-        this.vboId = GL30.glGenBuffers();
-        this.vaoId = GL30.glGenVertexArrays();
-
-        // Allocate the full buffer size on the GPU
-        GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, this.vboId);
-        GL30.glBufferData(GL30.GL_ARRAY_BUFFER, this.capacityBytes, GL30.GL_DYNAMIC_DRAW);
-
-        // Configure the vertex layout for the single, shared VAO
-        GL30.glBindVertexArray(this.vaoId);
-        GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, this.vboId);
-        VxVertexLayout.setupVertexAttributes();
-
-        // Unbinding is removed. The calling context is responsible for managing state.
-        GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, 0);
+        long capacityBytes = (long) capacityInVertices * VxVertexLayout.STRIDE;
+        // Initialize the dedicated buffer wrapper with dynamic usage hint.
+        this.buffer = new VxVertexBuffer(capacityBytes, true);
     }
 
     /**
@@ -93,7 +87,7 @@ public class VxArenaBuffer {
      * @return The global VxArenaBuffer instance.
      */
     public static synchronized VxArenaBuffer getInstance() {
-        if (instance == null || instance.vboId == 0) { // Check vboId in case delete() was called
+        if (instance == null || instance.buffer == null) {
             instance = new VxArenaBuffer(INITIAL_CAPACITY_VERTICES);
         }
         return instance;
@@ -101,42 +95,29 @@ public class VxArenaBuffer {
 
     /**
      * Resizes the VBO to a new, larger capacity, copying all existing data.
-     * This method creates a new VBO and a new VAO, as the vertex layout
-     * is intrinsically linked to the buffer object it was defined with.
+     * This method creates a new VBO wrapper, copies data from the old one, and then swaps them.
      *
      * @param requiredBytes The minimum number of additional bytes needed.
      */
     private void resize(long requiredBytes) {
         RenderSystem.assertOnRenderThread();
 
-        long newCapacity = (long) Math.max(this.capacityBytes * 1.5, this.capacityBytes + requiredBytes);
-        VxRConstants.LOGGER.warn("Resizing VxArenaBuffer from {} to {} bytes. This may cause a brief stutter.", this.capacityBytes, newCapacity);
+        long currentCapacity = this.buffer.getCapacityBytes();
+        long newCapacity = Math.max((long) (currentCapacity * 1.5), currentCapacity + requiredBytes);
 
-        // 1. Create a new, larger VBO and allocate its memory on the GPU.
-        int newVboId = GL30.glGenBuffers();
-        GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, newVboId);
-        GL30.glBufferData(GL30.GL_ARRAY_BUFFER, newCapacity, GL30.GL_DYNAMIC_DRAW);
+        VxRConstants.LOGGER.warn("Resizing VxArenaBuffer from {} to {} bytes. This may cause a brief stutter.", currentCapacity, newCapacity);
 
-        // 2. Copy the vertex data from the old buffer to the new one.
-        GL30.glBindBuffer(GL31.GL_COPY_READ_BUFFER, this.vboId);
-        GL30.glBindBuffer(GL31.GL_COPY_WRITE_BUFFER, newVboId);
-        GL31.glCopyBufferSubData(GL31.GL_COPY_READ_BUFFER, GL31.GL_COPY_WRITE_BUFFER, 0, 0, this.usedBytes);
-        GL30.glBindBuffer(GL31.GL_COPY_READ_BUFFER, 0);
-        GL30.glBindBuffer(GL31.GL_COPY_WRITE_BUFFER, 0);
+        // 1. Create a new, larger buffer.
+        VxVertexBuffer newBuffer = new VxVertexBuffer(newCapacity, true);
 
-        // 3. Clean up the old GPU resources (both VBO and VAO).
-        GL30.glDeleteBuffers(this.vboId);
-        GL30.glDeleteVertexArrays(this.vaoId);
+        // 2. Copy the vertex data from the old buffer to the new one using GPU-side copy.
+        this.buffer.copyTo(newBuffer, this.usedBytes);
 
-        // 4. Update the instance state to use the new resources.
-        this.vboId = newVboId;
-        this.vaoId = GL30.glGenVertexArrays(); // A new VAO is required for the new VBO.
-        this.capacityBytes = newCapacity;
+        // 3. Delete the old buffer resources.
+        this.buffer.delete();
 
-        // 5. Configure the new VAO to use the new VBO and its vertex layout.
-        GL30.glBindVertexArray(this.vaoId);
-        GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, this.vboId);
-        VxVertexLayout.setupVertexAttributes();
+        // 4. Swap the reference to point to the new buffer.
+        this.buffer = newBuffer;
     }
 
     /**
@@ -176,19 +157,17 @@ public class VxArenaBuffer {
 
         // If no suitable free block was found, allocate from the end (bump allocation).
         if (allocationOffset == -1) {
-            if (this.usedBytes + modelSizeBytes > this.capacityBytes) {
+            if (this.usedBytes + modelSizeBytes > this.buffer.getCapacityBytes()) {
                 resize(modelSizeBytes);
             }
             allocationOffset = this.usedBytes;
             this.usedBytes += modelSizeBytes;
         }
 
-        // Upload the new mesh data into the determined slot in the VBO.
-        GL30.glBindBuffer(GL30.GL_ARRAY_BUFFER, this.vboId);
-        GL30.glBufferSubData(GL30.GL_ARRAY_BUFFER, allocationOffset, modelBuffer);
-        // Do not unbind the array buffer, as it's part of the VAO state which is managed globally.
+        // Upload the new mesh data into the determined slot in the VBO via the wrapper.
+        this.buffer.uploadSubData(allocationOffset, modelBuffer);
 
-        // Create the mesh handle passing the necessary group maps for hierarchical rendering
+        // Create the mesh handle passing the necessary group maps for hierarchical rendering.
         return new VxArenaMesh(this, allocationOffset, modelSizeBytes, definition.allDrawCommands, definition.getGroupDrawCommands());
     }
 
@@ -263,10 +242,12 @@ public class VxArenaBuffer {
 
     /**
      * Binds the shared VAO to prepare for rendering a batch of ArenaSubMeshes.
-     * This ensures the vertex attributes are correctly configured for the shared buffer.
+     * This delegates to the underlying {@link VxVertexBuffer#bind()}.
      */
     public void preRender() {
-        GL30.glBindVertexArray(this.vaoId);
+        if (this.buffer != null) {
+            this.buffer.bind();
+        }
     }
 
     /**
@@ -275,13 +256,9 @@ public class VxArenaBuffer {
      */
     public void delete() {
         RenderSystem.assertOnRenderThread();
-        if (this.vboId != 0) {
-            GL30.glDeleteBuffers(this.vboId);
-            this.vboId = 0;
-        }
-        if (this.vaoId != 0) {
-            GL30.glDeleteVertexArrays(this.vaoId);
-            this.vaoId = 0;
+        if (this.buffer != null) {
+            this.buffer.delete();
+            this.buffer = null;
         }
         this.freeBlocks.clear();
         this.usedBytes = 0;

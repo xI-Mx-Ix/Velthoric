@@ -8,11 +8,11 @@ import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL30;
 
 /**
- * A private utility class for safely managing and isolating critical OpenGL state.
+ * A utility class for safely managing and isolating critical OpenGL state.
  * <p>
- * This class provides a simple mechanism to save the current bindings for Vertex Array Objects (VAO),
+ * This class provides a mechanism to save the current bindings for Vertex Array Objects (VAO),
  * Vertex Buffer Objects (VBO), and Element Buffer Objects (EBO) before custom rendering operations
- * and restore them afterward.
+ * and restore them afterward to prevent conflicts with the vanilla renderer.
  *
  * @author xI-Mx-Ix
  */

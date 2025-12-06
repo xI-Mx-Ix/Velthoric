@@ -5,7 +5,7 @@
 package net.xmx.velthoric.renderer.model.parser;
 
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.renderer.VxMaterial;
+import net.xmx.velthoric.renderer.gl.VxMaterial;
 
 import java.io.BufferedReader;
 import java.io.IOException;

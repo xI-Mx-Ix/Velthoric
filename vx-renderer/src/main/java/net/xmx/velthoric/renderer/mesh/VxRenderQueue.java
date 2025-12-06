@@ -11,10 +11,10 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
-import net.xmx.velthoric.renderer.VxDrawCommand;
 import net.xmx.velthoric.renderer.VxRConstants;
-import net.xmx.velthoric.renderer.VxShaderDetector;
+import net.xmx.velthoric.renderer.gl.VxDrawCommand;
 import net.xmx.velthoric.renderer.gl.VxGlState;
+import net.xmx.velthoric.renderer.util.VxShaderDetector;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -59,6 +59,7 @@ public class VxRenderQueue {
 
     // --- Reusable Buffers and Math Objects ---
     // Static objects to prevent allocation during the render loop.
+    // Using BufferUtils creates a direct buffer, which is more efficient for LWJGL interop.
     private static final FloatBuffer MATRIX_BUFFER_9 = BufferUtils.createFloatBuffer(9);
     private static final int AT_UV2 = 4;
 
@@ -208,6 +209,7 @@ public class VxRenderQueue {
         if (count == 0) return;
 
         RenderSystem.assertOnRenderThread();
+        // Save the previous GL state to prevent conflicts with other renderers
         VxGlState.saveCurrentState();
 
         try {
@@ -222,6 +224,7 @@ public class VxRenderQueue {
                 renderBatchVanilla(viewMatrix, projectionMatrix);
             }
         } finally {
+            // Restore the GL state and clear references to allow GC
             VxGlState.restorePreviousState();
             Arrays.fill(this.meshes, 0, count, null);
             this.count = 0;
@@ -286,7 +289,7 @@ public class VxRenderQueue {
             // Upload Normal Matrix uniform
             int normalMatrixLocation = Uniform.glGetUniformLocation(shader.getId(), "NormalMat");
             if (normalMatrixLocation != -1) {
-                MATRIX_BUFFER_9.position(0);
+                MATRIX_BUFFER_9.clear(); // Reset buffer position
                 // Use the view-adjusted normals
                 AUX_NORMAL_VIEW.get(MATRIX_BUFFER_9);
                 RenderSystem.glUniformMatrix3(normalMatrixLocation, false, MATRIX_BUFFER_9);
@@ -358,7 +361,7 @@ public class VxRenderQueue {
             // Upload Normal Matrix uniform
             int normalMatrixLocation = Uniform.glGetUniformLocation(shader.getId(), "NormalMat");
             if (normalMatrixLocation != -1) {
-                MATRIX_BUFFER_9.position(0);
+                MATRIX_BUFFER_9.clear();
                 AUX_NORMAL_VIEW.get(MATRIX_BUFFER_9);
                 RenderSystem.glUniformMatrix3(normalMatrixLocation, false, MATRIX_BUFFER_9);
             }

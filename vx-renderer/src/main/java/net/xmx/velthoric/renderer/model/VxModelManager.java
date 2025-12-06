@@ -8,9 +8,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.renderer.VxRConstants;
 import net.xmx.velthoric.renderer.mesh.IVxRenderableMesh;
 import net.xmx.velthoric.renderer.mesh.VxMeshDefinition;
-import net.xmx.velthoric.renderer.mesh.standalone.VxStandaloneMesh;
 import net.xmx.velthoric.renderer.mesh.arena.VxArenaBuffer;
-import net.xmx.velthoric.renderer.mesh.arena.VxArenaMesh;
+import net.xmx.velthoric.renderer.mesh.impl.VxArenaMesh;
+import net.xmx.velthoric.renderer.mesh.impl.VxDedicatedMesh;
 import net.xmx.velthoric.renderer.model.parser.VxObjParser;
 
 import java.io.IOException;
@@ -36,7 +36,7 @@ public final class VxModelManager {
     /**
      * Caches GPU-side standalone meshes, each with its own VBO/VAO.
      */
-    private static final Map<ResourceLocation, VxStandaloneMesh> STANDALONE_MESH_CACHE = new HashMap<>();
+    private static final Map<ResourceLocation, VxDedicatedMesh> STANDALONE_MESH_CACHE = new HashMap<>();
 
     /**
      * Caches handles to sub-meshes allocated within the global arena buffer.
@@ -53,17 +53,17 @@ public final class VxModelManager {
      * Standalone meshes are self-contained and manage their own GPU resources.
      *
      * @param location The resource location of the model file.
-     * @return An Optional containing the {@link VxStandaloneMesh}, or empty if loading fails.
+     * @return An Optional containing the {@link VxDedicatedMesh}, or empty if loading fails.
      */
-    public static Optional<VxStandaloneMesh> getStandaloneMesh(ResourceLocation location) {
-        VxStandaloneMesh cached = STANDALONE_MESH_CACHE.get(location);
+    public static Optional<VxDedicatedMesh> getStandaloneMesh(ResourceLocation location) {
+        VxDedicatedMesh cached = STANDALONE_MESH_CACHE.get(location);
         if (cached != null) {
             return Optional.of(cached);
         }
 
         Optional<VxMeshDefinition> definitionOpt = getDefinition(location);
         if (definitionOpt.isPresent()) {
-            VxStandaloneMesh gpuMesh = new VxStandaloneMesh(definitionOpt.get());
+            VxDedicatedMesh gpuMesh = new VxDedicatedMesh(definitionOpt.get());
             STANDALONE_MESH_CACHE.put(location, gpuMesh);
             return Optional.of(gpuMesh);
         } else {

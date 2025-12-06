@@ -2,11 +2,12 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.renderer.mesh.arena;
+package net.xmx.velthoric.renderer.mesh.impl;
 
-import net.xmx.velthoric.renderer.VxDrawCommand;
+import net.xmx.velthoric.renderer.gl.VxDrawCommand;
+import net.xmx.velthoric.renderer.gl.VxVertexLayout;
 import net.xmx.velthoric.renderer.mesh.VxAbstractRenderableMesh;
-import net.xmx.velthoric.renderer.mesh.VxVertexLayout;
+import net.xmx.velthoric.renderer.mesh.arena.VxArenaBuffer;
 
 import java.util.List;
 import java.util.Map;

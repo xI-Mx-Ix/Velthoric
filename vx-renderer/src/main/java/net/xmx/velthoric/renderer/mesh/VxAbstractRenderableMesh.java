@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.renderer.VxDrawCommand;
+import net.xmx.velthoric.renderer.gl.VxDrawCommand;
 
 import java.util.Collections;
 import java.util.List;
