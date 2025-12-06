@@ -61,6 +61,9 @@ dependencies {
 
     shadowBundle("com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}")
 
+    common(project(path: ":vx-events", configuration: "namedElements")) { transitive false }
+    shadowBundle project(path: ":vx-events", configuration: "transformProductionFabric")
+
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
 }

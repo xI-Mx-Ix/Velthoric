@@ -20,7 +20,7 @@ subprojects {
     apply plugin: 'maven-publish'
 
     base {
-        if (project.name == 'vx-native') {
+        if (project.name == 'vx-native' || project.name == 'vx-events') {
             archivesName = project.name
         } else {
             archivesName = "$rootProject.archives_name-$project.name"
@@ -41,6 +41,17 @@ subprojects {
 
     loom {
         silentMojangMappingsLicense()
+
+        def refmaps = [
+                'vx-events': 'vx-events-refmap.json',
+                'common'   : 'velthoric-refmap.json'
+        ]
+
+        refmaps.each { proj, refmap ->
+            if (project.name == proj) {
+                mixin.defaultRefmapName.set(refmap)
+            }
+        }
     }
 
     dependencies {

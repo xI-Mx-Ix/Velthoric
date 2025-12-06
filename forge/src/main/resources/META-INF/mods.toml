@@ -10,6 +10,12 @@ authors = "${mod_authors}"
 description = '''${mod_description}'''
 logoFile = "assets/velthoric/velthoric_icon.png"
 
+[[mixins]]
+config = "velthoric.mixins.json"
+
+[[mixins]]
+config = "vx-events.mixins.json"
+
 [[dependencies."${mod_id}"]]
 modId = "forge"
 mandatory = true

@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.event.server;
+package net.xmx.velthoric.event.mixin.impl.event.server;
 
 import net.minecraft.server.MinecraftServer;
 import net.xmx.velthoric.event.api.VxServerLifecycleEvent;
