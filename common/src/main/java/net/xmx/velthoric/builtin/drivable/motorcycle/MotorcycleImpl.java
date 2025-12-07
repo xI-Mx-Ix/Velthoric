@@ -5,7 +5,9 @@
 package net.xmx.velthoric.builtin.drivable.motorcycle;
 
 import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.enumerate.*;
+import com.github.stephengold.joltjni.enumerate.EMotionQuality;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
+import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
@@ -13,28 +15,33 @@ import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
-import net.xmx.velthoric.physics.vehicle.type.motorcycle.VxMotorcycle;
-import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
+import net.xmx.velthoric.physics.vehicle.component.VxVehicleWheel;
+import net.xmx.velthoric.physics.vehicle.config.VxMotorcycleConfig;
+import net.xmx.velthoric.physics.vehicle.config.VxVehicleConfig;
+import net.xmx.velthoric.physics.vehicle.type.VxMotorcycle;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static com.github.stephengold.joltjni.Jolt.degreesToRadians;
 import static com.github.stephengold.joltjni.operator.Op.minus;
 
 /**
- * A concrete implementation of a motorcycle, with physics properties tuned
- * for stable and responsive handling.
+ * A concrete implementation of a motorcycle using the new modular system.
  *
  * @author xI-Mx-Ix
  */
 public class MotorcycleImpl extends VxMotorcycle {
 
+    private static final Vec3 CHASSIS_HALF_EXTENTS = new Vec3(0.2f, 0.3f, 0.4f);
+
     /**
      * Server-side constructor.
+     *
+     * @param type  The body type.
+     * @param world The physics world.
+     * @param id    The unique ID.
      */
     public MotorcycleImpl(VxBodyType<MotorcycleImpl> type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
@@ -42,6 +49,9 @@ public class MotorcycleImpl extends VxMotorcycle {
 
     /**
      * Client-side constructor.
+     *
+     * @param type The body type.
+     * @param id   The unique ID.
      */
     @Environment(EnvType.CLIENT)
     public MotorcycleImpl(VxBodyType<MotorcycleImpl> type, UUID id) {
@@ -49,83 +59,55 @@ public class MotorcycleImpl extends VxMotorcycle {
     }
 
     @Override
-    protected VehicleConstraintSettings createConstraintSettings() {
-        this.wheels = new ArrayList<>(2);
+    protected VxVehicleConfig createConfig() {
+        float maxTorque = 150.0f;
+        float maxRpm = 10000.0f;
+        float[] gears = new float[]{2.27f, 1.63f, 1.3f, 1.09f, 0.96f, 0.88f};
 
-        final float back_wheel_radius = 0.31f;
-        final float back_wheel_width = 0.05f;
-        final float back_wheel_pos_z = -0.75f;
-        final float back_suspension_min_length = 0.3f;
-        final float back_suspension_max_length = 0.5f;
-        final float back_suspension_freq = 2.0f;
-        final float back_brake_torque = 250.0f;
+        VxMotorcycleConfig config = new VxMotorcycleConfig(240.0f, maxTorque, maxRpm, gears);
 
-        final float front_wheel_radius = 0.31f;
-        final float front_wheel_width = 0.05f;
-        final float front_wheel_pos_z = 0.75f;
-        final float front_suspension_min_length = 0.3f;
-        final float front_suspension_max_length = 0.5f;
-        final float front_suspension_freq = 1.5f;
-        final float front_brake_torque = 500.0f;
+        float wheelRadius = 0.31f;
+        float wheelWidth = 0.05f;
+        float halfVehicleHeight = 0.3f;
+        float yPos = -0.9f * halfVehicleHeight;
 
-        final float half_vehicle_height = 0.3f;
-        final float max_steering_angle = degreesToRadians(30);
-        final float caster_angle = degreesToRadians(30);
+        config.addWheel(new Vec3(0.0f, yPos, 0.75f), wheelRadius, wheelWidth, false, true);
+        config.addWheel(new Vec3(0.0f, yPos, -0.75f), wheelRadius, wheelWidth, true, false);
 
-        VehicleConstraintSettings vehicle = new VehicleConstraintSettings();
-        vehicle.setMaxPitchRollAngle(degreesToRadians(60.0f));
-        vehicle.setUp(new Vec3(0f, 1f, 0f));
+        this.applyMotoConfig(config);
 
-        // --- Front Wheel ---
-        WheelSettingsWv front = new WheelSettingsWv();
-        front.setPosition(new Vec3(0.0f, -0.9f * half_vehicle_height, front_wheel_pos_z));
-        front.setMaxSteerAngle(max_steering_angle);
-        front.setSuspensionDirection(new Vec3(0, -1, (float) Math.tan(caster_angle)).normalized());
-        front.setSteeringAxis(minus(front.getSuspensionDirection()));
-        front.setRadius(front_wheel_radius);
-        front.setWidth(front_wheel_width);
-        front.setSuspensionMinLength(front_suspension_min_length);
-        front.setSuspensionMaxLength(front_suspension_max_length);
-        front.getSuspensionSpring().setFrequency(front_suspension_freq);
-        front.setMaxBrakeTorque(front_brake_torque);
+        return config;
+    }
 
-        // --- Rear Wheel ---
-        WheelSettingsWv back = new WheelSettingsWv();
-        back.setPosition(new Vec3(0.0f, -0.9f * half_vehicle_height, back_wheel_pos_z));
-        back.setMaxSteerAngle(0.0f);
-        back.setRadius(back_wheel_radius);
-        back.setWidth(back_wheel_width);
-        back.setSuspensionMinLength(back_suspension_min_length);
-        back.setSuspensionMaxLength(back_suspension_max_length);
-        back.getSuspensionSpring().setFrequency(back_suspension_freq);
-        back.setMaxBrakeTorque(back_brake_torque);
+    @Override
+    public void onBodyAdded(VxPhysicsWorld world) {
+        super.onBodyAdded(world);
 
-        this.wheels.add(new VxWheel(front));
-        this.wheels.add(new VxWheel(back));
-        this.setSyncData(DATA_WHEELS_SETTINGS, this.wheels.stream().map(VxWheel::getSettings).collect(Collectors.toList()));
+        float casterAngle = degreesToRadians(30);
+        Vec3 suspensionDir = new Vec3(0, -1, (float) Math.tan(casterAngle)).normalized();
+        Vec3 steeringAxis = minus(suspensionDir);
 
-        vehicle.addWheels(front, back);
+        VxVehicleWheel front = this.getWheels().get(0);
+        WheelSettingsWv frontSettings = front.getSettings();
+        frontSettings.setSuspensionDirection(suspensionDir);
+        frontSettings.setSteeringAxis(steeringAxis);
+        frontSettings.setMaxSteerAngle(degreesToRadians(30));
+        frontSettings.setSuspensionMinLength(0.3f);
+        frontSettings.setSuspensionMaxLength(0.5f);
+        frontSettings.getSuspensionSpring().setFrequency(1.5f);
+        frontSettings.setMaxBrakeTorque(500.0f);
 
-        // --- Controller ---
-        MotorcycleControllerSettings controller = new MotorcycleControllerSettings();
-        controller.getEngine().setMaxTorque(150.0f);
-        controller.getEngine().setMinRpm(1000.0f);
-        controller.getEngine().setMaxRpm(10000.0f);
-        controller.getTransmission().setShiftDownRpm(2000.0f);
-        controller.getTransmission().setShiftUpRpm(8000.0f);
-        controller.getTransmission().setGearRatios(2.27f, 1.63f, 1.3f, 1.09f, 0.96f, 0.88f);
-        controller.getTransmission().setReverseGearRatios(-4.0f);
-        controller.getTransmission().setClutchStrength(2.0f);
-        vehicle.setController(controller);
+        VxVehicleWheel back = this.getWheels().get(1);
+        WheelSettingsWv backSettings = back.getSettings();
+        backSettings.setMaxSteerAngle(0.0f);
+        backSettings.setSuspensionMinLength(0.3f);
+        backSettings.setSuspensionMaxLength(0.5f);
+        backSettings.getSuspensionSpring().setFrequency(2.0f);
+        backSettings.setMaxBrakeTorque(250.0f);
 
-        // --- Differential ---
-        controller.setNumDifferentials(1);
-        VehicleDifferentialSettings differential = controller.getDifferential(0);
-        differential.setLeftWheel(-1);
-        differential.setRightWheel(1);
-        differential.setDifferentialRatio(1.93f * 40.0f / 16.0f);
-
-        return vehicle;
+        if (constraint != null && constraint.getController() instanceof MotorcycleController controller) {
+            controller.getTransmission().setClutchStrength(2.0f);
+        }
     }
 
     @Override
@@ -149,22 +131,22 @@ public class MotorcycleImpl extends VxMotorcycle {
 
     @Override
     public int createJoltBody(VxRigidBodyFactory factory) {
-        // The center of mass is lowered for stability. The offset is relative to the chassis's half-extents.
-        Vec3 centerOfMassOffset = new Vec3(0, -this.getChassisHalfExtents().getY(), 0);
+        try (ShapeSettings chassisShape = new BoxShapeSettings(CHASSIS_HALF_EXTENTS)) {
+            Vec3 centerOfMassOffset = new Vec3(0, -CHASSIS_HALF_EXTENTS.getY(), 0);
 
-        try (
-                ShapeSettings chassisShape = new BoxShapeSettings(getChassisHalfExtents());
-                ShapeSettings finalShapeSettings = new OffsetCenterOfMassShapeSettings(centerOfMassOffset, chassisShape);
-                BodyCreationSettings bcs = new BodyCreationSettings()
-        ) {
-            bcs.setShapeSettings(finalShapeSettings);
-            bcs.setMotionType(EMotionType.Dynamic);
-            bcs.setObjectLayer(VxLayers.DYNAMIC);
-            bcs.setMotionQuality(EMotionQuality.LinearCast);
-            bcs.getMassPropertiesOverride().setMass(240.0f);
-            bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
+            try (
+                    ShapeSettings finalShapeSettings = new OffsetCenterOfMassShapeSettings(centerOfMassOffset, chassisShape);
+                    BodyCreationSettings bcs = new BodyCreationSettings()
+            ) {
+                bcs.setShapeSettings(finalShapeSettings);
+                bcs.setMotionType(EMotionType.Dynamic);
+                bcs.setObjectLayer(VxLayers.DYNAMIC);
+                bcs.setMotionQuality(EMotionQuality.LinearCast);
+                bcs.getMassPropertiesOverride().setMass(config.getMass());
+                bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
 
-            return factory.create(finalShapeSettings, bcs);
+                return factory.create(finalShapeSettings, bcs);
+            }
         }
     }
 }

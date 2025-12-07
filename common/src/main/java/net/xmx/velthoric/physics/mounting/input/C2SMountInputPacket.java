@@ -48,8 +48,7 @@ public class C2SMountInputPacket {
      * @return A new instance of the packet.
      */
     public static C2SMountInputPacket decode(FriendlyByteBuf buf) {
-        VxMountInput input = new VxMountInput(buf);
-        return new C2SMountInputPacket(input);
+        return new C2SMountInputPacket(new VxMountInput(buf));
     }
 
     /**

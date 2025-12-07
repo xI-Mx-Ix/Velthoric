@@ -4,89 +4,93 @@
  */
 package net.xmx.velthoric.physics.vehicle.sync;
 
+import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
-import net.xmx.velthoric.physics.vehicle.wheel.VxWheel;
+import net.xmx.velthoric.physics.vehicle.component.VxVehicleWheel;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
- * Handles the network synchronization of dynamic vehicle states.
- * This class is responsible for efficiently collecting vehicle data from 'dirty'
- * vehicles (e.g., wheel state, speed) and dispatching update packets to all
- * tracking clients.
+ * Collects dirty vehicle states and dispatches the efficient batch packet.
  *
  * @author xI-Mx-Ix
  */
 public class VxVehicleNetworkDispatcher {
 
-    /**
-     * Collects vehicle state updates for all dirty vehicles and sends them to tracking players.
-     * This method is designed to be called from a dedicated network synchronization thread.
-     *
-     * @param level The server level.
-     * @param manager The body manager containing all physics bodies.
-     * @param bodyTrackers A map that tracks which players are watching which bodies, keyed by network ID.
-     */
     public void dispatchUpdates(ServerLevel level, VxBodyManager manager, Map<Integer, Set<ServerPlayer>> bodyTrackers) {
-        // Step 1: Collect all vehicles that have been marked with a dirty state.
+        // 1. Identify dirty vehicles
         List<VxVehicle> dirtyVehicles = new ArrayList<>();
         for (VxBody body : manager.getAllBodies()) {
-            if (body instanceof VxVehicle vehicle && vehicle.isVehicleStateDirty()) {
-                dirtyVehicles.add(vehicle);
-                // Reset the dirty flag immediately to prevent sending the same data multiple times.
-                vehicle.clearVehicleStateDirty();
+            if (body instanceof VxVehicle v && v.isVehicleStateDirty()) {
+                dirtyVehicles.add(v);
+                v.clearVehicleStateDirty();
             }
         }
 
-        // If no vehicles need updates, exit early.
-        if (dirtyVehicles.isEmpty()) {
-            return;
-        }
+        if (dirtyVehicles.isEmpty()) return;
 
-        // Step 2: Schedule the packet creation and sending on the main server thread
-        // for thread safety with Netty.
         level.getServer().execute(() -> {
+            // Group vehicles by the players who can see them to minimize packet count
+            Map<ServerPlayer, List<VxVehicle>> playerBatches = new HashMap<>();
+
             for (VxVehicle vehicle : dirtyVehicles) {
-                // Find all players who are currently tracking this vehicle using its network ID.
                 Set<ServerPlayer> trackers = bodyTrackers.get(vehicle.getNetworkId());
-                if (trackers == null || trackers.isEmpty()) {
-                    continue; // Skip if no one is watching this vehicle.
-                }
+                if (trackers == null) continue;
 
-                // Step 3: Gather the vehicle data for the packet constructor.
-                float speedKmh = vehicle.getSpeedKmh();
-                List<VxWheel> wheels = vehicle.getWheels();
-                int wheelCount = wheels.size();
-
-                float[] rotations = new float[wheelCount];
-                float[] steers = new float[wheelCount];
-                float[] suspensions = new float[wheelCount];
-
-                if (wheelCount > 0) {
-                    for (int i = 0; i < wheelCount; i++) {
-                        VxWheel wheel = wheels.get(i);
-                        rotations[i] = wheel.getRotationAngle();
-                        steers[i] = wheel.getSteerAngle();
-                        suspensions[i] = wheel.getSuspensionLength();
-                    }
-                }
-
-                // Step 4: Create a single packet with all vehicle data, using the network ID.
-                S2CVehicleStatePacket packet = new S2CVehicleStatePacket(vehicle.getNetworkId(), speedKmh, rotations, steers, suspensions);
-
-                // Step 5: Send the packet to every player tracking this vehicle.
                 for (ServerPlayer player : trackers) {
-                    VxPacketHandler.sendToPlayer(packet, player);
+                    playerBatches.computeIfAbsent(player, k -> new ArrayList<>()).add(vehicle);
                 }
+            }
+
+            // Construct and send one packet per player containing all vehicles they see
+            for (Map.Entry<ServerPlayer, List<VxVehicle>> entry : playerBatches.entrySet()) {
+                sendBatchToPlayer(entry.getKey(), entry.getValue());
             }
         });
+    }
+
+    private void sendBatchToPlayer(ServerPlayer player, List<VxVehicle> vehicles) {
+        int count = vehicles.size();
+        int[] ids = new int[count];
+        float[] speeds = new float[count];
+        float[] rpms = new float[count];
+        int[] gears = new int[count];
+        float[] throttles = new float[count];
+        float[] steers = new float[count];
+        int[] wheelCounts = new int[count];
+
+        FloatArrayList wRot = new FloatArrayList();
+        FloatArrayList wSteer = new FloatArrayList();
+        FloatArrayList wSusp = new FloatArrayList();
+
+        for (int i = 0; i < count; i++) {
+            VxVehicle v = vehicles.get(i);
+            ids[i] = v.getNetworkId();
+            speeds[i] = v.getSpeedKmh();
+            rpms[i] = v.getEngine().getRpm();
+            gears[i] = v.getTransmission().getGear();
+            throttles[i] = v.getInputThrottle();
+            steers[i] = v.getInputSteer();
+
+            List<VxVehicleWheel> wheels = v.getWheels();
+            wheelCounts[i] = wheels.size();
+
+            for (VxVehicleWheel w : wheels) {
+                wRot.add(w.getRotationAngle());
+                wSteer.add(w.getSteerAngle());
+                wSusp.add(w.getSuspensionLength());
+            }
+        }
+
+        S2CVehicleDataBatchPacket packet = new S2CVehicleDataBatchPacket(
+                count, ids, speeds, rpms, gears, throttles, steers, wheelCounts,
+                wRot.toFloatArray(), wSteer.toFloatArray(), wSusp.toFloatArray()
+        );
+        VxPacketHandler.sendToPlayer(packet, player);
     }
 }

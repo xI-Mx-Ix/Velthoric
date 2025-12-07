@@ -1,3 +1,7 @@
+/*
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ */
 package net.xmx.velthoric.builtin.drivable.motorcycle;
 
 import com.github.stephengold.joltjni.Quat;
@@ -13,89 +17,80 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.client.body.renderer.VxRigidBodyRenderer;
-import net.xmx.velthoric.physics.vehicle.type.motorcycle.VxMotorcycle;
-import net.xmx.velthoric.physics.vehicle.wheel.VxWheelRenderState;
+import net.xmx.velthoric.physics.vehicle.component.VxVehicleWheel;
 import org.joml.Quaternionf;
 
 import java.util.List;
 
 /**
- * Renderer for the {@link VxMotorcycle}. This renderer now only applies the
- * physical transformation from the physics engine, resulting in a natural lean.
+ * Renderer for the {@link MotorcycleImpl} implementation.
  *
  * @author xI-Mx-Ix
  */
-public class MotorcycleRenderer extends VxRigidBodyRenderer<VxMotorcycle> {
+public class MotorcycleRenderer extends VxRigidBodyRenderer<MotorcycleImpl> {
 
     private static final BlockState CHASSIS_STATE = Blocks.RED_CONCRETE.defaultBlockState();
     private static final BlockState WHEEL_STATE = Blocks.BLACK_CONCRETE.defaultBlockState();
+    
+    // Hardcoded dimensions matching the implementation class
+    private static final Vec3 CHASSIS_HALF_EXTENTS = new Vec3(0.2f, 0.3f, 0.4f);
 
     @Override
-    public void render(VxMotorcycle body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(MotorcycleImpl body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
-        // Apply the main physics transform (position and rotation including the natural physical lean).
+        // 1. Apply Main Body Transform
         RVec3 renderPosition = renderState.transform.getTranslation();
         Quat renderRotation = renderState.transform.getRotation();
         poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
         poseStack.mulPose(new Quaternionf(renderRotation.getX(), renderRotation.getY(), renderRotation.getZ(), renderRotation.getW()));
 
-        // --- Chassis Rendering ---
-        // The artificial visual lean has been removed. The chassis now renders with the body's actual physical rotation.
-        Vec3 halfExtents = body.getChassisHalfExtents();
+        // 2. Chassis Rendering
+        Vec3 halfExtents = CHASSIS_HALF_EXTENTS;
         poseStack.pushPose();
         poseStack.translate(-halfExtents.getX(), -halfExtents.getY(), -halfExtents.getZ());
         poseStack.scale(halfExtents.getX() * 2f, halfExtents.getY() * 2f, halfExtents.getZ() * 2f);
         Minecraft.getInstance().getBlockRenderer().renderSingleBlock(CHASSIS_STATE, poseStack, bufferSource, packedLight, OverlayTexture.NO_OVERLAY);
-        poseStack.popPose(); // Pop chassis pose
+        poseStack.popPose();
 
-        // --- Wheel Rendering ---
-        List<WheelSettingsWv> wheelSettingsList = body.getWheelSettings();
-        List<VxWheelRenderState> wheelRenderStates = body.getInterpolatedWheelStates();
+        // 3. Wheel Rendering
+        List<VxVehicleWheel> wheels = body.getWheels();
 
-        if (wheelRenderStates == null || wheelSettingsList.size() != wheelRenderStates.size()) {
-            poseStack.popPose(); // Pop main body pose
-            return;
-        }
-
-        for (int i = 0; i < wheelSettingsList.size(); i++) {
-            WheelSettingsWv wheelSettings = wheelSettingsList.get(i);
-            VxWheelRenderState wheelState = wheelRenderStates.get(i);
-
-            if (wheelState == null) continue;
+        for (VxVehicleWheel wheel : wheels) {
+            WheelSettingsWv settings = wheel.getSettings();
 
             poseStack.pushPose();
 
-            // The wheels are attached to the main body, so their transforms are relative to it.
-            // The main body's transform already includes the physics lean.
-            Vec3 attachmentPos = wheelSettings.getPosition();
+            Vec3 attachmentPos = settings.getPosition();
             poseStack.translate(attachmentPos.getX(), attachmentPos.getY(), attachmentPos.getZ());
 
-            Vec3 suspensionDir = wheelSettings.getSuspensionDirection();
+            float suspLength = wheel.getRenderSuspension(partialTicks);
+            Vec3 suspensionDir = settings.getSuspensionDirection();
             poseStack.translate(
-                    suspensionDir.getX() * wheelState.suspensionLength(),
-                    suspensionDir.getY() * wheelState.suspensionLength(),
-                    suspensionDir.getZ() * wheelState.suspensionLength()
+                    suspensionDir.getX() * suspLength,
+                    suspensionDir.getY() * suspLength,
+                    suspensionDir.getZ() * suspLength
             );
 
-            // Apply steering and rotation angles.
-            Vec3 steerAxis = wheelSettings.getSteeringAxis();
-            poseStack.mulPose(Axis.of(new org.joml.Vector3f(steerAxis.getX(), steerAxis.getY(), steerAxis.getZ())).rotation(wheelState.steerAngle()));
-            poseStack.mulPose(Axis.XP.rotation(wheelState.rotationAngle()));
+            float steerAngle = wheel.getRenderSteer(partialTicks);
+            float rotationAngle = wheel.getRenderRotation(partialTicks);
 
-            // Render the wheel geometry.
-            float radius = wheelSettings.getRadius();
-            float width = wheelSettings.getWidth();
+            Vec3 steerAxis = settings.getSteeringAxis();
+            poseStack.mulPose(Axis.of(new org.joml.Vector3f(steerAxis.getX(), steerAxis.getY(), steerAxis.getZ())).rotation(steerAngle));
+            poseStack.mulPose(Axis.XP.rotation(rotationAngle));
+
+            float radius = settings.getRadius();
+            float width = settings.getWidth();
             poseStack.pushPose();
             poseStack.mulPose(Axis.ZP.rotationDegrees(90));
             poseStack.translate(-radius, -width / 2f, -radius);
             poseStack.scale(radius * 2f, width, radius * 2f);
             Minecraft.getInstance().getBlockRenderer().renderSingleBlock(WHEEL_STATE, poseStack, bufferSource, packedLight, OverlayTexture.NO_OVERLAY);
-            poseStack.popPose(); // Pop wheel geometry pose
+            poseStack.popPose();
 
-            poseStack.popPose(); // Pop individual wheel pose
+            poseStack.popPose();
         }
 
-        poseStack.popPose(); // Pop main body pose
+        poseStack.popPose();
     }
 }
