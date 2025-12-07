@@ -9,6 +9,7 @@ import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
@@ -118,6 +119,25 @@ public abstract class VxBody {
      * @param level The server level instance.
      */
     public void onGameTick(ServerLevel level) {}
+
+    // --- Client-Side Lifecycle and Ticking ---
+
+    /**
+     * Called when the body is successfully added to the client world.
+     * This can be used to initialize client-side state or effects related to the body.
+     *
+     * @param level The client level the body was added to.
+     */
+    public void onBodyAdded(ClientLevel level) {}
+
+    /**
+     * Called when the body is removed from the client world.
+     * Use this to clean up any client-side state or effects associated with the body.
+     *
+     * @param level The client level the body was removed from.
+     */
+    public void onBodyRemoved(ClientLevel level) {}
+
 
     /**
      * Called on every client tick for this body (Client Only).

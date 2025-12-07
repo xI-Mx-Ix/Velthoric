@@ -8,6 +8,7 @@ import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import dev.architectury.event.events.client.ClientTickEvent;
 import io.netty.buffer.ByteBuf;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.event.api.VxClientLevelEvent;
 import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
@@ -175,6 +176,9 @@ public class VxClientBodyManager {
         body.getSynchronizedData().readEntries(data, body);
 
         initializeState(index, transform, timestamp);
+
+        // Notify the body that it has been added to the client.
+        body.onBodyAdded(Minecraft.getInstance().level);
     }
 
     /**
@@ -234,6 +238,14 @@ public class VxClientBodyManager {
         if (index != null) {
             UUID id = store.getUuidForIndex(index);
             if (id != null) {
+                VxBody body = managedBodies.get(id);
+
+                if (body != null) {
+
+                    // Notify the body that it has been removed from the client.
+                    body.onBodyRemoved(Minecraft.getInstance().level);
+                }
+
                 managedBodies.remove(id);
                 VxClientMountingManager.INSTANCE.removeSeatsForBody(id);
             }
