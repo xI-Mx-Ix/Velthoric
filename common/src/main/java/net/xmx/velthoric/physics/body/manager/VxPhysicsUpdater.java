@@ -68,7 +68,7 @@ public class VxPhysicsUpdater {
      * @param level The server level.
      */
     public void onGameTick(ServerLevel level) {
-        this.manager.getAllBodies().forEach(obj -> obj.gameTick(level));
+        this.manager.getAllBodies().forEach(obj -> obj.onGameTick(level));
     }
 
     /**
@@ -153,7 +153,7 @@ public class VxPhysicsUpdater {
             boolean wasDataStoreBodyActive = dataStore.isActive[i];
 
             if (isJoltBodyActive || wasDataStoreBodyActive) {
-                obj.physicsTick(world);
+                obj.onPhysicsTick(world);
 
                 // Sync transform, velocities, and motion type using performant BodyInterface methods
                 final RVec3 pos = tempPos.get();
