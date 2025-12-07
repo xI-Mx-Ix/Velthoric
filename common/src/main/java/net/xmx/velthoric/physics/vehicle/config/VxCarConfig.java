@@ -4,6 +4,8 @@
  */
 package net.xmx.velthoric.physics.vehicle.config;
 
+import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
+
 /**
  * Configuration specific to car-like vehicles.
  * Includes engine, transmission settings, and box-shape dimensions.
@@ -19,13 +21,14 @@ public class VxCarConfig extends VxVehicleConfig {
     /**
      * Constructs a new car configuration.
      *
-     * @param mass        The mass in kg.
-     * @param torque      The maximum engine torque.
-     * @param rpm         The maximum engine RPM.
-     * @param gears       The gear ratios.
+     * @param mass             The mass in kg.
+     * @param torque           The maximum engine torque.
+     * @param rpm              The maximum engine RPM.
+     * @param gears            The gear ratios.
+     * @param transmissionMode The transmission mode (Auto/Manual).
      */
-    public VxCarConfig(float mass, float torque, float rpm, float[] gears) {
-        super(mass);
+    public VxCarConfig(float mass, float torque, float rpm, float[] gears, ETransmissionMode transmissionMode) {
+        super(mass, transmissionMode);
         this.maxTorque = torque;
         this.maxRpm = rpm;
         this.gearRatios = gears;

@@ -50,6 +50,7 @@ public abstract class VxCar extends VxVehicle {
      */
     protected void applyCarConfig(VxCarConfig config) {
         this.config = config;
+        // Visual/Sound engine keeps 1000 RPM for aesthetics
         this.engine = new VxVehicleEngine(config.getMaxTorque(), 1000f, config.getMaxRpm());
         this.transmission = new VxVehicleTransmission(config.getGearRatios(), -3.0f);
     }
@@ -63,12 +64,18 @@ public abstract class VxCar extends VxVehicle {
         if (this.config instanceof VxCarConfig carConfig) {
             controllerSettings.getEngine().setMaxTorque(carConfig.getMaxTorque());
             controllerSettings.getEngine().setMaxRpm(carConfig.getMaxRpm());
-            controllerSettings.getEngine().setMinRpm(1000.0f);
+
+            // This is the shift point for automatic transmission
+            controllerSettings.getTransmission().setShiftUpRpm(carConfig.getMaxRpm() * 0.9f);
+        } else {
+            controllerSettings.getTransmission().setShiftUpRpm(6000f);
         }
 
-        // Configure Transmission
-        controllerSettings.getTransmission().setMode(ETransmissionMode.Auto);
-        controllerSettings.getTransmission().setShiftUpRpm(this.config != null && this.config instanceof VxCarConfig carConfig ? carConfig.getMaxRpm() * 0.9f : 6000f);
+        // Apply global configuration settings
+        // Setting physical minRPM to almost zero prevents the vehicle from moving forward
+        // automatically (idle creep) when in gear.
+        controllerSettings.getEngine().setMinRpm(0.1f);
+        controllerSettings.getTransmission().setMode(this.config.getTransmissionMode());
 
         // Configure Differentials (RWD Logic)
         controllerSettings.setNumDifferentials(1);
@@ -114,6 +121,7 @@ public abstract class VxCar extends VxVehicle {
 
     @Override
     protected void updateJoltController() {
+        super.updateJoltController();
         if (controller == null) return;
 
         float throttle = getInputThrottle();
@@ -128,6 +136,11 @@ public abstract class VxCar extends VxVehicle {
         } else if (gear == -1 && throttle > 0) {
             brake = throttle;
             throttle = 0;
+        }
+
+        // Hill hold / Auto brake when stopping
+        if (throttle == 0 && brake == 0 && Math.abs(getSpeedKmh()) < 1.0f) {
+            brake = 0.5f;
         }
 
         float handbrake = currentInput.hasAction(VxMountInput.FLAG_HANDBRAKE) ? 1.0f : 0.0f;

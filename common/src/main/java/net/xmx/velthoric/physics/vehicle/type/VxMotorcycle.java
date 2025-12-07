@@ -62,6 +62,12 @@ public abstract class VxMotorcycle extends VxVehicle {
             controllerSettings.getEngine().setMaxRpm(motoConfig.getMaxRpm());
         }
 
+        // Apply global configuration settings
+        // Setting physical minRPM to almost zero prevents the motorcycle from moving forward
+        // automatically (idle creep) when in gear.
+        controllerSettings.getEngine().setMinRpm(0.1f);
+        controllerSettings.getTransmission().setMode(this.config.getTransmissionMode());
+
         // Configure Differential (Connecting engine to the rear wheel)
         controllerSettings.setNumDifferentials(1);
         VehicleDifferentialSettings diff = controllerSettings.getDifferential(0);
@@ -97,6 +103,7 @@ public abstract class VxMotorcycle extends VxVehicle {
 
     @Override
     protected void updateJoltController() {
+        super.updateJoltController();
         if (controller == null) return;
 
         float throttle = getInputThrottle();
@@ -109,6 +116,11 @@ public abstract class VxMotorcycle extends VxVehicle {
         } else if (gear == -1 && throttle > 0) {
             brake = throttle;
             throttle = 0;
+        }
+
+        // Hill hold / Auto brake when stopping
+        if (throttle == 0 && brake == 0 && Math.abs(getSpeedKmh()) < 1.0f) {
+            brake = 0.5f;
         }
 
         float handbrake = currentInput.hasAction(VxMountInput.FLAG_HANDBRAKE) ? 1.0f : 0.0f;
