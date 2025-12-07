@@ -8,7 +8,6 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.ESpringMode;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import net.minecraft.network.syncher.EntityDataSerializer;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.ragdoll.VxBodyPart;
 

@@ -19,8 +19,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.function.Consumer;
-
 /**
  * Mixin to hook into {@link ChunkMap} to dispatch physics bodies to players
  * in a way that is synchronized with vanilla chunk and entity tracking. This class

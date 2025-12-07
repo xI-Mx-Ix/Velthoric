@@ -5,7 +5,6 @@
 package net.xmx.velthoric.physics.vehicle.type;
 
 import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
