@@ -60,7 +60,7 @@ public class CarImpl extends VxCar {
     protected VxVehicleConfig createConfig() {
         float maxTorque = 7500.0f;
         float maxRpm = 9000.0f;
-        float[] gears = new float[]{4.0f, 2.5f, 1.8f, 1.3f, 1.0f};
+        float[] gears = new float[]{8.5f, 5.2f, 3.6f, 2.7f, 2.1f, 1.7f};
 
         // Here we configure the transmission mode (Manual)
         VxCarConfig config = new VxCarConfig(1600.0f, maxTorque, maxRpm, gears, ETransmissionMode.Manual);

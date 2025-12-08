@@ -122,6 +122,8 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
     /**
      * Initializes components based on the configuration.
+     * Ensures that default components are only created if the specific vehicle implementation
+     * has not already defined them.
      */
     private void initializeComponents() {
         for (VxVehicleConfig.WheelInfo info : config.getWheels()) {
@@ -129,15 +131,21 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
             ws.setPosition(info.position());
             ws.setRadius(info.radius());
             ws.setWidth(info.width());
-            // Default suspension settings, usually fine-tuned in config too
+            // Sets default suspension limits, which may be adjusted later in onBodyAdded.
             ws.setSuspensionMinLength(0.2f);
             ws.setSuspensionMaxLength(0.5f);
             wheels.add(new VxVehicleWheel(ws, info.powered(), info.steerable()));
         }
 
-        // Default components, usually overridden by specific vehicle implementations (Car/Motorcycle)
-        this.engine = new VxVehicleEngine(500f, 800f, 7000f);
-        this.transmission = new VxVehicleTransmission(new float[]{3.5f, 2.0f, 1.4f, 1.0f}, -3.0f);
+        // Initialize a default engine only if one has not been provided by the subclass configuration.
+        if (this.engine == null) {
+            this.engine = new VxVehicleEngine(500f, 800f, 7000f);
+        }
+
+        // Initialize a default transmission only if one has not been provided by the subclass configuration.
+        if (this.transmission == null) {
+            this.transmission = new VxVehicleTransmission(new float[]{3.5f, 2.0f, 1.4f, 1.0f}, -3.0f);
+        }
     }
 
     @Override
@@ -358,6 +366,9 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
     public void handleDriverInput(ServerPlayer player, VxMountInput input) {
         // Store the input; processing happens during the physics tick.
         this.currentInput = input;
+
+        int bodyId = getBodyId();
+        if (bodyId != 0) this.physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(bodyId);
     }
 
     // --- Client Synchronization ---
