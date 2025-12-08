@@ -63,6 +63,7 @@ public abstract class VxCar extends VxVehicle {
         if (this.config instanceof VxCarConfig carConfig) {
             controllerSettings.getEngine().setMaxTorque(carConfig.getMaxTorque());
             controllerSettings.getEngine().setMaxRpm(carConfig.getMaxRpm());
+            controllerSettings.getTransmission().setGearRatios(carConfig.getGearRatios());
 
             // This is the shift point for automatic transmission
             controllerSettings.getTransmission().setShiftUpRpm(carConfig.getMaxRpm() * 0.9f);

@@ -60,6 +60,7 @@ public abstract class VxMotorcycle extends VxVehicle {
         if (this.config instanceof VxMotorcycleConfig motoConfig) {
             controllerSettings.getEngine().setMaxTorque(motoConfig.getMaxTorque());
             controllerSettings.getEngine().setMaxRpm(motoConfig.getMaxRpm());
+            controllerSettings.getTransmission().setGearRatios(motoConfig.getGearRatios());
         }
 
         // Apply global configuration settings
