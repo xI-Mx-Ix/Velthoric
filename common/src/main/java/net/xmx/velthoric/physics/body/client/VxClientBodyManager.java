@@ -281,9 +281,14 @@ public class VxClientBodyManager {
 
     /**
      * The main client-side tick method.
-     * Synchronizes the clock, and runs interpolation.
+     * Synchronizes the clock, runs body callbacks, and triggers interpolation.
      */
     public void clientTick() {
+        // Tick all active client bodies
+        for (VxBody body : managedBodies.values()) {
+            body.onClientTick();
+        }
+
         synchronizeClock();
         if (isClockOffsetInitialized) {
             // Calculate the target render time, accounting for the clock offset and interpolation delay.

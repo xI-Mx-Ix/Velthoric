@@ -199,8 +199,8 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
      * @param world The physics world.
      */
     @Override
-    public void physicsTick(VxPhysicsWorld world) {
-        super.physicsTick(world);
+    public void onPhysicsTick(VxPhysicsWorld world) {
+        super.onPhysicsTick(world);
         if (constraint == null) return;
 
         // 1. Check if we have any driver input.

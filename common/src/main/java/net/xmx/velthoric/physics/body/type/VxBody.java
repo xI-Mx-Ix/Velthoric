@@ -106,16 +106,25 @@ public abstract class VxBody {
     public void onBodyRemoved(VxPhysicsWorld world, VxRemovalReason reason) {}
 
     /**
-     * Called on every physics thread tick for this body.
+     * Called on every physics thread tick for this body (Server Only).
+     *
      * @param world The physics world instance.
      */
-    public void physicsTick(VxPhysicsWorld world) {}
+    public void onPhysicsTick(VxPhysicsWorld world) {}
 
     /**
-     * Called on every game thread tick for this body.
+     * Called on every game thread tick for this body (Server Only).
+     *
      * @param level The server level instance.
      */
-    public void gameTick(ServerLevel level) {}
+    public void onGameTick(ServerLevel level) {}
+
+    /**
+     * Called on every client tick for this body (Client Only).
+     * This occurs before interpolation and rendering updates.
+     */
+    @Environment(EnvType.CLIENT)
+    public void onClientTick() {}
 
 
     // --- Common Synchronized Data Management ---
