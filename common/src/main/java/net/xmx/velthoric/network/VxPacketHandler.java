@@ -22,7 +22,7 @@ import net.xmx.velthoric.item.tool.packet.VxToolConfigPacket;
 import net.xmx.velthoric.physics.body.packet.batch.*;
 import net.xmx.velthoric.physics.mounting.input.C2SMountInputPacket;
 import net.xmx.velthoric.physics.mounting.request.C2SRequestMountPacket;
-import net.xmx.velthoric.physics.vehicle.sync.S2CVehicleStatePacket;
+import net.xmx.velthoric.physics.vehicle.sync.S2CVehicleDataBatchPacket;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -116,11 +116,11 @@ public class VxPacketHandler {
         );
 
         registerPacket(
-                S2CVehicleStatePacket.class,
-                "vehicle_state",
-                S2CVehicleStatePacket::encode,
-                S2CVehicleStatePacket::decode,
-                S2CVehicleStatePacket::handle
+                S2CVehicleDataBatchPacket.class,
+                "vehicle_data_batch",
+                S2CVehicleDataBatchPacket::encode,
+                S2CVehicleDataBatchPacket::decode,
+                S2CVehicleDataBatchPacket::handle
         );
 
         registerPacket(

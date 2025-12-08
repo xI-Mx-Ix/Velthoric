@@ -17,24 +17,26 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.client.body.renderer.VxRigidBodyRenderer;
-import net.xmx.velthoric.physics.vehicle.type.car.VxCar;
-import net.xmx.velthoric.physics.vehicle.wheel.VxWheelRenderState;
+import net.xmx.velthoric.physics.vehicle.component.VxVehicleWheel;
 import org.joml.Quaternionf;
 
 import java.util.List;
 
 /**
- * Renderer for the {@link VxCar}.
+ * Renderer for the {@link CarImpl} class.
  *
  * @author xI-Mx-Ix
  */
-public class CarRenderer extends VxRigidBodyRenderer<VxCar> {
+public class CarRenderer extends VxRigidBodyRenderer<CarImpl> {
 
     private static final BlockState CHASSIS_STATE = Blocks.BLUE_CONCRETE.defaultBlockState();
     private static final BlockState WHEEL_STATE = Blocks.BLACK_CONCRETE.defaultBlockState();
+    
+    // Hardcoded half-extents matching the implementation class
+    private static final Vec3 CHASSIS_HALF_EXTENTS = new Vec3(1.1f, 0.5f, 2.4f);
 
     @Override
-    public void render(VxCar body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(CarImpl body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         RVec3 renderPosition = renderState.transform.getTranslation();
@@ -42,47 +44,42 @@ public class CarRenderer extends VxRigidBodyRenderer<VxCar> {
         poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
         poseStack.mulPose(new Quaternionf(renderRotation.getX(), renderRotation.getY(), renderRotation.getZ(), renderRotation.getW()));
 
-        // Chassis rendering
-        Vec3 halfExtents = body.getChassisHalfExtents();
+        // Chassis Rendering
+        Vec3 halfExtents = CHASSIS_HALF_EXTENTS;
         poseStack.pushPose();
         poseStack.translate(-halfExtents.getX(), -halfExtents.getY(), -halfExtents.getZ());
         poseStack.scale(halfExtents.getX() * 2f, halfExtents.getY() * 2f, halfExtents.getZ() * 2f);
         Minecraft.getInstance().getBlockRenderer().renderSingleBlock(CHASSIS_STATE, poseStack, bufferSource, packedLight, OverlayTexture.NO_OVERLAY);
         poseStack.popPose();
 
-        // Wheel rendering
-        List<WheelSettingsWv> wheelSettingsList = body.getWheelSettings();
-        List<VxWheelRenderState> wheelRenderStates = body.getInterpolatedWheelStates();
-
-        if (wheelRenderStates == null || wheelSettingsList.size() != wheelRenderStates.size()) {
-            poseStack.popPose();
-            return;
-        }
-
-        for (int i = 0; i < wheelSettingsList.size(); i++) {
-            WheelSettingsWv wheelSettings = wheelSettingsList.get(i);
-            VxWheelRenderState wheelState = wheelRenderStates.get(i);
-
-            if (wheelState == null) continue;
+        // Wheel Rendering
+        List<VxVehicleWheel> wheels = body.getWheels();
+        
+        for (VxVehicleWheel wheel : wheels) {
+            WheelSettingsWv settings = wheel.getSettings();
 
             poseStack.pushPose();
 
-            Vec3 attachmentPos = wheelSettings.getPosition();
+            Vec3 attachmentPos = settings.getPosition();
             poseStack.translate(attachmentPos.getX(), attachmentPos.getY(), attachmentPos.getZ());
 
-            Vec3 suspensionDir = wheelSettings.getSuspensionDirection();
+            float suspLength = wheel.getRenderSuspension(partialTicks);
+            Vec3 suspensionDir = settings.getSuspensionDirection();
             poseStack.translate(
-                    suspensionDir.getX() * wheelState.suspensionLength(),
-                    suspensionDir.getY() * wheelState.suspensionLength(),
-                    suspensionDir.getZ() * wheelState.suspensionLength()
+                    suspensionDir.getX() * suspLength,
+                    suspensionDir.getY() * suspLength,
+                    suspensionDir.getZ() * suspLength
             );
 
-            Vec3 steerAxis = wheelSettings.getSteeringAxis();
-            poseStack.mulPose(Axis.of(new org.joml.Vector3f(steerAxis.getX(), steerAxis.getY(), steerAxis.getZ())).rotation(wheelState.steerAngle()));
-            poseStack.mulPose(Axis.XP.rotation(wheelState.rotationAngle()));
+            float steerAngle = wheel.getRenderSteer(partialTicks);
+            float rotationAngle = wheel.getRenderRotation(partialTicks);
 
-            float radius = wheelSettings.getRadius();
-            float width = wheelSettings.getWidth();
+            Vec3 steerAxis = settings.getSteeringAxis();
+            poseStack.mulPose(Axis.of(new org.joml.Vector3f(steerAxis.getX(), steerAxis.getY(), steerAxis.getZ())).rotation(steerAngle));
+            poseStack.mulPose(Axis.XP.rotation(rotationAngle));
+
+            float radius = settings.getRadius();
+            float width = settings.getWidth();
             poseStack.pushPose();
             poseStack.mulPose(Axis.ZP.rotationDegrees(90));
             poseStack.translate(-radius, -width / 2f, -radius);
