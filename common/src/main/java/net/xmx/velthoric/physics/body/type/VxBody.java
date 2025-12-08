@@ -107,18 +107,26 @@ public abstract class VxBody {
     public void onBodyRemoved(VxPhysicsWorld world, VxRemovalReason reason) {}
 
     /**
-     * Called on every physics thread tick for this body (Server Only).
+     * Called on each physics-step tick for this body.
+     * <p>
+     * Runs exclusively during the physics thread at a fixed rate
+     * (typically 60 times per second). Sleeping bodies do not receive
+     * physics ticks.
      *
      * @param world The physics world instance.
      */
     public void onPhysicsTick(VxPhysicsWorld world) {}
 
     /**
-     * Called on every game thread tick for this body (Server Only).
+     * Called on each game-thread tick for this body.
+     * <p>
+     * Executed only on the server thread. This method is not invoked
+     * for sleeping bodies unless they are explicitly woken up.
      *
      * @param level The server level instance.
      */
-    public void onGameTick(ServerLevel level) {}
+    public void onServerTick(ServerLevel level) {}
+
 
     // --- Client-Side Lifecycle and Ticking ---
 

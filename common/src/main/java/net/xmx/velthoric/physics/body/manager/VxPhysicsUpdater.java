@@ -68,7 +68,7 @@ public class VxPhysicsUpdater {
      * @param level The server level.
      */
     public void onGameTick(ServerLevel level) {
-        this.manager.getAllBodies().forEach(obj -> obj.onGameTick(level));
+        this.manager.getAllBodies().forEach(obj -> obj.onServerTick(level));
     }
 
     /**
