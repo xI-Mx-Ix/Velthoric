@@ -8,6 +8,7 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
+import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
@@ -61,7 +62,8 @@ public class CarImpl extends VxCar {
         float maxRpm = 9000.0f;
         float[] gears = new float[]{4.0f, 2.5f, 1.8f, 1.3f, 1.0f};
 
-        VxCarConfig config = new VxCarConfig(1600.0f, maxTorque, maxRpm, gears);
+        // Here we configure the transmission mode (Manual)
+        VxCarConfig config = new VxCarConfig(1600.0f, maxTorque, maxRpm, gears, ETransmissionMode.Manual);
 
         float wheelRadius = 0.55f;
         float wheelWidth = 0.35f;

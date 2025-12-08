@@ -5,28 +5,33 @@
 package net.xmx.velthoric.physics.vehicle.config;
 
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Base configuration for any vehicle.
- * This class stores universal physical properties like mass and wheel layout,
- * but does not enforce a specific chassis shape (e.g., Box).
+ * This class stores universal physical properties like mass, wheel layout,
+ * and transmission mode, but does not enforce a specific chassis shape.
  *
  * @author xI-Mx-Ix
  */
 public abstract class VxVehicleConfig {
 
     private final float mass;
+    private final ETransmissionMode transmissionMode;
     private final List<WheelInfo> wheels = new ArrayList<>();
 
     /**
      * Constructs a new vehicle configuration.
      *
-     * @param mass The mass of the vehicle in kilograms.
+     * @param mass             The mass of the vehicle in kilograms.
+     * @param transmissionMode The transmission mode (Auto/Manual).
      */
-    public VxVehicleConfig(float mass) {
+    public VxVehicleConfig(float mass, ETransmissionMode transmissionMode) {
         this.mass = mass;
+        this.transmissionMode = transmissionMode;
     }
 
     /**
@@ -49,6 +54,15 @@ public abstract class VxVehicleConfig {
      */
     public float getMass() {
         return mass;
+    }
+
+    /**
+     * Gets the configured transmission mode.
+     *
+     * @return The transmission mode.
+     */
+    public ETransmissionMode getTransmissionMode() {
+        return transmissionMode;
     }
 
     /**

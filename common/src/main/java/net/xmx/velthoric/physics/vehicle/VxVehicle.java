@@ -5,6 +5,7 @@
 package net.xmx.velthoric.physics.vehicle;
 
 import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.server.level.ServerPlayer;
@@ -190,17 +191,21 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         }
     }
 
+    /**
+     * Executes the physics logic for this vehicle every tick.
+     * Handles speed calculation, transmission logic (Auto vs Manual), engine updates,
+     * and synchronizes the physics state to the local component representation.
+     *
+     * @param world The physics world.
+     */
     @Override
     public void physicsTick(VxPhysicsWorld world) {
         super.physicsTick(world);
         if (constraint == null) return;
 
         // 1. Check if we have any driver input.
-        // If the player tries to steer, accelerate, or shift gears (non-neutral input),
-        // we must ensure the physics body is awake (Active) to process these changes.
         if (!this.currentInput.equals(VxMountInput.NEUTRAL)) {
             BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
-            // Force the body to wake up if it is currently sleeping
             if (!bodyInterface.isActive(getBodyId())) {
                 bodyInterface.activateBody(getBodyId());
             }
@@ -214,35 +219,49 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         // 3. Physics Simulation Interface
         Body joltBody = VxJoltBridge.INSTANCE.getJoltBody(world, getBodyId());
 
-        // We check isActive() here. Thanks to step 1, this will now be true if the player pressed a key.
         if (joltBody != null && joltBody.isActive()) {
 
             // Calculate Speed in KM/H
             Vec3 vel = joltBody.getLinearVelocity();
             this.speedKmh = vel.length() * 3.6f;
 
-            // Apply Transmission Logic (Time based)
-            transmission.update(dt);
+            // --- Transmission Logic ---
+            if (config.getTransmissionMode() == ETransmissionMode.Manual) {
+                // We handle shift timers and player inputs in Java.
+                transmission.update(dt);
 
-            // Handle Gear Shifting (Edge detection on input flags)
-            boolean shiftUp = currentInput.hasAction(VxMountInput.FLAG_SHIFT_UP);
-            if (shiftUp && !wasShiftUpPressed) {
-                transmission.shiftUp();
-            }
-            wasShiftUpPressed = shiftUp;
+                // Handle Gear Shifting (Edge detection on input flags)
+                boolean shiftUp = currentInput.hasAction(VxMountInput.FLAG_SHIFT_UP);
+                if (shiftUp && !wasShiftUpPressed) {
+                    transmission.shiftUp();
+                }
+                wasShiftUpPressed = shiftUp;
 
-            boolean shiftDown = currentInput.hasAction(VxMountInput.FLAG_SHIFT_DOWN);
-            if (shiftDown && !wasShiftDownPressed) {
-                transmission.shiftDown();
+                boolean shiftDown = currentInput.hasAction(VxMountInput.FLAG_SHIFT_DOWN);
+                if (shiftDown && !wasShiftDownPressed) {
+                    transmission.shiftDown();
+                }
+                wasShiftDownPressed = shiftDown;
+
+            } else {
+                // Jolt handles shifting internally. We ignore player shift inputs.
+                // We must synchronize the 'transmission' object with Jolt so the HUD displays the correct gear.
+                if (constraint.getController() instanceof WheeledVehicleController wvc) {
+                    // Get the current gear index calculated by the physics engine
+                    int joltGear = wvc.getTransmission().getCurrentGear();
+                    transmission.setSynchronizedGear(joltGear);
+                }
+
+                // Reset edge detection flags to prevent buffered inputs when switching back to manual
+                wasShiftUpPressed = false;
+                wasShiftDownPressed = false;
             }
-            wasShiftDownPressed = shiftDown;
 
             // Calculate average Wheel RPM for Engine simulation
             float avgWheelRpm = 0;
             int poweredCount = 0;
             for (int i = 0; i < wheels.size(); i++) {
                 if (wheels.get(i).isPowered()) {
-                    // Convert Rad/s to RPM ( approx * 9.55 )
                     avgWheelRpm += Math.abs(constraint.getWheel(i).getAngularVelocity()) * 9.55f;
                     poweredCount++;
                 }
@@ -250,15 +269,19 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
             if (poweredCount > 0) avgWheelRpm /= poweredCount;
 
             // Update Engine Physics
-            engine.update(Math.abs(inputThrottle), avgWheelRpm, transmission.getCurrentRatio(), !transmission.isShifting());
+            // If Automatic, we assume "isClutched" is true (engaged) unless Jolt is shifting (which we can't easily read here),
+            // so we pass 'true' for simplicity, or check transmission.isShifting() if in Manual.
+            boolean clutchEngaged = (config.getTransmissionMode() == ETransmissionMode.Auto) || !transmission.isShifting();
 
-            // 4. Sync Physics State to Local Wheel Components (for later networking & rendering)
+            engine.update(Math.abs(inputThrottle), avgWheelRpm, transmission.getCurrentRatio(), clutchEngaged);
+
+            // 4. Sync Physics State to Local Wheel Components
             for (int i = 0; i < wheels.size(); i++) {
                 Wheel w = constraint.getWheel(i);
                 wheels.get(i).updatePhysicsState(w.getRotationAngle(), w.getSteerAngle(), w.getSuspensionLength(), w.hasContact());
             }
 
-            // 5. Update Jolt Controller Input (Throttle, Brake, etc.)
+            // 5. Update Jolt Controller Input
             this.updateJoltController();
 
             // Mark for network sync
@@ -287,9 +310,49 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
     /**
      * Applies the calculated inputs to the underlying Jolt Vehicle Controller.
-     * Must be implemented by subclasses (Car/Motorcycle) as they utilize different controllers.
+     * Since MotorcycleController inherits from WheeledVehicleController in Jolt,
+     * this logic is shared across both vehicle types to adhere to DRY principles.
      */
-    protected abstract void updateJoltController();
+    protected void updateJoltController() {
+        if (constraint == null) return;
+
+        // Check if the controller is a WheeledVehicleController (Parent of Car & Motorcycle controllers)
+        if (constraint.getController() instanceof WheeledVehicleController controller) {
+
+            float throttle = getInputThrottle();
+            float brake = 0.0f;
+
+            // Determine if we should brake based on gear and throttle direction
+            int gear = transmission.getGear();
+            if (gear > 0 && throttle < 0) {
+                brake = Math.abs(throttle);
+                throttle = 0;
+            } else if (gear == -1 && throttle > 0) {
+                brake = throttle;
+                throttle = 0;
+            }
+
+            // Hill hold / Auto brake when stopping
+            if (throttle == 0 && brake == 0 && Math.abs(getSpeedKmh()) < 1.0f) {
+                brake = 0.5f;
+            }
+
+            float handbrake = currentInput.hasAction(VxMountInput.FLAG_HANDBRAKE) ? 1.0f : 0.0f;
+
+            // Apply basic inputs (Throttle, Steer, Brake, Handbrake)
+            controller.setDriverInput(throttle, getInputSteer(), brake, handbrake);
+
+            // Apply manual transmission state if configured
+            if (config.getTransmissionMode() == ETransmissionMode.Manual) {
+                // Calculate clutch engagement: 0.0f if currently shifting, 1.0f otherwise
+                float clutch = transmission.isShifting() ? 0.0f : 1.0f;
+
+                // Sync the logical Java gear state to the Jolt physics controller
+                // We must access the transmission component explicitly to set the gear
+                controller.getTransmission().set(gear, clutch);
+            }
+        }
+    }
 
     @Override
     public void handleDriverInput(ServerPlayer player, VxMountInput input) {

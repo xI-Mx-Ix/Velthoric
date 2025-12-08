@@ -8,6 +8,7 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
+import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.world.phys.AABB;
@@ -64,7 +65,7 @@ public class MotorcycleImpl extends VxMotorcycle {
         float maxRpm = 10000.0f;
         float[] gears = new float[]{2.27f, 1.63f, 1.3f, 1.09f, 0.96f, 0.88f};
 
-        VxMotorcycleConfig config = new VxMotorcycleConfig(240.0f, maxTorque, maxRpm, gears);
+        VxMotorcycleConfig config = new VxMotorcycleConfig(240.0f, maxTorque, maxRpm, gears, ETransmissionMode.Auto);
 
         float wheelRadius = 0.31f;
         float wheelWidth = 0.05f;
