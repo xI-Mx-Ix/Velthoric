@@ -16,6 +16,7 @@ import net.xmx.velthoric.physics.VxLifecycleEvents;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.renderer.VxPhysicsRenderer;
 import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
+import net.xmx.velthoric.physics.vehicle.gui.VxVehicleHudRenderer;
 
 /**
  * @author xI-Mx-Ix
@@ -37,5 +38,6 @@ public class RegisterEvents {
         VxPhysicsGunBeamRenderer.registerEvents();
         VxPhysicsGunClientEvents.registerEvents();
         VxToolClientEvents.registerEvents();
+        VxVehicleHudRenderer.registerEvents();
     }
 }

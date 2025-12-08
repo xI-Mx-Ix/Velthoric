@@ -12,10 +12,11 @@
     "event.debug.MixinDebugScreenOverlay_VxF3ScreenAdditionEvent",
     "event.input.MixinKeyboardHandler_VxKeyEvent",
     "event.input.MixinMouseHandler_VxMouseEvent",
+    "event.level.client.MixinMinecraft_VxClientLevelEvent",
     "event.network.MixinClientLevel_VxClientPlayerNetworkEvent",
     "event.network.MixinClientPacketListener_VxClientPlayerNetworkEvent",
-    "event.render.MixinLevelRenderer_VxRenderEvent",
-    "event.level.client.MixinMinecraft_VxClientLevelEvent"
+    "event.render.MixinGui_VxRenderEvent",
+    "event.render.MixinLevelRenderer_VxRenderEvent"
   ],
   "injectors": {
     "defaultRequire": 1
