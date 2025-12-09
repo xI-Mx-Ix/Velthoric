@@ -23,9 +23,9 @@
     "mounting.render.MixinEntityRenderDispatcher",
     "mounting.render.MixinEntityRenderer",
     "mounting.render.MixinGameRenderer",
-    "mounting.request.MixinMinecraft",
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
-    "physicsgun.PlayerRendererMixin_PhysicsGunArmPose"
+    "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
+    "vehicle.MixinMinecraft_VehicleInteraction"
   ],
   "injectors": {
     "defaultRequire": 1

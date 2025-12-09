@@ -12,11 +12,11 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxOBB;
-import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
-import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.type.VxBody;
+import net.xmx.velthoric.physics.vehicle.VxVehicle;
+import net.xmx.velthoric.physics.vehicle.part.VxPart;
 
 /**
  * A dedicated renderer for drawing debug information related to physics bodies,
@@ -34,7 +34,7 @@ public class VxDebugRenderer {
 
     /**
      * Renders debug visualizations for all relevant physics components.
-     * Currently, this includes the Oriented Bounding Boxes (OBBs) for rideable seats.
+     * Currently, this includes the Oriented Bounding Boxes (OBBs) for all vehicle parts.
      *
      * @param poseStack    The current pose stack, translated to camera-relative space.
      * @param bufferSource The buffer source for drawing lines.
@@ -42,40 +42,36 @@ public class VxDebugRenderer {
      * @param partialTicks The current partial tick for interpolation.
      */
     public void render(PoseStack poseStack, MultiBufferSource bufferSource, VxClientBodyManager manager, float partialTicks) {
-        renderSeatHitboxes(poseStack, bufferSource, manager, partialTicks);
-        // Future debug rendering calls (e.g., for collision shapes) can be added here.
+        renderPartHitboxes(poseStack, bufferSource, manager, partialTicks);
     }
 
     /**
-     * Renders the hitboxes for all rideable seats as wireframe OBBs.
-     * Driver seats are rendered in red, and passenger seats are rendered in light blue.
+     * Renders the hitboxes for all vehicle parts as wireframe OBBs.
+     * All parts are rendered in yellow to distinguish them from standard hitboxes.
      *
      * @param poseStack    The current pose stack.
      * @param bufferSource The buffer source.
      * @param manager      The client body manager.
      * @param partialTicks The current partial tick.
      */
-    private void renderSeatHitboxes(PoseStack poseStack, MultiBufferSource bufferSource, VxClientBodyManager manager, float partialTicks) {
+    private void renderPartHitboxes(PoseStack poseStack, MultiBufferSource bufferSource, VxClientBodyManager manager, float partialTicks) {
         VertexConsumer vertexConsumer = bufferSource.getBuffer(RenderType.lines());
-        VxClientMountingManager ridingManager = VxClientMountingManager.INSTANCE;
 
         for (VxBody body : manager.getAllBodies()) {
             if (!body.isInitialized()) continue;
 
-            // Calculate the interpolated render state for the parent body.
-            body.calculateRenderState(partialTicks, this.renderState, this.interpolatedPosition, this.interpolatedRotation);
+            // Only process vehicles as they have the modular part system
+            if (body instanceof VxVehicle vehicle) {
+                // Calculate the interpolated render state for the parent body.
+                vehicle.calculateRenderState(partialTicks, this.renderState, this.interpolatedPosition, this.interpolatedRotation);
 
-            for (VxSeat seat : ridingManager.getSeats(body.getPhysicsId())) {
-                // Get the precise Oriented Bounding Box for the seat in world space.
-                VxOBB obb = seat.getGlobalOBB(this.renderState.transform);
+                // Iterate over all attached parts (wheels, seats, doors, custom parts)
+                for (VxPart part : vehicle.getParts()) {
+                    // Get the precise Oriented Bounding Box for the part in world space.
+                    VxOBB obb = part.getGlobalOBB(this.renderState);
 
-                // Draw the OBB's wireframe with a color indicating its type.
-                if (seat.isDriverSeat()) {
-                    // Red for the driver seat
-                    drawOBB(vertexConsumer, poseStack, obb, 1.0f, 0.0f, 0.0f, 1.0f);
-                } else {
-                    // Light blue for passenger seats
-                    drawOBB(vertexConsumer, poseStack, obb, 0.2f, 0.6f, 1.0f, 1.0f);
+                    // Draw the OBB's wireframe in yellow.
+                    drawOBB(vertexConsumer, poseStack, obb, 1.0f, 1.0f, 0.0f, 1.0f);
                 }
             }
         }

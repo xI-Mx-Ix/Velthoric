@@ -11,12 +11,17 @@ import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.phys.AABB;
+import net.xmx.velthoric.builtin.drivable.renderer.VxSeatRenderer;
+import net.xmx.velthoric.builtin.drivable.renderer.VxWheelRenderer;
+import net.xmx.velthoric.physics.vehicle.part.VxPart;
+import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleSeat;
+import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleWheel;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
-import net.xmx.velthoric.physics.vehicle.component.VxVehicleWheel;
 import net.xmx.velthoric.physics.vehicle.config.VxMotorcycleConfig;
 import net.xmx.velthoric.physics.vehicle.config.VxVehicleConfig;
 import net.xmx.velthoric.physics.vehicle.type.VxMotorcycle;
@@ -108,6 +113,21 @@ public class MotorcycleImpl extends VxMotorcycle {
 
         if (constraint != null && constraint.getController() instanceof MotorcycleController controller) {
             controller.getTransmission().setClutchStrength(2.0f);
+        }
+    }
+
+    @Override
+    @Environment(EnvType.CLIENT)
+    public void onBodyAdded(ClientLevel level) {
+        super.onBodyAdded(level);
+
+        // Assign specific renderers to the parts on the client side
+        for (VxPart part : this.getParts()) {
+            if (part instanceof VxVehicleWheel) {
+                part.setRenderer(new VxWheelRenderer());
+            } else if (part instanceof VxVehicleSeat) {
+                part.setRenderer(new VxSeatRenderer());
+            }
         }
     }
 

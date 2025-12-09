@@ -11,7 +11,7 @@ import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
-import net.xmx.velthoric.physics.vehicle.component.VxVehicleWheel;
+import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleWheel;
 
 import java.util.*;
 
