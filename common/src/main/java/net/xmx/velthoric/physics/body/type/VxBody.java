@@ -221,14 +221,25 @@ public abstract class VxBody {
     }
 
     /**
-     * Called when synchronized data has been updated from a packet.
+     * Called when SERVER-authoritative synchronized data has been updated.
      * <p>
-     * - On Client: Triggered when an S2C packet updates SERVER-authoritative data.
-     * - On Server: Triggered when a C2S packet updates CLIENT-authoritative data.
+     * - On Client: Triggered when an S2C packet updates this data.
      *
-     * @param accessor The specific data accessor that was just updated.
+     * @param accessor The specific server data accessor that was just updated.
      */
-    public void onSyncedDataUpdated(VxDataAccessor<?> accessor) {
+    public void onSyncedDataUpdated(VxServerAccessor<?> accessor) {
+        // This is a hook for subclasses to implement.
+    }
+
+    /**
+     * Called when CLIENT-authoritative synchronized data has been updated.
+     * <p>
+     * - On Server: Triggered when a C2S packet updates this data.
+     * - On Client: Triggered when other clients update this data (via Server relay).
+     *
+     * @param accessor The specific client data accessor that was just updated.
+     */
+    public void onSyncedDataUpdated(VxClientAccessor<?> accessor) {
         // This is a hook for subclasses to implement.
     }
 
