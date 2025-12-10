@@ -17,16 +17,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunActionPacket;
-import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunSyncPacket;
-import net.xmx.velthoric.item.tool.packet.VxToolActionPacket;
-import net.xmx.velthoric.item.tool.packet.VxToolConfigPacket;
-import net.xmx.velthoric.physics.body.packet.batch.*;
-import net.xmx.velthoric.physics.body.sync.packet.C2SSynchronizedDataBatchPacket;
-import net.xmx.velthoric.physics.body.sync.packet.S2CSynchronizedDataBatchPacket;
-import net.xmx.velthoric.physics.mounting.input.C2SMountInputPacket;
-import net.xmx.velthoric.physics.vehicle.sync.C2SPartInteractPacket;
-import net.xmx.velthoric.physics.vehicle.sync.S2CVehicleDataBatchPacket;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,9 +26,11 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Handles the registration and sending of all network packets for the mod.
- * This class bridges existing packet logic with the modern CustomPacketPayload API
- * and Architectury's NetworkManager.
+ * Manages the technical registration, encoding, and transmission of network packets.
+ * <p>
+ * This implementation wraps standard packet objects (POJOs) into {@link CustomPacketPayload} instances
+ * to comply with modern networking APIs. It uses {@link StreamCodec} for serialization.
+ * </p>
  *
  * @author xI-Mx-Ix
  */
@@ -47,9 +39,12 @@ public class VxPacketHandler {
     private static final String CHANNEL_NAMESPACE = "velthoric";
 
     /**
-     * Internal wrapper to adapt existing POJO packets to the CustomPacketPayload API.
+     * An internal wrapper record that adapts a standard object into a {@link CustomPacketPayload}.
+     * This is necessary to bridge simple packet classes with the payload-based network system.
      *
-     * @param <T> The type of the inner packet message.
+     * @param message The actual packet data object.
+     * @param type    The payload type definition associated with this packet.
+     * @param <T>     The type of the inner packet message.
      */
     private record PacketWrapper<T>(T message, CustomPacketPayload.Type<PacketWrapper<T>> type) implements CustomPacketPayload {
         @Override
@@ -59,199 +54,82 @@ public class VxPacketHandler {
     }
 
     /**
-     * Internal record to store configuration about a registered packet type.
+     * Internal record to store the payload type definition for a registered packet class.
+     * Used to look up the type when creating a new payload for sending.
+     *
+     * @param type The {@link CustomPacketPayload.Type} associated with the packet wrapper.
      */
     private record PacketInfo<T>(CustomPacketPayload.Type<PacketWrapper<T>> type) {}
 
+    /**
+     * A map storing the registration info for every registered packet class.
+     */
     private static final Map<Class<?>, PacketInfo<?>> PACKETS = new HashMap<>();
 
     /**
-     * Registers a packet type with the network manager for a specific direction.
-     * Automatically creates a StreamCodec and PacketPayloadWrapper to bridge logic to the new API.
+     * Registers a single packet type with the network manager using the Payload API.
+     * <p>
+     * This method automatically generates a {@link StreamCodec} that delegates to the provided
+     * encoder and decoder functions, wrapping the result in a {@link PacketWrapper}.
+     * It handles the registration of both the payload type and the receiver logic depending on the side.
+     * </p>
      *
-     * @param type    The class of the packet.
-     * @param name    The unique name for the packet, used as the path in its ResourceLocation.
-     * @param encoder The method to encode the packet into a byte buffer.
-     * @param decoder The method to decode the packet from a byte buffer.
-     * @param handler The method to handle the received packet.
-     * @param side    The network side that receives this packet (e.g., C2S for actions, S2C for syncs).
+     * @param type    The class of the packet object.
+     * @param name    The unique path name used to build the packet's {@link ResourceLocation}.
+     * @param encoder The method to write the packet data into a buffer.
+     * @param decoder The method to read the packet data from a buffer.
+     * @param handler The method to execute when the packet is received.
+     * @param side    The logical side (Client or Server) that is expected to <b>receive</b> this packet.
      * @param <T>     The type of the packet.
      */
-    private static <T> void registerPacket(Class<T> type,
-                                           String name,
-                                           BiConsumer<T, FriendlyByteBuf> encoder,
-                                           Function<FriendlyByteBuf, T> decoder,
-                                           BiConsumer<T, Supplier<NetworkManager.PacketContext>> handler,
-                                           NetworkManager.Side side) {
+    public static <T> void registerPacket(Class<T> type,
+                                          String name,
+                                          BiConsumer<T, FriendlyByteBuf> encoder,
+                                          Function<FriendlyByteBuf, T> decoder,
+                                          BiConsumer<T, Supplier<NetworkManager.PacketContext>> handler,
+                                          NetworkManager.Side side) {
+        
         ResourceLocation id = ResourceLocation.tryBuild(CHANNEL_NAMESPACE, name);
         CustomPacketPayload.Type<PacketWrapper<T>> payloadType = new CustomPacketPayload.Type<>(id);
 
-        // Store the packet info for looking up the Type later when sending
+        // Store the payload type for outgoing messages
         PACKETS.put(type, new PacketInfo<>(payloadType));
 
-        // Create a codec that delegates to the provided legacy encoder/decoder.
+        // Create a StreamCodec that adapts the RegistryFriendlyByteBuf to our legacy encoder/decoder logic
         StreamCodec<RegistryFriendlyByteBuf, PacketWrapper<T>> codec = StreamCodec.of(
                 (buf, wrapper) -> encoder.accept(wrapper.message(), buf),
                 (buf) -> new PacketWrapper<>(decoder.apply(buf), payloadType)
         );
 
-        // Create a receiver that unwraps the payload and calls the legacy handler.
+        // Create the receiver that unwraps the payload and calls the handler
         NetworkManager.NetworkReceiver<PacketWrapper<T>> receiver = (wrapper, context) -> {
             handler.accept(wrapper.message(), () -> context);
         };
 
-        // Logic to safely register packets across NeoForge and Fabric (Server & Client).
+        // Register based on side logic
         if (side == NetworkManager.Side.C2S) {
-            // Client -> Server packets are received on the server.
-            // This is safe to register everywhere.
+            // Client to Server: Always register the receiver on the server.
             NetworkManager.registerReceiver(side, payloadType, codec, receiver);
         } else {
-            // Server -> Client packets (S2C).
+            // Server to Client:
             if (Platform.getEnv() == EnvType.CLIENT) {
-                // The Client receives these packets, so we register the full receiver.
+                // Clients register the full receiver to handle the packet.
                 NetworkManager.registerReceiver(side, payloadType, codec, receiver);
             } else {
-                // The Server SENDS these packets.
-                // It does NOT receive them, so we cannot register a receiver (causes crash on Fabric).
-                // HOWEVER, we MUST register the Payload Type, otherwise the server won't have the Codec to encode the packet.
+                // Dedicated servers must still register the Payload Type to be able to SEND the packet,
+                // even if they never receive it.
                 NetworkManager.registerS2CPayloadType(payloadType, codec);
             }
         }
     }
 
     /**
-     * Registers all packets used by the mod.
-     * This method must be called during mod initialization.
-     */
-    public static void register() {
-        // --- Client to Server Packets ---
-
-        registerPacket(
-                C2SPartInteractPacket.class,
-                "part_interact",
-                C2SPartInteractPacket::encode,
-                C2SPartInteractPacket::decode,
-                C2SPartInteractPacket::handle,
-                NetworkManager.Side.C2S
-        );
-
-        registerPacket(
-                C2SMountInputPacket.class,
-                "mount_input",
-                C2SMountInputPacket::encode,
-                C2SMountInputPacket::decode,
-                C2SMountInputPacket::handle,
-                NetworkManager.Side.C2S
-        );
-
-        registerPacket(
-                VxPhysicsGunActionPacket.class,
-                "physics_gun_action",
-                VxPhysicsGunActionPacket::encode,
-                VxPhysicsGunActionPacket::decode,
-                VxPhysicsGunActionPacket::handle,
-                NetworkManager.Side.C2S
-        );
-
-        registerPacket(
-                VxToolActionPacket.class,
-                "tool_action",
-                VxToolActionPacket::encode,
-                VxToolActionPacket::decode,
-                VxToolActionPacket::handle,
-                NetworkManager.Side.C2S
-        );
-
-        registerPacket(
-                VxToolConfigPacket.class,
-                "tool_config",
-                VxToolConfigPacket::encode,
-                VxToolConfigPacket::decode,
-                VxToolConfigPacket::handle,
-                NetworkManager.Side.C2S
-        );
-
-        registerPacket(
-                C2SSynchronizedDataBatchPacket.class,
-                "sync_data_batch",
-                C2SSynchronizedDataBatchPacket::encode,
-                C2SSynchronizedDataBatchPacket::decode,
-                C2SSynchronizedDataBatchPacket::handle,
-                NetworkManager.Side.C2S
-        );
-
-        // --- Server to Client Packets ---
-
-        registerPacket(
-                S2CSynchronizedDataBatchPacket.class,
-                "sync_data_batch",
-                S2CSynchronizedDataBatchPacket::encode,
-                S2CSynchronizedDataBatchPacket::decode,
-                S2CSynchronizedDataBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        registerPacket(
-                S2CVehicleDataBatchPacket.class,
-                "vehicle_state",
-                S2CVehicleDataBatchPacket::encode,
-                S2CVehicleDataBatchPacket::decode,
-                S2CVehicleDataBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        registerPacket(
-                S2CSpawnBodyBatchPacket.class,
-                "spawn_body_batch",
-                S2CSpawnBodyBatchPacket::encode,
-                S2CSpawnBodyBatchPacket::decode,
-                S2CSpawnBodyBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        registerPacket(
-                S2CRemoveBodyBatchPacket.class,
-                "remove_body_batch",
-                S2CRemoveBodyBatchPacket::encode,
-                S2CRemoveBodyBatchPacket::decode,
-                S2CRemoveBodyBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        registerPacket(
-                S2CUpdateBodyStateBatchPacket.class,
-                "update_body_state_batch",
-                S2CUpdateBodyStateBatchPacket::encode,
-                S2CUpdateBodyStateBatchPacket::decode,
-                S2CUpdateBodyStateBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        registerPacket(
-                S2CUpdateVerticesBatchPacket.class,
-                "update_vertices_batch",
-                S2CUpdateVerticesBatchPacket::encode,
-                S2CUpdateVerticesBatchPacket::decode,
-                S2CUpdateVerticesBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        registerPacket(
-                VxPhysicsGunSyncPacket.class,
-                "physics_gun_sync",
-                VxPhysicsGunSyncPacket::encode,
-                VxPhysicsGunSyncPacket::decode,
-                VxPhysicsGunSyncPacket::handle,
-                NetworkManager.Side.S2C
-        );
-    }
-
-    /**
-     * Retrieves the stored PacketInfo for a given message object.
+     * Retrieves the cached registration info for a given packet object.
      *
-     * @param message The packet message instance.
-     * @return The PacketInfo associated with the message's class.
-     * @throws NullPointerException if the packet has not been registered.
+     * @param message The packet instance.
+     * @param <MSG>   The type of the packet.
+     * @return The {@link PacketInfo} containing the payload type.
+     * @throws NullPointerException if the packet type has not been registered.
      */
     @SuppressWarnings("unchecked")
     private static <MSG> PacketInfo<MSG> getPacketInfo(MSG message) {
@@ -262,20 +140,20 @@ public class VxPacketHandler {
     /**
      * Sends a packet from the client to the server.
      *
-     * @param message The packet to send.
+     * @param message The packet object to send.
      * @param <MSG>   The type of the packet.
      */
     public static <MSG> void sendToServer(MSG message) {
         PacketInfo<MSG> info = getPacketInfo(message);
-        // Wrap the message into the Payload wrapper and send it via Architectury
+        // Wrap message in payload before sending
         NetworkManager.sendToServer(new PacketWrapper<>(message, info.type()));
     }
 
     /**
      * Sends a packet from the server to a specific player.
      *
-     * @param message The packet to send.
-     * @param player  The player to send the packet to.
+     * @param message The packet object to send.
+     * @param player  The target server player.
      * @param <MSG>   The type of the packet.
      */
     public static <MSG> void sendToPlayer(MSG message, ServerPlayer player) {
@@ -284,10 +162,10 @@ public class VxPacketHandler {
     }
 
     /**
-     * Sends a packet to all players in a specific dimension.
+     * Sends a packet to all players currently in a specific dimension (Level).
      *
-     * @param message      The packet to send.
-     * @param dimensionKey The key of the dimension to send the packet to.
+     * @param message      The packet object to send.
+     * @param dimensionKey The resource key of the target dimension.
      * @param <MSG>        The type of the packet.
      */
     public static <MSG> void sendToDimension(MSG message, ResourceKey<Level> dimensionKey) {
@@ -301,9 +179,9 @@ public class VxPacketHandler {
     }
 
     /**
-     * Sends a packet to all players currently on the server.
+     * Sends a packet to all players currently connected to the server.
      *
-     * @param message The packet to send.
+     * @param message The packet object to send.
      * @param <MSG>   The type of the packet.
      */
     public static <MSG> void sendToAll(MSG message) {
