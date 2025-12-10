@@ -200,8 +200,7 @@ public class VxSynchronizedData {
     }
 
     /**
-     * A builder for creating {@link VxSynchronizedData} instances.
-     * It collects data definitions before constructing the final immutable map.
+     * Internal helper to read a single entry's value.
      */
     private <T> void readEntryInternal(VxByteBuf buf, Entry<T> entry) {
         T value = entry.getAccessor().getSerializer().read(buf);
