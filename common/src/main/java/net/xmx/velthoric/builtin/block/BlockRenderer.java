@@ -37,7 +37,7 @@ public class BlockRenderer extends VxRigidBodyRenderer<BlockRigidBody> {
 
     @Override
     public void render(BlockRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
-        int blockStateId = body.getSyncData(BlockRigidBody.DATA_BLOCK_STATE_ID);
+        int blockStateId = body.get(BlockRigidBody.DATA_BLOCK_STATE_ID);
         BlockState blockStateToRender = Block.stateById(blockStateId);
 
         if (blockStateToRender.isAir() || blockStateToRender.getRenderShape() == RenderShape.INVISIBLE) {

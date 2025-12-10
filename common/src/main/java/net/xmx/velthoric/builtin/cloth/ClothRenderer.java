@@ -30,8 +30,8 @@ public class ClothRenderer extends VxSoftBodyRenderer<ClothSoftBody> {
     @Override
     public void render(ClothSoftBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         float[] renderVertexData = renderState.vertexData;
-        int widthSegments = body.getSyncData(ClothSoftBody.DATA_WIDTH_SEGMENTS);
-        int heightSegments = body.getSyncData(ClothSoftBody.DATA_HEIGHT_SEGMENTS);
+        int widthSegments = body.get(ClothSoftBody.DATA_WIDTH_SEGMENTS);
+        int heightSegments = body.get(ClothSoftBody.DATA_HEIGHT_SEGMENTS);
 
         if (renderVertexData == null || renderVertexData.length < 12 || widthSegments <= 0 || heightSegments <= 0) {
             return;

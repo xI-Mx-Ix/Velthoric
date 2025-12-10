@@ -15,10 +15,11 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.physics.body.sync.accessor.VxServerAccessor;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.body.sync.accessor.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
@@ -35,7 +36,7 @@ import java.util.UUID;
  */
 public class BlockRigidBody extends VxRigidBody {
 
-    public static final VxDataAccessor<Integer> DATA_BLOCK_STATE_ID = VxDataAccessor.create(BlockRigidBody.class, VxDataSerializers.INTEGER);
+    public static final VxServerAccessor<Integer> DATA_BLOCK_STATE_ID = VxServerAccessor.create(BlockRigidBody.class, VxDataSerializers.INTEGER);
 
     /**
      * Server-side constructor.
@@ -59,11 +60,11 @@ public class BlockRigidBody extends VxRigidBody {
 
     public void setRepresentedBlockState(BlockState blockState) {
         BlockState state = (blockState != null && !blockState.isAir()) ? blockState : Blocks.STONE.defaultBlockState();
-        this.setSyncData(DATA_BLOCK_STATE_ID, Block.getId(state));
+        this.setServerData(DATA_BLOCK_STATE_ID, Block.getId(state));
     }
 
     public BlockState getRepresentedBlockState() {
-        BlockState state = Block.stateById(this.getSyncData(DATA_BLOCK_STATE_ID));
+        BlockState state = Block.stateById(this.get(DATA_BLOCK_STATE_ID));
         return !state.isAir() ? state : Blocks.STONE.defaultBlockState();
     }
 
@@ -92,7 +93,7 @@ public class BlockRigidBody extends VxRigidBody {
 
     @Override
     public void writePersistenceData(VxByteBuf buf) {
-        buf.writeVarInt(this.getSyncData(DATA_BLOCK_STATE_ID));
+        buf.writeVarInt(this.get(DATA_BLOCK_STATE_ID));
     }
 
     @Override
@@ -100,9 +101,9 @@ public class BlockRigidBody extends VxRigidBody {
         int blockStateId = buf.readVarInt();
         BlockState state = Block.stateById(blockStateId);
         if (state.isAir()) {
-            this.setSyncData(DATA_BLOCK_STATE_ID, Block.getId(Blocks.STONE.defaultBlockState()));
+            this.setServerData(DATA_BLOCK_STATE_ID, Block.getId(Blocks.STONE.defaultBlockState()));
         } else {
-            this.setSyncData(DATA_BLOCK_STATE_ID, blockStateId);
+            this.setServerData(DATA_BLOCK_STATE_ID, blockStateId);
         }
     }
 }

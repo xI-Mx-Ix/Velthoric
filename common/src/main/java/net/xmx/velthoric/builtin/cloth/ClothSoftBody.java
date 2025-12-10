@@ -9,10 +9,11 @@ import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.xmx.velthoric.physics.body.sync.accessor.VxServerAccessor;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.body.sync.accessor.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
@@ -29,8 +30,8 @@ import java.util.function.BiFunction;
  */
 public class ClothSoftBody extends VxSoftBody {
 
-    public static final VxDataAccessor<Integer> DATA_WIDTH_SEGMENTS = VxDataAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
-    public static final VxDataAccessor<Integer> DATA_HEIGHT_SEGMENTS = VxDataAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
+    public static final VxServerAccessor<Integer> DATA_WIDTH_SEGMENTS = VxServerAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
+    public static final VxServerAccessor<Integer> DATA_HEIGHT_SEGMENTS = VxServerAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
 
     private float clothWidth;
     private float clothHeight;
@@ -63,8 +64,8 @@ public class ClothSoftBody extends VxSoftBody {
     }
 
     public void setConfiguration(int widthSegments, int heightSegments, float clothWidth, float clothHeight, float mass, float compliance) {
-        this.setSyncData(DATA_WIDTH_SEGMENTS, widthSegments);
-        this.setSyncData(DATA_HEIGHT_SEGMENTS, heightSegments);
+        this.setServerData(DATA_WIDTH_SEGMENTS, widthSegments);
+        this.setServerData(DATA_HEIGHT_SEGMENTS, heightSegments);
         this.clothWidth = clothWidth;
         this.clothHeight = clothHeight;
         this.mass = mass;
@@ -73,8 +74,8 @@ public class ClothSoftBody extends VxSoftBody {
 
     @Override
     public int createJoltBody(VxSoftBodyFactory factory) {
-        int widthSegments = getSyncData(DATA_WIDTH_SEGMENTS);
-        int heightSegments = getSyncData(DATA_HEIGHT_SEGMENTS);
+        int widthSegments = get(DATA_WIDTH_SEGMENTS);
+        int heightSegments = get(DATA_HEIGHT_SEGMENTS);
         int numVerticesX = widthSegments + 1;
         int numVerticesY = heightSegments + 1;
         int totalVertices = numVerticesX * numVerticesY;
@@ -136,8 +137,8 @@ public class ClothSoftBody extends VxSoftBody {
 
     @Override
     public void writePersistenceData(VxByteBuf buf) {
-        buf.writeInt(getSyncData(DATA_WIDTH_SEGMENTS));
-        buf.writeInt(getSyncData(DATA_HEIGHT_SEGMENTS));
+        buf.writeInt(get(DATA_WIDTH_SEGMENTS));
+        buf.writeInt(get(DATA_HEIGHT_SEGMENTS));
         buf.writeFloat(this.clothWidth);
         buf.writeFloat(this.clothHeight);
         buf.writeFloat(this.mass);
@@ -146,8 +147,8 @@ public class ClothSoftBody extends VxSoftBody {
 
     @Override
     public void readPersistenceData(VxByteBuf buf) {
-        setSyncData(DATA_WIDTH_SEGMENTS, buf.readInt());
-        setSyncData(DATA_HEIGHT_SEGMENTS, buf.readInt());
+        setServerData(DATA_WIDTH_SEGMENTS, buf.readInt());
+        setServerData(DATA_HEIGHT_SEGMENTS, buf.readInt());
         this.clothWidth = buf.readFloat();
         this.clothHeight = buf.readFloat();
         this.mass = buf.readFloat();

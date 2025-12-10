@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.packet.batch;
+package net.xmx.velthoric.physics.body.sync.packet;
 
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
@@ -16,8 +16,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * A network packet that sends a compressed batch of custom data updates for various physics bodies.
- * This is used to synchronize non-physics state that is specific to a body's implementation.
+ * A network packet (Server -> Client) that sends a ZSTD-compressed batch of custom data updates.
+ * This is used to synchronize non-physics state from the server to clients.
  *
  * @author xI-Mx-Ix
  */
@@ -36,6 +36,7 @@ public class S2CSynchronizedDataBatchPacket {
 
     /**
      * Encodes the packet's data into a network buffer.
+     * Uses ZSTD compression to minimize bandwidth usage.
      *
      * @param msg The packet instance to encode.
      * @param buf The buffer to write to.
@@ -56,7 +57,7 @@ public class S2CSynchronizedDataBatchPacket {
             buf.writeVarInt(uncompressedData.length);
             buf.writeByteArray(compressedData);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to compress sync data batch packet", e);
+            throw new IllegalStateException("Failed to compress S2C sync data batch packet", e);
         } finally {
             tempBuf.release();
         }
@@ -64,6 +65,7 @@ public class S2CSynchronizedDataBatchPacket {
 
     /**
      * Decodes the packet from a network buffer.
+     * Decompresses the data before reconstructing the map.
      *
      * @param buf The buffer to read from.
      * @return A new instance of the packet.
@@ -84,7 +86,7 @@ public class S2CSynchronizedDataBatchPacket {
             }
             return new S2CSynchronizedDataBatchPacket(dataUpdates);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to decompress sync data batch packet", e);
+            throw new IllegalStateException("Failed to decompress S2C sync data batch packet", e);
         }
     }
 
@@ -98,7 +100,6 @@ public class S2CSynchronizedDataBatchPacket {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             VxClientBodyManager manager = VxClientBodyManager.getInstance();
-            // Apply each custom data update to the corresponding client-side body.
             for (Map.Entry<Integer, byte[]> entry : msg.dataUpdates.entrySet()) {
                 manager.updateSynchronizedData(entry.getKey(), Unpooled.wrappedBuffer(entry.getValue()));
             }

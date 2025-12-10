@@ -34,7 +34,7 @@ public class MarbleRenderer extends VxRigidBodyRenderer<MarbleRigidBody> {
     public void render(MarbleRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
-        float radius = body.getSyncData(MarbleRigidBody.DATA_RADIUS);
+        float radius = body.get(MarbleRigidBody.DATA_RADIUS);
         RVec3 renderPosition = renderState.transform.getTranslation();
         poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
         poseStack.mulPose(Minecraft.getInstance().gameRenderer.getMainCamera().rotation());

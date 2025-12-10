@@ -22,6 +22,8 @@ import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunSyncPacket;
 import net.xmx.velthoric.item.tool.packet.VxToolActionPacket;
 import net.xmx.velthoric.item.tool.packet.VxToolConfigPacket;
 import net.xmx.velthoric.physics.body.packet.batch.*;
+import net.xmx.velthoric.physics.body.sync.packet.C2SSynchronizedDataBatchPacket;
+import net.xmx.velthoric.physics.body.sync.packet.S2CSynchronizedDataBatchPacket;
 import net.xmx.velthoric.physics.mounting.input.C2SMountInputPacket;
 import net.xmx.velthoric.physics.vehicle.sync.C2SPartInteractPacket;
 import net.xmx.velthoric.physics.vehicle.sync.S2CVehicleDataBatchPacket;
@@ -166,6 +168,15 @@ public class VxPacketHandler {
                 VxToolConfigPacket::encode,
                 VxToolConfigPacket::decode,
                 VxToolConfigPacket::handle,
+                NetworkManager.Side.C2S
+        );
+
+        registerPacket(
+                C2SSynchronizedDataBatchPacket.class,
+                "sync_data_batch",
+                C2SSynchronizedDataBatchPacket::encode,
+                C2SSynchronizedDataBatchPacket::decode,
+                C2SSynchronizedDataBatchPacket::handle,
                 NetworkManager.Side.C2S
         );
 

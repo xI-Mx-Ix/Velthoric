@@ -37,7 +37,7 @@ public class RopeRenderer extends VxSoftBodyRenderer<RopeSoftBody> {
             return;
         }
 
-        float ropeRadius = body.getSyncData(RopeSoftBody.DATA_ROPE_RADIUS);
+        float ropeRadius = body.get(RopeSoftBody.DATA_ROPE_RADIUS);
         if (ropeRadius <= 0) {
             return;
         }

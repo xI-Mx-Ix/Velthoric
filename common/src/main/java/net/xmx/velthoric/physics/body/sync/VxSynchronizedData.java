@@ -6,8 +6,10 @@ package net.xmx.velthoric.physics.body.sync;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import net.fabricmc.api.EnvType;
+import net.minecraft.server.level.ServerPlayer;
+import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.body.sync.accessor.VxDataAccessor;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
@@ -17,26 +19,25 @@ import java.util.Objects;
 
 /**
  * Manages all synchronized data entries for a single physics body instance.
- * Its behavior changes depending on the environment (client or server).
+ * It holds the internal map of values and handles reading/writing from network buffers.
  *
  * @author xI-Mx-Ix
  */
 public class VxSynchronizedData {
 
     private final Int2ObjectMap<Entry<?>> entries;
-    private final EnvType environment;
     private boolean isDirty;
 
-    private VxSynchronizedData(EnvType environment, Int2ObjectMap<Entry<?>> entries) {
-        this.environment = environment;
+    private VxSynchronizedData(Int2ObjectMap<Entry<?>> entries) {
         this.entries = entries;
     }
 
     /**
      * Retrieves the current value for a given data accessor.
+     * Reading is allowed on both client and server for any accessor type.
      *
      * @param accessor The key for the data.
-     * @param <T> The data type.
+     * @param <T>      The data type.
      * @return The current value.
      */
     @SuppressWarnings("unchecked")
@@ -49,8 +50,8 @@ public class VxSynchronizedData {
     }
 
     /**
-     * Sets a new value for a given data accessor.
-     * On the server, this will mark the entry as dirty if the value has changed.
+     * Internal set method.
+     * Access is restricted to package-private to force usage of {@link VxBody}'s type-safe methods.
      *
      * @param accessor The key for the data.
      * @param value    The new value.
@@ -60,10 +61,8 @@ public class VxSynchronizedData {
         Entry<T> entry = this.getEntry(accessor);
         if (entry != null && !Objects.equals(value, entry.getValue())) {
             entry.setValue(value);
-            if (environment == EnvType.SERVER) {
-                entry.setDirty(true);
-                this.isDirty = true;
-            }
+            entry.setDirty(true);
+            this.isDirty = true;
         }
     }
 
@@ -74,7 +73,7 @@ public class VxSynchronizedData {
     }
 
     /**
-     * @return True if any data entries have been changed on the server since the last sync. Always false on the client.
+     * @return True if any data entries have changed and need synchronization.
      */
     public boolean isDirty() {
         return this.isDirty;
@@ -108,9 +107,8 @@ public class VxSynchronizedData {
         return new ArrayList<>(entries.values());
     }
 
-
     /**
-     * Clears the dirty flag for all entries. Called after data has been sent.
+     * Clears the dirty flag for all entries. Called after data has been successfully written to a packet.
      */
     public void clearDirty() {
         this.isDirty = false;
@@ -136,11 +134,11 @@ public class VxSynchronizedData {
     }
 
     /**
-     * Reads entries from a buffer, applies them to this data store,
-     * and calls the on-update hook on the provided body for each entry.
+     * Reads entries from a buffer sent by the server (S2C).
+     * This method blindly trusts the source (the server) and applies all updates.
      *
      * @param buf  The buffer to read from.
-     * @param body The body instance whose data is being updated, used to call the hook.
+     * @param body The body instance.
      */
     public void readEntries(VxByteBuf buf, VxBody body) {
         while (true) {
@@ -150,13 +148,62 @@ public class VxSynchronizedData {
             }
             Entry<?> entry = this.entries.get(id);
             if (entry != null) {
-                this.readEntry(buf, entry);
+                this.readEntryInternal(buf, entry);
                 body.onSyncedDataUpdated(entry.getAccessor());
             }
         }
     }
 
-    private <T> void readEntry(VxByteBuf buf, Entry<T> entry) {
+    /**
+     * Reads entries from a buffer sent by a client (C2S).
+     * Validates that the client has authority ({@link VxSyncMode#CLIENT}) for each entry.
+     * If a client tries to update SERVER-authoritative data, a warning is logged and the update is ignored.
+     *
+     * @param buf    The buffer to read from.
+     * @param body   The body instance.
+     * @param player The player sending the update.
+     */
+    @SuppressWarnings("unchecked")
+    public void readEntriesC2S(VxByteBuf buf, VxBody body, ServerPlayer player) {
+        while (true) {
+            int id = buf.readVarInt();
+            if (id == 255) {
+                break;
+            }
+            Entry<?> entry = this.entries.get(id);
+            if (entry != null) {
+                // Must read value to advance buffer regardless of authority
+                Object newValue = entry.getAccessor().getSerializer().read(buf);
+
+                if (entry.getAccessor().getMode() == VxSyncMode.CLIENT) {
+                    // Client allowed to update: Apply and mark dirty so it replicates to OTHER clients
+                    if (!Objects.equals(newValue, entry.getValue())) {
+                        ((Entry<Object>) entry).setValue(newValue);
+                        entry.setDirty(true);
+                        this.isDirty = true;
+                        body.onSyncedDataUpdated(entry.getAccessor());
+                    }
+                } else {
+                    // Client NOT allowed: Log warning (Anti-Cheat)
+                    VxMainClass.LOGGER.warn("Player {} tried to manipulate SERVER-authoritative data (ID: {}) on Body {}",
+                            player.getName().getString(), id, body.getPhysicsId());
+                }
+            } else {
+                throw new IllegalStateException("Unknown data ID received in C2S packet: " + id);
+            }
+        }
+
+        // If we applied valid changes, notify the manager to sync to other clients
+        if (this.isDirty && body.getPhysicsWorld() != null) {
+            body.getPhysicsWorld().getBodyManager().markCustomDataDirty(body);
+        }
+    }
+
+    /**
+     * A builder for creating {@link VxSynchronizedData} instances.
+     * It collects data definitions before constructing the final immutable map.
+     */
+    private <T> void readEntryInternal(VxByteBuf buf, Entry<T> entry) {
         T value = entry.getAccessor().getSerializer().read(buf);
         entry.setValue(value);
     }
@@ -188,11 +235,10 @@ public class VxSynchronizedData {
         /**
          * Builds the {@link VxSynchronizedData} instance.
          *
-         * @param environment The environment (client or server) this data belongs to.
          * @return A new {@link VxSynchronizedData} instance.
          */
-        public VxSynchronizedData build(EnvType environment) {
-            return new VxSynchronizedData(environment, new Int2ObjectOpenHashMap<>(this.entries));
+        public VxSynchronizedData build() {
+            return new VxSynchronizedData(new Int2ObjectOpenHashMap<>(this.entries));
         }
     }
 

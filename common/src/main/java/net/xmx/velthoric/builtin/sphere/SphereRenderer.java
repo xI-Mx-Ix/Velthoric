@@ -42,7 +42,7 @@ public class SphereRenderer extends VxRigidBodyRenderer<SphereRigidBody> {
         Matrix3f normalMatrix = lastPose.normal();
 
         VertexConsumer consumer = bufferSource.getBuffer(RenderType.solid());
-        float radius = body.getSyncData(SphereRigidBody.DATA_RADIUS);
+        float radius = body.get(SphereRigidBody.DATA_RADIUS);
         int r = 200, g = 50, b = 50, a = 255;
 
         for (int i = 0; i < STACKS; ++i) {

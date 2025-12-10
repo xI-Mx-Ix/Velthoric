@@ -68,7 +68,7 @@ public class VxRagdollBodyPartRenderer extends VxRigidBodyRenderer<VxBodyPartRig
             initialize();
         }
 
-        VxBodyPart partType = body.getSyncData(VxBodyPartRigidBody.DATA_BODY_PART);
+        VxBodyPart partType = body.get(VxBodyPartRigidBody.DATA_BODY_PART);
         ModelPart modelPart = partMap.get(partType);
         if (modelPart == null) return;
 
@@ -80,9 +80,9 @@ public class VxRagdollBodyPartRenderer extends VxRigidBodyRenderer<VxBodyPartRig
         poseStack.mulPose(new Quaternionf(transform.getRotation().getX(), transform.getRotation().getY(), transform.getRotation().getZ(), transform.getRotation().getW()));
 
         // Scale the model part to match the physics body's size.
-        float scaleX = body.getSyncData(VxBodyPartRigidBody.DATA_HALF_EXTENTS).getX() * 2.0f / partType.getSize().getX();
-        float scaleY = body.getSyncData(VxBodyPartRigidBody.DATA_HALF_EXTENTS).getY() * 2.0f / partType.getSize().getY();
-        float scaleZ = body.getSyncData(VxBodyPartRigidBody.DATA_HALF_EXTENTS).getZ() * 2.0f / partType.getSize().getZ();
+        float scaleX = body.get(VxBodyPartRigidBody.DATA_HALF_EXTENTS).getX() * 2.0f / partType.getSize().getX();
+        float scaleY = body.get(VxBodyPartRigidBody.DATA_HALF_EXTENTS).getY() * 2.0f / partType.getSize().getY();
+        float scaleZ = body.get(VxBodyPartRigidBody.DATA_HALF_EXTENTS).getZ() * 2.0f / partType.getSize().getZ();
         poseStack.scale(scaleX, scaleY, scaleZ);
 
         // Invert Y and Z axes to align Minecraft's model coordinate system
@@ -117,7 +117,7 @@ public class VxRagdollBodyPartRenderer extends VxRigidBodyRenderer<VxBodyPartRig
      * @return The {@link ResourceLocation} of the skin texture.
      */
     private ResourceLocation getSkinTexture(VxBodyPartRigidBody body) {
-        String skinIdStr = body.getSyncData(VxBodyPartRigidBody.DATA_SKIN_ID);
+        String skinIdStr = body.get(VxBodyPartRigidBody.DATA_SKIN_ID);
         if (skinIdStr == null || skinIdStr.isEmpty()) {
             return DefaultPlayerSkin.getDefaultTexture();
         }

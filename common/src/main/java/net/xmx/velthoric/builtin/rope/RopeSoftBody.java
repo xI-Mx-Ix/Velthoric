@@ -11,10 +11,11 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.Vertex;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.xmx.velthoric.physics.body.sync.accessor.VxServerAccessor;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.body.sync.accessor.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
@@ -30,7 +31,7 @@ import java.util.UUID;
  */
 public class RopeSoftBody extends VxSoftBody {
 
-    public static final VxDataAccessor<Float> DATA_ROPE_RADIUS = VxDataAccessor.create(RopeSoftBody.class, VxDataSerializers.FLOAT);
+    public static final VxServerAccessor<Float> DATA_ROPE_RADIUS = VxServerAccessor.create(RopeSoftBody.class, VxDataSerializers.FLOAT);
 
     private float ropeLength;
     private int numSegments;
@@ -64,7 +65,7 @@ public class RopeSoftBody extends VxSoftBody {
     public void setConfiguration(float ropeLength, int numSegments, float ropeRadius, float mass, float compliance) {
         this.ropeLength = ropeLength;
         this.numSegments = numSegments;
-        this.setSyncData(DATA_ROPE_RADIUS, ropeRadius);
+        this.setServerData(DATA_ROPE_RADIUS, ropeRadius);
         this.mass = mass;
         this.compliance = compliance;
     }
@@ -97,7 +98,7 @@ public class RopeSoftBody extends VxSoftBody {
             sharedSettings.optimize();
             creationSettings.setSettings(sharedSettings);
             creationSettings.setObjectLayer(VxLayers.DYNAMIC);
-            creationSettings.setVertexRadius(getSyncData(DATA_ROPE_RADIUS));
+            creationSettings.setVertexRadius(get(DATA_ROPE_RADIUS));
             return factory.create(sharedSettings, creationSettings);
         }
     }
@@ -106,7 +107,7 @@ public class RopeSoftBody extends VxSoftBody {
     public void writePersistenceData(VxByteBuf buf) {
         buf.writeFloat(this.ropeLength);
         buf.writeInt(this.numSegments);
-        buf.writeFloat(getSyncData(DATA_ROPE_RADIUS));
+        buf.writeFloat(get(DATA_ROPE_RADIUS));
         buf.writeFloat(this.mass);
         buf.writeFloat(this.compliance);
     }
@@ -115,7 +116,7 @@ public class RopeSoftBody extends VxSoftBody {
     public void readPersistenceData(VxByteBuf buf) {
         this.ropeLength = buf.readFloat();
         this.numSegments = buf.readInt();
-        this.setSyncData(DATA_ROPE_RADIUS, buf.readFloat());
+        this.setServerData(DATA_ROPE_RADIUS, buf.readFloat());
         this.mass = buf.readFloat();
         this.compliance = buf.readFloat();
     }
