@@ -9,7 +9,9 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.body.sync.accessor.VxClientAccessor;
 import net.xmx.velthoric.physics.body.sync.accessor.VxDataAccessor;
+import net.xmx.velthoric.physics.body.sync.accessor.VxServerAccessor;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
@@ -134,6 +136,17 @@ public class VxSynchronizedData {
     }
 
     /**
+     * Dispatches the update event to the specific method in VxBody based on the accessor type.
+     */
+    private void dispatchUpdate(VxBody body, VxDataAccessor<?> accessor) {
+        if (accessor instanceof VxServerAccessor<?> serverAccessor) {
+            body.onSyncedDataUpdated(serverAccessor);
+        } else if (accessor instanceof VxClientAccessor<?> clientAccessor) {
+            body.onSyncedDataUpdated(clientAccessor);
+        }
+    }
+
+    /**
      * Reads entries from a buffer sent by the server (S2C).
      * This method blindly trusts the source (the server) and applies all updates.
      *
@@ -149,7 +162,7 @@ public class VxSynchronizedData {
             Entry<?> entry = this.entries.get(id);
             if (entry != null) {
                 this.readEntryInternal(buf, entry);
-                body.onSyncedDataUpdated(entry.getAccessor());
+                this.dispatchUpdate(body, entry.getAccessor());
             }
         }
     }
@@ -181,7 +194,7 @@ public class VxSynchronizedData {
                         ((Entry<Object>) entry).setValue(newValue);
                         entry.setDirty(true);
                         this.isDirty = true;
-                        body.onSyncedDataUpdated(entry.getAccessor());
+                        this.dispatchUpdate(body, entry.getAccessor());
                     }
                 } else {
                     // Client NOT allowed: Log warning (Anti-Cheat)
