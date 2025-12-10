@@ -15,16 +15,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunActionPacket;
-import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunSyncPacket;
-import net.xmx.velthoric.item.tool.packet.VxToolActionPacket;
-import net.xmx.velthoric.item.tool.packet.VxToolConfigPacket;
-import net.xmx.velthoric.physics.body.packet.batch.*;
-import net.xmx.velthoric.physics.body.sync.packet.C2SSynchronizedDataBatchPacket;
-import net.xmx.velthoric.physics.body.sync.packet.S2CSynchronizedDataBatchPacket;
-import net.xmx.velthoric.physics.mounting.input.C2SMountInputPacket;
-import net.xmx.velthoric.physics.vehicle.sync.C2SPartInteractPacket;
-import net.xmx.velthoric.physics.vehicle.sync.S2CVehicleDataBatchPacket;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,9 +24,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Handles the registration and sending of all network packets for the mod.
- * This class uses Architectury's NetworkManager directly for packet handling
- * and assigns human-readable names to each packet for easier debugging.
+ * Manages the technical registration, encoding, and transmission of network packets.
+ * <p>
+ * This implementation utilizes standard {@link FriendlyByteBuf} for direct packet encoding
+ * and decoding, mapping packet classes to specific {@link ResourceLocation} channels.
+ * </p>
+ *
  * @author xI-Mx-Ix
  */
 public class VxPacketHandler {
@@ -44,178 +37,86 @@ public class VxPacketHandler {
     private static final String CHANNEL_NAMESPACE = "velthoric";
 
     /**
-     * Internal record to store information about a registered packet.
-     * @param id The unique ResourceLocation for the packet.
-     * @param encoder The function to write the packet data to a buffer.
-     * @param <T> The type of the packet message.
+     * Internal record to hold the registration details of a specific packet type.
+     *
+     * @param id      The unique network identifier for the packet.
+     * @param encoder The function used to serialize the packet into a buffer.
+     * @param <T>     The type of the packet object.
      */
     private record PacketInfo<T>(ResourceLocation id, BiConsumer<T, FriendlyByteBuf> encoder) {}
 
+    /**
+     * A map storing the registration info for every registered packet class.
+     * Used to look up the channel ID and encoder when sending a packet.
+     */
     private static final Map<Class<?>, PacketInfo<?>> PACKETS = new HashMap<>();
 
     /**
-     * Registers a packet type with the network manager.
+     * Registers a single packet type with the network manager.
+     * <p>
+     * This method creates a network receiver that decodes incoming data and delegates it to the handler.
+     * It automatically determines whether to register the receiver on the client or server side
+     * based on the provided {@code side} parameter.
+     * </p>
      *
-     * @param type The class of the packet.
-     * @param name The unique name for the packet, used as the path in its ResourceLocation.
-     * @param encoder The method to encode the packet into a byte buffer.
-     * @param decoder The method to decode the packet from a byte buffer.
-     * @param handler The method to handle the received packet.
-     * @param <T> The type of the packet.
+     * @param type    The class of the packet object.
+     * @param name    The unique path name used to build the packet's {@link ResourceLocation}.
+     * @param encoder The method to write the packet data into a {@link FriendlyByteBuf}.
+     * @param decoder The method to read the packet data from a {@link FriendlyByteBuf}.
+     * @param handler The method to execute when the packet is received.
+     * @param side    The logical side (Client or Server) that is expected to <b>receive</b> this packet.
+     * @param <T>     The type of the packet.
      */
-    private static <T> void registerPacket(Class<T> type,
-                                           String name,
-                                           BiConsumer<T, FriendlyByteBuf> encoder,
-                                           Function<FriendlyByteBuf, T> decoder,
-                                           BiConsumer<T, Supplier<NetworkManager.PacketContext>> handler) {
+    public static <T> void registerPacket(Class<T> type,
+                                          String name,
+                                          BiConsumer<T, FriendlyByteBuf> encoder,
+                                          Function<FriendlyByteBuf, T> decoder,
+                                          BiConsumer<T, Supplier<NetworkManager.PacketContext>> handler,
+                                          NetworkManager.Side side) {
+        
         ResourceLocation packetId = new ResourceLocation(CHANNEL_NAMESPACE, name);
-
-        // Store the packet's ID and encoder for sending later.
-        // The cast is safe because we are pairing the class type with its corresponding info.
+        
+        // Cache the packet information for outgoing messages
         PACKETS.put(type, new PacketInfo<>(packetId, encoder));
 
-        // Create a receiver that decodes the packet and then passes it to the handler.
+        // Create the receiver logic which connects the decoder to the handler
         NetworkManager.NetworkReceiver receiver = (buf, context) -> {
             T packet = decoder.apply(buf);
             handler.accept(packet, () -> context);
         };
 
-        // Register the receiver for client-to-server communication.
-        NetworkManager.registerReceiver(NetworkManager.c2s(), packetId, receiver);
-        // On the client, also register for server-to-client communication.
-        if (Platform.getEnvironment() == Env.CLIENT) {
-            NetworkManager.registerReceiver(NetworkManager.s2c(), packetId, receiver);
+        // Register the receiver on the appropriate logical side
+        if (side == NetworkManager.Side.C2S) {
+            // C2S: Packets sent by client, received by server.
+            NetworkManager.registerReceiver(NetworkManager.c2s(), packetId, receiver);
+        } else {
+            // S2C: Packets sent by server, received by client.
+            // Only register the receiver if we are physically on a client environment.
+            if (Platform.getEnvironment() == Env.CLIENT) {
+                NetworkManager.registerReceiver(NetworkManager.s2c(), packetId, receiver);
+            }
         }
     }
 
     /**
-     * Registers all packets used by the mod.
-     * This method must be called during mod initialization.
-     */
-    public static void register() {
-        registerPacket(
-                C2SPartInteractPacket.class,
-                "part_interact",
-                C2SPartInteractPacket::encode,
-                C2SPartInteractPacket::decode,
-                C2SPartInteractPacket::handle
-        );
-
-        registerPacket(
-                C2SMountInputPacket.class,
-                "mount_input",
-                C2SMountInputPacket::encode,
-                C2SMountInputPacket::decode,
-                C2SMountInputPacket::handle
-        );
-
-        registerPacket(
-                S2CSynchronizedDataBatchPacket.class,
-                "sync_data_batch",
-                S2CSynchronizedDataBatchPacket::encode,
-                S2CSynchronizedDataBatchPacket::decode,
-                S2CSynchronizedDataBatchPacket::handle
-        );
-
-        registerPacket(
-                C2SSynchronizedDataBatchPacket.class,
-                "sync_data_batch",
-                C2SSynchronizedDataBatchPacket::encode,
-                C2SSynchronizedDataBatchPacket::decode,
-                C2SSynchronizedDataBatchPacket::handle
-        );
-
-        registerPacket(
-                S2CVehicleDataBatchPacket.class,
-                "vehicle_data_batch",
-                S2CVehicleDataBatchPacket::encode,
-                S2CVehicleDataBatchPacket::decode,
-                S2CVehicleDataBatchPacket::handle
-        );
-
-        registerPacket(
-                S2CSpawnBodyBatchPacket.class,
-                "spawn_body_batch",
-                S2CSpawnBodyBatchPacket::encode,
-                S2CSpawnBodyBatchPacket::decode,
-                S2CSpawnBodyBatchPacket::handle
-        );
-
-        registerPacket(
-                S2CRemoveBodyBatchPacket.class,
-                "remove_body_batch",
-                S2CRemoveBodyBatchPacket::encode,
-                S2CRemoveBodyBatchPacket::decode,
-                S2CRemoveBodyBatchPacket::handle
-        );
-
-        registerPacket(
-                S2CUpdateBodyStateBatchPacket.class,
-                "update_body_state_batch",
-                S2CUpdateBodyStateBatchPacket::encode,
-                S2CUpdateBodyStateBatchPacket::decode,
-                S2CUpdateBodyStateBatchPacket::handle
-        );
-
-        registerPacket(
-                S2CUpdateVerticesBatchPacket.class,
-                "update_vertices_batch",
-                S2CUpdateVerticesBatchPacket::encode,
-                S2CUpdateVerticesBatchPacket::decode,
-                S2CUpdateVerticesBatchPacket::handle
-        );
-
-        registerPacket(
-                VxPhysicsGunSyncPacket.class,
-                "physics_gun_sync",
-                VxPhysicsGunSyncPacket::encode,
-                VxPhysicsGunSyncPacket::decode,
-                VxPhysicsGunSyncPacket::handle
-        );
-
-        registerPacket(
-                VxPhysicsGunActionPacket.class,
-                "physics_gun_action",
-                VxPhysicsGunActionPacket::encode,
-                VxPhysicsGunActionPacket::decode,
-                VxPhysicsGunActionPacket::handle
-        );
-
-        registerPacket(
-                VxToolActionPacket.class,
-                "tool_action",
-                VxToolActionPacket::encode,
-                VxToolActionPacket::decode,
-                VxToolActionPacket::handle
-        );
-
-        registerPacket(
-                VxToolConfigPacket.class,
-                "tool_config",
-                VxToolConfigPacket::encode,
-                VxToolConfigPacket::decode,
-                VxToolConfigPacket::handle
-        );
-    }
-
-    /**
-     * Retrieves the stored PacketInfo for a given message object.
-     * @param message The packet message instance.
-     * @return The PacketInfo associated with the message's class.
-     * @throws IllegalArgumentException if the packet has not been registered.
+     * Retrieves the cached registration info for a given packet object.
+     *
+     * @param message The packet instance.
+     * @param <MSG>   The type of the packet.
+     * @return The {@link PacketInfo} containing ID and encoder.
+     * @throws NullPointerException if the packet type has not been registered.
      */
     @SuppressWarnings("unchecked")
     private static <MSG> PacketInfo<MSG> getPacketInfo(MSG message) {
-        // Retrieve the info and cast it to the specific message type.
-        // This cast is safe due to the way PacketInfo is stored in the PACKETS map.
         PacketInfo<MSG> info = (PacketInfo<MSG>) PACKETS.get(message.getClass());
         return Objects.requireNonNull(info, "Unregistered packet type: " + message.getClass().getName());
     }
 
     /**
      * Sends a packet from the client to the server.
-     * @param message The packet to send.
-     * @param <MSG> The type of the packet.
+     *
+     * @param message The packet object to send.
+     * @param <MSG>   The type of the packet.
      */
     public static <MSG> void sendToServer(MSG message) {
         PacketInfo<MSG> info = getPacketInfo(message);
@@ -226,9 +127,10 @@ public class VxPacketHandler {
 
     /**
      * Sends a packet from the server to a specific player.
-     * @param message The packet to send.
-     * @param player The player to send the packet to.
-     * @param <MSG> The type of the packet.
+     *
+     * @param message The packet object to send.
+     * @param player  The target server player.
+     * @param <MSG>   The type of the packet.
      */
     public static <MSG> void sendToPlayer(MSG message, ServerPlayer player) {
         PacketInfo<MSG> info = getPacketInfo(message);
@@ -238,10 +140,11 @@ public class VxPacketHandler {
     }
 
     /**
-     * Sends a packet to all players in a specific dimension.
-     * @param message The packet to send.
-     * @param dimensionKey The key of the dimension to send the packet to.
-     * @param <MSG> The type of the packet.
+     * Sends a packet to all players currently in a specific dimension (Level).
+     *
+     * @param message      The packet object to send.
+     * @param dimensionKey The resource key of the target dimension.
+     * @param <MSG>        The type of the packet.
      */
     public static <MSG> void sendToDimension(MSG message, ResourceKey<Level> dimensionKey) {
         if (GameInstance.getServer() != null) {
@@ -256,9 +159,10 @@ public class VxPacketHandler {
     }
 
     /**
-     * Sends a packet to all players currently on the server.
-     * @param message The packet to send.
-     * @param <MSG> The type of the packet.
+     * Sends a packet to all players currently connected to the server.
+     *
+     * @param message The packet object to send.
+     * @param <MSG>   The type of the packet.
      */
     public static <MSG> void sendToAll(MSG message) {
         if (GameInstance.getServer() != null) {

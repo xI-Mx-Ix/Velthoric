@@ -10,7 +10,7 @@ import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.init.registry.ModRegistries;
 import net.xmx.velthoric.init.registry.KeyMappings;
 import net.xmx.velthoric.natives.VxNativeManager;
-import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.network.VxPacketRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -33,7 +33,7 @@ public class VxMainClass {
     public static void onInit() {
         ModRegistries.register();
         VxRegisteredBodies.register();
-        VxPacketHandler.register();
+        VxPacketRegistry.registerPackets();
         RegisterEvents.register();
         VxNativeManager.initialize();
     }
