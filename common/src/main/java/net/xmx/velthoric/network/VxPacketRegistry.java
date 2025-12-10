@@ -92,7 +92,7 @@ public class VxPacketRegistry {
 
         VxPacketHandler.registerPacket(
                 C2SSynchronizedDataBatchPacket.class,
-                "sync_data_batch",
+                "sync_data_batch_c2s",
                 C2SSynchronizedDataBatchPacket::encode,
                 C2SSynchronizedDataBatchPacket::decode,
                 C2SSynchronizedDataBatchPacket::handle,
@@ -104,7 +104,7 @@ public class VxPacketRegistry {
 
         VxPacketHandler.registerPacket(
                 S2CSynchronizedDataBatchPacket.class,
-                "sync_data_batch",
+                "sync_data_batch_s2c",
                 S2CSynchronizedDataBatchPacket::encode,
                 S2CSynchronizedDataBatchPacket::decode,
                 S2CSynchronizedDataBatchPacket::handle,
