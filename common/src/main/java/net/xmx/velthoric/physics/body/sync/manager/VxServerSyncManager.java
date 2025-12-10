@@ -9,6 +9,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerPlayer;
+import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
@@ -69,7 +70,7 @@ public class VxServerSyncManager {
             // Delegate to SynchronizedData to parse and strict-check authority (Anti-Cheat)
             body.getSynchronizedData().readEntriesC2S(buf, body, player);
         } catch (Exception e) {
-            net.xmx.velthoric.init.VxMainClass.LOGGER.error("Failed to process C2S sync for body {} from player {}", bodyId, player.getName().getString(), e);
+            VxMainClass.LOGGER.error("Failed to process C2S sync for body {} from player {}", bodyId, player.getName().getString(), e);
         }
     }
 
