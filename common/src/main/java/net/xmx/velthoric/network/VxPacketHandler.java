@@ -21,7 +21,7 @@ import net.xmx.velthoric.item.tool.packet.VxToolActionPacket;
 import net.xmx.velthoric.item.tool.packet.VxToolConfigPacket;
 import net.xmx.velthoric.physics.body.packet.batch.*;
 import net.xmx.velthoric.physics.mounting.input.C2SMountInputPacket;
-import net.xmx.velthoric.physics.mounting.request.C2SRequestMountPacket;
+import net.xmx.velthoric.physics.vehicle.sync.C2SPartInteractPacket;
 import net.xmx.velthoric.physics.vehicle.sync.S2CVehicleDataBatchPacket;
 
 import java.util.HashMap;
@@ -92,19 +92,19 @@ public class VxPacketHandler {
      */
     public static void register() {
         registerPacket(
-                C2SRequestMountPacket.class,
-                "request_mount",
-                C2SRequestMountPacket::encode,
-                C2SRequestMountPacket::decode,
-                C2SRequestMountPacket::handle
-        );
-
-        registerPacket(
                 S2CSynchronizedDataBatchPacket.class,
                 "sync_data_batch",
                 S2CSynchronizedDataBatchPacket::encode,
                 S2CSynchronizedDataBatchPacket::decode,
                 S2CSynchronizedDataBatchPacket::handle
+        );
+
+        registerPacket(
+                C2SPartInteractPacket.class,
+                "part_interact",
+                C2SPartInteractPacket::encode,
+                C2SPartInteractPacket::decode,
+                C2SPartInteractPacket::handle
         );
 
         registerPacket(

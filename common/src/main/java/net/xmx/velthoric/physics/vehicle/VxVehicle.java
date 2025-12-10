@@ -10,6 +10,9 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
+import net.xmx.velthoric.math.VxOBB;
+import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.manager.VxJoltBridge;
 import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
@@ -17,22 +20,26 @@ import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.mounting.VxMountable;
 import net.xmx.velthoric.physics.mounting.input.VxMountInput;
+import net.xmx.velthoric.physics.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.vehicle.component.VxSteering;
 import net.xmx.velthoric.physics.vehicle.component.VxVehicleEngine;
 import net.xmx.velthoric.physics.vehicle.component.VxVehicleTransmission;
-import net.xmx.velthoric.physics.vehicle.component.VxVehicleWheel;
 import net.xmx.velthoric.physics.vehicle.config.VxVehicleConfig;
+import net.xmx.velthoric.physics.vehicle.part.VxPart;
+import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleSeat;
+import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * The core modular vehicle class.
  * This class serves as the base for all physics-driven vehicles, handling
  * component management (engine, transmission, wheels), input processing,
  * and Jolt physics synchronization.
+ * <p>
+ * It also acts as the central manager for {@link VxPart}s, delegating interaction logic
+ * and organizing the modular structure of the vehicle.
  *
  * @author xI-Mx-Ix
  */
@@ -42,8 +49,22 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
     protected VxVehicleConfig config;
     protected VxVehicleEngine engine;
     protected VxVehicleTransmission transmission;
-    protected final List<VxVehicleWheel> wheels = new ArrayList<>();
     protected final VxSteering steeringHelper = new VxSteering(2.0f);
+
+    /**
+     * The modular parts that make up this vehicle.
+     * Includes wheels, seats, doors, etc.
+     * Mapped by their unique UUID for O(1) network lookup.
+     */
+    protected final Map<UUID, VxPart> parts = new HashMap<>();
+
+    /**
+     * An ordered list of parts, used for consistent iteration during rendering or raycasting.
+     */
+    protected final List<VxPart> partList = new ArrayList<>();
+
+    // Helper list for efficient physics updates; these are also contained in 'parts'.
+    protected final List<VxVehicleWheel> wheels = new ArrayList<>();
 
     // --- Physics ---
     protected VehicleConstraint constraint;
@@ -77,6 +98,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         super(type, world, id);
         this.config = createConfig();
         this.initializeComponents();
+        this.initializeSeats();
     }
 
     /**
@@ -90,6 +112,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         super(type, id);
         this.config = createConfig();
         this.initializeComponents();
+        this.initializeSeats();
     }
 
     /**
@@ -126,7 +149,10 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
      * has not already defined them.
      */
     private void initializeComponents() {
-        for (VxVehicleConfig.WheelInfo info : config.getWheels()) {
+        List<VxVehicleConfig.WheelInfo> configWheels = config.getWheels();
+
+        for (int i = 0; i < configWheels.size(); i++) {
+            VxVehicleConfig.WheelInfo info = configWheels.get(i);
             WheelSettingsWv ws = new WheelSettingsWv();
             ws.setPosition(info.position());
             ws.setRadius(info.radius());
@@ -134,7 +160,14 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
             // Sets default suspension limits, which may be adjusted later in onBodyAdded.
             ws.setSuspensionMinLength(0.2f);
             ws.setSuspensionMaxLength(0.5f);
-            wheels.add(new VxVehicleWheel(ws, info.powered(), info.steerable()));
+
+            // Generate a deterministic name for the wheel based on its index.
+            // This ensures the UUID generated inside VxPart is identical on Client and Server.
+            String wheelName = "wheel_" + i;
+
+            VxVehicleWheel wheel = new VxVehicleWheel(this, wheelName, ws, info.powered(), info.steerable());
+            this.wheels.add(wheel);
+            this.addPart(wheel);
         }
 
         // Initialize a default engine only if one has not been provided by the subclass configuration.
@@ -146,6 +179,72 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         if (this.transmission == null) {
             this.transmission = new VxVehicleTransmission(new float[]{3.5f, 2.0f, 1.4f, 1.0f}, -3.0f);
         }
+    }
+
+    /**
+     * Initializes seats defined in {@link #defineSeats(VxSeat.Builder)} and adds them as parts.
+     */
+    private void initializeSeats() {
+        VxSeat.Builder builder = new VxSeat.Builder();
+        defineSeats(builder);
+        List<VxSeat> seats = builder.build();
+        for (VxSeat seat : seats) {
+            this.addPart(new VxVehicleSeat(this, seat));
+        }
+    }
+
+    /**
+     * Adds a generic part to the vehicle.
+     *
+     * @param part The part to add.
+     */
+    public void addPart(VxPart part) {
+        this.parts.put(part.getId(), part);
+        this.partList.add(part);
+    }
+
+    /**
+     * Retrieves a part by its unique UUID.
+     * Used by the packet handler to find the part to interact with.
+     *
+     * @param partId The UUID of the part.
+     * @return The part, or null if not found.
+     */
+    public VxPart getPart(UUID partId) {
+        return this.parts.get(partId);
+    }
+
+    /**
+     * Performs a raycast against all parts of this vehicle to determine if the player
+     * is interacting with a specific component (e.g., clicking a seat or door).
+     *
+     * @param start        The ray start position (eye pos).
+     * @param end          The ray end position (reach vector).
+     * @param vehicleState The interpolated render state of the vehicle for accurate OBB placement.
+     * @return An Optional containing the hit part, or empty if none hit.
+     */
+    public Optional<VxPart> pickPart(Vec3 start, Vec3 end, VxRenderState vehicleState) {
+        VxPart closestPart = null;
+        double closestDistSq = Double.MAX_VALUE;
+
+        // Iterate over the list for deterministic order
+        for (VxPart part : this.partList) {
+            VxOBB partOBB = part.getGlobalOBB(vehicleState);
+            Optional<Vec3> hit = partOBB.clip(start, end);
+
+            if (hit.isPresent()) {
+                double distSq = start.distanceToSqr(hit.get());
+                if (distSq < closestDistSq) {
+                    closestDistSq = distSq;
+                    closestPart = part;
+                }
+            }
+        }
+        return Optional.ofNullable(closestPart);
+    }
+
+    public List<VxPart> getParts() {
+        return partList;
     }
 
     @Override
@@ -230,7 +329,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         if (joltBody != null && joltBody.isActive()) {
 
             // Calculate Speed in KM/H
-            Vec3 vel = joltBody.getLinearVelocity();
+            com.github.stephengold.joltjni.Vec3 vel = joltBody.getLinearVelocity();
             this.speedKmh = vel.length() * 3.6f;
 
             // --- Transmission Logic ---
