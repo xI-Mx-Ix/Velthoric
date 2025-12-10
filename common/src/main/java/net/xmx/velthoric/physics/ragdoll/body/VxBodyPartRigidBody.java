@@ -12,10 +12,10 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.xmx.velthoric.physics.body.sync.accessor.VxServerAccessor;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
@@ -33,9 +33,9 @@ import java.util.UUID;
  */
 public class VxBodyPartRigidBody extends VxRigidBody {
 
-    public static final VxDataAccessor<Vec3> DATA_HALF_EXTENTS = VxDataAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.VEC3);
-    public static final VxDataAccessor<VxBodyPart> DATA_BODY_PART = VxDataAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.BODY_PART);
-    public static final VxDataAccessor<String> DATA_SKIN_ID = VxDataAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.STRING);
+    public static final VxServerAccessor<Vec3> DATA_HALF_EXTENTS = VxServerAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.VEC3);
+    public static final VxServerAccessor<VxBodyPart> DATA_BODY_PART = VxServerAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.BODY_PART);
+    public static final VxServerAccessor<String> DATA_SKIN_ID = VxServerAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.STRING);
 
     /**
      * Server-side constructor.
@@ -61,7 +61,7 @@ public class VxBodyPartRigidBody extends VxRigidBody {
 
     @Override
     public int createJoltBody(VxRigidBodyFactory factory) {
-        VxBodyPart partType = getSyncData(DATA_BODY_PART);
+        VxBodyPart partType = get(DATA_BODY_PART);
         Vec3 fullSize = partType.getSize();
 
         ShapeSettings shapeSettings;
@@ -121,16 +121,16 @@ public class VxBodyPartRigidBody extends VxRigidBody {
     @Override
     public void writePersistenceData(VxByteBuf buf) {
         super.writePersistenceData(buf);
-        VxDataSerializers.VEC3.write(buf, getSyncData(DATA_HALF_EXTENTS));
-        VxDataSerializers.BODY_PART.write(buf, getSyncData(DATA_BODY_PART));
-        VxDataSerializers.STRING.write(buf, getSyncData(DATA_SKIN_ID));
+        VxDataSerializers.VEC3.write(buf, get(DATA_HALF_EXTENTS));
+        VxDataSerializers.BODY_PART.write(buf, get(DATA_BODY_PART));
+        VxDataSerializers.STRING.write(buf, get(DATA_SKIN_ID));
     }
 
     @Override
     public void readPersistenceData(VxByteBuf buf) {
         super.readPersistenceData(buf);
-        setSyncData(DATA_HALF_EXTENTS, VxDataSerializers.VEC3.read(buf));
-        setSyncData(DATA_BODY_PART, VxDataSerializers.BODY_PART.read(buf));
-        setSyncData(DATA_SKIN_ID, VxDataSerializers.STRING.read(buf));
+        setServerData(DATA_HALF_EXTENTS, VxDataSerializers.VEC3.read(buf));
+        setServerData(DATA_BODY_PART, VxDataSerializers.BODY_PART.read(buf));
+        setServerData(DATA_SKIN_ID, VxDataSerializers.STRING.read(buf));
     }
 }

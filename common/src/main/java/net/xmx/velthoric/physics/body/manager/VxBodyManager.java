@@ -21,6 +21,7 @@ import net.xmx.velthoric.physics.body.persistence.VxBodyStorage;
 import net.xmx.velthoric.physics.body.persistence.VxSerializedBodyData;
 import net.xmx.velthoric.physics.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
+import net.xmx.velthoric.physics.body.sync.manager.VxServerSyncManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
@@ -48,6 +49,7 @@ public class VxBodyManager {
     private final VxBodyDataStore dataStore;
     private final VxPhysicsUpdater physicsUpdater;
     private final VxNetworkDispatcher networkDispatcher;
+    private final VxServerSyncManager serverSyncManager;
     private final VxChunkManager chunkManager;
 
     /**
@@ -76,6 +78,7 @@ public class VxBodyManager {
         this.bodyStorage = new VxBodyStorage(world.getLevel(), this);
         this.physicsUpdater = new VxPhysicsUpdater(this);
         this.networkDispatcher = new VxNetworkDispatcher(world.getLevel(), this);
+        this.serverSyncManager = new VxServerSyncManager(this);
         this.chunkManager = new VxChunkManager(this);
     }
 
@@ -255,8 +258,10 @@ public class VxBodyManager {
         world.getConstraintManager().removeConstraintsForBody(body.getPhysicsId(), reason == VxRemovalReason.DISCARD);
         VxJoltBridge.INSTANCE.destroyJoltBody(world, body.getBodyId());
 
-        if (body.getNetworkId() != -1) {
-            freeNetworkIds.add(body.getNetworkId());
+        int netId = body.getNetworkId();
+        if (netId != -1) {
+            dataStore.unregisterNetworkId(netId);
+            freeNetworkIds.add(netId);
         }
 
         dataStore.removeBody(body.getPhysicsId());
@@ -278,6 +283,8 @@ public class VxBodyManager {
             int networkId = freeNetworkIds.isEmpty() ? nextNetworkId++ : freeNetworkIds.pop();
             body.setNetworkId(networkId);
             dataStore.networkId[index] = networkId;
+            // Register reverse mapping in the data store
+            dataStore.registerNetworkId(networkId, id);
 
             dataStore.isActive[index] = true;
             chunkManager.startTracking(body);
@@ -460,5 +467,9 @@ public class VxBodyManager {
 
     public VxChunkManager getChunkManager() {
         return chunkManager;
+    }
+
+    public VxServerSyncManager getServerSyncManager() {
+        return serverSyncManager;
     }
 }

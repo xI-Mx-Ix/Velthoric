@@ -12,10 +12,11 @@ import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.xmx.velthoric.physics.body.sync.accessor.VxServerAccessor;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.body.sync.accessor.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
@@ -33,8 +34,8 @@ import java.util.UUID;
  */
 public class VxChainPartRigidBody extends VxRigidBody {
 
-    private static final VxDataAccessor<Float> DATA_LENGTH = VxDataAccessor.create(VxChainPartRigidBody.class, VxDataSerializers.FLOAT);
-    private static final VxDataAccessor<Float> DATA_RADIUS = VxDataAccessor.create(VxChainPartRigidBody.class, VxDataSerializers.FLOAT);
+    private static final VxServerAccessor<Float> DATA_LENGTH = VxServerAccessor.create(VxChainPartRigidBody.class, VxDataSerializers.FLOAT);
+    private static final VxServerAccessor<Float> DATA_RADIUS = VxServerAccessor.create(VxChainPartRigidBody.class, VxDataSerializers.FLOAT);
 
     /**
      * Server-side constructor.
@@ -73,8 +74,8 @@ public class VxChainPartRigidBody extends VxRigidBody {
     @Override
     public void writePersistenceData(VxByteBuf buf) {
         super.writePersistenceData(buf);
-        buf.writeFloat(getSyncData(DATA_LENGTH));
-        buf.writeFloat(getSyncData(DATA_RADIUS));
+        buf.writeFloat(get(DATA_LENGTH));
+        buf.writeFloat(get(DATA_RADIUS));
     }
 
     /**
@@ -84,8 +85,8 @@ public class VxChainPartRigidBody extends VxRigidBody {
     @Override
     public void readPersistenceData(VxByteBuf buf) {
         super.readPersistenceData(buf);
-        this.setSyncData(DATA_LENGTH, buf.readFloat());
-        this.setSyncData(DATA_RADIUS, buf.readFloat());
+        this.setServerData(DATA_LENGTH, buf.readFloat());
+        this.setServerData(DATA_RADIUS, buf.readFloat());
     }
 
     /**
@@ -95,8 +96,8 @@ public class VxChainPartRigidBody extends VxRigidBody {
      */
     @Override
     public int createJoltBody(VxRigidBodyFactory factory) {
-        float currentRadius = getSyncData(DATA_RADIUS);
-        float currentLength = getSyncData(DATA_LENGTH);
+        float currentRadius = get(DATA_RADIUS);
+        float currentLength = get(DATA_LENGTH);
 
         Vec3 halfExtents = new Vec3(currentRadius, currentLength / 2.0f, currentRadius);
         try (
@@ -116,27 +117,27 @@ public class VxChainPartRigidBody extends VxRigidBody {
      * @return The synchronized length of this chain part.
      */
     public float getLength() {
-        return this.getSyncData(DATA_LENGTH);
+        return this.get(DATA_LENGTH);
     }
 
     /**
      * @return The synchronized radius of this chain part.
      */
     public float getRadius() {
-        return this.getSyncData(DATA_RADIUS);
+        return this.get(DATA_RADIUS);
     }
 
     /**
      * @return The data accessor for the length property.
      */
-    public static VxDataAccessor<Float> getLengthAccessor() {
+    public static VxServerAccessor<Float> getLengthAccessor() {
         return DATA_LENGTH;
     }
 
     /**
      * @return The data accessor for the radius property.
      */
-    public static VxDataAccessor<Float> getRadiusAccessor() {
+    public static VxServerAccessor<Float> getRadiusAccessor() {
         return DATA_RADIUS;
     }
 }

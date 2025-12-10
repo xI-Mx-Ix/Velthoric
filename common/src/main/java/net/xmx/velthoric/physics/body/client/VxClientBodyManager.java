@@ -15,6 +15,7 @@ import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.body.sync.manager.VxClientSyncManager;
 import net.xmx.velthoric.physics.mounting.VxMountable;
 import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.physics.mounting.seat.VxSeat;
@@ -53,6 +54,8 @@ public class VxClientBodyManager {
     private final VxClientBodyInterpolator interpolator = new VxClientBodyInterpolator();
     // The client-side clock, which can be paused.
     private final VxClientClock clock = VxClientClock.INSTANCE;
+    // The manager responsible for synchronizing client-authoritative data.
+    private final VxClientSyncManager syncManager;
 
     // Map of all active client-side physics body handles, keyed by their persistent UUID.
     private final Map<UUID, VxBody> managedBodies = new ConcurrentHashMap<>();
@@ -65,7 +68,9 @@ public class VxClientBodyManager {
     private final List<Long> clockOffsetSamples = new ArrayList<>();
 
     // Private constructor to enforce singleton pattern.
-    private VxClientBodyManager() {}
+    private VxClientBodyManager() {
+        this.syncManager = new VxClientSyncManager(this);
+    }
 
     /**
      * @return The singleton instance of the {@link VxClientBodyManager}.
@@ -173,6 +178,7 @@ public class VxClientBodyManager {
         VxTransform transform = new VxTransform();
         transform.fromBuffer(data);
 
+        // Read synchronized data entries
         body.getSynchronizedData().readEntries(data, body);
 
         initializeState(index, transform, timestamp);
@@ -241,6 +247,8 @@ public class VxClientBodyManager {
                 VxBody body = managedBodies.get(id);
 
                 if (body != null) {
+                    // Notify sync manager to stop tracking dirtiness for this body
+                    syncManager.onBodyRemoved(body);
 
                     // Notify the body that it has been removed from the client.
                     body.onBodyRemoved(Minecraft.getInstance().level);
@@ -254,28 +262,23 @@ public class VxClientBodyManager {
     }
 
     /**
-     * Updates the synchronized data for a specific body.
+     * Marks a body as having modified CLIENT-authoritative data that needs
+     * to be sent to the server.
      *
-     * @param networkId The network ID of the body to update.
-     * @param data The buffer containing the new synchronized data.
+     * @param body The body that changed.
+     */
+    public void markBodyDirty(VxBody body) {
+        syncManager.markBodyDirty(body);
+    }
+
+    /**
+     * Delegates handling of server-sent synchronized data updates to the SyncManager.
+     *
+     * @param networkId The network ID of the body.
+     * @param data      The buffer containing the data.
      */
     public void updateSynchronizedData(int networkId, ByteBuf data) {
-        Integer index = store.getIndexForNetworkId(networkId);
-        if (index == null) return;
-
-        UUID id = store.getUuidForIndex(index);
-        if (id == null) return;
-
-        VxBody body = managedBodies.get(id);
-        if (body != null) {
-            try {
-                // The incoming ByteBuf is wrapped in our custom VxByteBuf for deserialization.
-                // We now pass the body instance itself to the readEntries method.
-                body.getSynchronizedData().readEntries(new VxByteBuf(data), body);
-            } catch (Exception e) {
-                VxMainClass.LOGGER.error("Failed to read synchronized data for body {}", id, e);
-            }
-        }
+        syncManager.handleServerUpdate(networkId, data);
     }
 
     /**
@@ -284,6 +287,7 @@ public class VxClientBodyManager {
     public void clearAll() {
         store.clear();
         managedBodies.clear();
+        syncManager.clear();
         isClockOffsetInitialized = false;
         clockOffsetNanos = 0L;
         synchronized(clockOffsetSamples) {
@@ -300,6 +304,9 @@ public class VxClientBodyManager {
         for (VxBody body : managedBodies.values()) {
             body.onClientTick();
         }
+
+        // Process synchronization tasks (sending C2S updates)
+        syncManager.tick();
 
         synchronizeClock();
         if (isClockOffsetInitialized) {

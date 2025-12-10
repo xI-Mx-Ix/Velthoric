@@ -20,8 +20,10 @@ import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
-import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.body.sync.accessor.VxClientAccessor;
+import net.xmx.velthoric.physics.body.sync.accessor.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
+import net.xmx.velthoric.physics.body.sync.accessor.VxServerAccessor;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -71,7 +73,7 @@ public abstract class VxBody {
         // Use the builder to construct the synchronized data
         VxSynchronizedData.Builder builder = new VxSynchronizedData.Builder();
         this.defineSyncData(builder);
-        this.synchronizedData = builder.build(EnvType.SERVER);
+        this.synchronizedData = builder.build();
     }
 
     /**
@@ -86,7 +88,7 @@ public abstract class VxBody {
         // Use the builder to construct the synchronized data
         VxSynchronizedData.Builder builder = new VxSynchronizedData.Builder();
         this.defineSyncData(builder);
-        this.synchronizedData = builder.build(EnvType.CLIENT);
+        this.synchronizedData = builder.build();
         // Server-only fields are left null on the client.
         this.physicsWorld = null;
     }
@@ -165,26 +167,56 @@ public abstract class VxBody {
     protected abstract void defineSyncData(VxSynchronizedData.Builder builder);
 
     /**
-     * Gets the value of a synchronized data field.
-     * @param accessor The accessor for the data.
+     * Gets the value of a synchronized data field. Reading is allowed on both sides.
+     *
+     * @param accessor The accessor for the data (can be Client or Server type).
      * @return The current value.
      */
-    public <T> T getSyncData(VxDataAccessor<T> accessor) {
+    public <T> T get(VxDataAccessor<T> accessor) {
         return this.synchronizedData.get(accessor);
     }
 
     /**
-     * Sets the value of a synchronized data field. If the value changes,
-     * the body will automatically be queued for a network update.
-     * Server-side only.
-     * @param accessor The accessor for the data.
-     * @param value The new value.
+     * Sets SERVER-Authoritative data.
+     * This method is only for use on the Logical Server.
+     *
+     * @param accessor A strongly-typed {@link VxServerAccessor}.
+     * @param value    The new value.
+     * @throws IllegalStateException If called on the client (where physicsWorld is null).
      */
-    public <T> void setSyncData(VxDataAccessor<T> accessor, T value) {
-        if (this.physicsWorld == null) return; // Guard against client-side calls
+    public <T> void setServerData(VxServerAccessor<T> accessor, T value) {
+        if (this.physicsWorld == null) {
+            throw new IllegalStateException("Cannot set SERVER-authoritative data on the Client. Data: " + accessor.getId());
+        }
+
+        // Apply update to internal storage
         this.synchronizedData.set(accessor, value);
+
+        // Mark dirty for S2C replication via the server manager
         if (this.synchronizedData.isDirty()) {
             this.physicsWorld.getBodyManager().markCustomDataDirty(this);
+        }
+    }
+
+    /**
+     * Sets CLIENT-Authoritative data.
+     * This method is only for use on the Logical Client.
+     *
+     * @param accessor A strongly-typed {@link VxClientAccessor}.
+     * @param value    The new value.
+     * @throws IllegalStateException If called on the server (where physicsWorld is not null).
+     */
+    public <T> void setClientData(VxClientAccessor<T> accessor, T value) {
+        if (this.physicsWorld != null) {
+            throw new IllegalStateException("Cannot set CLIENT-authoritative data on the Server. Data: " + accessor.getId());
+        }
+
+        // Apply update to internal storage
+        this.synchronizedData.set(accessor, value);
+
+        // Mark dirty for C2S replication via the client manager
+        if (this.synchronizedData.isDirty()) {
+            VxClientBodyManager.getInstance().markBodyDirty(this);
         }
     }
 

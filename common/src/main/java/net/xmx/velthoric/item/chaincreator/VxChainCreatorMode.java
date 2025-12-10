@@ -169,8 +169,8 @@ public class VxChainCreatorMode extends VxToolMode {
                     VxRegisteredBodies.CHAIN_PART,
                     new VxTransform(segmentCenterPos, orientation),
                     body -> {
-                        body.setSyncData(VxChainPartRigidBody.getLengthAccessor(), (float) actualSegmentLength);
-                        body.setSyncData(VxChainPartRigidBody.getRadiusAccessor(), radius);
+                        body.setServerData(VxChainPartRigidBody.getLengthAccessor(), (float) actualSegmentLength);
+                        body.setServerData(VxChainPartRigidBody.getRadiusAccessor(), radius);
                     }
             );
             if (currentBody == null) continue;

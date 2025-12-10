@@ -160,9 +160,9 @@ public class VxRagdollManager {
                 partTransform,
                 EActivation.Activate,
                 body -> {
-                    body.setSyncData(VxBodyPartRigidBody.DATA_HALF_EXTENTS, halfExtents);
-                    body.setSyncData(VxBodyPartRigidBody.DATA_BODY_PART, partType);
-                    body.setSyncData(VxBodyPartRigidBody.DATA_SKIN_ID, skinId);
+                    body.setServerData(VxBodyPartRigidBody.DATA_HALF_EXTENTS, halfExtents);
+                    body.setServerData(VxBodyPartRigidBody.DATA_BODY_PART, partType);
+                    body.setServerData(VxBodyPartRigidBody.DATA_SKIN_ID, skinId);
                 }
         );
     }

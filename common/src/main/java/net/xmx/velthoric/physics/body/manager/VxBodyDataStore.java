@@ -6,6 +6,8 @@ package net.xmx.velthoric.physics.body.manager;
 
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
@@ -30,6 +32,11 @@ public class VxBodyDataStore extends AbstractDataStore {
 
     private final Object2IntMap<UUID> uuidToIndex = new Object2IntOpenHashMap<>();
     private final ObjectArrayList<UUID> indexToUuid = new ObjectArrayList<>();
+
+    // Reverse lookup map for network synchronization (Network ID -> Body UUID).
+    // Synchronized to ensure thread safety between the network thread and game thread.
+    private final Int2ObjectMap<UUID> networkIdToUuid = new Int2ObjectOpenHashMap<>();
+
     private final IntArrayList freeIndices = new IntArrayList();
     private int count = 0;
     private int capacity = 0;
@@ -149,11 +156,42 @@ public class VxBodyDataStore extends AbstractDataStore {
     }
 
     /**
+     * Registers a network ID mapping for the given body UUID.
+     *
+     * @param networkId The session-unique network ID.
+     * @param id The persistent body UUID.
+     */
+    public synchronized void registerNetworkId(int networkId, UUID id) {
+        this.networkIdToUuid.put(networkId, id);
+    }
+
+    /**
+     * Unregisters a network ID mapping.
+     *
+     * @param networkId The network ID to remove.
+     */
+    public synchronized void unregisterNetworkId(int networkId) {
+        this.networkIdToUuid.remove(networkId);
+    }
+
+    /**
+     * Retrieves the body UUID associated with a network ID.
+     *
+     * @param networkId The network ID to look up.
+     * @return The body UUID, or null if not found.
+     */
+    @Nullable
+    public synchronized UUID getIdForNetworkId(int networkId) {
+        return this.networkIdToUuid.get(networkId);
+    }
+
+    /**
      * Clears all data and resets the store to its initial state.
      */
     public synchronized void clear() {
         uuidToIndex.clear();
         indexToUuid.clear();
+        networkIdToUuid.clear();
         freeIndices.clear();
         count = 0;
         allocate(INITIAL_CAPACITY);

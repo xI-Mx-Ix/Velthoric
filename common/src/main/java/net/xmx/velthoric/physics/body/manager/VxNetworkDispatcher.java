@@ -6,7 +6,6 @@ package net.xmx.velthoric.physics.body.manager;
 
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.*;
-import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.server.level.ChunkMap;
@@ -81,6 +80,7 @@ public class VxNetworkDispatcher {
     private ExecutorService networkSyncExecutor;
 
     // A reusable buffer for the network thread to avoid allocations in tight loops.
+    // Package-private so other network components can reuse the strategy if needed, though logically isolated.
     private static final ThreadLocal<VxByteBuf> THREAD_LOCAL_BYTE_BUF = ThreadLocal.withInitial(() -> new VxByteBuf(Unpooled.buffer(1024)));
 
     /**
@@ -137,9 +137,15 @@ public class VxNetworkDispatcher {
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 long cycleStartTime = System.nanoTime();
+
                 sendStateUpdates();
-                sendSynchronizedDataUpdates();
+
+                // Delegate synchronized data updates to the dedicated manager
+                // This scans for custom data changes and uses the dispatcher to find recipients
+                this.manager.getServerSyncManager().sendSynchronizedDataUpdates(this);
+
                 this.vehicleDispatcher.dispatchUpdates(this.level, this.manager, this.bodyTrackers);
+
                 long cycleEndTime = System.nanoTime();
                 long cycleDurationMs = (cycleEndTime - cycleStartTime) / 1_000_000;
                 long sleepTime = Math.max(0, NETWORK_THREAD_TICK_RATE_MS - cycleDurationMs);
@@ -287,54 +293,6 @@ public class VxNetworkDispatcher {
                 S2CUpdateVerticesBatchPacket packet = new S2CUpdateVerticesBatchPacket(networkIdList.size(), networkIdList.toIntArray(), vertexList.toArray(new float[0][]));
                 VxPacketHandler.sendToPlayer(packet, player);
             }
-        }
-    }
-
-    /**
-     * Scans for bodies with dirty custom synchronized data, serializes it, and sends it to tracking players.
-     * This allows {@link VxBody} instances to send arbitrary data to clients when their state changes.
-     */
-    private void sendSynchronizedDataUpdates() {
-        IntArrayList dirtyDataIndices = new IntArrayList();
-        synchronized (dataStore) {
-            for (int i = 0; i < dataStore.getCapacity(); i++) {
-                if (dataStore.isCustomDataDirty[i]) {
-                    dirtyDataIndices.add(i);
-                    dataStore.isCustomDataDirty[i] = false;
-                }
-            }
-        }
-
-        if (dirtyDataIndices.isEmpty()) return;
-
-        Map<ServerPlayer, Map<Integer, byte[]>> updatesByPlayer = new Object2ObjectOpenHashMap<>();
-        VxByteBuf buffer = THREAD_LOCAL_BYTE_BUF.get(); // Use thread-local buffer
-
-        for (int dirtyIndex : dirtyDataIndices) {
-            UUID bodyId = dataStore.getIdForIndex(dirtyIndex);
-            if (bodyId == null) continue;
-            VxBody body = manager.getVxBody(bodyId);
-            if (body == null) continue;
-
-            buffer.clear(); // Clear buffer for reuse
-            if (body.writeDirtySyncData(buffer)) {
-                byte[] data = new byte[buffer.readableBytes()];
-                buffer.readBytes(data);
-                Set<ServerPlayer> trackers = bodyTrackers.get(body.getNetworkId());
-                if (trackers != null) {
-                    for (ServerPlayer player : trackers) {
-                        updatesByPlayer.computeIfAbsent(player, k -> new Object2ObjectArrayMap<>()).put(body.getNetworkId(), data);
-                    }
-                }
-            }
-        }
-
-        if (!updatesByPlayer.isEmpty()) {
-            level.getServer().execute(() -> updatesByPlayer.forEach((player, dataMap) -> {
-                if (!dataMap.isEmpty()) {
-                    VxPacketHandler.sendToPlayer(new S2CSynchronizedDataBatchPacket(dataMap), player);
-                }
-            }));
         }
     }
 
@@ -487,6 +445,16 @@ public class VxNetworkDispatcher {
                 pendingRemovals.computeIfAbsent(player, k -> new IntArrayList()).add(networkId);
             }
         }
+    }
+
+    /**
+     * Returns the set of players currently tracking the body with the given network ID.
+     *
+     * @param networkId The network ID of the body.
+     * @return A set of players, or null if no one is tracking it.
+     */
+    public Set<ServerPlayer> getTrackersForBody(int networkId) {
+        return bodyTrackers.get(networkId);
     }
 
     /**

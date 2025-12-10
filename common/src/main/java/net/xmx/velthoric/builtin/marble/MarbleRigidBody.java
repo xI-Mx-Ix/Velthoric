@@ -9,10 +9,11 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.xmx.velthoric.physics.body.sync.accessor.VxServerAccessor;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.sync.VxDataAccessor;
+import net.xmx.velthoric.physics.body.sync.accessor.VxDataAccessor;
 import net.xmx.velthoric.physics.body.sync.VxDataSerializers;
 import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
@@ -28,7 +29,7 @@ import java.util.UUID;
  */
 public class MarbleRigidBody extends VxRigidBody {
 
-    public static final VxDataAccessor<Float> DATA_RADIUS = VxDataAccessor.create(MarbleRigidBody.class, VxDataSerializers.FLOAT);
+    public static final VxServerAccessor<Float> DATA_RADIUS = VxServerAccessor.create(MarbleRigidBody.class, VxDataSerializers.FLOAT);
     private static final float DENSITY = 6700f;
 
     /**
@@ -52,11 +53,11 @@ public class MarbleRigidBody extends VxRigidBody {
     }
 
     public void setRadius(float radius) {
-        this.setSyncData(DATA_RADIUS, radius);
+        this.setServerData(DATA_RADIUS, radius);
     }
 
     public float getRadius() {
-        return getSyncData(DATA_RADIUS);
+        return get(DATA_RADIUS);
     }
 
     @Override
