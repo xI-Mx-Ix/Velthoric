@@ -9,15 +9,12 @@ import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketUtils;
-import net.xmx.velthoric.physics.body.type.VxBody;
+import net.xmx.velthoric.physics.body.sync.manager.VxServerSyncManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Supplier;
 
 /**
@@ -111,27 +108,12 @@ public class C2SSynchronizedDataBatchPacket {
 
             if (world == null) return;
 
-            for (Map.Entry<Integer, byte[]> entry : msg.dataUpdates.entrySet()) {
-                int networkId = entry.getKey();
-                // Find the body by network ID on the server
-                UUID bodyId = world.getBodyManager().getDataStore().getIdForNetworkId(networkId);
-                if (bodyId == null) continue;
+            VxServerSyncManager syncManager = world.getBodyManager().getServerSyncManager();
 
-                VxBody body = world.getBodyManager().getVxBody(bodyId);
-                if (body != null) {
-                    processBodyUpdate(body, entry.getValue(), player);
-                }
+            for (Map.Entry<Integer, byte[]> entry : msg.dataUpdates.entrySet()) {
+                // Delegate validation and application to the server sync manager
+                syncManager.processClientUpdate(entry.getKey(), entry.getValue(), player);
             }
         });
-    }
-
-    private static void processBodyUpdate(VxBody body, byte[] data, ServerPlayer player) {
-        VxByteBuf buf = new VxByteBuf(Unpooled.wrappedBuffer(data));
-        try {
-            // Delegate to the synchronized data container to parse and validate against authority
-            body.getSynchronizedData().readEntriesC2S(buf, body, player);
-        } catch (Exception e) {
-            VxMainClass.LOGGER.error("Error processing C2S body update from player {}", player.getName().getString(), e);
-        }
     }
 }
