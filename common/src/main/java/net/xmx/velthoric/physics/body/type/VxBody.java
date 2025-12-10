@@ -221,13 +221,13 @@ public abstract class VxBody {
     }
 
     /**
-     * Called on the client right after synchronized data has been updated from a server packet.
-     * Subclasses can override this method to react to data changes. For example, to update
-     * a client-side manager or trigger an effect.
+     * Called when synchronized data has been updated from a packet.
+     * <p>
+     * - On Client: Triggered when an S2C packet updates SERVER-authoritative data.
+     * - On Server: Triggered when a C2S packet updates CLIENT-authoritative data.
      *
      * @param accessor The specific data accessor that was just updated.
      */
-    @Environment(EnvType.CLIENT)
     public void onSyncedDataUpdated(VxDataAccessor<?> accessor) {
         // This is a hook for subclasses to implement.
     }
