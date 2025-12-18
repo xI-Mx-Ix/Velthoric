@@ -8,7 +8,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'Velthoric'
+rootProject.name = 'InteractiveMC'
 
 include 'common'
 include 'fabric'

@@ -2,7 +2,7 @@ plugins {
     id 'java'
 }
 
-group = 'net.xmx.vxnative'
+group = 'net.timtaran.interactivemc.physics..vxnative'
 version = '0.0.2'
 
 repositories {

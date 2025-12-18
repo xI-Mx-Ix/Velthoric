@@ -38,3 +38,5 @@ hell nah/
 out/
 
 credentials.properties
+
+.direnv/

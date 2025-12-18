@@ -75,6 +75,7 @@ subprojects {
         maven { url = 'https://maven.parchmentmc.org' }
         maven { url = 'https://jitpack.io' }
         maven { url = 'https://s01.oss.sonatype.org/content/repositories/snapshots'}
+        maven { url "https://api.modrinth.com/maven" }
 
         flatDir {
             dirs rootProject.file('libraries')

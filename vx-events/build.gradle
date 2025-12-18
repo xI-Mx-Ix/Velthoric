@@ -2,7 +2,7 @@ architectury {
     common rootProject.enabled_platforms.split(',')
 }
 
-group = 'net.xmx.vxevents'
+group = 'net.timtaran.interactivemc.physics.vxevents'
 version = '0.0.1'
 
 dependencies {

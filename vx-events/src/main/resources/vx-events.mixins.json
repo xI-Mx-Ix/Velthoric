@@ -1,23 +1,23 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "net.xmx.velthoric.event.mixin.impl",
+  "package": "net.timtaran.interactivemc.physics.event.mixin.impl.event",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "event.level.MixinMinecraftServer_VxLevelEvent",
-    "event.level.MixinServerLevel_VxLevelEvent",
-    "event.server.MixinMinecraftServer_VxServerLifecycleEvent"
+    "level.MixinMinecraftServer_VxLevelEvent",
+    "level.MixinServerLevel_VxLevelEvent",
+    "server.MixinMinecraftServer_VxServerLifecycleEvent"
   ],
   "client": [
-    "event.debug.MixinDebugScreenOverlay_VxF3ScreenAdditionEvent",
-    "event.input.MixinKeyboardHandler_VxKeyEvent",
-    "event.input.MixinMouseHandler_VxMouseEvent",
-    "event.level.client.MixinMinecraft_VxClientLevelEvent",
-    "event.network.ClientCommonPacketListenerImplAccessor",
-    "event.network.MixinClientLevel_VxClientPlayerNetworkEvent",
-    "event.network.MixinClientPacketListener_VxClientPlayerNetworkEvent",
-    "event.render.MixinGui_VxRenderEvent",
-    "event.render.MixinLevelRenderer_VxRenderEvent"
+    "debug.MixinDebugScreenOverlay_VxF3ScreenAdditionEvent",
+    "input.MixinKeyboardHandler_VxKeyEvent",
+    "input.MixinMouseHandler_VxMouseEvent",
+    "level.client.MixinMinecraft_VxClientLevelEvent",
+    "network.ClientCommonPacketListenerImplAccessor",
+    "network.MixinClientLevel_VxClientPlayerNetworkEvent",
+    "network.MixinClientPacketListener_VxClientPlayerNetworkEvent",
+    "render.MixinGui_VxRenderEvent",
+    "render.MixinLevelRenderer_VxRenderEvent"
   ],
   "injectors": {
     "defaultRequire": 1

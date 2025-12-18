@@ -12,7 +12,8 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "net.xmx.velthoric.fabric.VxFabric"
+      "net.timtaran.interactivemc.physics.fabric.VxFabric",
+      "net.net.timtaran.interactivemc.fabric.InteractiveMCFabric"
     ]
   },
   "mixins": [

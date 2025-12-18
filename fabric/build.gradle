@@ -50,6 +50,10 @@ dependencies {
 
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
 
+    modApi "maven.modrinth:vivecraft:$rootProject.vivecraft_version-fabric"
+    runtimeOnly "com.electronwill.night-config:toml:3.6.6"
+    runtimeOnly "com.electronwill.night-config:core:3.6.6"
+
     implementation project(path: ":vx-native", configuration: "namedElements")
     minecraftRuntimeLibraries project(path: ":vx-native", configuration: "namedElements")
     shadowBundle project(path: ":vx-native", configuration: "namedElements")

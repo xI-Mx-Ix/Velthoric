@@ -8,6 +8,17 @@ dependencies {
     // Do NOT use other classes from Fabric Loader.
     modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
     modImplementation "dev.architectury:architectury:$rootProject.architectury_api_version"
+
+    modApi "maven.modrinth:vivecraft:$rootProject.vivecraft_version-fabric"
+    var lwjgl_version = "3.3.3"
+    runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}"
+    runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}:natives-linux"
+    runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}:natives-macos"
+    runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}:natives-windows"
+    runtimeOnly "com.illposed.osc:javaosc-core:0.9"
+    runtimeOnly "com.electronwill.night-config:toml:3.6.6"
+    runtimeOnly "com.electronwill.night-config:core:3.6.6"
+
     implementation project(path: ":vx-native", configuration: "namedElements")
     implementation project(path: ":vx-events", configuration: "namedElements")
     include(implementation(annotationProcessor("io.github.llamalad7:mixinextras-fabric:$mixinextras_version")))
