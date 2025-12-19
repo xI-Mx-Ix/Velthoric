@@ -54,6 +54,8 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
 
     /**
      * Core logic to apply buoyancy forces to a single convex part.
+     * The resulting force is scaled by the horizontal area fraction detected
+     * in the broad-phase to account for partial contact with limited fluid volumes.
      *
      * @param body               The parent physics body to which forces are applied.
      * @param convexPart         The convex shape part to process.
@@ -61,12 +63,12 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
      * @param bodyCom            The world-space center of mass of the entire parent body.
      * @param deltaTime          The simulation time step.
      * @param index              The index of the body in the data store.
-     * @param dataStore          The data store containing fluid properties.
+     * @param dataStore          The data store containing fluid properties and area fraction.
      */
     public void applyBuoyancyToConvexPart(Body body, ConstConvexShape convexPart, RMat44 partWorldTransform, RVec3 bodyCom, float deltaTime, int index, VxBuoyancyDataStore dataStore) {
-        // --- Get Fluid Properties ---
         float surfaceY = dataStore.surfaceHeights[index];
         VxFluidType fluidType = dataStore.fluidTypes[index];
+        float areaFraction = dataStore.areaFractions[index];
         float fluidDensity = (fluidType == VxFluidType.LAVA) ? LAVA_DENSITY : WATER_DENSITY;
 
         final float linearDragCoefficient;
@@ -83,7 +85,6 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
                 break;
         }
 
-        // --- Jolt's Submerged Volume Calculation ---
         Plane waterPlane = tempPlane.get();
         waterPlane.set(0f, 1f, 0f, -surfaceY);
 
@@ -93,21 +94,18 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
 
         convexPart.getSubmergedVolume(partWorldTransform.toMat44(), scale, waterPlane, submergedVolumeArr, submergedVolumeArr, centerOfBuoyancyWorld, bodyCom);
 
-        // The submerged volume calculation can return a negative value if the shape is fully
-        // submerged in the direction of the plane normal. The absolute value ensures that the
-        // calculated forces are always applied in the correct direction.
-        float submergedVolume = Math.abs(submergedVolumeArr[0]);
+        // Scale the volume by the area fraction to account for partial fluid contact.
+        float submergedVolume = Math.abs(submergedVolumeArr[0]) * areaFraction;
         if (submergedVolume < 1e-6f) {
-            return; // Not submerged.
+            return;
         }
 
-        // --- Buoyancy Impulse (Archimedes' Principle) ---
+        // --- Buoyancy Impulse ---
         Vec3 gravity = physicsWorld.getPhysicsSystem().getGravity();
         Vec3 buoyancyImpulse = tempVec3_3.get();
         buoyancyImpulse.set(gravity);
         buoyancyImpulse.scaleInPlace(-1.0f * fluidDensity * submergedVolume * deltaTime);
 
-        // Apply impulse at the center of buoyancy to generate correct torque.
         RVec3 impulsePosition = tempRVec3_2.get();
         impulsePosition.set(centerOfBuoyancyWorld);
         body.addImpulse(buoyancyImpulse, impulsePosition);
@@ -117,8 +115,6 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
         Vec3 linearVelocity = motionProperties.getLinearVelocity();
         Vec3 angularVelocity = motionProperties.getAngularVelocity();
 
-        // --- 1. Linear Drag ---
-        // Calculate the velocity of the center of buoyancy point.
         RVec3 r = Op.minus(impulsePosition, bodyCom);
         Vec3 rotationalVelocityAtPoint = angularVelocity.cross(r.toVec3());
         Vec3 pointVelocity = Op.plus(linearVelocity, rotationalVelocityAtPoint);
@@ -130,7 +126,6 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
             body.addImpulse(linearDragImpulse, impulsePosition);
         }
 
-        // --- 2. Angular Drag ---
         float angularSpeed = angularVelocity.length();
         if (angularSpeed > 1e-6f) {
             float angularDragMagnitude = angularDragCoefficient * fluidDensity * submergedVolume * angularSpeed;

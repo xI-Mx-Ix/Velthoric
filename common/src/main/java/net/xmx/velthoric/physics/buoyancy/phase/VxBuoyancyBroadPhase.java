@@ -42,9 +42,9 @@ public final class VxBuoyancyBroadPhase {
     }
 
     /**
-     * Scans for dynamic bodies in contact with fluids. It determines the average
-     * fluid surface height by scanning both inside the body's AABB and searching
-     * upwards if the body is fully submerged.
+     * Scans for dynamic bodies in contact with fluids. It calculates the average
+     * surface height, the horizontal area fraction covered by fluid, and the
+     * spatial center of the fluid contact to allow for localized force application.
      *
      * @param dataStore The data store to be populated with potential fluid contacts.
      */
@@ -72,60 +72,70 @@ public final class VxBuoyancyBroadPhase {
 
             float totalSurfaceHeight = 0;
             int fluidColumnCount = 0;
+            int totalScannedColumns = 0;
+            float sumX = 0;
+            float sumZ = 0;
             VxFluidType detectedType = null;
 
             int minBlockX = (int) Math.floor(minX);
             int maxBlockX = (int) Math.floor(maxX);
-            int maxBlockY = (int) Math.floor(maxY);
             int minBlockY = (int) Math.floor(minY);
+            int maxBlockY = (int) Math.floor(maxY);
             int minBlockZ = (int) Math.floor(minZ);
             int maxBlockZ = (int) Math.floor(maxZ);
 
             for (int x = minBlockX; x <= maxBlockX; ++x) {
                 for (int z = minBlockZ; z <= maxBlockZ; ++z) {
+                    totalScannedColumns++;
 
                     // This is the safest way to access chunk data without causing the server thread to wait for I/O.
                     ChunkAccess chunk = this.level.getChunkSource().getChunkNow(x >> 4, z >> 4);
                     if (chunk == null) continue;
 
-                    // First check the top of the AABB.
+                    float foundHeight = -1;
+
+                    // Check top for submersion
                     mutablePos.set(x, maxBlockY, z);
                     FluidState topFluid = chunk.getFluidState(mutablePos);
 
                     if (!topFluid.isEmpty()) {
-                        // Fully submerged in this column: scan upwards to find the true surface.
-                        float surfaceY = findSurfaceUpwards(chunk, x, maxBlockY, z, mutablePos);
-                        totalSurfaceHeight += surfaceY;
-                        fluidColumnCount++;
+                        foundHeight = findSurfaceUpwards(chunk, x, maxBlockY, z, mutablePos);
                         if (detectedType == null) detectedType = getFluidTypeFromState(topFluid);
                     } else {
-                        // Not submerged at the top: scan downwards within the AABB.
+                        // Scan downwards
                         for (int y = maxBlockY - 1; y >= minBlockY; --y) {
                             mutablePos.set(x, y, z);
                             FluidState fluidState = chunk.getFluidState(mutablePos);
-
                             if (!fluidState.isEmpty()) {
-                                totalSurfaceHeight += y + fluidState.getHeight(level, mutablePos);
-                                fluidColumnCount++;
+                                foundHeight = y + fluidState.getHeight(level, mutablePos);
                                 if (detectedType == null) detectedType = getFluidTypeFromState(fluidState);
                                 break;
                             }
                         }
+                    }
+
+                    if (foundHeight != -1) {
+                        totalSurfaceHeight += foundHeight;
+                        sumX += x + 0.5f; // Center of the block
+                        sumZ += z + 0.5f;
+                        fluidColumnCount++;
                     }
                 }
             }
 
             if (fluidColumnCount > 0 && detectedType != null) {
                 float averageSurfaceHeight = totalSurfaceHeight / fluidColumnCount;
+                float areaFraction = (float) fluidColumnCount / totalScannedColumns;
+                float centerX = sumX / fluidColumnCount;
+                float centerZ = sumZ / fluidColumnCount;
 
-                // Only consider the body for buoyancy if its bottom is below the average surface.
                 if (averageSurfaceHeight > minY) {
                     UUID id = ds.getIdForIndex(i);
                     if (id == null) continue;
 
                     VxBody vxBody = physicsWorld.getBodyManager().getVxBody(id);
                     if (vxBody != null) {
-                        dataStore.add(vxBody.getBodyId(), averageSurfaceHeight, detectedType);
+                        dataStore.add(vxBody.getBodyId(), averageSurfaceHeight, detectedType, areaFraction, centerX, centerZ);
                     }
                 }
             }
