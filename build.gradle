@@ -1,3 +1,5 @@
+import net.fabricmc.loom.task.RemapJarTask
+
 plugins {
     id 'dev.architectury.loom' version '1.10-SNAPSHOT' apply false
     id 'architectury-plugin' version '3.4-SNAPSHOT'
@@ -14,17 +16,57 @@ allprojects {
     version = rootProject.mod_version
 }
 
+def credentialsFile = file('credentials.properties')
+if (credentialsFile.exists()) {
+    def properties = new Properties()
+    credentialsFile.withInputStream { properties.load(it) }
+    ext.modrinth_token = properties.getProperty('modrinth_token')
+    ext.curseforge_token = properties.getProperty('curseforge_token')
+    ext.cloudsmith_user = properties.getProperty('cloudsmith_user')
+    ext.cloudsmith_key = properties.getProperty('cloudsmith_key')
+} else {
+    ext.modrinth_token = null
+    ext.curseforge_token = null
+    ext.cloudsmith_user = null
+    ext.cloudsmith_key = null
+}
+
+def resolveChangelog() {
+    // 1. Try to find the changelog for the exact current version
+    def currentVersionFile = rootProject.file("changelog/${rootProject.mod_version}.md")
+    if (currentVersionFile.exists()) {
+        return currentVersionFile.text
+    }
+
+    // 2. If it's a snapshot, try to find the changelog for the corresponding release version
+    if (rootProject.mod_version.endsWith("-SNAPSHOT")) {
+        def releaseVersion = rootProject.mod_version.replace("-SNAPSHOT", "")
+        def releaseVersionFile = rootProject.file("changelog/${releaseVersion}.md")
+        if (releaseVersionFile.exists()) {
+            return releaseVersionFile.text
+        }
+    }
+
+    // 3. If no file is found, provide a default message
+    return "No changelog provided for this version."
+}
+
 subprojects {
     apply plugin: 'dev.architectury.loom'
     apply plugin: 'architectury-plugin'
     apply plugin: 'maven-publish'
 
+    def archiveMap = [
+            "fabric"    : "velthoric-fabric",
+            "forge"     : "velthoric-forge",
+            "neoforge"  : "velthoric-neoforge",
+            "common"    : "velthoric-common",
+            "vx-events" : "vx-events",
+            "vx-native" : "vx-native"
+    ]
+
     base {
-        if (project.name == 'vx-native' || project.name == 'vx-events') {
-            archivesName = project.name
-        } else {
-            archivesName = "$rootProject.archives_name-$project.name"
-        }
+        archivesName = archiveMap.getOrDefault(project.name, "$rootProject.archives_name-$project.name")
     }
 
     repositories {
@@ -36,6 +78,12 @@ subprojects {
 
         flatDir {
             dirs rootProject.file('libraries')
+        }
+    }
+
+    tasks.withType(RemapJarTask).configureEach {
+        if (project.name == 'common' || project.name == 'vx-events' || project.name == 'vx-native') {
+            addNestedDependencies = false
         }
     }
 
@@ -99,48 +147,31 @@ subprojects {
         it.options.release = 17
     }
 
+    def publishableProjects = ['common', 'fabric', 'neoforge']  // Only these projects will be published
+
     publishing {
-        publications {
-            mavenJava(MavenPublication) {
-                artifactId = base.archivesName.get()
-                from components.java
+        // Only configure publishing if this project is in the allowed list
+        if (project.name in publishableProjects) {
+            publications {
+                mavenJava(MavenPublication) {
+                    artifactId = base.archivesName.get()
+                    from components.java
+                }
+            }
+
+            repositories {
+                maven {
+                    name = "Cloudsmith"
+                    url = "https://maven.cloudsmith.io/imx-dev/velthoric/"
+
+                    credentials {
+                        username = rootProject.ext.cloudsmith_user
+                        password = rootProject.ext.cloudsmith_key
+                    }
+                }
             }
         }
-
-        repositories {
-        }
     }
-}
-
-def credentialsFile = file('credentials.properties')
-if (credentialsFile.exists()) {
-    def properties = new Properties()
-    credentialsFile.withInputStream { properties.load(it) }
-    ext.modrinth_token = properties.getProperty('modrinth_token')
-    ext.curseforge_token = properties.getProperty('curseforge_token')
-} else {
-    ext.modrinth_token = null
-    ext.curseforge_token = null
-}
-
-def resolveChangelog() {
-    // 1. Try to find the changelog for the exact current version
-    def currentVersionFile = rootProject.file("changelog/${rootProject.mod_version}.md")
-    if (currentVersionFile.exists()) {
-        return currentVersionFile.text
-    }
-
-    // 2. If it's a snapshot, try to find the changelog for the corresponding release version
-    if (rootProject.mod_version.endsWith("-SNAPSHOT")) {
-        def releaseVersion = rootProject.mod_version.replace("-SNAPSHOT", "")
-        def releaseVersionFile = rootProject.file("changelog/${releaseVersion}.md")
-        if (releaseVersionFile.exists()) {
-            return releaseVersionFile.text
-        }
-    }
-
-    // 3. If no file is found, provide a default message
-    return "No changelog provided for this version."
 }
 
 task generateJoltDoc {
