@@ -16,9 +16,6 @@ import net.timtaran.interactivemc.physics.init.VxMainClass;
 import net.timtaran.interactivemc.physics.math.VxTransform;
 import net.timtaran.interactivemc.physics.network.VxByteBuf;
 import net.timtaran.interactivemc.physics.physics.body.sync.manager.VxClientSyncManager;
-import net.timtaran.interactivemc.physics.physics.mounting.VxMountable;
-import net.timtaran.interactivemc.physics.physics.mounting.manager.VxClientMountingManager;
-import net.timtaran.interactivemc.physics.physics.mounting.seat.VxSeat;
 import net.timtaran.interactivemc.physics.physics.body.registry.VxBodyType;
 import net.timtaran.interactivemc.physics.physics.body.client.time.VxClientClock;
 import net.timtaran.interactivemc.physics.physics.body.registry.VxBodyRegistry;
@@ -160,17 +157,6 @@ public class VxClientBodyManager {
             return;
         }
 
-        // If the body is mountable, register its seats on the client.
-        if (body instanceof VxMountable mountable) {
-            VxSeat.Builder seatBuilder = new VxSeat.Builder();
-            mountable.defineSeats(seatBuilder);
-            List<VxSeat> seats = seatBuilder.build();
-
-            for (VxSeat seat : seats) {
-                VxClientMountingManager.INSTANCE.addSeat(id, seat);
-            }
-        }
-
         int index = store.addBody(id, networkId);
         body.setDataStoreIndex(index);
         managedBodies.put(id, body);
@@ -255,7 +241,6 @@ public class VxClientBodyManager {
                 }
 
                 managedBodies.remove(id);
-                VxClientMountingManager.INSTANCE.removeSeatsForBody(id);
             }
         }
         store.removeBodyByNetworkId(networkId);

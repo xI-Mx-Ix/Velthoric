@@ -501,7 +501,7 @@ public class VxNetworkDispatcher {
                 if (!removalList.isEmpty()) {
                     for (int i = 0; i < removalList.size(); i += MAX_REMOVALS_PER_PACKET) {
                         int end = Math.min(i + MAX_REMOVALS_PER_PACKET, removalList.size());
-                        VxPacketHandler.sendToPlayer(new S2CRemoveBodyBatchPacket(removalList.subList(i, end)), player);
+                        VxPacketHandler.sendToPlayer(new S2CRemoveBodyBatchPacket(removalList.subList(i, end)), player);  // todo can throw java.lang.IndexOutOfBoundsException: Index is greater than list size
                     }
                 }
                 iterator.remove();
