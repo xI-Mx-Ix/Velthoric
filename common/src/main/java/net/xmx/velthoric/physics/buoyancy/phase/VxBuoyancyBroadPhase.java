@@ -20,8 +20,8 @@ import java.util.UUID;
 
 /**
  * Handles the broad-phase of buoyancy detection on the main game thread.
- * This class efficiently scans for bodies that are potentially in a fluid by
- * reading all body state directly from the cached data store, eliminating all JNI calls.
+ * This class scans for bodies in fluids by checking world data against body AABBs.
+ * It features a vertical search to find the true fluid surface for submerged objects.
  *
  * @author xI-Mx-Ix
  */
@@ -30,16 +30,21 @@ public final class VxBuoyancyBroadPhase {
     private final VxPhysicsWorld physicsWorld;
     private final ServerLevel level;
 
+    /**
+     * Maximum number of blocks to search upwards for the fluid surface
+     * if the body is fully submerged.
+     */
+    private static final int MAX_UPWARD_SEARCH = 16;
+
     public VxBuoyancyBroadPhase(VxPhysicsWorld physicsWorld) {
         this.physicsWorld = physicsWorld;
         this.level = physicsWorld.getLevel();
     }
 
     /**
-     * Scans the AABBs of all dynamic bodies to identify those potentially in contact with a fluid.
-     * For each potential contact, it calculates an average fluid surface height based on the fluid
-     * columns underneath the body. This approach provides a more realistic buoyancy plane,
-     * especially for objects in uneven or flowing fluids.
+     * Scans for dynamic bodies in contact with fluids. It determines the average
+     * fluid surface height by scanning both inside the body's AABB and searching
+     * upwards if the body is fully submerged.
      *
      * @param dataStore The data store to be populated with potential fluid contacts.
      */
@@ -71,8 +76,8 @@ public final class VxBuoyancyBroadPhase {
 
             int minBlockX = (int) Math.floor(minX);
             int maxBlockX = (int) Math.floor(maxX);
-            int minBlockY = (int) Math.floor(minY);
             int maxBlockY = (int) Math.floor(maxY);
+            int minBlockY = (int) Math.floor(minY);
             int minBlockZ = (int) Math.floor(minZ);
             int maxBlockZ = (int) Math.floor(maxZ);
 
@@ -81,28 +86,30 @@ public final class VxBuoyancyBroadPhase {
 
                     // This is the safest way to access chunk data without causing the server thread to wait for I/O.
                     ChunkAccess chunk = this.level.getChunkSource().getChunkNow(x >> 4, z >> 4);
+                    if (chunk == null) continue;
 
-                    if (chunk == null) {
-                        // If the chunk is not loaded and ready, we cannot check for fluids. Skip this entire column.
-                        continue;
-                    }
+                    // First check the top of the AABB.
+                    mutablePos.set(x, maxBlockY, z);
+                    FluidState topFluid = chunk.getFluidState(mutablePos);
 
-                    // Scan downwards from the top of the AABB to find the fluid surface in this column.
-                    for (int y = maxBlockY; y >= minBlockY; --y) {
-                        mutablePos.set(x, y, z);
-                        FluidState fluidState = chunk.getFluidState(mutablePos);
+                    if (!topFluid.isEmpty()) {
+                        // Fully submerged in this column: scan upwards to find the true surface.
+                        float surfaceY = findSurfaceUpwards(chunk, x, maxBlockY, z, mutablePos);
+                        totalSurfaceHeight += surfaceY;
+                        fluidColumnCount++;
+                        if (detectedType == null) detectedType = getFluidTypeFromState(topFluid);
+                    } else {
+                        // Not submerged at the top: scan downwards within the AABB.
+                        for (int y = maxBlockY - 1; y >= minBlockY; --y) {
+                            mutablePos.set(x, y, z);
+                            FluidState fluidState = chunk.getFluidState(mutablePos);
 
-                        if (!fluidState.isEmpty()) {
-                            totalSurfaceHeight += y + fluidState.getHeight(level, mutablePos);
-                            fluidColumnCount++;
-
-                            if (fluidState.is(FluidTags.WATER)) {
-                                detectedType = VxFluidType.WATER;
-                            } else if (fluidState.is(FluidTags.LAVA)) {
-                                detectedType = VxFluidType.LAVA;
+                            if (!fluidState.isEmpty()) {
+                                totalSurfaceHeight += y + fluidState.getHeight(level, mutablePos);
+                                fluidColumnCount++;
+                                if (detectedType == null) detectedType = getFluidTypeFromState(fluidState);
+                                break;
                             }
-                            // Once the surface is found for this column, move to the next.
-                            break;
                         }
                     }
                 }
@@ -123,5 +130,31 @@ public final class VxBuoyancyBroadPhase {
                 }
             }
         }
+    }
+
+    /**
+     * Scans blocks vertically upwards from a submerged point to find the transition to air.
+     */
+    private float findSurfaceUpwards(ChunkAccess chunk, int x, int startY, int z, BlockPos.MutableBlockPos pos) {
+        for (int y = startY + 1; y <= startY + MAX_UPWARD_SEARCH; y++) {
+            pos.set(x, y, z);
+            FluidState state = chunk.getFluidState(pos);
+            if (state.isEmpty()) {
+                // Air found: the surface is the top of the fluid in the block below.
+                pos.set(x, y - 1, z);
+                FluidState below = chunk.getFluidState(pos);
+                return (y - 1) + below.getHeight(level, pos);
+            }
+        }
+        return startY + 1.0f; // Return top of original search block if surface is too deep.
+    }
+
+    /**
+     * Maps Minecraft fluid states to internal fluid types.
+     */
+    private VxFluidType getFluidTypeFromState(FluidState state) {
+        if (state.is(FluidTags.WATER)) return VxFluidType.WATER;
+        if (state.is(FluidTags.LAVA)) return VxFluidType.LAVA;
+        return null;
     }
 }
