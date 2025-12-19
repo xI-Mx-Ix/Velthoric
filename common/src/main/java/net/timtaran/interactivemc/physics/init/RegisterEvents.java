@@ -15,8 +15,6 @@ import net.timtaran.interactivemc.physics.item.tool.event.VxToolEvents;
 import net.timtaran.interactivemc.physics.physics.VxLifecycleEvents;
 import net.timtaran.interactivemc.physics.physics.body.client.VxClientBodyManager;
 import net.timtaran.interactivemc.physics.physics.body.client.renderer.VxPhysicsRenderer;
-import net.timtaran.interactivemc.physics.physics.mounting.manager.VxClientMountingManager;
-import net.timtaran.interactivemc.physics.physics.vehicle.gui.VxVehicleHudRenderer;
 
 /**
  * @author xI-Mx-Ix
@@ -32,12 +30,10 @@ public class RegisterEvents {
     @Environment(EnvType.CLIENT)
     public static void registerClient() {
         VxClientBodyManager.registerEvents();
-        VxClientMountingManager.registerEvents();
         VxF3ScreenAddition.registerEvents();
         VxPhysicsRenderer.registerEvents();
         VxPhysicsGunBeamRenderer.registerEvents();
         VxPhysicsGunClientEvents.registerEvents();
         VxToolClientEvents.registerEvents();
-        VxVehicleHudRenderer.registerEvents();
     }
 }

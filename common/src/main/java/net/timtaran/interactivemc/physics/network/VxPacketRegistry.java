@@ -13,12 +13,8 @@ import net.timtaran.interactivemc.physics.physics.body.packet.batch.S2CRemoveBod
 import net.timtaran.interactivemc.physics.physics.body.packet.batch.S2CSpawnBodyBatchPacket;
 import net.timtaran.interactivemc.physics.physics.body.packet.batch.S2CUpdateBodyStateBatchPacket;
 import net.timtaran.interactivemc.physics.physics.body.packet.batch.S2CUpdateVerticesBatchPacket;
-import net.timtaran.interactivemc.physics.physics.body.packet.batch.*;
 import net.timtaran.interactivemc.physics.physics.body.sync.packet.C2SSynchronizedDataBatchPacket;
 import net.timtaran.interactivemc.physics.physics.body.sync.packet.S2CSynchronizedDataBatchPacket;
-import net.timtaran.interactivemc.physics.physics.mounting.input.C2SMountInputPacket;
-import net.timtaran.interactivemc.physics.physics.vehicle.sync.C2SPartInteractPacket;
-import net.timtaran.interactivemc.physics.physics.vehicle.sync.S2CVehicleDataBatchPacket;
 
 /**
  * Central registry that lists all network packets used by the application.
@@ -48,24 +44,6 @@ public class VxPacketRegistry {
     public static void registerPackets() {
         // --- Client to Server Packets (C2S) ---
         // These packets are sent by the client and handled on the server.
-
-        VxPacketHandler.registerPacket(
-                C2SPartInteractPacket.class,
-                "part_interact",
-                C2SPartInteractPacket::encode,
-                C2SPartInteractPacket::decode,
-                C2SPartInteractPacket::handle,
-                NetworkManager.Side.C2S
-        );
-
-        VxPacketHandler.registerPacket(
-                C2SMountInputPacket.class,
-                "mount_input",
-                C2SMountInputPacket::encode,
-                C2SMountInputPacket::decode,
-                C2SMountInputPacket::handle,
-                NetworkManager.Side.C2S
-        );
 
         VxPacketHandler.registerPacket(
                 VxPhysicsGunActionPacket.class,
@@ -112,15 +90,6 @@ public class VxPacketRegistry {
                 S2CSynchronizedDataBatchPacket::encode,
                 S2CSynchronizedDataBatchPacket::decode,
                 S2CSynchronizedDataBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        VxPacketHandler.registerPacket(
-                S2CVehicleDataBatchPacket.class,
-                "vehicle_state",
-                S2CVehicleDataBatchPacket::encode,
-                S2CVehicleDataBatchPacket::decode,
-                S2CVehicleDataBatchPacket::handle,
                 NetworkManager.Side.S2C
         );
 

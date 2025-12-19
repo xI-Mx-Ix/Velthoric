@@ -9,7 +9,6 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.timtaran.interactivemc.physics.command.test.*;
-import net.timtaran.interactivemc.physics.command.test.*;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,8 +30,6 @@ public final class VxTestCommand {
         // Register available test scenarios
         registerTest(new SpawnBoxTest());
         registerTest(new SpawnBoxGridTest());
-        registerTest(new SpawnClothTest());
-        registerTest(new SpawnRopeTest());
         registerTest(new SpawnChainedBoxes());
         registerTest(new SpawnMarbleTest());
         registerTest(new SpawnBoxNet());

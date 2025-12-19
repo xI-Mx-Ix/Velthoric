@@ -9,14 +9,10 @@ import com.github.stephengold.joltjni.RVec3;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.phys.Vec3;
 import net.timtaran.interactivemc.physics.math.VxOBB;
 import net.timtaran.interactivemc.physics.physics.body.client.VxClientBodyManager;
 import net.timtaran.interactivemc.physics.physics.body.client.VxRenderState;
-import net.timtaran.interactivemc.physics.physics.body.type.VxBody;
-import net.timtaran.interactivemc.physics.physics.vehicle.VxVehicle;
-import net.timtaran.interactivemc.physics.physics.vehicle.part.VxPart;
 
 /**
  * A dedicated renderer for drawing debug information related to physics bodies,
@@ -42,40 +38,10 @@ public class VxDebugRenderer {
      * @param partialTicks The current partial tick for interpolation.
      */
     public void render(PoseStack poseStack, MultiBufferSource bufferSource, VxClientBodyManager manager, float partialTicks) {
-        renderPartHitboxes(poseStack, bufferSource, manager, partialTicks);
+        // I deleted vehicles, but I still don't know code, so I will let it here for a while       (timtaran)
+        // todo
     }
 
-    /**
-     * Renders the hitboxes for all vehicle parts as wireframe OBBs.
-     * All parts are rendered in yellow to distinguish them from standard hitboxes.
-     *
-     * @param poseStack    The current pose stack.
-     * @param bufferSource The buffer source.
-     * @param manager      The client body manager.
-     * @param partialTicks The current partial tick.
-     */
-    private void renderPartHitboxes(PoseStack poseStack, MultiBufferSource bufferSource, VxClientBodyManager manager, float partialTicks) {
-        VertexConsumer vertexConsumer = bufferSource.getBuffer(RenderType.lines());
-
-        for (VxBody body : manager.getAllBodies()) {
-            if (!body.isInitialized()) continue;
-
-            // Only process vehicles as they have the modular part system
-            if (body instanceof VxVehicle vehicle) {
-                // Calculate the interpolated render state for the parent body.
-                vehicle.calculateRenderState(partialTicks, this.renderState, this.interpolatedPosition, this.interpolatedRotation);
-
-                // Iterate over all attached parts (wheels, seats, doors, custom parts)
-                for (VxPart part : vehicle.getParts()) {
-                    // Get the precise Oriented Bounding Box for the part in world space.
-                    VxOBB obb = part.getGlobalOBB(this.renderState);
-
-                    // Draw the OBB's wireframe in yellow.
-                    drawOBB(vertexConsumer, poseStack, obb, 1.0f, 1.0f, 0.0f, 1.0f);
-                }
-            }
-        }
-    }
 
     /**
      * Draws the wireframe of an Oriented Bounding Box (OBB).

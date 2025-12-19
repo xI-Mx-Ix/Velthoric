@@ -21,9 +21,7 @@ import net.timtaran.interactivemc.physics.physics.body.packet.batch.S2CRemoveBod
 import net.timtaran.interactivemc.physics.physics.body.packet.batch.S2CSpawnBodyBatchPacket;
 import net.timtaran.interactivemc.physics.physics.body.packet.batch.S2CUpdateBodyStateBatchPacket;
 import net.timtaran.interactivemc.physics.physics.body.packet.batch.S2CUpdateVerticesBatchPacket;
-import net.timtaran.interactivemc.physics.physics.body.packet.batch.*;
 import net.timtaran.interactivemc.physics.physics.body.type.VxBody;
-import net.timtaran.interactivemc.physics.physics.vehicle.sync.VxVehicleNetworkDispatcher;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,7 +42,6 @@ public class VxNetworkDispatcher {
     private final ServerLevel level;
     private final VxBodyManager manager;
     private final VxBodyDataStore dataStore;
-    private final VxVehicleNetworkDispatcher vehicleDispatcher;
 
     // --- Constants for network tuning ---
     private static final int NETWORK_THREAD_TICK_RATE_MS = 10;
@@ -97,7 +94,6 @@ public class VxNetworkDispatcher {
         this.level = level;
         this.manager = manager;
         this.dataStore = manager.getDataStore();
-        this.vehicleDispatcher = new VxVehicleNetworkDispatcher();
     }
 
     /**
@@ -147,8 +143,6 @@ public class VxNetworkDispatcher {
                 // Delegate synchronized data updates to the dedicated manager
                 // This scans for custom data changes and uses the dispatcher to find recipients
                 this.manager.getServerSyncManager().sendSynchronizedDataUpdates(this);
-
-                this.vehicleDispatcher.dispatchUpdates(this.level, this.manager, this.bodyTrackers);
 
                 long cycleEndTime = System.nanoTime();
                 long cycleDurationMs = (cycleEndTime - cycleStartTime) / 1_000_000;

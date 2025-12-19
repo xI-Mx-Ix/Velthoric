@@ -7,7 +7,6 @@
     "body.MixinChunkMap_ChunkTracking",
     "command.MixinArgumentTypeInfos",
     "misc.ExplosionMixin_TriggerExplosion",
-    "mounting.entity.MixinEntity",
     "persistence.MixinChunkMap_UnloadBodiesAndConstraints",
     "persistence.MixinEntityStorage_PersistBodiesAndConstraints",
     "persistence.MixinServerLevel_PersistOnLevelSave",
@@ -18,14 +17,8 @@
     "debug.EntityRenderDispatcherAccessor",
     "debug.MixinDebugScreenOverlay",
     "misc.MixinMinecraft",
-    "mounting.input.MixinLocalPlayer",
-    "mounting.render.MixinCamera",
-    "mounting.render.MixinEntityRenderDispatcher",
-    "mounting.render.MixinEntityRenderer",
-    "mounting.render.MixinGameRenderer",
     "physicsgun.MouseHandlerMixin_PhysicsGunHandling",
-    "physicsgun.PlayerRendererMixin_PhysicsGunArmPose",
-    "vehicle.MixinMinecraft_VehicleInteraction"
+    "physicsgun.PlayerRendererMixin_PhysicsGunArmPose"
   ],
   "injectors": {
     "defaultRequire": 1

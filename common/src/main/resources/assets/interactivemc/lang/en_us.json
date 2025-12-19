@@ -1,0 +1,10 @@
+{
+  "item.interactivemc.physics_creator": "Physics Creator",
+  "item.interactivemc.physics_gun": "Physics Gun",
+  "item.interactivemc.box_launcher": "Box Launcher",
+  "item.interactivemc.magnetizer": "Magnetizer",
+  "item.interactivemc.chain_creator": "Chain Creator",
+  "item.interactivemc.ragdoll_launcher": "Ragdoll Launcher",
+  "key.interactivemc.tool_config": "Open Tool Config",
+  "category.interactivemc": "InteractiveMC"
+}

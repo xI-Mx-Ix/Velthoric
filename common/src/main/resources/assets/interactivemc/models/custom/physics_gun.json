@@ -3,8 +3,8 @@
 	"credit": "Made with Blockbench",
 	"texture_size": [32, 32],
 	"textures": {
-		"0": "velthoric:item/physics_gun",
-		"particle": "velthoric:item/physics_gun"
+		"0": "interactivemc:item/physics_gun",
+		"particle": "interactivemc:item/physics_gun"
 	},
 	"elements": [
 		{

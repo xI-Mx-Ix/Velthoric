@@ -15,7 +15,6 @@ import net.timtaran.interactivemc.physics.physics.body.client.time.VxFrameTimer;
 import net.timtaran.interactivemc.physics.physics.constraint.manager.VxConstraintManager;
 import net.timtaran.interactivemc.physics.physics.buoyancy.VxBuoyancyManager;
 import net.timtaran.interactivemc.physics.physics.body.manager.VxBodyManager;
-import net.timtaran.interactivemc.physics.physics.mounting.manager.VxMountingManager;
 import net.timtaran.interactivemc.physics.physics.ragdoll.VxRagdollManager;
 import net.timtaran.interactivemc.physics.physics.terrain.VxTerrainSystem;
 import org.jetbrains.annotations.NotNull;
@@ -51,7 +50,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxBodyManager bodyManager;
     private final VxConstraintManager constraintManager;
     private final VxTerrainSystem terrainSystem;
-    private final VxMountingManager mountingManager;
     private final VxBuoyancyManager buoyancyManager;
     private final VxRagdollManager ragdollManager;
 
@@ -73,7 +71,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.bodyManager = new VxBodyManager(this);
         this.constraintManager = new VxConstraintManager(this.bodyManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
-        this.mountingManager = new VxMountingManager(this);
         this.buoyancyManager = new VxBuoyancyManager(this);
         this.ragdollManager = new VxRagdollManager(this);
     }
@@ -198,7 +195,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public void onGameTick(ServerLevel level) {
         this.bodyManager.onGameTick(level);
-        this.mountingManager.onGameTick();
         this.buoyancyManager.updateFluidStates();
     }
 
@@ -310,10 +306,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return this.terrainSystem;
     }
 
-    public VxMountingManager getMountingManager() {
-        return this.mountingManager;
-    }
-
     public VxBuoyancyManager getBuoyancyManager() {
         return this.buoyancyManager;
     }
@@ -363,12 +355,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     public static VxTerrainSystem getTerrainSystem(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
         return world != null ? world.getTerrainSystem() : null;
-    }
-
-    @Nullable
-    public static VxMountingManager getMountingManager(ResourceKey<Level> dimensionKey) {
-        VxPhysicsWorld world = get(dimensionKey);
-        return world != null ? world.getMountingManager() : null;
     }
 
     @Nullable

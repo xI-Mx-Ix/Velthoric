@@ -168,7 +168,6 @@ public class VxBodyManager {
         Vec3 linearVelocity = new Vec3(dataStore.velX[index], dataStore.velY[index], dataStore.velZ[index]);
         Vec3 angularVelocity = new Vec3(dataStore.angVelX[index], dataStore.angVelY[index], dataStore.angVelZ[index]);
 
-        world.getMountingManager().onBodyAdded(body);
         networkDispatcher.onBodyAdded(body);
 
         if (body instanceof VxRigidBody rigidBody) {
@@ -212,7 +211,6 @@ public class VxBodyManager {
         boolean shouldActivate = linearVelocity.lengthSq() > 0.0001f || angularVelocity.lengthSq() > 0.0001f;
         EActivation activation = shouldActivate ? EActivation.Activate : EActivation.DontActivate;
 
-        world.getMountingManager().onBodyAdded(body);
         networkDispatcher.onBodyAdded(body);
 
         if (body instanceof VxRigidBody rigidBody) {
@@ -247,7 +245,6 @@ public class VxBodyManager {
             bodyStorage.removeData(body.getPhysicsId());
         }
 
-        world.getMountingManager().onBodyRemoved(body);
         networkDispatcher.onBodyRemoved(body);
 
         if (reason != VxRemovalReason.UNLOAD) {
