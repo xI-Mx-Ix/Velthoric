@@ -8,9 +8,9 @@ import net.timtaran.interactivemc.physics.physics.body.AbstractDataStore;
 
 /**
  * A data-oriented store for the state of all bodies currently affected by buoyancy.
- * This class uses a "Structure of Arrays" (SoA) layout, where each property
- * is stored in a separate array. This is highly efficient for the physics update loop,
- * as it improves CPU cache locality when iterating over all buoyant bodies.
+ * This class uses a "Structure of Arrays" (SoA) layout. It tracks not only the
+ * surface height but also the horizontal coverage of the fluid to allow for
+ * partial submersion calculations.
  *
  * @author xI-Mx-Ix
  */
@@ -24,10 +24,25 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
     public VxFluidType[] fluidTypes;
 
     /**
+     * The fraction of the body's horizontal AABB area that is covered by fluid (0.0 to 1.0).
+     */
+    public float[] areaFractions;
+
+    /**
+     * The average X-coordinate of the fluid columns found within the body's AABB.
+     */
+    public float[] waterCenterX;
+
+    /**
+     * The average Z-coordinate of the fluid columns found within the body's AABB.
+     */
+    public float[] waterCenterZ;
+
+    /**
      * Constructs a new data store with a default initial capacity.
      */
     public VxBuoyancyDataStore() {
-        this(256); // Default initial capacity for 256 buoyant bodies.
+        this(256);
     }
 
     /**
@@ -48,6 +63,9 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
         bodyIds = grow(bodyIds, newCapacity);
         surfaceHeights = grow(surfaceHeights, newCapacity);
         fluidTypes = grow(fluidTypes, newCapacity);
+        areaFractions = grow(areaFractions, newCapacity);
+        waterCenterX = grow(waterCenterX, newCapacity);
+        waterCenterZ = grow(waterCenterZ, newCapacity);
 
         this.capacity = newCapacity;
     }
@@ -58,29 +76,27 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
      * @param bodyId        The Jolt body ID.
      * @param surfaceHeight The Y-coordinate of the fluid surface.
      * @param fluidType     The type of fluid the body is in.
+     * @param areaFraction  The percentage of the footprint covered by fluid.
+     * @param centerX       The center of buoyancy X-position in world space.
+     * @param centerZ       The center of buoyancy Z-position in world space.
      */
-    public void add(int bodyId, float surfaceHeight, VxFluidType fluidType) {
+    public void add(int bodyId, float surfaceHeight, VxFluidType fluidType, float areaFraction, float centerX, float centerZ) {
         if (count == capacity) {
             allocate(capacity * 2);
         }
         bodyIds[count] = bodyId;
         surfaceHeights[count] = surfaceHeight;
         fluidTypes[count] = fluidType;
+        areaFractions[count] = areaFraction;
+        waterCenterX[count] = centerX;
+        waterCenterZ[count] = centerZ;
         count++;
     }
 
-    /**
-     * Gets the number of bodies currently in the store.
-     * @return The count of buoyant bodies.
-     */
     public int getCount() {
         return this.count;
     }
 
-    /**
-     * Clears the store, resetting the body count without de-allocating memory.
-     * This makes the store ready for reuse in the next tick.
-     */
     public void clear() {
         this.count = 0;
     }

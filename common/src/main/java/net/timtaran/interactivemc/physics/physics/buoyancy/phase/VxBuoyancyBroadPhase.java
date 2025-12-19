@@ -20,8 +20,8 @@ import java.util.UUID;
 
 /**
  * Handles the broad-phase of buoyancy detection on the main game thread.
- * This class efficiently scans for bodies that are potentially in a fluid by
- * reading all body state directly from the cached data store, eliminating all JNI calls.
+ * This class scans for bodies in fluids by checking world data against body AABBs.
+ * It features a vertical search to find the true fluid surface for submerged objects.
  *
  * @author xI-Mx-Ix
  */
@@ -30,16 +30,21 @@ public final class VxBuoyancyBroadPhase {
     private final VxPhysicsWorld physicsWorld;
     private final ServerLevel level;
 
+    /**
+     * Maximum number of blocks to search upwards for the fluid surface
+     * if the body is fully submerged.
+     */
+    private static final int MAX_UPWARD_SEARCH = 16;
+
     public VxBuoyancyBroadPhase(VxPhysicsWorld physicsWorld) {
         this.physicsWorld = physicsWorld;
         this.level = physicsWorld.getLevel();
     }
 
     /**
-     * Scans the AABBs of all dynamic bodies to identify those potentially in contact with a fluid.
-     * For each potential contact, it calculates an average fluid surface height based on the fluid
-     * columns underneath the body. This approach provides a more realistic buoyancy plane,
-     * especially for objects in uneven or flowing fluids.
+     * Scans for dynamic bodies in contact with fluids. It calculates the average
+     * surface height, the horizontal area fraction covered by fluid, and the
+     * spatial center of the fluid contact to allow for localized force application.
      *
      * @param dataStore The data store to be populated with potential fluid contacts.
      */
@@ -67,6 +72,9 @@ public final class VxBuoyancyBroadPhase {
 
             float totalSurfaceHeight = 0;
             int fluidColumnCount = 0;
+            int totalScannedColumns = 0;
+            float sumX = 0;
+            float sumZ = 0;
             VxFluidType detectedType = null;
 
             int minBlockX = (int) Math.floor(minX);
@@ -78,50 +86,85 @@ public final class VxBuoyancyBroadPhase {
 
             for (int x = minBlockX; x <= maxBlockX; ++x) {
                 for (int z = minBlockZ; z <= maxBlockZ; ++z) {
+                    totalScannedColumns++;
 
                     // This is the safest way to access chunk data without causing the server thread to wait for I/O.
                     ChunkAccess chunk = this.level.getChunkSource().getChunkNow(x >> 4, z >> 4);
+                    if (chunk == null) continue;
 
-                    if (chunk == null) {
-                        // If the chunk is not loaded and ready, we cannot check for fluids. Skip this entire column.
-                        continue;
+                    float foundHeight = -1;
+
+                    // Check top for submersion
+                    mutablePos.set(x, maxBlockY, z);
+                    FluidState topFluid = chunk.getFluidState(mutablePos);
+
+                    if (!topFluid.isEmpty()) {
+                        foundHeight = findSurfaceUpwards(chunk, x, maxBlockY, z, mutablePos);
+                        if (detectedType == null) detectedType = getFluidTypeFromState(topFluid);
+                    } else {
+                        // Scan downwards
+                        for (int y = maxBlockY - 1; y >= minBlockY; --y) {
+                            mutablePos.set(x, y, z);
+                            FluidState fluidState = chunk.getFluidState(mutablePos);
+                            if (!fluidState.isEmpty()) {
+                                foundHeight = y + fluidState.getHeight(level, mutablePos);
+                                if (detectedType == null) detectedType = getFluidTypeFromState(fluidState);
+                                break;
+                            }
+                        }
                     }
 
-                    // Scan downwards from the top of the AABB to find the fluid surface in this column.
-                    for (int y = maxBlockY; y >= minBlockY; --y) {
-                        mutablePos.set(x, y, z);
-                        FluidState fluidState = chunk.getFluidState(mutablePos);
-
-                        if (!fluidState.isEmpty()) {
-                            totalSurfaceHeight += y + fluidState.getHeight(level, mutablePos);
-                            fluidColumnCount++;
-
-                            if (fluidState.is(FluidTags.WATER)) {
-                                detectedType = VxFluidType.WATER;
-                            } else if (fluidState.is(FluidTags.LAVA)) {
-                                detectedType = VxFluidType.LAVA;
-                            }
-                            // Once the surface is found for this column, move to the next.
-                            break;
-                        }
+                    if (foundHeight != -1) {
+                        totalSurfaceHeight += foundHeight;
+                        sumX += x + 0.5f; // Center of the block
+                        sumZ += z + 0.5f;
+                        fluidColumnCount++;
                     }
                 }
             }
 
             if (fluidColumnCount > 0 && detectedType != null) {
                 float averageSurfaceHeight = totalSurfaceHeight / fluidColumnCount;
+                float areaFraction = (float) fluidColumnCount / totalScannedColumns;
+                float centerX = sumX / fluidColumnCount;
+                float centerZ = sumZ / fluidColumnCount;
 
-                // Only consider the body for buoyancy if its bottom is below the average surface.
                 if (averageSurfaceHeight > minY) {
                     UUID id = ds.getIdForIndex(i);
                     if (id == null) continue;
 
                     VxBody vxBody = physicsWorld.getBodyManager().getVxBody(id);
                     if (vxBody != null) {
-                        dataStore.add(vxBody.getBodyId(), averageSurfaceHeight, detectedType);
+                        dataStore.add(vxBody.getBodyId(), averageSurfaceHeight, detectedType, areaFraction, centerX, centerZ);
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Scans blocks vertically upwards from a submerged point to find the transition to air.
+     */
+    private float findSurfaceUpwards(ChunkAccess chunk, int x, int startY, int z, BlockPos.MutableBlockPos pos) {
+        for (int y = startY + 1; y <= startY + MAX_UPWARD_SEARCH; y++) {
+            pos.set(x, y, z);
+            FluidState state = chunk.getFluidState(pos);
+            if (state.isEmpty()) {
+                // Air found: the surface is the top of the fluid in the block below.
+                pos.set(x, y - 1, z);
+                FluidState below = chunk.getFluidState(pos);
+                return (y - 1) + below.getHeight(level, pos);
+            }
+        }
+        return startY + 1.0f; // Return top of original search block if surface is too deep.
+    }
+
+    /**
+     * Maps Minecraft fluid states to internal fluid types.
+     */
+    private VxFluidType getFluidTypeFromState(FluidState state) {
+        if (state.is(FluidTags.WATER)) return VxFluidType.WATER;
+        if (state.is(FluidTags.LAVA)) return VxFluidType.LAVA;
+        return null;
     }
 }
