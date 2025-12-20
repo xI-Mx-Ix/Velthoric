@@ -147,27 +147,18 @@ subprojects {
         it.options.release = 21
     }
 
-    def publishableProjects = ['common', 'fabric', 'neoforge']  // Only these projects will be published
+    tasks.withType(GenerateModuleMetadata).configureEach {
+        enabled = false
+    }
 
     publishing {
-        // Only configure publishing if this project is in the allowed list
-        if (project.name in publishableProjects) {
-            publications {
-                mavenJava(MavenPublication) {
-                    artifactId = base.archivesName.get()
-                    from components.java
-                }
-            }
-
-            repositories {
-                maven {
-                    name = "Cloudsmith"
-                    url = "https://maven.cloudsmith.io/imx-dev/velthoric/"
-
-                    credentials {
-                        username = rootProject.ext.cloudsmith_user
-                        password = rootProject.ext.cloudsmith_key
-                    }
+        repositories {
+            maven {
+                name = "Cloudsmith"
+                url = "https://maven.cloudsmith.io/imx-dev/velthoric/"
+                credentials {
+                    username = rootProject.ext.cloudsmith_user
+                    password = rootProject.ext.cloudsmith_key
                 }
             }
         }
