@@ -56,15 +56,29 @@ public class VxBodyDataStore extends AbstractDataStore {
     public int[] networkId;
 
     // --- Sync & Management Data ---
-    /** Flag indicating that the game logic has modified this body's state, requiring a sync to Jolt. */
+    /**
+     * Flag indicating that the game logic has modified this body's state, requiring a sync to Jolt.
+     */
     public boolean[] isGameStateDirty;
-    /** Flag indicating that the body's transform (pos/rot/vel) has changed, requiring a network sync. */
+
+    /**
+     * Flag indicating that the body's transform (pos/rot/vel) has changed, requiring a network sync.
+     */
     public boolean[] isTransformDirty;
-    /** Flag indicating that the body's vertex data (for soft bodies) has changed, requiring a network sync. */
+
+    /**
+     * Flag indicating that the body's vertex data (for soft bodies) has changed, requiring a network sync.
+     */
     public boolean[] isVertexDataDirty;
-    /** Flag indicating that the body's custom data has changed, requiring a network sync. */
+
+    /**
+     * Flag indicating that the body's custom data has changed, requiring a network sync.
+     */
     public boolean[] isCustomDataDirty;
-    /** The server timestamp of the last physics update for this body. */
+
+    /**
+     * The server timestamp of the last physics update for this body.
+     */
     public long[] lastUpdateTimestamp;
 
     public VxBodyDataStore() {
