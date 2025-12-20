@@ -121,7 +121,11 @@ public class VxChainCreatorMode extends VxToolMode {
     }
 
     /**
-     * Constructs the chain of rigid bodies and constraints between two points.
+     * Constructs the chain of rigid bodies using SwingTwistConstraints.
+     * <p>
+     * Corrected to use proper vector types:
+     * - Positions use RVec3 (Double Precision)
+     * - Directions/Axes use Vec3 (Single Precision)
      */
     private void createChain(VxPhysicsWorld world, VxHitResult startHit, VxHitResult endHit, float radius, float desiredSegmentLength) {
         VxBodyManager bodyManager = world.getBodyManager();
@@ -131,12 +135,10 @@ public class VxChainCreatorMode extends VxToolMode {
         AttachmentInfo startInfo = getAttachmentInfo(bodyManager, startHit);
         AttachmentInfo endInfo = getAttachmentInfo(bodyManager, endHit);
 
-        // Prevent creating a chain connecting the same body to itself at the same point (sanity check)
         if (startInfo.bodyUUID.equals(endInfo.bodyUUID) && !startInfo.bodyUUID.equals(VxConstraintManager.WORLD_BODY_ID)) {
             return;
         }
 
-        // Activate attachment bodies if they are dynamic to ensure they react to the new chain
         VxBody startBody = bodyManager.getVxBody(startInfo.bodyUUID);
         if (startBody != null) bodyInterface.activateBody(startBody.getBodyId());
 
@@ -149,14 +151,23 @@ public class VxChainCreatorMode extends VxToolMode {
         RVec3 vector = Op.minus(endPos, startPos);
         double distance = vector.length();
 
-        // Don't create chains that are too short
         if (distance < desiredSegmentLength) return;
 
         int numSegments = Math.max(1, (int) Math.ceil(distance / desiredSegmentLength));
         double actualSegmentLength = distance / numSegments;
-        RVec3 direction = vector.normalized();
-        Quat orientation = Quat.sFromTo(new Vec3(0, 1, 0), direction.toVec3());
-        RVec3 segmentVector = Op.star(actualSegmentLength, direction);
+
+        // Direction is calculated in high precision (RVec3) for position logic,
+        // but converted to Vec3 when used as an orientation axis.
+        RVec3 directionR = vector.normalized();
+        Vec3 direction = directionR.toVec3();
+
+        Quat orientation = Quat.sFromTo(new Vec3(0, 1, 0), direction);
+
+        // Local axes for constraints (Directions must be Vec3)
+        Vec3 localAxisY = new Vec3(0, 1, 0);
+        Vec3 localAxisX = new Vec3(1, 0, 0);
+
+        RVec3 segmentVector = Op.star(actualSegmentLength, directionR);
 
         UUID previousBodyUuid = startInfo.bodyUUID;
         RVec3 pivotOnPreviousBody = startInfo.localPivot;
@@ -179,23 +190,49 @@ public class VxChainCreatorMode extends VxToolMode {
 
             RVec3 pivotOnCurrentBodyLocal = new RVec3(0, -actualSegmentLength / 2.0, 0);
 
-            try (PointConstraintSettings settings = new PointConstraintSettings()) {
-                if (previousBodyUuid.equals(VxConstraintManager.WORLD_BODY_ID)) {
-                    // Attaching WORLD to currentBody.
-                    settings.setSpace(EConstraintSpace.WorldSpace);
-                    settings.setPoint1(pivotOnPreviousBody); // World pivot is already world space
+            try (SwingTwistConstraintSettings settings = new SwingTwistConstraintSettings()) {
+                settings.setNumPositionStepsOverride(30);
+                settings.setNumVelocityStepsOverride(30);
 
-                    // Calculate world position of the local pivot
-                    RMat44 segmentRotation = new RMat44();
-                    segmentRotation.sRotation(orientation);
-                    Vec3 rotatedPivot = segmentRotation.multiply3x3(pivotOnCurrentBodyLocal.toVec3());
-                    RVec3 pivotOnCurrentBodyWorld = Op.plus(segmentCenterPos, rotatedPivot);
-                    settings.setPoint2(pivotOnCurrentBodyWorld);
+                settings.setNormalHalfConeAngle((float) Math.PI);
+                settings.setPlaneHalfConeAngle((float) Math.PI);
+                settings.setSwingType(com.github.stephengold.joltjni.enumerate.ESwingType.Cone);
+
+                settings.setTwistMinAngle(0.0f);
+                settings.setTwistMaxAngle(0.0f);
+
+                if (previousBodyUuid.equals(VxConstraintManager.WORLD_BODY_ID)) {
+                    settings.setSpace(EConstraintSpace.WorldSpace);
+                    settings.setPosition1(pivotOnPreviousBody);
+
+                    settings.setTwistAxis1(direction); // Vec3 required
+
+                    RMat44 rotationMat = new RMat44();
+                    rotationMat.sRotation(orientation);
+
+                    // multiply3x3 returns Vec3 (Rotation of a direction)
+                    Vec3 worldAxisX = rotationMat.multiply3x3(localAxisX);
+                    settings.setPlaneAxis1(worldAxisX);
+
+                    // For the position calculation, we need to handle types carefully.
+                    // Rotate local pivot (Vec3 result) -> Convert to RVec3 -> Add to Center (RVec3)
+                    Vec3 rotatedPivot = rotationMat.multiply3x3(pivotOnCurrentBodyLocal.toVec3());
+                    RVec3 pivotOnCurrentBodyWorld = Op.plus(segmentCenterPos, new RVec3(rotatedPivot));
+
+                    settings.setPosition2(pivotOnCurrentBodyWorld);
+                    settings.setTwistAxis2(direction);
+                    settings.setPlaneAxis2(worldAxisX);
+
                 } else {
-                    // Attaching Body to Body
                     settings.setSpace(EConstraintSpace.LocalToBodyCom);
-                    settings.setPoint1(pivotOnPreviousBody);
-                    settings.setPoint2(pivotOnCurrentBodyLocal);
+
+                    settings.setPosition1(pivotOnPreviousBody);
+                    settings.setTwistAxis1(localAxisY);
+                    settings.setPlaneAxis1(localAxisX);
+
+                    settings.setPosition2(pivotOnCurrentBodyLocal);
+                    settings.setTwistAxis2(localAxisY);
+                    settings.setPlaneAxis2(localAxisX);
                 }
                 constraintManager.createConstraint(settings, previousBodyUuid, currentBody.getPhysicsId());
             }
@@ -205,20 +242,47 @@ public class VxChainCreatorMode extends VxToolMode {
         }
 
         // Final constraint to the end point
-        try (PointConstraintSettings settings = new PointConstraintSettings()) {
+        try (SwingTwistConstraintSettings settings = new SwingTwistConstraintSettings()) {
+            settings.setNumPositionStepsOverride(30);
+            settings.setNumVelocityStepsOverride(30);
+
+            settings.setNormalHalfConeAngle((float) Math.PI);
+            settings.setPlaneHalfConeAngle((float) Math.PI);
+            settings.setSwingType(com.github.stephengold.joltjni.enumerate.ESwingType.Cone);
+            settings.setTwistMinAngle(0.0f);
+            settings.setTwistMaxAngle(0.0f);
+
             VxBody lastLinkBody = bodyManager.getVxBody(previousBodyUuid);
             if (lastLinkBody == null) return;
 
             if (endInfo.bodyUUID.equals(VxConstraintManager.WORLD_BODY_ID)) {
                 settings.setSpace(EConstraintSpace.WorldSpace);
+
                 RMat44 lastLinkTransform = bodyInterface.getCenterOfMassTransform(lastLinkBody.getBodyId());
                 RVec3 pivotOnLastLinkWorld = lastLinkTransform.multiply3x4(pivotOnPreviousBody);
-                settings.setPoint1(pivotOnLastLinkWorld);
-                settings.setPoint2(endInfo.localPivot);
+
+                // Transform local axes to world axes (Results are Vec3)
+                Vec3 axisYWorld = lastLinkTransform.multiply3x3(localAxisY);
+                Vec3 axisXWorld = lastLinkTransform.multiply3x3(localAxisX);
+
+                settings.setPosition1(pivotOnLastLinkWorld);
+                settings.setTwistAxis1(axisYWorld);
+                settings.setPlaneAxis1(axisXWorld);
+
+                settings.setPosition2(endInfo.localPivot);
+                settings.setTwistAxis2(axisYWorld);
+                settings.setPlaneAxis2(axisXWorld);
+
             } else {
                 settings.setSpace(EConstraintSpace.LocalToBodyCom);
-                settings.setPoint1(pivotOnPreviousBody);
-                settings.setPoint2(endInfo.localPivot);
+
+                settings.setPosition1(pivotOnPreviousBody);
+                settings.setTwistAxis1(localAxisY);
+                settings.setPlaneAxis1(localAxisX);
+
+                settings.setPosition2(endInfo.localPivot);
+                settings.setTwistAxis2(localAxisY);
+                settings.setPlaneAxis2(localAxisX);
             }
             constraintManager.createConstraint(settings, previousBodyUuid, endInfo.bodyUUID);
         }

@@ -28,9 +28,6 @@ import org.joml.Quaternionf;
 public class VxChainPartRenderer extends VxRigidBodyRenderer<VxChainPartRigidBody> {
 
     private static final BlockState CHAIN_BLOCK_STATE = Blocks.CHAIN.defaultBlockState();
-    // The vanilla chain texture is roughly 6 pixels wide within a 16 pixel block.
-    // We scale up the width by this factor to ensure the visible chain fills the physics radius.
-    private static final float VISUAL_WIDTH_MULTIPLIER = 16.0f / 5.5f;
 
     @Override
     public void render(VxChainPartRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
@@ -39,22 +36,36 @@ public class VxChainPartRenderer extends VxRigidBodyRenderer<VxChainPartRigidBod
         RVec3 pos = renderState.transform.getTranslation();
         Quat rot = renderState.transform.getRotation();
 
-        // Apply physics transform
+        // Apply the physics transformation (Position & Rotation)
         poseStack.translate(pos.x(), pos.y(), pos.z());
         poseStack.mulPose(new Quaternionf(rot.getX(), rot.getY(), rot.getZ(), rot.getW()));
 
         float length = body.getLength();
         float radius = body.getRadius();
 
-        // Calculate visual dimensions
-        // The Y-axis (length) maps 1:1, but X/Z need multiplication because the block model is mostly air.
-        float scaleX = radius * 2.0f * VISUAL_WIDTH_MULTIPLIER;
-        float scaleZ = radius * 2.0f * VISUAL_WIDTH_MULTIPLIER;
+        // Based on the provided JSON model ("from": 6.5 to "to": 9.5), the chain texture is exactly 3 pixels wide.
+        // We want this 3-pixel wide visual plane to match the physics diameter (2 * radius).
+        // The block model coordinate system is 0 to 16.
+        final float modelWidthPixels = 3.0f;
+        final float blockPixels = 16.0f;
+
+        // Calculate the scaling factor for X and Z axes.
+        // Formula: (VisualWidth / 16) * Scale = PhysicsDiameter
+        // Scale = PhysicsDiameter / (VisualWidth / 16)
+        // Scale = (radius * 2.0f) * (16.0f / 3.0f)
+        float scaleXZ = (radius * 2.0f) * (blockPixels / modelWidthPixels);
+
+        // The Y-axis (length) maps 1:1 from block units (0-1) to meters.
         float scaleY = length;
 
-        // Center the rendering logic (Minecraft renders blocks from 0,0,0 to 1,1,1)
-        poseStack.translate(-scaleX / 2.0f, -scaleY / 2.0f, -scaleZ / 2.0f);
-        poseStack.scale(scaleX, scaleY, scaleZ);
+        // Center the block model.
+        // Minecraft models are defined from 0,0,0 to 1,1,1.
+        // The physics body pivot is at the center of mass.
+        // We translate by negative half of the scaled dimensions to center the model at the pivot.
+        poseStack.translate(-scaleXZ / 2.0f, -scaleY / 2.0f, -scaleXZ / 2.0f);
+
+        // Apply the calculated scales.
+        poseStack.scale(scaleXZ, scaleY, scaleXZ);
 
         Minecraft.getInstance().getBlockRenderer().renderSingleBlock(
                 CHAIN_BLOCK_STATE,
