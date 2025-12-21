@@ -118,6 +118,15 @@ subprojects {
         implementation "com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}"
         minecraftRuntimeLibraries "com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}"
 
+        // vivecraft
+        implementation "com.github.bhaptics:tact-java:0.1.4"
+        var lwjgl_version = "3.3.3"
+        runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}"
+        runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}:natives-linux"
+        runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}:natives-macos"
+        runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}:natives-windows"
+        runtimeOnly "com.illposed.osc:javaosc-core:0.9"
+
         // Native libraries classifier variable
         def nativeClassifier = "ReleaseSp" // classifier used for all native platforms
 

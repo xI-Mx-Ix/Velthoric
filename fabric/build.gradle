@@ -51,8 +51,14 @@ dependencies {
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
 
     modApi "maven.modrinth:vivecraft:$rootProject.vivecraft_version-fabric"
+    runtimeOnly "com.illposed.osc:javaosc-core:0.9"
     runtimeOnly "com.electronwill.night-config:toml:3.6.6"
     runtimeOnly "com.electronwill.night-config:core:3.6.6"
+    var lwjgl_version = "3.3.3"
+    runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}"
+    runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}:natives-linux"
+    runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}:natives-macos"
+    runtimeOnly "org.lwjgl:lwjgl-openvr:${lwjgl_version}:natives-windows"
 
     implementation project(path: ":vx-native", configuration: "namedElements")
     minecraftRuntimeLibraries project(path: ":vx-native", configuration: "namedElements")

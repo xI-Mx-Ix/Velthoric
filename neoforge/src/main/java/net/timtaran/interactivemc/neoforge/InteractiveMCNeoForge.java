@@ -4,8 +4,10 @@
  */
 package net.timtaran.interactivemc.neoforge;
 
+import dev.architectury.platform.Platform;
+import dev.architectury.utils.Env;
 import net.neoforged.fml.common.Mod;
-import net.timtaran.interactivemc.InteractiveMC;
+import net.timtaran.interactivemc.init.InteractiveMC;
 
 /**
  * Main class for NeoForge integration.
@@ -19,5 +21,8 @@ import net.timtaran.interactivemc.InteractiveMC;
 public final class InteractiveMCNeoForge {
     public InteractiveMCNeoForge() {
         InteractiveMC.onInit();
+        if (Platform.getEnvironment() == Env.CLIENT) {
+            InteractiveMC.onClientInit();
+        }
     }
 }

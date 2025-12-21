@@ -13,7 +13,7 @@
   "entrypoints": {
     "main": [
       "net.timtaran.interactivemc.physics.fabric.VxFabric",
-      "net.net.timtaran.interactivemc.fabric.InteractiveMCFabric"
+      "net.timtaran.interactivemc.fabric.InteractiveMCFabric"
     ]
   },
   "mixins": [

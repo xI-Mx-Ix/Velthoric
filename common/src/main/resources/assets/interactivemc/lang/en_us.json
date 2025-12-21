@@ -6,5 +6,7 @@
   "item.interactivemc.chain_creator": "Chain Creator",
   "item.interactivemc.ragdoll_launcher": "Ragdoll Launcher",
   "key.interactivemc.tool_config": "Open Tool Config",
-  "category.interactivemc": "InteractiveMC"
+  "key.interactivemc.grab": "Grab",
+  "category.interactivemc": "InteractiveMC",
+  "category.interactivemc.vrbindigs": "InteractiveMC — VR Bindings"
 }
