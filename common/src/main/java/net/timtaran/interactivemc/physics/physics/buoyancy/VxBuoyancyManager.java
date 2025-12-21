@@ -4,12 +4,11 @@
  */
 package net.timtaran.interactivemc.physics.physics.buoyancy;
 
-import com.github.stephengold.joltjni.BodyLockMultiWrite;
+import com.github.stephengold.joltjni.readonly.ConstBodyLockInterface;
 import net.timtaran.interactivemc.physics.physics.buoyancy.phase.VxBuoyancyBroadPhase;
 import net.timtaran.interactivemc.physics.physics.buoyancy.phase.VxBuoyancyNarrowPhase;
 import net.timtaran.interactivemc.physics.physics.world.VxPhysicsWorld;
 
-import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -86,17 +85,14 @@ public final class VxBuoyancyManager {
         VxBuoyancyDataStore latestBuffer = publishedBuffer.getAndSet(readingBuffer);
         readingBuffer = latestBuffer;
 
-        int bodyCount = readingBuffer.getCount();
-        if (bodyCount == 0) {
+        if (readingBuffer.getCount() == 0) {
             return;
         }
 
-        // Jolt's multi-body lock requires a precisely sized native array.
-        int[] bodyIds = Arrays.copyOf(readingBuffer.bodyIds, bodyCount);
-
-        try (BodyLockMultiWrite lock = new BodyLockMultiWrite(physicsWorld.getPhysicsSystem().getBodyLockInterfaceNoLock(), bodyIds)) {
-            narrowPhase.applyForces(lock, deltaTime, readingBuffer);
-        }
+        // Use the no-lock interface to access bodies directly.
+        // We use the Const interface type which is compatible with BodyLockWrite constructors.
+        ConstBodyLockInterface lockInterface = physicsWorld.getPhysicsSystem().getBodyLockInterfaceNoLock();
+        narrowPhase.applyForces(lockInterface, deltaTime, readingBuffer);
     }
 
     /**

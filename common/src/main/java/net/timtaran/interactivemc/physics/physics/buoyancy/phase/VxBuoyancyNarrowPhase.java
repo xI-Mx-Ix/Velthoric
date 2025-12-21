@@ -4,19 +4,9 @@
  */
 package net.timtaran.interactivemc.physics.physics.buoyancy.phase;
 
-import com.github.stephengold.joltjni.Body;
-import com.github.stephengold.joltjni.CompoundShape;
-import com.github.stephengold.joltjni.DecoratedShape;
-import com.github.stephengold.joltjni.Mat44;
-import com.github.stephengold.joltjni.MotionProperties;
-import com.github.stephengold.joltjni.OffsetCenterOfMassShape;
-import com.github.stephengold.joltjni.RMat44;
-import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.RotatedTranslatedShape;
-import com.github.stephengold.joltjni.ScaledShape;
-import com.github.stephengold.joltjni.BodyLockMultiWrite;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EShapeType;
+import com.github.stephengold.joltjni.readonly.ConstBodyLockInterface;
 import com.github.stephengold.joltjni.readonly.ConstConvexShape;
 import com.github.stephengold.joltjni.readonly.ConstShape;
 import com.github.stephengold.joltjni.readonly.ConstSubShape;
@@ -58,15 +48,26 @@ public final class VxBuoyancyNarrowPhase {
     /**
      * Iterates through the locked bodies and applies buoyancy forces to each.
      *
-     * @param lock      The multi-body write lock from Jolt.
-     * @param deltaTime The simulation time step.
-     * @param dataStore The data store containing all information about buoyant bodies.
+     * @param lockInterface The no-lock interface used to retrieve body pointers.
+     * @param deltaTime     The simulation time step.
+     * @param dataStore     The data store containing all information about buoyant bodies.
      */
-    public void applyForces(BodyLockMultiWrite lock, float deltaTime, VxBuoyancyDataStore dataStore) {
+    public void applyForces(ConstBodyLockInterface lockInterface, float deltaTime, VxBuoyancyDataStore dataStore) {
+        // Iterate over the data store indices to preserve the correct mapping between
+        // fluid data (heights, types) and the associated physics bodies.
         for (int i = 0; i < dataStore.getCount(); ++i) {
-            Body body = lock.getBody(i);
-            if (body != null) {
-                processBuoyancyForBody(body, deltaTime, i, dataStore);
+            int bodyId = dataStore.bodyIds[i];
+
+            // Use BodyLockWrite to retrieve the Body object from the ID.
+            // Even though we use the "NoLock" interface, BodyLockWrite is the standard way
+            // to resolve an ID to a Body object in Jolt JNI.
+            try (BodyLockWrite lock = new BodyLockWrite(lockInterface, bodyId)) {
+                if (lock.succeeded()) {
+                    Body body = lock.getBody();
+                    if (body != null) {
+                        processBuoyancyForBody(body, deltaTime, i, dataStore);
+                    }
+                }
             }
         }
     }

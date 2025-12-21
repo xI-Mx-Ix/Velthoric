@@ -5,9 +5,8 @@
 package net.timtaran.interactivemc.physics.item.chaincreator.body;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.BoxShapeSettings;
+import com.github.stephengold.joltjni.TaperedCapsuleShapeSettings;
 import com.github.stephengold.joltjni.ShapeSettings;
-import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
@@ -90,6 +89,9 @@ public class VxChainPartRigidBody extends VxRigidBody {
 
     /**
      * Creates the Jolt physics body for this chain link using its instance-specific dimensions.
+     * The shape is calculated to ensure the total length matches the synchronized length data,
+     * accounting for the hemispherical caps of the capsule shape.
+     *
      * @param factory The factory to create the Jolt body.
      * @return The integer ID of the created Jolt body.
      */
@@ -98,9 +100,18 @@ public class VxChainPartRigidBody extends VxRigidBody {
         float currentRadius = get(DATA_RADIUS);
         float currentLength = get(DATA_LENGTH);
 
-        Vec3 halfExtents = new Vec3(currentRadius, currentLength / 2.0f, currentRadius);
+        // The TaperedCapsuleShape defines height as the half-height of the cylindrical part only.
+        // Total Length = (2 * halfCylinderHeight) + (2 * radius).
+        // Therefore, we must subtract the radius from the desired half-length to prevent overlap at the pivots.
+        float halfCylinderHeight = (currentLength / 2.0f) - currentRadius;
+
+        // Ensure the cylinder has a valid height if the length is very small relative to the radius.
+        if (halfCylinderHeight < 0.001f) {
+            halfCylinderHeight = 0.001f;
+        }
+
         try (
-                ShapeSettings shapeSettings = new BoxShapeSettings(halfExtents);
+                ShapeSettings shapeSettings = new TaperedCapsuleShapeSettings(halfCylinderHeight, currentRadius, currentRadius);
                 BodyCreationSettings bcs = new BodyCreationSettings()
         ) {
             bcs.setMotionType(EMotionType.Dynamic);
