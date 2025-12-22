@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.mounting.entity;
+package net.xmx.velthoric.bridge.mounting.entity;
 
 import net.minecraft.world.entity.Entity;
 

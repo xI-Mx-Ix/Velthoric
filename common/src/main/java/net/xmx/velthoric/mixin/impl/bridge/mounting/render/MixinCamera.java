@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.mounting.render;
+package net.xmx.velthoric.mixin.impl.bridge.mounting.render;
 
 import net.minecraft.client.Camera;
 import net.minecraft.util.Mth;
@@ -14,8 +14,8 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxConversions;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
-import net.xmx.velthoric.physics.mounting.util.VxMountingRenderUtils;
+import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntity;
+import net.xmx.velthoric.bridge.mounting.util.VxMountingRenderUtils;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;

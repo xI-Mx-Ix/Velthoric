@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.mounting.util;
+package net.xmx.velthoric.bridge.mounting.util;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
@@ -10,7 +10,7 @@ import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
-import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
+import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntity;
 
 import java.util.Optional;
 import java.util.UUID;

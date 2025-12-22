@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.mounting.entity;
+package net.xmx.velthoric.bridge.mounting.entity;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -16,8 +16,8 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.physics.mounting.manager.VxClientMountingManager;
-import net.xmx.velthoric.physics.mounting.manager.VxMountingManager;
+import net.xmx.velthoric.bridge.mounting.manager.VxClientMountingManager;
+import net.xmx.velthoric.bridge.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 

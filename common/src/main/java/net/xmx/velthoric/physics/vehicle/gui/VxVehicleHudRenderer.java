@@ -10,7 +10,7 @@ import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.event.api.VxRenderEvent;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
-import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
+import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 
 import java.util.UUID;

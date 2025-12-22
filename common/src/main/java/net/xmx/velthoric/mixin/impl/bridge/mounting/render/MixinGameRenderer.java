@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.mounting.render;
+package net.xmx.velthoric.mixin.impl.bridge.mounting.render;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -19,9 +19,9 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
-import net.xmx.velthoric.physics.mounting.entity.VxMountingEntityState;
-import net.xmx.velthoric.physics.mounting.util.VxMountingRenderUtils;
+import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntity;
+import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntityState;
+import net.xmx.velthoric.bridge.mounting.util.VxMountingRenderUtils;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;

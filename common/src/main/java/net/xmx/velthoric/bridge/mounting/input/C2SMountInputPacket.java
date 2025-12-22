@@ -2,12 +2,12 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.mounting.input;
+package net.xmx.velthoric.bridge.mounting.input;
 
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.physics.mounting.manager.VxMountingManager;
+import net.xmx.velthoric.bridge.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.function.Supplier;

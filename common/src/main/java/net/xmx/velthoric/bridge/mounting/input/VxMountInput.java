@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.mounting.input;
+package net.xmx.velthoric.bridge.mounting.input;
 
 import net.minecraft.network.FriendlyByteBuf;
 import java.util.Objects;

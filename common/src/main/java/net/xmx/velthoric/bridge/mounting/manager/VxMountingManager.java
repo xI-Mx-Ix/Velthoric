@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.mounting.manager;
+package net.xmx.velthoric.bridge.mounting.manager;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -12,10 +12,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.init.registry.EntityRegistry;
-import net.xmx.velthoric.physics.mounting.VxMountable;
-import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
-import net.xmx.velthoric.physics.mounting.input.VxMountInput;
-import net.xmx.velthoric.physics.mounting.seat.VxSeat;
+import net.xmx.velthoric.bridge.mounting.VxMountable;
+import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntity;
+import net.xmx.velthoric.bridge.mounting.input.VxMountInput;
+import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Quaternionf;
