@@ -17,11 +17,21 @@ import java.util.*;
 
 /**
  * Collects dirty vehicle states and dispatches the efficient batch packet.
+ * <p>
+ * This class scans all active vehicles, identifies those that have moved or changed state,
+ * and groups them into packets for relevant players.
  *
  * @author xI-Mx-Ix
  */
 public class VxVehicleNetworkDispatcher {
 
+    /**
+     * Dispatches updates for all dirty vehicles in the provided manager.
+     *
+     * @param level        The server level.
+     * @param manager      The physics body manager containing the vehicles.
+     * @param bodyTrackers A map of body IDs to players tracking them.
+     */
     public void dispatchUpdates(ServerLevel level, VxBodyManager manager, Map<Integer, Set<ServerPlayer>> bodyTrackers) {
         // 1. Identify dirty vehicles
         List<VxVehicle> dirtyVehicles = new ArrayList<>();
