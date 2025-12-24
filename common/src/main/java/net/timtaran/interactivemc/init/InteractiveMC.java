@@ -11,6 +11,11 @@ import org.vivecraft.api.data.VRPose;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * The main class for the InteractiveMC mod.
+ *
+ * @author timtaran
+ */
 public class InteractiveMC {
     public static final String MOD_ID = "interactivemc";
     public static final Logger LOGGER = LogUtils.getLogger();
