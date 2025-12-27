@@ -48,8 +48,13 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
         ConstConvexShape shape = (ConstConvexShape) body.getShape();
         RMat44 worldTransform = body.getCenterOfMassTransform();
         RVec3 comPosition = tempRVec3_1.get();
-        body.getCenterOfMassPosition(comPosition); // Populate the temp RVec3
-        applyBuoyancyToConvexPart(body, shape, worldTransform, comPosition, deltaTime, index, dataStore);
+        body.getCenterOfMassPosition(comPosition);
+
+        // Pass the default scale (1,1,1) for non-recursive calls.
+        Vec3 scale = tempScale.get();
+        scale.set(1, 1, 1);
+
+        applyBuoyancyToConvexPart(body, shape, worldTransform, comPosition, scale, deltaTime, index, dataStore);
     }
 
     /**
@@ -65,11 +70,12 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
      * @param convexPart         The convex shape part to process.
      * @param partWorldTransform The world transform of the convex part.
      * @param bodyCom            The world-space center of mass of the entire parent body.
+     * @param scale              The accumulated scale of the shape hierarchy.
      * @param deltaTime          The simulation time step.
      * @param index              The index of the body in the data store.
      * @param dataStore          The data store containing fluid properties.
      */
-    public void applyBuoyancyToConvexPart(Body body, ConstConvexShape convexPart, RMat44 partWorldTransform, RVec3 bodyCom, float deltaTime, int index, VxBuoyancyDataStore dataStore) {
+    public void applyBuoyancyToConvexPart(Body body, ConstConvexShape convexPart, RMat44 partWorldTransform, RVec3 bodyCom, Vec3 scale, float deltaTime, int index, VxBuoyancyDataStore dataStore) {
         float surfaceY = dataStore.surfaceHeights[index];
         VxFluidType fluidType = dataStore.fluidTypes[index];
 
@@ -96,11 +102,11 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
         Plane waterPlane = tempPlane.get();
         waterPlane.set(0f, 1f, 0f, -surfaceY);
 
-        Vec3 scale = tempScale.get();
         float[] submergedVolumeArr = tempFloatArray.get();
         Vec3 centerOfBuoyancyWorld = tempVec3_2.get();
 
         // Calculate the exact submerged volume and center of buoyancy assuming an infinite fluid plane at surfaceY.
+        // We pass the accumulated scale to ensure correct volume calculation for scaled sub-shapes.
         convexPart.getSubmergedVolume(partWorldTransform.toMat44(), scale, waterPlane, submergedVolumeArr, submergedVolumeArr, centerOfBuoyancyWorld, bodyCom);
 
         float submergedVolume = Math.abs(submergedVolumeArr[0]);
@@ -109,19 +115,28 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
         }
 
         // Verify that the calculated Center of Buoyancy (CoB) is close to the actual fluid found in the world.
-        // If the object is overhanging land, the infinite plane calculation places the CoB under the land,
-        // far from the actual water. We reduce the force based on this distance to prevent "ghost buoyancy"
-        // in areas where no water exists physically, despite the infinite plane assumption.
+        // If the object is overhanging land, the infinite plane calculation places the CoB under the land.
+        // However, if the object is deep underwater, the broad-phase center might be skewed by nearby solid walls,
+        // so we fade out this check as depth increases.
+
         float dx = centerOfBuoyancyWorld.getX() - broadPhaseWaterX;
         float dz = centerOfBuoyancyWorld.getZ() - broadPhaseWaterZ;
         float distSq = dx * dx + dz * dz;
 
-        // Apply a falloff factor based on distance.
-        // If the CoB aligns with the water (open water), factor is close to 1.0.
-        // If they diverge significantly (edge case), factor approaches 0.0.
-        float coherencyFactor = 1.0f / (1.0f + 0.5f * distSq);
+        // Base coherency factor: 1.0 if aligned, approaching 0.0 if distant.
+        float baseCoherency = 1.0f / (1.0f + 0.5f * distSq);
 
-        submergedVolume *= coherencyFactor;
+        // Depth Fade: Calculate how far the center of buoyancy is below the surface.
+        float depth = surfaceY - centerOfBuoyancyWorld.getY();
+
+        // We start fading out the spatial check at 0.0m depth and fully ignore it at 1.5m depth.
+        // This ensures that deep objects (pressed against walls/floors) maintain full buoyancy.
+        float depthFade = Math.max(0.0f, Math.min(1.0f, depth / 1.5f));
+
+        // Interpolate: At surface (depthFade=0), use baseCoherency. Deep down (depthFade=1), use 1.0.
+        float effectiveFactor = baseCoherency + (1.0f - baseCoherency) * depthFade;
+
+        submergedVolume *= effectiveFactor;
 
         if (submergedVolume < 1e-6f) {
             return;
