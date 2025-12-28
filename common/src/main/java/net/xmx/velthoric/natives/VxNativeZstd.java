@@ -5,7 +5,7 @@
 package net.xmx.velthoric.natives;
 
 import com.github.luben.zstd.util.Native;
-import net.xmx.velthoric.UnsupportedOperatingSystemException;
+import net.xmx.vxnative.UnsupportedOperatingSystemException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

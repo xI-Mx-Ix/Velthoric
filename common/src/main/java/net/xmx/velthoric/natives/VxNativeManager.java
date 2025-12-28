@@ -5,10 +5,10 @@
 package net.xmx.velthoric.natives;
 
 import dev.architectury.platform.Platform;
-import net.xmx.velthoric.Arch;
-import net.xmx.velthoric.OS;
-import net.xmx.velthoric.UnsupportedOperatingSystemException;
-import net.xmx.velthoric.VxNativeLibraryLoader;
+import net.xmx.vxnative.Arch;
+import net.xmx.vxnative.OS;
+import net.xmx.vxnative.UnsupportedOperatingSystemException;
+import net.xmx.vxnative.VxNativeLibraryLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
