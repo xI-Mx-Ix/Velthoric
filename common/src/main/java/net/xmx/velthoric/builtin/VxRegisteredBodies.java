@@ -21,6 +21,8 @@ import net.xmx.velthoric.builtin.marble.MarbleRenderer;
 import net.xmx.velthoric.builtin.marble.MarbleRigidBody;
 import net.xmx.velthoric.builtin.rope.RopeRenderer;
 import net.xmx.velthoric.builtin.rope.RopeSoftBody;
+import net.xmx.velthoric.builtin.soccerball.SoccerBallRenderer;
+import net.xmx.velthoric.builtin.soccerball.SoccerBallRigidBody;
 import net.xmx.velthoric.builtin.sphere.SphereRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
 import net.xmx.velthoric.item.chaincreator.body.VxChainPartRenderer;
@@ -82,6 +84,10 @@ public class VxRegisteredBodies {
             .noSummon()
             .build(ResourceLocation.tryBuild("velthoric", "body_part"));
 
+    public static final VxBodyType<SoccerBallRigidBody> SOCCER_BALL = VxBodyType.Builder
+            .<SoccerBallRigidBody>create(SoccerBallRigidBody::new)
+            .build(ResourceLocation.tryBuild("velthoric", "soccer_ball"));
+
     /**
      * Registers all server-side physics body types. This should be called
      * during the server initialization phase.
@@ -98,6 +104,7 @@ public class VxRegisteredBodies {
         registry.register(MOTORCYCLE);
         registry.register(CHAIN_PART);
         registry.register(BODY_PART);
+        registry.register(SOCCER_BALL);
     }
 
     /**
@@ -117,6 +124,7 @@ public class VxRegisteredBodies {
         registry.registerClientFactory(MOTORCYCLE.getTypeId(), (type, id) -> new MotorcycleImpl((VxBodyType<MotorcycleImpl>) type, id));
         registry.registerClientFactory(CHAIN_PART.getTypeId(), (type, id) -> new VxChainPartRigidBody((VxBodyType<VxChainPartRigidBody>) type, id));
         registry.registerClientFactory(BODY_PART.getTypeId(), (type, id) -> new VxBodyPartRigidBody((VxBodyType<VxBodyPartRigidBody>) type, id));
+        registry.registerClientFactory(SOCCER_BALL.getTypeId(), (type, id) -> new SoccerBallRigidBody((VxBodyType<SoccerBallRigidBody>) type, id));
     }
 
     /**
@@ -136,5 +144,6 @@ public class VxRegisteredBodies {
         registry.registerClientRenderer(MOTORCYCLE.getTypeId(), new MotorcycleRenderer());
         registry.registerClientRenderer(CHAIN_PART.getTypeId(), new VxChainPartRenderer());
         registry.registerClientRenderer(BODY_PART.getTypeId(), new VxRagdollBodyPartRenderer());
+        registry.registerClientRenderer(SOCCER_BALL.getTypeId(), new SoccerBallRenderer());
     }
 }
