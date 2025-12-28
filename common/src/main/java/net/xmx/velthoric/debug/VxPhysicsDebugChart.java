@@ -8,7 +8,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
-import net.xmx.velthoric.physics.body.client.time.VxFrameTimer;
+import net.xmx.velthoric.util.VxFrameTimer;
 
 import java.util.function.ToIntFunction;
 
