@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.client.time;
+package net.xmx.velthoric.util;
 
 /**
  * A custom implementation for recording timing data, designed to replace
