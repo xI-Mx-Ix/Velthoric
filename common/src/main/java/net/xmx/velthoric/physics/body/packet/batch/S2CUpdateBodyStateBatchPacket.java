@@ -17,29 +17,50 @@ import java.util.function.Supplier;
 
 /**
  * A network packet that synchronizes a compressed batch of physics body states using a Structure of Arrays (SoA) layout.
- * This is highly efficient as it packs related data together, improving cache locality and reducing overhead
- * compared to sending an array of state objects (AoS). The payload is compressed to further reduce bandwidth.
+ * <p>
+ * Optimizations implemented:
+ * <ul>
+ *     <li><b>Global Timestamp:</b> The simulation timestamp is sent once per packet header, assuming all bodies in the batch belong to the same simulation tick.</li>
+ *     <li><b>Relative Positioning:</b> A high-precision 'base' position (anchor) is sent in the header. Individual body positions are sent as floats relative to this anchor. This retains {@code double} precision locally while reducing network bandwidth by using {@code float} (12 bytes vs 24 bytes per body).</li>
+ *     <li><b>Zstd Compression:</b> The entire payload is compressed to minimize bandwidth usage.</li>
+ * </ul>
  *
  * @author xI-Mx-Ix
  */
 public class S2CUpdateBodyStateBatchPacket {
 
     private final int count;
+    private final long timestamp;
     private final int[] networkIds;
-    private final long[] timestamps;
+    // Stored as doubles internally to maintain compatibility with the ClientDataStore
     private final double[] posX, posY, posZ;
     private final float[] rotX, rotY, rotZ, rotW;
     private final float[] velX, velY, velZ;
     private final boolean[] isActive;
 
     /**
-     * Constructs the packet from raw data arrays. This is used on the sending side
-     * and by the decode method after data has been read from the buffer.
+     * Constructs the packet with absolute positions and a single global timestamp.
+     * The encoding process will handle the conversion to relative positions.
+     *
+     * @param count      The number of bodies in this batch.
+     * @param timestamp  The server-side simulation timestamp for this tick.
+     * @param networkIds Array of network IDs.
+     * @param posX       Array of absolute X positions.
+     * @param posY       Array of absolute Y positions.
+     * @param posZ       Array of absolute Z positions.
+     * @param rotX       Array of rotation X components (quaternion).
+     * @param rotY       Array of rotation Y components (quaternion).
+     * @param rotZ       Array of rotation Z components (quaternion).
+     * @param rotW       Array of rotation W components (quaternion).
+     * @param velX       Array of linear velocity X components.
+     * @param velY       Array of linear velocity Y components.
+     * @param velZ       Array of linear velocity Z components.
+     * @param isActive   Array indicating if the body is currently active (awake).
      */
-    public S2CUpdateBodyStateBatchPacket(int count, int[] networkIds, long[] timestamps, double[] posX, double[] posY, double[] posZ, float[] rotX, float[] rotY, float[] rotZ, float[] rotW, float[] velX, float[] velY, float[] velZ, boolean[] isActive) {
+    public S2CUpdateBodyStateBatchPacket(int count, long timestamp, int[] networkIds, double[] posX, double[] posY, double[] posZ, float[] rotX, float[] rotY, float[] rotZ, float[] rotW, float[] velX, float[] velY, float[] velZ, boolean[] isActive) {
         this.count = count;
+        this.timestamp = timestamp;
         this.networkIds = networkIds;
-        this.timestamps = timestamps;
         this.posX = posX;
         this.posY = posY;
         this.posZ = posZ;
@@ -55,7 +76,7 @@ public class S2CUpdateBodyStateBatchPacket {
 
     /**
      * Encodes the packet's data into a network buffer for sending.
-     * It only writes the first {@code count} elements from the internal arrays.
+     * Applies relative position encoding and Zstd compression.
      *
      * @param msg The packet instance to encode.
      * @param buf The buffer to write to.
@@ -63,17 +84,35 @@ public class S2CUpdateBodyStateBatchPacket {
     public static void encode(S2CUpdateBodyStateBatchPacket msg, FriendlyByteBuf buf) {
         FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
         try {
+            // Write Header
             tempBuf.writeVarInt(msg.count);
+            tempBuf.writeLong(msg.timestamp);
+
+            // Determine the anchor point (base position) for relative encoding.
+            // Using the position of the first body is usually sufficient to bring offsets into float range.
+            double baseX = msg.count > 0 ? msg.posX[0] : 0.0;
+            double baseY = msg.count > 0 ? msg.posY[0] : 0.0;
+            double baseZ = msg.count > 0 ? msg.posZ[0] : 0.0;
+
+            tempBuf.writeDouble(baseX);
+            tempBuf.writeDouble(baseY);
+            tempBuf.writeDouble(baseZ);
+
+            // Write Body Data
             for (int i = 0; i < msg.count; i++) {
                 tempBuf.writeVarInt(msg.networkIds[i]);
-                tempBuf.writeLong(msg.timestamps[i]);
-                tempBuf.writeDouble(msg.posX[i]);
-                tempBuf.writeDouble(msg.posY[i]);
-                tempBuf.writeDouble(msg.posZ[i]);
+
+                // Calculate and write relative positions cast to float.
+                // This maintains precision near the anchor point.
+                tempBuf.writeFloat((float) (msg.posX[i] - baseX));
+                tempBuf.writeFloat((float) (msg.posY[i] - baseY));
+                tempBuf.writeFloat((float) (msg.posZ[i] - baseZ));
+
                 tempBuf.writeFloat(msg.rotX[i]);
                 tempBuf.writeFloat(msg.rotY[i]);
                 tempBuf.writeFloat(msg.rotZ[i]);
                 tempBuf.writeFloat(msg.rotW[i]);
+
                 tempBuf.writeBoolean(msg.isActive[i]);
                 if (msg.isActive[i]) {
                     tempBuf.writeFloat(msg.velX[i]);
@@ -82,10 +121,12 @@ public class S2CUpdateBodyStateBatchPacket {
                 }
             }
 
+            // Compress payload
             byte[] uncompressedData = new byte[tempBuf.readableBytes()];
             tempBuf.readBytes(uncompressedData);
             byte[] compressedData = VxPacketUtils.compress(uncompressedData);
 
+            // Write final packet structure
             buf.writeVarInt(uncompressedData.length);
             buf.writeByteArray(compressedData);
 
@@ -98,6 +139,7 @@ public class S2CUpdateBodyStateBatchPacket {
 
     /**
      * Decodes the packet from a network buffer.
+     * Reconstructs absolute positions from the base anchor and relative offsets.
      *
      * @param buf The buffer to read from.
      * @return A new instance of the packet.
@@ -109,9 +151,15 @@ public class S2CUpdateBodyStateBatchPacket {
             byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
             FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
 
+            // Read Header
             int count = decompressedBuf.readVarInt();
+            long timestamp = decompressedBuf.readLong();
+            double baseX = decompressedBuf.readDouble();
+            double baseY = decompressedBuf.readDouble();
+            double baseZ = decompressedBuf.readDouble();
+
+            // Allocate Arrays
             int[] networkIds = new int[count];
-            long[] timestamps = new long[count];
             double[] posX = new double[count];
             double[] posY = new double[count];
             double[] posZ = new double[count];
@@ -124,16 +172,20 @@ public class S2CUpdateBodyStateBatchPacket {
             float[] velZ = new float[count];
             boolean[] isActive = new boolean[count];
 
+            // Read Body Data
             for (int i = 0; i < count; i++) {
                 networkIds[i] = decompressedBuf.readVarInt();
-                timestamps[i] = decompressedBuf.readLong();
-                posX[i] = decompressedBuf.readDouble();
-                posY[i] = decompressedBuf.readDouble();
-                posZ[i] = decompressedBuf.readDouble();
+
+                // Reconstruct absolute double position: Base (double) + Offset (float)
+                posX[i] = baseX + decompressedBuf.readFloat();
+                posY[i] = baseY + decompressedBuf.readFloat();
+                posZ[i] = baseZ + decompressedBuf.readFloat();
+
                 rotX[i] = decompressedBuf.readFloat();
                 rotY[i] = decompressedBuf.readFloat();
                 rotZ[i] = decompressedBuf.readFloat();
                 rotW[i] = decompressedBuf.readFloat();
+
                 isActive[i] = decompressedBuf.readBoolean();
                 if (isActive[i]) {
                     velX[i] = decompressedBuf.readFloat();
@@ -141,8 +193,9 @@ public class S2CUpdateBodyStateBatchPacket {
                     velZ[i] = decompressedBuf.readFloat();
                 }
             }
+            decompressedBuf.release();
 
-            return new S2CUpdateBodyStateBatchPacket(count, networkIds, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
+            return new S2CUpdateBodyStateBatchPacket(count, timestamp, networkIds, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to decompress body state batch packet", e);
         }
@@ -161,12 +214,13 @@ public class S2CUpdateBodyStateBatchPacket {
             VxClientBodyDataStore store = manager.getStore();
             long clientReceiptTime = manager.getClock().getGameTimeNanos();
 
+            // Use the single packet timestamp to calculate the clock offset once.
+            // This is statistically more stable than calculating it per body.
+            manager.addClockSyncSample(msg.timestamp - clientReceiptTime);
+
             for (int i = 0; i < msg.count; i++) {
                 Integer index = store.getIndexForNetworkId(msg.networkIds[i]);
                 if (index == null) continue; // Body might have been removed client-side.
-
-                // Add a clock sync sample for each received state.
-                manager.addClockSyncSample(msg.timestamps[i] - clientReceiptTime);
 
                 // Shift state1 (the previous target state) to state0 (the new source state).
                 store.state0_timestamp[index] = store.state1_timestamp[index];
@@ -181,13 +235,14 @@ public class S2CUpdateBodyStateBatchPacket {
                 store.state0_velY[index] = store.state1_velY[index];
                 store.state0_velZ[index] = store.state1_velZ[index];
                 store.state0_isActive[index] = store.state1_isActive[index];
-                store.state0_vertexData[index] = store.state1_vertexData[index]; // Shift vertex data as well.
+                store.state0_vertexData[index] = store.state1_vertexData[index];
 
-                // Apply the new state data from the packet directly into state1 (the new target state).
-                store.state1_timestamp[index] = msg.timestamps[i];
-                store.state1_posX[index] = (float) msg.posX[i];
-                store.state1_posY[index] = (float) msg.posY[i];
-                store.state1_posZ[index] = (float) msg.posZ[i];
+                // Apply the new state data from the packet directly into state1.
+                // The position arrays in 'msg' are already reconstructed as absolute doubles.
+                store.state1_timestamp[index] = msg.timestamp;
+                store.state1_posX[index] = msg.posX[i];
+                store.state1_posY[index] = msg.posY[i];
+                store.state1_posZ[index] = msg.posZ[i];
                 store.state1_rotX[index] = msg.rotX[i];
                 store.state1_rotY[index] = msg.rotY[i];
                 store.state1_rotZ[index] = msg.rotZ[i];
@@ -199,7 +254,6 @@ public class S2CUpdateBodyStateBatchPacket {
                     store.state1_velY[index] = msg.velY[i];
                     store.state1_velZ[index] = msg.velZ[i];
                 } else {
-                    // If the body is inactive, its velocity is zero.
                     store.state1_velX[index] = 0.0f;
                     store.state1_velY[index] = 0.0f;
                     store.state1_velZ[index] = 0.0f;
@@ -209,7 +263,7 @@ public class S2CUpdateBodyStateBatchPacket {
                 if (store.lastKnownPosition[index] == null) {
                     store.lastKnownPosition[index] = new RVec3();
                 }
-                store.lastKnownPosition[index].set((float) msg.posX[i], (float) msg.posY[i], (float) msg.posZ[i]);
+                store.lastKnownPosition[index].set(msg.posX[i], msg.posY[i], msg.posZ[i]);
             }
         });
     }
