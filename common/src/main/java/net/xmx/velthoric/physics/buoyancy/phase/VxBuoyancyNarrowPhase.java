@@ -34,7 +34,6 @@ public final class VxBuoyancyNarrowPhase {
     private final ThreadLocal<Mat44> tempMat44 = ThreadLocal.withInitial(Mat44::new);
     private final ThreadLocal<Vec3> tempScaleVec = ThreadLocal.withInitial(() -> new Vec3(1, 1, 1));
 
-
     /**
      * Constructs a new narrow-phase handler.
      * @param physicsWorld The physics world to operate on.
@@ -46,7 +45,7 @@ public final class VxBuoyancyNarrowPhase {
     }
 
     /**
-     * Iterates through the locked bodies and applies buoyancy forces to each.
+     * Iterates through the locked bodies and apply buoyancy forces to each.
      *
      * @param lockInterface The no-lock interface used to retrieve body pointers.
      * @param deltaTime     The simulation time step.
@@ -98,7 +97,12 @@ public final class VxBuoyancyNarrowPhase {
         if (isShapeHierarchySupported(shape)) {
             RVec3 bodyCom = tempRVec3.get();
             body.getCenterOfMassPosition(bodyCom);
-            processShapeRecursively(body, shape, body.getCenterOfMassTransform(), bodyCom, deltaTime, index, dataStore);
+
+            // Start recursion with identity scale (1,1,1) as Jolt bodies generally
+            // do not have a scale at the body level (scale is in the shape).
+            Vec3 initialScale = new Vec3(1, 1, 1);
+
+            processShapeRecursively(body, shape, body.getCenterOfMassTransform(), bodyCom, initialScale, deltaTime, index, dataStore);
         } else {
             // Fallback for unsupported shapes like ScaledShape or primitive shapes (MeshShape, HeightFieldShape).
             aabbFloater.applyForces(body, deltaTime, index, dataStore);
@@ -145,11 +149,12 @@ public final class VxBuoyancyNarrowPhase {
      * @param shape            The current shape or sub-shape being processed.
      * @param currentTransform The world transform of the current shape.
      * @param bodyCom          The center of mass of the parent body.
+     * @param accumulatedScale The accumulated scale factors from parent shapes.
      * @param deltaTime        The simulation time step.
      * @param index            The index of the body in the data store.
      * @param dataStore        The data store containing fluid properties.
      */
-    private void processShapeRecursively(Body body, ConstShape shape, RMat44 currentTransform, RVec3 bodyCom, float deltaTime, int index, VxBuoyancyDataStore dataStore) {
+    private void processShapeRecursively(Body body, ConstShape shape, RMat44 currentTransform, RVec3 bodyCom, Vec3 accumulatedScale, float deltaTime, int index, VxBuoyancyDataStore dataStore) {
         // --- Unwrapping Decorated Shapes ---
         if (shape instanceof DecoratedShape decoratedShape) {
             ConstShape innerShape = decoratedShape.getInnerShape();
@@ -158,13 +163,12 @@ public final class VxBuoyancyNarrowPhase {
             if (decoratedShape instanceof RotatedTranslatedShape rtShape) {
                 Mat44 localTransform = tempMat44.get().sRotationTranslation(rtShape.getRotation(), rtShape.getPosition());
                 newTransform.set(currentTransform.multiply(localTransform));
-                processShapeRecursively(body, innerShape, newTransform, bodyCom, deltaTime, index, dataStore);
+                processShapeRecursively(body, innerShape, newTransform, bodyCom, accumulatedScale, deltaTime, index, dataStore);
             } else if (decoratedShape instanceof OffsetCenterOfMassShape ocomShape) {
                 Mat44 localTransform = tempMat44.get().sTranslation(ocomShape.getOffset());
                 newTransform.set(currentTransform.multiply(localTransform));
-                processShapeRecursively(body, innerShape, newTransform, bodyCom, deltaTime, index, dataStore);
+                processShapeRecursively(body, innerShape, newTransform, bodyCom, accumulatedScale, deltaTime, index, dataStore);
             }
-            // Note: ScaledShape is handled by isShapeHierarchySupported and will not reach here.
             return;
         }
 
@@ -174,21 +178,29 @@ public final class VxBuoyancyNarrowPhase {
             for (int i = 0; i < compound.getNumSubShapes(); i++) {
                 ConstSubShape subShape = compound.getSubShape(i);
 
-                // The method returns a new Mat44 object.
-                Vec3 scale = tempScaleVec.get();
-                Mat44 localTransform = subShape.getLocalTransformNoScale(scale);
+                // Extract the scale for this specific sub-shape.
+                Vec3 localScale = tempScaleVec.get();
+                Mat44 localTransform = subShape.getLocalTransformNoScale(localScale);
 
                 RMat44 subShapeWorldTransform = tempRMat44.get();
                 subShapeWorldTransform.set(currentTransform.multiply(localTransform));
 
-                processShapeRecursively(body, subShape.getShape(), subShapeWorldTransform, bodyCom, deltaTime, index, dataStore);
+                // Combine the parent scale with the local scale for the recursive call.
+                // We create a new Vec3 here to avoid stack corruption in the recursion.
+                Vec3 combinedScale = new Vec3(
+                        accumulatedScale.getX() * localScale.getX(),
+                        accumulatedScale.getY() * localScale.getY(),
+                        accumulatedScale.getZ() * localScale.getZ()
+                );
+
+                processShapeRecursively(body, subShape.getShape(), subShapeWorldTransform, bodyCom, combinedScale, deltaTime, index, dataStore);
             }
             return;
         }
 
         // --- Base Case: Applying forces to a Convex Shape ---
         if (shape.getType() == EShapeType.Convex) {
-            convexFloater.applyBuoyancyToConvexPart(body, (ConstConvexShape) shape, currentTransform, bodyCom, deltaTime, index, dataStore);
+            convexFloater.applyBuoyancyToConvexPart(body, (ConstConvexShape) shape, currentTransform, bodyCom, accumulatedScale, deltaTime, index, dataStore);
         }
     }
 }
