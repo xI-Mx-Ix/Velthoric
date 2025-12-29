@@ -218,6 +218,9 @@ public class VxNetworkDispatcher {
     /**
      * Sends batched body state (transform and velocity) updates to a specific player.
      * The data is split into multiple packets if it exceeds {@code MAX_STATES_PER_PACKET}.
+     * <p>
+     * This method collects absolute positions and the simulation timestamp. The created
+     * packet will handle relative positioning encoding internally.
      *
      * @param player  The player to send the update packets to.
      * @param indices The list of data store indices for the bodies to be updated.
@@ -225,42 +228,81 @@ public class VxNetworkDispatcher {
     private void sendBodyStatePackets(ServerPlayer player, IntArrayList indices) {
         if (indices.isEmpty()) return;
 
+        // Arrays to hold batch data. Note that we do not need a timestamp array anymore,
+        // as we send a single timestamp per batch.
         int[] networkIds = new int[MAX_STATES_PER_PACKET];
-        long[] timestamps = new long[MAX_STATES_PER_PACKET];
         double[] posX = new double[MAX_STATES_PER_PACKET], posY = new double[MAX_STATES_PER_PACKET], posZ = new double[MAX_STATES_PER_PACKET];
         float[] rotX = new float[MAX_STATES_PER_PACKET], rotY = new float[MAX_STATES_PER_PACKET], rotZ = new float[MAX_STATES_PER_PACKET], rotW = new float[MAX_STATES_PER_PACKET];
         float[] velX = new float[MAX_STATES_PER_PACKET], velY = new float[MAX_STATES_PER_PACKET], velZ = new float[MAX_STATES_PER_PACKET];
         boolean[] isActive = new boolean[MAX_STATES_PER_PACKET];
+
         int currentBatchCount = 0;
+        long batchTimestamp = 0L;
 
         for (int index : indices) {
             int networkId = dataStore.networkId[index];
             if (networkId == -1) continue;
 
+            // Initialize the batch timestamp using the first element.
+            // We assume all bodies in this update cycle share the same simulation tick.
+            if (currentBatchCount == 0) {
+                batchTimestamp = dataStore.lastUpdateTimestamp[index];
+            }
+
             networkIds[currentBatchCount] = networkId;
-            timestamps[currentBatchCount] = dataStore.lastUpdateTimestamp[index];
+
+            // Retrieve absolute positions (double).
+            // The packet encoding will convert these to relative floats.
             posX[currentBatchCount] = dataStore.posX[index];
             posY[currentBatchCount] = dataStore.posY[index];
             posZ[currentBatchCount] = dataStore.posZ[index];
+
             rotX[currentBatchCount] = dataStore.rotX[index];
             rotY[currentBatchCount] = dataStore.rotY[index];
             rotZ[currentBatchCount] = dataStore.rotZ[index];
             rotW[currentBatchCount] = dataStore.rotW[index];
+
             isActive[currentBatchCount] = dataStore.isActive[index];
-            velX[currentBatchCount] = dataStore.velX[index];
-            velY[currentBatchCount] = dataStore.velY[index];
-            velZ[currentBatchCount] = dataStore.velZ[index];
+
+            if (isActive[currentBatchCount]) {
+                velX[currentBatchCount] = dataStore.velX[index];
+                velY[currentBatchCount] = dataStore.velY[index];
+                velZ[currentBatchCount] = dataStore.velZ[index];
+            } else {
+                velX[currentBatchCount] = 0;
+                velY[currentBatchCount] = 0;
+                velZ[currentBatchCount] = 0;
+            }
+
             currentBatchCount++;
 
+            // If the batch is full, instantiate the packet with the single timestamp and send it.
             if (currentBatchCount == MAX_STATES_PER_PACKET) {
-                S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(currentBatchCount, networkIds, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
+                S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(
+                        currentBatchCount,
+                        batchTimestamp,
+                        networkIds,
+                        posX, posY, posZ,
+                        rotX, rotY, rotZ, rotW,
+                        velX, velY, velZ,
+                        isActive
+                );
                 VxPacketHandler.sendToPlayer(packet, player);
                 currentBatchCount = 0;
             }
         }
 
+        // Send any remaining bodies in the final partial batch.
         if (currentBatchCount > 0) {
-            S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(currentBatchCount, networkIds, timestamps, posX, posY, posZ, rotX, rotY, rotZ, rotW, velX, velY, velZ, isActive);
+            S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(
+                    currentBatchCount,
+                    batchTimestamp,
+                    networkIds,
+                    posX, posY, posZ,
+                    rotX, rotY, rotZ, rotW,
+                    velX, velY, velZ,
+                    isActive
+            );
             VxPacketHandler.sendToPlayer(packet, player);
         }
     }
