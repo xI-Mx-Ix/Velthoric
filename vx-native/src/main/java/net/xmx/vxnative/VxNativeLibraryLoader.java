@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric;
+package net.xmx.vxnative;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

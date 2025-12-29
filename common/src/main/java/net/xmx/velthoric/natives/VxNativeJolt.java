@@ -9,7 +9,7 @@ import com.github.stephengold.joltjni.Jolt;
 import com.github.stephengold.joltjni.JoltPhysicsObject;
 import com.github.stephengold.joltjni.ObjectLayerPairFilter;
 import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilter;
-import net.xmx.velthoric.UnsupportedOperatingSystemException;
+import net.xmx.vxnative.UnsupportedOperatingSystemException;
 import net.xmx.velthoric.physics.world.VxLayers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
