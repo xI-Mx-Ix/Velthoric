@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.mounting.seat;
+package net.xmx.velthoric.bridge.mounting.seat;
 
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.operator.Op;
@@ -10,7 +10,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.mounting.VxMountable;
+import net.xmx.velthoric.bridge.mounting.VxMountable;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 

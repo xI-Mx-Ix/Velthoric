@@ -15,7 +15,7 @@ import net.xmx.velthoric.physics.body.client.time.VxFrameTimer;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.buoyancy.VxBuoyancyManager;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
-import net.xmx.velthoric.physics.mounting.manager.VxMountingManager;
+import net.xmx.velthoric.bridge.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.physics.ragdoll.VxRagdollManager;
 import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
 import org.jetbrains.annotations.NotNull;

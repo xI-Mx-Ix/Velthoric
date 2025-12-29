@@ -2,16 +2,16 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.mounting.input;
+package net.xmx.velthoric.mixin.impl.bridge.mounting.input;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.network.VxPacketHandler;
-import net.xmx.velthoric.physics.mounting.entity.VxMountingEntity;
-import net.xmx.velthoric.physics.mounting.input.C2SMountInputPacket;
-import net.xmx.velthoric.physics.mounting.input.VxMountInput;
+import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntity;
+import net.xmx.velthoric.bridge.mounting.input.C2SMountInputPacket;
+import net.xmx.velthoric.bridge.mounting.input.VxMountInput;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;

@@ -8,7 +8,7 @@ import com.github.stephengold.joltjni.*;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.mounting.input.VxMountInput;
+import net.xmx.velthoric.bridge.mounting.input.VxMountInput;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.component.VxVehicleEngine;
 import net.xmx.velthoric.physics.vehicle.component.VxVehicleTransmission;

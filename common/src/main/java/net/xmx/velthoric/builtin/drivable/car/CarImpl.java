@@ -18,7 +18,7 @@ import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleWheel;
 import net.xmx.velthoric.physics.world.VxLayers;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.physics.mounting.seat.VxSeat;
+import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.vehicle.config.VxCarConfig;
 import net.xmx.velthoric.physics.vehicle.config.VxVehicleConfig;
 import net.xmx.velthoric.physics.vehicle.type.VxCar;

@@ -2,12 +2,13 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.mounting;
+package net.xmx.velthoric.bridge.mounting;
 
 import net.minecraft.server.level.ServerPlayer;
+import net.xmx.velthoric.bridge.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.mounting.input.VxMountInput;
-import net.xmx.velthoric.physics.mounting.seat.VxSeat;
+import net.xmx.velthoric.bridge.mounting.input.VxMountInput;
+import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
@@ -44,7 +45,7 @@ public interface VxMountable {
 
     /**
      * Defines all seats for this mountable body by adding them to the provided builder.
-     * This method is called by the {@link net.xmx.velthoric.physics.mounting.manager.VxMountingManager}
+     * This method is called by the {@link VxMountingManager}
      * when the body is created to automatically register its seats.
      * <p>
      * The seat's UUID is generated deterministically from the physics body's UUID and the seat's unique

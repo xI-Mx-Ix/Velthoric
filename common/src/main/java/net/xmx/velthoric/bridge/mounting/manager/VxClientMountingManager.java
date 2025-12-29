@@ -2,10 +2,10 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.mounting.manager;
+package net.xmx.velthoric.bridge.mounting.manager;
 
 import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
-import net.xmx.velthoric.physics.mounting.seat.VxSeat;
+import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

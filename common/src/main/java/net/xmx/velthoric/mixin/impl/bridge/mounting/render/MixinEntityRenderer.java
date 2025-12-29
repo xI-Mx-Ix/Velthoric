@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.mixin.impl.mounting.render;
+package net.xmx.velthoric.mixin.impl.bridge.mounting.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -11,7 +11,7 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.math.VxConversions;
-import net.xmx.velthoric.physics.mounting.util.VxMountingRenderUtils;
+import net.xmx.velthoric.bridge.mounting.util.VxMountingRenderUtils;
 import org.joml.Quaternionf;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
