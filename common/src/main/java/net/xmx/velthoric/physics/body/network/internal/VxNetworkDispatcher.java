@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.manager;
+package net.xmx.velthoric.physics.body.network.internal;
 
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.*;
@@ -15,9 +15,13 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.manager.chunk.VxChunkUtil;
-import net.xmx.velthoric.physics.body.packet.VxSpawnData;
-import net.xmx.velthoric.physics.body.packet.batch.*;
+import net.xmx.velthoric.physics.body.network.internal.packet.S2CRemoveBodyBatchPacket;
+import net.xmx.velthoric.physics.body.network.internal.packet.S2CSpawnBodyBatchPacket;
+import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateBodyStateBatchPacket;
+import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateVerticesBatchPacket;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.vehicle.sync.VxVehicleNetworkDispatcher;
 

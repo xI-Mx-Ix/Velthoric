@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.packet.batch;
+package net.xmx.velthoric.physics.body.network.internal.packet;
 
 import com.github.stephengold.joltjni.RVec3;
 import dev.architectury.networking.NetworkManager;

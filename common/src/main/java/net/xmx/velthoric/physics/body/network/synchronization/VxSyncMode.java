@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.sync;
+package net.xmx.velthoric.physics.body.network.synchronization;
 
 /**
  * Defines the authority level for a synchronized data entry.

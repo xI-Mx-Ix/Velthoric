@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.packet.batch;
+package net.xmx.velthoric.physics.body.network.internal.packet;
 
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
@@ -11,7 +11,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
-import net.xmx.velthoric.physics.body.packet.VxSpawnData;
+import net.xmx.velthoric.physics.body.network.internal.VxSpawnData;
 
 import java.io.IOException;
 import java.util.List;

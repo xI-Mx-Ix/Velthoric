@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.sync.packet;
+package net.xmx.velthoric.physics.body.network.synchronization.packet;
 
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
@@ -10,7 +10,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.network.VxPacketUtils;
-import net.xmx.velthoric.physics.body.sync.manager.VxServerSyncManager;
+import net.xmx.velthoric.physics.body.network.synchronization.manager.VxServerSyncManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.io.IOException;

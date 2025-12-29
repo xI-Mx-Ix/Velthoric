@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.sync.packet;
+package net.xmx.velthoric.physics.body.network.synchronization.packet;
 
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;

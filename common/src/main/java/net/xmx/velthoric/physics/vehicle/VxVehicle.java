@@ -17,7 +17,7 @@ import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.body.manager.VxJoltBridge;
 import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
+import net.xmx.velthoric.physics.body.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.vehicle.component.VxSteering;
 import net.xmx.velthoric.physics.vehicle.component.VxVehicleEngine;

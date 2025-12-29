@@ -2,12 +2,12 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.sync.accessor;
+package net.xmx.velthoric.physics.body.network.synchronization.accessor;
 
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import net.xmx.velthoric.physics.body.sync.VxDataSerializer;
-import net.xmx.velthoric.physics.body.sync.VxSyncMode;
+import net.xmx.velthoric.physics.body.network.synchronization.VxDataSerializer;
+import net.xmx.velthoric.physics.body.network.synchronization.VxSyncMode;
 
 import java.util.Objects;
 
