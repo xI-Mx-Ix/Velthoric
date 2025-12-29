@@ -16,11 +16,11 @@ configurations {
 
 dependencies {
     nativeLibs "com.github.luben:zstd-jni:${project.zstd_jni_version}"
-    nativeLibs "com.github.stephengold:jolt-jni-Windows64:${project.jolt_jni_version}:ReleaseSp"
-    nativeLibs "com.github.stephengold:jolt-jni-Linux64:${project.jolt_jni_version}:ReleaseSp"
-    nativeLibs "com.github.stephengold:jolt-jni-Linux_ARM64:${project.jolt_jni_version}:ReleaseSp"
-    nativeLibs "com.github.stephengold:jolt-jni-MacOSX64:${project.jolt_jni_version}:ReleaseSp"
-    nativeLibs "com.github.stephengold:jolt-jni-MacOSX_ARM64:${project.jolt_jni_version}:ReleaseSp"
+    nativeLibs "com.github.stephengold:jolt-jni-Windows64:${project.jolt_jni_version}:ReleaseDp"
+    nativeLibs "com.github.stephengold:jolt-jni-Linux64:${project.jolt_jni_version}:ReleaseDp"
+    nativeLibs "com.github.stephengold:jolt-jni-Linux_ARM64:${project.jolt_jni_version}:ReleaseDp"
+    nativeLibs "com.github.stephengold:jolt-jni-MacOSX64:${project.jolt_jni_version}:ReleaseDp"
+    nativeLibs "com.github.stephengold:jolt-jni-MacOSX_ARM64:${project.jolt_jni_version}:ReleaseDp"
 }
 
 jar {
