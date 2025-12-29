@@ -69,6 +69,7 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
         float surfaceY = dataStore.surfaceHeights[index];
         VxFluidType fluidType = dataStore.fluidTypes[index];
         float areaFraction = dataStore.areaFractions[index];
+
         float fluidDensity = (fluidType == VxFluidType.LAVA) ? LAVA_DENSITY : WATER_DENSITY;
 
         final float linearDragCoefficient;

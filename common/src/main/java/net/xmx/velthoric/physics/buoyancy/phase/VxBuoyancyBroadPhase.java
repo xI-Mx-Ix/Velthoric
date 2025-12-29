@@ -36,15 +36,21 @@ public final class VxBuoyancyBroadPhase {
      */
     private static final int MAX_UPWARD_SEARCH = 16;
 
+    /**
+     * The fixed radius around the body's center position to scan for fluids.
+     * Used as a fallback if the body's AABB is not yet valid (e.g. 0,0,0).
+     */
+    private static final float SCAN_RADIUS = 0.8f;
+
     public VxBuoyancyBroadPhase(VxPhysicsWorld physicsWorld) {
         this.physicsWorld = physicsWorld;
         this.level = physicsWorld.getLevel();
     }
 
     /**
-     * Scans for dynamic bodies in contact with fluids. It calculates the average
-     * surface height, the horizontal area fraction covered by fluid, and the
-     * spatial center of the fluid contact to allow for localized force application.
+     * Scans for dynamic bodies in contact with fluids.
+     * It prioritizes the body's AABB for accurate volume scanning. If the AABB is invalid
+     * (e.g., initialization pending), it falls back to a position-based radius scan.
      *
      * @param dataStore The data store to be populated with potential fluid contacts.
      */
@@ -58,7 +64,7 @@ public final class VxBuoyancyBroadPhase {
                 continue;
             }
 
-            // Read the AABB directly from the cached data store.
+            // Retrieve AABB from data store
             float minX = ds.aabbMinX[i];
             float minY = ds.aabbMinY[i];
             float minZ = ds.aabbMinZ[i];
@@ -66,8 +72,38 @@ public final class VxBuoyancyBroadPhase {
             float maxY = ds.aabbMaxY[i];
             float maxZ = ds.aabbMaxZ[i];
 
-            if (minX >= maxX || minY >= maxY || minZ >= maxZ) {
-                continue;
+            int minBlockX, maxBlockX;
+            int minBlockY, maxBlockY;
+            int minBlockZ, maxBlockZ;
+
+            // The lowest point of the body to check against the water surface
+            float bottomThreshold;
+
+            // Check if AABB is valid (dimensions > epsilon)
+            boolean hasValidAABB = (maxX - minX) > 1e-4f && (maxY - minY) > 1e-4f && (maxZ - minZ) > 1e-4f;
+
+            if (hasValidAABB) {
+                // USE AABB: Precise scanning based on physics bounds
+                minBlockX = (int) Math.floor(minX);
+                maxBlockX = (int) Math.floor(maxX);
+                minBlockY = (int) Math.floor(minY);
+                maxBlockY = (int) Math.floor(maxY);
+                minBlockZ = (int) Math.floor(minZ);
+                maxBlockZ = (int) Math.floor(maxZ);
+                bottomThreshold = minY;
+            } else {
+                // FALLBACK: Use position + SCAN_RADIUS
+                double posX = ds.posX[i];
+                double posY = ds.posY[i];
+                double posZ = ds.posZ[i];
+
+                minBlockX = (int) Math.floor(posX - SCAN_RADIUS);
+                maxBlockX = (int) Math.floor(posX + SCAN_RADIUS);
+                minBlockY = (int) Math.floor(posY - SCAN_RADIUS);
+                maxBlockY = (int) Math.floor(posY + SCAN_RADIUS);
+                minBlockZ = (int) Math.floor(posZ - SCAN_RADIUS);
+                maxBlockZ = (int) Math.floor(posZ + SCAN_RADIUS);
+                bottomThreshold = (float) posY - SCAN_RADIUS;
             }
 
             float totalSurfaceHeight = 0;
@@ -76,13 +112,6 @@ public final class VxBuoyancyBroadPhase {
             float sumX = 0;
             float sumZ = 0;
             VxFluidType detectedType = null;
-
-            int minBlockX = (int) Math.floor(minX);
-            int maxBlockX = (int) Math.floor(maxX);
-            int minBlockY = (int) Math.floor(minY);
-            int maxBlockY = (int) Math.floor(maxY);
-            int minBlockZ = (int) Math.floor(minZ);
-            int maxBlockZ = (int) Math.floor(maxZ);
 
             for (int x = minBlockX; x <= maxBlockX; ++x) {
                 for (int z = minBlockZ; z <= maxBlockZ; ++z) {
@@ -129,7 +158,8 @@ public final class VxBuoyancyBroadPhase {
                 float centerX = sumX / fluidColumnCount;
                 float centerZ = sumZ / fluidColumnCount;
 
-                if (averageSurfaceHeight > minY) {
+                // Ensure the water surface is actually above the bottom of the object
+                if (averageSurfaceHeight > bottomThreshold) {
                     UUID id = ds.getIdForIndex(i);
                     if (id == null) continue;
 
