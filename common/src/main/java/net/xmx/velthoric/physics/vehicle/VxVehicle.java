@@ -10,74 +10,118 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.math.VxOBB;
-import net.xmx.velthoric.physics.body.client.VxRenderState;
+import net.minecraft.world.phys.AABB;
+import net.xmx.velthoric.bridge.mounting.VxMountable;
+import net.xmx.velthoric.bridge.mounting.input.VxMountInput;
+import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.body.manager.VxJoltBridge;
 import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
-import net.xmx.velthoric.bridge.mounting.VxMountable;
-import net.xmx.velthoric.bridge.mounting.input.VxMountInput;
-import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.vehicle.component.VxSteering;
 import net.xmx.velthoric.physics.vehicle.component.VxVehicleEngine;
 import net.xmx.velthoric.physics.vehicle.component.VxVehicleTransmission;
-import net.xmx.velthoric.physics.vehicle.config.VxVehicleConfig;
+import net.xmx.velthoric.physics.vehicle.data.VxVehicleData;
+import net.xmx.velthoric.physics.vehicle.data.component.VxSeatDefinition;
+import net.xmx.velthoric.physics.vehicle.data.component.VxWheelDefinition;
+import net.xmx.velthoric.physics.vehicle.data.slot.VehicleSeatSlot;
+import net.xmx.velthoric.physics.vehicle.data.slot.VehicleWheelSlot;
 import net.xmx.velthoric.physics.vehicle.part.VxPart;
 import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleSeat;
 import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleWheel;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import org.joml.Vector3f;
 
 import java.util.*;
 
 /**
  * The core modular vehicle class.
- * This class serves as the base for all physics-driven vehicles, handling
- * component management (engine, transmission, wheels), input processing,
- * and Jolt physics synchronization.
  * <p>
- * It also acts as the central manager for {@link VxPart}s, delegating interaction logic
- * and organizing the modular structure of the vehicle.
+ * This class serves as the base for all physics-driven vehicles (Cars, Motorcycles, etc.).
+ * It manages the lifecycle of the engine, transmission, wheels, and seats using a
+ * data-driven architecture defined by {@link VxVehicleData}.
+ * <p>
+ * It acts as the bridge between the high-level game logic (mounting, inputs, rendering)
+ * and the low-level Jolt physics simulation (constraints, forces).
  *
  * @author xI-Mx-Ix
  */
 public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
-    // --- Components ---
-    protected VxVehicleConfig config;
-    protected VxVehicleEngine engine;
-    protected VxVehicleTransmission transmission;
-    protected final VxSteering steeringHelper = new VxSteering(2.0f);
+    // --- Core Data ---
 
     /**
-     * The modular parts that make up this vehicle.
-     * Includes wheels, seats, doors, etc.
-     * Mapped by their unique UUID for O(1) network lookup.
+     * The static definition data for this vehicle.
+     * Contains chassis configuration, engine specs, and slot definitions.
+     */
+    protected final VxVehicleData vehicleData;
+
+    // --- Logical Components ---
+
+    /**
+     * The simulation component for the engine (RPM, Torque).
+     */
+    protected VxVehicleEngine engine;
+
+    /**
+     * The simulation component for the transmission (Gear ratios, Shifting).
+     */
+    protected VxVehicleTransmission transmission;
+
+    /**
+     * Helper for smoothing steering inputs.
+     */
+    protected final VxSteering steeringHelper = new VxSteering(2.0f);
+
+    // --- Part Management ---
+
+    /**
+     * A map of all parts (wheels, seats) by their UUID for fast network lookups.
      */
     protected final Map<UUID, VxPart> parts = new HashMap<>();
 
     /**
-     * An ordered list of parts, used for consistent iteration during rendering or raycasting.
+     * An ordered list of parts for deterministic iteration (rendering/raycasting).
      */
     protected final List<VxPart> partList = new ArrayList<>();
 
-    // Helper list for efficient physics updates; these are also contained in 'parts'.
+    /**
+     * A typed list of wheels for efficient physics step updates.
+     */
     protected final List<VxVehicleWheel> wheels = new ArrayList<>();
 
+    /**
+     * A typed list of seats for efficient iteration during interaction or mounting updates.
+     */
+    protected final List<VxVehicleSeat> seats = new ArrayList<>();
+
     // --- Physics ---
+
+    /**
+     * The main Jolt constraint that handles vehicle physics (suspension, friction).
+     */
     protected VehicleConstraint constraint;
+
+    /**
+     * Handles collision detection logic for the vehicle wheels (Raycast vs CylinderCast).
+     */
     protected VehicleCollisionTester collisionTester;
+
+    /**
+     * Configuration settings passed to the Jolt physics engine.
+     */
     protected VehicleConstraintSettings constraintSettings;
 
     // --- State ---
+
     private boolean isStateDirty = false;
     private float speedKmh = 0.0f;
     private float inputThrottle = 0.0f;
     private float inputSteer = 0.0f;
 
     // --- Input Tracking ---
+
     /**
      * The current input state received from the driver.
      */
@@ -93,12 +137,12 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
      * @param type  The body type.
      * @param world The physics world.
      * @param id    The unique ID.
+     * @param data  The data defining this vehicle's properties.
      */
-    public VxVehicle(VxBodyType<? extends VxVehicle> type, VxPhysicsWorld world, UUID id) {
+    public VxVehicle(VxBodyType<? extends VxVehicle> type, VxPhysicsWorld world, UUID id, VxVehicleData data) {
         super(type, world, id);
-        this.config = createConfig();
+        this.vehicleData = data;
         this.initializeComponents();
-        this.initializeSeats();
     }
 
     /**
@@ -106,21 +150,33 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
      *
      * @param type The body type.
      * @param id   The unique ID.
+     * @param data The data defining this vehicle's properties.
      */
     @Environment(EnvType.CLIENT)
-    public VxVehicle(VxBodyType<? extends VxVehicle> type, UUID id) {
+    public VxVehicle(VxBodyType<? extends VxVehicle> type, UUID id, VxVehicleData data) {
         super(type, id);
-        this.config = createConfig();
+        this.vehicleData = data;
         this.initializeComponents();
-        this.initializeSeats();
     }
 
+    // --- Abstract Methods (Implementation Specific) ---
+
     /**
-     * Creates the specific configuration for this vehicle type.
+     * Resolves a wheel definition ID to an actual definition object.
+     * Subclasses or registries must implement this to provide the visual/physical wheel data.
      *
-     * @return A new instance of {@link VxVehicleConfig}.
+     * @param wheelId The resource ID of the wheel.
+     * @return The definition, or null.
      */
-    protected abstract VxVehicleConfig createConfig();
+    protected abstract VxWheelDefinition resolveWheelDefinition(String wheelId);
+
+    /**
+     * Resolves a seat definition ID to an actual definition object.
+     *
+     * @param seatId The resource ID of the seat.
+     * @return The definition, or null.
+     */
+    protected abstract VxSeatDefinition resolveSeatDefinition(String seatId);
 
     /**
      * Defines the collision tester to be used by this vehicle.
@@ -130,8 +186,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
     protected abstract VehicleCollisionTester createCollisionTester();
 
     /**
-     * Creates the Jolt Constraint Settings from the vehicle configuration.
-     * Must be implemented by subclasses to set up the correct controller (Car/Motorcycle).
+     * Creates the Jolt Constraint Settings from the vehicle data.
      *
      * @param body The Jolt body.
      * @return The configured constraint settings.
@@ -140,61 +195,151 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
     /**
      * Hooks up the specific Jolt controller reference after the constraint is created.
+     * This is necessary because Jolt separates Car and Motorcycle controllers.
      */
     protected abstract void updateJoltControllerReference();
 
+    // --- Initialization Logic ---
+
     /**
-     * Initializes components based on the configuration.
-     * Ensures that default components are only created if the specific vehicle implementation
-     * has not already defined them.
+     * Initializes all logical components (Powertrain, Wheels, Seats) based on {@link #vehicleData}.
+     * This is called immediately during construction.
      */
     private void initializeComponents() {
-        List<VxVehicleConfig.WheelInfo> configWheels = config.getWheels();
+        // 1. Initialize Powertrain (Engine & Transmission)
+        this.initializePowertrain();
 
-        for (int i = 0; i < configWheels.size(); i++) {
-            VxVehicleConfig.WheelInfo info = configWheels.get(i);
-            WheelSettingsWv ws = new WheelSettingsWv();
-            ws.setPosition(info.position());
-            ws.setRadius(info.radius());
-            ws.setWidth(info.width());
-            // Sets default suspension limits, which may be adjusted later in onBodyAdded.
-            ws.setSuspensionMinLength(0.2f);
-            ws.setSuspensionMaxLength(0.5f);
+        // 2. Initialize Wheels
+        this.initializeWheels();
 
-            // Generate a deterministic name for the wheel based on its index.
-            // This ensures the UUID generated inside VxPart is identical on Client and Server.
-            String wheelName = "wheel_" + i;
+        // 3. Initialize Seats
+        this.initializeSeats();
+    }
 
-            VxVehicleWheel wheel = new VxVehicleWheel(this, wheelName, ws, info.powered(), info.steerable());
-            this.wheels.add(wheel);
-            this.addPart(wheel);
+    private void initializePowertrain() {
+        this.engine = new VxVehicleEngine(
+                vehicleData.getEngine().getMaxTorque(),
+                vehicleData.getEngine().getMinRpm(),
+                vehicleData.getEngine().getMaxRpm()
+        );
+
+        this.transmission = new VxVehicleTransmission(
+                vehicleData.getTransmission().getGearRatios(),
+                vehicleData.getTransmission().getReverseRatio(),
+                vehicleData.getTransmission().getSwitchTime()
+        );
+    }
+
+    private void initializeWheels() {
+        // Resolve the default wheel type for this vehicle
+        VxWheelDefinition defaultDef = resolveWheelDefinition(vehicleData.getDefaultWheelId());
+
+        // Safety fallback if the registry lookup fails
+        if (defaultDef == null) {
+            defaultDef = VxWheelDefinition.missing();
         }
 
-        // Initialize a default engine only if one has not been provided by the subclass configuration.
-        if (this.engine == null) {
-            this.engine = new VxVehicleEngine(500f, 800f, 7000f);
-        }
-
-        // Initialize a default transmission only if one has not been provided by the subclass configuration.
-        if (this.transmission == null) {
-            this.transmission = new VxVehicleTransmission(new float[]{3.5f, 2.0f, 1.4f, 1.0f}, -3.0f);
+        // Mount a wheel for every slot defined in the chassis data
+        for (VehicleWheelSlot slot : vehicleData.getWheelSlots()) {
+            this.mountWheel(slot, defaultDef);
         }
     }
 
-    /**
-     * Initializes seats defined in {@link #defineSeats(VxSeat.Builder)} and adds them as parts.
-     */
     private void initializeSeats() {
-        VxSeat.Builder builder = new VxSeat.Builder();
-        defineSeats(builder);
-        List<VxSeat> seats = builder.build();
-        for (VxSeat seat : seats) {
-            this.addPart(new VxVehicleSeat(this, seat));
+        // Resolve the default seat type for this vehicle
+        VxSeatDefinition defaultDef = resolveSeatDefinition(vehicleData.getDefaultSeatId());
+
+        // Safety fallback
+        if (defaultDef == null) {
+            defaultDef = VxSeatDefinition.missing();
+        }
+
+        // Mount a seat for every slot defined in the chassis data
+        for (VehicleSeatSlot slot : vehicleData.getSeatSlots()) {
+            this.mountSeat(slot, defaultDef);
         }
     }
 
     /**
-     * Adds a generic part to the vehicle.
+     * Mounts a wheel to the vehicle based on the slot configuration and a definition.
+     * This method creates the physical settings and the logical part.
+     *
+     * @param slot The chassis slot configuration.
+     * @param def  The physical/visual wheel definition.
+     */
+    private void mountWheel(VehicleWheelSlot slot, VxWheelDefinition def) {
+        WheelSettingsWv settings = new WheelSettingsWv();
+        Vector3f pos = slot.getPosition();
+
+        // Position & Suspension (Derived from Slot)
+        settings.setPosition(new com.github.stephengold.joltjni.Vec3(pos.x, pos.y, pos.z));
+        settings.setSuspensionMinLength(slot.getSuspensionMinLength());
+        settings.setSuspensionMaxLength(slot.getSuspensionMaxLength());
+        settings.getSuspensionSpring().setFrequency(slot.getSuspensionFrequency());
+        settings.getSuspensionSpring().setDamping(slot.getSuspensionDamping());
+        settings.setMaxBrakeTorque(slot.getMaxBrakeTorque());
+
+        // Steering Logic (Derived from Slot)
+        if (slot.isSteerable()) {
+            settings.setMaxSteerAngle((float) Math.toRadians(slot.getMaxSteerAngleDegrees()));
+        } else {
+            settings.setMaxSteerAngle(0f);
+        }
+
+        // Physical Dimensions (Derived from Definition)
+        settings.setRadius(def.radius());
+        settings.setWidth(def.width());
+
+        // Create the logical Part
+        VxVehicleWheel wheel = new VxVehicleWheel(this, slot.getName(), settings, slot, def);
+
+        // Register internally
+        this.wheels.add(wheel);
+        this.addPart(wheel);
+    }
+
+    /**
+     * Mounts a seat to the vehicle based on the slot configuration and a definition.
+     * <p>
+     * This method creates the logical seat data and registers it internally.
+     * The actual registration with the MountingManager happens later via {@link #defineSeats(VxSeat.Builder)}.
+     *
+     * @param slot The chassis slot configuration.
+     * @param def  The visual seat definition.
+     */
+    private void mountSeat(VehicleSeatSlot slot, VxSeatDefinition def) {
+        // Create the logical interaction AABB based on the definition size
+        Vector3f size = def.size();
+        AABB aabb = new AABB(-size.x / 2, -size.y / 2, -size.z / 2, size.x / 2, size.y / 2, size.z / 2);
+
+        // Create the seat logic object (handles mounting interactions)
+        VxSeat seatLogic = new VxSeat(this.getPhysicsId(), slot.getName(), aabb, slot.getPosition(), slot.isDriver());
+
+        // Create the vehicle part (handles visual rendering and definition state)
+        VxVehicleSeat seatPart = new VxVehicleSeat(this, seatLogic, slot, def);
+
+        // Register internally to the vehicle structure
+        this.seats.add(seatPart);
+        this.addPart(seatPart);
+    }
+
+    /**
+     * Implementation of the VxMountable interface method.
+     * <p>
+     * This method is called by the MountingManager when the body is added to the world.
+     * We populate the builder using the seats that were already created in the constructor.
+     *
+     * @param builder The seat builder to populate.
+     */
+    @Override
+    public void defineSeats(VxSeat.Builder builder) {
+        for (VxVehicleSeat seatPart : this.seats) {
+            builder.addSeat(seatPart.getSeatData());
+        }
+    }
+
+    /**
+     * Adds a generic part to the vehicle and registers it for lookup.
      *
      * @param part The part to add.
      */
@@ -214,38 +359,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         return this.parts.get(partId);
     }
 
-    /**
-     * Performs a raycast against all parts of this vehicle to determine if the player
-     * is interacting with a specific component (e.g., clicking a seat or door).
-     *
-     * @param start        The ray start position (eye pos).
-     * @param end          The ray end position (reach vector).
-     * @param vehicleState The interpolated render state of the vehicle for accurate OBB placement.
-     * @return An Optional containing the hit part, or empty if none hit.
-     */
-    public Optional<VxPart> pickPart(Vec3 start, Vec3 end, VxRenderState vehicleState) {
-        VxPart closestPart = null;
-        double closestDistSq = Double.MAX_VALUE;
-
-        // Iterate over the list for deterministic order
-        for (VxPart part : this.partList) {
-            VxOBB partOBB = part.getGlobalOBB(vehicleState);
-            Optional<Vec3> hit = partOBB.clip(start, end);
-
-            if (hit.isPresent()) {
-                double distSq = start.distanceToSqr(hit.get());
-                if (distSq < closestDistSq) {
-                    closestDistSq = distSq;
-                    closestPart = part;
-                }
-            }
-        }
-        return Optional.ofNullable(closestPart);
-    }
-
-    public List<VxPart> getParts() {
-        return partList;
-    }
+    // --- Physics Lifecycle ---
 
     @Override
     public void onBodyAdded(VxPhysicsWorld world) {
@@ -282,6 +396,8 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
     @Override
     public void onBodyRemoved(VxPhysicsWorld world, VxRemovalReason reason) {
         super.onBodyRemoved(world, reason);
+
+        // Cleanup Jolt Physics constraints
         if (constraint != null) {
             world.getPhysicsSystem().removeStepListener(constraint.getStepListener());
             world.getPhysicsSystem().removeConstraint(constraint);
@@ -296,6 +412,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
             collisionTester.close();
             collisionTester = null;
         }
+        // Seats are automatically removed by the MountingManager based on the body UUID.
     }
 
     /**
@@ -310,7 +427,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         super.onPhysicsTick(world);
         if (constraint == null) return;
 
-        // 1. Check if we have any driver input.
+        // 1. Check if we have any driver input to activate the body.
         if (!this.currentInput.equals(VxMountInput.NEUTRAL)) {
             BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
             if (!bodyInterface.isActive(getBodyId())) {
@@ -318,7 +435,8 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
             }
         }
 
-        float dt = 1.0f / 20.0f;
+        // Jolt typically steps at 60Hz. Using the correct delta time is crucial for transmission timers.
+        float dt = 1.0f / 60.0f;
 
         // 2. Process Inputs & Steering Interpolation
         this.processDriverInput(dt);
@@ -333,8 +451,8 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
             this.speedKmh = vel.length() * 3.6f;
 
             // --- Transmission Logic ---
-            if (config.getTransmissionMode() == ETransmissionMode.Manual) {
-                // We handle shift timers and player inputs in Java.
+            if (vehicleData.getTransmission().getMode() == ETransmissionMode.Manual) {
+                // Update transmission timers (clutch delay, etc.)
                 transmission.update(dt);
 
                 // Handle Gear Shifting (Edge detection on input flags)
@@ -351,15 +469,14 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
                 wasShiftDownPressed = shiftDown;
 
             } else {
-                // Jolt handles shifting internally. We ignore player shift inputs.
-                // We must synchronize the 'transmission' object with Jolt so the HUD displays the correct gear.
+                // Automatic: Jolt handles shifting internally.
+                // We synchronize the 'transmission' object so the HUD displays the correct gear.
                 if (constraint.getController() instanceof WheeledVehicleController wvc) {
-                    // Get the current gear index calculated by the physics engine
                     int joltGear = wvc.getTransmission().getCurrentGear();
                     transmission.setSynchronizedGear(joltGear);
                 }
 
-                // Reset edge detection flags to prevent buffered inputs when switching back to manual
+                // Reset edge detection flags to prevent buffered inputs when switching modes
                 wasShiftUpPressed = false;
                 wasShiftDownPressed = false;
             }
@@ -376,10 +493,8 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
             if (poweredCount > 0) avgWheelRpm /= poweredCount;
 
             // Update Engine Physics
-            // If Automatic, we assume "isClutched" is true (engaged) unless Jolt is shifting (which we can't easily read here),
-            // so we pass 'true' for simplicity, or check transmission.isShifting() if in Manual.
-            boolean clutchEngaged = (config.getTransmissionMode() == ETransmissionMode.Auto) || !transmission.isShifting();
-
+            // If Automatic, clutch is always engaged unless Jolt is shifting.
+            boolean clutchEngaged = (vehicleData.getTransmission().getMode() == ETransmissionMode.Auto) || !transmission.isShifting();
             engine.update(Math.abs(inputThrottle), avgWheelRpm, transmission.getCurrentRatio(), clutchEngaged);
 
             // 4. Sync Physics State to Local Wheel Components
@@ -393,6 +508,55 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
             // Mark for network sync
             this.isStateDirty = true;
+        }
+    }
+
+    /**
+     * Applies the calculated inputs to the underlying Jolt Vehicle Controller.
+     * <p>
+     * Correctly maps Forward/Backward inputs to Gas/Brake depending on the current gear.
+     */
+    protected void updateJoltController() {
+        if (constraint == null) return;
+
+        // Check if the controller is a WheeledVehicleController (Parent of Car & Motorcycle controllers)
+        if (constraint.getController() instanceof WheeledVehicleController controller) {
+
+            float throttle = getInputThrottle(); // Raw input (-1.0 to 1.0)
+            float brake = 0.0f;
+
+            int gear = transmission.getGear();
+
+            // --- Gas vs Brake Logic ---
+            // Forward Gear (>0) but Input is Backward (<0) -> Brake
+            if (gear > 0 && throttle < 0) {
+                brake = Math.abs(throttle);
+                throttle = 0;
+            }
+            // Reverse Gear (-1) but Input is Forward (>0) -> Brake
+            else if (gear == -1 && throttle > 0) {
+                brake = throttle;
+                throttle = 0;
+            }
+
+            // Hill hold / Auto brake when stopping
+            if (throttle == 0 && brake == 0 && Math.abs(getSpeedKmh()) < 1.0f) {
+                brake = 1.0f; // Prevent sliding when idle
+            }
+
+            float handbrake = currentInput.hasAction(VxMountInput.FLAG_HANDBRAKE) ? 1.0f : 0.0f;
+
+            // Apply calculated inputs.
+            controller.setDriverInput(Math.abs(throttle), getInputSteer(), brake, handbrake);
+
+            // Apply manual transmission state if configured
+            if (vehicleData.getTransmission().getMode() == ETransmissionMode.Manual) {
+                // Calculate clutch engagement: 0.0f if currently shifting, 1.0f otherwise
+                float clutch = transmission.isShifting() ? 0.0f : 1.0f;
+
+                // Sync the logical Java gear state to the Jolt physics controller
+                controller.getTransmission().set(gear, clutch);
+            }
         }
     }
 
@@ -415,52 +579,6 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         this.inputSteer = steeringHelper.getCurrentAngle();
     }
 
-    /**
-     * Applies the calculated inputs to the underlying Jolt Vehicle Controller.
-     * Since MotorcycleController inherits from WheeledVehicleController in Jolt,
-     * this logic is shared across both vehicle types to adhere to DRY principles.
-     */
-    protected void updateJoltController() {
-        if (constraint == null) return;
-
-        // Check if the controller is a WheeledVehicleController (Parent of Car & Motorcycle controllers)
-        if (constraint.getController() instanceof WheeledVehicleController controller) {
-
-            float throttle = getInputThrottle();
-            float brake = 0.0f;
-
-            // Determine if we should brake based on gear and throttle direction
-            int gear = transmission.getGear();
-            if (gear > 0 && throttle < 0) {
-                brake = Math.abs(throttle);
-                throttle = 0;
-            } else if (gear == -1 && throttle > 0) {
-                brake = throttle;
-                throttle = 0;
-            }
-
-            // Hill hold / Auto brake when stopping
-            if (throttle == 0 && brake == 0 && Math.abs(getSpeedKmh()) < 1.0f) {
-                brake = 0.5f;
-            }
-
-            float handbrake = currentInput.hasAction(VxMountInput.FLAG_HANDBRAKE) ? 1.0f : 0.0f;
-
-            // Apply basic inputs (Throttle, Steer, Brake, Handbrake)
-            controller.setDriverInput(throttle, getInputSteer(), brake, handbrake);
-
-            // Apply manual transmission state if configured
-            if (config.getTransmissionMode() == ETransmissionMode.Manual) {
-                // Calculate clutch engagement: 0.0f if currently shifting, 1.0f otherwise
-                float clutch = transmission.isShifting() ? 0.0f : 1.0f;
-
-                // Sync the logical Java gear state to the Jolt physics controller
-                // We must access the transmission component explicitly to set the gear
-                controller.getTransmission().set(gear, clutch);
-            }
-        }
-    }
-
     @Override
     public void handleDriverInput(ServerPlayer player, VxMountInput input) {
         // Store the input; processing happens during the physics tick.
@@ -470,7 +588,44 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         if (bodyId != 0) this.physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(bodyId);
     }
 
-    // --- Client Synchronization ---
+    // --- Runtime Equipment Swapping ---
+
+    /**
+     * Runtime method to swap a wheel definition on a specific slot.
+     *
+     * @param slotName The name of the slot (e.g., "front_left").
+     * @param newDef   The new wheel definition to apply.
+     */
+    public void equipWheel(String slotName, VxWheelDefinition newDef) {
+        for (VxVehicleWheel wheel : this.wheels) {
+            if (wheel.getSlot().getName().equals(slotName)) {
+                // Update Logical Definition (Visuals)
+                wheel.setDefinition(newDef);
+
+                // Update Physical Settings (Dimensions)
+                wheel.getSettings().setRadius(newDef.radius());
+                wheel.getSettings().setWidth(newDef.width());
+                return;
+            }
+        }
+    }
+
+    /**
+     * Runtime method to swap a seat definition on a specific slot.
+     *
+     * @param slotName The name of the seat slot.
+     * @param newDef   The new seat definition to apply.
+     */
+    public void equipSeat(String slotName, VxSeatDefinition newDef) {
+        for (VxVehicleSeat seat : this.seats) {
+            if (seat.getSlot().getName().equals(slotName)) {
+                seat.setDefinition(newDef);
+                return;
+            }
+        }
+    }
+
+    // --- Sync & Getters ---
 
     /**
      * Updates the vehicle state based on data received from the server.
@@ -491,10 +646,8 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
     @Override
     protected void defineSyncData(VxSynchronizedData.Builder builder) {
-        // No-Op
+        // Implement default sync data if required
     }
-
-    // --- Getters ---
 
     public VxVehicleEngine getEngine() {
         return engine;
@@ -528,7 +681,17 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         this.isStateDirty = false;
     }
 
-    public VxVehicleConfig getConfig() {
-        return config;
+    public VxVehicleData getData() {
+        return vehicleData;
+    }
+
+    /**
+     * Gets a list of all parts attached to this vehicle (wheels, seats, etc.).
+     * This list is ordered and suitable for iteration during rendering or raycasting.
+     *
+     * @return The list of vehicle parts.
+     */
+    public List<VxPart> getParts() {
+        return Collections.unmodifiableList(this.partList);
     }
 }

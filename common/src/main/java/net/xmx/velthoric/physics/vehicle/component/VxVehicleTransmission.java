@@ -25,11 +25,12 @@ public class VxVehicleTransmission {
      *
      * @param forwardRatios Array of gear ratios for forward gears.
      * @param reverseRatio  The ratio for reverse gear.
+     * @param switchTime    The time in seconds to change gears.
      */
-    public VxVehicleTransmission(float[] forwardRatios, float reverseRatio) {
+    public VxVehicleTransmission(float[] forwardRatios, float reverseRatio, float switchTime) {
         this.forwardRatios = forwardRatios;
         this.reverseRatio = reverseRatio;
-        this.shiftTime = 0.4f; // Time in seconds to change gears
+        this.shiftTime = switchTime;
     }
 
     /**
