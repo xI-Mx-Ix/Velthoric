@@ -56,7 +56,10 @@ public class VxClientBodyDataStore extends AbstractDataStore {
 
     // State 1: The "to" state for interpolation. This is the most recent state from the server.
     public long[] state1_timestamp;
-    /** Double precision "to" X position. */
+
+    /**
+     * Double precision "to" X position.
+     */
     public double[] state1_posX, state1_posY, state1_posZ;
     public float[] state1_rotX, state1_rotY, state1_rotZ, state1_rotW;
     public float[] state1_velX, state1_velY, state1_velZ;
