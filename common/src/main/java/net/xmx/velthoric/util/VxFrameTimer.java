@@ -19,7 +19,7 @@ public final class VxFrameTimer {
     private static final int HISTORY_LENGTH = 240;
 
     /**
-     *  An array to store frame durations in nanoseconds.
+     * An array to store frame durations in nanoseconds.
      */
     private final long[] frameTimes = new long[HISTORY_LENGTH];
 
@@ -73,9 +73,9 @@ public final class VxFrameTimer {
     /**
      * Scales a given time sample to a specific height for chart rendering.
      *
-     * @param durationNanos  The duration in nanoseconds to be scaled.
-     * @param targetHeight   The target height for the scaled value (e.g., in pixels).
-     * @param referenceTps   The reference value for ticks-per-second (e.g., 60).
+     * @param durationNanos The duration in nanoseconds to be scaled.
+     * @param targetHeight  The target height for the scaled value (e.g., in pixels).
+     * @param referenceTps  The reference value for ticks-per-second (e.g., 60).
      * @return The scaled integer value representing the height.
      */
     public int scaleSampleTo(long durationNanos, int targetHeight, int referenceTps) {

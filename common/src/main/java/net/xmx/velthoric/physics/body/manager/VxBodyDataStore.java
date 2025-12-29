@@ -125,7 +125,7 @@ public class VxBodyDataStore extends AbstractDataStore {
     /**
      * Reserves a new index for a physics body and sets its type.
      *
-     * @param id The UUID of the body.
+     * @param id   The UUID of the body.
      * @param type The EBodyType of the body.
      * @return The data store index for the new body.
      */
@@ -173,7 +173,7 @@ public class VxBodyDataStore extends AbstractDataStore {
      * Registers a network ID mapping for the given body UUID.
      *
      * @param networkId The session-unique network ID.
-     * @param id The persistent body UUID.
+     * @param id        The persistent body UUID.
      */
     public synchronized void registerNetworkId(int networkId, UUID id) {
         this.networkIdToUuid.put(networkId, id);
