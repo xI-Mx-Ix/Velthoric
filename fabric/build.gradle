@@ -46,7 +46,7 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
     modImplementation "curse.maven:sodium-394468:6382649"
     modImplementation "curse.maven:modmenu-308702:5810603"
-    modImplementation "curse.maven:lithium-360438:7246287"
+    //modImplementation "curse.maven:lithium-360438:7246287"
 
     modImplementation "dev.architectury:architectury-fabric:$rootProject.architectury_api_version"
 
