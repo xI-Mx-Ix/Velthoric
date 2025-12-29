@@ -2,10 +2,10 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.sync.accessor;
+package net.xmx.velthoric.physics.body.network.synchronization.accessor;
 
-import net.xmx.velthoric.physics.body.sync.VxDataSerializer;
-import net.xmx.velthoric.physics.body.sync.VxSyncMode;
+import net.xmx.velthoric.physics.body.network.synchronization.VxDataSerializer;
+import net.xmx.velthoric.physics.body.network.synchronization.VxSyncMode;
 
 /**
  * A data accessor specifically for data where the CLIENT has authority.

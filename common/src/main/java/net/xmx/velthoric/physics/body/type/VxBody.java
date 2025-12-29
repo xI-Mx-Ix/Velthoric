@@ -20,10 +20,10 @@ import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
-import net.xmx.velthoric.physics.body.sync.accessor.VxClientAccessor;
-import net.xmx.velthoric.physics.body.sync.accessor.VxDataAccessor;
-import net.xmx.velthoric.physics.body.sync.VxSynchronizedData;
-import net.xmx.velthoric.physics.body.sync.accessor.VxServerAccessor;
+import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxClientAccessor;
+import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxDataAccessor;
+import net.xmx.velthoric.physics.body.network.synchronization.VxSynchronizedData;
+import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxServerAccessor;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 

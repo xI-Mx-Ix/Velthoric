@@ -9,7 +9,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
-import net.xmx.velthoric.physics.body.manager.VxNetworkDispatcher;
+import net.xmx.velthoric.physics.body.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.physics.body.type.VxBody;
 
 import java.util.ArrayList;

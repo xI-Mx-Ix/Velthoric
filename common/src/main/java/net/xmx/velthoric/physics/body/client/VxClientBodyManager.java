@@ -15,7 +15,7 @@ import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.body.sync.manager.VxClientSyncManager;
+import net.xmx.velthoric.physics.body.network.synchronization.manager.VxClientSyncManager;
 import net.xmx.velthoric.bridge.mounting.VxMountable;
 import net.xmx.velthoric.bridge.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.bridge.mounting.seat.VxSeat;

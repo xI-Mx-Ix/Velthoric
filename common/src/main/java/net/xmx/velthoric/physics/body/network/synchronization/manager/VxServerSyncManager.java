@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.sync.manager;
+package net.xmx.velthoric.physics.body.network.synchronization.manager;
 
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -14,8 +14,8 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
-import net.xmx.velthoric.physics.body.manager.VxNetworkDispatcher;
-import net.xmx.velthoric.physics.body.sync.packet.S2CSynchronizedDataBatchPacket;
+import net.xmx.velthoric.physics.body.network.internal.VxNetworkDispatcher;
+import net.xmx.velthoric.physics.body.network.synchronization.packet.S2CSynchronizedDataBatchPacket;
 import net.xmx.velthoric.physics.body.type.VxBody;
 
 import java.util.Map;

@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.packet;
+package net.xmx.velthoric.physics.body.network.internal;
 
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;

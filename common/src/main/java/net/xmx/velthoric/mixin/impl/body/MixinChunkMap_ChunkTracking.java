@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
-import net.xmx.velthoric.physics.body.manager.VxNetworkDispatcher;
+import net.xmx.velthoric.physics.body.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

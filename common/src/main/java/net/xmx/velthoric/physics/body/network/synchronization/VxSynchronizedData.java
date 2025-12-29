@@ -2,16 +2,16 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.sync;
+package net.xmx.velthoric.physics.body.network.synchronization;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.body.sync.accessor.VxClientAccessor;
-import net.xmx.velthoric.physics.body.sync.accessor.VxDataAccessor;
-import net.xmx.velthoric.physics.body.sync.accessor.VxServerAccessor;
+import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxClientAccessor;
+import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxDataAccessor;
+import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxServerAccessor;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
