@@ -16,3 +16,17 @@ dependencies {
 loom {
     accessWidenerPath = file("src/main/resources/velthoric.accesswidener")
 }
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = base.archivesName.get()
+            from components.java
+
+            // Filters out development and shadow artifacts from the publication.
+            artifacts.removeAll { artifact ->
+                artifact.classifier in ['dev', 'shadow', 'dev-shadow']
+            }
+        }
+    }
+}

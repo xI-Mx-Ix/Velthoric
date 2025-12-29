@@ -129,3 +129,26 @@ publisher {
         required "architectury-api"
     }
 }
+
+// Configures the sourcesJar task to include source code from the common module
+// ensuring that the resulting sources jar contains the full codebase.
+tasks.named("sourcesJar") {
+    def commonSources = project(":common").sourceSets.main.allSource
+    from commonSources
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = base.archivesName.get()
+            from components.java
+
+            // Filters out development and shadow artifacts to reduce file size
+            // and ensure only the production jar is published.
+            artifacts.removeAll { artifact ->
+                artifact.classifier in ['dev', 'shadow', 'dev-shadow']
+            }
+        }
+    }
+}
