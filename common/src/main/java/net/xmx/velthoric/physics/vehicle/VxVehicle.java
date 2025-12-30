@@ -14,7 +14,7 @@ import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.bridge.mounting.VxMountable;
 import net.xmx.velthoric.bridge.mounting.input.VxMountInput;
 import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
-import net.xmx.velthoric.physics.body.manager.VxJoltBridge;
+import net.xmx.velthoric.physics.body.VxJoltBridge;
 import net.xmx.velthoric.physics.body.VxRemovalReason;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.network.synchronization.VxSynchronizedData;
