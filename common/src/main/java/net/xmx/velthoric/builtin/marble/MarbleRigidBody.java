@@ -10,7 +10,7 @@ import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.physics.world.VxLayers;
+import net.xmx.velthoric.physics.VxPhysicsLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.network.synchronization.VxDataSerializers;
@@ -67,7 +67,7 @@ public class MarbleRigidBody extends VxRigidBody {
                 BodyCreationSettings bcs = new BodyCreationSettings()
         ) {
             bcs.setMotionType(EMotionType.Dynamic);
-            bcs.setObjectLayer(VxLayers.DYNAMIC);
+            bcs.setObjectLayer(VxPhysicsLayers.MOVING);
             bcs.setRestitution(0.3f);
             bcs.setFriction(0.2f);
 

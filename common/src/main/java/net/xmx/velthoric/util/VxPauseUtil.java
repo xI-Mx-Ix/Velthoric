@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.world;
+package net.xmx.velthoric.util;
 
 /**
  * A utility class to hold the global physics pause state.

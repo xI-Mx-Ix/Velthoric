@@ -16,7 +16,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.physics.world.VxLayers;
+import net.xmx.velthoric.physics.VxPhysicsLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.network.synchronization.VxDataSerializers;
@@ -78,13 +78,13 @@ public class BlockRigidBody extends VxRigidBody {
                 try (var boxSettings = VxVoxelShapeUtil.toMutableCompoundShape(Blocks.STONE.defaultBlockState().getCollisionShape(this.physicsWorld.getLevel(), BlockPos.ZERO));
                      BodyCreationSettings bcs = new BodyCreationSettings()) {
                     bcs.setMotionType(EMotionType.Dynamic);
-                    bcs.setObjectLayer(VxLayers.DYNAMIC);
+                    bcs.setObjectLayer(VxPhysicsLayers.MOVING);
                     return factory.create(boxSettings, bcs);
                 }
             }
             try (BodyCreationSettings bcs = new BodyCreationSettings()) {
                 bcs.setMotionType(EMotionType.Dynamic);
-                bcs.setObjectLayer(VxLayers.DYNAMIC);
+                bcs.setObjectLayer(VxPhysicsLayers.MOVING);
                 return factory.create(shapeSettings, bcs);
             }
         }

@@ -9,7 +9,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.server.IntegratedServer;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.body.client.time.VxClientClock;
-import net.xmx.velthoric.physics.world.VxPauseUtil;
+import net.xmx.velthoric.util.VxPauseUtil;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

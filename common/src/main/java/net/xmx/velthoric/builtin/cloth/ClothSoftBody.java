@@ -10,7 +10,7 @@ import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.physics.world.VxLayers;
+import net.xmx.velthoric.physics.VxPhysicsLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.network.synchronization.VxDataSerializers;
@@ -116,7 +116,7 @@ public class ClothSoftBody extends VxSoftBody {
 
             sharedSettings.optimize();
             creationSettings.setSettings(sharedSettings);
-            creationSettings.setObjectLayer(VxLayers.DYNAMIC);
+            creationSettings.setObjectLayer(VxPhysicsLayers.MOVING);
             creationSettings.setVertexRadius(0.02f);
             return factory.create(sharedSettings, creationSettings);
         }

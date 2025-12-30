@@ -9,8 +9,8 @@ import com.github.stephengold.joltjni.Jolt;
 import com.github.stephengold.joltjni.JoltPhysicsObject;
 import com.github.stephengold.joltjni.ObjectLayerPairFilter;
 import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilter;
+import net.xmx.velthoric.physics.VxPhysicsLayers;
 import net.xmx.vxnative.UnsupportedOperatingSystemException;
-import net.xmx.velthoric.physics.world.VxLayers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +57,7 @@ public class VxNativeJolt {
             throw new IllegalStateException("Jolt Factory could not be created.");
         }
         Jolt.registerTypes();
-        VxLayers.initialize(); // Assuming VxLayers is another class for layer setup.
+        VxPhysicsLayers.initialize(); // Assuming VxPhysicsLayers is another class for layer setup.
 
         isInitialized = true;
         LOGGER.debug("JoltJNI native library loaded and initialized successfully via Velthoric loader.");
@@ -72,7 +72,7 @@ public class VxNativeJolt {
             return;
         }
         LOGGER.debug("Performing JoltJNI shutdown...");
-        VxLayers.shutdown();
+        VxPhysicsLayers.shutdown();
         Jolt.destroyFactory();
         isInitialized = false;
         LOGGER.debug("JoltJNI shutdown complete.");
@@ -93,7 +93,7 @@ public class VxNativeJolt {
      * @return The singleton instance of BroadPhaseLayerInterface.
      */
     public static BroadPhaseLayerInterface getBroadPhaseLayerInterface() {
-        return VxLayers.getBroadPhaseLayerInterface();
+        return VxPhysicsLayers.getBroadPhaseLayerInterface();
     }
 
     /**
@@ -102,7 +102,7 @@ public class VxNativeJolt {
      * @return The singleton instance of ObjectVsBroadPhaseLayerFilter.
      */
     public static ObjectVsBroadPhaseLayerFilter getObjectVsBroadPhaseLayerFilter() {
-        return VxLayers.getObjectVsBroadPhaseLayerFilter();
+        return VxPhysicsLayers.getObjectVsBroadPhaseLayerFilter();
     }
 
     /**
@@ -111,6 +111,6 @@ public class VxNativeJolt {
      * @return The singleton instance of ObjectLayerPairFilter.
      */
     public static ObjectLayerPairFilter getObjectLayerPairFilter() {
-        return VxLayers.getObjectLayerPairFilter();
+        return VxPhysicsLayers.getObjectLayerPairFilter();
     }
 }

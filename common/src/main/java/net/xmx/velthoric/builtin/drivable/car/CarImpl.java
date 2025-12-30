@@ -22,7 +22,7 @@ import net.xmx.velthoric.physics.vehicle.part.VxPart;
 import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleSeat;
 import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleWheel;
 import net.xmx.velthoric.physics.vehicle.type.VxCar;
-import net.xmx.velthoric.physics.world.VxLayers;
+import net.xmx.velthoric.physics.VxPhysicsLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
@@ -131,7 +131,7 @@ public class CarImpl extends VxCar {
 
     @Override
     protected VehicleCollisionTester createCollisionTester() {
-        return new VehicleCollisionTesterCastCylinder(VxLayers.DYNAMIC);
+        return new VehicleCollisionTesterCastCylinder(VxPhysicsLayers.MOVING);
     }
 
     @Override
@@ -148,7 +148,7 @@ public class CarImpl extends VxCar {
             ) {
                 bcs.setShapeSettings(finalShapeSettings);
                 bcs.setMotionType(EMotionType.Dynamic);
-                bcs.setObjectLayer(VxLayers.DYNAMIC);
+                bcs.setObjectLayer(VxPhysicsLayers.MOVING);
                 bcs.setMotionQuality(EMotionQuality.LinearCast);
 
                 // Critical for stability at high speeds
