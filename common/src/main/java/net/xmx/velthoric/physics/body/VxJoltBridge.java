@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.manager;
+package net.xmx.velthoric.physics.body;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
@@ -10,7 +10,8 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.body.VxRemovalReason;
+import net.xmx.velthoric.physics.body.manager.VxBodyManager;
+import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;

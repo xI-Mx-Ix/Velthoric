@@ -17,7 +17,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
-import net.xmx.velthoric.physics.body.manager.chunk.VxChunkUtil;
+import net.xmx.velthoric.physics.body.util.VxChunkUtil;
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CRemoveBodyBatchPacket;
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CSpawnBodyBatchPacket;
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateBodyStateBatchPacket;

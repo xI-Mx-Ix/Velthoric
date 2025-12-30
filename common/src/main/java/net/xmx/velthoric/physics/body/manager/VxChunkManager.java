@@ -2,13 +2,11 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.manager.chunk;
+package net.xmx.velthoric.physics.body.manager;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.world.level.ChunkPos;
-import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
-import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.physics.body.type.VxBody;
 

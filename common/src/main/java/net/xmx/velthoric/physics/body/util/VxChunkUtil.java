@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.body.manager.chunk;
+package net.xmx.velthoric.physics.body.util;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
