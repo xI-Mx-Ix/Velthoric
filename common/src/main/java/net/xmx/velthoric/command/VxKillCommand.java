@@ -10,7 +10,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.xmx.velthoric.command.argument.VxBodyArgument;
 import net.xmx.velthoric.physics.body.type.VxBody;
-import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
+import net.xmx.velthoric.physics.body.VxRemovalReason;
 
 import java.util.List;
 

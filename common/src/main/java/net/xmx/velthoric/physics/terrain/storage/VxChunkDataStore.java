@@ -5,7 +5,7 @@
 package net.xmx.velthoric.physics.terrain.storage;
 
 import com.github.stephengold.joltjni.ShapeRefC;
-import net.xmx.velthoric.physics.body.AbstractDataStore;
+import net.xmx.velthoric.physics.AbstractDataStore;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
 import net.xmx.velthoric.physics.terrain.management.VxTerrainManager;
 import org.jetbrains.annotations.Nullable;

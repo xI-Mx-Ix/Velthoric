@@ -7,7 +7,7 @@ package net.xmx.velthoric.physics.body.manager.chunk;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.world.level.ChunkPos;
-import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
+import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.physics.body.type.VxBody;
@@ -26,7 +26,7 @@ import java.util.List;
 public class VxChunkManager {
 
     private final VxBodyManager bodyManager;
-    private final VxBodyDataStore dataStore;
+    private final VxServerBodyDataStore dataStore;
     private final VxNetworkDispatcher networkDispatcher;
 
     /**

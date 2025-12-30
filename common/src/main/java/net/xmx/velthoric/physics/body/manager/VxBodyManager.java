@@ -16,6 +16,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
+import net.xmx.velthoric.physics.body.VxRemovalReason;
 import net.xmx.velthoric.physics.body.manager.chunk.VxChunkManager;
 import net.xmx.velthoric.physics.body.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.physics.body.persistence.VxBodyStorage;
@@ -41,7 +42,7 @@ import java.util.function.Consumer;
  * This class serves as the central orchestration point for the physics simulation. Its responsibilities include:
  * <ul>
  *     <li><b>Lifecycle Management:</b> Creating, activating, deactivating, and destroying physics bodies.</li>
- *     <li><b>Data Storage:</b> Managing the {@link VxBodyDataStore}, which uses a Structure-of-Arrays (SoA) layout for CPU-cache-efficient access to physics data.</li>
+ *     <li><b>Data Storage:</b> Managing the {@link VxServerBodyDataStore}, which uses a Structure-of-Arrays (SoA) layout for CPU-cache-efficient access to physics data.</li>
  *     <li><b>Jolt Integration:</b> Bridging the gap between high-level Java objects and the native Jolt Physics engine via {@link VxJoltBridge}.</li>
  *     <li><b>Spatial Partitioning:</b> Delegating chunk-based tracking to the {@link VxChunkManager}.</li>
  *     <li><b>Persistence:</b> coordinating with {@link VxBodyStorage} to save and load body states to disk.</li>
@@ -54,7 +55,7 @@ public class VxBodyManager {
 
     private final VxPhysicsWorld world;
     private final VxBodyStorage bodyStorage;
-    private final VxBodyDataStore dataStore;
+    private final VxServerBodyDataStore dataStore;
     private final VxPhysicsUpdater physicsUpdater;
     private final VxNetworkDispatcher networkDispatcher;
     private final VxServerSyncManager serverSyncManager;
@@ -90,7 +91,7 @@ public class VxBodyManager {
      */
     public VxBodyManager(VxPhysicsWorld world) {
         this.world = world;
-        this.dataStore = new VxBodyDataStore();
+        this.dataStore = new VxServerBodyDataStore();
         this.bodyStorage = new VxBodyStorage(world.getLevel(), this);
         this.physicsUpdater = new VxPhysicsUpdater(this);
         this.networkDispatcher = new VxNetworkDispatcher(world.getLevel(), this);
@@ -232,7 +233,7 @@ public class VxBodyManager {
     /**
      * Finalizes the creation of a body by adding it to the internal systems and the Jolt engine.
      * <p>
-     * This method syncs the {@link VxBodyDataStore} with the initial transform and velocity,
+     * This method syncs the {@link VxServerBodyDataStore} with the initial transform and velocity,
      * triggers network dispatch, and performs the native Jolt body creation.
      *
      * @param body       The body instance to add.
@@ -390,7 +391,7 @@ public class VxBodyManager {
     }
 
     /**
-     * Registers a body with the internal maps and allocates a slot in the {@link VxBodyDataStore}.
+     * Registers a body with the internal maps and allocates a slot in the {@link VxServerBodyDataStore}.
      * This is the common initialization step for both fresh creations and serialized loads.
      *
      * @param body The body to register.
@@ -478,7 +479,7 @@ public class VxBodyManager {
     /**
      * Populates the provided transform object with the current position and rotation of a body.
      *
-     * @param dataStoreIndex The index of the body in the {@link VxBodyDataStore}.
+     * @param dataStoreIndex The index of the body in the {@link VxServerBodyDataStore}.
      * @param out            The transform object to populate.
      */
     public void getTransform(int dataStoreIndex, VxTransform out) {
@@ -529,7 +530,7 @@ public class VxBodyManager {
     /**
      * Retrieves the current vertex positions for a soft body.
      * <p>
-     * This method prioritizes the cached data in {@link VxBodyDataStore} for performance (avoiding JNI calls).
+     * This method prioritizes the cached data in {@link VxServerBodyDataStore} for performance (avoiding JNI calls).
      * If the cache is empty (e.g., first frame), it falls back to querying Jolt directly.
      *
      * @param body The soft body to retrieve vertices for.
@@ -635,7 +636,7 @@ public class VxBodyManager {
         return world;
     }
 
-    public VxBodyDataStore getDataStore() {
+    public VxServerBodyDataStore getDataStore() {
         return dataStore;
     }
 
