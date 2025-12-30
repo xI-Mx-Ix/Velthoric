@@ -14,6 +14,7 @@ import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.util.List;
 import java.util.UUID;
@@ -48,7 +49,7 @@ public class VxF3ScreenAddition {
 
 
     private static void addClientInfo(List<String> left) {
-        VxClientBodyManager clientManager = VxClientBodyManager.getInstance();
+        VxClientBodyManager clientManager = VxClientPhysicsWorld.getInstance().getBodyManager();
         VxClientBodyDataStore store = clientManager.getStore();
 
         long clientRigidCount = 0;

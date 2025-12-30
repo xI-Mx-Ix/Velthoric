@@ -16,6 +16,7 @@ import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.part.VxPart;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -79,7 +80,7 @@ public abstract class MixinMinecraft_VehicleInteraction {
         Vec3 viewVec = this.player.getViewVector(partialTicks);
         Vec3 endVec = cameraPos.add(viewVec.x * maxDist, viewVec.y * maxDist, viewVec.z * maxDist);
 
-        VxClientBodyManager bodyManager = VxClientBodyManager.getInstance();
+        VxClientBodyManager bodyManager = VxClientPhysicsWorld.getInstance().getBodyManager();
 
         VxPart closestPart = null;
         double closestDistSq = Double.MAX_VALUE;

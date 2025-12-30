@@ -10,6 +10,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.io.IOException;
 import java.util.List;
@@ -93,7 +94,7 @@ public class S2CRemoveBodyBatchPacket {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
             // Executed on the client thread.
-            VxClientBodyManager manager = VxClientBodyManager.getInstance();
+            VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
             for (int networkId : msg.networkIds) {
                 manager.removeBody(networkId);
             }

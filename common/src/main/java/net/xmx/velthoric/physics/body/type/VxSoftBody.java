@@ -13,6 +13,7 @@ import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.type.factory.VxSoftBodyFactory;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
@@ -102,7 +103,7 @@ public abstract class VxSoftBody extends VxBody {
     @Override
     @Environment(EnvType.CLIENT)
     public void calculateRenderState(float partialTicks, VxRenderState outState, RVec3 tempPos, Quat tempRot) {
-        VxClientBodyManager manager = VxClientBodyManager.getInstance();
+        VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
         // Calculate the base interpolated transform (position and rotation).
         manager.getInterpolator().interpolateFrame(manager.getStore(), this.getDataStoreIndex(), partialTicks, tempPos, tempRot);
         outState.transform.getTranslation().set(tempPos);

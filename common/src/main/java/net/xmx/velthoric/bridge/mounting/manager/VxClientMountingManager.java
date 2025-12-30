@@ -4,7 +4,6 @@
  */
 package net.xmx.velthoric.bridge.mounting.manager;
 
-import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
 
 import java.util.*;
@@ -17,21 +16,12 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author xI-Mx-Ix
  */
-public enum VxClientMountingManager {
-    INSTANCE;
-
+public class VxClientMountingManager {
     /**
      * Maps a physics body's UUID to a map of its seats, indexed by each seat's UUID.
      * This nested map structure allows for O(1) lookup of a specific seat.
      */
     private final Map<UUID, Map<UUID, VxSeat>> bodyToSeatsMap = new ConcurrentHashMap<>();
-
-    /**
-     * Registers the necessary client-side event listeners for this manager.
-     */
-    public static void registerEvents() {
-        VxClientPlayerNetworkEvent.LoggingOut.EVENT.register(event -> INSTANCE.clearAll());
-    }
 
     /**
      * Adds a seat to a physics body on the client side.

@@ -10,6 +10,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.io.IOException;
 import java.util.Map;
@@ -99,7 +100,7 @@ public class S2CSynchronizedDataBatchPacket {
     public static void handle(S2CSynchronizedDataBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            VxClientBodyManager manager = VxClientBodyManager.getInstance();
+            VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
             for (Map.Entry<Integer, byte[]> entry : msg.dataUpdates.entrySet()) {
                 manager.updateSynchronizedData(entry.getKey(), Unpooled.wrappedBuffer(entry.getValue()));
             }

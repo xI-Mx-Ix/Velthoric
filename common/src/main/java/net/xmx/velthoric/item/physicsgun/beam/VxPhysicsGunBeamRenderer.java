@@ -23,6 +23,7 @@ import net.xmx.velthoric.physics.body.client.VxClientBodyInterpolator;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 import org.joml.Matrix4f;
 
 import java.util.Map;
@@ -63,7 +64,7 @@ public class VxPhysicsGunBeamRenderer {
         float partialTicks = event.getPartialTick();
 
         VxPhysicsGunClientManager clientManager = VxPhysicsGunClientManager.getInstance();
-        VxClientBodyManager bodyManager = VxClientBodyManager.getInstance();
+        VxClientBodyManager bodyManager = VxClientPhysicsWorld.getInstance().getBodyManager();
         VxClientBodyDataStore store = bodyManager.getStore();
         VxClientBodyInterpolator interpolator = bodyManager.getInterpolator();
 

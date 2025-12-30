@@ -15,9 +15,7 @@ import net.fabricmc.api.Environment;
  * @author xI-Mx-Ix
  */
 @Environment(EnvType.CLIENT)
-public enum VxClientClock {
-    INSTANCE;
-
+public class VxClientClock {
     // Flag indicating if the clock is currently paused. Volatile for thread safety.
     private volatile boolean isPaused = false;
     // The timestamp (from System.nanoTime()) when the clock was last paused.

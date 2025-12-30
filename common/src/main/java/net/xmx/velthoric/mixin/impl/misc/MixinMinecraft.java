@@ -9,6 +9,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.server.IntegratedServer;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.body.client.time.VxClientClock;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 import net.xmx.velthoric.util.VxPauseUtil;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -42,7 +43,7 @@ public abstract class MixinMinecraft {
     @Inject(method = "runTick", at = @At("HEAD"))
     private void velthoric$onRunTick(boolean renderLevel, CallbackInfo ci) {
         Minecraft mc = (Minecraft) (Object) this;
-        VxClientClock clientClock = VxClientClock.INSTANCE;
+        VxClientClock clientClock = VxClientPhysicsWorld.getInstance().getClock();
 
         boolean isGamePausable = this.singleplayerServer != null && !this.singleplayerServer.isPublished();
 
@@ -83,7 +84,7 @@ public abstract class MixinMinecraft {
         if (velthoric$wasPaused) {
             velthoric$wasPaused = false;
             VxPauseUtil.setPaused(false);
-            VxClientClock.INSTANCE.resume(); // Ensure clock is not left in a paused state
+            VxClientPhysicsWorld.getInstance().getClock().resume(); // Ensure clock is not left in a paused state
         }
     }
 }

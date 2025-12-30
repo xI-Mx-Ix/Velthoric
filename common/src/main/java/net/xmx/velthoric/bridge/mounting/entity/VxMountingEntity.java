@@ -16,8 +16,8 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.bridge.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.bridge.mounting.manager.VxMountingManager;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
@@ -235,7 +235,7 @@ public class VxMountingEntity extends Entity {
         if (level().isClientSide()) {
             return getPhysicsId().flatMap(objId ->
                     getSeatId().flatMap(seatId ->
-                            VxClientMountingManager.INSTANCE.getSeat(objId, seatId)
+                            VxClientPhysicsWorld.getInstance().getMountingManager().getSeat(objId, seatId)
                     )
             ).map(seat -> new Vector3f(seat.getRiderOffset())).orElse(new Vector3f());
         } else {

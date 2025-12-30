@@ -4,84 +4,85 @@
  */
 package net.xmx.velthoric.physics.body.client;
 
-import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
-import dev.architectury.event.events.client.ClientTickEvent;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.event.api.VxClientLevelEvent;
-import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
+import net.xmx.velthoric.bridge.mounting.VxMountable;
+import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.body.network.synchronization.manager.VxClientSyncManager;
-import net.xmx.velthoric.bridge.mounting.VxMountable;
-import net.xmx.velthoric.bridge.mounting.manager.VxClientMountingManager;
-import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
-import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.client.time.VxClientClock;
+import net.xmx.velthoric.physics.body.network.synchronization.manager.VxClientSyncManager;
 import net.xmx.velthoric.physics.body.registry.VxBodyRegistry;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.type.VxBody;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The main singleton manager for all client-side physics bodies.
+ * The main manager for all client-side physics bodies.
+ * <p>
  * This class is responsible for:
- * - Storing and managing the state of all physics bodies known to the client.
- * - Processing incoming state update packets from the server.
- * - Synchronizing the client-side clock with the server's clock.
- * - Triggering the interpolation of body states for smooth rendering.
- * - Handling the spawning and removal of bodies via {@link VxBody} handles.
+ * <ul>
+ *     <li>Storing and managing the state of all physics bodies known to the client.</li>
+ *     <li>Processing incoming state update packets from the server.</li>
+ *     <li>Synchronizing the client-side clock with the server's clock.</li>
+ *     <li>Triggering the interpolation of body states for smooth rendering.</li>
+ *     <li>Handling the spawning and removal of bodies via {@link VxBody} handles.</li>
+ * </ul>
  *
  * @author xI-Mx-Ix
  */
 public class VxClientBodyManager {
-    // The singleton instance of the manager.
-    private static final VxClientBodyManager INSTANCE = new VxClientBodyManager();
+
+    // The parent physics world context that owns this manager.
+    private final VxClientPhysicsWorld world;
 
     // The delay applied to rendering to allow for interpolation. A larger value
     // can smooth over more network jitter but increases perceived latency.
-    // Value is in nanoseconds.
+    // Value is in nanoseconds (150ms).
     private static final long INTERPOLATION_DELAY_NANOS = 150_000_000L;
 
     // The data store holding all body states in a Structure of Arrays format.
     private final VxClientBodyDataStore store = new VxClientBodyDataStore();
-    // The interpolator responsible for calculating smooth body transforms.
+
+    // The interpolator responsible for calculating smooth body transforms based on history buffers.
     private final VxClientBodyInterpolator interpolator = new VxClientBodyInterpolator();
-    // The client-side clock, which can be paused.
-    private final VxClientClock clock = VxClientClock.INSTANCE;
-    // The manager responsible for synchronizing client-authoritative data.
+
+    // The manager responsible for synchronizing client-authoritative data (C2S).
     private final VxClientSyncManager syncManager;
 
     // Map of all active client-side physics body handles, keyed by their persistent UUID.
     private final Map<UUID, VxBody> managedBodies = new ConcurrentHashMap<>();
 
     // The calculated time offset between the client and server clocks.
+    // Client Render Time = Client Game Time + Offset - Interpolation Delay.
     private long clockOffsetNanos = 0L;
+
     // Flag indicating if the initial clock synchronization has completed.
     private boolean isClockOffsetInitialized = false;
+
     // A list of recent clock offset samples used for calculating an average.
     private final List<Long> clockOffsetSamples = new ArrayList<>();
 
-    // Private constructor to enforce singleton pattern.
-    private VxClientBodyManager() {
+    /**
+     * Constructs the client body manager.
+     *
+     * @param world The parent client physics world.
+     */
+    public VxClientBodyManager(VxClientPhysicsWorld world) {
+        this.world = world;
         this.syncManager = new VxClientSyncManager(this);
     }
 
     /**
-     * @return The singleton instance of the {@link VxClientBodyManager}.
-     */
-    public static VxClientBodyManager getInstance() {
-        return INSTANCE;
-    }
-
-    /**
      * Adds a sample to be used for server-client clock synchronization.
-     * This is called from packet handlers.
+     * This is typically called from packet handlers when a timestamped packet is received.
+     *
      * @param offsetSample The calculated time offset for a single packet.
      */
     public void addClockSyncSample(long offsetSample) {
@@ -92,11 +93,11 @@ public class VxClientBodyManager {
 
     /**
      * Synchronizes the client clock with the server clock using collected samples.
-     * It uses a trimmed mean to discard outliers caused by network spikes.
+     * It uses a trimmed mean to discard outliers caused by network spikes (jitter).
      */
     private void synchronizeClock() {
         synchronized (clockOffsetSamples) {
-            // Wait for a sufficient number of samples before calculating.
+            // Wait for a sufficient number of samples before calculating to ensure stability.
             if (clockOffsetSamples.size() < 20) {
                 return;
             }
@@ -120,11 +121,12 @@ public class VxClientBodyManager {
             long averageOffset = sum / trimmedSamples.size();
             clockOffsetSamples.clear();
 
-            // Smoothly adjust the clock offset to the new average.
+            // Smoothly adjust the clock offset to the new average to prevents visible snapping.
             if (!isClockOffsetInitialized) {
                 this.clockOffsetNanos = averageOffset;
                 this.isClockOffsetInitialized = true;
             } else {
+                // Apply a low-pass filter (5% weight to new value)
                 this.clockOffsetNanos = (long) (this.clockOffsetNanos * 0.95 + averageOffset * 0.05);
             }
         }
@@ -140,6 +142,7 @@ public class VxClientBodyManager {
      * @param timestamp   The server-side timestamp of the spawn event.
      */
     public void spawnBody(UUID id, int networkId, ResourceLocation typeId, VxByteBuf data, long timestamp) {
+        // Prevent duplicate spawning logic
         if (store.hasBody(id)) {
             VxMainClass.LOGGER.warn("Client received spawn request for already existing body: {}", id);
             return;
@@ -153,6 +156,7 @@ public class VxClientBodyManager {
             return;
         }
 
+        // Create the body instance via the registry factory
         VxBody body = registry.createClientBody(type, id);
 
         if (body == null) {
@@ -160,84 +164,88 @@ public class VxClientBodyManager {
             return;
         }
 
-        // If the body is mountable, register its seats on the client.
+        // If the body is mountable, register its seats on the client via the MountingManager.
         if (body instanceof VxMountable mountable) {
             VxSeat.Builder seatBuilder = new VxSeat.Builder();
             mountable.defineSeats(seatBuilder);
             List<VxSeat> seats = seatBuilder.build();
 
             for (VxSeat seat : seats) {
-                VxClientMountingManager.INSTANCE.addSeat(id, seat);
+                world.getMountingManager().addSeat(id, seat);
             }
         }
 
+        // Register in SoA DataStore
         int index = store.addBody(id, networkId);
         body.setDataStoreIndex(index);
         managedBodies.put(id, body);
 
+        // Deserialize initial transform
         VxTransform transform = new VxTransform();
         transform.fromBuffer(data);
 
-        // Read synchronized data entries
+        // Read synchronized data entries (custom user data)
         body.getSynchronizedData().readEntries(data, body);
 
+        // Initialize interpolation buffers
         initializeState(index, transform, timestamp);
 
-        // Notify the body that it has been added to the client.
-        body.onBodyAdded(Minecraft.getInstance().level);
+        // Notify the body that it has been added to the client level.
+        if (world.getLevel() != null) {
+            body.onBodyAdded(world.getLevel());
+        }
     }
 
     /**
      * Initializes the state buffers for a newly spawned body.
-     * Both state0 and state1 are set to the initial spawn state to prevent interpolation from zero.
+     * Both state0 (old), state1 (new), prev (frame history), and render (current)
+     * are set to the initial spawn state to prevent interpolating from (0,0,0).
      *
-     * @param index The data store index of the body.
+     * @param index     The data store index of the body.
      * @param transform The initial transform.
      * @param timestamp The spawn timestamp.
      */
     private void initializeState(int index, VxTransform transform, long timestamp) {
-        RVec3 pos = transform.getTranslation();
-        Quat rot = transform.getRotation();
+        // Extract values
+        double x = transform.getTranslation().x();
+        double y = transform.getTranslation().y();
+        double z = transform.getTranslation().z();
+        float rx = transform.getRotation().getX();
+        float ry = transform.getRotation().getY();
+        float rz = transform.getRotation().getZ();
+        float rw = transform.getRotation().getW();
 
-        // Initialize history buffers (State 0 and State 1)
+        // Initialize timestamps
         store.state0_timestamp[index] = timestamp;
         store.state1_timestamp[index] = timestamp;
 
-        store.state0_posX[index] = store.state1_posX[index] = pos.x();
-        store.state0_posY[index] = store.state1_posY[index] = pos.y();
-        store.state0_posZ[index] = store.state1_posZ[index] = pos.z();
+        // Mark as active
+        store.state0_isActive[index] = true;
+        store.state1_isActive[index] = true;
 
-        store.state0_rotX[index] = store.state1_rotX[index] = rot.getX();
-        store.state0_rotY[index] = store.state1_rotY[index] = rot.getY();
-        store.state0_rotZ[index] = store.state1_rotZ[index] = rot.getZ();
-        store.state0_rotW[index] = store.state1_rotW[index] = rot.getW();
+        // Initialize Position Buffers (State 0, State 1, Render, Previous Frame)
+        store.state0_posX[index] = store.state1_posX[index] = store.posX[index] = store.prev_posX[index] = x;
+        store.state0_posY[index] = store.state1_posY[index] = store.posY[index] = store.prev_posY[index] = y;
+        store.state0_posZ[index] = store.state1_posZ[index] = store.posZ[index] = store.prev_posZ[index] = z;
 
-        store.state0_isActive[index] = store.state1_isActive[index] = true;
+        // Initialize Rotation Buffers
+        store.state0_rotX[index] = store.state1_rotX[index] = store.rotX[index] = store.prev_rotX[index] = rx;
+        store.state0_rotY[index] = store.state1_rotY[index] = store.rotY[index] = store.prev_rotY[index] = ry;
+        store.state0_rotZ[index] = store.state1_rotZ[index] = store.rotZ[index] = store.prev_rotZ[index] = rz;
+        store.state0_rotW[index] = store.state1_rotW[index] = store.rotW[index] = store.prev_rotW[index] = rw;
 
-        // Initialize current Render State (Base Arrays)
-        store.posX[index] = pos.x();
-        store.posY[index] = pos.y();
-        store.posZ[index] = pos.z();
-        store.rotX[index] = rot.getX();
-        store.rotY[index] = rot.getY();
-        store.rotZ[index] = rot.getZ();
-        store.rotW[index] = rot.getW();
+        // Reset Velocities
+        store.state0_velX[index] = store.state0_velY[index] = store.state0_velZ[index] = 0f;
+        store.state1_velX[index] = store.state1_velY[index] = store.state1_velZ[index] = 0f;
 
-        // Initialize Previous Frame State (for frame-time interpolation)
-        store.prev_posX[index] = pos.x();
-        store.prev_posY[index] = pos.y();
-        store.prev_posZ[index] = pos.z();
-        store.prev_rotX[index] = rot.getX();
-        store.prev_rotY[index] = rot.getY();
-        store.prev_rotZ[index] = rot.getZ();
-        store.prev_rotW[index] = rot.getW();
-
-        store.render_isInitialized[index] = true;
-
+        // Initialize Last Known Position (for Frustum Culling or Logic)
         if (store.lastKnownPosition[index] == null) {
             store.lastKnownPosition[index] = new RVec3();
         }
-        store.lastKnownPosition[index].set(pos);
+        store.lastKnownPosition[index].set(x, y, z);
+
+        // Mark render state as initialized
+        store.render_isInitialized[index] = true;
     }
 
     /**
@@ -256,12 +264,15 @@ public class VxClientBodyManager {
                     // Notify sync manager to stop tracking dirtiness for this body
                     syncManager.onBodyRemoved(body);
 
-                    // Notify the body that it has been removed from the client.
-                    body.onBodyRemoved(Minecraft.getInstance().level);
+                    // Notify the body that it has been removed from the client level.
+                    if (world.getLevel() != null) {
+                        body.onBodyRemoved(world.getLevel());
+                    }
                 }
 
                 managedBodies.remove(id);
-                VxClientMountingManager.INSTANCE.removeSeatsForBody(id);
+                // Remove seats via the instance-based manager
+                world.getMountingManager().removeSeatsForBody(id);
             }
         }
         store.removeBodyByNetworkId(networkId);
@@ -269,7 +280,7 @@ public class VxClientBodyManager {
 
     /**
      * Marks a body as having modified CLIENT-authoritative data that needs
-     * to be sent to the server.
+     * to be sent to the server (e.g., custom sync data).
      *
      * @param body The body that changed.
      */
@@ -279,6 +290,7 @@ public class VxClientBodyManager {
 
     /**
      * Delegates handling of server-sent synchronized data updates to the SyncManager.
+     * This handles updates to custom SyncedDataEntries.
      *
      * @param networkId The network ID of the body.
      * @param data      The buffer containing the data.
@@ -288,7 +300,8 @@ public class VxClientBodyManager {
     }
 
     /**
-     * Clears all client-side physics data. Called on disconnect.
+     * Clears all client-side physics data.
+     * Called when the client world is unloaded or the player disconnects.
      */
     public void clearAll() {
         store.clear();
@@ -306,29 +319,25 @@ public class VxClientBodyManager {
      * Synchronizes the clock, runs body callbacks, and triggers interpolation.
      */
     public void clientTick() {
-        // Tick all active client bodies
+        // Tick all active client bodies (e.g. for client-side particles or logic)
         for (VxBody body : managedBodies.values()) {
             body.onClientTick();
         }
 
-        // Process synchronization tasks (sending C2S updates)
+        // Process synchronization tasks (sending C2S updates for dirty bodies)
         syncManager.tick();
 
+        // Calculate and smooth clock offset
         synchronizeClock();
+
         if (isClockOffsetInitialized) {
-            // Calculate the target render time, accounting for the clock offset and interpolation delay.
-            long renderTimestamp = clock.getGameTimeNanos() + this.clockOffsetNanos - INTERPOLATION_DELAY_NANOS;
+            // Calculate the target render time based on the synced clock.
+            // Formula: GameTime + ClockOffset - InterpolationDelay
+            long renderTimestamp = world.getClock().getGameTimeNanos() + this.clockOffsetNanos - INTERPOLATION_DELAY_NANOS;
+
+            // Perform interpolation for all bodies in the store
             interpolator.updateInterpolationTargets(store, renderTimestamp);
         }
-    }
-
-    /**
-     * Registers the necessary client-side event listeners.
-     */
-    public static void registerEvents() {
-        ClientTickEvent.CLIENT_PRE.register(client -> INSTANCE.clientTick());
-        VxClientPlayerNetworkEvent.LoggingOut.EVENT.register(event -> INSTANCE.clearAll());
-        VxClientLevelEvent.Load.EVENT.register(event -> INSTANCE.clearAll());
     }
 
     /**
@@ -355,10 +364,10 @@ public class VxClientBodyManager {
     }
 
     /**
-     * @return The client-side clock.
+     * @return The client-side clock from the parent world.
      */
     public VxClientClock getClock() {
-        return clock;
+        return world.getClock();
     }
 
     /**
