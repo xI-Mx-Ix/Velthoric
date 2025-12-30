@@ -24,7 +24,7 @@ import java.util.UUID;
 
 /**
  * Responsible for the bi-directional synchronization between the game state
- * (in VxBodyDataStore) and the Jolt physics simulation state.
+ * (in VxServerBodyDataStore) and the Jolt physics simulation state.
  * This class is designed to be highly performant and GC-friendly by avoiding
  * allocations in its hot-path update loops. It follows a clear two-phase update:
  * 1. Pre-Sync: Pushes game state changes into Jolt.
@@ -35,7 +35,7 @@ import java.util.UUID;
 public class VxPhysicsUpdater {
 
     private final VxBodyManager manager;
-    private final VxBodyDataStore dataStore;
+    private final VxServerBodyDataStore dataStore;
 
     // Thread-local temporary objects to avoid GC pressure in the update loop.
     private final ThreadLocal<RVec3> tempPos = ThreadLocal.withInitial(RVec3::new);

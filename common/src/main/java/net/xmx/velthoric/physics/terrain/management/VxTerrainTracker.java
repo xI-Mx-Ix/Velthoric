@@ -6,7 +6,7 @@ package net.xmx.velthoric.physics.terrain.management;
 
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
-import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
+import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
 import net.xmx.velthoric.physics.terrain.storage.VxChunkDataStore;
@@ -30,7 +30,7 @@ public final class VxTerrainTracker {
     private final VxTerrainManager terrainManager;
     private final VxChunkDataStore chunkDataStore;
     private final ServerLevel level;
-    private final VxBodyDataStore bodyDataStore;
+    private final VxServerBodyDataStore bodyDataStore;
 
     private Set<VxSectionPos> previouslyRequiredChunks = new HashSet<>();
 

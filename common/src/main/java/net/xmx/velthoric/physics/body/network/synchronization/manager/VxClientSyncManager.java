@@ -75,7 +75,7 @@ public class VxClientSyncManager {
         Integer index = bodyManager.getStore().getIndexForNetworkId(networkId);
         if (index == null) return;
 
-        UUID id = bodyManager.getStore().getUuidForIndex(index);
+        UUID id = bodyManager.getStore().getIdForIndex(index);
         if (id == null) return;
 
         VxBody body = bodyManager.getBody(id);

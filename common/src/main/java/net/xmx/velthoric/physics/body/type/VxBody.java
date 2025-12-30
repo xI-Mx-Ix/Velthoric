@@ -15,11 +15,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
+import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
-import net.xmx.velthoric.physics.body.manager.VxRemovalReason;
+import net.xmx.velthoric.physics.body.VxRemovalReason;
 import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxClientAccessor;
 import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxDataAccessor;
 import net.xmx.velthoric.physics.body.network.synchronization.VxSynchronizedData;
@@ -284,7 +284,7 @@ public abstract class VxBody {
         if (this.physicsWorld == null || this.dataStoreIndex == -1) {
             return;
         }
-        VxBodyDataStore store = this.physicsWorld.getBodyManager().getDataStore();
+        VxServerBodyDataStore store = this.physicsWorld.getBodyManager().getDataStore();
         int idx = this.dataStoreIndex;
 
         // Write Position (as double for precision storage)
@@ -345,7 +345,7 @@ public abstract class VxBody {
 
         // Apply read values to the current data store if connected, or hold them for initialization
         if (this.physicsWorld != null && this.dataStoreIndex != -1) {
-            VxBodyDataStore store = this.physicsWorld.getBodyManager().getDataStore();
+            VxServerBodyDataStore store = this.physicsWorld.getBodyManager().getDataStore();
             int idx = this.dataStoreIndex;
 
             // Store directly as doubles to preserve precision from persistence

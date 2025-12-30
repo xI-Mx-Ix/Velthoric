@@ -10,7 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.material.FluidState;
-import net.xmx.velthoric.physics.body.manager.VxBodyDataStore;
+import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.buoyancy.VxBuoyancyDataStore;
 import net.xmx.velthoric.physics.buoyancy.VxFluidType;
@@ -55,7 +55,7 @@ public final class VxBuoyancyBroadPhase {
      * @param dataStore The data store to be populated with potential fluid contacts.
      */
     public void findPotentialFluidContacts(VxBuoyancyDataStore dataStore) {
-        VxBodyDataStore ds = physicsWorld.getBodyManager().getDataStore();
+        VxServerBodyDataStore ds = physicsWorld.getBodyManager().getDataStore();
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
         for (int i = 0; i < ds.getCapacity(); ++i) {

@@ -10,6 +10,7 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.physics.body.VxRemovalReason;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
@@ -110,7 +111,7 @@ public enum VxJoltBridge {
     public void createAndAddJoltRigidBody(VxRigidBody body, VxBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation, EMotionType motionType) {
         try {
             VxPhysicsWorld world = manager.getPhysicsWorld();
-            VxBodyDataStore dataStore = manager.getDataStore();
+            VxServerBodyDataStore dataStore = manager.getDataStore();
 
             VxRigidBodyFactory factory = (shapeSettings, bcs) -> {
                 try (ShapeResult shapeResult = shapeSettings.create()) {
@@ -162,7 +163,7 @@ public enum VxJoltBridge {
     public void createAndAddJoltSoftBody(VxSoftBody body, VxBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation) {
         try {
             VxPhysicsWorld world = manager.getPhysicsWorld();
-            VxBodyDataStore dataStore = manager.getDataStore();
+            VxServerBodyDataStore dataStore = manager.getDataStore();
 
             VxSoftBodyFactory factory = (sharedSettings, creationSettings) -> {
                 try (sharedSettings; creationSettings) {

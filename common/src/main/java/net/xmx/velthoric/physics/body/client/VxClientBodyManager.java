@@ -199,25 +199,31 @@ public class VxClientBodyManager {
         RVec3 pos = transform.getTranslation();
         Quat rot = transform.getRotation();
 
+        // Initialize history buffers (State 0 and State 1)
         store.state0_timestamp[index] = timestamp;
         store.state1_timestamp[index] = timestamp;
+
         store.state0_posX[index] = store.state1_posX[index] = pos.x();
         store.state0_posY[index] = store.state1_posY[index] = pos.y();
         store.state0_posZ[index] = store.state1_posZ[index] = pos.z();
+
         store.state0_rotX[index] = store.state1_rotX[index] = rot.getX();
         store.state0_rotY[index] = store.state1_rotY[index] = rot.getY();
         store.state0_rotZ[index] = store.state1_rotZ[index] = rot.getZ();
         store.state0_rotW[index] = store.state1_rotW[index] = rot.getW();
+
         store.state0_isActive[index] = store.state1_isActive[index] = true;
 
-        store.render_posX[index] = pos.x();
-        store.render_posY[index] = pos.y();
-        store.render_posZ[index] = pos.z();
-        store.render_rotX[index] = rot.getX();
-        store.render_rotY[index] = rot.getY();
-        store.render_rotZ[index] = rot.getZ();
-        store.render_rotW[index] = rot.getW();
+        // Initialize current Render State (Base Arrays)
+        store.posX[index] = pos.x();
+        store.posY[index] = pos.y();
+        store.posZ[index] = pos.z();
+        store.rotX[index] = rot.getX();
+        store.rotY[index] = rot.getY();
+        store.rotZ[index] = rot.getZ();
+        store.rotW[index] = rot.getW();
 
+        // Initialize Previous Frame State (for frame-time interpolation)
         store.prev_posX[index] = pos.x();
         store.prev_posY[index] = pos.y();
         store.prev_posZ[index] = pos.z();
@@ -242,7 +248,7 @@ public class VxClientBodyManager {
     public void removeBody(int networkId) {
         Integer index = store.getIndexForNetworkId(networkId);
         if (index != null) {
-            UUID id = store.getUuidForIndex(index);
+            UUID id = store.getIdForIndex(index);
             if (id != null) {
                 VxBody body = managedBodies.get(id);
 

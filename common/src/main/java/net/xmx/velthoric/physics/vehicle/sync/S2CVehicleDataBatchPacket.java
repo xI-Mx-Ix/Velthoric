@@ -123,7 +123,7 @@ public class S2CVehicleDataBatchPacket {
                     continue;
                 }
 
-                UUID uuid = store.getUuidForIndex(index);
+                UUID uuid = store.getIdForIndex(index);
                 if (manager.getBody(uuid) instanceof VxVehicle vehicle) {
                     vehicle.syncStateFromServer(
                         msg.speeds[i], 

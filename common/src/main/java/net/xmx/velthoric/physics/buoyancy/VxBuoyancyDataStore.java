@@ -4,7 +4,7 @@
  */
 package net.xmx.velthoric.physics.buoyancy;
 
-import net.xmx.velthoric.physics.body.AbstractDataStore;
+import net.xmx.velthoric.physics.AbstractDataStore;
 
 /**
  * A data-oriented store for the state of all bodies currently affected by buoyancy.

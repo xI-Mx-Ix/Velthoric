@@ -21,9 +21,14 @@ import java.util.UUID;
  */
 public class VxClientBodyInterpolator {
 
-    /** The maximum time in seconds to extrapolate a body's position forward if no new state has arrived. */
+    /**
+     * The maximum time in seconds to extrapolate a body's position forward if no new state has arrived.
+     */
     private static final float MAX_EXTRAPOLATION_SECONDS = 1.25f;
-    /** The minimum squared velocity required to perform extrapolation, to prevent jitter when stopping. */
+
+    /**
+     * The minimum squared velocity required to perform extrapolation, to prevent jitter when stopping.
+     */
     private static final float EXTRAPOLATION_VELOCITY_THRESHOLD_SQ = 0.0001f;
 
     // Temporary quaternion objects to avoid allocations during calculations.
@@ -45,39 +50,43 @@ public class VxClientBodyInterpolator {
 
             if (store.state1_timestamp[i] == 0) continue;
 
-            store.prev_posX[i] = store.render_posX[i];
-            store.prev_posY[i] = store.render_posY[i];
-            store.prev_posZ[i] = store.render_posZ[i];
-            store.prev_rotX[i] = store.render_rotX[i];
-            store.prev_rotY[i] = store.render_rotY[i];
-            store.prev_rotZ[i] = store.render_rotZ[i];
-            store.prev_rotW[i] = store.render_rotW[i];
+            // 1. Backup the current render state (base arrays) to 'prev' arrays for frame interpolation.
+            store.prev_posX[i] = store.posX[i];
+            store.prev_posY[i] = store.posY[i];
+            store.prev_posZ[i] = store.posZ[i];
+            store.prev_rotX[i] = store.rotX[i];
+            store.prev_rotY[i] = store.rotY[i];
+            store.prev_rotZ[i] = store.rotZ[i];
+            store.prev_rotW[i] = store.rotW[i];
 
-            if (store.render_vertexData[i] != null) {
-                if (store.prev_vertexData[i] == null || store.prev_vertexData[i].length != store.render_vertexData[i].length) {
-                    store.prev_vertexData[i] = new float[store.render_vertexData[i].length];
+            // 2. Backup vertex data if it exists.
+            if (store.vertexData[i] != null) {
+                if (store.prev_vertexData[i] == null || store.prev_vertexData[i].length != store.vertexData[i].length) {
+                    store.prev_vertexData[i] = new float[store.vertexData[i].length];
                 }
-                System.arraycopy(store.render_vertexData[i], 0, store.prev_vertexData[i], 0, store.render_vertexData[i].length);
+                System.arraycopy(store.vertexData[i], 0, store.prev_vertexData[i], 0, store.vertexData[i].length);
             } else {
                 store.prev_vertexData[i] = null;
             }
 
+            // 3. Calculate the new target state and write it to the base arrays (posX, rotX, etc.).
             calculateInterpolatedState(store, i, renderTimestamp);
 
+            // 4. Handle first-time initialization to prevent interpolating from (0,0,0).
             if (!store.render_isInitialized[i]) {
-                store.prev_posX[i] = store.render_posX[i];
-                store.prev_posY[i] = store.render_posY[i];
-                store.prev_posZ[i] = store.render_posZ[i];
-                store.prev_rotX[i] = store.render_rotX[i];
-                store.prev_rotY[i] = store.render_rotY[i];
-                store.prev_rotZ[i] = store.render_rotZ[i];
-                store.prev_rotW[i] = store.render_rotW[i];
+                store.prev_posX[i] = store.posX[i];
+                store.prev_posY[i] = store.posY[i];
+                store.prev_posZ[i] = store.posZ[i];
+                store.prev_rotX[i] = store.rotX[i];
+                store.prev_rotY[i] = store.rotY[i];
+                store.prev_rotZ[i] = store.rotZ[i];
+                store.prev_rotW[i] = store.rotW[i];
 
-                if (store.render_vertexData[i] != null) {
-                    if (store.prev_vertexData[i] == null || store.prev_vertexData[i].length != store.render_vertexData[i].length) {
-                        store.prev_vertexData[i] = new float[store.render_vertexData[i].length];
+                if (store.vertexData[i] != null) {
+                    if (store.prev_vertexData[i] == null || store.prev_vertexData[i].length != store.vertexData[i].length) {
+                        store.prev_vertexData[i] = new float[store.vertexData[i].length];
                     }
-                    System.arraycopy(store.render_vertexData[i], 0, store.prev_vertexData[i], 0, store.render_vertexData[i].length);
+                    System.arraycopy(store.vertexData[i], 0, store.prev_vertexData[i], 0, store.vertexData[i].length);
                 }
                 store.render_isInitialized[i] = true;
             }
@@ -86,6 +95,7 @@ public class VxClientBodyInterpolator {
 
     /**
      * Calculates the interpolated or extrapolated state for a single body.
+     * The result is written to the base arrays ({@code posX}, {@code rotX}, etc.).
      *
      * @param store           The data store.
      * @param i               The index of the body in the store.
@@ -101,6 +111,7 @@ public class VxClientBodyInterpolator {
         long fromTime = store.state0_timestamp[i];
         long toTime = store.state1_timestamp[i];
 
+        // If we don't have valid history, snap to latest.
         if (fromTime == 0 || toTime <= fromTime) {
             setRenderStateToLatest(store, i);
             return;
@@ -110,7 +121,8 @@ public class VxClientBodyInterpolator {
         double alpha = (double) (renderTimestamp - fromTime) / timeDiff;
 
         if (alpha > 1.0) {
-            // Extrapolation: The render time is past the latest known state.
+            // --- Extrapolation Case ---
+            // The render time is past the latest known state.
             double extrapolationTime = (double) (renderTimestamp - toTime) / 1_000_000_000.0;
             float velX = store.state1_velX[i];
             float velY = store.state1_velY[i];
@@ -120,54 +132,58 @@ public class VxClientBodyInterpolator {
             // Only extrapolate if the time is within limits and the body has significant velocity.
             // This prevents overshooting when the body is meant to be stopping.
             if (extrapolationTime < MAX_EXTRAPOLATION_SECONDS && velSq > EXTRAPOLATION_VELOCITY_THRESHOLD_SQ) {
-                store.render_posX[i] = store.state1_posX[i] + velX * extrapolationTime;
-                store.render_posY[i] = store.state1_posY[i] + velY * extrapolationTime;
-                store.render_posZ[i] = store.state1_posZ[i] + velZ * extrapolationTime;
+                store.posX[i] = store.state1_posX[i] + velX * extrapolationTime;
+                store.posY[i] = store.state1_posY[i] + velY * extrapolationTime;
+                store.posZ[i] = store.state1_posZ[i] + velZ * extrapolationTime;
             } else {
                 // If extrapolating too far or velocity is negligible, clamp to the last known position.
-                store.render_posX[i] = store.state1_posX[i];
-                store.render_posY[i] = store.state1_posY[i];
-                store.render_posZ[i] = store.state1_posZ[i];
+                store.posX[i] = store.state1_posX[i];
+                store.posY[i] = store.state1_posY[i];
+                store.posZ[i] = store.state1_posZ[i];
             }
             // Do not extrapolate rotation, as it can be unstable. Just use the latest.
-            store.render_rotX[i] = store.state1_rotX[i];
-            store.render_rotY[i] = store.state1_rotY[i];
-            store.render_rotZ[i] = store.state1_rotZ[i];
-            store.render_rotW[i] = store.state1_rotW[i];
-            store.render_vertexData[i] = store.state1_vertexData[i];
+            store.rotX[i] = store.state1_rotX[i];
+            store.rotY[i] = store.state1_rotY[i];
+            store.rotZ[i] = store.state1_rotZ[i];
+            store.rotW[i] = store.state1_rotW[i];
+            store.vertexData[i] = store.state1_vertexData[i];
             return;
         }
 
         // Clamp alpha to prevent interpolating backwards.
         alpha = Math.max(0.0, alpha);
 
-        // Interpolation: The render time is between the two known states.
-        // Using double precision for position interpolation.
-        store.render_posX[i] = store.state0_posX[i] + alpha * (store.state1_posX[i] - store.state0_posX[i]);
-        store.render_posY[i] = store.state0_posY[i] + alpha * (store.state1_posY[i] - store.state0_posY[i]);
-        store.render_posZ[i] = store.state0_posZ[i] + alpha * (store.state1_posZ[i] - store.state0_posZ[i]);
+        // --- Interpolation Case ---
+        // The render time is between the two known states.
 
-        // Rotations use float math as per Jolt Quat implementation
+        // Position: Linear interpolation (Lerp)
+        store.posX[i] = store.state0_posX[i] + alpha * (store.state1_posX[i] - store.state0_posX[i]);
+        store.posY[i] = store.state0_posY[i] + alpha * (store.state1_posY[i] - store.state0_posY[i]);
+        store.posZ[i] = store.state0_posZ[i] + alpha * (store.state1_posZ[i] - store.state0_posZ[i]);
+
+        // Rotation: Spherical Linear Interpolation (Slerp)
         float alphaF = (float) alpha;
         tempFromRot.set(store.state0_rotX[i], store.state0_rotY[i], store.state0_rotZ[i], store.state0_rotW[i]);
         tempToRot.set(store.state1_rotX[i], store.state1_rotY[i], store.state1_rotZ[i], store.state1_rotW[i]);
         VxOperations.slerp(tempFromRot, tempToRot, alphaF, tempRenderRot);
-        store.render_rotX[i] = tempRenderRot.getX();
-        store.render_rotY[i] = tempRenderRot.getY();
-        store.render_rotZ[i] = tempRenderRot.getZ();
-        store.render_rotW[i] = tempRenderRot.getW();
 
+        store.rotX[i] = tempRenderRot.getX();
+        store.rotY[i] = tempRenderRot.getY();
+        store.rotZ[i] = tempRenderRot.getZ();
+        store.rotW[i] = tempRenderRot.getW();
+
+        // Vertex Data: Linear Interpolation
         float[] fromVerts = store.state0_vertexData[i];
         float[] toVerts = store.state1_vertexData[i];
         if (fromVerts != null && toVerts != null && fromVerts.length == toVerts.length) {
-            if (store.render_vertexData[i] == null || store.render_vertexData[i].length != toVerts.length) {
-                store.render_vertexData[i] = new float[toVerts.length];
+            if (store.vertexData[i] == null || store.vertexData[i].length != toVerts.length) {
+                store.vertexData[i] = new float[toVerts.length];
             }
             for (int j = 0; j < toVerts.length; j++) {
-                store.render_vertexData[i][j] = Mth.lerp(alphaF, fromVerts[j], toVerts[j]);
+                store.vertexData[i][j] = Mth.lerp(alphaF, fromVerts[j], toVerts[j]);
             }
         } else {
-            store.render_vertexData[i] = toVerts != null ? toVerts : fromVerts;
+            store.vertexData[i] = toVerts != null ? toVerts : fromVerts;
         }
     }
 
@@ -179,20 +195,20 @@ public class VxClientBodyInterpolator {
      * @param i     The index of the body.
      */
     private void setRenderStateToLatest(VxClientBodyDataStore store, int i) {
-        store.render_posX[i] = store.state1_posX[i];
-        store.render_posY[i] = store.state1_posY[i];
-        store.render_posZ[i] = store.state1_posZ[i];
-        store.render_rotX[i] = store.state1_rotX[i];
-        store.render_rotY[i] = store.state1_rotY[i];
-        store.render_rotZ[i] = store.state1_rotZ[i];
-        store.render_rotW[i] = store.state1_rotW[i];
-        store.render_vertexData[i] = store.state1_vertexData[i] != null ? store.state1_vertexData[i] : store.state0_vertexData[i];
+        store.posX[i] = store.state1_posX[i];
+        store.posY[i] = store.state1_posY[i];
+        store.posZ[i] = store.state1_posZ[i];
+        store.rotX[i] = store.state1_rotX[i];
+        store.rotY[i] = store.state1_rotY[i];
+        store.rotZ[i] = store.state1_rotZ[i];
+        store.rotW[i] = store.state1_rotW[i];
+        store.vertexData[i] = store.state1_vertexData[i] != null ? store.state1_vertexData[i] : store.state0_vertexData[i];
     }
 
     /**
      * Calculates the final, interpolated state for rendering within a single frame.
-     * This interpolates between the previous frame's render state and the current frame's
-     * target render state, using the partial tick as the alpha.
+     * This interpolates between the previous frame's render state ({@code prev_}) and the
+     * current frame's target render state ({@code posX/Y/Z}), using the partial tick as the alpha.
      *
      * @param store        The data store.
      * @param i            The index of the body.
@@ -215,9 +231,9 @@ public class VxClientBodyInterpolator {
      */
     public void interpolatePosition(VxClientBodyDataStore store, int i, float partialTicks, RVec3 outPos) {
         // Use double precision for the position interpolation to maintain accuracy
-        double x = store.prev_posX[i] + (double) partialTicks * (store.render_posX[i] - store.prev_posX[i]);
-        double y = store.prev_posY[i] + (double) partialTicks * (store.render_posY[i] - store.prev_posY[i]);
-        double z = store.prev_posZ[i] + (double) partialTicks * (store.render_posZ[i] - store.prev_posZ[i]);
+        double x = store.prev_posX[i] + (double) partialTicks * (store.posX[i] - store.prev_posX[i]);
+        double y = store.prev_posY[i] + (double) partialTicks * (store.posY[i] - store.prev_posY[i]);
+        double z = store.prev_posZ[i] + (double) partialTicks * (store.posZ[i] - store.prev_posZ[i]);
         outPos.set(x, y, z);
     }
 
@@ -231,7 +247,7 @@ public class VxClientBodyInterpolator {
      */
     public void interpolateRotation(VxClientBodyDataStore store, int i, float partialTicks, Quat outRot) {
         tempFromRot.set(store.prev_rotX[i], store.prev_rotY[i], store.prev_rotZ[i], store.prev_rotW[i]);
-        tempToRot.set(store.render_rotX[i], store.render_rotY[i], store.render_rotZ[i], store.render_rotW[i]);
+        tempToRot.set(store.rotX[i], store.rotY[i], store.rotZ[i], store.rotW[i]);
         VxOperations.slerp(tempFromRot, tempToRot, partialTicks, outRot);
     }
 
@@ -245,7 +261,7 @@ public class VxClientBodyInterpolator {
      */
     public float @Nullable [] getInterpolatedVertexData(VxClientBodyDataStore store, int i, float partialTicks) {
         float[] prevVerts = store.prev_vertexData[i];
-        float[] currVerts = store.render_vertexData[i];
+        float[] currVerts = store.vertexData[i];
 
         if (currVerts == null) {
             return null;
