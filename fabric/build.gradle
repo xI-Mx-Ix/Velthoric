@@ -130,56 +130,17 @@ publishing {
     }
 }
 
+// Apply the centralized publishing logic from the root project
+apply from: rootProject.file('publish.gradle')
+
 /**
- * Configures the publication of the mod to external platforms.
- * Uses the remapped Jar file (production ready) as the artifact.
+ * Configures mod publication for Fabric.
+ *
+ * Uses the {@code setupModPublishing} closure defined in {@code publish.gradle}
+ * to register the Fabric publication.
+ *
+ * @param loaderName the loader identifier (e.g. {@code "fabric"})
+ * @param displayName the human-readable loader name (e.g. {@code "Fabric"})
+ * @param artifactTask the {@code remapJar} task provider used as the publication artifact
  */
-publishMods {
-    // --- Global Configuration ---
-    file = tasks.named("remapJar").flatMap { it.archiveFile }
-    changelog = rootProject.resolveChangelog()
-    version = rootProject.mod_version
-    displayName = "Velthoric ${rootProject.mod_version} for Fabric ${rootProject.minecraft_version}"
-
-    // --- CurseForge ---
-    curseforge {
-        accessToken = rootProject.curseforge_token
-        projectId = "1367260"
-
-        // We explicitly set the type to STABLE for CurseForge.
-        // Beta or Alpha releases often have reduced visibility in the default
-        // file lists or require users to change filter settings to be seen.
-        type = STABLE
-
-        minecraftVersions.add(rootProject.minecraft_version)
-
-        // Loaders
-        modLoaders.add("fabric")
-        modLoaders.add("quilt")
-
-        // Dependencies
-        requires("architectury-api")
-        requires("fabric-api")
-    }
-
-    // --- Modrinth ---
-    modrinth {
-        accessToken = rootProject.modrinth_token
-        projectId = "velthoric"
-
-        // On Modrinth, we use the actual development state (BETA).
-        // Unlike CurseForge, Modrinth does not restrict visibility for beta builds,
-        // so we can accurately label the file without losing downloads.
-        type = BETA
-
-        minecraftVersions.add(rootProject.minecraft_version)
-
-        // Loaders
-        modLoaders.add("fabric")
-        modLoaders.add("quilt")
-
-        // Dependencies
-        requires("architectury-api")
-        requires("fabric-api")
-    }
-}
+setupModPublishing("fabric", "Fabric", tasks.named("remapJar"))
