@@ -13,7 +13,7 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.physics.world.VxLayers;
+import net.xmx.velthoric.physics.VxPhysicsLayers;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.network.synchronization.VxDataSerializers;
@@ -108,7 +108,7 @@ public class VxBodyPartRigidBody extends VxRigidBody {
 
         try (BodyCreationSettings bcs = new BodyCreationSettings()) {
             bcs.setMotionType(EMotionType.Dynamic);
-            bcs.setObjectLayer(VxLayers.DYNAMIC);
+            bcs.setObjectLayer(VxPhysicsLayers.MOVING);
             bcs.setFriction(0.5f);
             bcs.setRestitution(0.3f);
             return factory.create(shapeSettings, bcs);

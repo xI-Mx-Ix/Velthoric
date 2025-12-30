@@ -25,7 +25,7 @@ import net.xmx.velthoric.physics.vehicle.part.VxPart;
 import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleSeat;
 import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleWheel;
 import net.xmx.velthoric.physics.vehicle.type.VxMotorcycle;
-import net.xmx.velthoric.physics.world.VxLayers;
+import net.xmx.velthoric.physics.VxPhysicsLayers;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
@@ -126,7 +126,7 @@ public class MotorcycleImpl extends VxMotorcycle {
 
     @Override
     protected VehicleCollisionTester createCollisionTester() {
-        return new VehicleCollisionTesterCastCylinder(VxLayers.DYNAMIC, 0.5f * 0.05f);
+        return new VehicleCollisionTesterCastCylinder(VxPhysicsLayers.MOVING, 0.5f * 0.05f);
     }
 
     @Override
@@ -143,7 +143,7 @@ public class MotorcycleImpl extends VxMotorcycle {
             ) {
                 bcs.setShapeSettings(finalShapeSettings);
                 bcs.setMotionType(EMotionType.Dynamic);
-                bcs.setObjectLayer(VxLayers.DYNAMIC);
+                bcs.setObjectLayer(VxPhysicsLayers.MOVING);
                 bcs.setMotionQuality(EMotionQuality.LinearCast);
 
                 bcs.getMassPropertiesOverride().setMass(vehicleData.getMass());

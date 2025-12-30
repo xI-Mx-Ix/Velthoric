@@ -10,7 +10,7 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.world.VxLayers;
+import net.xmx.velthoric.physics.VxPhysicsLayers;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
 import net.xmx.velthoric.physics.terrain.generation.VxChunkSnapshot;
 import net.xmx.velthoric.physics.terrain.generation.VxTerrainGenerator;
@@ -240,7 +240,7 @@ public final class VxTerrainManager {
             }
         } else if (shape != null) {
             RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
-            try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxLayers.TERRAIN)) {
+            try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxPhysicsLayers.TERRAIN)) {
                 Body body = bodyInterface.createBody(bcs);
                 if (body != null) {
                     body.setFriction(0.75f);

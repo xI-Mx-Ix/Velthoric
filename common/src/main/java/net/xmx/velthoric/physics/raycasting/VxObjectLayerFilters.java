@@ -5,7 +5,7 @@
 package net.xmx.velthoric.physics.raycasting;
 
 import com.github.stephengold.joltjni.ObjectLayerFilter;
-import net.xmx.velthoric.physics.world.VxLayers;
+import net.xmx.velthoric.physics.VxPhysicsLayers;
 
 /**
  * Provides pre-configured object layer filters for physics queries.
@@ -24,14 +24,14 @@ public final class VxObjectLayerFilters {
          * Determines whether a collision should occur with a given object layer.
          * <p>
          * This method is intended to be called by the native physics engine during a query.
-         * It prevents collisions with the {@link VxLayers#TERRAIN} layer.
+         * It prevents collisions with the {@link VxPhysicsLayers#TERRAIN} layer.
          *
          * @param objectLayer the numerical ID of the object layer to check.
          * @return {@code false} if the layer is terrain, {@code true} otherwise.
          */
         @Override
         public boolean shouldCollide(int objectLayer) {
-            return objectLayer != VxLayers.TERRAIN;
+            return objectLayer != VxPhysicsLayers.TERRAIN;
         }
     };
 
