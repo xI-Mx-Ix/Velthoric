@@ -11,6 +11,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.io.IOException;
 import java.util.function.Supplier;
@@ -210,7 +211,7 @@ public class S2CUpdateBodyStateBatchPacket {
     public static void handle(S2CUpdateBodyStateBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            VxClientBodyManager manager = VxClientBodyManager.getInstance();
+            VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
             VxClientBodyDataStore store = manager.getStore();
             long clientReceiptTime = manager.getClock().getGameTimeNanos();
 

@@ -12,6 +12,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.network.internal.VxSpawnData;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.io.IOException;
 import java.util.List;
@@ -94,7 +95,7 @@ public class S2CSpawnBodyBatchPacket {
     public static void handle(S2CSpawnBodyBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            VxClientBodyManager manager = VxClientBodyManager.getInstance();
+            VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
             // Iterate through each spawn data entry and spawn the corresponding body on the client.
             for (VxSpawnData data : msg.spawnDataList) {
                 // Wrap the raw byte data into a buffer for the manager to read.

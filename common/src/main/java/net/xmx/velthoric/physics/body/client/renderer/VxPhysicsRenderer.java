@@ -25,6 +25,7 @@ import net.xmx.velthoric.physics.body.client.body.renderer.VxBodyRenderer;
 import net.xmx.velthoric.physics.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 /**
  * The main client-side renderer for all physics bodies.
@@ -64,7 +65,7 @@ public class VxPhysicsRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.getCameraEntity() == null) return;
 
-        VxClientBodyManager manager = VxClientBodyManager.getInstance();
+        VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
         if (manager.getAllBodies().isEmpty()) return;
 
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();

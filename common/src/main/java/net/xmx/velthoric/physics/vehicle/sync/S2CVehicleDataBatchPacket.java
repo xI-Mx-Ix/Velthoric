@@ -9,6 +9,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -110,7 +111,7 @@ public class S2CVehicleDataBatchPacket {
 
     public static void handle(S2CVehicleDataBatchPacket msg, Supplier<NetworkManager.PacketContext> ctx) {
         ctx.get().queue(() -> {
-            VxClientBodyManager manager = VxClientBodyManager.getInstance();
+            VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
             VxClientBodyDataStore store = manager.getStore();
 
             int wheelDataOffset = 0;

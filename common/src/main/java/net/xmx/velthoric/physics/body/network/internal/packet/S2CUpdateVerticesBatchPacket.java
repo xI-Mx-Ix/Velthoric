@@ -10,6 +10,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -123,7 +124,7 @@ public class S2CUpdateVerticesBatchPacket {
     public static void handle(S2CUpdateVerticesBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
         NetworkManager.PacketContext context = contextSupplier.get();
         context.queue(() -> {
-            VxClientBodyManager manager = VxClientBodyManager.getInstance();
+            VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
             VxClientBodyDataStore store = manager.getStore();
 
             for (int i = 0; i < msg.count; i++) {

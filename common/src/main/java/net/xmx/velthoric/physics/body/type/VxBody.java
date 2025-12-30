@@ -15,15 +15,15 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
-import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
-import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.VxRemovalReason;
+import net.xmx.velthoric.physics.body.client.VxRenderState;
+import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
+import net.xmx.velthoric.physics.body.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxClientAccessor;
 import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxDataAccessor;
-import net.xmx.velthoric.physics.body.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxServerAccessor;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
+import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -216,7 +216,7 @@ public abstract class VxBody {
 
         // Mark dirty for C2S replication via the client manager
         if (this.synchronizedData.isDirty()) {
-            VxClientBodyManager.getInstance().markBodyDirty(this);
+            VxClientPhysicsWorld.getInstance().getBodyManager().markBodyDirty(this);
         }
     }
 
@@ -429,7 +429,7 @@ public abstract class VxBody {
      */
     @Environment(EnvType.CLIENT)
     public AABB getCullingAABB(float inflation) {
-        RVec3 lastPos = VxClientBodyManager.getInstance().getStore().lastKnownPosition[dataStoreIndex];
+        RVec3 lastPos = VxClientPhysicsWorld.getInstance().getBodyManager().getStore().lastKnownPosition[dataStoreIndex];
         return new AABB(
                 lastPos.xx() - inflation, lastPos.yy() - inflation, lastPos.zz() - inflation,
                 lastPos.xx() + inflation, lastPos.yy() + inflation, lastPos.zz() + inflation
@@ -444,7 +444,7 @@ public abstract class VxBody {
      */
     @Environment(EnvType.CLIENT)
     public boolean isInitialized() {
-        return VxClientBodyManager.getInstance().getStore().render_isInitialized[dataStoreIndex];
+        return VxClientPhysicsWorld.getInstance().getBodyManager().getStore().render_isInitialized[dataStoreIndex];
     }
 
 

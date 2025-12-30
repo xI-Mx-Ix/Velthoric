@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics;
+package net.xmx.velthoric.physics.lifecycle;
 
 import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerLevel;
@@ -16,14 +16,14 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
  *
  * @author xI-Mx-Ix
  */
-public final class VxLifecycleEvents {
+public final class VxServerLifecycleHandler {
 
     public static void registerEvents() {
-        VxServerLifecycleEvent.Starting.EVENT.register(VxLifecycleEvents::onServerStarting);
-        VxLevelEvent.Load.EVENT.register(VxLifecycleEvents::onLevelLoad);
-        VxLevelEvent.Unload.EVENT.register(VxLifecycleEvents::onLevelUnload);
-        VxServerLifecycleEvent.Stopping.EVENT.register(VxLifecycleEvents::onServerStopping);
-        TickEvent.SERVER_LEVEL_PRE.register(VxLifecycleEvents::onLevelTick);
+        VxServerLifecycleEvent.Starting.EVENT.register(VxServerLifecycleHandler::onServerStarting);
+        VxLevelEvent.Load.EVENT.register(VxServerLifecycleHandler::onLevelLoad);
+        VxLevelEvent.Unload.EVENT.register(VxServerLifecycleHandler::onLevelUnload);
+        VxServerLifecycleEvent.Stopping.EVENT.register(VxServerLifecycleHandler::onServerStopping);
+        TickEvent.SERVER_LEVEL_PRE.register(VxServerLifecycleHandler::onLevelTick);
     }
 
     /**
