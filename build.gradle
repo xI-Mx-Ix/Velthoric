@@ -4,6 +4,9 @@ plugins {
     id 'dev.architectury.loom' version '1.10-SNAPSHOT' apply false
     id 'architectury-plugin' version '3.4-SNAPSHOT'
     id 'com.gradleup.shadow' version '8.3.6' apply false
+
+    id "me.modmuss50.mod-publish-plugin" version "0.8.4" apply false
+    id "com.github.breadmoirai.github-release" version "2.4.1" apply false
 }
 
 architectury {
@@ -15,6 +18,11 @@ allprojects {
     version = rootProject.mod_version
 }
 
+/**
+ * Credential Loading Logic.
+ * Loads sensitive data from 'credentials.properties' if available.
+ * Assigns values to project-wide extension properties.
+ */
 def credentialsFile = file('credentials.properties')
 if (credentialsFile.exists()) {
     def properties = new Properties()
@@ -23,21 +31,25 @@ if (credentialsFile.exists()) {
     ext.curseforge_token = properties.getProperty('curseforge_token')
     ext.cloudsmith_user = properties.getProperty('cloudsmith_user')
     ext.cloudsmith_key = properties.getProperty('cloudsmith_key')
+    ext.github_token = properties.getProperty('github_token')
 } else {
     ext.modrinth_token = null
     ext.curseforge_token = null
     ext.cloudsmith_user = null
     ext.cloudsmith_key = null
+    ext.github_token = null
 }
 
+/**
+ * Resolves the changelog for the current version.
+ * @return The content of the changelog markdown file.
+ */
 def resolveChangelog() {
-    // 1. Try to find the changelog for the exact current version
     def currentVersionFile = rootProject.file("changelog/${rootProject.mod_version}.md")
     if (currentVersionFile.exists()) {
         return currentVersionFile.text
     }
 
-    // 2. If it's a snapshot, try to find the changelog for the corresponding release version
     if (rootProject.mod_version.endsWith("-SNAPSHOT")) {
         def releaseVersion = rootProject.mod_version.replace("-SNAPSHOT", "")
         def releaseVersionFile = rootProject.file("changelog/${releaseVersion}.md")
@@ -46,9 +58,11 @@ def resolveChangelog() {
         }
     }
 
-    // 3. If no file is found, provide a default message
     return "No changelog provided for this version."
 }
+
+// Apply the external publishing logic script
+apply from: 'publish.gradle'
 
 subprojects {
     apply plugin: 'dev.architectury.loom'
@@ -159,6 +173,48 @@ subprojects {
                     username = rootProject.ext.cloudsmith_user
                     password = rootProject.ext.cloudsmith_key
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Master Release Task: publishVelthoric
+ *
+ * Orchestrates the full deployment pipeline.
+ * Validates that necessary credentials are loaded before execution.
+ */
+tasks.register("publishVelthoric") {
+    group = "publishing"
+    description = "Validates credentials and publishes the mod to GitHub, CurseForge, and Modrinth."
+
+    dependsOn "githubRelease"
+
+    doFirst {
+        def missingVars = []
+        if (!rootProject.ext.github_token) missingVars.add("github_token")
+        if (!rootProject.ext.modrinth_token) missingVars.add("modrinth_token")
+        if (!rootProject.ext.curseforge_token) missingVars.add("curseforge_token")
+
+        if (!missingVars.isEmpty()) {
+            throw new GradleException("Release failed. Missing keys in 'credentials.properties': ${missingVars.join(', ')}")
+        }
+
+        logger.lifecycle("Credentials validated. Starting release for version ${rootProject.mod_version}...")
+    }
+
+    doLast {
+        logger.lifecycle("Velthoric release completed successfully!")
+    }
+}
+
+subprojects {
+    afterEvaluate {
+        def sub = project
+
+        if (sub.plugins.hasPlugin("me.modmuss50.mod-publish-plugin")) {
+            rootProject.tasks.named("publishVelthoric").configure {
+                dependsOn(sub.tasks.named("publishMods"))
             }
         }
     }
