@@ -5,7 +5,6 @@
 package net.xmx.velthoric.builtin.drivable.car;
 
 import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -35,9 +34,7 @@ public class CarRenderer extends VxRigidBodyRenderer<CarImpl> {
         poseStack.pushPose();
 
         // Apply Main Body Transform
-        RVec3 renderPosition = renderState.transform.getTranslation();
         Quat renderRotation = renderState.transform.getRotation();
-        poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
         poseStack.mulPose(new Quaternionf(renderRotation.getX(), renderRotation.getY(), renderRotation.getZ(), renderRotation.getW()));
 
         // 1. Render Chassis

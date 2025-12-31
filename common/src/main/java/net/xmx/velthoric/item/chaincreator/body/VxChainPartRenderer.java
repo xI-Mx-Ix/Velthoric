@@ -5,7 +5,6 @@
 package net.xmx.velthoric.item.chaincreator.body;
 
 import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -33,11 +32,9 @@ public class VxChainPartRenderer extends VxRigidBodyRenderer<VxChainPartRigidBod
     public void render(VxChainPartRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
-        RVec3 pos = renderState.transform.getTranslation();
         Quat rot = renderState.transform.getRotation();
 
-        // Apply the physics transformation (Position & Rotation)
-        poseStack.translate(pos.x(), pos.y(), pos.z());
+        // Apply the physics transformation (Rotation)
         poseStack.mulPose(new Quaternionf(rot.getX(), rot.getY(), rot.getZ(), rot.getW()));
 
         float length = body.getLength();

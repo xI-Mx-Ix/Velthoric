@@ -37,6 +37,10 @@ public class ClothRenderer extends VxSoftBodyRenderer<ClothSoftBody> {
             return;
         }
 
+        double comX = renderState.transform.getTranslation().x();
+        double comY = renderState.transform.getTranslation().y();
+        double comZ = renderState.transform.getTranslation().z();
+
         int numVerticesX = widthSegments + 1;
         VertexConsumer buffer = bufferSource.getBuffer(RenderType.translucent());
         TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(BLUE_WOOL_TEXTURE);
@@ -48,18 +52,23 @@ public class ClothRenderer extends VxSoftBodyRenderer<ClothSoftBody> {
         float deltaU = maxU - minU;
         float deltaV = maxV - minV;
 
-        BiFunction<Integer, Integer, Vector3f> getVertexWorldPos = (x, y) -> {
+        // Function to retrieve a vertex position converted to local space
+        BiFunction<Integer, Integer, Vector3f> getVertexLocalPos = (x, y) -> {
             int index = (y * numVerticesX + x) * 3;
             if (index + 2 >= renderVertexData.length) return new Vector3f();
-            return new Vector3f(renderVertexData[index], renderVertexData[index + 1], renderVertexData[index + 2]);
+            return new Vector3f(
+                    (float)(renderVertexData[index] - comX),
+                    (float)(renderVertexData[index + 1] - comY),
+                    (float)(renderVertexData[index + 2] - comZ)
+            );
         };
 
         for (int y = 0; y < heightSegments; ++y) {
             for (int x = 0; x < widthSegments; ++x) {
-                Vector3f v1 = getVertexWorldPos.apply(x, y);
-                Vector3f v2 = getVertexWorldPos.apply(x + 1, y);
-                Vector3f v3 = getVertexWorldPos.apply(x + 1, y + 1);
-                Vector3f v4 = getVertexWorldPos.apply(x, y + 1);
+                Vector3f v1 = getVertexLocalPos.apply(x, y);
+                Vector3f v2 = getVertexLocalPos.apply(x + 1, y);
+                Vector3f v3 = getVertexLocalPos.apply(x + 1, y + 1);
+                Vector3f v4 = getVertexLocalPos.apply(x, y + 1);
 
                 float u1 = minU + (deltaU * ((float) x / widthSegments));
                 float u2 = minU + (deltaU * ((float) (x + 1) / widthSegments));
@@ -71,11 +80,13 @@ public class ClothRenderer extends VxSoftBodyRenderer<ClothSoftBody> {
                 Vector3f normal = edge1.cross(edge2).normalize();
                 if (Float.isNaN(normal.x())) normal.set(0, 1, 0);
 
+                // Front face
                 addVertex(buffer, poseStack, v1, u1, v1Coord, normal, packedLight);
                 addVertex(buffer, poseStack, v2, u2, v1Coord, normal, packedLight);
                 addVertex(buffer, poseStack, v3, u2, v2Coord, normal, packedLight);
                 addVertex(buffer, poseStack, v4, u1, v2Coord, normal, packedLight);
 
+                // Back face (inverted normal)
                 Vector3f backNormal = new Vector3f(normal).mul(-1.0f);
                 addVertex(buffer, poseStack, v1, u1, v1Coord, backNormal, packedLight);
                 addVertex(buffer, poseStack, v4, u1, v2Coord, backNormal, packedLight);

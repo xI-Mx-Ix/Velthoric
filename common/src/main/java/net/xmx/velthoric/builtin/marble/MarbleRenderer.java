@@ -4,7 +4,6 @@
  */
 package net.xmx.velthoric.builtin.marble;
 
-import com.github.stephengold.joltjni.RVec3;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -35,8 +34,6 @@ public class MarbleRenderer extends VxRigidBodyRenderer<MarbleRigidBody> {
         poseStack.pushPose();
 
         float radius = body.get(MarbleRigidBody.DATA_RADIUS);
-        RVec3 renderPosition = renderState.transform.getTranslation();
-        poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
         poseStack.mulPose(Minecraft.getInstance().gameRenderer.getMainCamera().rotation());
 
         BakedModel itemModel = Minecraft.getInstance().getItemRenderer().getItemModelShaper().getItemModel(MARBLE_ITEM_STACK);

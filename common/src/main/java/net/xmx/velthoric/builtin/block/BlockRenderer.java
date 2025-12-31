@@ -46,9 +46,7 @@ public class BlockRenderer extends VxRigidBodyRenderer<BlockRigidBody> {
 
         poseStack.pushPose();
 
-        RVec3 renderPosition = renderState.transform.getTranslation();
         Quat renderRotation = renderState.transform.getRotation();
-        poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
         poseStack.mulPose(new Quaternionf(renderRotation.getX(), renderRotation.getY(), renderRotation.getZ(), renderRotation.getW()));
 
         RenderShape shape = blockStateToRender.getRenderShape();
@@ -57,6 +55,8 @@ public class BlockRenderer extends VxRigidBodyRenderer<BlockRigidBody> {
 
             BlockColors blockColors = Minecraft.getInstance().getBlockColors();
             Level level = Minecraft.getInstance().level;
+
+            RVec3 renderPosition = renderState.transform.getTranslation();
             BlockPos currentPos = BlockPos.containing(renderPosition.x(), renderPosition.y(), renderPosition.z());
 
             int color = blockColors.getColor(blockStateToRender, level, currentPos, 0);
@@ -66,6 +66,7 @@ public class BlockRenderer extends VxRigidBodyRenderer<BlockRigidBody> {
             float b = (color & 255) / 255.0f;
 
             poseStack.pushPose();
+            // Center the block model (0..1) around the physics pivot (center of mass).
             poseStack.translate(-0.5, -0.5, -0.5);
 
             dispatcher.getModelRenderer().renderModel(
@@ -80,6 +81,7 @@ public class BlockRenderer extends VxRigidBodyRenderer<BlockRigidBody> {
             poseStack.popPose();
         }
 
+        // Handle Block Entities (Tile Entities)
         if (blockStateToRender.getBlock() instanceof EntityBlock entityBlock) {
             if (this.lastBlockState != blockStateToRender) {
                 this.cachedBlockEntity = entityBlock.newBlockEntity(BlockPos.ZERO, blockStateToRender);
@@ -95,6 +97,7 @@ public class BlockRenderer extends VxRigidBodyRenderer<BlockRigidBody> {
                 var renderer = beDispatcher.getRenderer(this.cachedBlockEntity);
                 if (renderer != null) {
                     poseStack.pushPose();
+                    // Center the block entity render around the physics pivot.
                     poseStack.translate(-0.5, -0.5, -0.5);
                     renderer.render(this.cachedBlockEntity, partialTicks, poseStack, bufferSource, packedLight, OverlayTexture.NO_OVERLAY);
                     poseStack.popPose();

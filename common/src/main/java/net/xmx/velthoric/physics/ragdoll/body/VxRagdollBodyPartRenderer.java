@@ -85,9 +85,8 @@ public class VxRagdollBodyPartRenderer extends VxRigidBodyRenderer<VxBodyPartRig
 
         poseStack.pushPose();
 
-        // 1. Apply Physics Transform (Position & Rotation from Jolt Physics)
+        // 1. Apply Physics Transform (Rotation from Jolt Physics)
         var transform = renderState.transform;
-        poseStack.translate(transform.getTranslation().x(), transform.getTranslation().y(), transform.getTranslation().z());
         poseStack.mulPose(new Quaternionf(transform.getRotation().getX(), transform.getRotation().getY(), transform.getRotation().getZ(), transform.getRotation().getW()));
 
         // 2. Scale visual model to match physics bounds
