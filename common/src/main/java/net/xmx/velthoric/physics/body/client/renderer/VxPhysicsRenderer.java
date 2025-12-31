@@ -63,6 +63,10 @@ public class VxPhysicsRenderer {
 
     /**
      * The main render event handler, called every frame during the level rendering process.
+     * <p>
+     * This method iterates through all active physics bodies, performs frustum culling,
+     * interpolates their physics state, and renders them relative to the camera to ensure
+     * visual stability. It also triggers the debug renderer if the hitbox debug flag is active.
      *
      * @param event The render event containing context like the pose stack and partial ticks.
      */
@@ -79,6 +83,8 @@ public class VxPhysicsRenderer {
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();
         PoseStack poseStack = event.getPoseStack();
         float partialTicks = event.getPartialTick();
+
+        // Retrieve the absolute position of the camera for relative rendering calculations.
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
 
         // Retrieve the vanilla Frustum via Mixin accessor to match entity culling logic.
@@ -135,8 +141,10 @@ public class VxPhysicsRenderer {
         }
 
         // Render debug information if enabled (F3+B).
+        // We pass the camera position to allow the debug renderer to perform its own
+        // camera-relative coordinate transformations for absolute world-space shapes.
         if (((EntityRenderDispatcherAccessor) mc.getEntityRenderDispatcher()).getRenderHitBoxes()) {
-            debugRenderer.render(poseStack, bufferSource, manager, partialTicks);
+            debugRenderer.render(poseStack, bufferSource, manager, partialTicks, cameraPos);
         }
 
         poseStack.popPose();
