@@ -1,6 +1,5 @@
 plugins {
     id 'com.gradleup.shadow'
-    id "me.modmuss50.mod-publish-plugin" version "0.8.4"
 }
 
 architectury {
@@ -130,17 +129,12 @@ publishing {
     }
 }
 
-// Apply the centralized publishing logic from the root project
-apply from: rootProject.file('publish.gradle')
-
 /**
- * Configures mod publication for Fabric.
- *
- * Uses the {@code setupModPublishing} closure defined in {@code publish.gradle}
- * to register the Fabric publication.
- *
- * @param loaderName the loader identifier (e.g. {@code "fabric"})
- * @param displayName the human-readable loader name (e.g. {@code "Fabric"})
- * @param artifactTask the {@code remapJar} task provider used as the publication artifact
+ * Configure Velthoric Publishing for Fabric.
  */
-setupModPublishing("fabric", "Fabric", tasks.named("remapJar"))
+velthoricPublishing {
+    loader = "fabric"
+    displayName = "Fabric"
+    artifact = tasks.named("remapJar")
+    dryRun = false
+}

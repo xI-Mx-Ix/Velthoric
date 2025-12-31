@@ -1,6 +1,5 @@
 plugins {
     id 'com.gradleup.shadow'
-    id "me.modmuss50.mod-publish-plugin" version "0.8.4"
 }
 
 loom {
@@ -130,17 +129,12 @@ publishing {
     }
 }
 
-// Apply the centralized publishing logic from the root project
-apply from: rootProject.file('publish.gradle')
-
 /**
- * Configures mod publication for NeoForge.
- *
- * Uses the {@code setupModPublishing} closure defined in {@code publish.gradle}
- * to register the NeoForge publication.
- *
- * @param loaderName the loader identifier (e.g. {@code "neoforge"})
- * @param displayName the human-readable loader name (e.g. {@code "NeoForge"})
- * @param artifactTask the {@code remapJar} task provider used as the publication artifact
+ * Configure Velthoric Publishing for NeoForge.
  */
-setupModPublishing("neoforge", "NeoForge", tasks.named("remapJar"))
+velthoricPublishing {
+    loader = "neoforge"
+    displayName = "NeoForge"
+    artifact = tasks.named("remapJar")
+    dryRun = false
+}
