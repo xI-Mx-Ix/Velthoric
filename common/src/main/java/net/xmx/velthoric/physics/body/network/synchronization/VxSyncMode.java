@@ -20,7 +20,7 @@ public enum VxSyncMode {
      * Attempting to set this on the client will result in an exception.
      * Attempting to bypass this via packets will result in a server warning.
      */
-    SERVER,
+    SERVER_AUTHORITY,
 
     /**
      * The client has authority over this data.
@@ -29,5 +29,5 @@ public enum VxSyncMode {
      * - Server: Accepts updates from the client, validates authority, and replicates
      * the change to other clients.
      */
-    CLIENT
+    CLIENT_AUTHORITY
 }

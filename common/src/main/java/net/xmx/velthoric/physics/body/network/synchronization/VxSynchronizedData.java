@@ -169,7 +169,7 @@ public class VxSynchronizedData {
 
     /**
      * Reads entries from a buffer sent by a client (C2S).
-     * Validates that the client has authority ({@link VxSyncMode#CLIENT}) for each entry.
+     * Validates that the client has authority ({@link VxSyncMode#CLIENT_AUTHORITY}) for each entry.
      * If a client tries to update SERVER-authoritative data, a warning is logged and the update is ignored.
      *
      * @param buf    The buffer to read from.
@@ -188,7 +188,7 @@ public class VxSynchronizedData {
                 // Must read value to advance buffer regardless of authority
                 Object newValue = entry.getAccessor().getSerializer().read(buf);
 
-                if (entry.getAccessor().getMode() == VxSyncMode.CLIENT) {
+                if (entry.getAccessor().getMode() == VxSyncMode.CLIENT_AUTHORITY) {
                     // Client allowed to update: Apply and mark dirty so it replicates to OTHER clients
                     if (!Objects.equals(newValue, entry.getValue())) {
                         ((Entry<Object>) entry).setValue(newValue);

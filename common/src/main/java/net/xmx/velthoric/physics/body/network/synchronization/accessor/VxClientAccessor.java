@@ -37,6 +37,6 @@ public final class VxClientAccessor<T> extends VxDataAccessor<T> {
 
     @Override
     public VxSyncMode getMode() {
-        return VxSyncMode.CLIENT;
+        return VxSyncMode.CLIENT_AUTHORITY;
     }
 }
