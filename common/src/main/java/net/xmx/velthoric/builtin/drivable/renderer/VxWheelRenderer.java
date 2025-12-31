@@ -32,7 +32,7 @@ public class VxWheelRenderer extends VxPartRenderer<VxVehicleWheel> {
     private static final BlockState DEBUG_WHEEL_STATE = Blocks.BLACK_CONCRETE.defaultBlockState();
 
     @Override
-    public void render(VxVehicleWheel part, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight) {
+    public void render(VxVehicleWheel part, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
         poseStack.pushPose();
 
         // 1. Move to the static attachment point (defined in local part position)

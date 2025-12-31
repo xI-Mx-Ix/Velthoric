@@ -30,7 +30,7 @@ public class CarRenderer extends VxRigidBodyRenderer<CarImpl> {
     private static final Vec3 CHASSIS_HALF_EXTENTS = new Vec3(1.1f, 0.5f, 2.4f);
 
     @Override
-    public void render(CarImpl body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(CarImpl body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         // Apply Main Body Transform

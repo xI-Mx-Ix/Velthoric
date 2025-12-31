@@ -30,7 +30,7 @@ public class MarbleRenderer extends VxRigidBodyRenderer<MarbleRigidBody> {
     private static final ItemStack MARBLE_ITEM_STACK = new ItemStack(Items.MAGMA_CREAM);
 
     @Override
-    public void render(MarbleRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(MarbleRigidBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         float radius = body.get(MarbleRigidBody.DATA_RADIUS);

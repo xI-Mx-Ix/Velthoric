@@ -28,7 +28,7 @@ public class VxSeatRenderer extends VxPartRenderer<VxVehicleSeat> {
     private static final BlockState SEAT_STATE = Blocks.OAK_STAIRS.defaultBlockState();
 
     @Override
-    public void render(VxVehicleSeat part, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight) {
+    public void render(VxVehicleSeat part, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
         poseStack.pushPose();
 
         // Move to the local part position (Vehicle Relative)

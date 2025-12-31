@@ -28,7 +28,7 @@ public class ClothRenderer extends VxSoftBodyRenderer<ClothSoftBody> {
     private static final ResourceLocation BLUE_WOOL_TEXTURE = ResourceLocation.tryParse("minecraft:block/blue_wool");
 
     @Override
-    public void render(ClothSoftBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(ClothSoftBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         float[] renderVertexData = renderState.vertexData;
         int widthSegments = body.get(ClothSoftBody.DATA_WIDTH_SEGMENTS);
         int heightSegments = body.get(ClothSoftBody.DATA_HEIGHT_SEGMENTS);

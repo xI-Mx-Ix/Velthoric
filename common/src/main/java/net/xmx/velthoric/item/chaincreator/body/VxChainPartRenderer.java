@@ -29,7 +29,7 @@ public class VxChainPartRenderer extends VxRigidBodyRenderer<VxChainPartRigidBod
     private static final BlockState CHAIN_BLOCK_STATE = Blocks.CHAIN.defaultBlockState();
 
     @Override
-    public void render(VxChainPartRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxChainPartRigidBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         Quat rot = renderState.transform.getRotation();

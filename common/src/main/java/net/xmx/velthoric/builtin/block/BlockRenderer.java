@@ -36,7 +36,7 @@ public class BlockRenderer extends VxRigidBodyRenderer<BlockRigidBody> {
     private BlockState lastBlockState;
 
     @Override
-    public void render(BlockRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(BlockRigidBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         int blockStateId = body.get(BlockRigidBody.DATA_BLOCK_STATE_ID);
         BlockState blockStateToRender = Block.stateById(blockStateId);
 

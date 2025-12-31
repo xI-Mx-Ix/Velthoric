@@ -84,7 +84,7 @@ public abstract class VxPart {
     }
 
     @Environment(EnvType.CLIENT)
-    public void render(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight) {
+    public void render(PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight) {
         if (renderer != null) {
             renderer.render(this, poseStack, bufferSource, partialTicks, packedLight);
         }

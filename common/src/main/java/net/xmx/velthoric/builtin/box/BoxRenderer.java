@@ -23,7 +23,7 @@ import org.joml.Quaternionf;
 public class BoxRenderer extends VxRigidBodyRenderer<BoxRigidBody> {
 
     @Override
-    public void render(BoxRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(BoxRigidBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         int colorOrdinal = body.get(BoxRigidBody.DATA_COLOR_ORDINAL);
         BoxColor color = (colorOrdinal >= 0 && colorOrdinal < BoxColor.values().length) ? BoxColor.values()[colorOrdinal] : BoxColor.RED;
         BlockState blockState = color.getBlock().defaultBlockState();

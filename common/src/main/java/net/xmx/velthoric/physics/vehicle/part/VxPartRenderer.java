@@ -30,5 +30,5 @@ public abstract class VxPartRenderer<T extends VxPart> {
      * @param partialTicks The partial tick time for interpolation.
      * @param packedLight  The light value at the part's position.
      */
-    public abstract void render(T part, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight);
+    public abstract void render(T part, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight);
 }

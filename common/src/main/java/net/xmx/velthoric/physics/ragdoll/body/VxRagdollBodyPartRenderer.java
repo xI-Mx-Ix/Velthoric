@@ -72,7 +72,7 @@ public class VxRagdollBodyPartRenderer extends VxRigidBodyRenderer<VxBodyPartRig
     }
 
     @Override
-    public void render(VxBodyPartRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxBodyPartRigidBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         if (!isInitialized) {
             initialize();
         }
