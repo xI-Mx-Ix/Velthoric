@@ -12,17 +12,18 @@ import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
+import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketHandler;
-import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
-import net.xmx.velthoric.physics.body.util.VxChunkUtil;
+import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CRemoveBodyBatchPacket;
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CSpawnBodyBatchPacket;
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateBodyStateBatchPacket;
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateVerticesBatchPacket;
 import net.xmx.velthoric.physics.body.type.VxBody;
+import net.xmx.velthoric.physics.body.util.VxChunkUtil;
 import net.xmx.velthoric.physics.vehicle.sync.VxVehicleNetworkDispatcher;
 
 import java.util.*;
@@ -47,11 +48,11 @@ public class VxNetworkDispatcher {
     private final VxVehicleNetworkDispatcher vehicleDispatcher;
 
     // --- Constants for network tuning ---
-    private static final int NETWORK_THREAD_TICK_RATE_MS = 10;
-    private static final int MAX_STATES_PER_PACKET = 50;
-    private static final int MAX_VERTICES_PER_PACKET = 50;
-    private static final int MAX_PACKET_PAYLOAD_SIZE = 128 * 1024;
-    private static final int MAX_REMOVALS_PER_PACKET = 512;
+    private final int NETWORK_THREAD_TICK_RATE_MS;
+    private final int MAX_STATES_PER_PACKET;
+    private final int MAX_VERTICES_PER_PACKET;
+    private final int MAX_PACKET_PAYLOAD_SIZE;
+    private final int MAX_REMOVALS_PER_PACKET;
 
     // --- Player tracking data structures ---
 
@@ -98,6 +99,12 @@ public class VxNetworkDispatcher {
         this.manager = manager;
         this.dataStore = manager.getDataStore();
         this.vehicleDispatcher = new VxVehicleNetworkDispatcher();
+
+        this.NETWORK_THREAD_TICK_RATE_MS = VxModConfig.NETWORK.networkTickRate.get();
+        this.MAX_STATES_PER_PACKET = VxModConfig.NETWORK.maxStatesPerPacket.get();
+        this.MAX_VERTICES_PER_PACKET = VxModConfig.NETWORK.maxVerticesPerPacket.get();
+        this.MAX_PACKET_PAYLOAD_SIZE = VxModConfig.NETWORK.maxPayloadSize.get();
+        this.MAX_REMOVALS_PER_PACKET = VxModConfig.NETWORK.maxRemovalsPerPacket.get();
     }
 
     /**

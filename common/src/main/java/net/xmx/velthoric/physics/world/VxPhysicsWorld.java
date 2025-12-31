@@ -9,24 +9,21 @@ import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.xmx.velthoric.bridge.mounting.manager.VxMountingManager;
+import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.natives.VxNativeJolt;
-import net.xmx.velthoric.util.VxFrameTimer;
-import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
-import net.xmx.velthoric.physics.buoyancy.VxBuoyancyManager;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
-import net.xmx.velthoric.bridge.mounting.manager.VxMountingManager;
+import net.xmx.velthoric.physics.buoyancy.VxBuoyancyManager;
+import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.physics.ragdoll.VxRagdollManager;
 import net.xmx.velthoric.physics.terrain.VxTerrainSystem;
+import net.xmx.velthoric.util.VxFrameTimer;
 import net.xmx.velthoric.util.VxPauseUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
@@ -218,19 +215,21 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     public void initializePhysicsSystem() {
-        final int maxBodies = 65536;
-        final int maxBodyPairs = 65536;
-        final int maxContactConstraints = 65536;
-        final int numPositionIterations = 10;
-        final int numVelocityIterations = 15;
-        final float speculativeContactDistance = 0.02f;
-        final float baumgarteFactor = 0.2f;
-        final float penetrationSlop = 0.001f;
-        final float timeBeforeSleep = 1.0f;
-        final float pointVelocitySleepThreshold = 0.005f;
-        final float gravityY = -9.81f;
+        final int maxBodies = VxModConfig.PHYSICS.maxBodies.get();
+        final int maxBodyPairs = VxModConfig.PHYSICS.maxBodyPairs.get();
+        final int maxContactConstraints = VxModConfig.PHYSICS.maxContactConstraints.get();
 
-        this.tempAllocator = new TempAllocatorImpl(64 * 1024 * 1024);
+        final int numPositionIterations = VxModConfig.PHYSICS.numPositionIterations.get();
+        final int numVelocityIterations = VxModConfig.PHYSICS.numVelocityIterations.get();
+
+        final float speculativeContactDistance = VxModConfig.PHYSICS.speculativeContactDistance.get().floatValue();
+        final float baumgarteFactor = VxModConfig.PHYSICS.baumgarteFactor.get().floatValue();
+        final float penetrationSlop = VxModConfig.PHYSICS.penetrationSlop.get().floatValue();
+        final float timeBeforeSleep = VxModConfig.PHYSICS.timeBeforeSleep.get().floatValue();
+        final float pointVelocitySleepThreshold = VxModConfig.PHYSICS.pointVelocitySleepThreshold.get().floatValue();
+        final float gravityY = VxModConfig.PHYSICS.gravityY.get().floatValue();
+
+        this.tempAllocator = new TempAllocatorImpl(VxModConfig.PHYSICS.tempAllocatorSize.get());
         int numThreads = Math.max(1, Runtime.getRuntime().availableProcessors() - 2);
         this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
 
