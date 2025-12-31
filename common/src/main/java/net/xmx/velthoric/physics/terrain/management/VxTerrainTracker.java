@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.terrain.management;
 
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
+import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.terrain.VxSectionPos;
@@ -17,10 +18,13 @@ import java.util.stream.Collectors;
 
 /**
  * Tracks physics bodies using a high-performance, grid-based dynamic clustering approach.
- * This system is optimized to handle thousands of bodies, whether they are clustered together
- * or widely distributed across the world. It avoids the high CPU overhead of per-body tracking
- * and the high memory overhead of a single global bounding box by grouping nearby bodies into
- * clusters and managing terrain for each cluster.
+ * <p>
+ * This system groups nearby bodies into clusters to minimize the overhead of terrain
+ * calculations. It calculates the union of chunks required for collision based on
+ * body positions, bounding boxes, and predicted velocities.
+ * <p>
+ * It includes safety mechanisms to prevent excessive chunk loading caused by
+ * extreme velocities or floating-point errors.
  *
  * @author xI-Mx-Ix
  */
@@ -38,9 +42,6 @@ public final class VxTerrainTracker {
 
     /**
      * Defines the size of the coarse grid cells used for clustering, in chunks.
-     * A larger value groups more distant bodies, behaving more like a "single box" approach.
-     * A smaller value creates more, smaller clusters, behaving more like per-body tracking.
-     * A value of 16 (a 256x256 block area) provides a good balance.
      */
     private static final int GRID_CELL_SIZE_IN_CHUNKS = 4;
 
@@ -59,14 +60,31 @@ public final class VxTerrainTracker {
      */
     private static final float PREDICTION_SECONDS = 0.5f;
 
+    /**
+     * The maximum number of chunks a single cluster can request in one update tick.
+     * This acts as a safety brake against physics glitches or infinite bounding boxes.
+     */
+    private static final int MAX_CHUNKS_PER_CLUSTER_ITERATION = 4096;
+
+    /**
+     * The maximum Y-level at which terrain generation is tracked.
+     * Bodies above this height will not trigger terrain loading.
+     */
+    private static final int MAX_GENERATION_HEIGHT = 500;
+
+    /**
+     * The minimum Y-level at which terrain generation is tracked.
+     * Bodies below this height will not trigger terrain loading.
+     */
+    private static final int MIN_GENERATION_HEIGHT = -250;
 
     /**
      * Constructs a new VxTerrainTracker.
      *
-     * @param physicsWorld The physics world containing the bodies to track.
+     * @param physicsWorld   The physics world containing the bodies to track.
      * @param terrainManager The manager responsible for loading and unloading terrain.
      * @param chunkDataStore The data store for chunk state information.
-     * @param level The server level in which the tracking occurs.
+     * @param level          The server level in which the tracking occurs.
      */
     public VxTerrainTracker(VxPhysicsWorld physicsWorld, VxTerrainManager terrainManager, VxChunkDataStore chunkDataStore, ServerLevel level) {
         this.physicsWorld = physicsWorld;
@@ -93,22 +111,24 @@ public final class VxTerrainTracker {
         // 1. Calculate the total set of required chunks based on dynamic clustering.
         Set<VxSectionPos> currentlyRequiredChunks = calculateRequiredPreloadSet(currentBodies);
 
-        // 2. Request new chunks and release old ones by comparing the current and previous sets.
+        // 2. Request new chunks.
         for (VxSectionPos pos : currentlyRequiredChunks) {
             if (!previouslyRequiredChunks.contains(pos)) {
                 terrainManager.requestChunk(pos);
             }
         }
+
+        // 3. Release old chunks.
         for (VxSectionPos pos : previouslyRequiredChunks) {
             if (!currentlyRequiredChunks.contains(pos)) {
                 terrainManager.releaseChunk(pos);
             }
         }
 
-        // 3. Update the state for the next tick.
+        // 4. Update the state for the next tick.
         this.previouslyRequiredChunks = currentlyRequiredChunks;
 
-        // 4. Handle fine-grained activation for bodies that are actually moving.
+        // 5. Handle fine-grained activation for bodies that are actually moving.
         updateChunkActivation(currentBodies);
     }
 
@@ -120,31 +140,39 @@ public final class VxTerrainTracker {
      * @return A set of {@link VxSectionPos} representing all chunks that should be loaded.
      */
     private Set<VxSectionPos> calculateRequiredPreloadSet(List<VxBody> allBodies) {
-        // Step 1: Group bodies into clusters using a fast spatial hash (grid).
         Map<Long, List<VxBody>> bodyClusters = new HashMap<>();
+
         for (VxBody body : allBodies) {
-            int dataIndex = body.getDataStoreIndex();
-            if (dataIndex == -1) continue;
+            int i = body.getDataStoreIndex();
+            if (i == -1) continue;
 
-            // Get the body's position in chunk coordinates.
-            VxSectionPos bodySectionPos = VxSectionPos.fromWorldSpace(
-                    bodyDataStore.posX[dataIndex],
-                    bodyDataStore.posY[dataIndex],
-                    bodyDataStore.posZ[dataIndex]
-            );
+            float px = (float) bodyDataStore.posX[i];
+            float py = (float) bodyDataStore.posY[i];
+            float pz = (float) bodyDataStore.posZ[i];
 
-            // Calculate the coarse grid cell coordinates.
+            // Basic sanity check for valid coordinates
+            if (!Float.isFinite(px) || !Float.isFinite(py) || !Float.isFinite(pz)) {
+                continue;
+            }
+
+            // Height check: Ignore bodies too high or too low
+            if (py > MAX_GENERATION_HEIGHT || py < MIN_GENERATION_HEIGHT) {
+                continue;
+            }
+
+            VxSectionPos bodySectionPos = VxSectionPos.fromWorldSpace(px, py, pz);
+
+            // Calculate the coarse grid cell coordinates
             int cellX = bodySectionPos.x() / GRID_CELL_SIZE_IN_CHUNKS;
             int cellY = bodySectionPos.y() / GRID_CELL_SIZE_IN_CHUNKS;
             int cellZ = bodySectionPos.z() / GRID_CELL_SIZE_IN_CHUNKS;
 
-            // Use SectionPos.asLong to create a unique, stable key for the cell.
             long cellKey = SectionPos.asLong(cellX, cellY, cellZ);
             bodyClusters.computeIfAbsent(cellKey, k -> new ArrayList<>()).add(body);
         }
 
-        // Step 2: For each cluster, calculate its bounding box and the chunks it needs.
         Set<VxSectionPos> requiredChunks = new HashSet<>();
+
         for (List<VxBody> cluster : bodyClusters.values()) {
             if (cluster.isEmpty()) continue;
 
@@ -159,38 +187,46 @@ public final class VxTerrainTracker {
 
             // Expand the AABB to include all bodies in the cluster and their predictions.
             for (VxBody body : cluster) {
-                int dataIndex = body.getDataStoreIndex();
-                // Safely skip any body that may have been removed concurrently.
-                if (dataIndex == -1) continue;
+                int i = body.getDataStoreIndex();
+                if (i == -1) continue;
+
+                float bMinX = bodyDataStore.aabbMinX[i];
+                float bMinY = bodyDataStore.aabbMinY[i];
+                float bMinZ = bodyDataStore.aabbMinZ[i];
+                float bMaxX = bodyDataStore.aabbMaxX[i];
+                float bMaxY = bodyDataStore.aabbMaxY[i];
+                float bMaxZ = bodyDataStore.aabbMaxZ[i];
+
+                if (!Float.isFinite(bMinX) || !Float.isFinite(bMaxX) ||
+                        !Float.isFinite(bMinY) || !Float.isFinite(bMaxY) ||
+                        !Float.isFinite(bMinZ) || !Float.isFinite(bMaxZ)) {
+                    continue;
+                }
 
                 clusterHasValidBodies = true;
 
-                // Current bounds
-                minX = Math.min(minX, bodyDataStore.aabbMinX[dataIndex]);
-                minY = Math.min(minY, bodyDataStore.aabbMinY[dataIndex]);
-                minZ = Math.min(minZ, bodyDataStore.aabbMinZ[dataIndex]);
-                maxX = Math.max(maxX, bodyDataStore.aabbMaxX[dataIndex]);
-                maxY = Math.max(maxY, bodyDataStore.aabbMaxY[dataIndex]);
-                maxZ = Math.max(maxZ, bodyDataStore.aabbMaxZ[dataIndex]);
+                minX = Math.min(minX, bMinX);
+                minY = Math.min(minY, bMinY);
+                minZ = Math.min(minZ, bMinZ);
+                maxX = Math.max(maxX, bMaxX);
+                maxY = Math.max(maxY, bMaxY);
+                maxZ = Math.max(maxZ, bMaxZ);
 
-                // Predicted bounds
-                float velX = bodyDataStore.velX[dataIndex];
-                float velY = bodyDataStore.velY[dataIndex];
-                float velZ = bodyDataStore.velZ[dataIndex];
-                if (Math.abs(velX) > 0.01f || Math.abs(velY) > 0.01f || Math.abs(velZ) > 0.01f) {
-                    float predMinX = bodyDataStore.aabbMinX[dataIndex] + velX * PREDICTION_SECONDS;
-                    float predMinY = bodyDataStore.aabbMinY[dataIndex] + velY * PREDICTION_SECONDS;
-                    float predMinZ = bodyDataStore.aabbMinZ[dataIndex] + velZ * PREDICTION_SECONDS;
-                    float predMaxX = bodyDataStore.aabbMaxX[dataIndex] + velX * PREDICTION_SECONDS;
-                    float predMaxY = bodyDataStore.aabbMaxY[dataIndex] + velY * PREDICTION_SECONDS;
-                    float predMaxZ = bodyDataStore.aabbMaxZ[dataIndex] + velZ * PREDICTION_SECONDS;
+                // Velocity Prediction
+                float velX = bodyDataStore.velX[i];
+                float velY = bodyDataStore.velY[i];
+                float velZ = bodyDataStore.velZ[i];
 
-                    minX = Math.min(minX, predMinX);
-                    minY = Math.min(minY, predMinY);
-                    minZ = Math.min(minZ, predMinZ);
-                    maxX = Math.max(maxX, predMaxX);
-                    maxY = Math.max(maxY, predMaxY);
-                    maxZ = Math.max(maxZ, predMaxZ);
+                if (Float.isFinite(velX) && Float.isFinite(velY) && Float.isFinite(velZ)) {
+                    // Prediction logic without clamping
+                    if (Math.abs(velX) > 0.01f || Math.abs(velY) > 0.01f || Math.abs(velZ) > 0.01f) {
+                        minX = Math.min(minX, bMinX + velX * PREDICTION_SECONDS);
+                        minY = Math.min(minY, bMinY + velY * PREDICTION_SECONDS);
+                        minZ = Math.min(minZ, bMinZ + velZ * PREDICTION_SECONDS);
+                        maxX = Math.max(maxX, bMaxX + velX * PREDICTION_SECONDS);
+                        maxY = Math.max(maxY, bMaxY + velY * PREDICTION_SECONDS);
+                        maxZ = Math.max(maxZ, bMaxZ + velZ * PREDICTION_SECONDS);
+                    }
                 }
             }
 
@@ -203,10 +239,10 @@ public final class VxTerrainTracker {
         return requiredChunks;
     }
 
+
     /**
      * Updates the set of active terrain chunks for the current physics tick.
-     * This logic is kept separate for performance, activating chunks only around bodies
-     * that are currently in motion to ensure immediate collision data is available.
+     * This logic activates chunks only around bodies that are currently in motion.
      *
      * @param allBodies The list of all physics bodies in the world.
      */
@@ -214,15 +250,30 @@ public final class VxTerrainTracker {
         Set<VxSectionPos> requiredActiveSet = new HashSet<>();
 
         for (VxBody body : allBodies) {
-            int dataIndex = body.getDataStoreIndex();
-            if (dataIndex != -1 && bodyDataStore.isActive[dataIndex]) {
-                float minX = bodyDataStore.aabbMinX[dataIndex];
-                float minY = bodyDataStore.aabbMinY[dataIndex];
-                float minZ = bodyDataStore.aabbMinZ[dataIndex];
-                float maxX = bodyDataStore.aabbMaxX[dataIndex];
-                float maxY = bodyDataStore.aabbMaxY[dataIndex];
-                float maxZ = bodyDataStore.aabbMaxZ[dataIndex];
-                forEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, ACTIVATION_RADIUS_CHUNKS, requiredActiveSet);
+            int i = body.getDataStoreIndex();
+
+            // Check active status
+            if (i != -1 && bodyDataStore.isActive[i]) {
+                float py = (float) bodyDataStore.posY[i];
+
+                // Check height limits
+                if (py > MAX_GENERATION_HEIGHT || py < MIN_GENERATION_HEIGHT) {
+                    continue;
+                }
+
+                float minX = bodyDataStore.aabbMinX[i];
+                float minY = bodyDataStore.aabbMinY[i];
+                float minZ = bodyDataStore.aabbMinZ[i];
+                float maxX = bodyDataStore.aabbMaxX[i];
+                float maxY = bodyDataStore.aabbMaxY[i];
+                float maxZ = bodyDataStore.aabbMaxZ[i];
+
+                // Ensure bounds are valid before iterating
+                if (Float.isFinite(minX) && Float.isFinite(maxX) &&
+                        Float.isFinite(minY) && Float.isFinite(maxY) &&
+                        Float.isFinite(minZ) && Float.isFinite(maxZ)) {
+                    forEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, ACTIVATION_RADIUS_CHUNKS, requiredActiveSet);
+                }
             }
         }
 
@@ -249,6 +300,7 @@ public final class VxTerrainTracker {
 
     /**
      * Helper method to iterate over all chunk sections that overlap a given AABB, expanded by a radius.
+     * Includes a safety brake to prevent processing excessively large areas due to physics glitches.
      *
      * @param minX The minimum X coordinate of the bounding box.
      * @param minY The minimum Y coordinate of the bounding box.
@@ -260,6 +312,8 @@ public final class VxTerrainTracker {
      * @param outChunks The set to which the overlapping chunk positions will be added.
      */
     private void forEachSectionInBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, int radiusInChunks, Set<VxSectionPos> outChunks) {
+        if (Double.isNaN(minX) || Double.isNaN(maxX) || Double.isNaN(minZ) || Double.isNaN(maxZ)) return;
+
         int minSectionX = SectionPos.blockToSectionCoord(minX) - radiusInChunks;
         int minSectionY = SectionPos.blockToSectionCoord(minY) - radiusInChunks;
         int minSectionZ = SectionPos.blockToSectionCoord(minZ) - radiusInChunks;
@@ -269,6 +323,22 @@ public final class VxTerrainTracker {
 
         final int worldMinY = level.getMinBuildHeight() >> 4;
         final int worldMaxY = level.getMaxBuildHeight() >> 4;
+
+        // Calculate the volume of the requested area
+        long width = (long) maxSectionX - minSectionX + 1;
+        long height = (long) maxSectionY - minSectionY + 1;
+        long depth = (long) maxSectionZ - minSectionZ + 1;
+
+        if (width <= 0 || height <= 0 || depth <= 0) return;
+
+        long totalVolume = width * height * depth;
+
+        // Safety brake: Abort if the requested volume is unreasonably large (likely a glitch)
+        if (totalVolume > MAX_CHUNKS_PER_CLUSTER_ITERATION) {
+            VxMainClass.LOGGER.warn("Terrain Tracker Safety Brake triggered! Ignored request for {} chunks in one cluster. (Bounds: {},{} to {},{})",
+                    totalVolume, minSectionX, minSectionZ, maxSectionX, maxSectionZ);
+            return;
+        }
 
         for (int y = minSectionY; y <= maxSectionY; ++y) {
             if (y < worldMinY || y >= worldMaxY) continue;
@@ -292,8 +362,7 @@ public final class VxTerrainTracker {
     }
 
     /**
-     * Deactivates all currently managed terrain chunks. This is typically used when no physics
-     * bodies are present in the world.
+     * Deactivates all currently managed terrain chunks.
      */
     private void deactivateAllChunks() {
         chunkDataStore.getActiveIndices().stream()
@@ -303,7 +372,7 @@ public final class VxTerrainTracker {
     }
 
     /**
-     * Clears all tracking data and releases all held chunks. Used during world shutdown or reloads.
+     * Clears all tracking data and releases all held chunks.
      */
     public void clear() {
         releaseAllChunks();
