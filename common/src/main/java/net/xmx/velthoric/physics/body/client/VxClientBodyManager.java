@@ -179,7 +179,7 @@ public class VxClientBodyManager {
 
         // Register in SoA DataStore
         int index = store.addBody(id, networkId);
-        body.setDataStoreIndex(index);
+        body.setDataStoreIndex(store, index);
         managedBodies.put(id, body);
 
         // Deserialize initial transform

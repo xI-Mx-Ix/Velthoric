@@ -386,7 +386,7 @@ public class VxBodyManager {
         if (body.getBodyId() != 0) {
             joltBodyIdToVxBodyMap.remove(body.getBodyId());
         }
-        body.setDataStoreIndex(-1);
+        body.setDataStoreIndex(dataStore,-1);
         body.setNetworkId(-1);
     }
 
@@ -403,7 +403,7 @@ public class VxBodyManager {
 
             // Allocate DataStore slot
             int index = dataStore.addBody(id, type);
-            body.setDataStoreIndex(index);
+            body.setDataStoreIndex(dataStore, index);
 
             // Assign Network ID (recycle if available, else increment)
             int networkId = freeNetworkIds.isEmpty() ? nextNetworkId++ : freeNetworkIds.pop();
