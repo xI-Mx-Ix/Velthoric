@@ -103,8 +103,8 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
      * <ol>
      *     <li>Creates the {@link VelthoricExtension} to expose the DSL.</li>
      *     <li>Applies the underlying 'mod-publish-plugin'.</li>
-     *     <li>Links the subproject's publish task to the root lifecycle task.</li>
-     *     <li>Defers the actual configuration until {@code afterEvaluate} to ensure user DSL is populated.</li>
+     *     <li>Checks if the user configured an artifact. If NOT, the module is ignored.</li>
+     *     <li>Only links the subproject's publish task to the root lifecycle task if an artifact exists.</li>
      * </ol>
      *
      * @param project The subproject to configure.
@@ -117,21 +117,33 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
         // 2. Apply dependencies (Third-party plugins required for uploading)
         project.getPlugins().apply("me.modmuss50.mod-publish-plugin");
 
-        // 3. Connect to Root Lifecycle
-        // We use a configuration action to safely link tasks that may not exist yet during this phase.
-        project.getRootProject().getTasks().named(LIFECYCLE_TASK_NAME, rootTask -> {
-            TaskProvider<Task> subTask = project.getTasks().named(SUBPROJECT_TASK_NAME);
-            rootTask.dependsOn(subTask);
-        });
-
-        // 4. Defer configuration logic until the build script has been evaluated.
+        // 3. Defer configuration logic until the build script has been evaluated.
         // This is necessary because we need to read the values set by the user in the 'velthoricPublishing' block.
         project.afterEvaluate(p -> {
+
+            // If the user did not specify an artifact (e.g. no velthoricPublishing block or empty block),
+            // we strictly ignore this module. It will not be configured, and it will NOT be linked
+            // to the root publishing task.
+            if (!extension.getArtifact().isPresent()) {
+                project.getLogger().debug("Velthoric: Skipping module '{}' - No artifact configured.", project.getName());
+                return;
+            }
+
+            // --- Everything below this line only happens if the block matches requirements ---
+
             // Configure Cloudsmith Maven repository (only if enabled in extension)
             MavenConfigurator.configure(p, extension);
 
             // Configure Modrinth and CurseForge via the dedicated strategy class
             PlatformConfigurator.configure(p, extension);
+
+            // Connect to Root Lifecycle
+            // We do this HERE instead of earlier, so that modules without artifacts are never part of the dependency graph.
+            p.getRootProject().getTasks().named(LIFECYCLE_TASK_NAME, rootTask -> {
+                TaskProvider<Task> subTask = p.getTasks().named(SUBPROJECT_TASK_NAME);
+                rootTask.dependsOn(subTask);
+                project.getLogger().lifecycle("Velthoric: Registered module '{}' for publication.", project.getName());
+            });
         });
     }
 }
