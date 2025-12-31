@@ -5,7 +5,6 @@
 package net.xmx.velthoric.builtin.box;
 
 import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
@@ -40,9 +39,7 @@ public class BoxRenderer extends VxRigidBodyRenderer<BoxRigidBody> {
 
         poseStack.pushPose();
 
-        RVec3 renderPosition = renderState.transform.getTranslation();
         Quat renderRotation = renderState.transform.getRotation();
-        poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
         poseStack.mulPose(new Quaternionf(renderRotation.getX(), renderRotation.getY(), renderRotation.getZ(), renderRotation.getW()));
 
         poseStack.translate(-hx, -hy, -hz);

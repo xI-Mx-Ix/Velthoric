@@ -5,7 +5,6 @@
 package net.xmx.velthoric.builtin.sphere;
 
 import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.RVec3;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -32,9 +31,7 @@ public class SphereRenderer extends VxRigidBodyRenderer<SphereRigidBody> {
     public void render(SphereRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
-        RVec3 renderPosition = renderState.transform.getTranslation();
         Quat renderRotation = renderState.transform.getRotation();
-        poseStack.translate(renderPosition.x(), renderPosition.y(), renderPosition.z());
         poseStack.mulPose(new Quaternionf(renderRotation.getX(), renderRotation.getY(), renderRotation.getZ(), renderRotation.getW()));
 
         PoseStack.Pose lastPose = poseStack.last();

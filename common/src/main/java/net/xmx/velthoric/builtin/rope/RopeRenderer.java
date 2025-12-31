@@ -43,30 +43,45 @@ public class RopeRenderer extends VxSoftBodyRenderer<RopeSoftBody> {
         }
 
         int numNodes = renderVertexData.length / 3;
-        renderSmoothRope(renderVertexData, numNodes, ropeRadius, poseStack, bufferSource, packedLight);
+
+        // Render the rope geometry using local coordinates derived from the render state
+        renderSmoothRope(renderVertexData, numNodes, ropeRadius, poseStack, bufferSource, packedLight, renderState);
     }
 
-    private void renderSmoothRope(float[] vertexData, int numNodes, float ropeRadius, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
+    private void renderSmoothRope(float[] vertexData, int numNodes, float ropeRadius, PoseStack poseStack, MultiBufferSource bufferSource, int packedLight, VxRenderState renderState) {
         VertexConsumer buffer = bufferSource.getBuffer(RenderType.cutoutMipped());
         TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(YELLOW_WOOL_BLOCK_TEXTURE);
+
+        // Get Center of Mass to convert absolute vertices to local
+        double comX = renderState.transform.getTranslation().x();
+        double comY = renderState.transform.getTranslation().y();
+        double comZ = renderState.transform.getTranslation().z();
 
         Vec3[][] ringVertices = new Vec3[numNodes][SIDES];
         Vec3[] nodePositions = new Vec3[numNodes];
         Vec3[] directions = new Vec3[numNodes];
 
+        // Fill node positions, converting from Absolute World Space to Local Space (PoseStack Space)
         for (int i = 0; i < numNodes; i++) {
-            nodePositions[i] = new Vec3(vertexData[i * 3], vertexData[i * 3 + 1], vertexData[i * 3 + 2]);
+            nodePositions[i] = new Vec3(
+                    vertexData[i * 3] - comX,
+                    vertexData[i * 3 + 1] - comY,
+                    vertexData[i * 3 + 2] - comZ
+            );
         }
 
+        // Calculate direction vectors between nodes for orientation
         for (int i = 0; i < numNodes; i++) {
             Vec3 direction;
             if (i == 0) direction = Op.minus(nodePositions[1], nodePositions[0]);
             else if (i == numNodes - 1) direction = Op.minus(nodePositions[i], nodePositions[i - 1]);
             else direction = Op.plus(Op.minus(nodePositions[i + 1], nodePositions[i]), Op.minus(nodePositions[i], nodePositions[i - 1]));
+
             if (direction.lengthSq() < 1e-12f) direction.set(0, -1, 0);
             directions[i] = direction.normalized();
         }
 
+        // Generate tube rings based on directions (Parallel Transport Frame)
         Vec3 lastUp = Math.abs(directions[0].dot(JOLT_UNIT_Y)) > 0.99f ? directions[0].cross(JOLT_UNIT_X).normalized() : Op.star(directions[0].cross(JOLT_UNIT_Y).normalized(), -1f);
 
         for (int nodeIdx = 0; nodeIdx < numNodes; nodeIdx++) {
@@ -80,6 +95,7 @@ public class RopeRenderer extends VxSoftBodyRenderer<RopeSoftBody> {
             }
         }
 
+        // Triangulate the tube
         for (int nodeIdx = 0; nodeIdx < numNodes - 1; nodeIdx++) {
             for (int sideIdx = 0; sideIdx < SIDES; sideIdx++) {
                 int nextSideIdx = (sideIdx + 1) % SIDES;

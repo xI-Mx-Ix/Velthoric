@@ -29,7 +29,15 @@ import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 /**
  * The main client-side renderer for all physics bodies.
- * This class hooks into Minecraft's rendering pipeline.
+ * This class hooks into Minecraft's rendering pipeline and orchestrates the drawing of all active physics objects.
+ * <p>
+ * It handles:
+ * <ul>
+ *     <li>Frustum culling using the vanilla Minecraft frustum.</li>
+ *     <li>Interpolation of physics states for smooth rendering.</li>
+ *     <li>High-precision camera-relative positioning to prevent floating-point jitter at large coordinates.</li>
+ *     <li>Delegation to specific {@link VxBodyRenderer} implementations.</li>
+ * </ul>
  *
  * @author xI-Mx-Ix
  */
@@ -54,7 +62,7 @@ public class VxPhysicsRenderer {
     }
 
     /**
-     * The main render event handler, called every frame.
+     * The main render event handler, called every frame during the level rendering process.
      *
      * @param event The render event containing context like the pose stack and partial ticks.
      */
@@ -73,18 +81,14 @@ public class VxPhysicsRenderer {
         float partialTicks = event.getPartialTick();
         Vec3 cameraPos = mc.gameRenderer.getMainCamera().getPosition();
 
-        // Retrieve the vanilla Frustum via our Mixin accessor.
-        // This ensures we use the EXACT same culling logic as the rest of the game,
-        // preventing issues where the frustum is inverted or desynchronized from the camera.
+        // Retrieve the vanilla Frustum via Mixin accessor to match entity culling logic.
         Frustum frustum = ((LevelRendererAccessor) mc.levelRenderer).velthoric_getCullingFrustum();
 
         poseStack.pushPose();
-        // Translate the world so rendering is relative to the camera position.
-        poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
 
         for (VxBody body : manager.getAllBodies()) {
             try {
-                // Cull the body if it's not visible or hasn't been fully initialized.
+                // Skip if the body hasn't been fully initialized.
                 if (!body.isInitialized()) {
                     continue;
                 }
@@ -98,19 +102,32 @@ public class VxPhysicsRenderer {
                 // Delegate to the body to calculate its final interpolated state for this frame.
                 body.calculateRenderState(partialTicks, finalRenderState, interpolatedPosition, interpolatedRotation);
 
-                // Determine the light level at the body's position.
+                RVec3 absRenderPosition = finalRenderState.transform.getTranslation();
+
+                // Calculate the light level at the body's position.
                 int packedLight;
                 if (body instanceof VxSoftBody && finalRenderState.vertexData != null && finalRenderState.vertexData.length >= 3) {
-                    // For soft bodies, use the position of the first vertex to sample light.
                     packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(finalRenderState.vertexData[0], finalRenderState.vertexData[1], finalRenderState.vertexData[2]));
                 } else {
-                    // For rigid bodies, use the main transform's position.
-                    RVec3 renderPosition = finalRenderState.transform.getTranslation();
-                    packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(renderPosition.xx(), renderPosition.yy(), renderPosition.zz()));
+                    packedLight = LevelRenderer.getLightColor(mc.level, BlockPos.containing(absRenderPosition.xx(), absRenderPosition.yy(), absRenderPosition.zz()));
                 }
 
+                // Perform Camera-Relative Rendering.
+                // We calculate the difference between the absolute body position and the camera position
+                // using Double precision on the CPU. The resulting vector is small enough to be
+                // safely cast to Float for the GPU matrix without precision loss (jitter).
+                double relativeX = absRenderPosition.x() - cameraPos.x;
+                double relativeY = absRenderPosition.y() - cameraPos.y;
+                double relativeZ = absRenderPosition.z() - cameraPos.z;
+
+                poseStack.pushPose();
+                poseStack.translate(relativeX, relativeY, relativeZ);
+
                 // Look up the renderer and delegate the rendering call.
+                // The renderer receives the PoseStack already centered at the body's position.
                 renderBody(body, poseStack, bufferSource, partialTicks, packedLight, finalRenderState);
+
+                poseStack.popPose();
 
             } catch (Exception e) {
                 VxMainClass.LOGGER.error("Error rendering physics body {}", body.getPhysicsId(), e);
