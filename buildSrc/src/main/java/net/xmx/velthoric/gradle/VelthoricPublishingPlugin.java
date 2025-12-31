@@ -104,7 +104,8 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
      *     <li>Creates the {@link VelthoricExtension} to expose the DSL.</li>
      *     <li>Applies the underlying 'mod-publish-plugin'.</li>
      *     <li>Checks if the user configured an artifact. If NOT, the module is ignored.</li>
-     *     <li>Only links the subproject's publish task to the root lifecycle task if an artifact exists.</li>
+     *     <li>Checks for required tokens; forces Dry Run if missing.</li>
+     *     <li>Links the subproject's publish task to the root lifecycle task.</li>
      * </ol>
      *
      * @param project The subproject to configure.
@@ -129,7 +130,17 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
                 return;
             }
 
-            // --- Everything below this line only happens if the block matches requirements ---
+            // If Modrinth or CurseForge tokens are invalid/missing, we automatically switch to Dry Run.
+            // This prevents build failures due to missing credentials and allows for safe testing.
+            String mrToken = CredentialService.get(p, CredentialService.KEY_MODRINTH);
+            String cfToken = CredentialService.get(p, CredentialService.KEY_CURSEFORGE);
+
+            if (mrToken == null || cfToken == null) {
+                p.getLogger().lifecycle("Velthoric: Missing Modrinth or CurseForge tokens. Forcing DRY RUN for module '{}'.", p.getName());
+                extension.getDryRun().set(true);
+            }
+
+            // --- Configuration ---
 
             // Configure Cloudsmith Maven repository (only if enabled in extension)
             MavenConfigurator.configure(p, extension);
@@ -138,7 +149,6 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
             PlatformConfigurator.configure(p, extension);
 
             // Connect to Root Lifecycle
-            // We do this HERE instead of earlier, so that modules without artifacts are never part of the dependency graph.
             p.getRootProject().getTasks().named(LIFECYCLE_TASK_NAME, rootTask -> {
                 TaskProvider<Task> subTask = p.getTasks().named(SUBPROJECT_TASK_NAME);
                 rootTask.dependsOn(subTask);
