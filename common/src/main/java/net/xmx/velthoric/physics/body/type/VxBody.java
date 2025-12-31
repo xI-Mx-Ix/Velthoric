@@ -15,7 +15,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.body.VxBodyDataStore;
 import net.xmx.velthoric.physics.body.VxRemovalReason;
+import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.network.synchronization.VxSynchronizedData;
@@ -56,6 +58,13 @@ public abstract class VxBody {
      * The session-specific network ID for this body. -1 if not assigned. Server-side only.
      */
     private int networkId = -1;
+
+    /**
+     * The data store backing this body.
+     * On the Server, this is the {@link VxServerBodyDataStore} (Simulation state).
+     * On the Client, this is the {@link VxClientBodyDataStore} (Interpolated render state).
+     */
+    protected VxBodyDataStore dataStore;
 
     // --- Server-Only Fields ---
     protected final VxPhysicsWorld physicsWorld;
@@ -377,33 +386,42 @@ public abstract class VxBody {
     public void readPersistenceData(VxByteBuf buf) {}
 
 
-    // --- Server-Side Physics State & Body Access ---
-
     /**
      * Populates the given transform with this body's current state from the data store.
-     * Server-side only.
-     * @param outTransform The transform body to populate.
+     * <p>
+     * This method is agnostic to the execution side (Client/Server).
+     *
+     * @param outTransform The transform object to populate.
      */
     public void getTransform(VxTransform outTransform) {
-        if (this.physicsWorld != null && this.dataStoreIndex != -1) {
-            this.physicsWorld.getBodyManager().getTransform(this.dataStoreIndex, outTransform);
+        if (this.dataStore != null && this.dataStoreIndex != -1) {
+            // Ensure the index is within bounds before access
+            if (this.dataStoreIndex < this.dataStore.getCapacity()) {
+                outTransform.getTranslation().set(
+                        this.dataStore.posX[this.dataStoreIndex],
+                        this.dataStore.posY[this.dataStoreIndex],
+                        this.dataStore.posZ[this.dataStoreIndex]
+                );
+                outTransform.getRotation().set(
+                        this.dataStore.rotX[this.dataStoreIndex],
+                        this.dataStore.rotY[this.dataStoreIndex],
+                        this.dataStore.rotZ[this.dataStoreIndex],
+                        this.dataStore.rotW[this.dataStoreIndex]
+                );
+            }
         }
     }
 
     /**
-     * Returns a new transform body representing this body's current state.
-     * Server-side only.
-     * @return A new VxTransform, or a default one if the body is not initialized.
+     * Returns a new transform representing this body's current state.
+     *
+     * @return A new VxTransform containing the position and rotation.
      */
     public VxTransform getTransform() {
-        if (this.physicsWorld != null && this.dataStoreIndex != -1) {
-            VxTransform transform = new VxTransform();
-            this.physicsWorld.getBodyManager().getTransform(this.dataStoreIndex, transform);
-            return transform;
-        }
-        return new VxTransform();
+        VxTransform transform = new VxTransform();
+        getTransform(transform);
+        return transform;
     }
-
 
     // --- Client-Side Rendering Logic ---
 
@@ -516,7 +534,8 @@ public abstract class VxBody {
      * Sets the index in the data store. This is called by the VxBodyManager on addition.
      * @param dataStoreIndex The new data store index.
      */
-    public void setDataStoreIndex(int dataStoreIndex) {
+    public void setDataStoreIndex(VxBodyDataStore dataStore, int dataStoreIndex) {
+        this.dataStore = dataStore;
         this.dataStoreIndex = dataStoreIndex;
     }
 
