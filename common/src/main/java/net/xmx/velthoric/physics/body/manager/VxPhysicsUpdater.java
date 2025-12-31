@@ -159,9 +159,10 @@ public class VxPhysicsUpdater {
                 final RVec3 pos = tempPos.get();
                 final Quat rot = tempRot.get();
                 bodyInterface.getPositionAndRotation(bodyId, pos, rot);
-                dataStore.posX[i] = pos.x();
-                dataStore.posY[i] = pos.y();
-                dataStore.posZ[i] = pos.z();
+                dataStore.posX[i] = pos.xx();
+                dataStore.posY[i] = pos.yy();
+                dataStore.posZ[i] = pos.zz();
+
                 dataStore.rotX[i] = rot.getX();
                 dataStore.rotY[i] = rot.getY();
                 dataStore.rotZ[i] = rot.getZ();
@@ -191,7 +192,7 @@ public class VxPhysicsUpdater {
                 dataStore.isTransformDirty[i] = true;
 
                 final long lastKey = dataStore.chunkKey[i];
-                final long currentKey = new ChunkPos(SectionPos.posToSectionCoord(pos.x()), SectionPos.posToSectionCoord(pos.z())).toLong();
+                final long currentKey = new ChunkPos(SectionPos.posToSectionCoord(pos.xx()), SectionPos.posToSectionCoord(pos.zz())).toLong();
                 if (lastKey != currentKey) {
                     manager.getChunkManager().updateBodyTracking(obj, lastKey, currentKey);
                     dataStore.chunkKey[i] = currentKey;
