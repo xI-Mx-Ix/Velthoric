@@ -7,6 +7,7 @@ package net.xmx.velthoric.init;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
+import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.registry.ModRegistries;
 import net.xmx.velthoric.init.registry.KeyMappings;
 import net.xmx.velthoric.natives.VxNativeManager;
@@ -31,11 +32,13 @@ public class VxMainClass {
      * Initializes registries, packets, and loads native libraries.
      */
     public static void onInit() {
+        VxModConfig.init();
         ModRegistries.register();
         VxRegisteredBodies.register();
         VxPacketRegistry.registerPackets();
         RegisterEvents.register();
         VxNativeManager.initialize();
+        VxModConfig.load();
     }
 
     /**

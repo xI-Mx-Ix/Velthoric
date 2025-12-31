@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.terrain.management;
 
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
+import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.type.VxBody;
@@ -43,40 +44,40 @@ public final class VxTerrainTracker {
     /**
      * Defines the size of the coarse grid cells used for clustering, in chunks.
      */
-    private static final int GRID_CELL_SIZE_IN_CHUNKS = 4;
+    private final int GRID_CELL_SIZE_IN_CHUNKS;
 
     /**
      * The radius, in chunks, around a moving body's bounding box to keep active.
      */
-    private static final int ACTIVATION_RADIUS_CHUNKS = 1;
+    private final int ACTIVATION_RADIUS_CHUNKS;
 
     /**
      * The radius, in chunks, to preload around a cluster's bounding box.
      */
-    private static final int PRELOAD_RADIUS_CHUNKS = 3;
+    private final int PRELOAD_RADIUS_CHUNKS;
 
     /**
      * The time, in seconds, to predict a body's future position for preloading terrain.
      */
-    private static final float PREDICTION_SECONDS = 0.5f;
+    private final float PREDICTION_SECONDS;
 
     /**
      * The maximum number of chunks a single cluster can request in one update tick.
      * This acts as a safety brake against physics glitches or infinite bounding boxes.
      */
-    private static final int MAX_CHUNKS_PER_CLUSTER_ITERATION = 4096;
+    private final int MAX_CHUNKS_PER_CLUSTER_ITERATION;
 
     /**
      * The maximum Y-level at which terrain generation is tracked.
      * Bodies above this height will not trigger terrain loading.
      */
-    private static final int MAX_GENERATION_HEIGHT = 500;
+    private final int MAX_GENERATION_HEIGHT;
 
     /**
      * The minimum Y-level at which terrain generation is tracked.
      * Bodies below this height will not trigger terrain loading.
      */
-    private static final int MIN_GENERATION_HEIGHT = -250;
+    private final int MIN_GENERATION_HEIGHT;
 
     /**
      * Constructs a new VxTerrainTracker.
@@ -92,6 +93,14 @@ public final class VxTerrainTracker {
         this.chunkDataStore = chunkDataStore;
         this.level = level;
         this.bodyDataStore = physicsWorld.getBodyManager().getDataStore();
+
+        this.GRID_CELL_SIZE_IN_CHUNKS = VxModConfig.TERRAIN.gridCellSize.get();
+        this.ACTIVATION_RADIUS_CHUNKS = VxModConfig.TERRAIN.activationRadius.get();
+        this.PRELOAD_RADIUS_CHUNKS = VxModConfig.TERRAIN.preloadRadius.get();
+        this.PREDICTION_SECONDS = VxModConfig.TERRAIN.predictionSeconds.get().floatValue();
+        this.MAX_CHUNKS_PER_CLUSTER_ITERATION = VxModConfig.TERRAIN.maxChunksPerCluster.get();
+        this.MAX_GENERATION_HEIGHT = VxModConfig.TERRAIN.maxGenHeight.get();
+        this.MIN_GENERATION_HEIGHT = VxModConfig.TERRAIN.minGenHeight.get();
     }
 
     /**
