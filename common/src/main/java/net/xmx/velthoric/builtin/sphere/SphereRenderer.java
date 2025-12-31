@@ -28,7 +28,7 @@ public class SphereRenderer extends VxRigidBodyRenderer<SphereRigidBody> {
     private static final int SECTORS = 32;
 
     @Override
-    public void render(SphereRigidBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(SphereRigidBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         Quat renderRotation = renderState.transform.getRotation();

@@ -31,7 +31,7 @@ public class RopeRenderer extends VxSoftBodyRenderer<RopeSoftBody> {
     private static final Vec3 JOLT_UNIT_Y = new Vec3(0, 1, 0);
 
     @Override
-    public void render(RopeSoftBody body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(RopeSoftBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         float[] renderVertexData = renderState.vertexData;
         if (renderVertexData == null || renderVertexData.length < 6) {
             return;

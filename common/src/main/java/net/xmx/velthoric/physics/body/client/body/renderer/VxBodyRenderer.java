@@ -28,5 +28,5 @@ public abstract class VxBodyRenderer<T extends VxBody> {
      * @param packedLight  The calculated light value at the body's position.
      * @param renderState  The final interpolated state that should be rendered.
      */
-    public abstract void render(T body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState);
+    public abstract void render(T body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState);
 }

@@ -30,7 +30,7 @@ public class MotorcycleRenderer extends VxRigidBodyRenderer<MotorcycleImpl> {
     private static final Vec3 CHASSIS_HALF_EXTENTS = new Vec3(0.2f, 0.3f, 0.4f);
 
     @Override
-    public void render(MotorcycleImpl body, PoseStack poseStack, MultiBufferSource.BufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(MotorcycleImpl body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         // Apply Main Body Transform
