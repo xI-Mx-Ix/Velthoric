@@ -9,6 +9,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.bridge.mounting.VxMountable;
 import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
+import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxByteBuf;
@@ -45,7 +46,7 @@ public class VxClientBodyManager {
     // The delay applied to rendering to allow for interpolation. A larger value
     // can smooth over more network jitter but increases perceived latency.
     // Value is in nanoseconds (150ms).
-    private static final long INTERPOLATION_DELAY_NANOS = 150_000_000L;
+    private final long interpolationDelayNanos;
 
     // The data store holding all body states in a Structure of Arrays format.
     private final VxClientBodyDataStore store = new VxClientBodyDataStore();
@@ -77,6 +78,7 @@ public class VxClientBodyManager {
     public VxClientBodyManager(VxClientPhysicsWorld world) {
         this.world = world;
         this.syncManager = new VxClientSyncManager(this);
+        this.interpolationDelayNanos = VxModConfig.CLIENT.interpolationDelayNanos.get();
     }
 
     /**
@@ -333,7 +335,7 @@ public class VxClientBodyManager {
         if (isClockOffsetInitialized) {
             // Calculate the target render time based on the synced clock.
             // Formula: GameTime + ClockOffset - InterpolationDelay
-            long renderTimestamp = world.getClock().getGameTimeNanos() + this.clockOffsetNanos - INTERPOLATION_DELAY_NANOS;
+            long renderTimestamp = world.getClock().getGameTimeNanos() + this.clockOffsetNanos - this.interpolationDelayNanos;
 
             // Perform interpolation for all bodies in the store
             interpolator.updateInterpolationTargets(store, renderTimestamp);
