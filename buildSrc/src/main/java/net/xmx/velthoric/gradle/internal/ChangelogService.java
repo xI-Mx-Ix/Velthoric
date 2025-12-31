@@ -36,7 +36,7 @@ public final class ChangelogService {
                 .resolve(version + ".md");
 
         if (!Files.exists(changelogPath)) {
-            project.getLogger().warn("VelthoricPublishing: No changelog found at {}", changelogPath);
+            project.getLogger().debug("VelthoricPublishing: No changelog found at {}", changelogPath);
             return "No changelog provided for version " + version;
         }
 
