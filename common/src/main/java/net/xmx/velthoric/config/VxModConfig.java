@@ -5,6 +5,7 @@
 package net.xmx.velthoric.config;
 
 import dev.architectury.platform.Platform;
+import net.xmx.velthoric.config.subsystems.VxClientConfig;
 import net.xmx.velthoric.config.subsystems.VxNetworkConfig;
 import net.xmx.velthoric.config.subsystems.VxPhysicsConfig;
 import net.xmx.velthoric.config.subsystems.VxTerrainConfig;
@@ -28,6 +29,7 @@ public class VxModConfig {
     public static VxPhysicsConfig PHYSICS;
     public static VxTerrainConfig TERRAIN;
     public static VxNetworkConfig NETWORK;
+    public static VxClientConfig CLIENT;
 
     /**
      * Initializes the configuration structure.
@@ -49,6 +51,10 @@ public class VxModConfig {
 
         builder.push("networking");
         NETWORK = new VxNetworkConfig(builder);
+        builder.pop();
+
+        builder.push("client_settings");
+        CLIENT = new VxClientConfig(builder);
         builder.pop();
 
         SPEC = builder.build();

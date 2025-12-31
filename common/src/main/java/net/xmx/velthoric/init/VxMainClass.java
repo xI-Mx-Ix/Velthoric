@@ -33,12 +33,12 @@ public class VxMainClass {
      */
     public static void onInit() {
         VxModConfig.init();
+        VxModConfig.load();
         ModRegistries.register();
         VxRegisteredBodies.register();
         VxPacketRegistry.registerPackets();
         RegisterEvents.register();
         VxNativeManager.initialize();
-        VxModConfig.load();
     }
 
     /**
