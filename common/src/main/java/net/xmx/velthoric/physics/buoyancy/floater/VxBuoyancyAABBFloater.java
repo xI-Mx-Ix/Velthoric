@@ -17,6 +17,9 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
  * Calculates and applies buoyancy using a simplified AABB approximation.
  * This method is used as a fallback for non-convex/non-compound shapes where precise
  * submerged volume calculation is not available.
+ * <p>
+ * This implementation includes mass-based clamping for drag forces to prevent
+ * instability when interacting with light objects or high-viscosity fluids.
  *
  * @author xI-Mx-Ix
  */
@@ -46,6 +49,11 @@ public class VxBuoyancyAABBFloater extends VxBuoyancyFloater {
     @Override
     public void applyForces(Body body, float deltaTime, int index, VxBuoyancyDataStore dataStore) {
         MotionProperties motionProperties = body.getMotionProperties();
+        float inverseMass = motionProperties.getInverseMass();
+        if (inverseMass == 0.0f) {
+            return;
+        }
+        float bodyMass = 1.0f / inverseMass;
 
         float surfaceY = dataStore.surfaceHeights[index];
         VxFluidType fluidType = dataStore.fluidTypes[index];
@@ -94,36 +102,63 @@ public class VxBuoyancyAABBFloater extends VxBuoyancyFloater {
 
         // --- Buoyancy Impulse ---
         Vec3 gravity = physicsWorld.getPhysicsSystem().getGravity();
-        float bodyMass = 1.0f / motionProperties.getInverseMass();
         Vec3 buoyancyImpulse = tempVec3_1.get();
         buoyancyImpulse.set(gravity);
         buoyancyImpulse.scaleInPlace(-buoyancyMultiplier * bodyMass * effectiveSubmersion * deltaTime);
         body.addImpulse(buoyancyImpulse, centerOfBuoyancyWorld);
 
-        // --- Drag and Damping (also scaled by effectiveSubmersion) ---
+        // --- Drag and Damping ---
+        // Forces are clamped against the body's momentum to prevent instability.
+
         Vec3 linearVelocity = body.getLinearVelocity();
         float linearSpeedSq = linearVelocity.lengthSq();
         if (linearSpeedSq > 1e-6f) {
+            float linearSpeed = (float) Math.sqrt(linearSpeedSq);
+            float dragImpulseMag = linearDragCoefficient * linearSpeed * effectiveSubmersion * deltaTime;
+
+            // Limit drag impulse to the body's current momentum to prevent velocity reversal.
+            float momentum = linearSpeed * bodyMass;
+            if (dragImpulseMag > momentum) {
+                dragImpulseMag = momentum;
+            }
+
             Vec3 linearDragImpulse = tempVec3_2.get();
             linearDragImpulse.set(linearVelocity);
-            linearDragImpulse.scaleInPlace(-linearDragCoefficient * (float) Math.sqrt(linearSpeedSq) * effectiveSubmersion * deltaTime);
+            linearDragImpulse.scaleInPlace(-dragImpulseMag / linearSpeed); // Normalize and scale
             body.addImpulse(linearDragImpulse, centerOfBuoyancyWorld);
         }
 
         float verticalVelocity = linearVelocity.getY();
         if (Math.abs(verticalVelocity) > 1e-6f) {
-            float verticalDampingImpulse = -verticalVelocity * bodyMass * verticalDampingCoefficient * effectiveSubmersion * deltaTime;
+            float dampingImpulse = Math.abs(verticalVelocity * bodyMass * verticalDampingCoefficient * effectiveSubmersion * deltaTime);
+            float momentumY = Math.abs(verticalVelocity * bodyMass);
+
+            if (dampingImpulse > momentumY) {
+                dampingImpulse = momentumY;
+            }
+
+            // Apply opposite to velocity
+            float dir = -Math.signum(verticalVelocity);
             Vec3 impulse = tempVec3_3.get();
-            impulse.set(0, verticalDampingImpulse, 0);
+            impulse.set(0, dampingImpulse * dir, 0);
             body.addImpulse(impulse);
         }
 
         Vec3 angularVelocity = body.getAngularVelocity();
         float angularSpeedSq = angularVelocity.lengthSq();
         if (angularSpeedSq > 1e-6f) {
+            float angularSpeed = (float) Math.sqrt(angularSpeedSq);
+            float dragImpulseMag = angularDragCoefficient * angularSpeed * effectiveSubmersion * deltaTime;
+
+            // Approximate angular momentum clamp
+            float approxAngularMomentum = angularSpeed * bodyMass;
+            if (dragImpulseMag > approxAngularMomentum) {
+                dragImpulseMag = approxAngularMomentum;
+            }
+
             Vec3 angularDragImpulse = tempVec3_1.get();
             angularDragImpulse.set(angularVelocity);
-            angularDragImpulse.scaleInPlace(-angularDragCoefficient * (float) Math.sqrt(angularSpeedSq) * effectiveSubmersion * deltaTime);
+            angularDragImpulse.scaleInPlace(-dragImpulseMag / angularSpeed);
             body.addAngularImpulse(angularDragImpulse);
         }
     }

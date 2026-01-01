@@ -20,6 +20,10 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
  * Calculates and applies buoyancy using the precise submerged volume of a convex shape.
  * This class implements Archimedes' principle for physically accurate buoyant forces
  * and applies them at the center of buoyancy to simulate correct torque.
+ * <p>
+ * It includes stability clamping to prevent energy injection when handling light bodies
+ * in dense fluids and strict spatial coherence checks to prevent "ghost buoyancy"
+ * on offset shapes.
  *
  * @author xI-Mx-Ix
  */
@@ -76,6 +80,14 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
      * @param dataStore          The data store containing fluid properties.
      */
     public void applyBuoyancyToConvexPart(Body body, ConstConvexShape convexPart, RMat44 partWorldTransform, RVec3 bodyCom, Vec3 scale, float deltaTime, int index, VxBuoyancyDataStore dataStore) {
+        MotionProperties motionProperties = body.getMotionProperties();
+        float inverseMass = motionProperties.getInverseMass();
+        // If the body is static or kinematic (infinite mass), forces have no effect.
+        if (inverseMass == 0.0f) {
+            return;
+        }
+        float bodyMass = 1.0f / inverseMass;
+
         float surfaceY = dataStore.surfaceHeights[index];
         VxFluidType fluidType = dataStore.fluidTypes[index];
 
@@ -115,28 +127,17 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
         }
 
         // Verify that the calculated Center of Buoyancy (CoB) is close to the actual fluid found in the world.
-        // If the object is overhanging land, the infinite plane calculation places the CoB under the land.
-        // However, if the object is deep underwater, the broad-phase center might be skewed by nearby solid walls,
-        // so we fade out this check as depth increases.
-
+        // The infinite plane assumption of `getSubmergedVolume` can yield false positives if the shape
+        // projects below the water level but is horizontally distant (e.g. in a dry cave below sea level).
         float dx = centerOfBuoyancyWorld.getX() - broadPhaseWaterX;
         float dz = centerOfBuoyancyWorld.getZ() - broadPhaseWaterZ;
         float distSq = dx * dx + dz * dz;
 
-        // Base coherency factor: 1.0 if aligned, approaching 0.0 if distant.
-        float baseCoherency = 1.0f / (1.0f + 0.5f * distSq);
-
-        // Depth Fade: Calculate how far the center of buoyancy is below the surface.
-        float depth = surfaceY - centerOfBuoyancyWorld.getY();
-
-        // We start fading out the spatial check at 0.0m depth and fully ignore it at 1.5m depth.
-        // This ensures that deep objects (pressed against walls/floors) maintain full buoyancy.
-        float depthFade = Math.max(0.0f, Math.min(1.0f, depth / 1.5f));
-
-        // Interpolate: At surface (depthFade=0), use baseCoherency. Deep down (depthFade=1), use 1.0.
-        float effectiveFactor = baseCoherency + (1.0f - baseCoherency) * depthFade;
-
-        submergedVolume *= effectiveFactor;
+        // Apply strict attenuation based on horizontal distance.
+        // If the CoB deviates too far from the broad-phase fluid center, we reduce the volume to 0.
+        // This effectively culls "ghost buoyancy" for offset shapes or disjoint parts.
+        float coherencyFactor = 1.0f / (1.0f + 0.5f * distSq);
+        submergedVolume *= coherencyFactor;
 
         if (submergedVolume < 1e-6f) {
             return;
@@ -153,7 +154,6 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
         body.addImpulse(buoyancyImpulse, impulsePosition);
 
         // --- Drag Impulses ---
-        MotionProperties motionProperties = body.getMotionProperties();
         Vec3 linearVelocity = motionProperties.getLinearVelocity();
         Vec3 angularVelocity = motionProperties.getAngularVelocity();
 
@@ -163,15 +163,36 @@ public class VxBuoyancyConvexFloater extends VxBuoyancyFloater {
 
         float linearSpeed = pointVelocity.length();
         if (linearSpeed > 1e-6f) {
-            float dragMagnitude = linearDragCoefficient * fluidDensity * submergedVolume * linearSpeed;
-            Vec3 linearDragImpulse = Op.star(-dragMagnitude * deltaTime, pointVelocity.normalized());
+            // Calculate the ideal drag impulse based on the standard drag equation.
+            float dragMagnitude = linearDragCoefficient * fluidDensity * submergedVolume * linearSpeed * deltaTime;
+
+            // CLAMPING: Ensure we never apply more impulse than the body's current momentum.
+            // If the calculated drag is larger than the momentum, it would reverse the body's direction
+            // in a single tick, causing instability (explosions).
+            float momentum = linearSpeed * bodyMass;
+            if (dragMagnitude > momentum) {
+                dragMagnitude = momentum;
+            }
+
+            Vec3 linearDragImpulse = Op.star(-dragMagnitude, pointVelocity.normalized());
             body.addImpulse(linearDragImpulse, impulsePosition);
         }
 
         float angularSpeed = angularVelocity.length();
         if (angularSpeed > 1e-6f) {
-            float angularDragMagnitude = angularDragCoefficient * fluidDensity * submergedVolume * angularSpeed;
-            Vec3 angularDragImpulse = Op.star(-angularDragMagnitude * deltaTime, angularVelocity.normalized());
+            // We approximate the angular momentum clamp using the mass and a characteristic radius,
+            // or simply clamp the impulse magnitude to prevent overshoot.
+            // Using a simplified mass-based clamp for angular stability is usually sufficient.
+            float dragMagnitude = angularDragCoefficient * fluidDensity * submergedVolume * angularSpeed * deltaTime;
+
+            // Heuristic clamp for angular momentum to prevent spin explosions.
+            // Assuming a unit radius for inertia approximation to avoid expensive tensor math here.
+            float approxAngularMomentum = angularSpeed * bodyMass;
+            if (dragMagnitude > approxAngularMomentum) {
+                dragMagnitude = approxAngularMomentum;
+            }
+
+            Vec3 angularDragImpulse = Op.star(-dragMagnitude, angularVelocity.normalized());
             body.addAngularImpulse(angularDragImpulse);
         }
     }
