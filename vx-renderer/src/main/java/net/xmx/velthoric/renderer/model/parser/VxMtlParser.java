@@ -28,12 +28,10 @@ public class VxMtlParser {
     /**
      * Parses an input stream of a .mtl file.
      * <p>
-     * This method extracts material names, scalar PBR factors (metallic/roughness),
-     * and the albedo texture path.
-     * <p>
-     * Note: Explicit texture maps for Normal, Metallic, and Roughness defined in the MTL
-     * (e.g., map_Bump, map_Pr) are ignored. The renderer generates LabPBR 1.3 compliant
-     * textures dynamically based on the scalar {@code Pm} and {@code Pr} values found here.
+     * This method iterates through the file line by line. It handles standard PBR extensions
+     * (Pr/Pm) as well as legacy Phong shading parameters (Ns/Ks). Legacy parameters are
+     * mathematically approximated to their PBR counterparts to ensure models exported
+     * with older software still render correctly with roughness and metallic properties.
      *
      * @param inputStream   The stream containing the .mtl file data.
      * @param modelLocation The resource location of the parent .obj model.
@@ -74,12 +72,37 @@ public class VxMtlParser {
                     case "d" -> currentMaterial.baseColorFactor[3] = parseFloat(data, 1.0f);
                     case "Tr" -> currentMaterial.baseColorFactor[3] = 1.0f - parseFloat(data, 0.0f);
 
-                    // --- PBR Scalar Factors ---
+                    // --- Explicit PBR Extensions (Modern Export) ---
                     case "Pm", "metallic" -> currentMaterial.metallicFactor = parseFloat(data, 0.0f);
                     case "Pr", "roughness" -> currentMaterial.roughnessFactor = parseFloat(data, 1.0f);
 
+                    // --- Legacy Phong to PBR Conversion ---
+
+                    // 'Ns' represents the Specular Exponent (Shininess), typically ranging from 0 to 1000 in Blender.
+                    // We convert this to PBR Roughness (0 to 1) using the Blinn-Phong to GGX approximation formula:
+                    // Roughness = (2 / (Ns + 2))^0.25.
+                    // A high Ns (e.g., 250) results in a low roughness (smooth surface).
+                    case "Ns" -> {
+                        float shininess = parseFloat(data, 0.0f);
+                        shininess = Math.max(0.0f, shininess);
+                        currentMaterial.roughnessFactor = (float) Math.pow(2.0 / (shininess + 2.0), 0.25);
+                    }
+
+                    // 'Ks' represents the Specular Color.
+                    // In the Phong model, this defines the color of the highlight.
+                    // For PBR, we use a simple heuristic: if the specular color is extremely bright (> 0.9),
+                    // we assume the material is metallic. Otherwise, we default to dielectric (metallic = 0.0).
+                    case "Ks" -> {
+                        float[] ks = new float[3];
+                        parseColor(data, ks);
+                        float brightness = (ks[0] + ks[1] + ks[2]) / 3.0f;
+                        if (brightness > 0.95f) {
+                            currentMaterial.metallicFactor = 1.0f;
+                        }
+                    }
+
                     // --- Texture Maps ---
-                    // Now assigns the resolved string path to the material's albedoPath field.
+                    // Resolves the texture path relative to the OBJ file and stores it as a ResourceLocation.
                     case "map_Kd" -> currentMaterial.albedoMap = resolveTexturePath(data, modelLocation);
                 }
             }
