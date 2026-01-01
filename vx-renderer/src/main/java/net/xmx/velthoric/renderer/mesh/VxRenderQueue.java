@@ -14,12 +14,15 @@ import net.minecraft.client.renderer.ShaderInstance;
 import net.xmx.velthoric.renderer.VxRConstants;
 import net.xmx.velthoric.renderer.gl.VxDrawCommand;
 import net.xmx.velthoric.renderer.gl.VxGlState;
+import net.xmx.velthoric.renderer.gl.VxMaterial;
 import net.xmx.velthoric.renderer.util.VxShaderDetector;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL30;
 
 import java.nio.FloatBuffer;
@@ -325,71 +328,112 @@ public class VxRenderQueue {
     }
 
     /**
-     * Renders the batch using the Shaderpack pipeline (e.g., Iris).
-     * Uses PBR textures and standard normal matrix handling.
+     * Renders the queued meshes using a pipeline compatible with Iris shaderpacks.
+     * <p>
+     * Unlike the vanilla path, this method dynamically inspects the active OpenGL shader program
+     * to determine which texture units are assigned to the "normals" and "specular" samplers.
+     * This ensures PBR maps are bound to the correct slots expected by the specific shaderpack
+     * in use, rather than assuming fixed units (e.g., 1 or 3).
      *
      * @param viewMatrix       The camera view matrix.
      * @param projectionMatrix The projection matrix.
      */
     private void renderBatchShaderpack(Matrix4f viewMatrix, Matrix4f projectionMatrix) {
-        // 1. Setup Common Global State
+        // 1. Setup global state (Depth, Cull, Blending) and bind the base shader
         ShaderInstance shader = setupCommonRenderState(projectionMatrix);
         if (shader == null) return;
 
-        // Set up all samplers before applying the shader.
+        // Ensure all vanilla samplers are initially set up to match the shader's expectations
         for (int i = 0; i < 12; ++i) {
             shader.setSampler("Sampler" + i, RenderSystem.getShaderTexture(i));
         }
         shader.apply();
 
-        // 2. Iterate over queued items
+        // 2. Dynamic PBR Unit Resolution
+        // Query the active shader program to find where it expects PBR textures.
+        int programId = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
+
+        int normalUniformLoc = GL20.glGetUniformLocation(programId, "normals");
+        int specularUniformLoc = GL20.glGetUniformLocation(programId, "specular");
+
+        // Retrieve the texture unit index (integer value) associated with the sampler uniforms.
+        // If the uniform is not present, default to -1 to skip binding.
+        int targetNormalUnit = (normalUniformLoc != -1) ? GL20.glGetUniformi(programId, normalUniformLoc) : -1;
+        int targetSpecularUnit = (specularUniformLoc != -1) ? GL20.glGetUniformi(programId, specularUniformLoc) : -1;
+
+        // 3. Render Loop
         for (int i = 0; i < count; i++) {
             VxAbstractRenderableMesh mesh = this.meshes[i];
             Matrix4f modelMat = this.modelMatrices[i];
             Matrix3f normalMat = this.normalMatrices[i];
             int packedLight = this.packedLights[i];
 
-            // Compute the Model-View Matrix: ViewMatrix * ModelMatrix
+            // Calculate Model-View Matrix
             AUX_MODEL_VIEW.set(viewMatrix).mul(modelMat);
 
-            // Compute the View-Normal Matrix: ViewRotation * NormalMatrix
+            // Calculate Normal Matrix (View Rotation * Model Normal Rotation)
+            // This is required for correct lighting calculations in view space.
             AUX_NORMAL_VIEW.set(VIEW_ROTATION).mul(normalMat);
 
-            // Update ModelView Matrix uniform
-            if (shader.MODEL_VIEW_MATRIX != null) shader.MODEL_VIEW_MATRIX.set(AUX_MODEL_VIEW);
+            // Upload Standard Uniforms
+            if (shader.MODEL_VIEW_MATRIX != null) {
+                shader.MODEL_VIEW_MATRIX.set(AUX_MODEL_VIEW);
+            }
 
-            // Upload Normal Matrix uniform
-            int normalMatrixLocation = Uniform.glGetUniformLocation(shader.getId(), "NormalMat");
+            // Upload Normal Matrix
+            // Shaders typically use "NormalMat" or "normalMatrix" to transform normals.
+            int normalMatrixLocation = Uniform.glGetUniformLocation(programId, "NormalMat");
+            if (normalMatrixLocation == -1) {
+                normalMatrixLocation = Uniform.glGetUniformLocation(programId, "normalMatrix");
+            }
+
             if (normalMatrixLocation != -1) {
                 MATRIX_BUFFER_9.clear();
                 AUX_NORMAL_VIEW.get(MATRIX_BUFFER_9);
                 RenderSystem.glUniformMatrix3(normalMatrixLocation, false, MATRIX_BUFFER_9);
             }
 
-            // Bind Mesh VAO (Delegated to mesh implementation)
+            // Prepare Mesh Data
             mesh.setupVaoState();
 
-            // Upload Lightmap UV
+            // Upload Lightmap Coordinates (Overlay/Lightmap are usually generic attributes)
             GL30.glDisableVertexAttribArray(AT_UV2);
             GL30.glVertexAttribI2i(AT_UV2, packedLight & 0xFFFF, packedLight >> 16);
 
-            // Execute Draw Commands for this mesh
+            // Process Draw Commands
             for (VxDrawCommand command : mesh.getDrawCommands()) {
-                // Bind all PBR textures required by shaderpacks.
-                RenderSystem.setShaderTexture(0, command.material.albedoMapGlId);
-                RenderSystem.setShaderTexture(1, command.material.normalMapGlId);
-                RenderSystem.setShaderTexture(3, command.material.metallicMapGlId);
-                RenderSystem.setShaderTexture(4, command.material.roughnessMapGlId);
+                VxMaterial material = command.material;
+
+                // --- Bind Albedo (Always Unit 0) ---
+                RenderSystem.activeTexture(GL13.GL_TEXTURE0);
+                RenderSystem.bindTexture(material.albedoMapGlId);
+
+                // --- Bind Normal Map (Dynamic Unit) ---
+                if (targetNormalUnit != -1 && material.normalMapGlId != -1) {
+                    RenderSystem.activeTexture(GL13.GL_TEXTURE0 + targetNormalUnit);
+                    RenderSystem.bindTexture(material.normalMapGlId);
+                }
+
+                // --- Bind Specular/LabPBR Map (Dynamic Unit) ---
+                if (targetSpecularUnit != -1 && material.specularMapGlId != -1) {
+                    RenderSystem.activeTexture(GL13.GL_TEXTURE0 + targetSpecularUnit);
+                    RenderSystem.bindTexture(material.specularMapGlId);
+                }
+
+                // Reset Active Texture to 0 to ensure color modulator and subsequent operations affect the primary unit
+                RenderSystem.activeTexture(GL13.GL_TEXTURE0);
 
                 if (shader.COLOR_MODULATOR != null) {
-                    shader.COLOR_MODULATOR.set(command.material.baseColorFactor);
+                    shader.COLOR_MODULATOR.set(material.baseColorFactor);
                 }
-                shader.apply(); // Re-apply shader if uniforms like COLOR_MODULATOR changed.
+
+                // Note: We avoid calling shader.apply() inside the loop to prevent it from resetting
+                // the texture bindings we just established via direct GL calls.
 
                 GL11.glDrawArrays(GL11.GL_TRIANGLES, mesh.getFinalVertexOffset(command), command.vertexCount);
             }
 
-            // Re-enable UV2 array for safety
+            // Restore State
             GL30.glEnableVertexAttribArray(AT_UV2);
         }
 

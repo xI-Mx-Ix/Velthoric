@@ -11,8 +11,10 @@ import java.nio.ByteBuffer;
 
 /**
  * Utility to calculate tangent vectors for a given set of vertices in a ByteBuffer.
- * Tangents are essential for advanced lighting techniques like normal mapping, as they
- * define the orientation of the texture space on the model's surface.
+ * <p>
+ * This implementation calculates the full 4-component tangent vector. The 4th component (W)
+ * represents the handedness of the tangent basis, which is required by shaders to
+ * correctly reconstruct the TBN matrix, especially when UVs are mirrored.
  *
  * @author xI-Mx-Ix
  */
@@ -24,16 +26,32 @@ public class VxTangentGenerator {
     private static final int TANGENT_OFFSET = 31;
 
     /**
-     * Calculates and writes tangent vectors for each vertex in the provided buffer.
+     * Calculates and writes tangent vectors (xyzw) for each vertex in the provided buffer.
      * The process involves two passes:
-     * 1. Calculate a base tangent for each triangle.
-     * 2. Orthogonalize the tangent against the normal for each vertex (Gram-Schmidt process).
+     * 1. Calculate base tangent and bitangent directions for each triangle.
+     * 2. Orthogonalize the tangent against the normal (Gram-Schmidt) and compute handedness.
      *
      * @param buffer The ByteBuffer containing interleaved vertex data.
      * @param vertexCount The total number of vertices in the buffer.
      */
     public static void calculate(ByteBuffer buffer, int vertexCount) {
-        // First pass: Calculate per-triangle tangents
+        // Temporary storage for accumulating tangents and bitangents per vertex.
+        // Since the buffer is flattened (non-indexed) at this stage, vertices are not shared.
+        // We can process triangles directly in the buffer.
+
+        // However, for flat buffers, we can compute per-triangle and assign to vertices immediately.
+        // To support smooth shading where vertices might be duplicated with same pos/norm but different UVs,
+        // we calculate based on the triangle index.
+
+        Vector3f[] tempTangents = new Vector3f[vertexCount];
+        Vector3f[] tempBitangents = new Vector3f[vertexCount];
+
+        for (int i = 0; i < vertexCount; i++) {
+            tempTangents[i] = new Vector3f(0, 0, 0);
+            tempBitangents[i] = new Vector3f(0, 0, 0);
+        }
+
+        // Pass 1: Accumulate Tangents and Bitangents
         for (int i = 0; i < vertexCount; i += 3) {
             int i0 = i * STRIDE;
             int i1 = (i + 1) * STRIDE;
@@ -49,60 +67,60 @@ public class VxTangentGenerator {
 
             Vector3f edge1 = p1.sub(p0, new Vector3f());
             Vector3f edge2 = p2.sub(p0, new Vector3f());
+
             Vector2f deltaUV1 = uv1.sub(uv0, new Vector2f());
             Vector2f deltaUV2 = uv2.sub(uv0, new Vector2f());
 
-            Vector3f tangent = new Vector3f(1.0f, 0.0f, 0.0f); // Default tangent
+            float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
 
-            float determinant = deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y;
+            // Tangent (aligns with U)
+            Vector3f tangent = new Vector3f(
+                    (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x) * r,
+                    (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y) * r,
+                    (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z) * r
+            );
 
-            // Check for degenerate UVs (zero area), which would cause a division by zero.
-            if (Math.abs(determinant) > 1e-6) {
-                float f = 1.0f / determinant;
-                tangent.set(
-                    f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x),
-                    f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y),
-                    f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z)
-                );
-            }
+            // Bitangent (aligns with V)
+            Vector3f bitangent = new Vector3f(
+                    (deltaUV1.x * edge2.x - deltaUV2.x * edge1.x) * r,
+                    (deltaUV1.x * edge2.y - deltaUV2.x * edge1.y) * r,
+                    (deltaUV1.x * edge2.z - deltaUV2.x * edge1.z) * r
+            );
 
-            // If the calculation results in an invalid vector (Infinity or NaN),
-            // reset to a safe default to prevent rendering artifacts.
-            if (Float.isInfinite(tangent.x) || Float.isNaN(tangent.x)) {
-                tangent.set(1.0f, 0.0f, 0.0f);
-            }
+            // Accumulate (for flat shaded meshes, this just sets the value)
+            tempTangents[i].add(tangent);
+            tempTangents[i+1].add(tangent);
+            tempTangents[i+2].add(tangent);
 
-            if (tangent.lengthSquared() > 0) {
-                tangent.normalize();
-            }
-
-            writePackedSByte3(buffer, i0 + TANGENT_OFFSET, tangent);
-            writePackedSByte3(buffer, i1 + TANGENT_OFFSET, tangent);
-            writePackedSByte3(buffer, i2 + TANGENT_OFFSET, tangent);
+            tempBitangents[i].add(bitangent);
+            tempBitangents[i+1].add(bitangent);
+            tempBitangents[i+2].add(bitangent);
         }
 
-        // Second pass: Orthogonalize tangents for each vertex (Gram-Schmidt process)
+        // Pass 2: Orthogonalize and Write
         for (int i = 0; i < vertexCount; ++i) {
             int base = i * STRIDE;
             Vector3f n = readPackedSByte3(buffer, base + NORM_OFFSET);
-            Vector3f t = readPackedSByte3(buffer, base + TANGENT_OFFSET);
+            Vector3f t = tempTangents[i];
+            Vector3f b = tempBitangents[i];
 
-            // Orthogonalize: t' = normalize(t - n * dot(t, n))
-            t.sub(n.mul(n.dot(t), new Vector3f()));
+            // Gram-Schmidt orthogonalize: t = normalize(t - n * dot(n, t));
+            Vector3f tOrth = new Vector3f(t).sub(new Vector3f(n).mul(n.dot(t))).normalize();
 
-            // If the tangent becomes a zero vector (if t was parallel to n),
-            // generate a new, valid tangent.
-            if (t.lengthSquared() < 1e-6f) {
-                Vector3f up = new Vector3f(0.0f, 1.0f, 0.0f);
-                // If normal is also parallel to 'up', use a different axis to avoid a zero cross product.
-                if (Math.abs(n.dot(up)) > 0.99f) {
-                    up.set(1.0f, 0.0f, 0.0f);
-                }
-                n.cross(up, t);
+            // Handle degenerate cases where tangent is 0 or parallel to normal
+            if (!Float.isFinite(tOrth.lengthSquared()) || tOrth.lengthSquared() < 1e-6) {
+                tOrth.set(1, 0, 0);
+                if (Math.abs(n.dot(tOrth)) > 0.9) tOrth.set(0, 1, 0);
             }
 
-            t.normalize();
-            writePackedSByte3(buffer, base + TANGENT_OFFSET, t);
+            // Calculate Handedness (W component)
+            // The cross product of Normal and Tangent should align with the Bitangent.
+            // If it opposes the Bitangent, the texture space is mirrored (handedness = -1).
+            Vector3f nCrossT = new Vector3f(n).cross(tOrth);
+            float handedness = (nCrossT.dot(b) < 0.0f) ? -1.0f : 1.0f;
+
+            // Write 4 bytes: XYZ (Tangent) + W (Handedness)
+            writePackedSByte4(buffer, base + TANGENT_OFFSET, tOrth, handedness);
         }
     }
 
@@ -118,9 +136,11 @@ public class VxTangentGenerator {
         return new Vector3f(b.get(offset) / 127f, b.get(offset + 1) / 127f, b.get(offset + 2) / 127f);
     }
 
-    private static void writePackedSByte3(ByteBuffer b, int offset, Vector3f v) {
+    private static void writePackedSByte4(ByteBuffer b, int offset, Vector3f v, float w) {
         b.put(offset, (byte) (v.x * 127));
         b.put(offset + 1, (byte) (v.y * 127));
         b.put(offset + 2, (byte) (v.z * 127));
+        // The W component is usually exactly 1.0 or -1.0, so 127 or -127 is sufficient.
+        b.put(offset + 3, (byte) (w * 127));
     }
 }

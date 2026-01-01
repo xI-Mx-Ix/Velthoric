@@ -27,6 +27,13 @@ public class VxMtlParser {
 
     /**
      * Parses an input stream of a .mtl file.
+     * <p>
+     * This method extracts material names, scalar PBR factors (metallic/roughness),
+     * and the albedo texture path.
+     * <p>
+     * Note: Explicit texture maps for Normal, Metallic, and Roughness defined in the MTL
+     * (e.g., map_Bump, map_Pr) are ignored. The renderer generates LabPBR 1.3 compliant
+     * textures dynamically based on the scalar {@code Pm} and {@code Pr} values found here.
      *
      * @param inputStream   The stream containing the .mtl file data.
      * @param modelLocation The resource location of the parent .obj model.
@@ -62,16 +69,18 @@ public class VxMtlParser {
                 }
 
                 switch (keyword) {
+                    // --- Base Color / Albedo ---
                     case "Kd" -> parseColor(data, currentMaterial.baseColorFactor);
-                    case "Pm", "metallic" -> currentMaterial.metallicFactor = parseFloat(data, 0.0f);
-                    case "Pr", "roughness" -> currentMaterial.roughnessFactor = parseFloat(data, 1.0f);
                     case "d" -> currentMaterial.baseColorFactor[3] = parseFloat(data, 1.0f);
                     case "Tr" -> currentMaterial.baseColorFactor[3] = 1.0f - parseFloat(data, 0.0f);
 
-                    case "map_Kd" -> currentMaterial.albedoMap = resolveTexturePath(data, modelLocation);
-                    case "map_Bump", "norm" -> currentMaterial.normalMap = resolveTexturePath(data, modelLocation);
-                    case "map_Pm", "map_metallic" -> currentMaterial.metallicMap = resolveTexturePath(data, modelLocation);
-                    case "map_Pr", "map_roughness" -> currentMaterial.roughnessMap = resolveTexturePath(data, modelLocation);
+                    // --- PBR Scalar Factors ---
+                    case "Pm", "metallic" -> currentMaterial.metallicFactor = parseFloat(data, 0.0f);
+                    case "Pr", "roughness" -> currentMaterial.roughnessFactor = parseFloat(data, 1.0f);
+
+                    // --- Texture Maps ---
+                    // Now assigns the resolved string path to the material's albedoPath field.
+                    case "map_Kd" -> currentMaterial.albedoPath = resolveTexturePath(data, modelLocation);
                 }
             }
         }
@@ -107,14 +116,16 @@ public class VxMtlParser {
     }
 
     /**
-     * Resolves a texture path relative to the model's directory.
-     * It extracts the filename from the MTL line and appends it to the model directory.
+     * Resolves a texture path relative to the model's directory and returns it as a string.
+     * <p>
+     * This method constructs a standard identifier string (namespace:path) based on the
+     * location of the parent OBJ file.
      *
      * @param lineData      The raw data string from the MTL line.
-     * @param modelLocation The ResourceLocation of the OBJ model.
-     * @return A ResourceLocation pointing to the texture.
+     * @param modelLocation The ResourceLocation of the OBJ model, used for context.
+     * @return A String representing the full resource path (e.g., "modid:textures/model.png").
      */
-    private static ResourceLocation resolveTexturePath(String lineData, ResourceLocation modelLocation) {
+    private static String resolveTexturePath(String lineData, ResourceLocation modelLocation) {
         String[] tokens = lineData.trim().split("\\s+");
 
         // Extract filename (last token containing a dot, ignoring flags)
@@ -127,13 +138,14 @@ public class VxMtlParser {
             }
         }
 
-        // Construct relative path based on model directory
+        // Determine parent directory from the model location
         String path = modelLocation.getPath();
         String directory = "";
         if (path.contains("/")) {
             directory = path.substring(0, path.lastIndexOf('/') + 1);
         }
 
-        return modelLocation.withPath(directory + rawPath);
+        // Construct fully qualified resource string
+        return modelLocation.getNamespace() + ":" + directory + rawPath;
     }
 }

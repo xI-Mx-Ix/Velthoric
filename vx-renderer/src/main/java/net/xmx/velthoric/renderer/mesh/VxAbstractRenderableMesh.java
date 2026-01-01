@@ -111,19 +111,27 @@ public abstract class VxAbstractRenderableMesh implements IVxRenderableMesh {
 
     /**
      * Initializes the OpenGL texture IDs for all materials used by this mesh.
-     * This iterates through all commands to ensure textures are bound and ready.
-     * This should be called once after the mesh is created.
+     * <p>
+     * This method bridges the gap between the material's internal string paths (used to remain
+     * independent of Minecraft code) and the Minecraft TextureManager. It also triggers
+     * the dynamic generation of LabPBR 1.3 textures.
      */
     protected final void initializeTextures() {
         TextureManager textureManager = Minecraft.getInstance().getTextureManager();
-        // Initialize textures for the main list. Since group lists are subsets of this,
-        // all materials are covered here.
+
+        // Initialize textures for the main list.
         for (VxDrawCommand command : this.allDrawCommands) {
             if (command.material != null) {
-                command.material.albedoMapGlId = getOrCreateTextureId(textureManager, command.material.albedoMap);
-                command.material.normalMapGlId = getOrCreateTextureId(textureManager, command.material.normalMap);
-                command.material.metallicMapGlId = getOrCreateTextureId(textureManager, command.material.metallicMap);
-                command.material.roughnessMapGlId = getOrCreateTextureId(textureManager, command.material.roughnessMap);
+                // 1. Resolve Albedo Texture (Load from Disk via Minecraft)
+                // Since VxMaterial now stores the path as a raw String to avoid MC dependencies,
+                // we must parse it back into a ResourceLocation here.
+                ResourceLocation albedoLoc = ResourceLocation.tryParse(command.material.albedoPath);
+
+                // Load the texture via TextureManager and store the GL ID in the material.
+                command.material.albedoMapGlId = getOrCreateTextureId(textureManager, albedoLoc);
+
+                // 2. Generate PBR Textures (Dynamic LabPBR 1.3)
+                command.material.ensureGenerated();
             }
         }
     }
