@@ -404,6 +404,12 @@ public class VxRenderQueue {
             for (VxDrawCommand command : mesh.getDrawCommands()) {
                 VxMaterial material = command.material;
 
+                if (shader.COLOR_MODULATOR != null) {
+                    shader.COLOR_MODULATOR.set(material.baseColorFactor);
+                }
+
+                shader.apply();
+
                 // --- Bind Albedo (Always Unit 0) ---
                 RenderSystem.activeTexture(GL13.GL_TEXTURE0);
                 RenderSystem.bindTexture(material.albedoMapGlId);
@@ -420,15 +426,8 @@ public class VxRenderQueue {
                     RenderSystem.bindTexture(material.specularMapGlId);
                 }
 
-                // Reset Active Texture to 0 to ensure color modulator and subsequent operations affect the primary unit
+                // Reset Active Texture to 0 to ensure subsequent operations affect the primary unit
                 RenderSystem.activeTexture(GL13.GL_TEXTURE0);
-
-                if (shader.COLOR_MODULATOR != null) {
-                    shader.COLOR_MODULATOR.set(material.baseColorFactor);
-                }
-
-                // Note: We avoid calling shader.apply() inside the loop to prevent it from resetting
-                // the texture bindings we just established via direct GL calls.
 
                 GL11.glDrawArrays(GL11.GL_TRIANGLES, mesh.getFinalVertexOffset(command), command.vertexCount);
             }
