@@ -4,6 +4,7 @@
  */
 package net.xmx.velthoric.renderer.model.generator;
 
+import net.xmx.velthoric.renderer.gl.VxVertexLayout;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
@@ -19,7 +20,10 @@ import java.nio.ByteBuffer;
  * @author xI-Mx-Ix
  */
 public class VxTangentGenerator {
-    private static final int STRIDE = 36;
+    // Must match VxVertexLayout.STRIDE (44 bytes)
+    private static final int STRIDE = VxVertexLayout.STRIDE;
+
+    // Offsets must match the layout in VxVertexLayout / VxVertexBufferBuilder
     private static final int POS_OFFSET = 0;
     private static final int UV_OFFSET = 16;
     private static final int NORM_OFFSET = 28;
@@ -36,12 +40,7 @@ public class VxTangentGenerator {
      */
     public static void calculate(ByteBuffer buffer, int vertexCount) {
         // Temporary storage for accumulating tangents and bitangents per vertex.
-        // Since the buffer is flattened (non-indexed) at this stage, vertices are not shared.
-        // We can process triangles directly in the buffer.
-
-        // However, for flat buffers, we can compute per-triangle and assign to vertices immediately.
-        // To support smooth shading where vertices might be duplicated with same pos/norm but different UVs,
-        // we calculate based on the triangle index.
+        // Vertices are not shared in this flat buffer, but we process per triangle.
 
         Vector3f[] tempTangents = new Vector3f[vertexCount];
         Vector3f[] tempBitangents = new Vector3f[vertexCount];
@@ -71,7 +70,9 @@ public class VxTangentGenerator {
             Vector2f deltaUV1 = uv1.sub(uv0, new Vector2f());
             Vector2f deltaUV2 = uv2.sub(uv0, new Vector2f());
 
-            float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+            // Avoid division by zero for degenerate UVs
+            float det = (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+            float r = (Math.abs(det) < 1e-6f) ? 0.0f : 1.0f / det;
 
             // Tangent (aligns with U)
             Vector3f tangent = new Vector3f(
@@ -87,7 +88,7 @@ public class VxTangentGenerator {
                     (deltaUV1.x * edge2.z - deltaUV2.x * edge1.z) * r
             );
 
-            // Accumulate (for flat shaded meshes, this just sets the value)
+            // Accumulate
             tempTangents[i].add(tangent);
             tempTangents[i+1].add(tangent);
             tempTangents[i+2].add(tangent);
@@ -140,7 +141,7 @@ public class VxTangentGenerator {
         b.put(offset, (byte) (v.x * 127));
         b.put(offset + 1, (byte) (v.y * 127));
         b.put(offset + 2, (byte) (v.z * 127));
-        // The W component is usually exactly 1.0 or -1.0, so 127 or -127 is sufficient.
+        // The W component is typically exactly 1.0 or -1.0.
         b.put(offset + 3, (byte) (w * 127));
     }
 }

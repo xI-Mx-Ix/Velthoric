@@ -5,6 +5,7 @@
 package net.xmx.velthoric.renderer.model;
 
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
+import net.xmx.velthoric.renderer.gl.VxVertexLayout;
 import org.joml.Vector3f;
 
 import java.nio.ByteBuffer;
@@ -20,9 +21,9 @@ public class VxVertexBufferBuilder {
 
     /**
      * The size in bytes of a single vertex in the buffer.
-     * (pos: 3*4, color: 1*4, uv0: 2*4, uv2: 2*2, normal: 3*1, tangent: 3*1, padding: 2*1) = 36 bytes.
+     * Must match {@link VxVertexLayout#STRIDE} (44 bytes).
      */
-    public static final int STRIDE = 36;
+    public static final int STRIDE = VxVertexLayout.STRIDE;
 
     private ByteBuffer buffer;
 
@@ -48,14 +49,15 @@ public class VxVertexBufferBuilder {
      */
     public void writeVertex(FloatArrayList pos, FloatArrayList uv, FloatArrayList norm, FloatArrayList colors,
                             int pIdx, int uIdx, int nIdx, float[] materialColor, Vector3f calculatedNormal) {
+        // Ensure we have enough space for 44 bytes
         ensureCapacity();
 
-        // Position
+        // 1. Position (0-12)
         buffer.putFloat(pos.getFloat(pIdx * 3));
         buffer.putFloat(pos.getFloat(pIdx * 3 + 1));
         buffer.putFloat(pos.getFloat(pIdx * 3 + 2));
 
-        // Color (Fallback to white if index out of bounds, though parsing ensures validity)
+        // 2. Color (12-16)
         float cR = (colors.size() > pIdx * 3) ? colors.getFloat(pIdx * 3) : 1.0f;
         float cG = (colors.size() > pIdx * 3 + 1) ? colors.getFloat(pIdx * 3 + 1) : 1.0f;
         float cB = (colors.size() > pIdx * 3 + 2) ? colors.getFloat(pIdx * 3 + 2) : 1.0f;
@@ -70,20 +72,23 @@ public class VxVertexBufferBuilder {
         int a_byte = (int)(materialColor[3] * 255.0f) & 0xFF;
         buffer.putInt(a_byte << 24 | b_byte << 16 | g_byte << 8 | r_byte);
 
-        // UV
+        // 3. UV0 (16-24)
+        float u, v;
         if (uIdx != -1) {
-            buffer.putFloat(uv.getFloat(uIdx * 2));
-            buffer.putFloat(uv.getFloat(uIdx * 2 + 1));
+            u = uv.getFloat(uIdx * 2);
+            v = uv.getFloat(uIdx * 2 + 1);
         } else {
-            buffer.putFloat(0.0f);
-            buffer.putFloat(0.0f);
+            u = 0.0f;
+            v = 0.0f;
         }
+        buffer.putFloat(u);
+        buffer.putFloat(v);
 
-        // Lightmap UV
+        // 4. Lightmap UV2 (24-28)
         buffer.putShort((short) 0);
         buffer.putShort((short) 0);
 
-        // Normal
+        // 5. Normal (28-31)
         if (nIdx != -1) {
             buffer.put((byte) (norm.getFloat(nIdx * 3) * 127));
             buffer.put((byte) (norm.getFloat(nIdx * 3 + 1) * 127));
@@ -98,12 +103,19 @@ public class VxVertexBufferBuilder {
             buffer.put((byte) 0);
         }
 
-        // Tangent + Padding
+        // 6. Tangent (31-35) - Placeholder, filled by TangentGenerator
         buffer.put((byte) 0);
         buffer.put((byte) 0);
         buffer.put((byte) 0);
-        buffer.putShort((short)0);
+        buffer.put((byte) 0);
 
+        // 7. Padding (35-36)
+        buffer.put((byte) 0);
+
+        // 8. MidTexCoord (36-44) - Duplicate of UV0 for shader compatibility
+        // THIS is where it crashed because capacity was checked against 36, not 44.
+        buffer.putFloat(u);
+        buffer.putFloat(v);
     }
 
     private void ensureCapacity() {
