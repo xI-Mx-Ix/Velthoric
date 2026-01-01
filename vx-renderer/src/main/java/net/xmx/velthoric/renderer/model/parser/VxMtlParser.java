@@ -80,7 +80,7 @@ public class VxMtlParser {
 
                     // --- Texture Maps ---
                     // Now assigns the resolved string path to the material's albedoPath field.
-                    case "map_Kd" -> currentMaterial.albedoPath = resolveTexturePath(data, modelLocation);
+                    case "map_Kd" -> currentMaterial.albedoMap = resolveTexturePath(data, modelLocation);
                 }
             }
         }
@@ -116,16 +116,13 @@ public class VxMtlParser {
     }
 
     /**
-     * Resolves a texture path relative to the model's directory and returns it as a string.
-     * <p>
-     * This method constructs a standard identifier string (namespace:path) based on the
-     * location of the parent OBJ file.
+     * Resolves a texture path relative to the model's directory.
      *
      * @param lineData      The raw data string from the MTL line.
-     * @param modelLocation The ResourceLocation of the OBJ model, used for context.
-     * @return A String representing the full resource path (e.g., "modid:textures/model.png").
+     * @param modelLocation The ResourceLocation of the OBJ model.
+     * @return A ResourceLocation pointing to the texture.
      */
-    private static String resolveTexturePath(String lineData, ResourceLocation modelLocation) {
+    private static ResourceLocation resolveTexturePath(String lineData, ResourceLocation modelLocation) {
         String[] tokens = lineData.trim().split("\\s+");
 
         // Extract filename (last token containing a dot, ignoring flags)
@@ -145,7 +142,7 @@ public class VxMtlParser {
             directory = path.substring(0, path.lastIndexOf('/') + 1);
         }
 
-        // Construct fully qualified resource string
-        return modelLocation.getNamespace() + ":" + directory + rawPath;
+        // Construct resource location preserving the namespace
+        return modelLocation.withPath(directory + rawPath);
     }
 }

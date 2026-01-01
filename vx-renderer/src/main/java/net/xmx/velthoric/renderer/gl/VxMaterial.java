@@ -4,6 +4,8 @@
  */
 package net.xmx.velthoric.renderer.gl;
 
+import net.minecraft.resources.ResourceLocation;
+import net.xmx.velthoric.renderer.VxRConstants;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.system.MemoryStack;
 
@@ -12,27 +14,28 @@ import java.nio.ByteBuffer;
 /**
  * Represents a PBR material defined by scalar properties and texture identifiers.
  * <p>
- * This class operates directly on OpenGL handles via LWJGL, independent of the
- * Minecraft texture system (TextureManager/DynamicTexture). It manages the
- * lifecycle of generated PBR textures (Normal and LabPBR Specular maps) created
- * from scalar factors.
+ * This class uses {@link ResourceLocation} for file-based textures (Albedo) to ensure
+ * compatibility with Minecraft's resource manager, but utilizes direct OpenGL calls
+ * for generated PBR maps (Normal/Specular) to maximize performance and avoid
+ * object overhead.
  *
  * @author xI-Mx-Ix
  */
 public class VxMaterial {
 
     /**
-     * The default path for a white texture, used when no albedo map is specified.
+     * A default resource location pointing to a simple white texture.
      */
-    public static final String DEFAULT_WHITE_PATH = "velthoric:renderer/white.png";
+    public static final ResourceLocation DEFAULT_WHITE = ResourceLocation.tryBuild(VxRConstants.MODID, "renderer/white.png");
 
     /**
      * The unique name of the material.
      */
     public final String name;
 
-    // --- Texture Paths (Strings instead of ResourceLocations) ---
-    public String albedoPath = DEFAULT_WHITE_PATH;
+    // --- Texture Maps ---
+    // Using ResourceLocation here is cleaner as it maps directly to an asset on disk.
+    public ResourceLocation albedoMap = DEFAULT_WHITE;
 
     // --- OpenGL Texture IDs ---
     public int albedoMapGlId = -1;
@@ -166,7 +169,6 @@ public class VxMaterial {
 
     /**
      * Deletes the generated OpenGL textures associated with this material.
-     * Checks if IDs are valid (not -1) before deletion to prevent errors.
      */
     public void delete() {
         if (normalMapGlId != -1) {
@@ -177,6 +179,5 @@ public class VxMaterial {
             GL11.glDeleteTextures(specularMapGlId);
             specularMapGlId = -1;
         }
-        // Note: Albedo ID is typically managed by an external TextureManager and is not deleted here.
     }
 }

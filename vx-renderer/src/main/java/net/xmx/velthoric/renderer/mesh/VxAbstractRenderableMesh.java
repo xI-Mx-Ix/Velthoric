@@ -112,25 +112,20 @@ public abstract class VxAbstractRenderableMesh implements IVxRenderableMesh {
     /**
      * Initializes the OpenGL texture IDs for all materials used by this mesh.
      * <p>
-     * This method bridges the gap between the material's internal string paths (used to remain
-     * independent of Minecraft code) and the Minecraft TextureManager. It also triggers
-     * the dynamic generation of LabPBR 1.3 textures.
+     * This method resolves the Albedo texture from disk via the Minecraft TextureManager
+     * and triggers the dynamic generation of LabPBR 1.3 textures via the material.
      */
     protected final void initializeTextures() {
         TextureManager textureManager = Minecraft.getInstance().getTextureManager();
 
-        // Initialize textures for the main list.
         for (VxDrawCommand command : this.allDrawCommands) {
             if (command.material != null) {
-                // 1. Resolve Albedo Texture (Load from Disk via Minecraft)
-                // Since VxMaterial now stores the path as a raw String to avoid MC dependencies,
-                // we must parse it back into a ResourceLocation here.
-                ResourceLocation albedoLoc = ResourceLocation.tryParse(command.material.albedoPath);
-
-                // Load the texture via TextureManager and store the GL ID in the material.
-                command.material.albedoMapGlId = getOrCreateTextureId(textureManager, albedoLoc);
+                // 1. Resolve Albedo Texture (Load from Disk)
+                // Direct access via ResourceLocation is cleaner and safer than parsing Strings.
+                command.material.albedoMapGlId = getOrCreateTextureId(textureManager, command.material.albedoMap);
 
                 // 2. Generate PBR Textures (Dynamic LabPBR 1.3)
+                // Generates maps directly on GPU if not present.
                 command.material.ensureGenerated();
             }
         }
