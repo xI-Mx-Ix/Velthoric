@@ -106,6 +106,15 @@ public class VxRenderQueue {
      */
     private static final Matrix3f VIEW_ROTATION = new Matrix3f();
 
+    // Stores the ID of the last active shader program to detect changes.
+    private int lastProgramId = -1;
+    // Cached texture unit index for the normal map.
+    private int cachedNormalUnit = -1;
+    // Cached texture unit index for the specular map.
+    private int cachedSpecularUnit = -1;
+    // Cached uniform location for the normal matrix.
+    private int cachedNormalMatLoc = -1;
+
     /**
      * Private constructor for Singleton pattern.
      * Pre-allocates the arrays and the matrix objects within them.
@@ -334,6 +343,9 @@ public class VxRenderQueue {
      * to determine which texture units are assigned to the "normals" and "specular" samplers.
      * This ensures PBR maps are bound to the correct slots expected by the specific shaderpack
      * in use, rather than assuming fixed units (e.g., 1 or 3).
+     * <p>
+     * <b>Caching:</b> The texture unit indices and uniform locations are cached based on the
+     * program ID to avoid expensive GL calls every frame.
      *
      * @param viewMatrix       The camera view matrix.
      * @param projectionMatrix The projection matrix.
@@ -349,17 +361,29 @@ public class VxRenderQueue {
         }
         shader.apply();
 
-        // 2. Dynamic PBR Unit Resolution
+        // 2. Dynamic PBR Unit Resolution (Cached)
         // Query the active shader program to find where it expects PBR textures.
-        int programId = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
+        int currentProgramId = GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM);
 
-        int normalUniformLoc = GL20.glGetUniformLocation(programId, "normals");
-        int specularUniformLoc = GL20.glGetUniformLocation(programId, "specular");
+        // Only query GL if the shader program has changed since the last frame/batch
+        if (currentProgramId != this.lastProgramId) {
+            this.lastProgramId = currentProgramId;
 
-        // Retrieve the texture unit index (integer value) associated with the sampler uniforms.
-        // If the uniform is not present, default to -1 to skip binding.
-        int targetNormalUnit = (normalUniformLoc != -1) ? GL20.glGetUniformi(programId, normalUniformLoc) : -1;
-        int targetSpecularUnit = (specularUniformLoc != -1) ? GL20.glGetUniformi(programId, specularUniformLoc) : -1;
+            // Resolve PBR Texture Units
+            int normalUniformLoc = GL20.glGetUniformLocation(currentProgramId, "normals");
+            int specularUniformLoc = GL20.glGetUniformLocation(currentProgramId, "specular");
+
+            // Retrieve the texture unit index (integer value) associated with the sampler uniforms.
+            // If the uniform is not present, default to -1 to skip binding.
+            this.cachedNormalUnit = (normalUniformLoc != -1) ? GL20.glGetUniformi(currentProgramId, normalUniformLoc) : -1;
+            this.cachedSpecularUnit = (specularUniformLoc != -1) ? GL20.glGetUniformi(currentProgramId, specularUniformLoc) : -1;
+
+            // Resolve Normal Matrix Location (NormalMat or normalMatrix)
+            this.cachedNormalMatLoc = Uniform.glGetUniformLocation(currentProgramId, "NormalMat");
+            if (this.cachedNormalMatLoc == -1) {
+                this.cachedNormalMatLoc = Uniform.glGetUniformLocation(currentProgramId, "normalMatrix");
+            }
+        }
 
         // 3. Render Loop
         for (int i = 0; i < count; i++) {
@@ -380,17 +404,11 @@ public class VxRenderQueue {
                 shader.MODEL_VIEW_MATRIX.set(AUX_MODEL_VIEW);
             }
 
-            // Upload Normal Matrix
-            // Shaders typically use "NormalMat" or "normalMatrix" to transform normals.
-            int normalMatrixLocation = Uniform.glGetUniformLocation(programId, "NormalMat");
-            if (normalMatrixLocation == -1) {
-                normalMatrixLocation = Uniform.glGetUniformLocation(programId, "normalMatrix");
-            }
-
-            if (normalMatrixLocation != -1) {
+            // Upload Normal Matrix using cached location
+            if (this.cachedNormalMatLoc != -1) {
                 MATRIX_BUFFER_9.clear();
                 AUX_NORMAL_VIEW.get(MATRIX_BUFFER_9);
-                RenderSystem.glUniformMatrix3(normalMatrixLocation, false, MATRIX_BUFFER_9);
+                RenderSystem.glUniformMatrix3(this.cachedNormalMatLoc, false, MATRIX_BUFFER_9);
             }
 
             // Prepare Mesh Data
@@ -415,14 +433,14 @@ public class VxRenderQueue {
                 RenderSystem.bindTexture(material.albedoMapGlId);
 
                 // --- Bind Normal Map (Dynamic Unit) ---
-                if (targetNormalUnit != -1 && material.normalMapGlId != -1) {
-                    RenderSystem.activeTexture(GL13.GL_TEXTURE0 + targetNormalUnit);
+                if (this.cachedNormalUnit != -1 && material.normalMapGlId != -1) {
+                    RenderSystem.activeTexture(GL13.GL_TEXTURE0 + this.cachedNormalUnit);
                     RenderSystem.bindTexture(material.normalMapGlId);
                 }
 
                 // --- Bind Specular/LabPBR Map (Dynamic Unit) ---
-                if (targetSpecularUnit != -1 && material.specularMapGlId != -1) {
-                    RenderSystem.activeTexture(GL13.GL_TEXTURE0 + targetSpecularUnit);
+                if (this.cachedSpecularUnit != -1 && material.specularMapGlId != -1) {
+                    RenderSystem.activeTexture(GL13.GL_TEXTURE0 + this.cachedSpecularUnit);
                     RenderSystem.bindTexture(material.specularMapGlId);
                 }
 
