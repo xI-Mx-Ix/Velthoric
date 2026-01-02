@@ -124,6 +124,6 @@ public abstract class VelthoricExtension {
 
         // Default IDs for the Velthoric project
         getCurseProjectId().convention("1367260");
-        getModrinthProjectId().convention("velthoric");
+        getModrinthProjectId().convention("i2yo1LYg");
     }
 }
