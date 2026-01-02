@@ -24,8 +24,8 @@ public enum ModLoader {
 
     FORGE(
         "Forge",
-        List.of("forge"),
-        List.of("forge"),
+        List.of("forge", "neoforge"),
+        List.of("forge", "neoforge"),
         List.of("architectury-api")
     ),
 
