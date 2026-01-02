@@ -116,6 +116,9 @@ public final class PlatformConfigurator {
 
             cf.getModLoaders().addAll(loader.getCurseTags());
 
+            cf.getClientRequired().set(true);
+            cf.getServerRequired().set(true);
+
             String[] deps = loader.getRequiredDependencies().toArray(new String[0]);
             if (deps.length > 0) {
                 cf.requires(deps);
