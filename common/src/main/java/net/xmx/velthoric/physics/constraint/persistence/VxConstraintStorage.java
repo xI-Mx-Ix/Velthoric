@@ -16,9 +16,11 @@ import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -69,24 +71,27 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      * Stores a batch of pre-serialized constraint data snapshots, grouped by region.
      *
      * @param snapshotsByRegion A map where each key is a region position and the value is a map of snapshots for that region.
+     * @return A future completing when all constraints are successfully indexed in memory.
      */
-    public void storeConstraintBatch(Map<RegionPos, Map<UUID, byte[]>> snapshotsByRegion) {
-        snapshotsByRegion.forEach(this::storeConstraintBatch);
+    public CompletableFuture<Void> storeConstraintBatch(Map<RegionPos, Map<UUID, byte[]>> snapshotsByRegion) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        snapshotsByRegion.forEach((pos, batch) -> futures.add(storeConstraintBatch(pos, batch)));
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     /**
-     * Stores a batch of constraint snapshots for a single region. This schedules the actual
-     * I/O operation to be executed on the I/O worker thread and triggers an async save.
+     * Stores a batch of constraint snapshots for a single region.
      *
      * @param regionPos The position of the region.
      * @param snapshotBatch A map of constraint UUIDs to their serialized data.
+     * @return A future tracking the insertion operation.
      */
-    public void storeConstraintBatch(RegionPos regionPos, Map<UUID, byte[]> snapshotBatch) {
+    public CompletableFuture<Void> storeConstraintBatch(RegionPos regionPos, Map<UUID, byte[]> snapshotBatch) {
         if (snapshotBatch == null || snapshotBatch.isEmpty()) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
-        getRegion(regionPos).thenAcceptAsync(region -> {
+        return getRegion(regionPos).thenAcceptAsync(region -> {
             for (Map.Entry<UUID, byte[]> entry : snapshotBatch.entrySet()) {
                 UUID constraintId = entry.getKey();
                 byte[] data = entry.getValue();
@@ -96,7 +101,6 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                 indexConstraintData(constraintId, data);
             }
             region.dirty.set(true);
-            // Trigger an asynchronous save for this region now, instead of waiting for a full flush.
             saveRegion(regionPos);
         }, ioExecutor).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to store constraint batch in region {}", regionPos, ex);
