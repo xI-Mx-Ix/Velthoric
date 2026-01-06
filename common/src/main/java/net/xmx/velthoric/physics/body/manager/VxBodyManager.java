@@ -596,8 +596,10 @@ public class VxBodyManager {
 
         for (VxBody body : bodiesInChunk) {
             int index = body.getDataStoreIndex();
-            // Ensure the body is valid and active in the DataStore before serializing
-            if (index == -1 || !dataStore.isActive[index]) continue;
+
+            // Ensure the body has a valid data store index.
+            // Note: Sleeping (inactive) bodies must also be saved, so we only check if the index is valid.
+            if (index == -1) continue;
 
             // Serialize the body state to a byte array
             byte[] snapshot = bodyStorage.serializeBodyData(body);
