@@ -418,23 +418,25 @@ public class VxBodyManager {
     }
 
     /**
-     * Efficiently unloads all physics bodies located in a specific chunk.
+     * Efficiently unloads all physics bodies located in a specific chunk from memory.
      * <p>
-     * This method is intended to be called when a Minecraft chunk is unloaded. It removes
-     * the bodies from memory to free resources but does <b>not</b> trigger a save operation,
-     * assuming the chunk data has already been serialized via {@link #saveBodiesInChunk}.
+     * This method removes the bodies from the active simulation and the chunk tracking system.
+     * It does not perform any disk I/O; persistence must be handled externally before calling this
+     * (e.g., via {@link #saveBodiesInChunk}).
      *
      * @param chunkPos The position of the chunk to unload.
      */
     public void onChunkUnload(ChunkPos chunkPos) {
-        // Step 1: Atomically retrieve and untrack bodies. This avoids concurrent modification issues.
+        // Retrieve and untrack all bodies in the specified chunk atomically
         List<VxBody> bodiesToUnload = chunkManager.removeAllInChunk(chunkPos);
 
         if (bodiesToUnload.isEmpty()) {
             return;
         }
 
-        // Step 2: Perform memory cleanup with the UNLOAD reason (skips disk I/O).
+        // Remove bodies from the physics simulation using the UNLOAD reason.
+        // This tells the internal logic to clean up runtime resources (Jolt IDs, etc.)
+        // without attempting to save or delete persistent data files.
         for (VxBody body : bodiesToUnload) {
             processBodyRemoval(body, VxRemovalReason.UNLOAD);
         }
