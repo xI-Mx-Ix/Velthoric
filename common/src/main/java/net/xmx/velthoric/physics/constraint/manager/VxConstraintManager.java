@@ -9,10 +9,10 @@ import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.std.StringStream;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.constraint.VxConstraint;
-import net.xmx.velthoric.physics.constraint.persistence.VxConstraintStorage;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
+import net.xmx.velthoric.physics.constraint.VxConstraint;
+import net.xmx.velthoric.physics.constraint.persistence.VxConstraintStorage;
 import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Manages the lifecycle of physics constraints within a physics world.
@@ -41,6 +42,11 @@ public class VxConstraintManager {
     private final VxConstraintStorage constraintStorage;
     private final VxDependencyDataSystem dataSystem;
     private final Map<UUID, VxConstraint> activeConstraints = new ConcurrentHashMap<>();
+
+    /**
+     * A queue tracking active asynchronous constraint storage tasks.
+     */
+    private final ConcurrentLinkedQueue<CompletableFuture<?>> pendingStorageTasks = new ConcurrentLinkedQueue<>();
 
     public VxConstraintManager(VxBodyManager bodyManager) {
         this.bodyManager = bodyManager;
@@ -66,36 +72,6 @@ public class VxConstraintManager {
         activeConstraints.clear();
         dataSystem.clear();
         constraintStorage.shutdown();
-    }
-
-    /**
-     * Saves all constraints associated with a given chunk by creating a safe snapshot on the physics thread
-     * and passing it to the storage system.
-     *
-     * @param pos The position of the chunk.
-     */
-    public void saveConstraintsInChunk(ChunkPos pos) {
-        List<VxConstraint> constraintsToSave = new ArrayList<>();
-        for (VxConstraint constraint : activeConstraints.values()) {
-            if (isConstraintInChunk(constraint, pos)) {
-                constraintsToSave.add(constraint);
-            }
-        }
-        if (!constraintsToSave.isEmpty()) {
-            processAndStoreConstraints(constraintsToSave);
-        }
-    }
-
-    public void flushPersistence(boolean block) {
-        try {
-            CompletableFuture<Void> future = constraintStorage.saveDirtyRegions();
-            constraintStorage.getRegionIndex().save();
-            if (block) {
-                future.join();
-            }
-        } catch (Exception e) {
-            VxMainClass.LOGGER.error("Failed to flush physics constraint persistence for world {}", world.getLevel().dimension().location(), e);
-        }
     }
 
     /**
@@ -322,16 +298,18 @@ public class VxConstraintManager {
      * Takes a list of constraints, serializes them immediately, groups them by region,
      * and passes them to the storage system for writing.
      * <p>
-     * This process is performed synchronously on the caller thread to ensure that the
-     * constraint data is captured before the associated bodies or chunks are unloaded.
+     * The resulting storage task is tracked in {@link #pendingStorageTasks} to allow waiting
+     * for completion during shutdown.
      *
      * @param constraints The list of constraints to process and store.
      */
     private void processAndStoreConstraints(List<VxConstraint> constraints) {
+        // Cleanup finished tasks
+        pendingStorageTasks.removeIf(CompletableFuture::isDone);
+
         Map<VxAbstractRegionStorage.RegionPos, Map<UUID, byte[]>> dataByRegion = new HashMap<>();
 
         for (VxConstraint constraint : constraints) {
-            // Determine which body defines the chunk location for this constraint
             UUID chunkBodyId = !constraint.getBody1Id().equals(WORLD_BODY_ID)
                     ? constraint.getBody1Id()
                     : constraint.getBody2Id();
@@ -342,8 +320,6 @@ public class VxConstraintManager {
             if (chunkBody == null || chunkBody.getDataStoreIndex() == -1) continue;
 
             ChunkPos chunkPos = bodyManager.getBodyChunkPos(chunkBody.getDataStoreIndex());
-
-            // Serialize the constraint data immediately
             byte[] snapshot = constraintStorage.serializeConstraintData(constraint, chunkPos);
             if (snapshot == null) continue;
 
@@ -351,9 +327,48 @@ public class VxConstraintManager {
             dataByRegion.computeIfAbsent(regionPos, k -> new HashMap<>()).put(constraint.getConstraintId(), snapshot);
         }
 
-        // Pass the grouped data to the storage system
         if (!dataByRegion.isEmpty()) {
-            constraintStorage.storeConstraintBatch(dataByRegion);
+            CompletableFuture<Void> task = constraintStorage.storeConstraintBatch(dataByRegion);
+            pendingStorageTasks.add(task);
+        }
+    }
+
+    /**
+     * Saves all constraints associated with a given chunk by creating a safe snapshot on the physics thread
+     * and passing it to the storage system.
+     *
+     * @param pos The position of the chunk.
+     */
+    public void saveConstraintsInChunk(ChunkPos pos) {
+        List<VxConstraint> constraintsToSave = new ArrayList<>();
+        for (VxConstraint constraint : activeConstraints.values()) {
+            if (isConstraintInChunk(constraint, pos)) {
+                constraintsToSave.add(constraint);
+            }
+        }
+        if (!constraintsToSave.isEmpty()) {
+            processAndStoreConstraints(constraintsToSave);
+        }
+    }
+
+    public void flushPersistence(boolean block) {
+        try {
+            if (block) {
+                // Wait for all queued "put" operations to complete
+                CompletableFuture<?>[] pending = pendingStorageTasks.toArray(new CompletableFuture[0]);
+                if (pending.length > 0) {
+                    CompletableFuture.allOf(pending).join();
+                }
+                pendingStorageTasks.clear();
+            }
+
+            CompletableFuture<Void> future = constraintStorage.saveDirtyRegions();
+            constraintStorage.getRegionIndex().save();
+            if (block) {
+                future.join();
+            }
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Failed to flush physics constraint persistence for world {}", world.getLevel().dimension().location(), e);
         }
     }
 }

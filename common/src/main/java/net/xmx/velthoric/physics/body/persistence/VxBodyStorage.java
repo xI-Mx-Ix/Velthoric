@@ -19,6 +19,7 @@ import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -92,28 +93,41 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     /**
      * Stores a batch of pre-serialized body data snapshots, grouped by region.
-     * This is the main entry point for batched saving operations.
+     * <p>
+     * This method returns a combined future that completes when all data in the batch
+     * has been successfully inserted into the region maps and marked as dirty.
      *
      * @param snapshotsByRegion A map where each key is a region position and the value is a map of body snapshots for that region.
+     * @return A CompletableFuture that completes when the storage operation is fully queued/indexed.
      */
-    public void storeBodyBatch(Map<RegionPos, Map<UUID, byte[]>> snapshotsByRegion) {
-        if (snapshotsByRegion == null) return;
-        snapshotsByRegion.forEach(this::storeBodyBatch);
+    public CompletableFuture<Void> storeBodyBatch(Map<RegionPos, Map<UUID, byte[]>> snapshotsByRegion) {
+        if (snapshotsByRegion == null || snapshotsByRegion.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        snapshotsByRegion.forEach((pos, batch) -> futures.add(storeBodyBatch(pos, batch)));
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     /**
-     * Stores a batch of body snapshots for a single region. This schedules the actual
-     * I/O operation to be executed on the I/O worker thread and triggers an async save.
+     * Stores a batch of body snapshots for a single region.
+     * <p>
+     * The returned future indicates when the data has been inserted into the {@code RegionData}
+     * and the dirty flag has been set.
      *
      * @param regionPos The position of the region where the data should be stored.
      * @param snapshotBatch A map of body UUIDs to their serialized data for this region.
+     * @return A CompletableFuture tracking the insertion operation.
      */
-    public void storeBodyBatch(RegionPos regionPos, Map<UUID, byte[]> snapshotBatch) {
+    public CompletableFuture<Void> storeBodyBatch(RegionPos regionPos, Map<UUID, byte[]> snapshotBatch) {
         if (snapshotBatch == null || snapshotBatch.isEmpty()) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
-        getRegion(regionPos).thenAcceptAsync(region -> {
+        // Return the chain so the caller can wait for the 'put' to complete
+        return getRegion(regionPos).thenAcceptAsync(region -> {
             for (Map.Entry<UUID, byte[]> entry : snapshotBatch.entrySet()) {
                 UUID bodyId = entry.getKey();
                 byte[] data = entry.getValue();
@@ -122,8 +136,10 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                 regionIndex.put(bodyId, regionPos);
                 indexBodyData(bodyId, data);
             }
+            // Mark dirty implies "needs save".
             region.dirty.set(true);
-            // Trigger an asynchronous save for this region now, instead of waiting for a full flush.
+
+            // Trigger an optimistic save.
             saveRegion(regionPos);
         }, ioExecutor).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to queue body batch for storage in region {}", regionPos, ex);
