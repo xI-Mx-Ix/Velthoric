@@ -19,11 +19,11 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.body.VxJoltBridge;
 import net.xmx.velthoric.physics.body.VxRemovalReason;
 import net.xmx.velthoric.physics.body.network.internal.VxNetworkDispatcher;
+import net.xmx.velthoric.physics.body.network.synchronization.manager.VxServerSyncManager;
 import net.xmx.velthoric.physics.body.persistence.VxBodyStorage;
 import net.xmx.velthoric.physics.body.persistence.VxSerializedBodyData;
 import net.xmx.velthoric.physics.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.network.synchronization.manager.VxServerSyncManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
@@ -34,6 +34,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
 /**
@@ -83,6 +84,12 @@ public class VxBodyManager {
      * Counter for generating new network IDs when the free pool is empty.
      */
     private int nextNetworkId = 1;
+
+    /**
+     * A queue tracking active asynchronous body storage tasks.
+     * Used to ensure all pending data insertions are completed before flushing to disk.
+     */
+    private final ConcurrentLinkedQueue<CompletableFuture<?>> pendingStorageTasks = new ConcurrentLinkedQueue<>();
 
     /**
      * Constructs a new manager for the specified physics world.
@@ -579,10 +586,16 @@ public class VxBodyManager {
      * This operation captures the state of all bodies in the chunk immediately on the calling thread.
      * This synchronous snapshot ensures that data is serialized before any subsequent chunk unloading logic
      * can remove the bodies from memory. The actual disk I/O is delegated to the storage system's asynchronous worker.
+     * <p>
+     * The resulting storage task is tracked internally to allow {@link #flushPersistence(boolean)}
+     * to wait for completion during shutdown.
      *
      * @param pos The position of the chunk to save.
      */
     public void saveBodiesInChunk(ChunkPos pos) {
+        // Cleanup finished tasks to prevent memory leaks in the queue
+        pendingStorageTasks.removeIf(CompletableFuture::isDone);
+
         List<VxBody> bodiesInChunk = new ArrayList<>();
         chunkManager.forEachBodyInChunk(pos, bodiesInChunk::add);
 
@@ -612,18 +625,31 @@ public class VxBodyManager {
         }
 
         // Hand off the serialized snapshots to the storage system for asynchronous writing
+        // and track the future to ensure data integrity on shutdown.
         if (!dataByRegion.isEmpty()) {
-            bodyStorage.storeBodyBatch(dataByRegion);
+            CompletableFuture<Void> task = bodyStorage.storeBodyBatch(dataByRegion);
+            pendingStorageTasks.add(task);
         }
     }
 
     /**
      * Forces pending persistence tasks to write to disk.
      *
-     * @param block If true, the current thread will wait until all data is flushed.
+     * @param block If true, the current thread will wait until all queued data insertions
+     *              and file writes are fully completed.
      */
     public void flushPersistence(boolean block) {
         try {
+            if (block) {
+                // Wait for all queued "put" operations (transferring snapshots to memory maps) to complete
+                CompletableFuture<?>[] pending = pendingStorageTasks.toArray(new CompletableFuture[0]);
+                if (pending.length > 0) {
+                    CompletableFuture.allOf(pending).join();
+                }
+                pendingStorageTasks.clear();
+            }
+
+            // Now that all data is in the region maps, flush them to disk
             CompletableFuture<Void> future = bodyStorage.saveDirtyRegions();
             bodyStorage.getRegionIndex().save();
             if (block) {
