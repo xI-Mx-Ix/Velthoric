@@ -319,35 +319,41 @@ public class VxConstraintManager {
     }
 
     /**
-     * Takes a list of constraints, serializes them safely on the physics thread,
-     * groups them by region, and passes them to the storage system for writing.
+     * Takes a list of constraints, serializes them immediately, groups them by region,
+     * and passes them to the storage system for writing.
+     * <p>
+     * This process is performed synchronously on the caller thread to ensure that the
+     * constraint data is captured before the associated bodies or chunks are unloaded.
      *
      * @param constraints The list of constraints to process and store.
      */
     private void processAndStoreConstraints(List<VxConstraint> constraints) {
-        world.execute(() -> {
-            Map<VxAbstractRegionStorage.RegionPos, Map<UUID, byte[]>> dataByRegion = new HashMap<>();
+        Map<VxAbstractRegionStorage.RegionPos, Map<UUID, byte[]>> dataByRegion = new HashMap<>();
 
-            for (VxConstraint constraint : constraints) {
-                UUID chunkBodyId = !constraint.getBody1Id().equals(WORLD_BODY_ID)
-                        ? constraint.getBody1Id()
-                        : constraint.getBody2Id();
-                if (chunkBodyId.equals(WORLD_BODY_ID)) continue;
+        for (VxConstraint constraint : constraints) {
+            // Determine which body defines the chunk location for this constraint
+            UUID chunkBodyId = !constraint.getBody1Id().equals(WORLD_BODY_ID)
+                    ? constraint.getBody1Id()
+                    : constraint.getBody2Id();
 
-                VxBody chunkBody = bodyManager.getVxBody(chunkBodyId);
-                if (chunkBody == null || chunkBody.getDataStoreIndex() == -1) continue;
+            if (chunkBodyId.equals(WORLD_BODY_ID)) continue;
 
-                ChunkPos chunkPos = bodyManager.getBodyChunkPos(chunkBody.getDataStoreIndex());
-                byte[] snapshot = constraintStorage.serializeConstraintData(constraint, chunkPos);
-                if (snapshot == null) continue;
+            VxBody chunkBody = bodyManager.getVxBody(chunkBodyId);
+            if (chunkBody == null || chunkBody.getDataStoreIndex() == -1) continue;
 
-                VxAbstractRegionStorage.RegionPos regionPos = new VxAbstractRegionStorage.RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
-                dataByRegion.computeIfAbsent(regionPos, k -> new HashMap<>()).put(constraint.getConstraintId(), snapshot);
-            }
+            ChunkPos chunkPos = bodyManager.getBodyChunkPos(chunkBody.getDataStoreIndex());
 
-            if (!dataByRegion.isEmpty()) {
-                constraintStorage.storeConstraintBatch(dataByRegion);
-            }
-        });
+            // Serialize the constraint data immediately
+            byte[] snapshot = constraintStorage.serializeConstraintData(constraint, chunkPos);
+            if (snapshot == null) continue;
+
+            VxAbstractRegionStorage.RegionPos regionPos = new VxAbstractRegionStorage.RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
+            dataByRegion.computeIfAbsent(regionPos, k -> new HashMap<>()).put(constraint.getConstraintId(), snapshot);
+        }
+
+        // Pass the grouped data to the storage system
+        if (!dataByRegion.isEmpty()) {
+            constraintStorage.storeConstraintBatch(dataByRegion);
+        }
     }
 }

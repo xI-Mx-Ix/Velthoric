@@ -574,9 +574,9 @@ public class VxBodyManager {
     /**
      * Serializes all physics bodies within a given chunk and queues them for storage.
      * <p>
-     * This operation is split into two phases:
-     * 1. <b>Snapshot (Main/Physics Thread):</b> Captures the state of all bodies in the chunk to a byte buffer.
-     * 2. <b>Write (Async):</b> Passes the buffer to {@link VxBodyStorage} to write to disk.
+     * This operation captures the state of all bodies in the chunk immediately on the calling thread.
+     * This synchronous snapshot ensures that data is serialized before any subsequent chunk unloading logic
+     * can remove the bodies from memory. The actual disk I/O is delegated to the storage system's asynchronous worker.
      *
      * @param pos The position of the chunk to save.
      */
@@ -588,29 +588,29 @@ public class VxBodyManager {
             return;
         }
 
-        // Schedule the snapshot creation on the physics thread to ensure thread safety
-        world.execute(() -> {
-            Map<VxAbstractRegionStorage.RegionPos, Map<UUID, byte[]>> dataByRegion = new HashMap<>();
+        // Create the snapshot synchronously on the current thread.
+        // This accesses the DataStore arrays to capture position and rotation immediately.
+        Map<VxAbstractRegionStorage.RegionPos, Map<UUID, byte[]>> dataByRegion = new HashMap<>();
 
-            for (VxBody body : bodiesInChunk) {
-                int index = body.getDataStoreIndex();
-                if (index == -1) continue;
+        for (VxBody body : bodiesInChunk) {
+            int index = body.getDataStoreIndex();
+            // Ensure the body is valid and active in the DataStore before serializing
+            if (index == -1 || !dataStore.isActive[index]) continue;
 
-                // Serialize the body state
-                byte[] snapshot = bodyStorage.serializeBodyData(body);
-                if (snapshot == null) continue;
+            // Serialize the body state to a byte array
+            byte[] snapshot = bodyStorage.serializeBodyData(body);
+            if (snapshot == null) continue;
 
-                // Group data by region (32x32 chunks) for efficient batch I/O
-                ChunkPos chunkPos = getBodyChunkPos(index);
-                VxAbstractRegionStorage.RegionPos regionPos = new VxAbstractRegionStorage.RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
-                dataByRegion.computeIfAbsent(regionPos, k -> new HashMap<>()).put(body.getPhysicsId(), snapshot);
-            }
+            // Group data by region (32x32 chunks) for efficient batch I/O
+            ChunkPos chunkPos = getBodyChunkPos(index);
+            VxAbstractRegionStorage.RegionPos regionPos = new VxAbstractRegionStorage.RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
+            dataByRegion.computeIfAbsent(regionPos, k -> new HashMap<>()).put(body.getPhysicsId(), snapshot);
+        }
 
-            // Hand off to the storage system
-            if (!dataByRegion.isEmpty()) {
-                bodyStorage.storeBodyBatch(dataByRegion);
-            }
-        });
+        // Hand off the serialized snapshots to the storage system for asynchronous writing
+        if (!dataByRegion.isEmpty()) {
+            bodyStorage.storeBodyBatch(dataByRegion);
+        }
     }
 
     /**
