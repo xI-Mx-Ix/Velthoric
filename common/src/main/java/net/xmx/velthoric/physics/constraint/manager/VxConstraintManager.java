@@ -75,13 +75,17 @@ public class VxConstraintManager {
     }
 
     /**
-     * Handles the unloading of all constraints within a specific chunk.
-     * This method saves the constraints before removing them from the active simulation.
+     * Handles the unloading of all constraints anchored within a specific chunk.
+     * <p>
+     * This method removes the constraints from the active Jolt simulation to free memory.
+     * It assumes that any necessary data persistence has already been performed.
      *
      * @param pos The position of the chunk being unloaded.
      */
     public void onChunkUnload(ChunkPos pos) {
         List<VxConstraint> constraintsToUnload = new ArrayList<>();
+
+        // Identify active constraints belonging to this chunk
         for (VxConstraint constraint : activeConstraints.values()) {
             if (isConstraintInChunk(constraint, pos)) {
                 constraintsToUnload.add(constraint);
@@ -92,8 +96,9 @@ public class VxConstraintManager {
             return;
         }
 
-        processAndStoreConstraints(constraintsToUnload);
-
+        // Remove constraints from the simulation.
+        // The 'false' parameter ensures we do not delete the persistent data from the storage index,
+        // as we are merely unloading them from RAM, not destroying them.
         for (VxConstraint constraint : constraintsToUnload) {
             removeConstraint(constraint.getConstraintId(), false);
         }
