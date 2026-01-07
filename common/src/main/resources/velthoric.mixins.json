@@ -7,6 +7,8 @@
     "body.MixinChunkMap_ChunkTracking",
     "bridge.mounting.entity.MixinEntity",
     "command.MixinArgumentTypeInfos",
+    "joltjni.JoltPhysicsObjectAccessor",
+    "joltjni.MixinBody",
     "misc.ExplosionMixin_TriggerExplosion",
     "persistence.MixinChunkMap_Persistence",
     "persistence.MixinEntityStorage_Persistence",
