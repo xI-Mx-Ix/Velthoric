@@ -8,9 +8,10 @@ import net.xmx.velthoric.physics.AbstractDataStore;
 
 /**
  * A data-oriented store for the state of all bodies currently affected by buoyancy.
- * This class uses a "Structure of Arrays" (SoA) layout. It tracks not only the
- * surface height but also the horizontal coverage of the fluid to allow for
- * partial submersion calculations.
+ * <p>
+ * This class uses a "Structure of Arrays" (SoA) layout to maximize CPU cache efficiency
+ * during sequential processing. It tracks surface height, fluid coverage, and fluid velocity
+ * vectors to support accurate hydrodynamics.
  *
  * @author xI-Mx-Ix
  */
@@ -19,8 +20,20 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
     private int capacity = 0;
 
     // --- Buoyancy State Data (SoA) ---
+
+    /**
+     * The ID of the physics body in the Jolt system.
+     */
     public int[] bodyIds;
+
+    /**
+     * The world-space Y-coordinate of the fluid surface.
+     */
     public float[] surfaceHeights;
+
+    /**
+     * The type of fluid (e.g., WATER, LAVA) interacting with the body.
+     */
     public VxFluidType[] fluidTypes;
 
     /**
@@ -39,6 +52,21 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
     public float[] waterCenterZ;
 
     /**
+     * The X component of the fluid's flow velocity vector.
+     */
+    public float[] flowX;
+
+    /**
+     * The Y component of the fluid's flow velocity vector.
+     */
+    public float[] flowY;
+
+    /**
+     * The Z component of the fluid's flow velocity vector.
+     */
+    public float[] flowZ;
+
+    /**
      * Constructs a new data store with a default initial capacity.
      */
     public VxBuoyancyDataStore() {
@@ -47,6 +75,7 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
 
     /**
      * Constructs a new data store with a specified initial capacity.
+     *
      * @param initialCapacity The initial number of bodies to allocate memory for.
      */
     public VxBuoyancyDataStore(int initialCapacity) {
@@ -55,6 +84,7 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
 
     /**
      * Pre-allocates memory for a new number of bodies.
+     *
      * @param newCapacity The new capacity.
      */
     private void allocate(int newCapacity) {
@@ -66,12 +96,15 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
         areaFractions = grow(areaFractions, newCapacity);
         waterCenterX = grow(waterCenterX, newCapacity);
         waterCenterZ = grow(waterCenterZ, newCapacity);
+        flowX = grow(flowX, newCapacity);
+        flowY = grow(flowY, newCapacity);
+        flowZ = grow(flowZ, newCapacity);
 
         this.capacity = newCapacity;
     }
 
     /**
-     * Adds a body and its fluid properties to the data store.
+     * Adds a body and its hydro-dynamic properties to the data store.
      *
      * @param bodyId        The Jolt body ID.
      * @param surfaceHeight The Y-coordinate of the fluid surface.
@@ -79,8 +112,12 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
      * @param areaFraction  The percentage of the footprint covered by fluid.
      * @param centerX       The center of buoyancy X-position in world space.
      * @param centerZ       The center of buoyancy Z-position in world space.
+     * @param fX            The X component of the fluid velocity.
+     * @param fY            The Y component of the fluid velocity.
+     * @param fZ            The Z component of the fluid velocity.
      */
-    public void add(int bodyId, float surfaceHeight, VxFluidType fluidType, float areaFraction, float centerX, float centerZ) {
+    public void add(int bodyId, float surfaceHeight, VxFluidType fluidType, float areaFraction,
+                    float centerX, float centerZ, float fX, float fY, float fZ) {
         if (count == capacity) {
             allocate(capacity * 2);
         }
@@ -90,13 +127,24 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
         areaFractions[count] = areaFraction;
         waterCenterX[count] = centerX;
         waterCenterZ[count] = centerZ;
+        flowX[count] = fX;
+        flowY[count] = fY;
+        flowZ[count] = fZ;
         count++;
     }
 
+    /**
+     * Returns the number of active entries in the store.
+     *
+     * @return The count of buoyant bodies.
+     */
     public int getCount() {
         return this.count;
     }
 
+    /**
+     * Resets the store count to zero, effectively clearing the data for the next frame.
+     */
     public void clear() {
         this.count = 0;
     }

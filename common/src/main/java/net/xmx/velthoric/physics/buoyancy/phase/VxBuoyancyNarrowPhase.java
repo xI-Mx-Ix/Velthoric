@@ -14,11 +14,8 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
  * Handles the narrow-phase of buoyancy physics on the dedicated physics thread.
  * <p>
  * This implementation delegates the heavy geometric lifting directly to the native
- * Jolt Physics engine.
- * <p>
- * It uses {@link BodyLockMultiWrite} to process bodies in batches of 128. This drastically
- * reduces the JNI overhead associated with locking and unlocking bodies individually,
- * which is critical for maintaining high performance with 1000+ bodies.
+ * Jolt Physics engine. It retrieves environmental data (surface height, flow velocity)
+ * from the {@link VxBuoyancyDataStore} and applies physical impulses to the bodies.
  *
  * @author xI-Mx-Ix
  */
@@ -103,9 +100,14 @@ public final class VxBuoyancyNarrowPhase {
         Vec3 surfaceNormal = tempSurfaceNormal.get();
         surfaceNormal.set(0f, 1f, 0f);
 
-        // Fluid velocity (stationary for now).
+        // Populate fluid velocity from the DataStore.
+        // This vector represents the current/flow of the water affecting the body.
         Vec3 fluidVelocity = tempFluidVelocity.get();
-        fluidVelocity.set(0f, 0f, 0f);
+        fluidVelocity.set(
+                dataStore.flowX[index],
+                dataStore.flowY[index],
+                dataStore.flowZ[index]
+        );
 
         // Determine physical constants based on fluid type.
         // Buoyancy factor: >1.0 makes objects float higher, 1.0 is neutral.
