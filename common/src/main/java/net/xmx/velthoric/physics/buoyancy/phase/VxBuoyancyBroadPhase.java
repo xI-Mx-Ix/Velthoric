@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.buoyancy.VxBuoyancyDataStore;
@@ -20,8 +21,10 @@ import java.util.UUID;
 
 /**
  * Handles the broad-phase of buoyancy detection on the main game thread.
+ * <p>
  * This class scans for bodies in fluids by checking world data against body AABBs.
- * It features a vertical search to find the true fluid surface for submerged objects.
+ * It features a vertical search to find the true fluid surface for submerged objects
+ * and calculates the average flow direction of the fluid volume.
  *
  * @author xI-Mx-Ix
  */
@@ -49,8 +52,10 @@ public final class VxBuoyancyBroadPhase {
 
     /**
      * Scans for dynamic bodies in contact with fluids.
+     * <p>
      * It prioritizes the body's AABB for accurate volume scanning. If the AABB is invalid
      * (e.g., initialization pending), it falls back to a position-based radius scan.
+     * It also aggregates fluid flow vectors to determine the current direction of the stream.
      *
      * @param dataStore The data store to be populated with potential fluid contacts.
      */
@@ -106,22 +111,30 @@ public final class VxBuoyancyBroadPhase {
                 bottomThreshold = (float) posY - SCAN_RADIUS;
             }
 
+            // Accumulators for surface height and position
             float totalSurfaceHeight = 0;
-            int fluidColumnCount = 0;
-            int totalScannedColumns = 0;
             float sumX = 0;
             float sumZ = 0;
+
+            // Accumulators for fluid flow vectors
+            float sumFlowX = 0;
+            float sumFlowY = 0;
+            float sumFlowZ = 0;
+
+            int fluidColumnCount = 0;
+            int totalScannedColumns = 0;
             VxFluidType detectedType = null;
 
             for (int x = minBlockX; x <= maxBlockX; ++x) {
                 for (int z = minBlockZ; z <= maxBlockZ; ++z) {
                     totalScannedColumns++;
 
-                    // This is the safest way to access chunk data without causing the server thread to wait for I/O.
+                    // Access chunk data directly to avoid IO blocking.
                     ChunkAccess chunk = this.level.getChunkSource().getChunkNow(x >> 4, z >> 4);
                     if (chunk == null) continue;
 
                     float foundHeight = -1;
+                    FluidState interactingState = null;
 
                     // Check top for submersion
                     mutablePos.set(x, maxBlockY, z);
@@ -129,6 +142,7 @@ public final class VxBuoyancyBroadPhase {
 
                     if (!topFluid.isEmpty()) {
                         foundHeight = findSurfaceUpwards(chunk, x, maxBlockY, z, mutablePos);
+                        interactingState = topFluid;
                         if (detectedType == null) detectedType = getFluidTypeFromState(topFluid);
                     } else {
                         // Scan downwards
@@ -137,6 +151,7 @@ public final class VxBuoyancyBroadPhase {
                             FluidState fluidState = chunk.getFluidState(mutablePos);
                             if (!fluidState.isEmpty()) {
                                 foundHeight = y + fluidState.getHeight(level, mutablePos);
+                                interactingState = fluidState;
                                 if (detectedType == null) detectedType = getFluidTypeFromState(fluidState);
                                 break;
                             }
@@ -148,6 +163,12 @@ public final class VxBuoyancyBroadPhase {
                         sumX += x + 0.5f; // Center of the block
                         sumZ += z + 0.5f;
                         fluidColumnCount++;
+
+                        // Note: We query flow at the specific block position interacting with the body.
+                        Vec3 flow = interactingState.getFlow(level, mutablePos);
+                        sumFlowX += (float) flow.x;
+                        sumFlowY += (float) flow.y;
+                        sumFlowZ += (float) flow.z;
                     }
                 }
             }
@@ -158,6 +179,11 @@ public final class VxBuoyancyBroadPhase {
                 float centerX = sumX / fluidColumnCount;
                 float centerZ = sumZ / fluidColumnCount;
 
+                // Calculate average flow vector
+                float avgFlowX = sumFlowX / fluidColumnCount;
+                float avgFlowY = sumFlowY / fluidColumnCount;
+                float avgFlowZ = sumFlowZ / fluidColumnCount;
+
                 // Ensure the water surface is actually above the bottom of the object
                 if (averageSurfaceHeight > bottomThreshold) {
                     UUID id = ds.getIdForIndex(i);
@@ -165,7 +191,17 @@ public final class VxBuoyancyBroadPhase {
 
                     VxBody vxBody = physicsWorld.getBodyManager().getVxBody(id);
                     if (vxBody != null) {
-                        dataStore.add(vxBody.getBodyId(), averageSurfaceHeight, detectedType, areaFraction, centerX, centerZ);
+                        dataStore.add(
+                                vxBody.getBodyId(),
+                                averageSurfaceHeight,
+                                detectedType,
+                                areaFraction,
+                                centerX,
+                                centerZ,
+                                avgFlowX,
+                                avgFlowY,
+                                avgFlowZ
+                        );
                     }
                 }
             }
