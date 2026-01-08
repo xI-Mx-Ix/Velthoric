@@ -30,16 +30,23 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Manages the persistent storage of physics bodies on disk using a region-based file system.
- * This class handles serialization, deserialization, and asynchronous loading/saving of body data.
- * It uses a codec to separate serialization logic from storage management.
+ * <p>
+ * This class handles the translation between high-level {@link VxBody} objects and their
+ * binary representation. It leverages the {@link VxAbstractRegionStorage} for thread-safe,
+ * sequential I/O operations and maintains an index mapping chunks to body UUIDs to support
+ * efficient chunk loading.
  *
  * @author xI-Mx-Ix
  */
 public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
+
     private final VxBodyManager bodyManager;
     private final ConcurrentMap<Long, List<UUID>> chunkToUuidIndex = new ConcurrentHashMap<>();
 
-    // Tracks bodies currently being loaded to prevent duplicate async requests.
+    /**
+     * Tracks bodies currently being loaded to prevent duplicate asynchronous requests
+     * for the same body ID.
+     */
     private final ConcurrentMap<UUID, CompletableFuture<VxBody>> pendingLoads = new ConcurrentHashMap<>();
 
     public VxBodyStorage(ServerLevel level, VxBodyManager bodyManager) {
@@ -53,12 +60,13 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     @Override
-    protected void readRegionData(ByteBuf buffer, RegionData<UUID, byte[]> regionData) {
+    protected void readRegionData(ByteBuf buffer, Map<UUID, byte[]> regionData) {
         FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(buffer);
         while (friendlyBuf.isReadable()) {
             UUID id = friendlyBuf.readUUID();
             byte[] data = friendlyBuf.readByteArray();
-            regionData.entries.put(id, data);
+
+            regionData.put(id, data);
             indexBodyData(id, data);
         }
     }
@@ -74,12 +82,14 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     /**
      * Stores a single body. This is a convenience method that wraps the batch-saving logic.
+     * The serialization occurs on the calling thread (usually the physics or server thread).
      *
      * @param body The body to store.
      */
     public void storeBody(VxBody body) {
         if (body == null || body.getDataStoreIndex() == -1) return;
 
+        // Ensure we are in a valid state to read body data
         bodyManager.getPhysicsWorld().execute(() -> {
             byte[] snapshot = serializeBodyData(body);
             if (snapshot == null) return;
@@ -87,6 +97,7 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             // Calculate chunk pos for region determination
             ChunkPos chunkPos = bodyManager.getBodyChunkPos(body.getDataStoreIndex());
             RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
+
             storeBodyBatch(regionPos, Map.of(body.getPhysicsId(), snapshot));
         });
     }
@@ -95,10 +106,10 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      * Stores a batch of pre-serialized body data snapshots, grouped by region.
      * <p>
      * This method returns a combined future that completes when all data in the batch
-     * has been successfully inserted into the region maps and marked as dirty.
+     * has been passed to the underlying I/O worker.
      *
      * @param snapshotsByRegion A map where each key is a region position and the value is a map of body snapshots for that region.
-     * @return A CompletableFuture that completes when the storage operation is fully queued/indexed.
+     * @return A CompletableFuture that completes when the storage operation is fully queued.
      */
     public CompletableFuture<Void> storeBodyBatch(Map<RegionPos, Map<UUID, byte[]>> snapshotsByRegion) {
         if (snapshotsByRegion == null || snapshotsByRegion.isEmpty()) {
@@ -114,53 +125,63 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     /**
      * Stores a batch of body snapshots for a single region.
      * <p>
-     * The returned future indicates when the data has been inserted into the {@code RegionData}
-     * and the dirty flag has been set.
+     * This method ensures the region is loaded into memory, updates the in-memory map,
+     * updates the spatial index, and then triggers a save operation via the I/O worker.
      *
-     * @param regionPos The position of the region where the data should be stored.
+     * @param regionPos     The position of the region where the data should be stored.
      * @param snapshotBatch A map of body UUIDs to their serialized data for this region.
-     * @return A CompletableFuture tracking the insertion operation.
+     * @return A CompletableFuture tracking the operation.
      */
     public CompletableFuture<Void> storeBodyBatch(RegionPos regionPos, Map<UUID, byte[]> snapshotBatch) {
         if (snapshotBatch == null || snapshotBatch.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
 
-        // Return the chain so the caller can wait for the 'put' to complete
-        return getRegion(regionPos).thenAcceptAsync(region -> {
+        // 1. Ensure the region map is loaded (or create a new one)
+        return getRegion(regionPos).thenCompose(map -> {
+            // 2. Update the in-memory state
             for (Map.Entry<UUID, byte[]> entry : snapshotBatch.entrySet()) {
                 UUID bodyId = entry.getKey();
                 byte[] data = entry.getValue();
 
-                region.entries.put(bodyId, data);
-                regionIndex.put(bodyId, regionPos);
+                map.put(bodyId, data);
+
+                // Update side indices
+                if (regionIndex != null) regionIndex.put(bodyId, regionPos);
                 indexBodyData(bodyId, data);
             }
-            // Mark dirty implies "needs save".
-            region.dirty.set(true);
 
-            // Trigger an optimistic save.
-            saveRegion(regionPos);
-        }, ioExecutor).exceptionally(ex -> {
+            // 3. Trigger the write-behind persistence
+            return saveRegion(regionPos);
+        }).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to queue body batch for storage in region {}", regionPos, ex);
             return null;
         });
     }
 
+    /**
+     * Triggers the loading of all bodies known to exist within the specified chunk.
+     *
+     * @param chunkPos The position of the chunk to load.
+     */
     public void loadBodiesInChunk(ChunkPos chunkPos) {
         RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
-        getRegion(regionPos).thenRunAsync(() -> {
+
+        // Ensure region is loaded first
+        getRegion(regionPos).thenAccept(map -> {
             List<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
             if (idsToLoad == null || idsToLoad.isEmpty()) return;
 
             for (UUID id : List.copyOf(idsToLoad)) {
-                // Skip if loaded or currently loading
+                // Check if already loaded or currently loading
                 if (bodyManager.getVxBody(id) != null || pendingLoads.containsKey(id)) {
                     continue;
                 }
+
+                // Proceed to load individual body
                 loadBody(id);
             }
-        }, ioExecutor).exceptionally(ex -> {
+        }).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to load bodies in chunk {}", chunkPos, ex);
             return null;
         });
@@ -184,6 +205,8 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             return pending;
         }
 
+        if (regionIndex == null) return CompletableFuture.completedFuture(null);
+
         RegionPos regionPos = regionIndex.get(id);
         if (regionPos == null) {
             return CompletableFuture.completedFuture(null);
@@ -195,17 +218,18 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     private CompletableFuture<VxBody> startLoadAsync(UUID id, RegionPos regionPos) {
         return getRegion(regionPos)
-                .thenApplyAsync(region -> region.entries.get(id), ioExecutor)
-                .thenApplyAsync(this::deserializeBody, ioExecutor)
-                .thenComposeAsync(data -> {
+                .thenApply(map -> map.get(id)) // Extract binary data from region map
+                .thenApply(this::deserializeBody) // Deserialize to intermediate record
+                .thenCompose(data -> {
                     if (data == null) {
                         return CompletableFuture.completedFuture(null);
                     }
                     CompletableFuture<VxBody> bodyFuture = new CompletableFuture<>();
-                    // Body creation must happen on the server main thread (or physics thread) to interact with managers safely
+
+                    // Body creation and registration must happen on the server/physics thread
+                    // to ensure thread-safety with the managers.
                     bodyManager.getPhysicsWorld().execute(() -> {
                         try {
-                            // Helper method in BodyManager to reconstruct body from VxSerializedBodyData
                             VxBody body = bodyManager.addSerializedBody(data);
                             bodyFuture.complete(body);
                         } catch (Exception e) {
@@ -218,24 +242,31 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
                     if (ex != null) {
                         VxMainClass.LOGGER.error("Exception loading physics body {}", id, ex);
                     }
-                    // Cleanup the pending map. This is safe here as whenComplete runs after
-                    // computeIfAbsent has finished returning the future.
+                    // Clean up the pending map
                     pendingLoads.remove(id);
                 });
     }
 
+    /**
+     * Removes a body's data from the persistent storage.
+     *
+     * @param id The UUID of the body to remove.
+     */
     public void removeData(UUID id) {
+        if (regionIndex == null) return;
         RegionPos regionPos = regionIndex.get(id);
         if (regionPos == null) return;
 
-        getRegion(regionPos).thenAcceptAsync(region -> {
-            byte[] data = region.entries.remove(id);
+        getRegion(regionPos).thenCompose(map -> {
+            byte[] data = map.remove(id);
             if (data != null) {
-                region.dirty.set(true);
                 deIndexBody(id, data);
                 regionIndex.remove(id);
+                // Trigger save to persist the removal
+                return saveRegion(regionPos);
             }
-        }, ioExecutor).exceptionally(ex -> {
+            return CompletableFuture.completedFuture(null);
+        }).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to remove data for body {}", id, ex);
             return null;
         });
