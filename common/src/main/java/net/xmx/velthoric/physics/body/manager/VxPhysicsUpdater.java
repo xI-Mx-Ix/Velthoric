@@ -5,7 +5,6 @@
 package net.xmx.velthoric.physics.body.manager;
 
 import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.readonly.ConstAaBox;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceNoLock;
@@ -23,12 +22,12 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Responsible for the bi-directional synchronization between the game state
- * (in VxServerBodyDataStore) and the Jolt physics simulation state.
+ * Responsible for the synchronization between the Jolt physics simulation and
+ * the game state (in VxServerBodyDataStore).
+ * <p>
  * This class is designed to be highly performant and GC-friendly by avoiding
- * allocations in its hot-path update loops. It follows a clear two-phase update:
- * 1. Pre-Sync: Pushes game state changes into Jolt.
- * 2. Post-Sync: Pulls simulation results from Jolt back into the game state.
+ * allocations in its hot-path update loops. It performs a post-simulation sync
+ * to update the game state with the results from the physics engine.
  *
  * @author xI-Mx-Ix
  */
@@ -73,56 +72,13 @@ public class VxPhysicsUpdater {
 
     /**
      * The core update loop, executed on the physics thread.
-     * It performs a pre-sync (Game -> Jolt), steps the simulation (handled externally),
-     * and then a post-sync (Jolt -> Game).
+     * It performs a post-sync (Jolt -> Game State) after the simulation step.
      */
     private void update(long timestampNanos, VxPhysicsWorld world) {
         final BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterfaceNoLock();
 
-        // Phase 1: Pre-Update Sync (Game State -> Jolt)
-        preUpdateSync(bodyInterface);
-
-        // Phase 2: Step the Physics Simulation (handled externally)
-
-        // Phase 3: Post-Update Sync (Jolt -> Game State)
+        // Post-Update Sync: Retrieve simulation results and update the SoA DataStore.
         postUpdateSync(timestampNanos, world, bodyInterface);
-    }
-
-    /**
-     * Scans for objects marked as dirty by the game logic and applies their
-     * state to the Jolt bodies.
-     */
-    private void preUpdateSync(BodyInterface bodyInterface) {
-        for (int i = 0; i < dataStore.getCapacity(); ++i) {
-            if (dataStore.isGameStateDirty[i]) {
-                final UUID id = dataStore.getIdForIndex(i);
-                if (id == null) {
-                    dataStore.isGameStateDirty[i] = false;
-                    continue;
-                }
-
-                final VxBody body = manager.getVxBody(id);
-                if (body != null) {
-                    final int bodyId = body.getBodyId();
-                    if (bodyId != 0 && bodyInterface.isAdded(bodyId)) {
-                        final RVec3 pos = tempPos.get();
-                        pos.set(dataStore.posX[i], dataStore.posY[i], dataStore.posZ[i]);
-                        final Quat rot = tempRot.get();
-                        rot.set(dataStore.rotX[i], dataStore.rotY[i], dataStore.rotZ[i], dataStore.rotW[i]);
-                        bodyInterface.setPositionAndRotation(bodyId, pos, rot, EActivation.Activate);
-
-                        final Vec3 linVel = tempLinVel.get();
-                        linVel.set(dataStore.velX[i], dataStore.velY[i], dataStore.velZ[i]);
-                        bodyInterface.setLinearVelocity(bodyId, linVel);
-
-                        final Vec3 angVel = tempAngVel.get();
-                        angVel.set(dataStore.angVelX[i], dataStore.angVelY[i], dataStore.angVelZ[i]);
-                        bodyInterface.setAngularVelocity(bodyId, angVel);
-                    }
-                }
-                dataStore.isGameStateDirty[i] = false;
-            }
-        }
     }
 
     /**
