@@ -7,6 +7,9 @@ package net.xmx.velthoric.physics.body.persistence;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
@@ -19,29 +22,37 @@ import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.persistence.VxRegionIndex;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Manages the persistent storage of physics bodies on disk using a region-based file system.
  * <p>
  * This class handles the translation between high-level {@link VxBody} objects and their
  * binary representation. It leverages the {@link VxAbstractRegionStorage} for thread-safe,
- * sequential I/O operations and maintains an index mapping chunks to body UUIDs to support
- * efficient chunk loading.
+ * sequential I/O operations and maintains a fastutil-based index mapping chunks to body UUIDs
+ * to support efficient chunk loading.
  *
  * @author xI-Mx-Ix
  */
 public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     private final VxBodyManager bodyManager;
-    private final ConcurrentMap<Long, List<UUID>> chunkToUuidIndex = new ConcurrentHashMap<>();
+
+    /**
+     * An index mapping a Chunk Position (as a long key) to a Set of Body UUIDs contained within that chunk.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *     <li>Uses {@link Long2ObjectMap} (fastutil) to avoid boxing overhead for chunk keys.</li>
+     *     <li>The outer map is synchronized to handle concurrent chunk access.</li>
+     *     <li>The values are {@link java.util.concurrent.ConcurrentHashMap#newKeySet()}, allowing
+     *     O(1) concurrent adds/removes without the O(N) copy overhead of CopyOnWriteArrayList.</li>
+     * </ul>
+     */
+    private final Long2ObjectMap<Set<UUID>> chunkToUuidIndex = Long2ObjectMaps.synchronize(new Long2ObjectOpenHashMap<>());
 
     /**
      * Tracks bodies currently being loaded to prevent duplicate asynchronous requests
@@ -49,6 +60,12 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      */
     private final ConcurrentMap<UUID, CompletableFuture<VxBody>> pendingLoads = new ConcurrentHashMap<>();
 
+    /**
+     * Constructs a new storage manager for physics bodies.
+     *
+     * @param level       The server level this storage belongs to.
+     * @param bodyManager The body manager instance.
+     */
     public VxBodyStorage(ServerLevel level, VxBodyManager bodyManager) {
         super(level, "body", "body");
         this.bodyManager = bodyManager;
@@ -169,10 +186,12 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
         // Ensure region is loaded first
         getRegion(regionPos).thenAccept(map -> {
-            List<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
+            Set<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
             if (idsToLoad == null || idsToLoad.isEmpty()) return;
 
-            for (UUID id : List.copyOf(idsToLoad)) {
+            // Iterate over a safe copy or the iterator of the ConcurrentSet
+            // ConcurrentKeySet iterator is weakly consistent and safe to use here.
+            for (UUID id : idsToLoad) {
                 // Check if already loaded or currently loading
                 if (bodyManager.getVxBody(id) != null || pendingLoads.containsKey(id)) {
                     continue;
@@ -216,6 +235,13 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         return pendingLoads.computeIfAbsent(id, k -> startLoadAsync(k, regionPos));
     }
 
+    /**
+     * Helper method to perform the actual load logic, chained from the computeIfAbsent.
+     *
+     * @param id        The UUID of the body.
+     * @param regionPos The region where the body data is stored.
+     * @return A future for the loaded body.
+     */
     private CompletableFuture<VxBody> startLoadAsync(UUID id, RegionPos regionPos) {
         return getRegion(regionPos)
                 .thenApply(map -> map.get(id)) // Extract binary data from region map
@@ -285,6 +311,12 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
+    /**
+     * Serializes the body into a byte array.
+     *
+     * @param body The body to serialize.
+     * @return The byte array snapshot, or null if serialization failed.
+     */
     public byte @Nullable [] serializeBodyData(VxBody body) {
         // Use pooled allocator to reduce GC pressure during serialization
         ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer(256);
@@ -304,22 +336,48 @@ public class VxBodyStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         }
     }
 
+    /**
+     * Updates the chunk-to-UUID index for a specific body.
+     * <p>
+     * This method retrieves the chunk position from the serialized data and adds the body's UUID
+     * to the corresponding Set. Since we use a {@link java.util.concurrent.ConcurrentHashMap.KeySetView},
+     * the add operation is O(1) and fully thread-safe, unlike CopyOnWriteArrayList.
+     *
+     * @param id   The UUID of the body.
+     * @param data The serialized data containing the position.
+     */
     private void indexBodyData(UUID id, byte[] data) {
         long chunkKey = getChunkKeyFromData(data);
-        chunkToUuidIndex.computeIfAbsent(chunkKey, k -> new CopyOnWriteArrayList<>()).add(id);
+
+        // computeIfAbsent is atomic on the synchronized map.
+        // The lambda creates a thread-safe Concurrent Set if the key is new.
+        chunkToUuidIndex.computeIfAbsent(chunkKey, (long k) -> ConcurrentHashMap.newKeySet()).add(id);
     }
 
+    /**
+     * Removes a body from the chunk-to-UUID index.
+     * <p>
+     * Uses atomic computation to remove the ID and cleans up the map entry if the set becomes empty.
+     *
+     * @param id   The UUID of the body.
+     * @param data The serialized data used to locate the chunk.
+     */
     private void deIndexBody(UUID id, byte[] data) {
         long chunkKey = getChunkKeyFromData(data);
-        List<UUID> idList = chunkToUuidIndex.get(chunkKey);
-        if (idList != null) {
-            idList.remove(id);
-            if (idList.isEmpty()) {
-                chunkToUuidIndex.remove(chunkKey);
-            }
-        }
+
+        // Atomic update: retrieve the set, remove the ID, and remove the entry if empty.
+        chunkToUuidIndex.computeIfPresent(chunkKey, (key, set) -> {
+            set.remove(id);
+            return set.isEmpty() ? null : set;
+        });
     }
 
+    /**
+     * Parses the binary data to extract the position and convert it to a chunk key.
+     *
+     * @param data The serialized body data.
+     * @return The long representation of the ChunkPos.
+     */
     private long getChunkKeyFromData(byte[] data) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
         try {
