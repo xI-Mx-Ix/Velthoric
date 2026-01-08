@@ -6,6 +6,9 @@ package net.xmx.velthoric.physics.constraint.persistence;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -19,11 +22,10 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Manages persistent storage for physics constraints.
@@ -32,13 +34,28 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * storage solution for constraints. It ensures that constraints are loaded and saved
  * asynchronously via the I/O worker infrastructure, preventing main-thread blocking
  * and race conditions.
+ * <p>
+ * Optimized to use {@link Long2ObjectMap} and Concurrent Sets for efficient index management
+ * without the overhead of array copying.
  *
  * @author xI-Mx-Ix
  */
 public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     private final VxConstraintManager constraintManager;
-    private final ConcurrentMap<Long, List<UUID>> chunkToUuidIndex = new ConcurrentHashMap<>();
+
+    /**
+     * An index mapping a Chunk Position (as a long key) to a Set of Constraint UUIDs contained within that chunk.
+     * <p>
+     * Implementation details:
+     * <ul>
+     *     <li>Uses {@link Long2ObjectMap} (fastutil) to avoid boxing overhead for chunk keys.</li>
+     *     <li>The outer map is synchronized to handle concurrent chunk access.</li>
+     *     <li>The values are {@link java.util.concurrent.ConcurrentHashMap#newKeySet()}, allowing
+     *     O(1) concurrent adds/removes.</li>
+     * </ul>
+     */
+    private final Long2ObjectMap<Set<UUID>> chunkToUuidIndex = Long2ObjectMaps.synchronize(new Long2ObjectOpenHashMap<>());
 
     public VxConstraintStorage(ServerLevel level, VxConstraintManager constraintManager) {
         super(level, "constraint", "constraint");
@@ -78,6 +95,10 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      * @return A future completing when all constraints are successfully queued for storage.
      */
     public CompletableFuture<Void> storeConstraintBatch(Map<RegionPos, Map<UUID, byte[]>> snapshotsByRegion) {
+        if (snapshotsByRegion == null || snapshotsByRegion.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         snapshotsByRegion.forEach((pos, batch) -> futures.add(storeConstraintBatch(pos, batch)));
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
@@ -127,10 +148,12 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
 
         getRegion(regionPos).thenAccept(map -> {
-            List<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
+            Set<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
             if (idsToLoad == null || idsToLoad.isEmpty()) return;
 
-            for (UUID id : List.copyOf(idsToLoad)) {
+            // Iterate over the concurrent set directly.
+            // ConcurrentKeySet iterator is safe for this operation.
+            for (UUID id : idsToLoad) {
                 // Check if already active or pending in the data system
                 if (constraintManager.hasActiveConstraint(id) || constraintManager.getDataSystem().isPending(id)) continue;
 
@@ -220,26 +243,38 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Error during constraint serialization for {}", constraint.getConstraintId(), e);
             return null;
-        }
-        finally {
+        } finally {
             if (buffer.refCnt() > 0) buffer.release();
         }
     }
 
+    /**
+     * Updates the chunk-to-UUID index for a specific constraint.
+     * <p>
+     * Uses atomic computation to add the UUID to a thread-safe Set, replacing the slow CopyOnWrite list logic.
+     *
+     * @param id   The UUID of the constraint.
+     * @param data The serialized data containing the chunk key.
+     */
     private void indexConstraintData(UUID id, byte[] data) {
         long chunkKey = getChunkKeyFromData(data);
-        chunkToUuidIndex.computeIfAbsent(chunkKey, k -> new CopyOnWriteArrayList<>()).add(id);
+        chunkToUuidIndex.computeIfAbsent(chunkKey, (long k) -> ConcurrentHashMap.newKeySet()).add(id);
     }
 
+    /**
+     * Removes a constraint from the chunk-to-UUID index.
+     * <p>
+     * Atomically removes the UUID and cleans up the map entry if the set is empty.
+     *
+     * @param id   The UUID of the constraint.
+     * @param data The serialized data containing the chunk key.
+     */
     private void deIndexConstraint(UUID id, byte[] data) {
         long chunkKey = getChunkKeyFromData(data);
-        List<UUID> idList = chunkToUuidIndex.get(chunkKey);
-        if (idList != null) {
-            idList.remove(id);
-            if (idList.isEmpty()) {
-                chunkToUuidIndex.remove(chunkKey);
-            }
-        }
+        chunkToUuidIndex.computeIfPresent(chunkKey, (key, set) -> {
+            set.remove(id);
+            return set.isEmpty() ? null : set;
+        });
     }
 
     private long getChunkKeyFromData(byte[] data) {
