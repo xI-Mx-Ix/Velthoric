@@ -13,58 +13,74 @@ import net.xmx.velthoric.init.VxMainClass;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.CRC32;
 
 /**
- * An abstract base class for a region-based file storage system with corruption resistance.
- * This system groups data into region files and uses atomic write operations (write-to-temp, then rename)
- * and checksum validation to ensure data integrity even in case of a server crash.
+ * The base implementation for a chunk-based/region-based storage system.
+ * <p>
+ * <b>Architectural Change:</b>
+ * This class no longer manages threads or file I/O directly. It acts as a bridge between
+ * the high-level game objects (Maps of data) and the low-level {@link VxIOProcessor}.
+ * <p>
+ * Responsibilities:
+ * 1. Managing the {@link VxRegionIndex}.
+ * 2. Caching loaded regions in memory ({@code loadedRegions}).
+ * 3. Serializing/Deserializing data (Data <-> Byte Array) + Checksum validation.
+ * 4. Delegating file operations to the {@code VxIOProcessor}.
  *
- * @param <K> The type of the key used to identify entries within a region.
- * @param <V> The type of the value to be stored.
+ * @param <K> The key type (e.g., UUID).
+ * @param <V> The value type (e.g., serialized byte array of a body).
  *
  * @author xI-Mx-Ix
  */
 public abstract class VxAbstractRegionStorage<K, V> {
 
-    protected final ExecutorService ioExecutor;
-
+    /**
+     * A simple record representing the coordinates of a 32x32 chunk region.
+     */
     public record RegionPos(int x, int z) {}
 
-    public static class RegionData<K, V> {
-        public final ConcurrentHashMap<K, V> entries = new ConcurrentHashMap<>();
-        public final AtomicBoolean dirty = new AtomicBoolean(false);
-        public final AtomicBoolean saving = new AtomicBoolean(false);
-    }
+    /**
+     * In-memory cache of deserialized region data.
+     * This allows instant access to data without querying the worker if it's already loaded.
+     */
+    protected final ConcurrentHashMap<RegionPos, Map<K, V>> loadedRegions = new ConcurrentHashMap<>();
 
-    protected final Path storagePath;
-    private final String filePrefix;
-    protected final ConcurrentHashMap<RegionPos, RegionData<K, V>> loadedRegions = new ConcurrentHashMap<>();
     protected final ServerLevel level;
+    protected final Path storagePath;
+    protected final String filePrefix;
     protected VxRegionIndex regionIndex;
+
+    /**
+     * The dedicated sequential worker handling all file interactions for this storage type.
+     */
+    protected final VxIOProcessor ioWorker;
 
     public VxAbstractRegionStorage(ServerLevel level, String storageSubFolder, String filePrefix) {
         this.level = level;
         this.filePrefix = filePrefix;
-        this.ioExecutor = VxPersistenceManager.getExecutor();
+
+        // Resolve paths (e.g., world/velthoric/body)
         Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
         Path dimensionRoot = DimensionType.getStorageFolder(level.dimension(), worldRoot);
         this.storagePath = dimensionRoot.resolve("velthoric").resolve(storageSubFolder);
+
+        // Initialize the dedicated worker
+        this.ioWorker = new VxIOProcessor(this.storagePath, this.filePrefix);
     }
 
     protected abstract VxRegionIndex createRegionIndex();
 
+    /**
+     * Sets up the storage directory and loads the index.
+     */
     public void initialize() {
         this.regionIndex = createRegionIndex();
         try {
@@ -73,197 +89,165 @@ public abstract class VxAbstractRegionStorage<K, V> {
                 regionIndex.load();
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to create region storage directory: " + storagePath, e);
+            throw new RuntimeException("Failed to create Velthoric storage directory: " + storagePath, e);
         }
     }
 
+    /**
+     * Shuts down the storage system, closing the worker and clearing caches.
+     */
     public void shutdown() {
         loadedRegions.clear();
+        ioWorker.close();
     }
 
+    /**
+     * Iterates over all currently loaded regions and schedules them for saving.
+     * <p>
+     * This implementation takes a "Safe" approach: it resubmits all loaded regions to the worker.
+     * The worker's {@code compute} method will update the pending write cache. If data hasn't
+     * changed significantly, overhead is mainly serialization, but it ensures no data loss.
+     *
+     * @return A future that completes when all dirty data is flushed to disk.
+     */
     public CompletableFuture<Void> saveDirtyRegions() {
-        List<CompletableFuture<?>> saveFutures = new ArrayList<>();
-        loadedRegions.forEach((pos, data) -> saveFutures.add(this.saveRegion(pos)));
+        List<CompletableFuture<Void>> saveFutures = new ArrayList<>();
+
+        // Iterate all loaded regions and schedule save
+        loadedRegions.forEach((pos, data) -> {
+            if (!data.isEmpty()) {
+                saveFutures.add(this.saveRegion(pos));
+            }
+        });
 
         if (regionIndex != null) {
             saveFutures.add(regionIndex.save());
         }
-        saveFutures.removeIf(Objects::isNull);
-        return CompletableFuture.allOf(saveFutures.toArray(new CompletableFuture[0]));
+
+        // 1. Wait for all 'store' commands to be queued in the worker
+        // 2. Then call synchronize(true) to force the worker to actually write everything to disk
+        return CompletableFuture.allOf(saveFutures.toArray(new CompletableFuture[0]))
+                .thenCompose(v -> ioWorker.synchronize(true));
     }
 
     /**
-     * Schedules an asynchronous save for a specific region if it is marked as dirty.
-     * This method is thread-safe and prevents multiple concurrent saves for the same region.
+     * Serializes the current state of a region and submits it to the I/O worker.
      *
      * @param pos The position of the region to save.
-     * @return A CompletableFuture that completes when the save operation is finished, or null if the region was not saved.
+     * @return A future that completes when the file is physically written.
      */
     public CompletableFuture<Void> saveRegion(RegionPos pos) {
-        RegionData<K, V> data = loadedRegions.get(pos);
+        Map<K, V> data = loadedRegions.get(pos);
 
-        // Do nothing if the region is not loaded, not dirty, or already being saved.
-        if (data == null || !data.dirty.get() || !data.saving.compareAndSet(false, true)) {
-            return null;
+        // If the region isn't loaded or is empty, we effectively do nothing (or clear it).
+        // Here we assume if it's not in map, we don't touch the file.
+        if (data == null) return CompletableFuture.completedFuture(null);
+
+        // 1. CPU Bound Work: Serialize the map to a byte array with checksum.
+        // We do this on the calling thread (or common pool) to avoid blocking the I/O thread with compression/hashing.
+        byte[] serializedData = serializeRegion(data);
+
+        // 2. I/O Bound Work: Submit to the worker queue.
+        return ioWorker.store(pos, serializedData);
+    }
+
+    /**
+     * Asynchronously loads a region.
+     *
+     * @param pos The position of the region.
+     * @return A future containing the Map of data for that region.
+     */
+    protected CompletableFuture<Map<K, V>> getRegion(RegionPos pos) {
+        // Check in-memory cache first
+        Map<K, V> existing = loadedRegions.get(pos);
+        if (existing != null) {
+            return CompletableFuture.completedFuture(existing);
         }
 
-        return CompletableFuture.runAsync(() -> {
-            try {
-                // Double-check dirty flag inside the synchronized task
-                if (data.dirty.compareAndSet(true, false)) {
-                    saveRegionToFile(pos, data);
-                }
-            } finally {
-                data.saving.set(false);
+        // Request raw bytes from the I/O worker
+        return ioWorker.load(pos).thenApply(bytes -> {
+            // This runs once the I/O thread has fetched the bytes (or grabbed them from write-cache).
+            Map<K, V> map = new ConcurrentHashMap<>();
+            if (bytes != null && bytes.length > 0) {
+                // Deserialize verifies checksum and populates the map
+                deserializeRegion(bytes, map);
             }
-        }, ioExecutor).exceptionally(ex -> {
-            data.saving.set(false); // Ensure saving flag is reset on failure
-            VxMainClass.LOGGER.error("Exception in save task for region {}-{}", filePrefix, pos, ex);
-            return null;
+            // Update cache
+            loadedRegions.put(pos, map);
+            return map;
         });
     }
 
-    protected CompletableFuture<RegionData<K, V>> getRegion(RegionPos pos) {
-        RegionData<K, V> existingData = loadedRegions.get(pos);
-        if (existingData != null) {
-            return CompletableFuture.completedFuture(existingData);
-        }
-
-        return CompletableFuture.supplyAsync(() ->
-                loadedRegions.computeIfAbsent(pos, p -> loadRegionFromFile(p)), ioExecutor
-        );
-    }
-
     /**
-     * Loads a single region from a file on disk.
-     * Before reading, it cleans up any stale temporary files. It then validates the
-     * file's integrity using a checksum. If the checksum is invalid, the file is
-     * considered corrupt and an empty region is loaded instead.
-     *
-     * @param pos The position of the region to load.
-     * @return The loaded RegionData.
+     * Serializes the map into the binary format: [Checksum (8 bytes)][Data].
      */
-    private RegionData<K, V> loadRegionFromFile(RegionPos pos) {
-        Path regionFile = getRegionFile(pos);
-        RegionData<K, V> regionData = new RegionData<>();
-
-        Path tempFile = regionFile.resolveSibling(regionFile.getFileName() + ".tmp");
-        try {
-            // Clean up temporary file from a previous crash, if it exists.
-            Files.deleteIfExists(tempFile);
-        } catch (IOException e) {
-            VxMainClass.LOGGER.warn("Could not delete stale temp file {}", tempFile, e);
-        }
-
-        if (!Files.exists(regionFile)) {
-            return regionData;
-        }
-
-        try {
-            byte[] fileBytes = Files.readAllBytes(regionFile);
-            if (fileBytes.length < 8) { // A valid file must contain at least an 8-byte checksum.
-                VxMainClass.LOGGER.warn("Region file {} is too small to be valid, ignoring.", regionFile);
-                return regionData;
-            }
-
-            ByteBuf buffer = Unpooled.wrappedBuffer(fileBytes);
-            try {
-                long storedChecksum = buffer.readLong();
-                ByteBuf dataSlice = buffer.slice(); // Get a view of the rest of the buffer without copying.
-
-                // Verify the data against the stored checksum.
-                CRC32 crc = new CRC32();
-                crc.update(dataSlice.nioBuffer());
-
-                if (storedChecksum != crc.getValue()) {
-                    VxMainClass.LOGGER.error("Checksum mismatch for region file {}. The file may be corrupt. Loading as empty.", regionFile);
-                    return new RegionData<>(); // Return empty data to prevent using corrupt data.
-                }
-
-                // If checksum is valid, proceed with deserialization.
-                readRegionData(dataSlice, regionData);
-            } finally {
-                if (buffer.refCnt() > 0) {
-                    buffer.release();
-                }
-            }
-        } catch (IOException e) {
-            VxMainClass.LOGGER.error("Failed to load region file {}", regionFile, e);
-        }
-        return regionData;
-    }
-
-    /**
-     * Saves a single region to a file on disk using an atomic write-and-rename strategy.
-     * The data is first written to a temporary file. If the write is successful, the
-     * temporary file is atomically renamed to the final region file name.
-     *
-     * @param pos  The position of the region to save.
-     * @param data The RegionData to save.
-     */
-    private void saveRegionToFile(RegionPos pos, RegionData<K, V> data) {
-        Path regionFile = getRegionFile(pos);
-        Path tempFile = regionFile.resolveSibling(regionFile.getFileName() + ".tmp");
-
-        if (data.entries.isEmpty()) {
-            try {
-                Files.deleteIfExists(regionFile);
-                Files.deleteIfExists(tempFile); // Also clean up any lingering temp file.
-            } catch (IOException e) {
-                VxMainClass.LOGGER.error("Failed to delete empty region file {}", regionFile, e);
-            }
-            return;
-        }
+    private byte[] serializeRegion(Map<K, V> entries) {
+        if (entries.isEmpty()) return null;
 
         ByteBuf dataBuffer = Unpooled.buffer();
         try {
-            writeRegionData(dataBuffer, data.entries);
-            if (dataBuffer.readableBytes() == 0) return;
+            writeRegionData(dataBuffer, entries);
+            if (dataBuffer.readableBytes() == 0) return null;
 
-            // Calculate a checksum of the serialized data.
+            // Calculate CRC32 Checksum for data integrity
             CRC32 crc = new CRC32();
             crc.update(dataBuffer.nioBuffer());
             long checksum = crc.getValue();
 
-            // Prepare a final buffer with the checksum followed by the data.
-            ByteBuffer finalBuffer = ByteBuffer.allocate(8 + dataBuffer.readableBytes());
-            finalBuffer.putLong(checksum);
-            finalBuffer.put(dataBuffer.nioBuffer());
-            finalBuffer.flip();
+            // Create final array
+            byte[] finalBytes = new byte[8 + dataBuffer.readableBytes()];
+            ByteBuffer buffer = ByteBuffer.wrap(finalBytes);
 
-            // Write the final buffer to a temporary file.
-            Files.createDirectories(regionFile.getParent());
-            try (FileChannel channel = FileChannel.open(tempFile, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-                channel.write(finalBuffer);
-            }
+            // Write Header
+            buffer.putLong(checksum);
 
-            // Atomically move the temporary file to the final destination, replacing the old one.
-            Files.move(tempFile, regionFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            // Write Data
+            dataBuffer.readBytes(finalBytes, 8, dataBuffer.readableBytes());
 
-        } catch (IOException e) {
-            VxMainClass.LOGGER.error("Failed to save region file {}", regionFile, e);
-            data.dirty.set(true); // If saving failed, mark as dirty again to retry on the next save cycle.
+            return finalBytes;
         } finally {
-            if (dataBuffer.refCnt() > 0) {
-                dataBuffer.release();
-            }
+            dataBuffer.release();
         }
     }
 
     /**
-     * Returns the region index associated with this storage.
-     *
-     * @return The VxRegionIndex instance.
+     * Deserializes raw file bytes into the provided map, performing validation.
      */
+    private void deserializeRegion(byte[] fileBytes, Map<K, V> targetMap) {
+        if (fileBytes.length < 8) {
+            VxMainClass.LOGGER.warn("Velthoric region file {} is too small to be valid.", filePrefix);
+            return;
+        }
+
+        ByteBuf buffer = Unpooled.wrappedBuffer(fileBytes);
+        try {
+            long storedChecksum = buffer.readLong();
+            ByteBuf dataSlice = buffer.slice();
+
+            // Verify Integrity
+            CRC32 crc = new CRC32();
+            crc.update(dataSlice.nioBuffer());
+
+            if (storedChecksum != crc.getValue()) {
+                VxMainClass.LOGGER.error("Checksum mismatch for region {}. Data corrupted, loading empty.", filePrefix);
+                return;
+            }
+
+            // Parse content
+            readRegionData(dataSlice, targetMap);
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Failed to deserialize region data for {}", filePrefix, e);
+        } finally {
+            buffer.release();
+        }
+    }
+
     public VxRegionIndex getRegionIndex() {
         return regionIndex;
     }
 
-    private Path getRegionFile(RegionPos pos) {
-        return storagePath.resolve(String.format("%s.%d.%d.vxdat", filePrefix, pos.x(), pos.z()));
-    }
-
-    protected abstract void readRegionData(ByteBuf buffer, RegionData<K, V> regionData);
+    // Abstract methods to handle specific object types (Body vs Constraint)
+    protected abstract void readRegionData(ByteBuf buffer, Map<K, V> regionData);
 
     protected abstract void writeRegionData(ByteBuf buffer, Map<K, V> entries);
 }

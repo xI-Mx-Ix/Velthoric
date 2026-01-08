@@ -8,7 +8,6 @@ import dev.architectury.event.events.common.TickEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.event.api.VxLevelEvent;
 import net.xmx.velthoric.event.api.VxServerLifecycleEvent;
-import net.xmx.velthoric.physics.persistence.VxPersistenceManager;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 /**
@@ -19,7 +18,6 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 public final class VxServerLifecycleHandler {
 
     public static void registerEvents() {
-        VxServerLifecycleEvent.Starting.EVENT.register(VxServerLifecycleHandler::onServerStarting);
         VxLevelEvent.Load.EVENT.register(VxServerLifecycleHandler::onLevelLoad);
         VxLevelEvent.Unload.EVENT.register(VxServerLifecycleHandler::onLevelUnload);
         VxServerLifecycleEvent.Stopping.EVENT.register(VxServerLifecycleHandler::onServerStopping);
@@ -27,20 +25,10 @@ public final class VxServerLifecycleHandler {
     }
 
     /**
-     * Initializes persistence systems when the server starts.
-     */
-    private static void onServerStarting(VxServerLifecycleEvent.Starting event) {
-        VxPersistenceManager.initialize();
-    }
-
-    /**
-     * Shuts down all physics worlds and persistence systems when the server stops.
-     * The order is important: first, shut down worlds to trigger final saves,
-     * then shut down the I/O executor that performs those saves.
+     * Shuts down all physics worlds when the server stops.
      */
     private static void onServerStopping(VxServerLifecycleEvent.Stopping event) {
         VxPhysicsWorld.shutdownAll();
-        VxPersistenceManager.shutdown();
     }
 
     /**

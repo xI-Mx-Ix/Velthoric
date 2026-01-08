@@ -27,8 +27,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Manages persistent storage for physics constraints.
- * This class handles serialization, deserialization, and asynchronous loading/saving
- * of constraint data using a region-based file system.
+ * <p>
+ * This class extends the {@link VxAbstractRegionStorage} to provide a robust, region-based
+ * storage solution for constraints. It ensures that constraints are loaded and saved
+ * asynchronously via the I/O worker infrastructure, preventing main-thread blocking
+ * and race conditions.
  *
  * @author xI-Mx-Ix
  */
@@ -48,12 +51,13 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     @Override
-    protected void readRegionData(ByteBuf buffer, RegionData<UUID, byte[]> regionData) {
+    protected void readRegionData(ByteBuf buffer, Map<UUID, byte[]> regionData) {
         FriendlyByteBuf friendlyBuf = new FriendlyByteBuf(buffer);
         while (friendlyBuf.isReadable()) {
             UUID id = friendlyBuf.readUUID();
             byte[] data = friendlyBuf.readByteArray();
-            regionData.entries.put(id, data);
+
+            regionData.put(id, data);
             indexConstraintData(id, data);
         }
     }
@@ -71,7 +75,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      * Stores a batch of pre-serialized constraint data snapshots, grouped by region.
      *
      * @param snapshotsByRegion A map where each key is a region position and the value is a map of snapshots for that region.
-     * @return A future completing when all constraints are successfully indexed in memory.
+     * @return A future completing when all constraints are successfully queued for storage.
      */
     public CompletableFuture<Void> storeConstraintBatch(Map<RegionPos, Map<UUID, byte[]>> snapshotsByRegion) {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -81,8 +85,10 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
 
     /**
      * Stores a batch of constraint snapshots for a single region.
+     * <p>
+     * Updates the in-memory region map and triggers a write-behind save via the I/O worker.
      *
-     * @param regionPos The position of the region.
+     * @param regionPos     The position of the region.
      * @param snapshotBatch A map of constraint UUIDs to their serialized data.
      * @return A future tracking the insertion operation.
      */
@@ -91,33 +97,46 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
             return CompletableFuture.completedFuture(null);
         }
 
-        return getRegion(regionPos).thenAcceptAsync(region -> {
+        // 1. Ensure region is loaded
+        return getRegion(regionPos).thenCompose(map -> {
+            // 2. Update memory state
             for (Map.Entry<UUID, byte[]> entry : snapshotBatch.entrySet()) {
                 UUID constraintId = entry.getKey();
                 byte[] data = entry.getValue();
 
-                region.entries.put(constraintId, data);
-                regionIndex.put(constraintId, regionPos);
+                map.put(constraintId, data);
+
+                if (regionIndex != null) regionIndex.put(constraintId, regionPos);
                 indexConstraintData(constraintId, data);
             }
-            region.dirty.set(true);
-            saveRegion(regionPos);
-        }, ioExecutor).exceptionally(ex -> {
+
+            // 3. Trigger persistence
+            return saveRegion(regionPos);
+        }).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to store constraint batch in region {}", regionPos, ex);
             return null;
         });
     }
 
+    /**
+     * Triggers the loading of constraints associated with a specific chunk.
+     *
+     * @param chunkPos The position of the chunk.
+     */
     public void loadConstraintsInChunk(ChunkPos chunkPos) {
         RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
-        getRegion(regionPos).thenRunAsync(() -> {
+
+        getRegion(regionPos).thenAccept(map -> {
             List<UUID> idsToLoad = chunkToUuidIndex.get(chunkPos.toLong());
             if (idsToLoad == null || idsToLoad.isEmpty()) return;
+
             for (UUID id : List.copyOf(idsToLoad)) {
+                // Check if already active or pending in the data system
                 if (constraintManager.hasActiveConstraint(id) || constraintManager.getDataSystem().isPending(id)) continue;
+
                 loadConstraint(id);
             }
-        }, ioExecutor).exceptionally(ex -> {
+        }).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to load constraints in chunk {}", chunkPos, ex);
             return null;
         });
@@ -129,14 +148,15 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
      * @param id The UUID of the constraint to load.
      */
     public void loadConstraint(UUID id) {
+        if (regionIndex == null) return;
         RegionPos regionPos = regionIndex.get(id);
         if (regionPos == null) return;
 
         getRegion(regionPos)
-                .thenApplyAsync(region -> {
-                    byte[] data = region.entries.get(id);
+                .thenApply(map -> {
+                    byte[] data = map.get(id);
                     return data != null ? deserializeConstraint(id, data) : null;
-                }, ioExecutor)
+                })
                 .thenAcceptAsync(constraint -> {
                     if (constraint != null) {
                         constraintManager.addConstraintFromStorage(constraint);
@@ -149,22 +169,24 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     }
 
     /**
-     * Removes a constraint's data from storage files asynchronously.
+     * Removes a constraint's data from persistent storage.
      *
      * @param id The UUID of the constraint to remove.
      */
     public void removeData(UUID id) {
+        if (regionIndex == null) return;
         RegionPos regionPos = regionIndex.get(id);
         if (regionPos == null) return;
 
-        getRegion(regionPos).thenAcceptAsync(region -> {
-            byte[] data = region.entries.remove(id);
+        getRegion(regionPos).thenCompose(map -> {
+            byte[] data = map.remove(id);
             if (data != null) {
-                region.dirty.set(true);
                 deIndexConstraint(id, data);
                 regionIndex.remove(id);
+                return saveRegion(regionPos);
             }
-        }, ioExecutor).exceptionally(ex -> {
+            return CompletableFuture.completedFuture(null);
+        }).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to remove data for constraint {}", id, ex);
             return null;
         });
@@ -176,7 +198,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     private VxConstraint deserializeConstraint(UUID id, byte[] data) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
         try {
-            buf.readLong();
+            buf.readLong(); // Read chunk key header
             return VxConstraintCodec.deserialize(id, buf);
         } finally {
             if (buf.refCnt() > 0) buf.release();
@@ -186,8 +208,7 @@ public class VxConstraintStorage extends VxAbstractRegionStorage<UUID, byte[]> {
     /**
      * Serializes a constraint into a byte array using the VxConstraintCodec.
      */
-    @Nullable
-    public byte[] serializeConstraintData(VxConstraint constraint, ChunkPos pos) {
+    public byte @Nullable [] serializeConstraintData(VxConstraint constraint, ChunkPos pos) {
         ByteBuf buffer = Unpooled.buffer();
         FriendlyByteBuf buf = new FriendlyByteBuf(buffer);
         try {

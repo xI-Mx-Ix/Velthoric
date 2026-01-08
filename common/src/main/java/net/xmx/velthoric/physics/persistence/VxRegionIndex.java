@@ -24,47 +24,77 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.CRC32;
 
 /**
- * Manages an index file that maps a unique key (UUID) to a region position.
- * This implementation is hardened against data corruption by using atomic write operations
- * (write-to-temp-and-rename) and checksum validation.
+ * Manages an index file that maps a unique key (UUID) to a specific region position (x, z).
+ * <p>
+ * This index allows the system to locate the specific region file containing a body or constraint
+ * in O(1) time without scanning all region files. It acts as a global lookup table for the
+ * storage subsystem.
+ * <p>
+ * <b>Data Integrity Strategy:</b>
+ * To prevent data corruption (e.g., during server crashes or power failures), this class implements
+ * a strict <b>Atomic Write-and-Rename</b> strategy. Data is never written directly to the live index file.
+ * Instead, it is written to a temporary file, validated with a Checksum (CRC32), and then atomically
+ * moved to the final location by the Operating System.
  *
  * @author xI-Mx-Ix
  */
 public class VxRegionIndex {
 
+    /**
+     * The path to the actual index file on disk (e.g., "body.vxidx").
+     */
     private final Path indexPath;
+
+    /**
+     * The thread-safe in-memory map of UUIDs to Region Positions.
+     */
     private final ConcurrentHashMap<UUID, RegionPos> index = new ConcurrentHashMap<>();
+
+    /**
+     * A flag indicating if the in-memory index has changes that have not yet been written to disk.
+     * This allows the system to skip unnecessary disk I/O if the index hasn't changed.
+     */
     private final AtomicBoolean dirty = new AtomicBoolean(false);
 
     /**
-     * Constructs a new region index.
+     * Constructs a new region index manager.
      *
-     * @param storagePath The base path of the storage system.
-     * @param indexName   The name for the index file (e.g., "body").
+     * @param storagePath The base directory where the index file should be stored.
+     * @param indexName   The logical name of the index (e.g., "body", "constraint").
      */
     public VxRegionIndex(Path storagePath, String indexName) {
         this.indexPath = storagePath.resolve(indexName + ".vxidx");
     }
 
     /**
-     * Loads the index from its file on disk into memory.
-     * It performs a checksum validation to ensure data integrity. If the checksum
-     * does not match, the file is considered corrupt and is ignored.
+     * Loads the index data from the file system into memory.
+     * <p>
+     * This method performs several safety checks:
+     * <ol>
+     *     <li>Cleans up any stale temporary files left over from previous crashes.</li>
+     *     <li>Checks if the file exists and is of valid size.</li>
+     *     <li>Reads the file and verifies the CRC32 checksum against the stored data.</li>
+     *     <li>If valid, deserializes the data into the concurrent map.</li>
+     * </ol>
      */
     public void load() {
         Path tempPath = indexPath.resolveSibling(indexPath.getFileName() + ".tmp");
         try {
             // Clean up any temporary files from a previous, possibly crashed, session.
+            // This ensures we have a clean slate for writing later.
             Files.deleteIfExists(tempPath);
         } catch (IOException e) {
             VxMainClass.LOGGER.warn("Failed to delete stale temporary index file: {}", tempPath, e);
         }
 
+        // If the index file doesn't exist yet (new world), we simply start empty.
         if (!Files.exists(indexPath)) return;
 
         try {
             byte[] fileBytes = Files.readAllBytes(indexPath);
-            if (fileBytes.length < 8) { // A valid file must contain at least an 8-byte checksum.
+
+            // A valid file must contain at least an 8-byte checksum header.
+            if (fileBytes.length < 8) {
                 VxMainClass.LOGGER.warn("Region index file {} is too small to be valid. Ignoring.", indexPath);
                 return;
             }
@@ -72,25 +102,32 @@ public class VxRegionIndex {
             FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.wrappedBuffer(fileBytes));
             long storedChecksum = buffer.readLong();
 
-            // The rest of the buffer contains the actual data.
+            // The rest of the buffer contains the actual payload data.
             byte[] dataBytes = new byte[buffer.readableBytes()];
             buffer.readBytes(dataBytes);
 
-            // Verify the data against the stored checksum.
+            // Calculate the actual checksum of the data we just read.
             CRC32 crc = new CRC32();
             crc.update(dataBytes);
+
+            // Validation: Ensure the data hasn't been corrupted on disk.
             if (storedChecksum != crc.getValue()) {
-                VxMainClass.LOGGER.error("Checksum mismatch for region index file {}. The file may be corrupt. Ignoring.", indexPath);
+                VxMainClass.LOGGER.error("Checksum mismatch for region index file {}. The file may be corrupt. Ignoring content to prevent crashes.", indexPath);
                 return;
             }
 
             // If checksum is valid, proceed with deserialization.
             FriendlyByteBuf dataBuffer = new FriendlyByteBuf(Unpooled.wrappedBuffer(dataBytes));
             while (dataBuffer.isReadable()) {
-                UUID id = dataBuffer.readUUID();
-                int x = dataBuffer.readInt();
-                int z = dataBuffer.readInt();
-                index.put(id, new RegionPos(x, z));
+                try {
+                    UUID id = dataBuffer.readUUID();
+                    int x = dataBuffer.readInt();
+                    int z = dataBuffer.readInt();
+                    index.put(id, new RegionPos(x, z));
+                } catch (IndexOutOfBoundsException e) {
+                    VxMainClass.LOGGER.error("Unexpected end of stream while reading index file {}", indexPath);
+                    break;
+                }
             }
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to load region index from {}", indexPath, e);
@@ -98,33 +135,51 @@ public class VxRegionIndex {
     }
 
     /**
-     * Saves the in-memory index to its file on disk if it has changed.
-     * This method schedules the save operation to be performed asynchronously.
+     * Schedules an asynchronous save of the index to disk.
+     * <p>
+     * This method checks the {@link #dirty} flag. If the index hasn't changed, it returns immediately.
+     * If changes exist, it schedules a background task to flush the data to disk.
+     * <p>
+     * The save operation uses {@link CompletableFuture#runAsync} which uses the common ForkJoinPool.
+     * This is acceptable for the index as it is a single file and generally less throughput-intensive
+     * than the bulk region data.
      *
-     * @return a {@link CompletableFuture} that completes when the save operation is finished.
+     * @return A {@link CompletableFuture} that completes when the save operation is finished (or immediately if clean).
      */
     public CompletableFuture<Void> save() {
+        // Optimization: Do not waste thread resources if there are no changes.
         if (!dirty.get()) {
             return CompletableFuture.completedFuture(null);
         }
+
         return CompletableFuture.runAsync(() -> {
+            // Atomic check-and-set. This ensures that if multiple threads call save() simultaneously,
+            // only one of them actually performs the I/O, preventing race conditions.
             if (dirty.compareAndSet(true, false)) {
                 flushToDisk();
             }
-        }, VxPersistenceManager.getExecutor()).exceptionally(ex -> {
+        }).exceptionally(ex -> {
             VxMainClass.LOGGER.error("Failed to asynchronously save region index to {}", indexPath, ex);
-            dirty.set(true); // If saving failed, mark as dirty again to retry on the next save cycle.
+            // If the save failed, mark it as dirty again so we retry on the next cycle.
+            dirty.set(true);
             return null;
         });
     }
 
     /**
-     * Performs the synchronous, blocking file write operation for the index.
-     * This method uses an atomic write-and-rename approach to prevent corruption.
-     * It writes the data to a temporary file first, and only upon successful completion,
-     * it renames the temporary file to the final destination file.
+     * Performs the synchronous, blocking file write operation.
+     * <p>
+     * This method:
+     * <ol>
+     *     <li>Serializes the entire in-memory index.</li>
+     *     <li>Calculates a CRC32 Checksum.</li>
+     *     <li>Writes [Checksum + Data] to a temporary file (.tmp).</li>
+     *     <li>Forces the OS to flush buffers to physical disk.</li>
+     *     <li>Atomically moves (renames) the temp file to the final index name, replacing the old one.</li>
+     * </ol>
      */
     private void flushToDisk() {
+        // If the index is empty, we don't need a file. Clean up to save space.
         if (index.isEmpty()) {
             try {
                 Files.deleteIfExists(indexPath);
@@ -136,8 +191,9 @@ public class VxRegionIndex {
 
         Path tempPath = indexPath.resolveSibling(indexPath.getFileName() + ".tmp");
         ByteBuf dataBuf = Unpooled.buffer();
+
         try {
-            // Serialize the index data into a buffer.
+            // 1. Serialize data to memory buffer
             FriendlyByteBuf friendlyDataBuf = new FriendlyByteBuf(dataBuf);
             index.forEach((id, pos) -> {
                 friendlyDataBuf.writeUUID(id);
@@ -148,30 +204,36 @@ public class VxRegionIndex {
             byte[] dataBytes = new byte[dataBuf.readableBytes()];
             dataBuf.readBytes(dataBytes);
 
-            // Calculate a checksum of the serialized data.
+            // 2. Compute Integrity Checksum
             CRC32 crc = new CRC32();
             crc.update(dataBytes);
             long checksum = crc.getValue();
 
-            // Prepare a final buffer with the checksum followed by the data.
+            // 3. Prepare Final Output Buffer (Header + Payload)
             ByteBuffer finalBuffer = ByteBuffer.allocate(8 + dataBytes.length);
             finalBuffer.putLong(checksum);
             finalBuffer.put(dataBytes);
             finalBuffer.flip();
 
-            // Write the final buffer to a temporary file.
+            // 4. Write to Temporary File
             Files.createDirectories(indexPath.getParent());
-            try (FileChannel channel = FileChannel.open(tempPath, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+            try (FileChannel channel = FileChannel.open(tempPath,
+                    StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
                 channel.write(finalBuffer);
+                // Important: Force the OS to write metadata and content to disk to prevent data loss on power failure.
+                channel.force(true);
             }
 
-            // Atomically move the temporary file to the final destination, replacing the old one.
+            // 5. Atomic Swap
+            // This ensures that at any point in time, the 'indexPath' file is valid.
+            // We never write partially to the live file.
             Files.move(tempPath, indexPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 
         } catch (IOException e) {
-            // Let the CompletableFuture handle the exception.
+            // We propagate the exception to the CompletableFuture to be handled by the caller or logging logic.
             throw new RuntimeException("Failed to save region index to " + indexPath, e);
         } finally {
+            // Always release Netty buffers to prevent memory leaks in the native heap.
             if (dataBuf.refCnt() > 0) {
                 dataBuf.release();
             }
@@ -179,13 +241,17 @@ public class VxRegionIndex {
     }
 
     /**
-     * Adds or updates an entry in the index.
+     * Adds or updates an entry in the index map.
+     * <p>
+     * If the mapping for the given UUID changes, the dirty flag is set to true,
+     * signaling that a save is required.
      *
-     * @param id  The UUID key.
-     * @param pos The RegionPos value.
+     * @param id  The UUID key of the object (Body/Constraint).
+     * @param pos The RegionPos where this object is stored.
      */
     public void put(UUID id, RegionPos pos) {
         RegionPos oldPos = index.put(id, pos);
+        // Only mark dirty if the position actually changed or was new.
         if (!pos.equals(oldPos)) {
             dirty.set(true);
         }
@@ -195,7 +261,7 @@ public class VxRegionIndex {
      * Retrieves the region position for a given UUID.
      *
      * @param id The UUID key to look up.
-     * @return The corresponding {@link RegionPos}, or null if not found.
+     * @return The corresponding {@link RegionPos}, or null if the ID is not in the index.
      */
     public RegionPos get(UUID id) {
         return index.get(id);
@@ -203,6 +269,8 @@ public class VxRegionIndex {
 
     /**
      * Removes an entry from the index.
+     * <p>
+     * If an entry existed and was removed, the dirty flag is set to true.
      *
      * @param id The UUID key of the entry to remove.
      */
