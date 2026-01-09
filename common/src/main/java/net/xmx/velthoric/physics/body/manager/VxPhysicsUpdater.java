@@ -5,11 +5,8 @@
 package net.xmx.velthoric.physics.body.manager;
 
 import com.github.stephengold.joltjni.*;
-import com.github.stephengold.joltjni.readonly.ConstAaBox;
-import com.github.stephengold.joltjni.readonly.ConstBody;
-import com.github.stephengold.joltjni.readonly.ConstBodyLockInterfaceNoLock;
-import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
-import com.github.stephengold.joltjni.readonly.RVec3Arg;
+import com.github.stephengold.joltjni.enumerate.EBodyType;
+import com.github.stephengold.joltjni.readonly.*;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -19,7 +16,6 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Responsible for the synchronization between the Jolt physics simulation and
@@ -83,10 +79,11 @@ public class VxPhysicsUpdater {
 
     /**
      * Reads the state of Jolt bodies and writes it back into the data store.
-     * This is heavily optimized to run in two passes:
-     * 1. A lock-free pass using BodyInterface for common data (transform, velocity, motion type).
-     *    It collects bodies that need further data (AABB, soft body vertices).
-     * 2. A single multi-lock pass to efficiently retrieve the remaining data for the collected bodies.
+     * <p>
+     * This method iterates directly over the {@code dataStore.bodies} array.
+     * By avoiding {@code getIdForIndex} and {@code manager.getVxBody(UUID)},
+     * we eliminate HashMap lookups completely from the hot path, significantly
+     * reducing CPU overhead and cache misses for large body counts.
      */
     private void postUpdateSync(long timestampNanos, VxPhysicsWorld world, BodyInterface bodyInterface) {
         List<Integer> localBodyIdsToLock = this.bodyIdsToLock.get();
@@ -94,12 +91,16 @@ public class VxPhysicsUpdater {
         localBodyIdsToLock.clear();
         localDataIndicesToLock.clear();
 
-        // --- Pass 1: Lock-free synchronization using BodyInterface ---
-        for (int i = 0; i < dataStore.getCapacity(); ++i) {
-            UUID id = dataStore.getIdForIndex(i);
-            if (id == null) continue;
+        // Direct array access for maximum performance
+        final VxBody[] bodies = dataStore.bodies;
+        final int capacity = dataStore.getCapacity();
 
-            VxBody obj = manager.getVxBody(id);
+        // --- Pass 1: Lock-free synchronization using BodyInterface ---
+        for (int i = 0; i < capacity; ++i) {
+            // O(1) Access - No Map Lookup
+            VxBody obj = bodies[i];
+
+            // Skip empty slots or uninitialized bodies
             if (obj == null) continue;
 
             int bodyId = obj.getBodyId();
@@ -169,12 +170,11 @@ public class VxPhysicsUpdater {
             try (BodyLockMultiRead multiLock = new BodyLockMultiRead(lockInterface, bodyIdArray)) {
                 for (int j = 0; j < bodyIdArray.length; ++j) {
                     ConstBody body = multiLock.getBody(j);
-                    if (body != null) { // A null check is needed as multi-lock can fail for individual bodies
+                    if (body != null) {
                         int i = localDataIndicesToLock.get(j);
 
-                        // Check if the body was removed between pass 1 and 2
-                        UUID id = dataStore.getIdForIndex(i);
-                        if (id == null) continue;
+                        // Ensure the body still exists in the array (thread safety precaution)
+                        if (bodies[i] == null) continue;
 
                         // Sync World Space AABB
                         ConstAaBox bounds = body.getWorldSpaceBounds();
@@ -188,7 +188,7 @@ public class VxPhysicsUpdater {
                         dataStore.aabbMaxZ[i] = max.getZ();
 
                         // Sync soft body vertices if applicable
-                        if (dataStore.bodyType[i] == com.github.stephengold.joltjni.enumerate.EBodyType.SoftBody) {
+                        if (dataStore.bodyType[i] == EBodyType.SoftBody) {
                             RVec3 pos = tempPos.get();
                             pos.set(dataStore.posX[i], dataStore.posY[i], dataStore.posZ[i]);
                             updateSoftBodyVertices(body, pos, i);
