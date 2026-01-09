@@ -156,14 +156,15 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
     }
 
     /**
-     * Reserves a new index for a body with the given UUID.
+     * Reserves a new index for the specified body object.
      * <p>
      * If the arrays are full, this method triggers a {@link #allocate(int)} call to grow them.
+     * This method automatically populates the {@link #bodies} reference array at the reserved index.
      *
-     * @param id The UUID of the body.
+     * @param body The body instance to add to the store.
      * @return The assigned data store index.
      */
-    protected int reserveIndex(UUID id) {
+    protected int reserveIndex(VxBody body) {
         if (count >= capacity) {
             allocate(Math.max(INITIAL_CAPACITY, capacity * 2));
         }
@@ -176,6 +177,7 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
             index = count++;
         }
 
+        UUID id = body.getPhysicsId();
         uuidToIndex.put(id, index);
 
         // Ensure the reverse lookup list is large enough
@@ -184,6 +186,9 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
         } else {
             indexToUuid.set(index, id);
         }
+
+        // Directly map the body object for O(1) access
+        this.bodies[index] = body;
 
         return index;
     }

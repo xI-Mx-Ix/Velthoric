@@ -178,7 +178,7 @@ public class VxClientBodyManager {
         }
 
         // Register in SoA DataStore
-        int index = store.addBody(id, networkId);
+        int index = store.addBody(body, networkId);
         body.setDataStoreIndex(store, index);
         managedBodies.put(id, body);
 
