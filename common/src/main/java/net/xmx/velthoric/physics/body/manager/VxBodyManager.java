@@ -400,8 +400,8 @@ public class VxBodyManager {
     /**
      * Registers a body with the internal maps and allocates a slot in the {@link VxServerBodyDataStore}.
      * <p>
-     * This method populates the direct reference array in the data store to enable
-     * O(1) lookups during the physics simulation loop.
+     * This method populates the direct reference array in the data store via the add method
+     * to enable O(1) lookups during the physics simulation loop.
      *
      * @param body The body to register.
      */
@@ -410,12 +410,9 @@ public class VxBodyManager {
         managedBodies.computeIfAbsent(body.getPhysicsId(), id -> {
             EBodyType type = body instanceof VxSoftBody ? EBodyType.SoftBody : EBodyType.RigidBody;
 
-            // Allocate DataStore slot
-            int index = dataStore.addBody(id, type);
+            // Allocate DataStore slot and automatically set bodies[index] reference
+            int index = dataStore.addBody(body, type);
             body.setDataStoreIndex(dataStore, index);
-
-            // Store the direct reference for O(1) access
-            dataStore.bodies[index] = body;
 
             // Assign Network ID (recycle if available, else increment)
             int networkId = freeNetworkIds.isEmpty() ? nextNetworkId++ : freeNetworkIds.pop();

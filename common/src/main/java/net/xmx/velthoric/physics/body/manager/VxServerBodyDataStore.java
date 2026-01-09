@@ -9,6 +9,7 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.xmx.velthoric.physics.body.VxBodyDataStore;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
@@ -142,14 +143,17 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
 
     /**
      * Reserves a new index for a physics body and sets its type.
+     * <p>
+     * This method delegates to the base {@link #reserveIndex(VxBody)} to ensure the
+     * internal object reference array is correctly populated.
      *
-     * @param id   The UUID of the body.
+     * @param body The body object to add.
      * @param type The EBodyType of the body.
      * @return The data store index for the new body.
      */
-    public synchronized int addBody(UUID id, EBodyType type) {
-        // use base class logic to reserve slot
-        int index = super.reserveIndex(id);
+    public synchronized int addBody(VxBody body, EBodyType type) {
+        // Use base class logic to reserve slot and set body reference
+        int index = super.reserveIndex(body);
 
         // Initialize server-specific data
         bodyType[index] = type;

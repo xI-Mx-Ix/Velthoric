@@ -8,6 +8,7 @@ import com.github.stephengold.joltjni.RVec3;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import net.xmx.velthoric.physics.body.VxBodyDataStore;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;
@@ -99,12 +100,12 @@ public class VxClientBodyDataStore extends VxBodyDataStore {
     /**
      * Adds a new body to the client store with a specific Network ID.
      *
-     * @param id        The UUID of the body.
+     * @param body      The body object to add.
      * @param networkId The session-specific network ID.
      * @return The assigned index.
      */
-    public int addBody(UUID id, int networkId) {
-        int index = super.reserveIndex(id);
+    public int addBody(VxBody body, int networkId) {
+        int index = super.reserveIndex(body);
         networkIdToIndex.put(networkId, index);
         return index;
     }
