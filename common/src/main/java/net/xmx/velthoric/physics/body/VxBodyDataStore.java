@@ -9,6 +9,7 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.xmx.velthoric.physics.AbstractDataStore;
+import net.xmx.velthoric.physics.body.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
@@ -138,6 +139,15 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
     public boolean[] isActive;
 
     /**
+     * Direct reference array to the VxBody objects.
+     * <p>
+     * This array mirrors the internal structure-of-arrays indices. It allows O(1) access
+     * to the body object given an index, bypassing the need for UUID map lookups
+     * in hot loops like the physics updater.
+     */
+    public VxBody[] bodies;
+
+    /**
      * Constructs the data store and initializes ID maps.
      */
     protected VxBodyDataStore() {
@@ -201,11 +211,12 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
     /**
      * Resets all data fields at the specified index to their default values.
      * <p>
-     * Subclasses must override this to reset their specific arrays, and call {@code super.resetIndex(index)}.
+     * Clears the body reference to prevent memory leaks and resets physical properties.
      *
      * @param index The index to reset.
      */
     protected void resetIndex(int index) {
+        bodies[index] = null;
         posX[index] = posY[index] = posZ[index] = 0.0;
         rotX[index] = rotY[index] = rotZ[index] = 0f;
         rotW[index] = 1f; // Identity Quaternion
@@ -225,6 +236,8 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
 
     /**
      * Helper method for subclasses to grow the base shared arrays.
+     * <p>
+     * Extends the capacity of the position, rotation, velocity, and reference arrays.
      *
      * @param newCapacity The new capacity.
      */
@@ -244,6 +257,13 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
 
         vertexData = grow(vertexData, newCapacity);
         isActive = grow(isActive, newCapacity);
+
+        // Grow the direct reference array
+        VxBody[] newBodies = new VxBody[newCapacity];
+        if (bodies != null) {
+            System.arraycopy(bodies, 0, newBodies, 0, bodies.length);
+        }
+        bodies = newBodies;
 
         this.capacity = newCapacity;
     }
