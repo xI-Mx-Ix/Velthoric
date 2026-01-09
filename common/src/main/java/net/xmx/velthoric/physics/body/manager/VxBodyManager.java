@@ -399,7 +399,9 @@ public class VxBodyManager {
 
     /**
      * Registers a body with the internal maps and allocates a slot in the {@link VxServerBodyDataStore}.
-     * This is the common initialization step for both fresh creations and serialized loads.
+     * <p>
+     * This method populates the direct reference array in the data store to enable
+     * O(1) lookups during the physics simulation loop.
      *
      * @param body The body to register.
      */
@@ -411,6 +413,9 @@ public class VxBodyManager {
             // Allocate DataStore slot
             int index = dataStore.addBody(id, type);
             body.setDataStoreIndex(dataStore, index);
+
+            // Store the direct reference for O(1) access
+            dataStore.bodies[index] = body;
 
             // Assign Network ID (recycle if available, else increment)
             int networkId = freeNetworkIds.isEmpty() ? nextNetworkId++ : freeNetworkIds.pop();
