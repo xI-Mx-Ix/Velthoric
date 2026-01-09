@@ -4,6 +4,7 @@
  */
 package net.xmx.velthoric.physics.body.network.internal;
 
+import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -13,7 +14,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CRemoveBodyBatchPacket;
@@ -24,6 +27,7 @@ import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.util.VxChunkUtil;
 import net.xmx.velthoric.physics.vehicle.sync.VxVehicleNetworkDispatcher;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -87,6 +91,14 @@ public class VxNetworkDispatcher {
      * This prevents massive allocation spikes during high-concurrency network ticks.
      */
     private static final ThreadLocal<BatchBuffers> BATCH_BUFFERS = ThreadLocal.withInitial(BatchBuffers::new);
+
+    /**
+     * A reusable thread-local buffer used for serializing packet data.
+     * This prevents the allocation of a new ByteBuf for every single packet dispatched.
+     * The initial capacity is set to 4KB to accommodate typical batch sizes.
+     */
+    private static final ThreadLocal<VxByteBuf> PACKET_SERIALIZATION_BUFFER = ThreadLocal.withInitial(() ->
+            new VxByteBuf(Unpooled.buffer(4096)));
 
     /**
      * Constructs a new network dispatcher.
@@ -296,28 +308,81 @@ public class VxNetworkDispatcher {
     }
 
     /**
-     * Helper to construct and send the packet using copies of the reusable buffers.
+     * Constructs and sends a body state update packet.
+     * <p>
+     * This method performs immediate serialization of the data in {@code buffers} into a raw byte array.
+     * By doing so, it avoids creating defensive copies ({@link Arrays#copyOf}) of the 14 internal arrays
+     * typically required to construct the packet object.
+     * <p>
+     * The data is serialized relative to a calculated anchor point (the position of the first body)
+     * to maintain floating-point precision while using 32-bit floats for transmission.
+     *
+     * @param player    The target player.
+     * @param buffers   The container holding the raw simulation data.
+     * @param count     The number of valid entries in the buffers to process.
+     * @param timestamp The simulation tick timestamp.
      */
     private void dispatchBodyStatePacket(ServerPlayer player, BatchBuffers buffers, int count, long timestamp) {
-        // We must copy the arrays here because the packet might be queued for later encoding,
-        // and our reusable buffers will be overwritten in the next iteration.
-        S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(
-                count,
-                timestamp,
-                Arrays.copyOf(buffers.networkIds, count),
-                Arrays.copyOf(buffers.posX, count),
-                Arrays.copyOf(buffers.posY, count),
-                Arrays.copyOf(buffers.posZ, count),
-                Arrays.copyOf(buffers.rotX, count),
-                Arrays.copyOf(buffers.rotY, count),
-                Arrays.copyOf(buffers.rotZ, count),
-                Arrays.copyOf(buffers.rotW, count),
-                Arrays.copyOf(buffers.velX, count),
-                Arrays.copyOf(buffers.velY, count),
-                Arrays.copyOf(buffers.velZ, count),
-                Arrays.copyOf(buffers.isActive, count)
-        );
-        VxPacketHandler.sendToPlayer(packet, player);
+        VxByteBuf buf = PACKET_SERIALIZATION_BUFFER.get();
+        buf.clear(); // Reset reader/writer indices for reuse
+
+        try {
+            // Write Header
+            buf.writeVarInt(count);
+            buf.writeLong(timestamp);
+
+            // Calculate anchor point for relative precision
+            // Using the first body as the origin ensures offsets remain within float precision range.
+            double baseX = count > 0 ? buffers.posX[0] : 0.0;
+            double baseY = count > 0 ? buffers.posY[0] : 0.0;
+            double baseZ = count > 0 ? buffers.posZ[0] : 0.0;
+
+            buf.writeDouble(baseX);
+            buf.writeDouble(baseY);
+            buf.writeDouble(baseZ);
+
+            // Serialize Body Data directly from the reusable BatchBuffers
+            for (int i = 0; i < count; i++) {
+                buf.writeVarInt(buffers.networkIds[i]);
+
+                // Convert absolute double precision to relative float precision
+                buf.writeFloat((float) (buffers.posX[i] - baseX));
+                buf.writeFloat((float) (buffers.posY[i] - baseY));
+                buf.writeFloat((float) (buffers.posZ[i] - baseZ));
+
+                buf.writeFloat(buffers.rotX[i]);
+                buf.writeFloat(buffers.rotY[i]);
+                buf.writeFloat(buffers.rotZ[i]);
+                buf.writeFloat(buffers.rotW[i]);
+
+                boolean active = buffers.isActive[i];
+                buf.writeBoolean(active);
+
+                if (active) {
+                    buf.writeFloat(buffers.velX[i]);
+                    buf.writeFloat(buffers.velY[i]);
+                    buf.writeFloat(buffers.velZ[i]);
+                }
+            }
+
+            // Extract valid bytes and compress
+            byte[] uncompressedData = new byte[buf.readableBytes()];
+            buf.readBytes(uncompressedData);
+
+            byte[] compressedData = VxPacketUtils.compress(uncompressedData);
+
+            // Send the pre-serialized data payload
+            // This constructor avoids array copying entirely on the server side.
+            S2CUpdateBodyStateBatchPacket packet = new S2CUpdateBodyStateBatchPacket(
+                    uncompressedData.length,
+                    compressedData
+            );
+            VxPacketHandler.sendToPlayer(packet, player);
+
+        } catch (IOException e) {
+            // Log error but avoid crashing the networking thread if compression fails
+            e.printStackTrace();
+        }
     }
 
     /**
