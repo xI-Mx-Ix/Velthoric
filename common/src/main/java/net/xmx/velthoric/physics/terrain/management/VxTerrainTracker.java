@@ -55,16 +55,6 @@ public final class VxTerrainTracker {
     private final int ACTIVATION_RADIUS_CHUNKS;
 
     /**
-     * Reusable map that groups bodies into grid-based clusters to avoid allocations.
-     */
-    private final Long2ObjectMap<ObjectArrayList<VxBody>> cachedBodyClusters = new Long2ObjectOpenHashMap<>();
-
-    /**
-     * Reusable cache for chunk sections required during the current update tick.
-     */
-    private final Set<VxSectionPos> requiredChunksCache = new HashSet<>();
-
-    /**
      * The radius, in chunks, to preload around a cluster's bounding box.
      */
     private final int PRELOAD_RADIUS_CHUNKS;
@@ -91,6 +81,17 @@ public final class VxTerrainTracker {
      * Bodies below this height will not trigger terrain loading.
      */
     private final int MIN_GENERATION_HEIGHT;
+
+    /**
+     * Reusable map that groups bodies into grid-based clusters to avoid allocations.
+     * Using fastutil Long2ObjectMap to avoid boxing cell keys.
+     */
+    private final Long2ObjectMap<ObjectArrayList<VxBody>> cachedBodyClusters = new Long2ObjectOpenHashMap<>();
+
+    /**
+     * Reusable cache for chunk sections required during the current update tick.
+     */
+    private final Set<VxSectionPos> requiredChunksCache = new HashSet<>();
 
     /**
      * Constructs a new VxTerrainTracker.
