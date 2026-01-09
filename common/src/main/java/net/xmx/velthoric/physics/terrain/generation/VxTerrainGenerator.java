@@ -56,6 +56,10 @@ public final class VxTerrainGenerator implements AutoCloseable {
      * If not found, it creates a {@link StaticCompoundShape} composed of multiple {@link BoxShape}s,
      * where each box represents a block's collision AABB. It also uses a cache for {@link BoxShapeSettings}
      * to avoid re-creating them for common block dimensions.
+     * </p>
+     * <p>
+     * <b>Note:</b> This implementation iterates over the primitive arrays in the snapshot to avoid object overhead.
+     * </p>
      *
      * @param level The server level, used to get context-aware collision shapes.
      * @param snapshot An immutable snapshot of the chunk section's block data.
@@ -69,17 +73,28 @@ public final class VxTerrainGenerator implements AutoCloseable {
             return cachedShape;
         }
 
-        if (snapshot.shapes().isEmpty()) {
+        if (snapshot.count() == 0) {
             return null;
         }
 
         try (StaticCompoundShapeSettings compoundSettings = new StaticCompoundShapeSettings()) {
             boolean hasShapes = false;
             Vec3 halfExtentsKey = tempVec3Key.get();
+            BlockPos.MutableBlockPos worldPos = new BlockPos.MutableBlockPos();
+            BlockPos origin = snapshot.pos().getOrigin();
 
-            for (VxChunkSnapshot.ShapeInfo info : snapshot.shapes()) {
-                BlockPos worldPos = snapshot.pos().getOrigin().offset(info.localPos());
-                VoxelShape voxelShape = info.state().getCollisionShape(level, worldPos);
+            // Iterate using the count and primitive arrays.
+            for (int i = 0; i < snapshot.count(); i++) {
+                short packed = snapshot.packedPositions()[i];
+                // Unpack coordinates
+                int x = (packed >> 8) & 0xF;
+                int y = (packed >> 4) & 0xF;
+                int z = packed & 0xF;
+
+                worldPos.set(origin.getX() + x, origin.getY() + y, origin.getZ() + z);
+                VoxelShape voxelShape = snapshot.states()[i].getCollisionShape(level, worldPos);
+
+                if (voxelShape.isEmpty()) continue;
 
                 for (AABB aabb : voxelShape.toAabbs()) {
                     float hx = (float) (aabb.getXsize() / 2.0);
@@ -101,9 +116,10 @@ public final class VxTerrainGenerator implements AutoCloseable {
                         }
                     }
 
-                    float cx = (float) (info.localPos().getX() + aabb.minX + hx);
-                    float cy = (float) (info.localPos().getY() + aabb.minY + hy);
-                    float cz = (float) (info.localPos().getZ() + aabb.minZ + hz);
+                    // Calculate local position relative to section origin for the compound shape
+                    float cx = (float) (x + aabb.minX + hx);
+                    float cy = (float) (y + aabb.minY + hy);
+                    float cz = (float) (z + aabb.minZ + hz);
 
                     compoundSettings.addShape(cx, cy, cz, boxSettings);
                     hasShapes = true;
