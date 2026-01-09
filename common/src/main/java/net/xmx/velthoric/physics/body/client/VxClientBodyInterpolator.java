@@ -10,8 +10,6 @@ import net.minecraft.util.Mth;
 import net.xmx.velthoric.math.VxOperations;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.UUID;
-
 /**
  * Handles the interpolation and extrapolation of physics body states for smooth rendering.
  * This class calculates the visual state of a body at a specific render time based on
@@ -44,13 +42,23 @@ public class VxClientBodyInterpolator {
      * @param renderTimestamp The target time to calculate the render state for.
      */
     public void updateInterpolationTargets(VxClientBodyDataStore store, long renderTimestamp) {
-        for (UUID id : store.getAllPhysicsIds()) {
-            Integer i = store.getIndexForId(id);
-            if (i == null) continue;
+        final int capacity = store.getCapacity();
 
-            if (store.state1_timestamp[i] == 0) continue;
+        // Direct array iteration avoids iterator allocation and pointer chasing
+        for (int i = 0; i < capacity; i++) {
 
-            // 1. Backup the current render state (base arrays) to 'prev' arrays for frame interpolation.
+            // Fast-fail check: Skip slots that are not initialized.
+            // This boolean check is faster than a Map.get() or Set iteration.
+            if (!store.render_isInitialized[i]) {
+                continue;
+            }
+
+            // Ensure we have a valid target state from the server before interpolating
+            if (store.state1_timestamp[i] == 0) {
+                continue;
+            }
+
+            // 1. Backup the current render state to 'prev' arrays for frame interpolation.
             store.prev_posX[i] = store.posX[i];
             store.prev_posY[i] = store.posY[i];
             store.prev_posZ[i] = store.posZ[i];
@@ -59,37 +67,21 @@ public class VxClientBodyInterpolator {
             store.prev_rotZ[i] = store.rotZ[i];
             store.prev_rotW[i] = store.rotW[i];
 
-            // 2. Backup vertex data if it exists.
-            if (store.vertexData[i] != null) {
-                if (store.prev_vertexData[i] == null || store.prev_vertexData[i].length != store.vertexData[i].length) {
-                    store.prev_vertexData[i] = new float[store.vertexData[i].length];
+            // 2. Backup vertex data if it exists (Soft Bodies)
+            float[] currentVerts = store.vertexData[i];
+            if (currentVerts != null) {
+                float[] prevVerts = store.prev_vertexData[i];
+                if (prevVerts == null || prevVerts.length != currentVerts.length) {
+                    prevVerts = new float[currentVerts.length];
+                    store.prev_vertexData[i] = prevVerts;
                 }
-                System.arraycopy(store.vertexData[i], 0, store.prev_vertexData[i], 0, store.vertexData[i].length);
+                System.arraycopy(currentVerts, 0, prevVerts, 0, currentVerts.length);
             } else {
                 store.prev_vertexData[i] = null;
             }
 
-            // 3. Calculate the new target state and write it to the base arrays (posX, rotX, etc.).
+            // 3. Calculate the new target state
             calculateInterpolatedState(store, i, renderTimestamp);
-
-            // 4. Handle first-time initialization to prevent interpolating from (0,0,0).
-            if (!store.render_isInitialized[i]) {
-                store.prev_posX[i] = store.posX[i];
-                store.prev_posY[i] = store.posY[i];
-                store.prev_posZ[i] = store.posZ[i];
-                store.prev_rotX[i] = store.rotX[i];
-                store.prev_rotY[i] = store.rotY[i];
-                store.prev_rotZ[i] = store.rotZ[i];
-                store.prev_rotW[i] = store.rotW[i];
-
-                if (store.vertexData[i] != null) {
-                    if (store.prev_vertexData[i] == null || store.prev_vertexData[i].length != store.vertexData[i].length) {
-                        store.prev_vertexData[i] = new float[store.vertexData[i].length];
-                    }
-                    System.arraycopy(store.vertexData[i], 0, store.prev_vertexData[i], 0, store.vertexData[i].length);
-                }
-                store.render_isInitialized[i] = true;
-            }
         }
     }
 
