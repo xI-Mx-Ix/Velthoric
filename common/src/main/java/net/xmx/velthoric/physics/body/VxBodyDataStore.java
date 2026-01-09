@@ -238,8 +238,10 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
      * Helper method for subclasses to grow the base shared arrays.
      * <p>
      * Extends the capacity of the position, rotation, velocity, and reference arrays.
+     * This method handles both expansion and contraction of the arrays, ensuring
+     * that data is preserved up to the limit of the new capacity.
      *
-     * @param newCapacity The new capacity.
+     * @param newCapacity The new capacity for the data arrays.
      */
     protected void growBaseArrays(int newCapacity) {
         posX = grow(posX, newCapacity);
@@ -258,10 +260,13 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
         vertexData = grow(vertexData, newCapacity);
         isActive = grow(isActive, newCapacity);
 
-        // Grow the direct reference array
+        // Reallocate the direct reference array.
         VxBody[] newBodies = new VxBody[newCapacity];
         if (bodies != null) {
-            System.arraycopy(bodies, 0, newBodies, 0, bodies.length);
+            // Determine the number of elements to copy, ensuring we do not overflow
+            // the destination if shrinking, or read past the source if growing.
+            int copyLength = Math.min(bodies.length, newCapacity);
+            System.arraycopy(bodies, 0, newBodies, 0, copyLength);
         }
         bodies = newBodies;
 
@@ -270,12 +275,19 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
 
     /**
      * Clears all bodies and resets the store to its initial state.
+     * <p>
+     * This removes all mappings, resets counters, and re-allocates the internal
+     * arrays to the initial capacity. The reference to the body array is nullified
+     * before allocation to ensure that no stale references are copied into the
+     * new store, allowing for immediate garbage collection of removed bodies.
      */
     public void clear() {
         uuidToIndex.clear();
         indexToUuid.clear();
         freeIndices.clear();
         count = 0;
+        this.bodies = null;
+
         allocate(INITIAL_CAPACITY);
     }
 
