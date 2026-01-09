@@ -7,6 +7,7 @@ package net.xmx.velthoric.physics.body.manager;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.readonly.*;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -14,8 +15,6 @@ import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.nio.FloatBuffer;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Responsible for the synchronization between the Jolt physics simulation and
@@ -39,8 +38,8 @@ public class VxPhysicsUpdater {
     private final ThreadLocal<Vec3> tempAngVel = ThreadLocal.withInitial(Vec3::new);
 
     // Reusable lists for batch processing to avoid reallocation.
-    private final ThreadLocal<List<Integer>> bodyIdsToLock = ThreadLocal.withInitial(ArrayList::new);
-    private final ThreadLocal<List<Integer>> dataIndicesToLock = ThreadLocal.withInitial(ArrayList::new);
+    private final ThreadLocal<IntArrayList> bodyIdsToLock = ThreadLocal.withInitial(() -> new IntArrayList(1024));
+    private final ThreadLocal<IntArrayList> dataIndicesToLock = ThreadLocal.withInitial(() -> new IntArrayList(1024));
 
     // Reusable direct buffer for native soft body operations to prevent allocation every tick.
     private final ThreadLocal<FloatBuffer> softBodyBufferCache = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(1024));
@@ -84,23 +83,32 @@ public class VxPhysicsUpdater {
      * By avoiding {@code getIdForIndex} and {@code manager.getVxBody(UUID)},
      * we eliminate HashMap lookups completely from the hot path, significantly
      * reducing CPU overhead and cache misses for large body counts.
+     * <p>
+     * <b>Performance Note:</b> Uses {@link IntArrayList} to avoid autoboxing overhead
+     * when tracking active bodies for the multi-read lock.
+     *
+     * @param timestampNanos The current timestamp for interpolation tracking.
+     * @param world          The physics world instance.
+     * @param bodyInterface  The Jolt body interface for lock-free reads.
      */
     private void postUpdateSync(long timestampNanos, VxPhysicsWorld world, BodyInterface bodyInterface) {
-        List<Integer> localBodyIdsToLock = this.bodyIdsToLock.get();
-        List<Integer> localDataIndicesToLock = this.dataIndicesToLock.get();
+        IntArrayList localBodyIdsToLock = this.bodyIdsToLock.get();
+        IntArrayList localDataIndicesToLock = this.dataIndicesToLock.get();
+
+        // Clear the lists but keep the internal array capacity to avoid reallocation next tick.
         localBodyIdsToLock.clear();
         localDataIndicesToLock.clear();
 
-        // Direct array access for maximum performance
+        // Direct array access for maximum performance and CPU cache locality.
         final VxBody[] bodies = dataStore.bodies;
         final int capacity = dataStore.getCapacity();
 
         // --- Pass 1: Lock-free synchronization using BodyInterface ---
         for (int i = 0; i < capacity; ++i) {
-            // O(1) Access - No Map Lookup
+            // O(1) Access - No Map Lookup required.
             VxBody obj = bodies[i];
 
-            // Skip empty slots or uninitialized bodies
+            // Skip empty slots or uninitialized bodies.
             if (obj == null) continue;
 
             int bodyId = obj.getBodyId();
@@ -109,13 +117,16 @@ public class VxPhysicsUpdater {
             boolean isJoltBodyActive = bodyInterface.isActive(bodyId);
             boolean wasDataStoreBodyActive = dataStore.isActive[i];
 
+            // Only synchronize if the body is currently active or was active last frame (to capture sleep transition).
             if (isJoltBodyActive || wasDataStoreBodyActive) {
                 obj.onPhysicsTick(world);
 
-                // Sync transform, velocities, and motion type using performant BodyInterface methods
+                // Sync transform, velocities, and motion type using performant BodyInterface methods.
+                // We use ThreadLocal temporary objects to avoid Vector allocations in the loop.
                 final RVec3 pos = tempPos.get();
                 final Quat rot = tempRot.get();
                 bodyInterface.getPositionAndRotation(bodyId, pos, rot);
+
                 dataStore.posX[i] = pos.xx();
                 dataStore.posY[i] = pos.yy();
                 dataStore.posZ[i] = pos.zz();
@@ -140,6 +151,7 @@ public class VxPhysicsUpdater {
                 dataStore.motionType[i] = bodyInterface.getMotionType(bodyId);
 
                 // Collect this body to be included in the multi-lock for AABB and soft body data.
+                // Using primitive add(int) avoids Integer object allocation.
                 localBodyIdsToLock.add(bodyId);
                 localDataIndicesToLock.add(i);
 
@@ -161,17 +173,17 @@ public class VxPhysicsUpdater {
         if (!localBodyIdsToLock.isEmpty()) {
             ConstBodyLockInterfaceNoLock lockInterface = world.getPhysicsSystem().getBodyLockInterfaceNoLock();
 
-            // Create array primitive for Jolt API
-            int[] bodyIdArray = new int[localBodyIdsToLock.size()];
-            for (int j = 0; j < localBodyIdsToLock.size(); j++) {
-                bodyIdArray[j] = localBodyIdsToLock.get(j);
-            }
+            // Convert primitive list to native int array efficiently.
+            // This allocates one array per tick, which is vastly superior to allocating N Integer objects.
+            int[] bodyIdArray = localBodyIdsToLock.toIntArray();
 
             try (BodyLockMultiRead multiLock = new BodyLockMultiRead(lockInterface, bodyIdArray)) {
-                for (int j = 0; j < bodyIdArray.length; ++j) {
+                int count = bodyIdArray.length;
+                for (int j = 0; j < count; ++j) {
                     ConstBody body = multiLock.getBody(j);
                     if (body != null) {
-                        int i = localDataIndicesToLock.get(j);
+                        // Retrieve the original DataStore index for this body ID
+                        int i = localDataIndicesToLock.getInt(j);
 
                         // Ensure the body still exists in the array (thread safety precaution)
                         if (bodies[i] == null) continue;
