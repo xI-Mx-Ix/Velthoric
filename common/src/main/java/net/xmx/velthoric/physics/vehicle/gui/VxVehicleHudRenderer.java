@@ -10,7 +10,7 @@ import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.event.api.VxRenderEvent;
 import net.xmx.velthoric.physics.body.type.VxBody;
-import net.xmx.velthoric.physics.vehicle.VxVehicle;
+import net.xmx.velthoric.physics.vehicle.VxWheeledVehicle;
 import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.util.UUID;
@@ -51,7 +51,7 @@ public class VxVehicleHudRenderer {
             VxBody body = VxClientPhysicsWorld.getInstance().getBodyManager().getBody(physicsId);
 
             // Check if the body is a Vehicle
-            if (body instanceof VxVehicle vxVehicle) {
+            if (body instanceof VxWheeledVehicle vxVehicle) {
                 renderVehicleInfo(event.getGuiGraphics(), mc, vxVehicle);
             }
         }
@@ -60,7 +60,7 @@ public class VxVehicleHudRenderer {
     /**
      * Draws the text information onto the screen.
      */
-    private static void renderVehicleInfo(GuiGraphics guiGraphics, Minecraft mc, VxVehicle vehicle) {
+    private static void renderVehicleInfo(GuiGraphics guiGraphics, Minecraft mc, VxWheeledVehicle vehicle) {
         // Data retrieval
         int speed = Math.round(vehicle.getSpeedKmh());
         int gear = vehicle.getTransmission().getGear();

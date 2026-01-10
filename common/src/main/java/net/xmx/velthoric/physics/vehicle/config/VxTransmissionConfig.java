@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.vehicle.data;
+package net.xmx.velthoric.physics.vehicle.config;
 
 import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
 
@@ -14,7 +14,7 @@ import com.github.stephengold.joltjni.enumerate.ETransmissionMode;
  *
  * @author xI-Mx-Ix
  */
-public class VehicleTransmissionData {
+public class VxTransmissionConfig {
 
     /**
      * The mode of transmission (Auto or Manual).
@@ -60,7 +60,7 @@ public class VehicleTransmissionData {
      * @param mode The new transmission mode.
      * @return This instance for chaining.
      */
-    public VehicleTransmissionData setMode(ETransmissionMode mode) {
+    public VxTransmissionConfig setMode(ETransmissionMode mode) {
         this.mode = mode;
         return this;
     }
@@ -80,7 +80,7 @@ public class VehicleTransmissionData {
      * @param gearRatios The new gear ratios.
      * @return This instance for chaining.
      */
-    public VehicleTransmissionData setGearRatios(float... gearRatios) {
+    public VxTransmissionConfig setGearRatios(float... gearRatios) {
         this.gearRatios = gearRatios;
         return this;
     }
@@ -100,7 +100,7 @@ public class VehicleTransmissionData {
      * @param reverseRatio The new reverse ratio.
      * @return This instance for chaining.
      */
-    public VehicleTransmissionData setReverseRatio(float reverseRatio) {
+    public VxTransmissionConfig setReverseRatio(float reverseRatio) {
         this.reverseRatio = reverseRatio;
         return this;
     }
@@ -120,7 +120,7 @@ public class VehicleTransmissionData {
      * @param switchTime The switch time in seconds.
      * @return This instance for chaining.
      */
-    public VehicleTransmissionData setSwitchTime(float switchTime) {
+    public VxTransmissionConfig setSwitchTime(float switchTime) {
         this.switchTime = switchTime;
         return this;
     }
@@ -140,7 +140,7 @@ public class VehicleTransmissionData {
      * @param clutchStrength The clutch strength.
      * @return This instance for chaining.
      */
-    public VehicleTransmissionData setClutchStrength(float clutchStrength) {
+    public VxTransmissionConfig setClutchStrength(float clutchStrength) {
         this.clutchStrength = clutchStrength;
         return this;
     }

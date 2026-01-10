@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.vehicle.data;
+package net.xmx.velthoric.physics.vehicle.config;
 
 /**
  * Defines the static performance characteristics of a vehicle's engine.
@@ -12,7 +12,7 @@ package net.xmx.velthoric.physics.vehicle.data;
  *
  * @author xI-Mx-Ix
  */
-public class VehicleEngineData {
+public class VxEngineConfig {
 
     /**
      * The maximum torque the engine can produce in Newton-meters (Nm).
@@ -34,7 +34,7 @@ public class VehicleEngineData {
     /**
      * Default constructor.
      */
-    public VehicleEngineData() {
+    public VxEngineConfig() {
     }
 
     /**
@@ -44,7 +44,7 @@ public class VehicleEngineData {
      * @param minRpm    The idle RPM.
      * @param maxRpm    The maximum RPM.
      */
-    public VehicleEngineData(float maxTorque, float minRpm, float maxRpm) {
+    public VxEngineConfig(float maxTorque, float minRpm, float maxRpm) {
         this.maxTorque = maxTorque;
         this.minRpm = minRpm;
         this.maxRpm = maxRpm;
@@ -65,7 +65,7 @@ public class VehicleEngineData {
      * @param maxTorque The torque in Newton-meters.
      * @return This instance for chaining.
      */
-    public VehicleEngineData setMaxTorque(float maxTorque) {
+    public VxEngineConfig setMaxTorque(float maxTorque) {
         this.maxTorque = maxTorque;
         return this;
     }
@@ -85,7 +85,7 @@ public class VehicleEngineData {
      * @param minRpm The idle RPM.
      * @return This instance for chaining.
      */
-    public VehicleEngineData setMinRpm(float minRpm) {
+    public VxEngineConfig setMinRpm(float minRpm) {
         this.minRpm = minRpm;
         return this;
     }
@@ -105,7 +105,7 @@ public class VehicleEngineData {
      * @param maxRpm The maximum RPM.
      * @return This instance for chaining.
      */
-    public VehicleEngineData setMaxRpm(float maxRpm) {
+    public VxEngineConfig setMaxRpm(float maxRpm) {
         this.maxRpm = maxRpm;
         return this;
     }

@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.vehicle.component;
+package net.xmx.velthoric.physics.vehicle.module;
 
 import net.minecraft.util.Mth;
 
@@ -11,7 +11,7 @@ import net.minecraft.util.Mth;
  *
  * @author xI-Mx-Ix
  */
-public class VxVehicleEngine {
+public class VxEngineModule {
 
     private final float maxTorque;
     private final float minRpm;
@@ -28,7 +28,7 @@ public class VxVehicleEngine {
      * @param minRpm    The idle RPM.
      * @param maxRpm    The redline RPM.
      */
-    public VxVehicleEngine(float maxTorque, float minRpm, float maxRpm) {
+    public VxEngineModule(float maxTorque, float minRpm, float maxRpm) {
         this.maxTorque = maxTorque;
         this.minRpm = minRpm;
         this.maxRpm = maxRpm;

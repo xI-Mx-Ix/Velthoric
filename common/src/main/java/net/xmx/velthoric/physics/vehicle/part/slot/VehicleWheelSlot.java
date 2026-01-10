@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.vehicle.data.slot;
+package net.xmx.velthoric.physics.vehicle.part.slot;
 
 import org.joml.Vector3f;
 

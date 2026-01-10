@@ -8,8 +8,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
-import net.xmx.velthoric.physics.vehicle.data.slot.VehicleSeatSlot;
-import net.xmx.velthoric.physics.vehicle.data.component.VxSeatDefinition;
+import net.xmx.velthoric.physics.vehicle.part.slot.VehicleSeatSlot;
+import net.xmx.velthoric.physics.vehicle.part.definition.VxSeatDefinition;
 import net.xmx.velthoric.physics.vehicle.part.VxPart;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 

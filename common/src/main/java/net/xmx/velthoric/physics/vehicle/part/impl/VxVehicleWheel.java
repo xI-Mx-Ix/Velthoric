@@ -13,8 +13,8 @@ import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
-import net.xmx.velthoric.physics.vehicle.data.slot.VehicleWheelSlot;
-import net.xmx.velthoric.physics.vehicle.data.component.VxWheelDefinition;
+import net.xmx.velthoric.physics.vehicle.part.slot.VehicleWheelSlot;
+import net.xmx.velthoric.physics.vehicle.part.definition.VxWheelDefinition;
 import net.xmx.velthoric.physics.vehicle.part.VxPart;
 import org.joml.Vector3f;
 

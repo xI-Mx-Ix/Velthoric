@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.vehicle.component;
+package net.xmx.velthoric.physics.vehicle.module;
 
 import net.minecraft.util.Mth;
 
@@ -13,7 +13,7 @@ import net.minecraft.util.Mth;
  *
  * @author xI-Mx-Ix
  */
-public class VxSteering {
+public class VxSteeringModule {
 
     private final float steerSpeed;
     private float currentAngle;
@@ -24,7 +24,7 @@ public class VxSteering {
      *
      * @param steerSpeed The rate at which the steering angle changes towards the target, in units per second.
      */
-    public VxSteering(float steerSpeed) {
+    public VxSteeringModule(float steerSpeed) {
         this.steerSpeed = steerSpeed;
         this.currentAngle = 0.0f;
         this.targetAngle = 0.0f;
