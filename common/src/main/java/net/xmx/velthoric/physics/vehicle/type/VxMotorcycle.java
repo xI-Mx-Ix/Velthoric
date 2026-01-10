@@ -8,86 +8,66 @@ import com.github.stephengold.joltjni.*;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.vehicle.VxVehicle;
-import net.xmx.velthoric.physics.vehicle.data.VehicleEngineData;
-import net.xmx.velthoric.physics.vehicle.data.VehicleTransmissionData;
-import net.xmx.velthoric.physics.vehicle.data.VxVehicleData;
+import net.xmx.velthoric.physics.vehicle.VxWheeledVehicle;
+import net.xmx.velthoric.physics.vehicle.config.VxMotorcycleConfig;
+import net.xmx.velthoric.physics.vehicle.config.VxEngineConfig;
+import net.xmx.velthoric.physics.vehicle.config.VxTransmissionConfig;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 
 /**
- * Standard motorcycle implementation.
+ * Standard motorcycle implementation using the {@link VxMotorcycleConfig}.
  * <p>
- * This class extends {@link VxVehicle} to provide specific logic for 2-wheeled vehicles
- * using Jolt's {@link MotorcycleController}. It handles the specific lean physics
- * and balance controllers required for bikes.
+ * This class specializes {@link VxWheeledVehicle} for 2-wheeled vehicles.
+ * It uses Jolt's {@link MotorcycleController} which includes a specific
+ * lean controller to maintain balance.
  *
  * @author xI-Mx-Ix
  */
-public abstract class VxMotorcycle extends VxVehicle {
+public abstract class VxMotorcycle extends VxWheeledVehicle {
 
-    /**
-     * The Jolt controller interface specific to motorcycles.
-     */
     private MotorcycleController controller;
 
-    /**
-     * Server-side constructor.
-     *
-     * @param type  The body type.
-     * @param world The physics world.
-     * @param id    The unique ID.
-     * @param data  The vehicle data configuration.
-     */
-    public VxMotorcycle(VxBodyType<? extends VxMotorcycle> type, VxPhysicsWorld world, UUID id, VxVehicleData data) {
-        super(type, world, id, data);
+    public VxMotorcycle(VxBodyType<? extends VxMotorcycle> type, VxPhysicsWorld world, UUID id, VxMotorcycleConfig config) {
+        super(type, world, id, config);
     }
 
-    /**
-     * Client-side constructor.
-     *
-     * @param type The body type.
-     * @param id   The unique ID.
-     * @param data The vehicle data configuration.
-     */
     @Environment(EnvType.CLIENT)
-    public VxMotorcycle(VxBodyType<? extends VxMotorcycle> type, UUID id, VxVehicleData data) {
-        super(type, id, data);
+    public VxMotorcycle(VxBodyType<? extends VxMotorcycle> type, UUID id, VxMotorcycleConfig config) {
+        super(type, id, config);
     }
 
-    // --- Abstract Implementation ---
+    @Override
+    public VxMotorcycleConfig getConfig() {
+        return (VxMotorcycleConfig) super.getConfig();
+    }
 
     @Override
     protected VehicleConstraintSettings createConstraintSettings(Body body) {
         VehicleConstraintSettings settings = new VehicleConstraintSettings();
         MotorcycleControllerSettings controllerSettings = new MotorcycleControllerSettings();
+        VxMotorcycleConfig config = getConfig();
 
-        // 1. Transfer Engine Settings from Data
-        VehicleEngineData engineData = vehicleData.getEngine();
+        // 1. Engine
+        VxEngineConfig engineData = config.getEngine();
         controllerSettings.getEngine().setMaxTorque(engineData.getMaxTorque());
         controllerSettings.getEngine().setMaxRpm(engineData.getMaxRpm());
-
-        // Setting physical minRPM to almost zero prevents the motorcycle from moving forward
-        // automatically (idle creep) when in gear.
         controllerSettings.getEngine().setMinRpm(0.1f);
 
-        // 2. Transfer Transmission Settings from Data
-        VehicleTransmissionData transData = vehicleData.getTransmission();
+        // 2. Transmission
+        VxTransmissionConfig transData = config.getTransmission();
         controllerSettings.getTransmission().setGearRatios(transData.getGearRatios());
         controllerSettings.getTransmission().setReverseGearRatios(transData.getReverseRatio());
         controllerSettings.getTransmission().setMode(transData.getMode());
         controllerSettings.getTransmission().setSwitchTime(transData.getSwitchTime());
         controllerSettings.getTransmission().setClutchStrength(transData.getClutchStrength());
-
-        // Shift up point
         controllerSettings.getTransmission().setShiftUpRpm(engineData.getMaxRpm() * 0.9f);
 
-        // 3. Configure Differential (Connecting engine to the rear wheel)
+        // 3. Differential (Connecting engine to the rear wheel)
         controllerSettings.setNumDifferentials(1);
         VehicleDifferentialSettings diff = controllerSettings.getDifferential(0);
 
-        // Find the powered wheel (usually the rear one)
         int poweredIndex = -1;
         for (int i = 0; i < wheels.size(); i++) {
             if (wheels.get(i).isPowered()) {
@@ -96,8 +76,7 @@ public abstract class VxMotorcycle extends VxVehicle {
             }
         }
 
-        // For motorcycles, we typically drive one wheel.
-        diff.setLeftWheel(-1); // No left wheel pairing
+        diff.setLeftWheel(-1); // No left wheel
         diff.setRightWheel(poweredIndex != -1 ? poweredIndex : 1);
         diff.setDifferentialRatio(4.0f);
 

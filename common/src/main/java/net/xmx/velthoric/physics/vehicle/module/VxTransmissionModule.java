@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.vehicle.component;
+package net.xmx.velthoric.physics.vehicle.module;
 
 import net.minecraft.util.Mth;
 
@@ -11,7 +11,7 @@ import net.minecraft.util.Mth;
  *
  * @author xI-Mx-Ix
  */
-public class VxVehicleTransmission {
+public class VxTransmissionModule {
 
     private final float[] forwardRatios;
     private final float reverseRatio;
@@ -27,7 +27,7 @@ public class VxVehicleTransmission {
      * @param reverseRatio  The ratio for reverse gear.
      * @param switchTime    The time in seconds to change gears.
      */
-    public VxVehicleTransmission(float[] forwardRatios, float reverseRatio, float switchTime) {
+    public VxTransmissionModule(float[] forwardRatios, float reverseRatio, float switchTime) {
         this.forwardRatios = forwardRatios;
         this.reverseRatio = reverseRatio;
         this.shiftTime = switchTime;
