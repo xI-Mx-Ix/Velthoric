@@ -25,7 +25,6 @@ import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateBodyState
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateVerticesBatchPacket;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.util.VxChunkUtil;
-import net.xmx.velthoric.physics.vehicle.sync.VxVehicleNetworkDispatcher;
 
 import java.io.IOException;
 import java.util.*;
@@ -47,7 +46,6 @@ public class VxNetworkDispatcher {
     private final ServerLevel level;
     private final VxBodyManager manager;
     private final VxServerBodyDataStore dataStore;
-    private final VxVehicleNetworkDispatcher vehicleDispatcher;
 
     // --- Constants for network tuning ---
     private final int NETWORK_THREAD_TICK_RATE_MS;
@@ -110,7 +108,6 @@ public class VxNetworkDispatcher {
         this.level = level;
         this.manager = manager;
         this.dataStore = manager.getDataStore();
-        this.vehicleDispatcher = new VxVehicleNetworkDispatcher();
 
         this.NETWORK_THREAD_TICK_RATE_MS = VxModConfig.NETWORK.networkTickRate.get();
         this.MAX_STATES_PER_PACKET = VxModConfig.NETWORK.maxStatesPerPacket.get();
@@ -166,8 +163,6 @@ public class VxNetworkDispatcher {
                 // Delegate synchronized data updates to the dedicated manager
                 // This scans for custom data changes and uses the dispatcher to find recipients
                 this.manager.getServerSyncManager().sendSynchronizedDataUpdates(this);
-
-                this.vehicleDispatcher.dispatchUpdates(this.level, this.manager, this.bodyTrackers);
 
                 long cycleEndTime = System.nanoTime();
                 long cycleDurationMs = (cycleEndTime - cycleStartTime) / 1_000_000;

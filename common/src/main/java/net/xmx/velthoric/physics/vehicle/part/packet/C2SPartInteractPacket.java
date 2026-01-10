@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.physics.vehicle.sync;
+package net.xmx.velthoric.physics.vehicle.part.packet;
 
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.network.FriendlyByteBuf;
