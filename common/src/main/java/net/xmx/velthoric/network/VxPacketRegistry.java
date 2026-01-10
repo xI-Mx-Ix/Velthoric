@@ -16,8 +16,7 @@ import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateVerticesB
 import net.xmx.velthoric.physics.body.network.synchronization.packet.C2SSynchronizedDataBatchPacket;
 import net.xmx.velthoric.physics.body.network.synchronization.packet.S2CSynchronizedDataBatchPacket;
 import net.xmx.velthoric.bridge.mounting.input.C2SMountInputPacket;
-import net.xmx.velthoric.physics.vehicle.sync.C2SPartInteractPacket;
-import net.xmx.velthoric.physics.vehicle.sync.S2CVehicleDataBatchPacket;
+import net.xmx.velthoric.physics.vehicle.part.packet.C2SPartInteractPacket;
 
 /**
  * Central registry that lists all network packets used by the application.
@@ -111,15 +110,6 @@ public class VxPacketRegistry {
                 S2CSynchronizedDataBatchPacket::encode,
                 S2CSynchronizedDataBatchPacket::decode,
                 S2CSynchronizedDataBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        VxPacketHandler.registerPacket(
-                S2CVehicleDataBatchPacket.class,
-                "vehicle_state",
-                S2CVehicleDataBatchPacket::encode,
-                S2CVehicleDataBatchPacket::decode,
-                S2CVehicleDataBatchPacket::handle,
                 NetworkManager.Side.S2C
         );
 

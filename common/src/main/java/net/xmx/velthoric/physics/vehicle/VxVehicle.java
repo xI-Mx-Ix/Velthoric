@@ -16,8 +16,10 @@ import net.xmx.velthoric.bridge.mounting.input.VxMountInput;
 import net.xmx.velthoric.bridge.mounting.seat.VxSeat;
 import net.xmx.velthoric.physics.body.VxJoltBridge;
 import net.xmx.velthoric.physics.body.VxRemovalReason;
-import net.xmx.velthoric.physics.body.registry.VxBodyType;
+import net.xmx.velthoric.physics.body.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.physics.body.network.synchronization.VxSynchronizedData;
+import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxServerAccessor;
+import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.vehicle.component.VxSteering;
 import net.xmx.velthoric.physics.vehicle.component.VxVehicleEngine;
@@ -30,6 +32,8 @@ import net.xmx.velthoric.physics.vehicle.data.slot.VehicleWheelSlot;
 import net.xmx.velthoric.physics.vehicle.part.VxPart;
 import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleSeat;
 import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleWheel;
+import net.xmx.velthoric.physics.vehicle.sync.VxVehicleSerializers;
+import net.xmx.velthoric.physics.vehicle.sync.VxVehicleWheelState;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
@@ -48,6 +52,38 @@ import java.util.*;
  * @author xI-Mx-Ix
  */
 public abstract class VxVehicle extends VxRigidBody implements VxMountable {
+
+    // --- Synchronization Accessors ---
+
+    /**
+     * Synchronizes the vehicle's linear speed in km/h.
+     */
+    public static final VxServerAccessor<Float> SYNC_SPEED = VxServerAccessor.create(VxVehicle.class, VxDataSerializers.FLOAT);
+
+    /**
+     * Synchronizes the current engine RPM.
+     */
+    public static final VxServerAccessor<Float> SYNC_RPM = VxServerAccessor.create(VxVehicle.class, VxDataSerializers.FLOAT);
+
+    /**
+     * Synchronizes the current gear index.
+     */
+    public static final VxServerAccessor<Integer> SYNC_GEAR = VxServerAccessor.create(VxVehicle.class, VxDataSerializers.INTEGER);
+
+    /**
+     * Synchronizes the throttle input (visual feedback).
+     */
+    public static final VxServerAccessor<Float> SYNC_THROTTLE = VxServerAccessor.create(VxVehicle.class, VxDataSerializers.FLOAT);
+
+    /**
+     * Synchronizes the steering input (visual feedback).
+     */
+    public static final VxServerAccessor<Float> SYNC_STEER = VxServerAccessor.create(VxVehicle.class, VxDataSerializers.FLOAT);
+
+    /**
+     * Synchronizes the dynamic state of all wheels (rotation, suspension, steer).
+     */
+    public static final VxServerAccessor<List<VxVehicleWheelState>> SYNC_WHEELS = VxServerAccessor.create(VxVehicle.class, VxVehicleSerializers.WHEEL_STATES);
 
     // --- Core Data ---
 
@@ -115,7 +151,6 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
     // --- State ---
 
-    private boolean isStateDirty = false;
     private float speedKmh = 0.0f;
     private float inputThrottle = 0.0f;
     private float inputSteer = 0.0f;
@@ -214,6 +249,12 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
         // 3. Initialize Seats
         this.initializeSeats();
+
+        // 4. Set initial synchronized values now that vehicleData is available.
+        // This fixes the issue where we couldn't access minRpm in defineSyncData.
+        if (this.physicsWorld != null) {
+            this.setServerData(SYNC_RPM, vehicleData.getEngine().getMinRpm());
+        }
     }
 
     private void initializePowertrain() {
@@ -359,6 +400,55 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         return this.parts.get(partId);
     }
 
+    // --- Synchronization Definitions ---
+
+    @Override
+    protected void defineSyncData(VxSynchronizedData.Builder builder) {
+        // Define default values for synchronized data
+        builder.define(SYNC_SPEED, 0.0f);
+        builder.define(SYNC_RPM, 0.0f);
+        builder.define(SYNC_GEAR, 0);
+        builder.define(SYNC_THROTTLE, 0.0f);
+        builder.define(SYNC_STEER, 0.0f);
+        builder.define(SYNC_WHEELS, new ArrayList<>()); // Start with empty list
+    }
+
+    /**
+     * Called when synchronized data is updated via the network (Client Side) or local setters.
+     * Handles distribution of data to the relevant logical components.
+     *
+     * @param accessor The accessor of the data that changed.
+     */
+    @Override
+    public void onSyncedDataUpdated(VxServerAccessor<?> accessor) {
+
+        if (accessor.equals(SYNC_SPEED)) {
+            this.speedKmh = getSynchronizedData().get(SYNC_SPEED);
+
+        } else if (accessor.equals(SYNC_RPM)) {
+            this.engine.setSynchronizedRpm(getSynchronizedData().get(SYNC_RPM));
+
+        } else if (accessor.equals(SYNC_GEAR)) {
+            this.transmission.setSynchronizedGear(getSynchronizedData().get(SYNC_GEAR));
+
+        } else if (accessor.equals(SYNC_THROTTLE)) {
+            this.inputThrottle = getSynchronizedData().get(SYNC_THROTTLE);
+
+        } else if (accessor.equals(SYNC_STEER)) {
+            this.inputSteer = getSynchronizedData().get(SYNC_STEER);
+
+        } else if (accessor.equals(SYNC_WHEELS)) {
+            // Distribute wheel state to interpolation targets
+            List<VxVehicleWheelState> states = getSynchronizedData().get(SYNC_WHEELS);
+            int count = Math.min(states.size(), wheels.size());
+
+            for (int i = 0; i < count; i++) {
+                VxVehicleWheelState state = states.get(i);
+                wheels.get(i).updateClientTarget(state.rotation(), state.steer(), state.suspension());
+            }
+        }
+    }
+
     // --- Physics Lifecycle ---
 
     @Override
@@ -497,17 +587,31 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
             boolean clutchEngaged = (vehicleData.getTransmission().getMode() == ETransmissionMode.Auto) || !transmission.isShifting();
             engine.update(Math.abs(inputThrottle), avgWheelRpm, transmission.getCurrentRatio(), clutchEngaged);
 
-            // 4. Sync Physics State to Local Wheel Components
+            // 4. Update Local Components from Physics & Prepare Sync Data
+            List<VxVehicleWheelState> wheelStates = new ArrayList<>(wheels.size());
+
             for (int i = 0; i < wheels.size(); i++) {
                 Wheel w = constraint.getWheel(i);
-                wheels.get(i).updatePhysicsState(w.getRotationAngle(), w.getSteerAngle(), w.getSuspensionLength(), w.hasContact());
+                VxVehicleWheel wheelComponent = wheels.get(i);
+
+                // Update component state immediately for server-side logic
+                wheelComponent.updatePhysicsState(w.getRotationAngle(), w.getSteerAngle(), w.getSuspensionLength(), w.hasContact());
+
+                // Collect state for synchronization
+                wheelStates.add(new VxVehicleWheelState(w.getRotationAngle(), w.getSteerAngle(), w.getSuspensionLength()));
             }
 
-            // 5. Update Jolt Controller Input
-            this.updateJoltController();
+            // 5. Update Synchronized Data (Server Authority)
+            // The set() method internally checks if values changed before marking dirty.
+            setServerData(SYNC_SPEED, this.speedKmh);
+            setServerData(SYNC_RPM, engine.getRpm());
+            setServerData(SYNC_GEAR, transmission.getGear());
+            setServerData(SYNC_THROTTLE, this.inputThrottle);
+            setServerData(SYNC_STEER, this.inputSteer);
+            setServerData(SYNC_WHEELS, wheelStates);
 
-            // Mark for network sync
-            this.isStateDirty = true;
+            // 6. Update Jolt Controller Input
+            this.updateJoltController();
         }
     }
 
@@ -625,29 +729,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
         }
     }
 
-    // --- Sync & Getters ---
-
-    /**
-     * Updates the vehicle state based on data received from the server.
-     *
-     * @param speed    The current speed in km/h.
-     * @param rpm      The current engine RPM.
-     * @param gear     The current gear index.
-     * @param throttle The current throttle value.
-     * @param steer    The current steering angle.
-     */
-    public void syncStateFromServer(float speed, float rpm, int gear, float throttle, float steer) {
-        this.speedKmh = speed;
-        this.engine.setSynchronizedRpm(rpm);
-        this.transmission.setSynchronizedGear(gear);
-        this.inputThrottle = throttle;
-        this.inputSteer = steer;
-    }
-
-    @Override
-    protected void defineSyncData(VxSynchronizedData.Builder builder) {
-        // Implement default sync data if required
-    }
+    // --- Getters ---
 
     public VxVehicleEngine getEngine() {
         return engine;
@@ -671,14 +753,6 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
 
     public float getInputSteer() {
         return inputSteer;
-    }
-
-    public boolean isVehicleStateDirty() {
-        return isStateDirty;
-    }
-
-    public void clearVehicleStateDirty() {
-        this.isStateDirty = false;
     }
 
     public VxVehicleData getData() {

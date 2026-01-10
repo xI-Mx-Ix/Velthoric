@@ -18,7 +18,7 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
-import net.xmx.velthoric.physics.vehicle.sync.C2SPartInteractPacket;
+import net.xmx.velthoric.physics.vehicle.part.packet.C2SPartInteractPacket;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
