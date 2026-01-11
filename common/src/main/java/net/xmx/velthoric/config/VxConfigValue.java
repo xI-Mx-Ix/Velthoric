@@ -5,6 +5,7 @@
 package net.xmx.velthoric.config;
 
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -23,6 +24,7 @@ public class VxConfigValue<T> implements Supplier<T> {
     private final String comment;
     private final Class<T> type;
     private volatile T value;
+    private final Predicate<T> validator;
 
     /**
      * Constructs a new configuration value.
@@ -32,12 +34,24 @@ public class VxConfigValue<T> implements Supplier<T> {
      * @param comment      The comment describing this value.
      * @param type         The class type of the value for casting/verification.
      */
-    protected VxConfigValue(List<String> path, T defaultValue, String comment, Class<T> type) {
+    protected VxConfigValue(List<String> path, T defaultValue, String comment, Class<T> type, Predicate<T> validator) {
         this.path = path;
         this.defaultValue = defaultValue;
         this.comment = comment;
         this.type = type;
+        this.validator = validator;
         this.value = defaultValue;
+    }
+
+    protected VxConfigValue(List<String> path, T defaultValue, String comment, Class<T> type) {
+        this(path, defaultValue, comment, type, t -> true);
+    }
+
+    /**
+     * Checks if the provided value is valid according to the defined rules (e.g., range).
+     */
+    public boolean isValid(T value) {
+        return validator == null || validator.test(value);
     }
 
     /**
