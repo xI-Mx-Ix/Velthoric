@@ -63,7 +63,7 @@ public class VxVehicleHudRenderer {
     private static void renderVehicleInfo(GuiGraphics guiGraphics, Minecraft mc, VxWheeledVehicle vehicle) {
         // Data retrieval
         int speed = Math.round(vehicle.getSpeedKmh());
-        int gear = vehicle.getTransmission().getGear();
+        int gear = vehicle.get(VxWheeledVehicle.SYNC_GEAR);
 
         // Format Gear String
         String gearString;
