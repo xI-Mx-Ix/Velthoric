@@ -11,7 +11,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
 
 /**
  * The Specification for the Configuration.
@@ -159,7 +161,19 @@ public class VxConfigSpec {
      */
     @SuppressWarnings("unchecked")
     private <T> void updateValueCapture(VxConfigValue<T> valueSpec, Object parsedValue) {
-        valueSpec.set((T) parsedValue);
+        T castValue = (T) parsedValue;
+        if (valueSpec.isValid(castValue)) {
+            valueSpec.set(castValue);
+        } else {
+            // Log warning and fallback to default (which is already set or we explicitly reset it)
+            VxMainClass.LOGGER.warn(
+                    "VxConfig: Value '{}' for '{}' is invalid/out of range. Resetting to default: {}",
+                    parsedValue,
+                    String.join(".", valueSpec.getPath()),
+                    valueSpec.getDefault()
+            );
+            valueSpec.set(valueSpec.getDefault());
+        }
     }
 
     /**
@@ -285,7 +299,31 @@ public class VxConfigSpec {
         }
 
         /**
+         * Defines a configuration value with a default value, a comment, and a validator.
+         * This is the internal core method used by other define variants.
+         *
+         * @param name         The key name of the value.
+         * @param defaultValue The default value.
+         * @param comment      Description of the value.
+         * @param validator    A predicate to validate loaded values.
+         * @param <T>          The type of the value.
+         * @return A wrapper object holding the configuration value.
+         */
+        public <T> VxConfigValue<T> define(String name, T defaultValue, String comment, java.util.function.Predicate<T> validator) {
+            List<String> fullPath = new ArrayList<>(pathStack);
+            fullPath.add(name);
+
+            @SuppressWarnings("unchecked")
+            Class<T> type = (Class<T>) defaultValue.getClass();
+
+            VxConfigValue<T> val = new VxConfigValue<>(fullPath, defaultValue, comment, type, validator);
+            definedValues.add(val);
+            return val;
+        }
+
+        /**
          * Defines a configuration value with a default value and a comment.
+         * Assumes any value is valid (validator returns true).
          *
          * @param name         The key name of the value.
          * @param defaultValue The default value.
@@ -294,15 +332,7 @@ public class VxConfigSpec {
          * @return A wrapper object holding the configuration value.
          */
         public <T> VxConfigValue<T> define(String name, T defaultValue, String comment) {
-            List<String> fullPath = new ArrayList<>(pathStack);
-            fullPath.add(name);
-
-            @SuppressWarnings("unchecked")
-            Class<T> type = (Class<T>) defaultValue.getClass();
-
-            VxConfigValue<T> val = new VxConfigValue<>(fullPath, defaultValue, comment, type);
-            definedValues.add(val);
-            return val;
+            return define(name, defaultValue, comment, t -> true);
         }
 
         /**
@@ -314,11 +344,11 @@ public class VxConfigSpec {
          * @return A wrapper object holding the configuration value.
          */
         public <T> VxConfigValue<T> define(String name, T defaultValue) {
-            return define(name, defaultValue, null);
+            return define(name, defaultValue, null, t -> true);
         }
 
         /**
-         * Defines an integer value with an implied range in the comment.
+         * Defines an integer value with an implied range in the comment and enforcement logic.
          *
          * @param name         The key name.
          * @param defaultValue The default value.
@@ -328,11 +358,12 @@ public class VxConfigSpec {
          * @return A wrapper object holding the integer.
          */
         public VxConfigValue<Integer> defineInRange(String name, int defaultValue, int min, int max, String comment) {
-            return define(name, defaultValue, comment + " [Range: " + min + " ~ " + max + "]");
+            return define(name, defaultValue, comment + " [Range: " + min + " ~ " + max + "]",
+                    val -> val >= min && val <= max);
         }
 
         /**
-         * Defines a double value with an implied range in the comment.
+         * Defines a double value with an implied range in the comment and enforcement logic.
          *
          * @param name         The key name.
          * @param defaultValue The default value.
@@ -342,11 +373,12 @@ public class VxConfigSpec {
          * @return A wrapper object holding the double.
          */
         public VxConfigValue<Double> defineInRange(String name, double defaultValue, double min, double max, String comment) {
-            return define(name, defaultValue, comment + " [Range: " + min + " ~ " + max + "]");
+            return define(name, defaultValue, comment + " [Range: " + min + " ~ " + max + "]",
+                    val -> val >= min && val <= max);
         }
 
         /**
-         * Defines a long value with an implied range in the comment.
+         * Defines a long value with an implied range in the comment and enforcement logic.
          *
          * @param name         The key name.
          * @param defaultValue The default value.
@@ -356,7 +388,8 @@ public class VxConfigSpec {
          * @return A wrapper object holding the long.
          */
         public VxConfigValue<Long> defineInRange(String name, long defaultValue, long min, long max, String comment) {
-            return define(name, defaultValue, comment + " [Range: " + min + " ~ " + max + "]");
+            return define(name, defaultValue, comment + " [Range: " + min + " ~ " + max + "]",
+                    val -> val >= min && val <= max);
         }
 
         /**
