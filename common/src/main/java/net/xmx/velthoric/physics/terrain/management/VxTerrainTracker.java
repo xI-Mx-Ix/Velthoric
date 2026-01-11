@@ -65,6 +65,12 @@ public final class VxTerrainTracker {
     private final float PREDICTION_SECONDS;
 
     /**
+     * The maximum distance, in blocks, that the system will look ahead based on velocity.
+     * This prevents requesting thousands of chunks if a body glitches and gains excessive speed.
+     */
+    private final float MAX_PREDICTION_DISTANCE;
+
+    /**
      * The maximum number of chunks a single cluster can request in one update tick.
      * This acts as a safety brake against physics glitches or infinite bounding boxes.
      */
@@ -112,6 +118,7 @@ public final class VxTerrainTracker {
         this.ACTIVATION_RADIUS_CHUNKS = VxModConfig.TERRAIN.activationRadius.get();
         this.PRELOAD_RADIUS_CHUNKS = VxModConfig.TERRAIN.preloadRadius.get();
         this.PREDICTION_SECONDS = VxModConfig.TERRAIN.predictionSeconds.get().floatValue();
+        this.MAX_PREDICTION_DISTANCE = VxModConfig.TERRAIN.maxPredictionDistance.get().floatValue();
         this.MAX_CHUNKS_PER_CLUSTER_ITERATION = VxModConfig.TERRAIN.maxChunksPerCluster.get();
         this.MAX_GENERATION_HEIGHT = VxModConfig.TERRAIN.maxGenHeight.get();
         this.MIN_GENERATION_HEIGHT = VxModConfig.TERRAIN.minGenHeight.get();
@@ -234,7 +241,7 @@ public final class VxTerrainTracker {
 
                 clusterHasValidBodies = true;
 
-                // Expand cluster AABB
+                // Expand cluster AABB by body bounds
                 minX = Math.min(minX, bMinX);
                 minY = Math.min(minY, bMinY);
                 minZ = Math.min(minZ, bMinZ);
@@ -242,18 +249,30 @@ public final class VxTerrainTracker {
                 maxY = Math.max(maxY, bMaxY);
                 maxZ = Math.max(maxZ, bMaxZ);
 
-                // Velocity Prediction: Expand AABB based on where the body is going
+                // Velocity Prediction: Expand AABB based on where the body is projected to be.
+                // This allows terrain to load ahead of moving objects.
                 float velX = bodyDataStore.velX[i];
                 float velY = bodyDataStore.velY[i];
                 float velZ = bodyDataStore.velZ[i];
 
                 if (Math.abs(velX) > 0.01f || Math.abs(velY) > 0.01f || Math.abs(velZ) > 0.01f) {
-                    minX = Math.min(minX, bMinX + velX * PREDICTION_SECONDS);
-                    minY = Math.min(minY, bMinY + velY * PREDICTION_SECONDS);
-                    minZ = Math.min(minZ, bMinZ + velZ * PREDICTION_SECONDS);
-                    maxX = Math.max(maxX, bMaxX + velX * PREDICTION_SECONDS);
-                    maxY = Math.max(maxY, bMaxY + velY * PREDICTION_SECONDS);
-                    maxZ = Math.max(maxZ, bMaxZ + velZ * PREDICTION_SECONDS);
+                    float predictedOffsetX = velX * PREDICTION_SECONDS;
+                    float predictedOffsetY = velY * PREDICTION_SECONDS;
+                    float predictedOffsetZ = velZ * PREDICTION_SECONDS;
+
+                    // Clamp the prediction vector to the configured maximum distance.
+                    // This prevents extreme velocities (e.g., from physics overlaps) from requesting
+                    // massive amounts of terrain, which would trigger the safety brake.
+                    predictedOffsetX = Math.max(-MAX_PREDICTION_DISTANCE, Math.min(MAX_PREDICTION_DISTANCE, predictedOffsetX));
+                    predictedOffsetY = Math.max(-MAX_PREDICTION_DISTANCE, Math.min(MAX_PREDICTION_DISTANCE, predictedOffsetY));
+                    predictedOffsetZ = Math.max(-MAX_PREDICTION_DISTANCE, Math.min(MAX_PREDICTION_DISTANCE, predictedOffsetZ));
+
+                    minX = Math.min(minX, bMinX + predictedOffsetX);
+                    minY = Math.min(minY, bMinY + predictedOffsetY);
+                    minZ = Math.min(minZ, bMinZ + predictedOffsetZ);
+                    maxX = Math.max(maxX, bMaxX + predictedOffsetX);
+                    maxY = Math.max(maxY, bMaxY + predictedOffsetY);
+                    maxZ = Math.max(maxZ, bMaxZ + predictedOffsetZ);
                 }
             }
 
