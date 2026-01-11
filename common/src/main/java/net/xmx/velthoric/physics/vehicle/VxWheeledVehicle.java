@@ -17,10 +17,11 @@ import net.xmx.velthoric.physics.body.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.physics.body.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxServerAccessor;
 import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.vehicle.module.VxSteeringModule;
-import net.xmx.velthoric.physics.vehicle.module.VxEngineModule;
-import net.xmx.velthoric.physics.vehicle.module.VxTransmissionModule;
 import net.xmx.velthoric.physics.vehicle.config.VxWheeledVehicleConfig;
+import net.xmx.velthoric.physics.vehicle.module.VxSteeringModule;
+import net.xmx.velthoric.physics.vehicle.module.transmission.VxAutomaticTransmissionModule;
+import net.xmx.velthoric.physics.vehicle.module.transmission.VxManualTransmissionModule;
+import net.xmx.velthoric.physics.vehicle.module.transmission.VxTransmissionModule;
 import net.xmx.velthoric.physics.vehicle.part.definition.VxWheelDefinition;
 import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleWheel;
 import net.xmx.velthoric.physics.vehicle.part.slot.VehicleWheelSlot;
@@ -34,166 +35,223 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * An abstract class for vehicles that move on wheels using an engine and transmission.
+ * An abstract implementation for vehicles that operate on wheels.
  * <p>
- * This class extends the generic {@link VxVehicle} to add logic specific to
- * Jolt's Vehicle Constraint system (Cars, Motorcycles). It handles:
+ * This class serves as the bridge between the high-level {@link VxVehicle} concepts
+ * and the low-level Jolt {@link VehicleConstraint}. It manages the powertrain input logic
+ * via the {@link VxTransmissionModule} and synchronizes physics state to clients.
+ * <p>
+ * Key responsibilities:
  * <ul>
- *     <li>Powertrain simulation (Engine & Transmission).</li>
- *     <li>Wheel management and physics updates.</li>
- *     <li>Jolt VehicleConstraint lifecycle.</li>
- *     <li>Driver input processing (Throttle, Brake, Steer).</li>
+ *     <li>Managing the Jolt {@link VehicleConstraint} lifecycle.</li>
+ *     <li>Initializing wheels based on configuration slots.</li>
+ *     <li>Delegating input processing to the transmission module.</li>
+ *     <li>Synchronizing RPM, Gear, and visual wheel states to the client.</li>
  * </ul>
  *
  * @author xI-Mx-Ix
  */
 public abstract class VxWheeledVehicle extends VxVehicle {
 
-    // --- Synchronization Accessors ---
+    // --- Network Synchronization Accessors ---
 
+    /**
+     * Synchronizes the current engine RPM to clients for audio and UI.
+     */
     public static final VxServerAccessor<Float> SYNC_RPM =
             VxServerAccessor.create(VxWheeledVehicle.class, VxDataSerializers.FLOAT);
 
+    /**
+     * Synchronizes the current gear index to clients.
+     * <p>
+     * Values: 0 (Neutral), -1 (Reverse), 1+ (Forward Gears).
+     */
     public static final VxServerAccessor<Integer> SYNC_GEAR =
             VxServerAccessor.create(VxWheeledVehicle.class, VxDataSerializers.INTEGER);
 
+    /**
+     * Synchronizes the smoothed throttle input [0..1] for animation (pedals).
+     */
     public static final VxServerAccessor<Float> SYNC_THROTTLE =
             VxServerAccessor.create(VxWheeledVehicle.class, VxDataSerializers.FLOAT);
 
+    /**
+     * Synchronizes the smoothed steering input [-1..1] for animation (steering wheel).
+     */
     public static final VxServerAccessor<Float> SYNC_STEER =
             VxServerAccessor.create(VxWheeledVehicle.class, VxDataSerializers.FLOAT);
 
-    public static final VxServerAccessor<List<VxVehicleWheelState>> SYNC_WHEELS =
-            VxServerAccessor.create(
-                    VxWheeledVehicle.class,
-                    VxVehicleSerializers.WHEEL_STATES
-            );
-
-    // --- Logical Components ---
-
-    protected VxEngineModule engine;
-    protected VxTransmissionModule transmission;
-
     /**
-     * Helper for smoothing steering inputs.
+     * Synchronizes the visual state (rotation, compression, steering) of all wheels.
+     * Used for smooth client-side interpolation of wheel parts.
      */
-    protected final VxSteeringModule steeringHelper = new VxSteeringModule(2.0f);
+    public static final VxServerAccessor<List<VxVehicleWheelState>> SYNC_WHEELS =
+            VxServerAccessor.create(VxWheeledVehicle.class, VxVehicleSerializers.WHEEL_STATES);
+
+    // --- Components ---
 
     /**
-     * A typed list of wheels for efficient physics step updates.
+     * The transmission logic module.
+     * Handles the translation of driver input into physics commands (Gear, Clutch, Forward/Brake).
+     */
+    protected VxTransmissionModule transmissionModule;
+
+    /**
+     * Helper for interpolating steering input over time to prevent jerky movement.
+     */
+    protected final VxSteeringModule steeringHelper = new VxSteeringModule(4.0f);
+
+    /**
+     * A typed list of wheel parts associated with this vehicle.
+     * Maintained for efficient iteration during physics steps.
      */
     protected final List<VxVehicleWheel> wheels = new ArrayList<>();
 
-    // --- Physics ---
+    // --- Physics Objects ---
 
+    /**
+     * The main Jolt constraint governing the vehicle physics.
+     * Null on the client or if the body is not physically active.
+     */
     protected VehicleConstraint constraint;
+
+    /**
+     * Helper object for performing collision queries for the wheels.
+     */
     protected VehicleCollisionTester collisionTester;
+
+    /**
+     * Configuration container for the vehicle constraint.
+     */
     protected VehicleConstraintSettings constraintSettings;
 
     // --- Input State ---
 
     /**
-     * The current input state received from the driver.
+     * The current raw input state received from the driver.
      */
     protected VxMountInput currentInput = VxMountInput.NEUTRAL;
 
-    // Internal state tracking
-    private float inputThrottle = 0.0f;
-    private float inputSteer = 0.0f;
+    /**
+     * Internally tracked smoothed throttle for logic and sync.
+     */
+    private float smoothedThrottle = 0.0f;
 
-    // Debounce flags for shifting
-    private boolean wasShiftUpPressed = false;
-    private boolean wasShiftDownPressed = false;
+    /**
+     * Internally tracked smoothed steering for logic and sync.
+     */
+    private float smoothedSteer = 0.0f;
 
     /**
      * Server-side constructor.
+     *
+     * @param type   The registered body type.
+     * @param world  The physics world instance.
+     * @param id     The unique identifier.
+     * @param config The vehicle configuration.
      */
     public VxWheeledVehicle(VxBodyType<? extends VxWheeledVehicle> type, VxPhysicsWorld world, UUID id, VxWheeledVehicleConfig config) {
         super(type, world, id, config);
-        this.initializePowertrain();
-        this.initializeWheels();
+        this.initializeComponents();
     }
 
     /**
      * Client-side constructor.
+     *
+     * @param type   The registered body type.
+     * @param id     The unique identifier.
+     * @param config The vehicle configuration.
      */
     @Environment(EnvType.CLIENT)
     public VxWheeledVehicle(VxBodyType<? extends VxWheeledVehicle> type, UUID id, VxWheeledVehicleConfig config) {
         super(type, id, config);
-        this.initializePowertrain();
-        this.initializeWheels();
+        this.initializeComponents();
     }
 
     /**
-     * Overrides the return type of getConfig to return the specific wheeled config.
+     * {@inheritDoc}
+     * Overridden to return the specific wheeled configuration type.
      */
     @Override
     public VxWheeledVehicleConfig getConfig() {
         return (VxWheeledVehicleConfig) super.getConfig();
     }
 
-    // --- Abstract Methods ---
+    // --- Abstract Hooks ---
 
     /**
-     * Resolves a wheel definition ID to an actual definition object.
+     * Resolves the wheel definition for a given ID from the registry.
+     *
+     * @param wheelId The resource ID of the wheel.
+     * @return The definition, or null if missing.
      */
     protected abstract VxWheelDefinition resolveWheelDefinition(String wheelId);
 
     /**
-     * Defines the collision tester (CylinderCast vs RayCast).
+     * Creates the collision tester specific to the vehicle type.
+     * <p>
+     * Motorcycles typically use cylinder casting with a smaller width, while cars
+     * might use standard ray casting or cylinder casting matching wheel width.
+     *
+     * @return The configured collision tester.
      */
     protected abstract VehicleCollisionTester createCollisionTester();
 
     /**
-     * Creates the Jolt Constraint Settings from the vehicle config.
+     * Generates the Jolt constraint settings from the configuration.
+     * This defines the engine, transmission ratios, and differential setup.
+     *
+     * @param body The Jolt body instance to attach to.
+     * @return The fully configured constraint settings.
      */
     protected abstract VehicleConstraintSettings createConstraintSettings(Body body);
 
     /**
-     * Hooks up the specific Jolt controller reference (Car vs Motorcycle).
+     * Called after constraint creation to store type-specific Jolt controller references.
+     * e.g., {@code MotorcycleController} vs {@code WheeledVehicleController}.
      */
     protected abstract void updateJoltControllerReference();
 
     // --- Initialization ---
 
-    private void initializePowertrain() {
+    /**
+     * Initializes logical components such as wheels and the transmission module.
+     * Called by the constructor.
+     */
+    private void initializeComponents() {
         VxWheeledVehicleConfig cfg = getConfig();
-        this.engine = new VxEngineModule(
-                cfg.getEngine().getMaxTorque(),
-                cfg.getEngine().getMinRpm(),
-                cfg.getEngine().getMaxRpm()
-        );
 
-        this.transmission = new VxTransmissionModule(
-                cfg.getTransmission().getGearRatios(),
-                cfg.getTransmission().getReverseRatio(),
-                cfg.getTransmission().getSwitchTime()
-        );
-
-        // Set initial synced values if on server
-        if (this.physicsWorld != null) {
-            this.setServerData(SYNC_RPM, cfg.getEngine().getMinRpm());
-        }
-    }
-
-    private void initializeWheels() {
-        VxWheeledVehicleConfig cfg = getConfig();
+        // 1. Initialize Wheels from Config
         VxWheelDefinition defaultDef = resolveWheelDefinition(cfg.getDefaultWheelId());
-
-        if (defaultDef == null) {
-            defaultDef = VxWheelDefinition.missing();
-        }
+        if (defaultDef == null) defaultDef = VxWheelDefinition.missing();
 
         for (VehicleWheelSlot slot : cfg.getWheelSlots()) {
             this.mountWheel(slot, defaultDef);
         }
+
+        // 2. Initialize Transmission Module based on config mode
+        if (cfg.getTransmission().getMode() == ETransmissionMode.Auto) {
+            this.transmissionModule = new VxAutomaticTransmissionModule();
+        } else {
+            this.transmissionModule = new VxManualTransmissionModule(
+                    cfg.getTransmission().getSwitchTime(),
+                    cfg.getTransmission().getGearRatios().length
+            );
+        }
     }
 
+    /**
+     * Mounts a wheel to the vehicle logic.
+     * Creates the Jolt settings and the Velthoric part entity.
+     *
+     * @param slot The chassis slot configuration.
+     * @param def  The definition of the wheel item installed.
+     */
     private void mountWheel(VehicleWheelSlot slot, VxWheelDefinition def) {
         WheelSettingsWv settings = new WheelSettingsWv();
         Vector3f pos = slot.getPosition();
 
-        // Physical Setup
+        // Transfer physical properties to Jolt settings
         settings.setPosition(new com.github.stephengold.joltjni.Vec3(pos.x, pos.y, pos.z));
         settings.setSuspensionMinLength(slot.getSuspensionMinLength());
         settings.setSuspensionMaxLength(slot.getSuspensionMaxLength());
@@ -210,7 +268,7 @@ public abstract class VxWheeledVehicle extends VxVehicle {
         settings.setRadius(def.radius());
         settings.setWidth(def.width());
 
-        // Create logical Part
+        // Create logical Part and add to lists
         VxVehicleWheel wheel = new VxVehicleWheel(this, slot.getName(), settings, slot, def);
         this.wheels.add(wheel);
         this.addPart(wheel);
@@ -220,8 +278,7 @@ public abstract class VxWheeledVehicle extends VxVehicle {
 
     @Override
     protected void defineSyncData(VxSynchronizedData.Builder builder) {
-        super.defineSyncData(builder); // Define SYNC_SPEED
-
+        super.defineSyncData(builder); // Defines Speed sync
         builder.define(SYNC_RPM, 0.0f);
         builder.define(SYNC_GEAR, 0);
         builder.define(SYNC_THROTTLE, 0.0f);
@@ -229,27 +286,19 @@ public abstract class VxWheeledVehicle extends VxVehicle {
         builder.define(SYNC_WHEELS, new ArrayList<>());
     }
 
+    /**
+     * Called when synchronized data is received from the server (on Client).
+     * Used to push visual state updates to the wheel parts.
+     */
     @Override
     public void onSyncedDataUpdated(VxServerAccessor<?> accessor) {
         super.onSyncedDataUpdated(accessor);
 
-        if (accessor.equals(SYNC_RPM)) {
-            this.engine.setSynchronizedRpm(getSynchronizedData().get(SYNC_RPM));
-
-        } else if (accessor.equals(SYNC_GEAR)) {
-            this.transmission.setSynchronizedGear(getSynchronizedData().get(SYNC_GEAR));
-
-        } else if (accessor.equals(SYNC_THROTTLE)) {
-            this.inputThrottle = getSynchronizedData().get(SYNC_THROTTLE);
-
-        } else if (accessor.equals(SYNC_STEER)) {
-            this.inputSteer = getSynchronizedData().get(SYNC_STEER);
-
-        } else if (accessor.equals(SYNC_WHEELS)) {
-            // Distribute wheel state to interpolation targets on the client
+        if (accessor.equals(SYNC_WHEELS)) {
             List<VxVehicleWheelState> states = getSynchronizedData().get(SYNC_WHEELS);
             int count = Math.min(states.size(), wheels.size());
             for (int i = 0; i < count; i++) {
+                // Update client interpolation targets for rendering
                 wheels.get(i).updateClientTarget(
                         states.get(i).rotation(),
                         states.get(i).steer(),
@@ -261,6 +310,10 @@ public abstract class VxWheeledVehicle extends VxVehicle {
 
     // --- Physics Lifecycle ---
 
+    /**
+     * Called when the body is successfully added to the physics world.
+     * Initializes the Jolt vehicle constraint and collision tester.
+     */
     @Override
     public void onBodyAdded(VxPhysicsWorld world) {
         super.onBodyAdded(world);
@@ -268,7 +321,7 @@ public abstract class VxWheeledVehicle extends VxVehicle {
         Body body = VxJoltBridge.INSTANCE.getJoltBody(world, getBodyId());
         if (body == null) return;
 
-        // 1. Create Collision Tester & Constraint Settings
+        // 1. Create native Jolt objects
         this.collisionTester = createCollisionTester();
         this.constraintSettings = createConstraintSettings(body);
 
@@ -277,22 +330,26 @@ public abstract class VxWheeledVehicle extends VxVehicle {
             this.constraintSettings.addWheels(wheel.getSettings());
         }
 
-        // 3. Create Constraint
+        // 3. Create and configure Constraint
         this.constraint = new VehicleConstraint(body, this.constraintSettings);
         this.constraint.setVehicleCollisionTester(this.collisionTester);
 
-        // 4. Register
+        // 4. Register with system
         world.getPhysicsSystem().addConstraint(constraint);
         world.getPhysicsSystem().addStepListener(constraint.getStepListener());
 
+        // 5. Initialize controller cache
         this.updateJoltControllerReference();
     }
 
+    /**
+     * Called when the body is removed from the physics world.
+     * Cleans up native Jolt resources to prevent memory leaks.
+     */
     @Override
     public void onBodyRemoved(VxPhysicsWorld world, VxRemovalReason reason) {
         super.onBodyRemoved(world, reason);
 
-        // Clean up Jolt resources
         if (constraint != null) {
             world.getPhysicsSystem().removeStepListener(constraint.getStepListener());
             world.getPhysicsSystem().removeConstraint(constraint);
@@ -309,12 +366,16 @@ public abstract class VxWheeledVehicle extends VxVehicle {
         }
     }
 
+    /**
+     * Main physics update loop.
+     * Handles input processing, transmission logic, and state synchronization.
+     */
     @Override
     public void onPhysicsTick(VxPhysicsWorld world) {
         super.onPhysicsTick(world);
         if (constraint == null) return;
 
-        // Wake up body if input exists
+        // Keep body awake if player is providing input
         if (!this.currentInput.equals(VxMountInput.NEUTRAL)) {
             BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
             if (!bodyInterface.isActive(getBodyId())) {
@@ -322,151 +383,79 @@ public abstract class VxWheeledVehicle extends VxVehicle {
             }
         }
 
-        float dt = 1.0f / 60.0f;
-        this.processDriverInput(dt);
-
         Body joltBody = VxJoltBridge.INSTANCE.getJoltBody(world, getBodyId());
-        if (joltBody != null && joltBody.isActive()) {
 
-            // --- Transmission Logic ---
-            if (getConfig().getTransmission().getMode() == ETransmissionMode.Manual) {
-                transmission.update(dt);
+        // Only run logic if the physics body is valid and active
+        if (joltBody != null && joltBody.isActive() && constraint.getController() instanceof WheeledVehicleController controller) {
 
-                boolean shiftUp = currentInput.hasAction(VxMountInput.FLAG_SHIFT_UP);
-                if (shiftUp && !wasShiftUpPressed) transmission.shiftUp();
-                wasShiftUpPressed = shiftUp;
+            float dt = 1.0f / 60.0f; // Fixed timestep approximation
 
-                boolean shiftDown = currentInput.hasAction(VxMountInput.FLAG_SHIFT_DOWN);
-                if (shiftDown && !wasShiftDownPressed) transmission.shiftDown();
-                wasShiftDownPressed = shiftDown;
-            } else {
-                // Automatic: Sync generic transmission with Jolt controller state
-                if (constraint.getController() instanceof WheeledVehicleController wvc) {
-                    transmission.setSynchronizedGear(wvc.getTransmission().getCurrentGear());
-                }
-                wasShiftUpPressed = false;
-                wasShiftDownPressed = false;
-            }
+            // 1. Process and Smooth Driver Inputs
+            float targetThrottle = currentInput.getForwardAmount();
+            this.smoothedThrottle = Mth.lerp(dt * 5.0f, smoothedThrottle, targetThrottle);
 
-            // --- Engine Physics ---
-            // Calculate average wheel RPM to feedback into engine
-            float avgWheelRpm = 0;
-            int poweredCount = 0;
-            for (int i = 0; i < wheels.size(); i++) {
-                if (wheels.get(i).isPowered()) {
-                    avgWheelRpm += Math.abs(constraint.getWheel(i).getAngularVelocity()) * 9.55f;
-                    poweredCount++;
-                }
-            }
-            if (poweredCount > 0) avgWheelRpm /= poweredCount;
+            float targetSteer = currentInput.getRightAmount();
+            steeringHelper.setTargetAngle(targetSteer);
+            steeringHelper.update(dt);
+            this.smoothedSteer = steeringHelper.getCurrentAngle();
 
-            // Determine if clutch is engaged (Always engaged for Auto, depends on shift timer for Manual)
-            boolean clutchEngaged = (getConfig().getTransmission().getMode() == ETransmissionMode.Auto) || !transmission.isShifting();
-            engine.update(Math.abs(inputThrottle), avgWheelRpm, transmission.getCurrentRatio(), clutchEngaged);
+            // Create a temporary input state with smoothed values if strictly necessary,
+            // but currently passing raw flags + smoothed steering happens inside the module logic.
 
-            // --- Wheel State Sync ---
+            // 2. Determine signed forward speed for transmission logic
+            // Dot product of velocity vector and vehicle forward vector gives signed speed.
+            Vec3 vel = joltBody.getLinearVelocity();
+            Vec3 forward = constraint.getVehicleBody().getRotation().rotateAxisZ(); // Assuming Z is forward
+            float speedSigned = vel.dot(forward);
+
+            // 3. Update Transmission Logic
+            // This applies the calculated inputs directly to the Jolt controller
+            transmissionModule.update(dt, currentInput, speedSigned, controller);
+
+            // 4. Retrieve State from Jolt for Synchronization
+            // Jolt manages the actual engine RPM and automatic gear selection
+            VehicleEngine engine = controller.getEngine();
+            int currentGear = transmissionModule.getDisplayGear(); // Use logic gear for manual, or Jolt gear for auto
+            float currentRpm = engine.getCurrentRpm();
+
+            // 5. Update Wheel Parts
             List<VxVehicleWheelState> wheelStates = new ArrayList<>(wheels.size());
             for (int i = 0; i < wheels.size(); i++) {
                 Wheel w = constraint.getWheel(i);
 
-                // Update local component
+                // Update server-side logic state (for hitboxes etc)
                 wheels.get(i).updatePhysicsState(w.getRotationAngle(), w.getSteerAngle(), w.getSuspensionLength(), w.hasContact());
 
-                // Collect for network
+                // Collect visual state for network
                 wheelStates.add(new VxVehicleWheelState(w.getRotationAngle(), w.getSteerAngle(), w.getSuspensionLength()));
             }
 
-            // --- Send Data to Clients ---
-            setServerData(SYNC_RPM, engine.getRpm());
-            setServerData(SYNC_GEAR, transmission.getGear());
-            setServerData(SYNC_THROTTLE, this.inputThrottle);
-            setServerData(SYNC_STEER, this.inputSteer);
+            // 6. Send Data to Clients
+            setServerData(SYNC_RPM, currentRpm);
+            setServerData(SYNC_GEAR, currentGear);
+            setServerData(SYNC_THROTTLE, smoothedThrottle);
+            setServerData(SYNC_STEER, smoothedSteer);
             setServerData(SYNC_WHEELS, wheelStates);
-
-            // --- Apply Inputs to Jolt ---
-            this.updateJoltController();
         }
     }
 
     /**
-     * Applies the calculated inputs to the underlying Jolt Vehicle Controller.
+     * Handles input updates received from the controlling player.
+     *
+     * @param player The player sending the input.
+     * @param input  The new input state.
      */
-    protected void updateJoltController() {
-        if (constraint == null) return;
-
-        if (constraint.getController() instanceof WheeledVehicleController controller) {
-            float throttle = inputThrottle;
-            float brake = 0.0f;
-            int gear = transmission.getGear();
-
-            // Smart Gas/Brake logic based on gear
-            if (gear > 0 && throttle < 0) {
-                brake = Math.abs(throttle);
-                throttle = 0;
-            } else if (gear == -1 && throttle > 0) {
-                brake = throttle;
-                throttle = 0;
-            }
-
-            // Auto-brake at standstill
-            if (throttle == 0 && brake == 0 && Math.abs(getSpeedKmh()) < 1.0f) {
-                brake = 1.0f;
-            }
-
-            float handbrake = currentInput.hasAction(VxMountInput.FLAG_HANDBRAKE) ? 1.0f : 0.0f;
-            controller.setDriverInput(Math.abs(throttle), inputSteer, brake, handbrake);
-
-            // Manual Clutch logic
-            if (getConfig().getTransmission().getMode() == ETransmissionMode.Manual) {
-                float clutch = transmission.isShifting() ? 0.0f : 1.0f;
-                controller.getTransmission().set(gear, clutch);
-            }
-        }
-    }
-
-    /**
-     * Smooths raw inputs.
-     */
-    protected void processDriverInput(float dt) {
-        float targetThrottle = currentInput.getForwardAmount();
-        this.inputThrottle = Mth.lerp(dt * 5.0f, inputThrottle, targetThrottle);
-
-        float targetSteer = currentInput.getRightAmount();
-        steeringHelper.setTargetAngle(targetSteer);
-        steeringHelper.update(dt);
-        this.inputSteer = steeringHelper.getCurrentAngle();
-    }
-
     @Override
     public void handleDriverInput(ServerPlayer player, VxMountInput input) {
         this.currentInput = input;
-        int bodyId = getBodyId();
-        if (bodyId != 0) this.physicsWorld.getPhysicsSystem().getBodyInterface().activateBody(bodyId);
     }
 
     /**
-     * Runtime method to swap a wheel definition on a specific slot.
+     * Gets the list of wheel parts.
+     *
+     * @return The list of wheels.
      */
-    public void equipWheel(String slotName, VxWheelDefinition newDef) {
-        for (VxVehicleWheel wheel : this.wheels) {
-            if (wheel.getSlot().getName().equals(slotName)) {
-                wheel.setDefinition(newDef);
-                wheel.getSettings().setRadius(newDef.radius());
-                wheel.getSettings().setWidth(newDef.width());
-                return;
-            }
-        }
-    }
-
     public List<VxVehicleWheel> getWheels() {
         return wheels;
-    }
-
-    public VxEngineModule getEngine() {
-        return engine;
-    }
-
-    public VxTransmissionModule getTransmission() {
-        return transmission;
     }
 }
