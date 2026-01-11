@@ -5,6 +5,7 @@
 package net.xmx.velthoric.config;
 
 import com.google.gson.*;
+import net.xmx.velthoric.init.VxMainClass;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -59,7 +60,7 @@ public class VxConfigSpec {
                 fileJson = JsonParser.parseString(Files.readString(path)).getAsJsonObject();
             } catch (Exception e) {
                 // Log failure but proceed to overwrite with defaults to restore functionality
-                System.err.println("VxConfig: Failed to parse config file, resetting to defaults. " + e.getMessage());
+                VxMainClass.LOGGER.error("VxConfig: Failed to parse config file, resetting to defaults. " + e.getMessage());
                 fileJson = null;
             }
         }
@@ -194,7 +195,7 @@ public class VxConfigSpec {
             return element.getAsString();
         } catch (Exception e) {
             // Fallback if the user typed "true" for an Integer field, etc.
-            System.err.println("VxConfig: Type mismatch for config entry. Using default. " + e.getMessage());
+            VxMainClass.LOGGER.error("VxConfig: Type mismatch for config entry. Using default. " + e.getMessage());
             return null;
         }
     }
