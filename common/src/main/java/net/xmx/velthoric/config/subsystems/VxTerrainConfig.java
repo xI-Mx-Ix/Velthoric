@@ -29,7 +29,7 @@ public class VxTerrainConfig {
         this.preloadRadius = builder.defineInRange("preload_radius_chunks", 3, 1, 12, "Radius to preload terrain around clusters based on velocity.");
         this.predictionSeconds = builder.define("prediction_seconds", 0.5d, "Time in seconds to predict body movement for loading terrain ahead.");
         this.maxPredictionDistance = builder.defineInRange("max_prediction_distance", 64.0d, 16.0d, 512.0d, "Maximum distance in blocks to preload terrain based on velocity. Acts as a clamp for fast moving objects.");
-        this.maxChunksPerCluster = builder.define("max_chunks_per_cluster_safety", 4096, "Safety brake: Max chunks a single cluster can request before ignoring.");
+        this.maxChunksPerCluster = builder.define("max_chunks_per_cluster_safety", 20000, "Safety brake: Max chunks a single cluster can request before ignoring.");
         this.maxGenHeight = builder.define("max_generation_height", 500, "Max Y-level for terrain tracking.");
         this.minGenHeight = builder.define("min_generation_height", -250, "Min Y-level for terrain tracking.");
     }
