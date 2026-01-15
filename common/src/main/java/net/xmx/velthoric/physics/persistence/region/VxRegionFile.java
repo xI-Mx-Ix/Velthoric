@@ -36,7 +36,6 @@ public class VxRegionFile implements AutoCloseable {
 
     private static final int SECTOR_SIZE = 4096;
     private static final int HEADER_SIZE = 4096;
-    private static final ByteBuffer EMPTY_SECTOR = ByteBuffer.allocateDirect(SECTOR_SIZE);
 
     private final Path path;
     private FileChannel fileChannel;
@@ -73,6 +72,16 @@ public class VxRegionFile implements AutoCloseable {
         } else {
             writeHeader();
         }
+    }
+
+    /**
+     * Checks if the file channel is currently open.
+     * Used by the cache to determine if a file was auto-deleted/closed.
+     *
+     * @return true if open, false otherwise.
+     */
+    public boolean isOpen() {
+        return fileChannel != null && fileChannel.isOpen();
     }
 
     /**
@@ -159,9 +168,11 @@ public class VxRegionFile implements AutoCloseable {
     /**
      * Writes a data chunk to the file.
      * <p>
-     * If the provided data buffer is empty (0 readable bytes), this method considers it a
-     * deletion request. The chunk entry is removed from the header, and the disk sectors
-     * are marked as free in the allocation bitmap.
+     * If {@code data} is empty, the chunk is removed.
+     * <p>
+     * <b>Garbage Collection:</b> If a deletion causes the entire region file to become
+     * empty (all 1024 chunks are null), this method automatically closes the file
+     * and deletes it from the disk to save space.
      *
      * @param pos  The chunk position.
      * @param data The buffer containing the data to write.
@@ -178,7 +189,6 @@ public class VxRegionFile implements AutoCloseable {
             int dataSize = data.readableBytes();
 
             // --- Case 1: Deletion (Empty Data) ---
-            // If the buffer is empty, we remove the chunk from the file system.
             if (dataSize == 0) {
                 if (oldEntry != 0) {
                     // 1. Mark previously used sectors as free in the bitmap
@@ -196,12 +206,14 @@ public class VxRegionFile implements AutoCloseable {
                     headerEntry.putInt(0);
                     headerEntry.flip();
                     fileChannel.write(headerEntry, index * 4L);
+
+                    // 4. Check if file is completely empty now
+                    checkAndPruneFile();
                 }
-                // No further action needed for deletion
                 return;
             }
 
-            // --- Case 2: Writing Data ---
+            // --- Case 2: Writing Data (Standard Logic) ---
             // Payload size + 4 bytes for length prefix
             int totalSize = dataSize + 4;
             int sectorsNeeded = (totalSize + SECTOR_SIZE - 1) / SECTOR_SIZE;
@@ -213,12 +225,11 @@ public class VxRegionFile implements AutoCloseable {
 
             int newSectorOffset;
 
-            // Strategy: Reuse existing sectors if the size requirement matches exactly.
-            // Otherwise, free the old sectors and allocate a new contiguous block.
+            // Reuse existing sectors if size matches
             if (oldSectorOffset != 0 && oldSectorCount == sectorsNeeded) {
                 newSectorOffset = oldSectorOffset;
             } else {
-                // Free old sectors first
+                // Free old sectors
                 if (oldSectorOffset != 0) {
                     for (int i = 0; i < oldSectorCount; i++) {
                         usedSectors.clear(oldSectorOffset + i);
@@ -294,6 +305,28 @@ public class VxRegionFile implements AutoCloseable {
 
         for (int k = 0; k < count; k++) usedSectors.set(newOffset + k);
         return newOffset;
+    }
+
+    /**
+     * Scans the location table. If all entries are 0 (empty),
+     * the file is closed and deleted from the file system.
+     */
+    private void checkAndPruneFile() throws IOException {
+        for (int offset : offsets) {
+            if (offset != 0) {
+                return; // File still has data
+            }
+        }
+
+        // File is completely empty
+        // Close the channel first to release file locks (crucial on Windows)
+        close();
+
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException e) {
+            VxMainClass.LOGGER.warn("Failed to delete empty region file: {}", path, e);
+        }
     }
 
     private int getIndex(ChunkPos pos) {

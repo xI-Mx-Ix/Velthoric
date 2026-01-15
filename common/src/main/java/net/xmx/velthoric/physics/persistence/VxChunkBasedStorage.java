@@ -71,6 +71,9 @@ public abstract class VxChunkBasedStorage<T, D> {
 
     /**
      * Loads all objects for a specific chunk asynchronously.
+     * <p>
+     * <b>Lazy Loading:</b> If the region file does not exist on disk, this method
+     * returns an empty list immediately instead of creating an empty file.
      *
      * @param pos The chunk position.
      * @return A future containing the list of deserialized data objects.
@@ -86,7 +89,14 @@ public abstract class VxChunkBasedStorage<T, D> {
 
             // 2. Read from disk
             try {
-                VxRegionFile regionFile = regionCache.getRegionFile(pos);
+                // Request the file only if it exists (create=false)
+                VxRegionFile regionFile = regionCache.getRegionFile(pos, false);
+
+                // If file doesn't exist, we have no data
+                if (regionFile == null) {
+                    return Collections.emptyList();
+                }
+
                 ByteBuf diskBuf = regionFile.read(pos);
                 if (diskBuf != null) {
                     try {
@@ -148,6 +158,12 @@ public abstract class VxChunkBasedStorage<T, D> {
 
     /**
      * Flushes all pending buffers to disk.
+     * <p>
+     * <b>Optimized Saving:</b>
+     * <ul>
+     *     <li>If writing data: Creates the file if missing.</li>
+     *     <li>If deleting data (empty buffer): Does NOT create the file if it is missing.</li>
+     * </ul>
      *
      * @param sync If true, blocks until all writes are complete.
      */
@@ -156,27 +172,31 @@ public abstract class VxChunkBasedStorage<T, D> {
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        // Snapshot key set to iterate safe
         for (Long chunkKey : pendingWrites.keySet()) {
             ByteBuf buffer = pendingWrites.remove(chunkKey);
             if (buffer == null) continue;
 
             ChunkPos pos = new ChunkPos(chunkKey);
-            
-            // Retain buffer for the async task, as it's removed from map
-            // Actually, simply removing it transfers ownership to the IO task.
-            
+
             CompletableFuture<Void> writeTask = CompletableFuture.runAsync(() -> {
                 try {
-                    VxRegionFile regionFile = regionCache.getRegionFile(pos);
-                    if (buffer.isReadable()) {
-                        regionFile.write(pos, buffer);
-                    } else {
-                        // Handle deletion/empty chunk logic if region file supports it.
-                        // For now, we write 0-length data or implement a delete method in VxRegionFile.
-                        // Assuming write with 0 length acts as clear or placeholder.
-                        regionFile.write(pos, Unpooled.EMPTY_BUFFER);
+                    boolean isDeletion = !buffer.isReadable();
+
+                    // Only create the file if we actually have data to write.
+                    // If we are deleting (empty buffer), pass false to prevent creating a file just to write 0s.
+                    VxRegionFile regionFile = regionCache.getRegionFile(pos, !isDeletion);
+
+                    if (regionFile != null) {
+                        if (!isDeletion) {
+                            regionFile.write(pos, buffer);
+                        } else {
+                            // Write empty buffer to clear the sector
+                            regionFile.write(pos, Unpooled.EMPTY_BUFFER);
+                        }
                     }
+                    // If regionFile is null here, it means we wanted to delete data from a file
+                    // that doesn't exist on disk -> Operation is effectively already done.
+
                 } catch (IOException e) {
                     VxMainClass.LOGGER.error("Failed to flush chunk {}", pos, e);
                 } finally {
@@ -185,7 +205,7 @@ public abstract class VxChunkBasedStorage<T, D> {
                     }
                 }
             }, ioProcessor.getExecutor());
-            
+
             futures.add(writeTask);
         }
 
