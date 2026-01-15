@@ -11,243 +11,339 @@ import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.storage.LevelResource;
 import net.xmx.velthoric.init.VxMainClass;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.CRC32;
 
 /**
- * The base implementation for a chunk-based/region-based storage system.
+ * The high-performance base class for region-based storage systems.
  * <p>
- * <b>Architectural Change:</b>
- * This class no longer manages threads or file I/O directly. It acts as a bridge between
- * the high-level game objects (Maps of data) and the low-level {@link VxIOProcessor}.
+ * <b>Architecture Change (Massive Optimization):</b>
+ * Unlike previous iterations that used a "Transaction-based" approach (creating a Future for every single operation),
+ * this storage system operates on a <b>"Hot Map"</b> principle.
  * <p>
- * Responsibilities:
- * 1. Managing the {@link VxRegionIndex}.
- * 2. Caching loaded regions in memory ({@code loadedRegions}).
- * 3. Serializing/Deserializing data (Data <-> Byte Array) + Checksum validation.
- * 4. Delegating file operations to the {@code VxIOProcessor}.
+ * 1. <b>Instant Mutation:</b> Operations like {@link #putInMemory} or {@link #removeInMemory} modify
+ * the in-memory {@link ConcurrentHashMap} <b>immediately</b>. This allows bulk operations (like removing 20,000 bodies)
+ * to execute in nanoseconds without creating thousands of tasks or futures.<br>
+ * 2. <b>Dirty State:</b> When data is modified, the containing region is marked as "dirty" via an {@link AtomicBoolean}.<br>
+ * 3. <b>Lazy Persistence:</b> The {@link #saveDirtyRegions()} method must be called periodically (e.g., auto-save).
+ * It snapshots the dirty maps and offloads the heavy work (serialization and disk I/O) to the {@link VxIOProcessor}.
  *
- * @param <K> The key type (e.g., UUID).
- * @param <V> The value type (e.g., serialized byte array of a body).
- *
+ * @param <K> The key type (typically UUID).
+ * @param <V> The value type (typically serialized byte array).
  * @author xI-Mx-Ix
  */
 public abstract class VxAbstractRegionStorage<K, V> {
 
     /**
-     * A simple record representing the coordinates of a 32x32 chunk region.
+     * Represents a coordinate of a storage region (usually 32x32 chunks).
      */
-    public record RegionPos(int x, int z) {}
+    public record RegionPos(int x, int z) {
+    }
 
     /**
-     * In-memory cache of deserialized region data.
-     * This allows instant access to data without querying the worker if it's already loaded.
+     * Internal container for a loaded region's data in RAM.
      */
-    protected final ConcurrentHashMap<RegionPos, Map<K, V>> loadedRegions = new ConcurrentHashMap<>();
+    protected static class RegionHolder<K, V> {
+        /**
+         * The live data map.
+         * Thread-safe for concurrent read/write access from the game thread and IO thread.
+         */
+        final ConcurrentHashMap<K, V> data = new ConcurrentHashMap<>();
+
+        /**
+         * Indicates if this region has changes that need to be flushed to disk.
+         */
+        final AtomicBoolean dirty = new AtomicBoolean(false);
+    }
 
     protected final ServerLevel level;
     protected final Path storagePath;
     protected final String filePrefix;
     protected VxRegionIndex regionIndex;
-
-    /**
-     * The dedicated sequential worker handling all file interactions for this storage type.
-     */
     protected final VxIOProcessor ioWorker;
 
+    /**
+     * Cache of currently loaded regions. Access to this map is extremely fast (hot path).
+     */
+    protected final ConcurrentHashMap<RegionPos, RegionHolder<K, V>> loadedRegions = new ConcurrentHashMap<>();
+
+    /**
+     * Constructs the storage system.
+     *
+     * @param level            The server level context.
+     * @param storageSubFolder The subfolder name (e.g., "body").
+     * @param filePrefix       The prefix for region files (e.g., "body").
+     */
     public VxAbstractRegionStorage(ServerLevel level, String storageSubFolder, String filePrefix) {
         this.level = level;
         this.filePrefix = filePrefix;
 
-        // Resolve paths (e.g., world/velthoric/body)
         Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
         Path dimensionRoot = DimensionType.getStorageFolder(level.dimension(), worldRoot);
         this.storagePath = dimensionRoot.resolve("velthoric").resolve(storageSubFolder);
 
-        // Initialize the dedicated worker
-        this.ioWorker = new VxIOProcessor(this.storagePath, this.filePrefix);
+        // A dedicated worker per storage type ensures maximum I/O throughput
+        this.ioWorker = new VxIOProcessor(filePrefix);
     }
 
-    protected abstract VxRegionIndex createRegionIndex();
+    /**
+     * Factory method to create the specific index implementation.
+     */
+    protected abstract VxRegionIndex createRegionIndex(VxIOProcessor processor);
 
     /**
-     * Sets up the storage directory and loads the index.
+     * Initializes the storage directory and loads the index.
      */
     public void initialize() {
-        this.regionIndex = createRegionIndex();
+        this.regionIndex = createRegionIndex(ioWorker);
         try {
             Files.createDirectories(storagePath);
             if (regionIndex != null) {
                 regionIndex.load();
             }
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to create Velthoric storage directory: " + storagePath, e);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to init storage: " + storagePath, e);
         }
     }
 
     /**
-     * Shuts down the storage system, closing the worker and clearing caches.
+     * Shuts down the storage system, flushing all pending data and closing the I/O worker.
      */
     public void shutdown() {
-        loadedRegions.clear();
+        // Force flush before closing to ensure no data loss
+        saveDirtyRegions().join();
         ioWorker.close();
+        loadedRegions.clear();
+    }
+
+    // =================================================================================
+    //  High-Performance In-Memory Operations
+    // =================================================================================
+
+    /**
+     * Instantly updates data in the hot map.
+     * <p>
+     * This operation is blocking-free (RAM only) and thread-safe. It marks the region as dirty,
+     * ensuring the data will be persisted during the next flush cycle.
+     *
+     * @param key   The object key (UUID).
+     * @param value The object data.
+     * @param pos   The region position where the data belongs.
+     */
+    protected void putInMemory(K key, V value, RegionPos pos) {
+        // Ensure region container exists (fast RAM lookup)
+        RegionHolder<K, V> holder = loadedRegions.computeIfAbsent(pos, k -> new RegionHolder<>());
+
+        // Update data instantly
+        holder.data.put(key, value);
+        holder.dirty.set(true);
+
+        // Update global index instantly
+        if (regionIndex != null) {
+            regionIndex.put((UUID) key, pos);
+        }
     }
 
     /**
-     * Iterates over all currently loaded regions and schedules them for saving.
+     * Instantly removes data from the hot map.
      * <p>
-     * This implementation takes a "Safe" approach: it resubmits all loaded regions to the worker.
-     * The worker's {@code compute} method will update the pending write cache. If data hasn't
-     * changed significantly, overhead is mainly serialization, but it ensures no data loss.
+     * This operation is blocking-free (RAM only). Even if 20,000 items are removed,
+     * this method returns immediately for each item, deferring the disk I/O cost.
      *
-     * @return A future that completes when all dirty data is flushed to disk.
+     * @param key The object key (UUID).
+     */
+    protected void removeInMemory(K key) {
+        if (regionIndex == null) return;
+
+        // Look up location
+        RegionPos pos = regionIndex.get((UUID) key);
+        if (pos == null) return; // Not persistent, nothing to do
+
+        RegionHolder<K, V> holder = loadedRegions.get(pos);
+        if (holder != null) {
+            // Remove directly from RAM. Instant.
+            if (holder.data.remove(key) != null) {
+                holder.dirty.set(true);
+            }
+        }
+
+        // Update index instantly
+        regionIndex.remove((UUID) key);
+    }
+
+    /**
+     * Retrieves data from the hot map if the region is already loaded.
+     *
+     * @param key The key to look up.
+     * @return The value, or {@code null} if the region is not loaded or the key doesn't exist.
+     */
+    protected V getFromMemory(K key) {
+        if (regionIndex == null) return null;
+        RegionPos pos = regionIndex.get((UUID) key);
+        if (pos == null) return null;
+
+        RegionHolder<K, V> holder = loadedRegions.get(pos);
+        return holder != null ? holder.data.get(key) : null;
+    }
+
+    // =================================================================================
+    //  Persistence / IO
+    // =================================================================================
+
+    /**
+     * Asynchronously loads a region from disk into the hot map.
+     * <p>
+     * If the region is already in RAM, it returns the existing data immediately.
+     * Otherwise, it schedules a read task on the I/O worker.
+     *
+     * @param pos The position to load.
+     * @return A {@link CompletableFuture} that completes with the map of data.
+     */
+    protected CompletableFuture<Map<K, V>> loadRegionAsync(RegionPos pos) {
+        // Check RAM first (Fast Path)
+        RegionHolder<K, V> existing = loadedRegions.get(pos);
+        if (existing != null) {
+            return CompletableFuture.completedFuture(existing.data);
+        }
+
+        // Trigger disk read (Slow Path)
+        return ioWorker.submitRead(getRegionPath(pos)).thenApply(bytes -> {
+            // Compute again inside the future in case another thread loaded it meanwhile
+            RegionHolder<K, V> holder = loadedRegions.computeIfAbsent(pos, k -> new RegionHolder<>());
+
+            if (bytes != null && bytes.length > 0) {
+                // Deserialize only if we actually read data
+                deserializeRegion(bytes, holder.data);
+            }
+            return holder.data;
+        });
+    }
+
+    /**
+     * Flushes all dirty regions to disk.
+     * <p>
+     * This iterates over the in-memory maps, creates a snapshot of any dirty regions,
+     * and queues them for writing. This ensures data consistency without blocking the game loop
+     * for the duration of the disk write.
+     *
+     * @return A {@link CompletableFuture} that completes when all dirty regions are queued for writing.
      */
     public CompletableFuture<Void> saveDirtyRegions() {
-        List<CompletableFuture<Void>> saveFutures = new ArrayList<>();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        // Iterate all loaded regions and schedule save
-        loadedRegions.forEach((pos, data) -> {
-            if (!data.isEmpty()) {
-                saveFutures.add(this.saveRegion(pos));
-            }
-        });
-
+        // Save Global Index
         if (regionIndex != null) {
-            saveFutures.add(regionIndex.save());
+            futures.add(regionIndex.save());
         }
 
-        // 1. Wait for all 'store' commands to be queued in the worker
-        // 2. Then call synchronize(true) to force the worker to actually write everything to disk
-        return CompletableFuture.allOf(saveFutures.toArray(new CompletableFuture[0]))
-                .thenCompose(v -> ioWorker.synchronize(true));
-    }
+        // Save Dirty Regions
+        for (Map.Entry<RegionPos, RegionHolder<K, V>> entry : loadedRegions.entrySet()) {
+            RegionHolder<K, V> holder = entry.getValue();
+            RegionPos pos = entry.getKey();
 
-    /**
-     * Serializes the current state of a region and submits it to the I/O worker.
-     *
-     * @param pos The position of the region to save.
-     * @return A future that completes when the file is physically written.
-     */
-    public CompletableFuture<Void> saveRegion(RegionPos pos) {
-        Map<K, V> data = loadedRegions.get(pos);
+            // CAS (Compare-And-Set) to ensure we only save if dirty, and reset the flag atomically.
+            if (holder.dirty.compareAndSet(true, false)) {
+                // Snapshot the data to avoid ConcurrentModification during serialization.
+                // Since this is a batch operation (e.g., auto-save), creating a new HashMap copy
+                // is acceptable overhead compared to blocking file I/O.
+                Map<K, V> snapshot = new HashMap<>(holder.data);
 
-        // If the region isn't loaded or is empty, we effectively do nothing (or clear it).
-        // Here we assume if it's not in map, we don't touch the file.
-        if (data == null) return CompletableFuture.completedFuture(null);
-
-        // 1. CPU Bound Work: Serialize the map to a byte array with checksum.
-        // We do this on the calling thread (or common pool) to avoid blocking the I/O thread with compression/hashing.
-        byte[] serializedData = serializeRegion(data);
-
-        // 2. I/O Bound Work: Submit to the worker queue.
-        return ioWorker.store(pos, serializedData);
-    }
-
-    /**
-     * Asynchronously loads a region.
-     *
-     * @param pos The position of the region.
-     * @return A future containing the Map of data for that region.
-     */
-    protected CompletableFuture<Map<K, V>> getRegion(RegionPos pos) {
-        // Check in-memory cache first
-        Map<K, V> existing = loadedRegions.get(pos);
-        if (existing != null) {
-            return CompletableFuture.completedFuture(existing);
-        }
-
-        // Request raw bytes from the I/O worker
-        return ioWorker.load(pos).thenApply(bytes -> {
-            // This runs once the I/O thread has fetched the bytes (or grabbed them from write-cache).
-            Map<K, V> map = new ConcurrentHashMap<>();
-            if (bytes != null && bytes.length > 0) {
-                // Deserialize verifies checksum and populates the map
-                deserializeRegion(bytes, map);
+                // Submit serialization and write task
+                futures.add(serializeAndWrite(pos, snapshot));
             }
-            // Update cache
-            loadedRegions.put(pos, map);
-            return map;
-        });
+        }
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     /**
-     * Serializes the map into the binary format: [Checksum (8 bytes)][Data].
+     * Serializes the map and submits it to the I/O worker.
      */
-    private byte[] serializeRegion(Map<K, V> entries) {
-        if (entries.isEmpty()) return null;
+    private CompletableFuture<Void> serializeAndWrite(RegionPos pos, Map<K, V> data) {
+        // If the map is empty, we effectively write an empty file (or delete logic in worker could handle it).
+        if (data.isEmpty()) {
+            return ioWorker.submitWrite(getRegionPath(pos), new byte[0]);
+        }
 
-        ByteBuf dataBuffer = Unpooled.buffer();
         try {
-            writeRegionData(dataBuffer, entries);
-            if (dataBuffer.readableBytes() == 0) return null;
+            ByteBuf buffer = Unpooled.buffer();
+            writeRegionData(buffer, data);
 
-            // Calculate CRC32 Checksum for data integrity
+            byte[] payload = new byte[buffer.readableBytes()];
+            buffer.readBytes(payload);
+            buffer.release();
+
+            // Add Checksum for integrity
             CRC32 crc = new CRC32();
-            crc.update(dataBuffer.nioBuffer());
+            crc.update(payload);
             long checksum = crc.getValue();
 
-            // Create final array
-            byte[] finalBytes = new byte[8 + dataBuffer.readableBytes()];
-            ByteBuffer buffer = ByteBuffer.wrap(finalBytes);
+            // Final Payload: [Checksum (long)] + [Data bytes]
+            ByteBuf fileBuf = Unpooled.buffer(payload.length + 8);
+            fileBuf.writeLong(checksum);
+            fileBuf.writeBytes(payload);
 
-            // Write Header
-            buffer.putLong(checksum);
+            byte[] finalBytes = new byte[fileBuf.readableBytes()];
+            fileBuf.readBytes(finalBytes);
+            fileBuf.release();
 
-            // Write Data
-            dataBuffer.readBytes(finalBytes, 8, dataBuffer.readableBytes());
+            return ioWorker.submitWrite(getRegionPath(pos), finalBytes);
 
-            return finalBytes;
-        } finally {
-            dataBuffer.release();
+        } catch (Exception e) {
+            VxMainClass.LOGGER.error("Failed to serialize region {}", pos, e);
+            return CompletableFuture.completedFuture(null);
         }
     }
 
     /**
-     * Deserializes raw file bytes into the provided map, performing validation.
+     * Validates checksum and deserializes raw file bytes into the target map.
      */
-    private void deserializeRegion(byte[] fileBytes, Map<K, V> targetMap) {
-        if (fileBytes.length < 8) {
-            VxMainClass.LOGGER.warn("Velthoric region file {} is too small to be valid.", filePrefix);
-            return;
-        }
-
-        ByteBuf buffer = Unpooled.wrappedBuffer(fileBytes);
+    private void deserializeRegion(byte[] bytes, Map<K, V> target) {
+        if (bytes.length < 8) return;
+        ByteBuf buf = Unpooled.wrappedBuffer(bytes);
         try {
-            long storedChecksum = buffer.readLong();
-            ByteBuf dataSlice = buffer.slice();
+            long storedChecksum = buf.readLong();
+            byte[] payload = new byte[buf.readableBytes()];
+            buf.readBytes(payload);
 
-            // Verify Integrity
             CRC32 crc = new CRC32();
-            crc.update(dataSlice.nioBuffer());
+            crc.update(payload);
 
-            if (storedChecksum != crc.getValue()) {
-                VxMainClass.LOGGER.error("Checksum mismatch for region {}. Data corrupted, loading empty.", filePrefix);
-                return;
+            if (storedChecksum == crc.getValue()) {
+                ByteBuf dataBuf = Unpooled.wrappedBuffer(payload);
+                readRegionData(dataBuf, target);
+                dataBuf.release();
+            } else {
+                VxMainClass.LOGGER.error("Corrupt region file (checksum mismatch) for prefix: {}", filePrefix);
             }
-
-            // Parse content
-            readRegionData(dataSlice, targetMap);
-        } catch (Exception e) {
-            VxMainClass.LOGGER.error("Failed to deserialize region data for {}", filePrefix, e);
         } finally {
-            buffer.release();
+            buf.release();
         }
     }
 
+    private Path getRegionPath(RegionPos pos) {
+        return storagePath.resolve(String.format("%s.%d.%d.vxdat", filePrefix, pos.x(), pos.z()));
+    }
+
+    /**
+     * Retrieves the index manager associated with this storage.
+     * <p>
+     * This is required by the management systems to trigger index saves
+     * during flush operations.
+     *
+     * @return The active region index.
+     */
     public VxRegionIndex getRegionIndex() {
         return regionIndex;
     }
 
-    // Abstract methods to handle specific object types (Body vs Constraint)
-    protected abstract void readRegionData(ByteBuf buffer, Map<K, V> regionData);
+    // Abstract methods for specific implementation details
+    protected abstract void readRegionData(ByteBuf buffer, Map<K, V> target);
 
-    protected abstract void writeRegionData(ByteBuf buffer, Map<K, V> entries);
+    protected abstract void writeRegionData(ByteBuf buffer, Map<K, V> source);
 }
