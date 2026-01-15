@@ -18,32 +18,78 @@ import java.nio.file.StandardOpenOption;
 import java.util.BitSet;
 
 /**
- * Manages a single region file containing data for 32x32 chunks.
+ * Manages a single region file containing physics data for a 32x32 chunk area.
  * <p>
- * The file format mirrors the Anvil Region File format but is optimized for raw binary data:
+ * <b>Extended File Format Specification:</b>
+ * Unlike the standard Minecraft Anvil format (which uses a 4KB header with packed 4-byte entries),
+ * this implementation uses an <b>8KB header</b> to support larger data blobs per chunk.
  * <ul>
- *     <li><b>Header:</b> The first 4096 bytes contain the location table (1024 entries).</li>
- *     <li><b>Location Entry:</b> 4 bytes. The first 3 bytes are the sector offset (4KB units), the last byte is the sector count.</li>
- *     <li><b>Sectors:</b> Data is stored in 4KB aligned sectors.</li>
+ *     <li><b>Header:</b> The first 8192 bytes (2 sectors) contain the location table.</li>
+ *     <li><b>Capacity:</b> 1024 entries (32x32 chunks).</li>
+ *     <li><b>Entry Format (8 bytes):</b>
+ *         <ul>
+ *             <li>Bytes 0-3: <b>Sector Offset</b> (Integer) - The index of the start sector.</li>
+ *             <li>Bytes 4-7: <b>Sector Count</b> (Integer) - The number of 4KB sectors reserved.</li>
+ *         </ul>
+ *     </li>
+ *     <li><b>Sectors:</b> Data is stored in 4KB aligned blocks. Sector 0 and 1 are reserved for the header.</li>
  * </ul>
  * <p>
- * This class is thread-safe for reading, but writing requires external synchronization or
- * single-threaded access via the {@link net.xmx.velthoric.physics.persistence.VxIOProcessor}.
+ * <b>Features:</b>
+ * <ul>
+ *     <li><b>No Size Limit:</b> Supports chunks significantly larger than 1MB (up to Terabytes theoretically).</li>
+ *     <li><b>Auto-Pruning:</b> If all data is deleted from the file, the file is automatically closed and deleted from the disk.</li>
+ *     <li><b>Space Management:</b> Uses a BitSet to track used sectors and fill gaps (fragmentation handling).</li>
+ * </ul>
+ * <p>
+ * This class is thread-safe for reading and writing.
  *
  * @author xI-Mx-Ix
  */
 public class VxRegionFile implements AutoCloseable {
 
+    /**
+     * The size of a single allocation unit (sector) in bytes.
+     */
     private static final int SECTOR_SIZE = 4096;
-    private static final int HEADER_SIZE = 4096;
+
+    /**
+     * The size of the header table in bytes.
+     * 1024 chunks * 8 bytes per entry = 8192 bytes.
+     */
+    private static final int HEADER_SIZE = 8192;
+
+    /**
+     * The number of sectors occupied by the header.
+     * 8192 / 4096 = 2 sectors.
+     */
+    private static final int HEADER_SECTOR_COUNT = 2;
 
     private final Path path;
     private FileChannel fileChannel;
-    private final int[] offsets = new int[1024];
+
+    /**
+     * In-memory cache of chunk sector offsets.
+     * Index = (x & 31) + (z & 31) * 32.
+     */
+    private final int[] chunkOffsets = new int[1024];
+
+    /**
+     * In-memory cache of chunk sector counts.
+     */
+    private final int[] chunkSectorCounts = new int[1024];
+
+    /**
+     * Tracks which sectors in the file are currently occupied.
+     * Used to find free space for new writes.
+     */
     private final BitSet usedSectors = new BitSet();
 
     /**
      * Constructs a new region file handler.
+     * <p>
+     * If the file exists, the header is read and parsed.
+     * If the file does not exist, a new file with a blank header is created.
      *
      * @param path The path to the physical file.
      * @throws IOException If the file cannot be opened or created.
@@ -51,7 +97,7 @@ public class VxRegionFile implements AutoCloseable {
     public VxRegionFile(Path path) throws IOException {
         this.path = path;
         boolean exists = Files.exists(path);
-        
+
         // Ensure parent directory exists
         if (!exists) {
             Files.createDirectories(path.getParent());
@@ -64,7 +110,7 @@ public class VxRegionFile implements AutoCloseable {
 
         if (exists) {
             if (fileChannel.size() < HEADER_SIZE) {
-                // Corrupt or empty file, reset header
+                // File exists but is corrupt/too small -> Reset header
                 writeHeader();
             } else {
                 readHeader();
@@ -75,17 +121,19 @@ public class VxRegionFile implements AutoCloseable {
     }
 
     /**
-     * Checks if the file channel is currently open.
-     * Used by the cache to determine if a file was auto-deleted/closed.
+     * Checks if the underlying file channel is open.
      *
-     * @return true if open, false otherwise.
+     * @return true if the channel is open, false otherwise.
      */
     public boolean isOpen() {
         return fileChannel != null && fileChannel.isOpen();
     }
 
     /**
-     * Reads the header table into memory and populates the used sector bitmap.
+     * Reads the header table from the beginning of the file.
+     * Populates the internal offset/count arrays and the used sectors bitmap.
+     *
+     * @throws IOException If an I/O error occurs.
      */
     private void readHeader() throws IOException {
         ByteBuffer header = ByteBuffer.allocate(HEADER_SIZE);
@@ -93,14 +141,14 @@ public class VxRegionFile implements AutoCloseable {
         header.flip();
 
         for (int i = 0; i < 1024; i++) {
-            int entry = header.getInt();
-            offsets[i] = entry;
+            int offset = header.getInt();
+            int count = header.getInt();
 
-            int offset = (entry >> 8) & 0xFFFFFF;
-            int sectors = entry & 0xFF;
+            chunkOffsets[i] = offset;
+            chunkSectorCounts[i] = count;
 
-            if (offset != 0 && sectors != 0) {
-                for (int s = 0; s < sectors; s++) {
+            if (offset != 0 && count != 0) {
+                for (int s = 0; s < count; s++) {
                     usedSectors.set(offset + s);
                 }
             }
@@ -108,17 +156,24 @@ public class VxRegionFile implements AutoCloseable {
     }
 
     /**
-     * initializes a blank header on disk.
+     * Writes a blank header to the file.
+     * Used when initializing a new file or recovering a corrupt one.
+     *
+     * @throws IOException If an I/O error occurs.
      */
     private void writeHeader() throws IOException {
         ByteBuffer header = ByteBuffer.allocate(HEADER_SIZE);
-        for (int i = 0; i < 1024; i++) {
+        // Fill with zeros (1024 chunks * 2 ints per chunk = 2048 ints)
+        for (int i = 0; i < 2048; i++) {
             header.putInt(0);
         }
         header.flip();
         fileChannel.write(header, 0);
-        // Mark header sectors as used (Sector 0 is header)
-        usedSectors.set(0); 
+
+        // Mark the header sectors (0 and 1) as used so data isn't written there.
+        for (int i = 0; i < HEADER_SECTOR_COUNT; i++) {
+            usedSectors.set(i);
+        }
     }
 
     /**
@@ -126,35 +181,35 @@ public class VxRegionFile implements AutoCloseable {
      *
      * @param pos The chunk position (relative to the region).
      * @return A Netty ByteBuf containing the data, or null if the chunk does not exist.
-     *         The caller is responsible for releasing the buffer.
+     * The caller is responsible for releasing the buffer.
      */
     public synchronized ByteBuf read(ChunkPos pos) {
-        if (fileChannel == null || !fileChannel.isOpen()) return null;
+        if (!isOpen()) return null;
 
         int index = getIndex(pos);
-        int entry = offsets[index];
+        int sectorOffset = chunkOffsets[index];
+        int sectorCount = chunkSectorCounts[index];
 
-        if (entry == 0) return null;
-
-        int sectorOffset = (entry >> 8) & 0xFFFFFF;
-        int sectorCount = entry & 0xFF;
-
+        // If offset or count is 0, the chunk is empty/not present.
         if (sectorOffset == 0 || sectorCount == 0) return null;
 
         try {
-            // Read raw data length (first 4 bytes of the sector)
+            // 1. Read the length prefix (first 4 bytes of the sector)
             ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
             fileChannel.read(lengthBuffer, (long) sectorOffset * SECTOR_SIZE);
             lengthBuffer.flip();
             int length = lengthBuffer.getInt();
 
+            // 2. Validate length
+            // It must be > 0 and fit within the allocated sector count.
             if (length <= 0 || length > sectorCount * SECTOR_SIZE) {
-                VxMainClass.LOGGER.warn("Invalid chunk data length {} at {}", length, pos);
+                VxMainClass.LOGGER.warn("Invalid chunk data length {} at {}. Sector Count: {}", length, pos, sectorCount);
                 return null;
             }
 
-            // Read the payload
+            // 3. Read the payload
             ByteBuffer data = ByteBuffer.allocate(length);
+            // Offset + 4 bytes to skip the length prefix
             fileChannel.read(data, (long) sectorOffset * SECTOR_SIZE + 4);
             data.flip();
 
@@ -168,74 +223,69 @@ public class VxRegionFile implements AutoCloseable {
     /**
      * Writes a data chunk to the file.
      * <p>
-     * If {@code data} is empty, the chunk is removed.
-     * <p>
-     * <b>Garbage Collection:</b> If a deletion causes the entire region file to become
-     * empty (all 1024 chunks are null), this method automatically closes the file
-     * and deletes it from the disk to save space.
+     * If the provided buffer is empty (readable bytes == 0), this method acts as a delete operation.
      *
      * @param pos  The chunk position.
      * @param data The buffer containing the data to write.
      */
     public synchronized void write(ChunkPos pos, ByteBuf data) {
-        if (fileChannel == null || !fileChannel.isOpen()) return;
+        if (!isOpen()) return;
 
         try {
             int index = getIndex(pos);
-            int oldEntry = offsets[index];
-            int oldSectorOffset = (oldEntry >> 8) & 0xFFFFFF;
-            int oldSectorCount = oldEntry & 0xFF;
+            int oldSectorOffset = chunkOffsets[index];
+            int oldSectorCount = chunkSectorCounts[index];
 
             int dataSize = data.readableBytes();
 
-            // --- Case 1: Deletion (Empty Data) ---
+            // ==========================================
+            // CASE 1: Deletion (Empty Data)
+            // ==========================================
             if (dataSize == 0) {
-                if (oldEntry != 0) {
-                    // 1. Mark previously used sectors as free in the bitmap
-                    if (oldSectorOffset != 0) {
-                        for (int i = 0; i < oldSectorCount; i++) {
-                            usedSectors.clear(oldSectorOffset + i);
-                        }
+                if (oldSectorOffset != 0) {
+                    // 1. Mark previously used sectors as free
+                    for (int i = 0; i < oldSectorCount; i++) {
+                        usedSectors.clear(oldSectorOffset + i);
                     }
 
-                    // 2. Clear the header entry in memory
-                    offsets[index] = 0;
+                    // 2. Clear memory cache
+                    chunkOffsets[index] = 0;
+                    chunkSectorCounts[index] = 0;
 
-                    // 3. Clear the header entry on disk
-                    ByteBuffer headerEntry = ByteBuffer.allocate(4);
-                    headerEntry.putInt(0);
+                    // 3. Clear header entry on disk (write 0 for offset and 0 for count)
+                    ByteBuffer headerEntry = ByteBuffer.allocate(8);
+                    headerEntry.putInt(0); // Offset
+                    headerEntry.putInt(0); // Count
                     headerEntry.flip();
-                    fileChannel.write(headerEntry, index * 4L);
+                    fileChannel.write(headerEntry, index * 8L);
 
-                    // 4. Check if file is completely empty now
+                    // 4. Check if the file is now completely empty
                     checkAndPruneFile();
                 }
                 return;
             }
 
-            // --- Case 2: Writing Data (Standard Logic) ---
-            // Payload size + 4 bytes for length prefix
+            // ==========================================
+            // CASE 2: Writing Data
+            // ==========================================
+
+            // Calculate required sectors.
+            // Payload size + 4 bytes for length prefix.
             int totalSize = dataSize + 4;
             int sectorsNeeded = (totalSize + SECTOR_SIZE - 1) / SECTOR_SIZE;
 
-            if (sectorsNeeded > 255) {
-                VxMainClass.LOGGER.error("Chunk data too large ({}) for region file format at {}", totalSize, pos);
-                return;
-            }
-
             int newSectorOffset;
 
-            // Reuse existing sectors if size matches
+            // Strategy: Reuse existing sectors if the count matches exactly.
             if (oldSectorOffset != 0 && oldSectorCount == sectorsNeeded) {
                 newSectorOffset = oldSectorOffset;
             } else {
-                // Free old sectors
+                // Otherwise, free the old sectors and allocate a new block.
                 if (oldSectorOffset != 0) {
                     for (int i = 0; i < oldSectorCount; i++) {
                         usedSectors.clear(oldSectorOffset + i);
                     }
                 }
-                // Allocate new sectors
                 newSectorOffset = allocateSectors(sectorsNeeded);
             }
 
@@ -243,29 +293,28 @@ public class VxRegionFile implements AutoCloseable {
             ByteBuffer fileBuffer = ByteBuffer.allocate(sectorsNeeded * SECTOR_SIZE);
             fileBuffer.putInt(dataSize);
 
-            // Correctly transfer bytes from Netty ByteBuf to NIO ByteBuffer.
-            // We must limit the fileBuffer to the exact size of data to prevent
-            // Netty trying to read more than available if the sector has padding space.
-            int headerPos = fileBuffer.position(); // Should be 4
+            // Transfer data from Netty ByteBuf to NIO ByteBuffer
+            int headerPos = fileBuffer.position();
             fileBuffer.limit(headerPos + dataSize);
             data.getBytes(data.readerIndex(), fileBuffer);
 
-            // Restore limit to capacity so the entire (padded) buffer is written to disk
+            // Restore limit to write full sectors (padding included)
             fileBuffer.limit(fileBuffer.capacity());
             fileBuffer.position(0);
 
-            // Write data to the specific sector offset
+            // Write to disk
             fileChannel.write(fileBuffer, (long) newSectorOffset * SECTOR_SIZE);
 
-            // Update Header in memory
-            int newEntry = (newSectorOffset << 8) | sectorsNeeded;
-            offsets[index] = newEntry;
+            // Update Memory
+            chunkOffsets[index] = newSectorOffset;
+            chunkSectorCounts[index] = sectorsNeeded;
 
-            // Update Header on disk
-            ByteBuffer headerEntry = ByteBuffer.allocate(4);
-            headerEntry.putInt(newEntry);
+            // Update Header on disk (8 bytes)
+            ByteBuffer headerEntry = ByteBuffer.allocate(8);
+            headerEntry.putInt(newSectorOffset);
+            headerEntry.putInt(sectorsNeeded);
             headerEntry.flip();
-            fileChannel.write(headerEntry, index * 4L);
+            fileChannel.write(headerEntry, index * 8L);
 
         } catch (IOException e) {
             VxMainClass.LOGGER.error("Failed to write chunk {}", pos, e);
@@ -273,14 +322,21 @@ public class VxRegionFile implements AutoCloseable {
     }
 
     /**
-     * Scans the bitmap to find a continuous range of free sectors.
+     * Scans the used sectors bitmap to find a continuous range of free sectors.
+     * Uses a "First Fit" algorithm.
+     *
+     * @param count The number of contiguous sectors required.
+     * @return The start sector index.
+     * @throws IOException If the file size calculation fails.
      */
     private int allocateSectors(int count) throws IOException {
         int fileSectorCount = (int) (fileChannel.size() / SECTOR_SIZE);
-        // Start search after header (sector 0 is used)
-        int searchStart = 1; 
 
-        // 1. Try to fill gaps in the file
+        // Start search after the header.
+        // Sectors 0 and 1 are reserved.
+        int searchStart = HEADER_SECTOR_COUNT;
+
+        // 1. Try to fill gaps within the existing file
         for (int i = searchStart; i < fileSectorCount; i++) {
             if (!usedSectors.get(i)) {
                 int run = 0;
@@ -300,26 +356,32 @@ public class VxRegionFile implements AutoCloseable {
 
         // 2. Append to end of file
         int newOffset = fileSectorCount;
-        // Ensure file is physically grown if needed (optional, OS usually handles sparse)
-        if (newOffset == 0) newOffset = 1; // Safety for corrupt files
+
+        // Safety: Ensure we never overwrite the header if the file was truncated/corrupt
+        if (newOffset < HEADER_SECTOR_COUNT) {
+            newOffset = HEADER_SECTOR_COUNT;
+        }
 
         for (int k = 0; k < count; k++) usedSectors.set(newOffset + k);
         return newOffset;
     }
 
     /**
-     * Scans the location table. If all entries are 0 (empty),
-     * the file is closed and deleted from the file system.
+     * Checks if the file contains any data. If all chunks are empty (offsets are 0),
+     * the file is closed and deleted from the file system to save space.
+     *
+     * @throws IOException If file operations fail.
      */
     private void checkAndPruneFile() throws IOException {
-        for (int offset : offsets) {
+        // Iterate through memory cache to see if any chunk is active
+        for (int offset : chunkOffsets) {
             if (offset != 0) {
-                return; // File still has data
+                return; // File still has data, do nothing.
             }
         }
 
-        // File is completely empty
-        // Close the channel first to release file locks (crucial on Windows)
+        // File is completely empty.
+        // Close the channel first to release file locks (essential for Windows).
         close();
 
         try {
@@ -329,10 +391,16 @@ public class VxRegionFile implements AutoCloseable {
         }
     }
 
+    /**
+     * Helper to calculate the flat index (0-1023) for a chunk within the region.
+     */
     private int getIndex(ChunkPos pos) {
         return (pos.x & 31) + (pos.z & 31) * 32;
     }
 
+    /**
+     * Closes the underlying file channel and forces any pending updates to disk.
+     */
     @Override
     public synchronized void close() throws IOException {
         if (fileChannel != null && fileChannel.isOpen()) {
