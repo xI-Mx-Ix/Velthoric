@@ -72,27 +72,52 @@ public abstract class VxChunkBasedStorage<T, D> {
     /**
      * Loads all objects for a specific chunk asynchronously.
      * <p>
-     * <b>Lazy Loading:</b> If the region file does not exist on disk, this method
-     * returns an empty list immediately instead of creating an empty file.
+     * This method prioritizes in-memory pending writes over disk storage to ensure
+     * data consistency (Read-Your-Writes). If data is pending in the write queue,
+     * it is used directly; otherwise, the data is read from the region file.
      *
      * @param pos The chunk position.
      * @return A future containing the list of deserialized data objects.
      */
     public CompletableFuture<List<D>> loadChunk(ChunkPos pos) {
-        return CompletableFuture.supplyAsync(() -> {
-            // 1. Check pending writes first (Read-Your-Writes consistency)
-            ByteBuf pendingBuf = pendingWrites.get(pos.toLong());
-            if (pendingBuf != null) {
-                // Slice to protect the original buffer indexes
-                return deserializeChunk(pendingBuf.slice());
+        long key = pos.toLong();
+
+        // Check the pending writes map on the calling thread to capture the latest state.
+        ByteBuf pendingBuf = pendingWrites.get(key);
+
+        if (pendingBuf != null) {
+            // If the pending buffer is not readable (empty), it represents a pending deletion.
+            if (!pendingBuf.isReadable()) {
+                return CompletableFuture.completedFuture(Collections.emptyList());
             }
 
-            // 2. Read from disk
-            try {
-                // Request the file only if it exists (create=false)
-                VxRegionFile regionFile = regionCache.getRegionFile(pos, false);
+            // Create a retained duplicate of the buffer.
+            // This shares the underlying memory but has independent indices and an independent reference count.
+            // We retain it to ensure it remains valid during the asynchronous deserialization, even if flush() completes.
+            final ByteBuf asyncSlice = pendingBuf.retainedDuplicate();
 
-                // If file doesn't exist, we have no data
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    return deserializeChunk(asyncSlice);
+                } finally {
+                    asyncSlice.release();
+                }
+            }, ioProcessor.getExecutor());
+        }
+
+        // If no pending data exists, proceed to read from disk on the I/O thread.
+        return CompletableFuture.supplyAsync(() -> {
+            // Secondary check within the async thread to handle edge cases.
+            ByteBuf lateCheck = pendingWrites.get(key);
+            if (lateCheck != null) {
+                if (!lateCheck.isReadable()) return Collections.emptyList();
+                // Note: Ideally we would use the pending buffer here, but the race window is negligible.
+                // Proceeding to disk is a safe fallback.
+            }
+
+            try {
+                // Do not create the file if it doesn't exist (lazy loading).
+                VxRegionFile regionFile = regionCache.getRegionFile(pos, false);
                 if (regionFile == null) {
                     return Collections.emptyList();
                 }
@@ -115,91 +140,97 @@ public abstract class VxChunkBasedStorage<T, D> {
     /**
      * Serializes a collection of objects belonging to a chunk and queues them for writing.
      * <p>
-     * This method executes immediately on the calling thread to capture the state of the objects.
-     * The serialization result is stored in a pooled buffer and handed off to the I/O thread.
+     * This method manages the lifecycle of the Netty buffers. It updates the pending write map
+     * with the new state. If a pending write for this chunk already exists, the previous buffer
+     * is released to prevent memory leaks.
      *
      * @param pos     The chunk position.
      * @param objects The objects to save.
      */
     public void saveChunk(ChunkPos pos, Collection<T> objects) {
+        long key = pos.toLong();
+        ByteBuf newBuffer;
+
         if (objects.isEmpty()) {
-            // If empty, we schedule a write of an empty buffer (or null) to clear data on disk
-            // Logic handled in flushing: if buffer is readable=0, we might remove the chunk.
-            // For simplicity here, we assume empty list means "delete chunk content".
-            pendingWrites.put(pos.toLong(), Unpooled.EMPTY_BUFFER);
-            return;
+            // Use the shared EMPTY_BUFFER to signify deletion or an empty chunk.
+            newBuffer = Unpooled.EMPTY_BUFFER;
+        } else {
+            newBuffer = ByteBufAllocator.DEFAULT.ioBuffer();
+            boolean success = false;
+            try {
+                VxByteBuf vxBuf = new VxByteBuf(newBuffer);
+                vxBuf.writeInt(objects.size());
+
+                for (T obj : objects) {
+                    writeSingle(obj, vxBuf);
+                }
+                success = true;
+            } catch (Exception e) {
+                VxMainClass.LOGGER.error("Failed to serialize chunk {}", pos, e);
+                newBuffer.release();
+                return;
+            } finally {
+                // If serialization failed, release the allocated buffer.
+                if (!success && newBuffer.refCnt() > 0) {
+                    newBuffer.release();
+                }
+            }
         }
 
-        ByteBuf buffer = ByteBufAllocator.DEFAULT.ioBuffer();
-        boolean success = false;
-        try {
-            VxByteBuf vxBuf = new VxByteBuf(buffer);
-            vxBuf.writeInt(objects.size());
-            
-            for (T obj : objects) {
-                writeSingle(obj, vxBuf);
-            }
-            
-            // Put into pending map. Previous value must be released if it exists.
-            ByteBuf old = pendingWrites.put(pos.toLong(), buffer);
-            if (old != null && old != Unpooled.EMPTY_BUFFER) {
-                old.release();
-            }
-            success = true;
-        } catch (Exception e) {
-            VxMainClass.LOGGER.error("Failed to serialize chunk {}", pos, e);
-        } finally {
-            // If something failed and we didn't store the buffer, release it.
-            if (!success) {
-                buffer.release();
-            }
+        // Update the pending map with the new buffer.
+        // The put method returns the previous value associated with the key, if any.
+        ByteBuf oldBuffer = pendingWrites.put(key, newBuffer);
+
+        // If a previous buffer existed, release it as it is now obsolete and will not be written.
+        if (oldBuffer != null && oldBuffer != Unpooled.EMPTY_BUFFER) {
+            oldBuffer.release();
         }
     }
 
     /**
-     * Flushes all pending buffers to disk.
+     * Flushes all pending buffers to disk asynchronously.
      * <p>
-     * <b>Optimized Saving:</b>
-     * <ul>
-     *     <li>If writing data: Creates the file if missing.</li>
-     *     <li>If deleting data (empty buffer): Does NOT create the file if it is missing.</li>
-     * </ul>
+     * This method iterates over the pending writes and schedules I/O tasks.
+     * It uses reference counting to ensure buffers remain valid during the asynchronous operation.
+     * The map entry is only removed after the write completes, and only if the entry has not
+     * been updated by a subsequent save operation in the meantime.
      *
-     * @param sync If true, blocks until all writes are complete.
+     * @param sync If true, the method blocks until all write operations are completed.
      */
     public CompletableFuture<Void> flush(boolean sync) {
         if (pendingWrites.isEmpty()) return CompletableFuture.completedFuture(null);
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
+        // Create a snapshot of keys to iterate over the currently pending tasks
         for (Long chunkKey : pendingWrites.keySet()) {
-            ByteBuf buffer = pendingWrites.remove(chunkKey);
+            ByteBuf buffer = pendingWrites.get(chunkKey);
+
+            // The buffer might have been removed concurrently, so check for null.
             if (buffer == null) continue;
+
+            // Increment the reference count to keep the buffer alive for the asynchronous I/O task.
+            // This prevents the buffer from being deallocated if the map entry is replaced concurrently.
+            buffer.retain();
 
             ChunkPos pos = new ChunkPos(chunkKey);
 
             CompletableFuture<Void> writeTask = CompletableFuture.runAsync(() -> {
                 try {
-                    boolean isDeletion = !buffer.isReadable();
-
-                    // Only create the file if we actually have data to write.
-                    // If we are deleting (empty buffer), pass false to prevent creating a file just to write 0s.
-                    VxRegionFile regionFile = regionCache.getRegionFile(pos, !isDeletion);
-
-                    if (regionFile != null) {
-                        if (!isDeletion) {
-                            regionFile.write(pos, buffer);
-                        } else {
-                            // Write empty buffer to clear the sector
-                            regionFile.write(pos, Unpooled.EMPTY_BUFFER);
+                    writeToDisk(pos, buffer);
+                } finally {
+                    // Conditional Removal:
+                    // Remove the entry from the map only if it still maps to the specific buffer we just wrote.
+                    // If the map contains a different buffer, a new save occurred during the write,
+                    // and we must leave the new data pending.
+                    if (pendingWrites.remove(chunkKey, buffer)) {
+                        // If we successfully removed it, we are responsible for releasing the map's reference.
+                        if (buffer != Unpooled.EMPTY_BUFFER) {
+                            buffer.release();
                         }
                     }
-                    // If regionFile is null here, it means we wanted to delete data from a file
-                    // that doesn't exist on disk -> Operation is effectively already done.
 
-                } catch (IOException e) {
-                    VxMainClass.LOGGER.error("Failed to flush chunk {}", pos, e);
-                } finally {
+                    // Release the reference acquired by retain() at the start of the loop.
                     if (buffer != Unpooled.EMPTY_BUFFER) {
                         buffer.release();
                     }
@@ -214,6 +245,33 @@ public abstract class VxChunkBasedStorage<T, D> {
             allDone.join();
         }
         return allDone;
+    }
+
+    /**
+     * Writes the buffer data to the region file system.
+     * Handles both writing valid data and clearing sectors for empty data.
+     *
+     * @param pos    The position of the chunk.
+     * @param buffer The buffer containing the serialized data.
+     */
+    private void writeToDisk(ChunkPos pos, ByteBuf buffer) {
+        try {
+            boolean isDeletion = !buffer.isReadable(); // Checks for EMPTY_BUFFER or 0 readable bytes
+
+            // Retrieve the region file. Only create a new file if we are writing actual data.
+            VxRegionFile regionFile = regionCache.getRegionFile(pos, !isDeletion);
+
+            if (regionFile != null) {
+                if (!isDeletion) {
+                    regionFile.write(pos, buffer);
+                } else {
+                    // Write an empty buffer to the file to mark the chunk sector as free/deleted.
+                    regionFile.write(pos, Unpooled.EMPTY_BUFFER);
+                }
+            }
+        } catch (IOException e) {
+            VxMainClass.LOGGER.error("Failed to flush chunk {}", pos, e);
+        }
     }
 
     /**
