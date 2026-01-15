@@ -9,6 +9,7 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.physics.persistence.RegionPos;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -46,22 +47,43 @@ public class VxRegionFileCache {
     }
 
     /**
-     * Retrieves or opens the region file corresponding to the given chunk position.
+     * Retrieves the region file for the given chunk position, with optional creation.
      *
      * @param chunkPos The position of the chunk.
-     * @return The region file instance.
+     * @param create   If true, the file is created if it does not exist.
+     *                 If false, returns null if the file does not exist.
+     * @return The region file instance, or null if it doesn't exist and create is false.
      * @throws IOException If the file cannot be opened.
      */
-    public synchronized VxRegionFile getRegionFile(ChunkPos chunkPos) throws IOException {
+    public synchronized VxRegionFile getRegionFile(ChunkPos chunkPos, boolean create) throws IOException {
         RegionPos regionPos = new RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
-        return cache.computeIfAbsent(regionPos, k -> {
-            String fileName = String.format("r.%d.%d.%s", k.x(), k.z(), extension);
-            try {
-                return new VxRegionFile(storageDirectory.resolve(fileName));
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to open region file " + fileName, e);
-            }
-        });
+
+        // Check if we have a cached instance
+        VxRegionFile existing = cache.get(regionPos);
+
+        // If the file closed itself (because it became empty and deleted itself),
+        // we must remove the stale reference from the cache.
+        if (existing != null && !existing.isOpen()) {
+            cache.remove(regionPos);
+            existing = null;
+        }
+
+        if (existing != null) {
+            return existing;
+        }
+
+        String fileName = String.format("r.%d.%d.%s", regionPos.x(), regionPos.z(), extension);
+        Path filePath = storageDirectory.resolve(fileName);
+
+        // If we are not allowed to create the file and it doesn't exist on disk, return null.
+        if (!create && !Files.exists(filePath)) {
+            return null;
+        }
+
+        // Open/Create the file and add to cache
+        VxRegionFile newFile = new VxRegionFile(filePath);
+        cache.put(regionPos, newFile);
+        return newFile;
     }
 
     public synchronized void closeAll() {
