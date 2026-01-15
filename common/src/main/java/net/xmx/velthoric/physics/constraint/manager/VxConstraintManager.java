@@ -302,9 +302,6 @@ public class VxConstraintManager {
     /**
      * Takes a list of constraints, serializes them immediately, groups them by region,
      * and passes them to the storage system for writing.
-     * <p>
-     * The resulting storage task is tracked in {@link #pendingStorageTasks} to allow waiting
-     * for completion during shutdown.
      *
      * @param constraints The list of constraints to process and store.
      */
@@ -333,8 +330,7 @@ public class VxConstraintManager {
         }
 
         if (!dataByRegion.isEmpty()) {
-            CompletableFuture<Void> task = constraintStorage.storeConstraintBatch(dataByRegion);
-            pendingStorageTasks.add(task);
+            constraintStorage.storeConstraintBatch(dataByRegion);
         }
     }
 

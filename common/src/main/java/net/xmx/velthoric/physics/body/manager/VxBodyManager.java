@@ -587,15 +587,12 @@ public class VxBodyManager {
      * <p>
      * This operation captures the state of all bodies in the chunk immediately on the calling thread.
      * This synchronous snapshot ensures that data is serialized before any subsequent chunk unloading logic
-     * can remove the bodies from memory. The actual disk I/O is delegated to the storage system's asynchronous worker.
-     * <p>
-     * The resulting storage task is tracked internally to allow {@link #flushPersistence(boolean)}
-     * to wait for completion during shutdown.
+     * can remove the bodies from memory.
      *
      * @param pos The position of the chunk to save.
      */
     public void saveBodiesInChunk(ChunkPos pos) {
-        // Cleanup finished tasks to prevent memory leaks in the queue
+        // Cleanup finished tasks to prevent memory leaks in the queue (legacy check)
         pendingStorageTasks.removeIf(CompletableFuture::isDone);
 
         List<VxBody> bodiesInChunk = new ArrayList<>();
@@ -626,11 +623,10 @@ public class VxBodyManager {
             dataByRegion.computeIfAbsent(regionPos, k -> new HashMap<>()).put(body.getPhysicsId(), snapshot);
         }
 
-        // Hand off the serialized snapshots to the storage system for asynchronous writing
-        // and track the future to ensure data integrity on shutdown.
+        // Hand off the serialized snapshots to the storage system.
+        // The storage system applies these to the in-memory map instantly.
         if (!dataByRegion.isEmpty()) {
-            CompletableFuture<Void> task = bodyStorage.storeBodyBatch(dataByRegion);
-            pendingStorageTasks.add(task);
+            bodyStorage.storeBodyBatch(dataByRegion);
         }
     }
 
