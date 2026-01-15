@@ -27,7 +27,6 @@ import net.xmx.velthoric.physics.body.registry.VxBodyType;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.type.VxRigidBody;
 import net.xmx.velthoric.physics.body.type.VxSoftBody;
-import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -99,7 +98,7 @@ public class VxBodyManager {
     public VxBodyManager(VxPhysicsWorld world) {
         this.world = world;
         this.dataStore = new VxServerBodyDataStore();
-        this.bodyStorage = new VxBodyStorage(world.getLevel(), this);
+        this.bodyStorage = new VxBodyStorage(world.getLevel());
         this.physicsUpdater = new VxPhysicsUpdater(this);
         this.networkDispatcher = new VxNetworkDispatcher(world.getLevel(), this);
         this.serverSyncManager = new VxServerSyncManager(this);
@@ -111,7 +110,6 @@ public class VxBodyManager {
      * Should be called after the world is fully constructed but before simulation starts.
      */
     public void initialize() {
-        bodyStorage.initialize();
         networkDispatcher.start();
     }
 
@@ -331,19 +329,27 @@ public class VxBodyManager {
     }
 
     /**
-     * Initiates the removal of a body identified by its UUID.
+     * Initiates the removal of a body identified by its unique identifier.
+     * <p>
+     * If the body is currently loaded in memory, it will be removed from the simulation
+     * and internal registries. If the body is not loaded, this method primarily ensures
+     * that dependent constraints are cleaned up.
+     * <p>
+     * <b>Persistence Note:</b> This method does not trigger an immediate disk write.
+     * If the reason is {@link VxRemovalReason#DISCARD}, the body effectively ceases to exist
+     * in the persistent store the next time its containing chunk is saved, as it will
+     * no longer be present in the serialization list.
      *
      * @param id     The UUID of the body to remove.
-     * @param reason The reason for removal, affecting persistence behavior (Save, Discard, Unload).
+     * @param reason The reason for removal, utilized for callbacks and dependency logic.
      */
     public void removeBody(UUID id, VxRemovalReason reason) {
         final VxBody body = this.managedBodies.get(id);
 
         if (body == null) {
-            // Even if the body object isn't loaded, ensure residual data is cleaned up if requested
-            if (reason == VxRemovalReason.DISCARD) {
-                bodyStorage.removeData(id);
-            }
+            // If the body is not in memory, we cannot easily modify the chunk blob without
+            // incurring a heavy I/O cost (loading, deserializing, filtering, saving).
+            // Therefore, we only ensure that runtime constraints linking to this ID are severed.
             world.getConstraintManager().removeConstraintsForBody(id, reason == VxRemovalReason.DISCARD);
             return;
         }
@@ -352,48 +358,62 @@ public class VxBodyManager {
     }
 
     /**
-     * Internal logic for removing a body, handling Jolt destruction, cleanup, and persistence.
+     * Internal routine to dismantle a physics body and release its resources.
+     * <p>
+     * This method handles:
+     * <ul>
+     *     <li>Unregistering from the manager's maps.</li>
+     *     <li>Notifying listeners (Mounting, Network).</li>
+     *     <li>Stopping chunk tracking.</li>
+     *     <li>Cleaning up dependent constraints.</li>
+     *     <li>Destroying the native Jolt physics body.</li>
+     *     <li>Recycling the network ID and cleaning up the DataStore (SoA).</li>
+     * </ul>
      *
-     * @param body   The body object to remove.
-     * @param reason The context for the removal.
+     * @param body   The body instance to remove.
+     * @param reason The context explaining why the removal is occurring.
      */
     private void processBodyRemoval(VxBody body, VxRemovalReason reason) {
+        // 1. Remove from primary registry
         managedBodies.remove(body.getPhysicsId());
 
-        // Handle persistence
-        if (reason == VxRemovalReason.SAVE) {
-            bodyStorage.storeBody(body);
-        } else if (reason == VxRemovalReason.DISCARD) {
-            bodyStorage.removeData(body.getPhysicsId());
-        }
-
+        // 2. Notify subsystems
         world.getMountingManager().onBodyRemoved(body);
         networkDispatcher.onBodyRemoved(body);
 
-        // If explicitly unloading, we assume the chunk system handles the tracking logic elsewhere
+        // 3. Update spatial tracking
+        // If UNLOAD, the chunk system typically initiates this call, so we skip
+        // modifying the tracking map to avoid concurrent modification issues during iteration.
         if (reason != VxRemovalReason.UNLOAD) {
             chunkManager.stopTracking(body);
         }
 
+        // 4. Trigger body-specific cleanup hooks
         body.onBodyRemoved(world, reason);
+
+        // 5. Cleanup Constraints
+        // If we are discarding the body, we also want to permanently delete constraints attached to it.
         world.getConstraintManager().removeConstraintsForBody(body.getPhysicsId(), reason == VxRemovalReason.DISCARD);
 
-        // Remove from Native Jolt Simulation
+        // 6. Destroy Native Jolt Body
+        // This stops the actual physics simulation for this object.
         VxJoltBridge.INSTANCE.destroyJoltBody(world, body.getBodyId());
 
-        // Recycle the network ID
+        // 7. Cleanup DataStore and ID Pools
         int netId = body.getNetworkId();
         if (netId != -1) {
             dataStore.unregisterNetworkId(netId);
             freeNetworkIds.add(netId);
         }
 
-        // Clean up maps and DataStore
         dataStore.removeBody(body.getPhysicsId());
+
         if (body.getBodyId() != 0) {
             joltBodyIdToVxBodyMap.remove(body.getBodyId());
         }
-        body.setDataStoreIndex(dataStore,-1);
+
+        // Invalidate indices in the body object to prevent accidental reuse
+        body.setDataStoreIndex(dataStore, -1);
         body.setNetworkId(-1);
     }
 
@@ -429,23 +449,15 @@ public class VxBodyManager {
     /**
      * Efficiently unloads all physics bodies located in a specific chunk from memory.
      * <p>
-     * This method removes the bodies from the active simulation and the chunk tracking system.
-     * It does not perform any disk I/O; persistence must be handled externally before calling this
-     * (e.g., via {@link #saveBodiesInChunk}).
+     * This method removes the bodies from the active simulation. It assumes persistence
+     * has been handled by a prior call to {@link #saveBodiesInChunk(ChunkPos)}.
      *
      * @param chunkPos The position of the chunk to unload.
      */
     public void onChunkUnload(ChunkPos chunkPos) {
-        // Retrieve and untrack all bodies in the specified chunk atomically
         List<VxBody> bodiesToUnload = chunkManager.removeAllInChunk(chunkPos);
+        if (bodiesToUnload.isEmpty()) return;
 
-        if (bodiesToUnload.isEmpty()) {
-            return;
-        }
-
-        // Remove bodies from the physics simulation using the UNLOAD reason.
-        // This tells the internal logic to clean up runtime resources (Jolt IDs, etc.)
-        // without attempting to save or delete persistent data files.
         for (VxBody body : bodiesToUnload) {
             processBodyRemoval(body, VxRemovalReason.UNLOAD);
         }
@@ -584,78 +596,25 @@ public class VxBodyManager {
 
     /**
      * Serializes all physics bodies within a given chunk and queues them for storage.
-     * <p>
-     * This operation captures the state of all bodies in the chunk immediately on the calling thread.
-     * This synchronous snapshot ensures that data is serialized before any subsequent chunk unloading logic
-     * can remove the bodies from memory.
+     * Uses the optimized chunk-based batching system.
      *
      * @param pos The position of the chunk to save.
      */
     public void saveBodiesInChunk(ChunkPos pos) {
-        // Cleanup finished tasks to prevent memory leaks in the queue (legacy check)
-        pendingStorageTasks.removeIf(CompletableFuture::isDone);
-
         List<VxBody> bodiesInChunk = new ArrayList<>();
         chunkManager.forEachBodyInChunk(pos, bodiesInChunk::add);
 
-        if (bodiesInChunk.isEmpty()) {
-            return;
-        }
-
-        // Create the snapshot synchronously on the current thread.
-        // This accesses the DataStore arrays to capture position and rotation immediately.
-        Map<VxAbstractRegionStorage.RegionPos, Map<UUID, byte[]>> dataByRegion = new HashMap<>();
-
-        for (VxBody body : bodiesInChunk) {
-            int index = body.getDataStoreIndex();
-
-            // Ensure the body has a valid data store index.
-            // Note: Sleeping (inactive) bodies must also be saved, so we only check if the index is valid.
-            if (index == -1) continue;
-
-            // Serialize the body state to a byte array
-            byte[] snapshot = bodyStorage.serializeBodyData(body);
-            if (snapshot == null) continue;
-
-            // Group data by region (32x32 chunks) for efficient batch I/O
-            ChunkPos chunkPos = getBodyChunkPos(index);
-            VxAbstractRegionStorage.RegionPos regionPos = new VxAbstractRegionStorage.RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
-            dataByRegion.computeIfAbsent(regionPos, k -> new HashMap<>()).put(body.getPhysicsId(), snapshot);
-        }
-
-        // Hand off the serialized snapshots to the storage system.
-        // The storage system applies these to the in-memory map instantly.
-        if (!dataByRegion.isEmpty()) {
-            bodyStorage.storeBodyBatch(dataByRegion);
-        }
+        // Even if empty, we call save to ensure any previously existing data on disk is cleared
+        bodyStorage.saveChunk(pos, bodiesInChunk);
     }
 
     /**
      * Forces pending persistence tasks to write to disk.
      *
-     * @param block If true, the current thread will wait until all queued data insertions
-     *              and file writes are fully completed.
+     * @param block If true, blocks until the I/O processor completes all pending writes.
      */
     public void flushPersistence(boolean block) {
-        try {
-            if (block) {
-                // Wait for all queued "put" operations (transferring snapshots to memory maps) to complete
-                CompletableFuture<?>[] pending = pendingStorageTasks.toArray(new CompletableFuture[0]);
-                if (pending.length > 0) {
-                    CompletableFuture.allOf(pending).join();
-                }
-                pendingStorageTasks.clear();
-            }
-
-            // Now that all data is in the region maps, flush them to disk
-            CompletableFuture<Void> future = bodyStorage.saveDirtyRegions();
-            bodyStorage.getRegionIndex().save();
-            if (block) {
-                future.join();
-            }
-        } catch (Exception e) {
-            VxMainClass.LOGGER.error("Failed to flush physics body persistence for world {}", world.getLevel().dimension().location(), e);
-        }
+        bodyStorage.flush(block);
     }
 
     // Getters for subsystems
