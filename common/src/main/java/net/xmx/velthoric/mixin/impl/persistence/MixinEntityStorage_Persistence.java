@@ -73,19 +73,4 @@ public class MixinEntityStorage_Persistence {
             world.getConstraintManager().saveConstraintsInChunk(pos);
         }
     }
-
-    /**
-     * Injects into the flush method.
-     * Minecraft calls this to ensure data is written to disk (e.g., during save-all).
-     * If 'synchronize' is true, we must wait for our physics I/O to complete.
-     */
-    @Inject(method = "flush", at = @At("RETURN"))
-    private void onFlush(boolean synchronize, CallbackInfo ci) {
-        VxPhysicsWorld world = VxPhysicsWorld.get(this.level.dimension());
-        if (world != null) {
-            // Flush pending storage tasks. If synchronize is true, this blocks until done.
-            world.getBodyManager().flushPersistence(synchronize);
-            world.getConstraintManager().flushPersistence(synchronize);
-        }
-    }
 }
