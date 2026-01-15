@@ -5,152 +5,102 @@
 package net.xmx.velthoric.physics.persistence;
 
 import net.xmx.velthoric.init.VxMainClass;
+import org.jetbrains.annotations.NotNull;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A highly efficient, single-threaded I/O processor dedicated to performing
- * physical disk operations for a specific storage domain.
+ * A dedicated, single-threaded processor for handling asynchronous Disk I/O operations.
  * <p>
- * <b>Architectural Purpose:</b>
- * File systems (especially on Windows) often lock files during write operations.
- * Attempting to write to the same file from multiple threads in the common ForkJoinPool
- * can lead to {@link java.nio.file.FileSystemException}.
+ * This class wraps an {@link ExecutorService} to ensure that all physical file system interactions
+ * for a specific storage domain (e.g., Bodies or Constraints) occur sequentially on a separate thread.
+ * This prevents I/O blocking on the main game thread or the physics simulation thread.
  * <p>
- * This processor solves that by serializing all disk access into a single background queue.
- * It accepts pre-serialized data payloads, ensuring that the heavy CPU work of serialization
- * happens elsewhere, leaving this thread to strictly handle I/O throughput.
+ * <b>Threading Model:</b>
+ * The underlying thread is configured as a Daemon thread with slightly lower priority,
+ * ensuring it does not prevent the JVM from shutting down and has minimal impact on
+ * real-time tick performance.
  *
  * @author xI-Mx-Ix
  */
 public class VxIOProcessor implements AutoCloseable {
 
     private final ExecutorService executor;
-    private final AtomicBoolean isShutdown = new AtomicBoolean(false);
     private final String workerName;
 
     /**
-     * Creates a new I/O processor with a dedicated background thread.
+     * Constructs a new I/O processor.
      *
-     * @param workerName A label for the worker thread (e.g., "body-io"), useful for debugging logs.
+     * @param name The logical name of the worker (e.g., "Body-IO"), used for thread naming.
      */
-    public VxIOProcessor(String workerName) {
-        this.workerName = workerName;
-        this.executor = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "VxIO-" + workerName);
-            t.setDaemon(true); // Ensure the JVM can exit even if this thread is idle
-            t.setPriority(Thread.NORM_PRIORITY - 1); // Slightly lower priority to minimize impact on game ticks
-            return t;
-        });
-    }
+    public VxIOProcessor(String name) {
+        this.workerName = name;
+        this.executor = Executors.newSingleThreadExecutor(new ThreadFactory() {
+            private final AtomicInteger threadId = new AtomicInteger(1);
 
-    /**
-     * Queues a write operation to disk.
-     * <p>
-     * This method returns immediately (non-blocking). The actual file I/O happens asynchronously
-     * on the worker thread. If the worker is busy, tasks accumulate in an unbounded queue.
-     *
-     * @param targetPath The final absolute path where the file should be written.
-     * @param data       The byte array to write.
-     * @return A {@link CompletableFuture} that completes when the file is physically written to disk,
-     * or completes exceptionally if an I/O error occurs.
-     */
-    public CompletableFuture<Void> submitWrite(Path targetPath, byte[] data) {
-        if (isShutdown.get()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Worker is shut down"));
-        }
+            @Override
+            public Thread newThread(@NotNull Runnable r) {
+                Thread t = new Thread(r, "VxIO-" + name + "-" + threadId.getAndIncrement());
 
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        executor.submit(() -> {
-            try {
-                performAtomicWrite(targetPath, data);
-                future.complete(null);
-            } catch (Exception e) {
-                VxMainClass.LOGGER.error("[{}] Failed to write file: {}", workerName, targetPath, e);
-                future.completeExceptionally(e);
+                // Daemon threads do not prevent the JVM from exiting.
+                // This is crucial if the server stops forcefully.
+                t.setDaemon(true);
+
+                // Priority is set slightly below NORM to favor tick processing
+                t.setPriority(Thread.NORM_PRIORITY - 1);
+                return t;
             }
         });
-        return future;
     }
 
     /**
-     * Queues a read operation from disk.
-     *
-     * @param path The absolute path to read.
-     * @return A {@link CompletableFuture} containing the file bytes, or {@code null} if the file does not exist.
-     */
-    public CompletableFuture<byte[]> submitRead(Path path) {
-        if (isShutdown.get()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Worker is shut down"));
-        }
-
-        return CompletableFuture.supplyAsync(() -> {
-            if (!Files.exists(path)) return null;
-            try {
-                return Files.readAllBytes(path);
-            } catch (IOException e) {
-                VxMainClass.LOGGER.error("[{}] Failed to read file: {}", workerName, path, e);
-                return null;
-            }
-        }, executor);
-    }
-
-    /**
-     * Performs a safe atomic write using the "Write-to-Temp-and-Rename" strategy.
+     * Retrieves the underlying executor service.
      * <p>
-     * 1. Writes data to {@code filename.tmp}.<br>
-     * 2. Forces the OS to flush buffers to the physical disk.<br>
-     * 3. Atomically moves/renames the temp file to the target file.
-     * <p>
-     * This ensures that the target file is never in a corrupted or partial state,
-     * even if the server loses power during the write.
+     * This allows clients (like {@link VxChunkBasedStorage}) to submit complex tasks,
+     * such as {@link java.util.concurrent.CompletableFuture} chains, directly to the worker.
      *
-     * @param targetPath The destination path.
-     * @param data       The data to write.
-     * @throws IOException If the write or move operation fails.
+     * @return The backing single-threaded executor.
      */
-    private void performAtomicWrite(Path targetPath, byte[] data) throws IOException {
-        Path tempPath = targetPath.resolveSibling(targetPath.getFileName() + ".tmp");
-
-        // Ensure parent directory exists
-        Files.createDirectories(targetPath.getParent());
-
-        // 1. Write data to a temporary file
-        try (FileChannel channel = FileChannel.open(tempPath,
-                StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)) {
-            channel.write(ByteBuffer.wrap(data));
-            channel.force(true); // Critical: Force OS to flush buffers to physical disk
-        }
-
-        // 2. Atomically move temp file to target file, replacing if exists
-        Files.move(tempPath, targetPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+    public ExecutorService getExecutor() {
+        return executor;
     }
 
     /**
-     * Shuts down the worker thread gracefully.
-     * Any tasks currently running will finish, but new tasks will be rejected.
+     * Submits a simple runnable task to the I/O thread.
+     *
+     * @param task The task to execute.
+     */
+    public void execute(Runnable task) {
+        if (!executor.isShutdown()) {
+            executor.execute(task);
+        } else {
+            VxMainClass.LOGGER.warn("Attempted to execute I/O task on shut down processor: {}", workerName);
+        }
+    }
+
+    /**
+     * Initiates a graceful shutdown of the I/O worker.
+     * <p>
+     * This method waits up to 5 seconds for currently running tasks to complete before
+     * forcing a shutdown. This ensures that in-progress file writes have a chance to finish.
      */
     @Override
     public void close() {
-        isShutdown.set(true);
+        if (executor.isShutdown()) return;
+
         executor.shutdown();
         try {
-            // Wait a reasonable amount of time for pending I/O to finish
+            // Wait a reasonable amount of time for pending writes to flush
             if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                VxMainClass.LOGGER.warn("I/O Processor {} did not terminate in time, forcing shutdown.", workerName);
                 executor.shutdownNow();
             }
         } catch (InterruptedException e) {
+            VxMainClass.LOGGER.error("Interrupted while shutting down I/O Processor {}", workerName, e);
             executor.shutdownNow();
             Thread.currentThread().interrupt();
         }

@@ -121,4 +121,44 @@ public class VxDependencyDataSystem {
         pendingConstraints.clear();
         bodyToConstraintMap.clear();
     }
+
+    /**
+     * Removes a specific constraint reference from the tracking system.
+     * <p>
+     * This method is called when a constraint is explicitly removed or destroyed.
+     * It ensures the constraint is removed from the pending queue and that
+     * neither of its attached bodies retains a dependency reference to it.
+     *
+     * @param constraint The constraint object to dereference.
+     */
+    public void removeConstraintReference(VxConstraint constraint) {
+        if (constraint == null) return;
+
+        UUID constraintId = constraint.getConstraintId();
+
+        // 1. Remove from the pending queue if it exists there
+        pendingConstraints.remove(constraintId);
+
+        // 2. Efficiently remove from dependency maps using the known body IDs.
+        // This is O(1) compared to the O(N) iteration of the generic cleanup() method.
+        removeDependencyFromMap(constraint.getBody1Id(), constraintId);
+        removeDependencyFromMap(constraint.getBody2Id(), constraintId);
+    }
+
+    /**
+     * Helper to safely remove a constraint ID from a body's dependency set.
+     */
+    private void removeDependencyFromMap(UUID bodyId, UUID constraintId) {
+        if (bodyId.equals(VxConstraintManager.WORLD_BODY_ID)) return;
+
+        Set<UUID> dependencies = bodyToConstraintMap.get(bodyId);
+        if (dependencies != null) {
+            dependencies.remove(constraintId);
+
+            // Optimization: Remove the entry entirely if no constraints depend on this body anymore
+            if (dependencies.isEmpty()) {
+                bodyToConstraintMap.remove(bodyId);
+            }
+        }
+    }
 }

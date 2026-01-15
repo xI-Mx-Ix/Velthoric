@@ -13,7 +13,6 @@ import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.constraint.VxConstraint;
 import net.xmx.velthoric.physics.constraint.persistence.VxConstraintStorage;
-import net.xmx.velthoric.physics.persistence.VxAbstractRegionStorage;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -51,12 +50,11 @@ public class VxConstraintManager {
     public VxConstraintManager(VxBodyManager bodyManager) {
         this.bodyManager = bodyManager;
         this.world = bodyManager.getPhysicsWorld();
-        this.constraintStorage = new VxConstraintStorage(world.getLevel(), this);
+        this.constraintStorage = new VxConstraintStorage(world.getLevel());
         this.dataSystem = new VxDependencyDataSystem(this);
     }
 
     public void initialize() {
-        constraintStorage.initialize();
     }
 
     /**
@@ -248,16 +246,35 @@ public class VxConstraintManager {
         return EConstraintSpace.LocalToBodyCom; // Default for types without this property
     }
 
+    /**
+     * Removes a specific constraint from the physics world.
+     * <p>
+     * This removes the constraint from the active simulation (Jolt) and the internal maps.
+     * It does not immediately modify the disk storage; the change is persisted when the
+     * relevant chunk is next serialized.
+     *
+     * @param constraintId The unique identifier of the constraint to remove.
+     * @param discardData  If true, indicates that the data should be permanently lost (e.g., broken by player).
+     *                     If false, it may imply a temporary unload or save.
+     */
     public void removeConstraint(UUID constraintId, boolean discardData) {
         VxConstraint constraint = activeConstraints.remove(constraintId);
-        if (constraint != null && constraint.getJoltConstraint() != null) {
-            world.execute(() -> {
-                world.getPhysicsSystem().removeConstraint(constraint.getJoltConstraint());
-                constraint.getJoltConstraint().close();
-            });
-        }
-        if (discardData) {
-            constraintStorage.removeData(constraintId);
+
+        if (constraint != null) {
+            // Remove from dependency tracking system
+            dataSystem.removeConstraintReference(constraint);
+
+            // Destroy the native Jolt constraint if it exists
+            if (constraint.getJoltConstraint() != null) {
+                world.execute(() -> {
+                    // Double-check existence on the physics thread before removal
+                    if (constraint.getJoltConstraint() != null) {
+                        world.getPhysicsSystem().removeConstraint(constraint.getJoltConstraint());
+                        constraint.getJoltConstraint().close();
+                        constraint.setJoltConstraint(null);
+                    }
+                });
+            }
         }
     }
 
@@ -300,43 +317,9 @@ public class VxConstraintManager {
     }
 
     /**
-     * Takes a list of constraints, serializes them immediately, groups them by region,
-     * and passes them to the storage system for writing.
-     *
-     * @param constraints The list of constraints to process and store.
-     */
-    private void processAndStoreConstraints(List<VxConstraint> constraints) {
-        // Cleanup finished tasks
-        pendingStorageTasks.removeIf(CompletableFuture::isDone);
-
-        Map<VxAbstractRegionStorage.RegionPos, Map<UUID, byte[]>> dataByRegion = new HashMap<>();
-
-        for (VxConstraint constraint : constraints) {
-            UUID chunkBodyId = !constraint.getBody1Id().equals(WORLD_BODY_ID)
-                    ? constraint.getBody1Id()
-                    : constraint.getBody2Id();
-
-            if (chunkBodyId.equals(WORLD_BODY_ID)) continue;
-
-            VxBody chunkBody = bodyManager.getVxBody(chunkBodyId);
-            if (chunkBody == null || chunkBody.getDataStoreIndex() == -1) continue;
-
-            ChunkPos chunkPos = bodyManager.getBodyChunkPos(chunkBody.getDataStoreIndex());
-            byte[] snapshot = constraintStorage.serializeConstraintData(constraint, chunkPos);
-            if (snapshot == null) continue;
-
-            VxAbstractRegionStorage.RegionPos regionPos = new VxAbstractRegionStorage.RegionPos(chunkPos.x >> 5, chunkPos.z >> 5);
-            dataByRegion.computeIfAbsent(regionPos, k -> new HashMap<>()).put(constraint.getConstraintId(), snapshot);
-        }
-
-        if (!dataByRegion.isEmpty()) {
-            constraintStorage.storeConstraintBatch(dataByRegion);
-        }
-    }
-
-    /**
-     * Saves all constraints associated with a given chunk by creating a safe snapshot on the physics thread
-     * and passing it to the storage system.
+     * Saves all constraints associated with a given chunk.
+     * The determination of which constraints belong to which chunk is based on the logic
+     * in {@link #isConstraintInChunk(VxConstraint, ChunkPos)}.
      *
      * @param pos The position of the chunk.
      */
@@ -347,29 +330,10 @@ public class VxConstraintManager {
                 constraintsToSave.add(constraint);
             }
         }
-        if (!constraintsToSave.isEmpty()) {
-            processAndStoreConstraints(constraintsToSave);
-        }
+        constraintStorage.saveChunk(pos, constraintsToSave);
     }
 
     public void flushPersistence(boolean block) {
-        try {
-            if (block) {
-                // Wait for all queued "put" operations to complete
-                CompletableFuture<?>[] pending = pendingStorageTasks.toArray(new CompletableFuture[0]);
-                if (pending.length > 0) {
-                    CompletableFuture.allOf(pending).join();
-                }
-                pendingStorageTasks.clear();
-            }
-
-            CompletableFuture<Void> future = constraintStorage.saveDirtyRegions();
-            constraintStorage.getRegionIndex().save();
-            if (block) {
-                future.join();
-            }
-        } catch (Exception e) {
-            VxMainClass.LOGGER.error("Failed to flush physics constraint persistence for world {}", world.getLevel().dimension().location(), e);
-        }
+        constraintStorage.flush(block);
     }
 }

@@ -4,6 +4,8 @@
  */
 package net.xmx.velthoric.physics.body.persistence;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
@@ -27,8 +29,14 @@ public final class VxBodyCodec {
 
     /**
      * Serializes a {@link VxBody} and its current physics state into a buffer.
-     * It writes the body's unique ID and type, then delegates to the body to write its
-     * internal persistence data (transform, velocities, vertices, etc.).
+     * <p>
+     * <b>Format:</b>
+     * <ul>
+     *     <li>UUID (16 bytes)</li>
+     *     <li>Type ID (UTF String)</li>
+     *     <li>Data Length (4 bytes)</li>
+     *     <li>Body Data (Variable payload)</li>
+     * </ul>
      *
      * @param body      The physics body to serialize.
      * @param buf       The buffer to write the serialized data into.
@@ -37,9 +45,23 @@ public final class VxBodyCodec {
         buf.writeUUID(body.getPhysicsId());
         buf.writeUtf(body.getType().getTypeId().toString());
 
-        // Delegate the writing of the actual physics and user data to the body itself.
-        // This ensures subclasses like VxSoftBody can save their specific vertex data.
-        body.writeInternalPersistenceData(buf);
+        // We use a temporary buffer to capture the variable-length internal data.
+        // This ensures we can calculate the exact size and prefix it, allowing the
+        // deserializer to distinguish where this body ends and the next one begins.
+        ByteBuf tempBuf = ByteBufAllocator.DEFAULT.ioBuffer();
+        try {
+            VxByteBuf tempVxBuf = new VxByteBuf(tempBuf);
+            body.writeInternalPersistenceData(tempVxBuf);
+
+            int length = tempBuf.readableBytes();
+
+            // Write length prefix
+            buf.writeInt(length);
+            // Write the actual payload
+            buf.writeBytes(tempBuf);
+        } finally {
+            tempBuf.release();
+        }
     }
 
     /**
@@ -56,9 +78,19 @@ public final class VxBodyCodec {
             UUID id = buf.readUUID();
             ResourceLocation typeId = ResourceLocation.tryParse(buf.readUtf());
 
-            // The rest of the buffer is the body's internal data (Transform, Velocity, Vertices, User Data).
-            // We copy this into a new buffer slice to be handed to the body instance later.
-            VxByteBuf bodyData = new VxByteBuf(buf.readBytes(buf.readableBytes()));
+            // Read the length of the internal data block
+            int dataLength = buf.readInt();
+
+            // Safety check to prevent reading past buffer bounds
+            if (buf.readableBytes() < dataLength) {
+                VxMainClass.LOGGER.error("Malformed body data for ID {}: expected {} bytes, but only {} remain.", id, dataLength, buf.readableBytes());
+                return null;
+            }
+
+            // Slice exactly the amount of data belonging to this body.
+            // readBytes() creates a slice and advances the reader index of 'buf' by 'dataLength'.
+            // This leaves the buffer positioned correctly for the next body in the chunk.
+            VxByteBuf bodyData = new VxByteBuf(buf.readBytes(dataLength));
 
             return new VxSerializedBodyData(typeId, id, bodyData);
         } catch (Exception e) {
