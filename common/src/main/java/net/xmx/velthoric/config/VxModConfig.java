@@ -7,7 +7,6 @@ package net.xmx.velthoric.config;
 import dev.architectury.platform.Platform;
 import net.xmx.velthoric.config.subsystems.VxClientConfig;
 import net.xmx.velthoric.config.subsystems.VxNetworkConfig;
-import net.xmx.velthoric.config.subsystems.VxPhysicsConfig;
 import net.xmx.velthoric.config.subsystems.VxTerrainConfig;
 import net.xmx.velthoric.init.VxMainClass;
 
@@ -29,7 +28,6 @@ public class VxModConfig {
     private static VxConfigSpec COMMON_SPEC;
     private static VxConfigSpec CLIENT_SPEC;
 
-    public static VxPhysicsConfig PHYSICS;
     public static VxTerrainConfig TERRAIN;
     public static VxNetworkConfig NETWORK;
     public static VxClientConfig CLIENT;
@@ -41,13 +39,9 @@ public class VxModConfig {
     public static void init() {
         String modVersion = Platform.getMod(VxMainClass.MODID).getVersion();
 
-        // --- Build Common Specification (Physics, Terrain, Network) ---
+        // --- Build Common Specification (Terrain, Network) ---
         VxConfigSpec.Builder commonBuilder = new VxConfigSpec.Builder();
         commonBuilder.setVersion(modVersion);
-
-        commonBuilder.push("physics_core");
-        PHYSICS = new VxPhysicsConfig(commonBuilder);
-        commonBuilder.pop();
 
         commonBuilder.push("terrain_system");
         TERRAIN = new VxTerrainConfig(commonBuilder);
