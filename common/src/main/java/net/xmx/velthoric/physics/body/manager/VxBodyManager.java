@@ -31,9 +31,7 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
 /**
@@ -83,12 +81,6 @@ public class VxBodyManager {
      * Counter for generating new network IDs when the free pool is empty.
      */
     private int nextNetworkId = 1;
-
-    /**
-     * A queue tracking active asynchronous body storage tasks.
-     * Used to ensure all pending data insertions are completed before flushing to disk.
-     */
-    private final ConcurrentLinkedQueue<CompletableFuture<?>> pendingStorageTasks = new ConcurrentLinkedQueue<>();
 
     /**
      * Constructs a new manager for the specified physics world.

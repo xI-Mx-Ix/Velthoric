@@ -17,10 +17,11 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Manages the lifecycle of physics constraints within a physics world.
@@ -41,11 +42,6 @@ public class VxConstraintManager {
     private final VxConstraintStorage constraintStorage;
     private final VxDependencyDataSystem dataSystem;
     private final Map<UUID, VxConstraint> activeConstraints = new ConcurrentHashMap<>();
-
-    /**
-     * A queue tracking active asynchronous constraint storage tasks.
-     */
-    private final ConcurrentLinkedQueue<CompletableFuture<?>> pendingStorageTasks = new ConcurrentLinkedQueue<>();
 
     public VxConstraintManager(VxBodyManager bodyManager) {
         this.bodyManager = bodyManager;
@@ -123,6 +119,7 @@ public class VxConstraintManager {
 
     /**
      * Adds a constraint from persistent storage to be processed for activation.
+     *
      * @param constraint The constraint loaded from storage.
      */
     public void addConstraintFromStorage(VxConstraint constraint) {
