@@ -347,14 +347,14 @@ public final class VxTerrainTracker {
      * Helper method to iterate over all chunk sections that overlap a given AABB, expanded by a radius.
      * Includes a safety brake to prevent processing excessively large areas due to physics glitches.
      *
-     * @param minX The minimum X coordinate of the bounding box.
-     * @param minY The minimum Y coordinate of the bounding box.
-     * @param minZ The minimum Z coordinate of the bounding box.
-     * @param maxX The maximum X coordinate of the bounding box.
-     * @param maxY The maximum Y coordinate of the bounding box.
-     * @param maxZ The maximum Z coordinate of the bounding box.
+     * @param minX           The minimum X coordinate of the bounding box.
+     * @param minY           The minimum Y coordinate of the bounding box.
+     * @param minZ           The minimum Z coordinate of the bounding box.
+     * @param maxX           The maximum X coordinate of the bounding box.
+     * @param maxY           The maximum Y coordinate of the bounding box.
+     * @param maxZ           The maximum Z coordinate of the bounding box.
      * @param radiusInChunks The radius in chunks to expand the box by.
-     * @param outChunks The set to which the overlapping chunk positions will be added.
+     * @param outChunks      The set to which the overlapping chunk positions will be added.
      */
     private void forEachSectionInBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, int radiusInChunks, Set<VxSectionPos> outChunks) {
         if (Double.isNaN(minX) || Double.isNaN(maxX) || Double.isNaN(minZ) || Double.isNaN(maxZ)) return;

@@ -10,7 +10,6 @@ package net.xmx.velthoric.physics.persistence;
  *
  * @param x The region x-coordinate (chunkX >> 5).
  * @param z The region z-coordinate (chunkZ >> 5).
- *
  * @author xI-Mx-Ix
  */
 public record RegionPos(int x, int z) {

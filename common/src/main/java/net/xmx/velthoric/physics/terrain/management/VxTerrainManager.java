@@ -53,6 +53,7 @@ public final class VxTerrainManager {
     /**
      * Requests a terrain chunk to be loaded. Increments its reference count.
      * If this is the first request, it schedules the chunk for shape generation.
+     *
      * @param pos The position of the chunk section.
      */
     public void requestChunk(VxSectionPos pos) {
@@ -65,6 +66,7 @@ public final class VxTerrainManager {
     /**
      * Releases a terrain chunk. Decrements its reference count.
      * If the reference count reaches zero, the chunk is unloaded.
+     *
      * @param pos The position of the chunk section.
      */
     public void releaseChunk(VxSectionPos pos) {
@@ -76,6 +78,7 @@ public final class VxTerrainManager {
 
     /**
      * Schedules a chunk for a rebuild, for example after a block update.
+     *
      * @param pos The position of the chunk to rebuild.
      */
     public void rebuildChunk(VxSectionPos pos) {
@@ -87,6 +90,7 @@ public final class VxTerrainManager {
 
     /**
      * Prioritizes the generation of a chunk if it is not yet ready or is a placeholder.
+     *
      * @param pos The position of the chunk to prioritize.
      */
     public void prioritizeChunk(VxSectionPos pos) {
@@ -99,6 +103,7 @@ public final class VxTerrainManager {
     /**
      * Activates a chunk, adding its physics body to the simulation.
      * If the chunk is a placeholder, it schedules a high-priority regeneration.
+     *
      * @param pos The position of the chunk to activate.
      */
     public void activateChunk(VxSectionPos pos) {
@@ -127,6 +132,7 @@ public final class VxTerrainManager {
 
     /**
      * Deactivates a chunk, removing its physics body from the simulation.
+     *
      * @param pos The position of the chunk to deactivate.
      */
     public void deactivateChunk(VxSectionPos pos) {
@@ -147,8 +153,9 @@ public final class VxTerrainManager {
 
     /**
      * Atomically schedules the generation of a physics shape for a chunk.
-     * @param pos The position of the chunk.
-     * @param index The data store index of the chunk.
+     *
+     * @param pos            The position of the chunk.
+     * @param index          The data store index of the chunk.
      * @param isInitialBuild True if this is the first time the chunk is being built.
      */
     private void scheduleShapeGeneration(VxSectionPos pos, int index, boolean isInitialBuild) {

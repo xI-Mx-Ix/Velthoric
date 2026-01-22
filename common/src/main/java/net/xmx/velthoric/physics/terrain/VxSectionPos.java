@@ -15,17 +15,21 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Represents the position of a 16x16x16 chunk section in the world.
  * Used to uniquely identify sections in the terrain system.
- *
+ * <p>
  * Each coordinate refers to a section index, not world-space coordinates.
  *
  * @author xI-Mx-Ix
  */
 public final class VxSectionPos {
 
-    /** Size of one chunk section edge, in blocks. */
+    /**
+     * Size of one chunk section edge, in blocks.
+     */
     public static final int CHUNK_SIZE = 16;
 
-    /** Bit shift value for converting between block and section coordinates (2^4 = 16). */
+    /**
+     * Bit shift value for converting between block and section coordinates (2^4 = 16).
+     */
     public static final int CHUNK_SIZE_SHIFT = 4;
 
     private final int x;

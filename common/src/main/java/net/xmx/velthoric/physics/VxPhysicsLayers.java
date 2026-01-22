@@ -26,27 +26,41 @@ public final class VxPhysicsLayers {
 
     /* ===================== Object Layers ===================== */
 
-    /** Static and kinematic bodies that do not move via physics simulation */
+    /**
+     * Static and kinematic bodies that do not move via physics simulation
+     */
     public static final short NON_MOVING = 0;
 
-    /** Dynamic bodies simulated by the physics engine */
+    /**
+     * Dynamic bodies simulated by the physics engine
+     */
     public static final short MOVING = 1;
 
-    /** Terrain geometry such as heightfields */
+    /**
+     * Terrain geometry such as heightfields
+     */
     public static final short TERRAIN = 2;
 
-    /** Total number of object layers */
+    /**
+     * Total number of object layers
+     */
     public static final short NUM_OBJECT_LAYERS = 3;
 
     /* ===================== Broad Phase Layers ===================== */
 
-    /** Broad-phase layer for non-moving objects */
+    /**
+     * Broad-phase layer for non-moving objects
+     */
     public static final short BP_NON_MOVING = 0;
 
-    /** Broad-phase layer for moving objects */
+    /**
+     * Broad-phase layer for moving objects
+     */
     public static final short BP_MOVING = 1;
 
-    /** Total number of broad-phase layers */
+    /**
+     * Total number of broad-phase layers
+     */
     public static final short NUM_BROAD_PHASE_LAYERS = 2;
 
     private static BroadPhaseLayerInterface broadPhaseLayerInterface;

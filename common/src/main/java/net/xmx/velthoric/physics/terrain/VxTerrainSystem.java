@@ -144,6 +144,7 @@ public final class VxTerrainSystem implements Runnable {
     /**
      * Handles a block update event from the game world. If a terrain chunk is affected,
      * it is queued for a rebuild and nearby physics bodies are woken up.
+     *
      * @param worldPos The position of the block that changed.
      */
     public void onBlockUpdate(BlockPos worldPos) {
@@ -188,6 +189,7 @@ public final class VxTerrainSystem implements Runnable {
 
     /**
      * Checks if a terrain chunk at a given position is fully loaded and ready for physics simulation.
+     *
      * @param pos The position of the chunk section.
      * @return True if the chunk is ready, false otherwise.
      */
@@ -197,6 +199,7 @@ public final class VxTerrainSystem implements Runnable {
 
     /**
      * Checks if a terrain chunk at a given position is using a placeholder shape.
+     *
      * @param pos The position of the chunk section.
      * @return True if the chunk is using a placeholder, false otherwise.
      */
@@ -206,6 +209,7 @@ public final class VxTerrainSystem implements Runnable {
 
     /**
      * Checks if a terrain chunk is ready based on its SectionPos.
+     *
      * @param sectionPos The SectionPos of the chunk.
      * @return True if the chunk is ready.
      */
@@ -218,6 +222,7 @@ public final class VxTerrainSystem implements Runnable {
 
     /**
      * Determines if a given physics body ID belongs to a terrain chunk.
+     *
      * @param bodyId The ID of the physics body.
      * @return True if the body is a terrain body, false otherwise.
      */
@@ -232,6 +237,7 @@ public final class VxTerrainSystem implements Runnable {
 
     /**
      * Gets the Minecraft ServerLevel this terrain system is associated with.
+     *
      * @return The ServerLevel instance.
      */
     public ServerLevel getLevel() {
