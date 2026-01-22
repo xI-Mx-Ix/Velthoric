@@ -4,7 +4,10 @@
  */
 package net.xmx.velthoric.physics.buoyancy.phase;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.Body;
+import com.github.stephengold.joltjni.BodyLockWrite;
+import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.readonly.ConstBodyLockInterface;
 import net.xmx.velthoric.physics.buoyancy.VxBuoyancyDataStore;
 import net.xmx.velthoric.physics.buoyancy.VxFluidType;
@@ -16,22 +19,15 @@ import net.xmx.velthoric.physics.world.VxPhysicsWorld;
  * This implementation delegates the heavy geometric lifting directly to the native
  * Jolt Physics engine. It calculates the exact submerged volume of complex shapes
  * (Convex Hulls, Meshes, Compounds) and applies the resulting buoyancy and drag forces.
- * <p>
- * <b>Optimization:</b> It uses {@link BodyLockMultiWrite} to process bodies in batches of 128.
- * Furthermore, it hoists ThreadLocal resource retrieval out of the inner loop to ensure
- * zero-allocation during the physics simulation step.
  *
  * @author xI-Mx-Ix
  */
 public final class VxBuoyancyNarrowPhase {
 
-    private static final int BATCH_SIZE = 128;
-
     private final VxPhysicsWorld physicsWorld;
 
     // --- Thread-Local Temporaries to avoid allocation ---
     // These objects are reused every frame to prevent GC pressure.
-    private final ThreadLocal<int[]> tempBatchIds = ThreadLocal.withInitial(() -> new int[BATCH_SIZE]);
     private final ThreadLocal<RVec3> tempSurfacePos = ThreadLocal.withInitial(RVec3::new);
     private final ThreadLocal<Vec3> tempSurfaceNormal = ThreadLocal.withInitial(() -> new Vec3(0, 1, 0));
     private final ThreadLocal<Vec3> tempFluidVelocity = ThreadLocal.withInitial(Vec3::new);
@@ -46,60 +42,45 @@ public final class VxBuoyancyNarrowPhase {
     }
 
     /**
-     * Iterates through the locked bodies and applies buoyancy forces using the native Jolt implementation.
+     * Iterates through the bodies and applies buoyancy forces using individual write locks.
      * <p>
-     * This method is called during the physics simulation step. It retrieves the data populated
-     * by the broad-phase and injects it into the Jolt physics engine.
+     * This method retrieves the environmental data populated by the broad-phase and uses the
+     * native Jolt Physics engine to calculate exact submerged volumes and drag forces.
      *
-     * @param lockInterface The no-lock interface used to retrieve body pointers.
+     * @param lockInterface The locking interface used to acquire body locks.
      * @param deltaTime     The simulation time step.
      * @param dataStore     The data store containing all information about buoyant bodies.
      */
     public void applyForces(ConstBodyLockInterface lockInterface, float deltaTime, VxBuoyancyDataStore dataStore) {
         int totalCount = dataStore.getCount();
 
-        // Retrieve ThreadLocal buffers once per frame, NOT per body.
-        // Calling .get() on a ThreadLocal inside a hot loop (thousands of iterations) adds
-        // measurable overhead. By hoisting it here, we get raw object references.
-        int[] batchIds = tempBatchIds.get();
+        // Retrieve ThreadLocal buffers once per frame to avoid allocation overhead in the loop.
         RVec3 surfacePosition = tempSurfacePos.get();
         Vec3 surfaceNormal = tempSurfaceNormal.get();
         Vec3 fluidVelocity = tempFluidVelocity.get();
-
         Vec3 gravity = physicsWorld.getPhysicsSystem().getGravity();
 
-        // Process bodies in chunks of BATCH_SIZE to reduce Locking overhead.
-        // This is the primary optimization for high body counts (locking individually is slow).
-        for (int baseIndex = 0; baseIndex < totalCount; baseIndex += BATCH_SIZE) {
-            int currentBatchCount = Math.min(BATCH_SIZE, totalCount - baseIndex);
+        // Iterate sequentially through all active buoyant bodies.
+        for (int i = 0; i < totalCount; i++) {
+            int bodyId = dataStore.bodyIds[i];
 
-            // Copy IDs to the temporary batch array for the MultiLock.
-            System.arraycopy(dataStore.bodyIds, baseIndex, batchIds, 0, currentBatchCount);
+            // Acquire an individual Write Lock for the body.
+            // We use try-with-resources to ensure the lock is always released.
+            try (BodyLockWrite lock = new BodyLockWrite(lockInterface, bodyId)) {
+                Body body = lock.getBody();
 
-            // Create a single multi-lock for the entire batch.
-            // Using try-with-resources ensures the lock is released even if an exception occurs.
-            try (BodyLockMultiWrite lock = new BodyLockMultiWrite(lockInterface, batchIds)) {
-
-                // Iterate through the results in the batch.
-                for (int i = 0; i < currentBatchCount; i++) {
-                    Body body = lock.getBody(i);
-
-                    // If the body pointer is null, the body ID was invalid or the body was removed.
-                    // If !isActive, the body is sleeping, and we shouldn't wake it up unnecessarily.
-                    if (body != null && body.isActive()) {
-                        int globalIndex = baseIndex + i;
-
-                        applyNativeBuoyancy(
-                                body,
-                                deltaTime,
-                                globalIndex,
-                                dataStore,
-                                gravity,
-                                surfacePosition, // Pass reused objects
-                                surfaceNormal,
-                                fluidVelocity
-                        );
-                    }
+                // Apply forces only if the body was successfully locked and is active.
+                if (body != null && body.isActive()) {
+                    applyNativeBuoyancy(
+                            body,
+                            deltaTime,
+                            i,
+                            dataStore,
+                            gravity,
+                            surfacePosition,
+                            surfaceNormal,
+                            fluidVelocity
+                    );
                 }
             }
         }
