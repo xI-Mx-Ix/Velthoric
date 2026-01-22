@@ -213,7 +213,7 @@ public final class VxChunkDataStore extends AbstractDataStore {
      *
      * @param index The index of the chunk to schedule.
      * @return The new, unique version number for the generation task if successful, or -1 if the
-     *         chunk cannot be scheduled (e.g., it is already being processed).
+     * chunk cannot be scheduled (e.g., it is already being processed).
      */
     public int scheduleForGeneration(int index) {
         if (index < 0 || index >= capacity) {

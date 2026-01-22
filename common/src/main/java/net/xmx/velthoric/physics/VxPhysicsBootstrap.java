@@ -4,11 +4,7 @@
  */
 package net.xmx.velthoric.physics;
 
-import com.github.stephengold.joltjni.BroadPhaseLayerInterface;
-import com.github.stephengold.joltjni.Jolt;
-import com.github.stephengold.joltjni.JoltPhysicsObject;
-import com.github.stephengold.joltjni.ObjectLayerPairFilter;
-import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilter;
+import com.github.stephengold.joltjni.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

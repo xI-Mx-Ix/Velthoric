@@ -5,6 +5,7 @@
 package net.xmx.velthoric.physics.terrain.job;
 
 import net.xmx.velthoric.init.VxMainClass;
+
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -30,6 +31,7 @@ public final class VxTerrainJobSystem {
 
     /**
      * Submits a task to be executed by the job system's thread pool.
+     *
      * @param task The task to execute.
      * @return A CompletableFuture that completes when the task is done.
      */
@@ -58,6 +60,7 @@ public final class VxTerrainJobSystem {
 
     /**
      * Checks if the job system has been shut down.
+     *
      * @return True if the service is shut down or terminated.
      */
     public boolean isShutdown() {

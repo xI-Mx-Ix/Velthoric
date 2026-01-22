@@ -48,7 +48,7 @@ public abstract class VxChunkBasedStorage<T, D> {
     protected final Path storagePath;
     protected final VxRegionFileCache regionCache;
     protected final VxIOProcessor ioProcessor;
-    
+
     /**
      * Holds serialized chunk data waiting to be written to disk.
      * Key: ChunkPos as Long. Value: Netty ByteBuf (retained).
@@ -279,10 +279,10 @@ public abstract class VxChunkBasedStorage<T, D> {
      */
     private List<D> deserializeChunk(ByteBuf buffer) {
         if (!buffer.isReadable()) return Collections.emptyList();
-        
+
         VxByteBuf vxBuf = new VxByteBuf(buffer);
         List<D> results = new ArrayList<>();
-        
+
         try {
             int count = vxBuf.readInt();
             for (int i = 0; i < count; i++) {

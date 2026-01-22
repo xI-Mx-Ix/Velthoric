@@ -67,7 +67,7 @@ public final class VxTerrainShapeCache {
      * used (oldest) entry is evicted and closed.
      * </p>
      *
-     * @param key The content hash of the shape.
+     * @param key   The content hash of the shape.
      * @param shape The shape reference to store.
      */
     public synchronized void put(int key, ShapeRefC shape) {

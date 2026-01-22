@@ -33,6 +33,7 @@ public final class VxTerrainGenerator implements AutoCloseable {
 
     /**
      * Constructs a new terrain generator with caching capabilities.
+     *
      * @param shapeCache An in-memory cache for storing final, generated terrain shapes.
      */
     public VxTerrainGenerator(VxTerrainShapeCache shapeCache) {
@@ -61,10 +62,10 @@ public final class VxTerrainGenerator implements AutoCloseable {
      * <b>Note:</b> This implementation iterates over the primitive arrays in the snapshot to avoid object overhead.
      * </p>
      *
-     * @param level The server level, used to get context-aware collision shapes.
+     * @param level    The server level, used to get context-aware collision shapes.
      * @param snapshot An immutable snapshot of the chunk section's block data.
      * @return A new reference to the generated compound shape (ShapeRefC), or {@code null} if the chunk is empty or generation fails.
-     *         The caller is responsible for closing the returned shape reference.
+     * The caller is responsible for closing the returned shape reference.
      */
     public ShapeRefC generateShape(ServerLevel level, VxChunkSnapshot snapshot) {
         int contentHash = snapshot.hashCode();

@@ -25,10 +25,9 @@ import java.util.Arrays;
  * </p>
  *
  * @param packedPositions An array of packed local coordinates. Format: (x << 8) | (y << 4) | z.
- * @param states The block states corresponding to the packed positions by index.
- * @param count The actual number of collidable blocks stored in the arrays.
- * @param pos The position of the chunk section this snapshot represents.
- *
+ * @param states          The block states corresponding to the packed positions by index.
+ * @param count           The actual number of collidable blocks stored in the arrays.
+ * @param pos             The position of the chunk section this snapshot represents.
  * @author xI-Mx-Ix
  */
 public record VxChunkSnapshot(short[] packedPositions, BlockState[] states, int count, VxSectionPos pos) {
@@ -45,7 +44,7 @@ public record VxChunkSnapshot(short[] packedPositions, BlockState[] states, int 
      *
      * @param level The level the chunk belongs to.
      * @param chunk The chunk to snapshot.
-     * @param pos The specific section of the chunk to snapshot.
+     * @param pos   The specific section of the chunk to snapshot.
      * @return A new ChunkSnapshot instance.
      */
     public static VxChunkSnapshot snapshotFromChunk(Level level, LevelChunk chunk, VxSectionPos pos) {

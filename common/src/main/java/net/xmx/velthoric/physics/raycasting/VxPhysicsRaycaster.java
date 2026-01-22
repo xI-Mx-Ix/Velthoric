@@ -4,17 +4,7 @@
  */
 package net.xmx.velthoric.physics.raycasting;
 
-import com.github.stephengold.joltjni.BodyFilter;
-import com.github.stephengold.joltjni.BodyLockRead;
-import com.github.stephengold.joltjni.BroadPhaseLayerFilter;
-import com.github.stephengold.joltjni.ClosestHitCastRayCollector;
-import com.github.stephengold.joltjni.ObjectLayerFilter;
-import com.github.stephengold.joltjni.PhysicsSystem;
-import com.github.stephengold.joltjni.RRayCast;
-import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.RayCastResult;
-import com.github.stephengold.joltjni.RayCastSettings;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.ConstNarrowPhaseQuery;
 import net.xmx.velthoric.init.VxMainClass;
@@ -77,13 +67,13 @@ public final class VxPhysicsRaycaster {
      * Performs a raycast with fully customized broad-phase, object-layer, and body filters.
      * This is the most specific version of the raycast method.
      *
-     * @param physicsWorld      The physics world to perform the raycast in.
-     * @param rayOrigin         The starting point of the ray.
-     * @param rayDirection      The direction of the ray (should be normalized).
-     * @param maxDistance       The maximum distance the ray should travel.
-     * @param bplFilter         A custom filter for broad-phase layers.
-     * @param olFilter          A custom filter for object layers.
-     * @param bodyFilter        A custom filter for individual physics bodies.
+     * @param physicsWorld The physics world to perform the raycast in.
+     * @param rayOrigin    The starting point of the ray.
+     * @param rayDirection The direction of the ray (should be normalized).
+     * @param maxDistance  The maximum distance the ray should travel.
+     * @param bplFilter    A custom filter for broad-phase layers.
+     * @param olFilter     A custom filter for object layers.
+     * @param bodyFilter   A custom filter for individual physics bodies.
      * @return An Optional containing a generic physics hit result if a hit occurred, otherwise an empty Optional.
      */
     public static Optional<Result> raycast(VxPhysicsWorld physicsWorld, RVec3 rayOrigin, Vec3 rayDirection, float maxDistance,
