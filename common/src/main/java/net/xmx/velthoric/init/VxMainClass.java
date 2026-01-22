@@ -10,8 +10,9 @@ import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.registry.KeyMappings;
 import net.xmx.velthoric.init.registry.ModRegistries;
-import net.xmx.velthoric.natives.VxNativeManager;
+import net.xmx.velthoric.natives.systems.NativeManager;
 import net.xmx.velthoric.network.VxPacketRegistry;
+import net.xmx.velthoric.physics.VxPhysicsBootstrap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -41,7 +42,8 @@ public class VxMainClass {
         VxRegisteredBodies.register();
         VxPacketRegistry.registerPackets();
         RegisterEvents.register();
-        VxNativeManager.initialize();
+        NativeManager.initialize();
+        VxPhysicsBootstrap.initialize();
     }
 
     /**

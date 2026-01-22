@@ -2,10 +2,10 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.natives;
+package net.xmx.velthoric.natives.systems;
 
 import com.github.luben.zstd.util.Native;
-import net.xmx.vxnative.UnsupportedOperatingSystemException;
+import net.xmx.velthoric.natives.os.UnsupportedOperatingSystemException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +18,7 @@ import java.nio.file.Path;
  *
  * @author xI-Mx-Ix
  */
-public class VxNativeZstd {
+public class NativeZstd {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("Velthoric Zstd-JNI");
     private static volatile boolean isInitialized = false;
@@ -26,7 +26,7 @@ public class VxNativeZstd {
     /**
      * Initializes the Zstd-JNI native library using the custom loader.
      * It prevents the default zstd-jni loader from running and then delegates
-     * the loading process to the central VxNativeManager.
+     * the loading process to the central NativeManager.
      *
      * @param extractionPath The root directory where native libraries should be extracted.
      * @throws UnsupportedOperatingSystemException if the current platform is not supported.
@@ -43,7 +43,7 @@ public class VxNativeZstd {
         Native.assumeLoaded();
 
         // Delegate the platform detection and loading to the central manager.
-        VxNativeManager.loadLibrary(extractionPath, "zstd-jni");
+        NativeManager.loadLibrary(extractionPath, "zstd-jni");
 
         isInitialized = true;
         LOGGER.debug("Zstd-JNI native library loaded successfully via Velthoric loader.");

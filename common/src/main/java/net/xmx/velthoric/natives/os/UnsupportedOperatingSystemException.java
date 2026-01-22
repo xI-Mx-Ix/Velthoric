@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.vxnative;
+package net.xmx.velthoric.natives.os;
 
 /**
  * An exception thrown when an operation is attempted on an unsupported operating system or architecture.
