@@ -2,13 +2,13 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.natives;
+package net.xmx.velthoric.natives.systems;
 
 import dev.architectury.platform.Platform;
-import net.xmx.vxnative.Arch;
-import net.xmx.vxnative.OS;
-import net.xmx.vxnative.UnsupportedOperatingSystemException;
-import net.xmx.vxnative.VxNativeLibraryLoader;
+import net.xmx.velthoric.natives.NativeLoader;
+import net.xmx.velthoric.natives.os.Arch;
+import net.xmx.velthoric.natives.os.OS;
+import net.xmx.velthoric.natives.os.UnsupportedOperatingSystemException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +21,7 @@ import java.nio.file.Path;
  *
  * @author xI-Mx-Ix
  */
-public class VxNativeManager {
+public class NativeManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("Velthoric Native Manager");
     private static volatile boolean areNativesInitialized = false;
@@ -42,10 +42,10 @@ public class VxNativeManager {
 
         try {
             // First, load Zstd, as it's a general-purpose utility.
-            VxNativeZstd.initialize(extractionPath);
+            NativeZstd.initialize(extractionPath);
 
             // Second, load the Jolt physics engine.
-            VxNativeJolt.initialize(extractionPath);
+            NativeJolt.initialize(extractionPath);
 
             areNativesInitialized = true;
             LOGGER.info("All Velthoric native libraries initialized successfully.");
@@ -81,7 +81,7 @@ public class VxNativeManager {
         String resourcePath = String.format("/natives/%s/%s/%s", os.folder, arch.folder, libFileName);
 
         LOGGER.debug("Attempting to load '{}' from resource path '{}'", libFileName, resourcePath);
-        VxNativeLibraryLoader.load(extractionPath, resourcePath, libFileName);
+        NativeLoader.load(extractionPath, resourcePath, libFileName);
     }
 
     /**

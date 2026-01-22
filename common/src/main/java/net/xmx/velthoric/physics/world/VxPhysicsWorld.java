@@ -11,7 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.bridge.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.natives.VxNativeJolt;
+import net.xmx.velthoric.physics.VxPhysicsBootstrap;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.buoyancy.VxBuoyancyManager;
 import net.xmx.velthoric.physics.constraint.manager.VxConstraintManager;
@@ -233,9 +233,9 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
 
         this.physicsSystem = new PhysicsSystem();
-        BroadPhaseLayerInterface bpli = VxNativeJolt.getBroadPhaseLayerInterface();
-        ObjectVsBroadPhaseLayerFilter ovbpf = VxNativeJolt.getObjectVsBroadPhaseLayerFilter();
-        ObjectLayerPairFilter olpf = VxNativeJolt.getObjectLayerPairFilter();
+        BroadPhaseLayerInterface bpli = VxPhysicsBootstrap.getBroadPhaseLayerInterface();
+        ObjectVsBroadPhaseLayerFilter ovbpf = VxPhysicsBootstrap.getObjectVsBroadPhaseLayerFilter();
+        ObjectLayerPairFilter olpf = VxPhysicsBootstrap.getObjectLayerPairFilter();
 
         this.physicsSystem.init(maxBodies, 0, maxBodyPairs, maxContactConstraints, bpli, ovbpf, olpf);
 

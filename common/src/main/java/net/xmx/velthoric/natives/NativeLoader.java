@@ -2,8 +2,9 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.vxnative;
+package net.xmx.velthoric.natives;
 
+import net.xmx.vxnative.NativeBootstrap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,16 +21,21 @@ import java.security.NoSuchAlgorithmException;
 /**
  * A generic loader for native libraries from the classpath.
  * It extracts a native library to a specified path, performs a hash check
- * to avoid unnecessary re-extraction, and then loads it into the JVM.
+ * to avoid unnecessary re-extraction, and then loads it into the JVM
+ * using the NativeBootstrap mechanism.
  *
  * @author xI-Mx-Ix
  */
-public class VxNativeLibraryLoader {
+public class NativeLoader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("Velthoric Native Loader");
 
     /**
      * Loads a native library, extracting it if necessary.
+     * <p>
+     * Once the file is verified or extracted, this method delegates the actual
+     * loading to {@link NativeBootstrap#loadLibrary(java.io.File)} to ensure
+     * correct ClassLoader handling.
      *
      * @param extractionPath The directory to extract the library into.
      * @param resourcePath   The full path to the library within the classpath (e.g., "/natives/windows/x86-64/mylib.dll").
@@ -66,7 +72,8 @@ public class VxNativeLibraryLoader {
                 }
             }
 
-            System.load(targetFile.toAbsolutePath().toString());
+            // Delegate loading to the NativeBootstrap to handle ClassLoader registration
+            NativeBootstrap.loadLibrary(targetFile.toFile());
             LOGGER.debug("Successfully loaded native library: {}", libFileName);
 
         } catch (Exception e) {

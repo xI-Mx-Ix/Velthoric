@@ -2,84 +2,81 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.natives;
+package net.xmx.velthoric.physics;
 
 import com.github.stephengold.joltjni.BroadPhaseLayerInterface;
 import com.github.stephengold.joltjni.Jolt;
 import com.github.stephengold.joltjni.JoltPhysicsObject;
 import com.github.stephengold.joltjni.ObjectLayerPairFilter;
 import com.github.stephengold.joltjni.ObjectVsBroadPhaseLayerFilter;
-import net.xmx.velthoric.physics.VxPhysicsLayers;
-import net.xmx.vxnative.UnsupportedOperatingSystemException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Path;
-
 /**
- * Manages the lifecycle of the Jolt physics native library.
- * This class orchestrates the loading and initialization of Jolt-specific components
- * by delegating the core loading process to a central manager.
+ * Bootstraps the Jolt Physics engine.
+ * <p>
+ * This class handles the initialization of Jolt factories, memory allocators,
+ * callbacks, and physics layers. It assumes that the native library has already
+ * been loaded via {@link net.xmx.velthoric.natives.systems.NativeJolt}.
  *
  * @author xI-Mx-Ix
  */
-public class VxNativeJolt {
+public class VxPhysicsBootstrap {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("Velthoric JoltJNI");
+    private static final Logger LOGGER = LoggerFactory.getLogger("Velthoric Physics Bootstrap");
     private static volatile boolean isInitialized = false;
 
     /**
-     * Initializes the Jolt physics system.
-     * This method delegates the native library loading to the central VxNativeManager,
-     * then proceeds with Jolt-specific setup like registering allocators and callbacks.
+     * Initializes the Jolt physics engine components.
+     * <p>
+     * This registers the default allocators, callbacks, and initializes the
+     * factory and physics layers.
      *
-     * @param extractionPath The root directory where native libraries should be extracted.
      * @throws IllegalStateException if the Jolt Factory cannot be created.
-     * @throws UnsupportedOperatingSystemException if the current platform is not supported.
      */
-    public static void initialize(Path extractionPath) {
+    public static void initialize() {
         if (isInitialized) {
             return;
         }
 
-        LOGGER.debug("Performing JoltJNI initialization...");
+        LOGGER.debug("Initializing Jolt Physics engine components...");
 
-        // Delegate the platform detection and loading to the central manager.
-        VxNativeManager.loadLibrary(extractionPath, "joltjni");
-
-        // Proceed with Jolt-specific initialization now that the native library is loaded.
+        // Register standard Jolt components
         Jolt.registerDefaultAllocator();
         Jolt.installDefaultAssertCallback();
         Jolt.installDefaultTraceCallback();
         JoltPhysicsObject.startCleaner();
 
+        // Initialize the Factory
         if (!Jolt.newFactory()) {
             throw new IllegalStateException("Jolt Factory could not be created.");
         }
+
+        // Register types and initialize custom layers
         Jolt.registerTypes();
-        VxPhysicsLayers.initialize(); // Assuming VxPhysicsLayers is another class for layer setup.
+        VxPhysicsLayers.initialize();
 
         isInitialized = true;
-        LOGGER.debug("JoltJNI native library loaded and initialized successfully via Velthoric loader.");
+        LOGGER.debug("Jolt Physics engine initialized successfully.");
     }
 
     /**
      * Shuts down the Jolt physics system.
-     * This method cleans up all allocated Jolt resources.
+     * This method cleans up all allocated Jolt resources and destroys the factory.
      */
     public static void shutdown() {
         if (!isInitialized) {
             return;
         }
-        LOGGER.debug("Performing JoltJNI shutdown...");
+        LOGGER.debug("Shutting down Jolt Physics engine...");
         VxPhysicsLayers.shutdown();
         Jolt.destroyFactory();
         isInitialized = false;
-        LOGGER.debug("JoltJNI shutdown complete.");
+        LOGGER.debug("Jolt Physics engine shutdown complete.");
     }
 
     /**
-     * Checks if the Jolt physics system has been initialized.
+     * Checks if the physics engine has been initialized.
      *
      * @return true if initialized, false otherwise.
      */

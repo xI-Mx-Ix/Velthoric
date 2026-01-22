@@ -48,8 +48,7 @@ dependencies {
 
     modImplementation "dev.architectury:architectury-forge:$rootProject.architectury_api_version"
 
-    implementation project(path: ":vx-native", configuration: "namedElements")
-    minecraftRuntimeLibraries project(path: ":vx-native", configuration: "namedElements")
+    minecraftRuntimeLibraries(project(path: ":vx-native", configuration: "namedElements"))
     shadowBundle project(path: ":vx-native", configuration: "namedElements")
 
     common(project(path: ":vx-events", configuration: "namedElements")) { transitive false }
