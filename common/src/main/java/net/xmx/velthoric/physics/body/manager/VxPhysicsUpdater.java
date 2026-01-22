@@ -79,13 +79,12 @@ public class VxPhysicsUpdater {
     /**
      * Reads the state of Jolt bodies and writes it back into the data store.
      * <p>
-     * This method iterates directly over the {@code dataStore.bodies} array.
-     * By avoiding {@code getIdForIndex} and {@code manager.getVxBody(UUID)},
-     * we eliminate HashMap lookups completely from the hot path, significantly
-     * reducing CPU overhead and cache misses for large body counts.
-     * <p>
-     * <b>Performance Note:</b> Uses {@link IntArrayList} to avoid autoboxing overhead
-     * when tracking active bodies for the multi-read lock.
+     * This method operates in two passes:
+     * <ol>
+     *     <li><b>Lock-Free Pass:</b> Syncs Position, Rotation, and Velocity using the {@link BodyInterface}.</li>
+     *     <li><b>Locked Pass:</b> Syncs AABB and SoftBody vertices. This uses sequential locking to ensure
+     *     stability across different JNI implementations and platforms.</li>
+     * </ol>
      *
      * @param timestampNanos The current timestamp for interpolation tracking.
      * @param world          The physics world instance.
@@ -150,8 +149,7 @@ public class VxPhysicsUpdater {
 
                 dataStore.motionType[i] = bodyInterface.getMotionType(bodyId);
 
-                // Collect this body to be included in the multi-lock for AABB and soft body data.
-                // Using primitive add(int) avoids Integer object allocation.
+                // Add to list for Pass 2 (AABB & SoftBody sync)
                 localBodyIdsToLock.add(bodyId);
                 localDataIndicesToLock.add(i);
 
@@ -169,18 +167,17 @@ public class VxPhysicsUpdater {
             }
         }
 
-        // --- Pass 2: Efficiently sync remaining data using a single multi-lock ---
+        // --- Pass 2: Sync AABB & SoftBody data (Sequential Lock) ---
         if (!localBodyIdsToLock.isEmpty()) {
             ConstBodyLockInterfaceNoLock lockInterface = world.getPhysicsSystem().getBodyLockInterfaceNoLock();
+            int count = localBodyIdsToLock.size();
 
-            // Convert primitive list to native int array efficiently.
-            // This allocates one array per tick, which is vastly superior to allocating N Integer objects.
-            int[] bodyIdArray = localBodyIdsToLock.toIntArray();
+            for (int j = 0; j < count; j++) {
+                int bodyId = localBodyIdsToLock.getInt(j);
 
-            try (BodyLockMultiRead multiLock = new BodyLockMultiRead(lockInterface, bodyIdArray)) {
-                int count = bodyIdArray.length;
-                for (int j = 0; j < count; ++j) {
-                    ConstBody body = multiLock.getBody(j);
+                // Acquire an individual read lock for each body.
+                try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {
+                    ConstBody body = lock.getBody();
                     if (body != null) {
                         // Retrieve the original DataStore index for this body ID
                         int i = localDataIndicesToLock.getInt(j);
@@ -192,6 +189,7 @@ public class VxPhysicsUpdater {
                         ConstAaBox bounds = body.getWorldSpaceBounds();
                         Vec3 min = bounds.getMin();
                         Vec3 max = bounds.getMax();
+
                         dataStore.aabbMinX[i] = min.getX();
                         dataStore.aabbMinY[i] = min.getY();
                         dataStore.aabbMinZ[i] = min.getZ();
