@@ -1,5 +1,5 @@
 plugins {
-    id 'java'
+    id 'java-library'
 }
 
 group = 'net.xmx.vxnative'
@@ -9,95 +9,114 @@ repositories {
     mavenCentral()
 }
 
-// A custom configuration to hold the native library dependencies.
+// We define a specific configuration to download the jars that contain the native libraries.
+// We don't want these jars on the classpath directly, we just want to extract files from them.
 configurations {
-    nativeLibs
+    nativeExtraction
 }
 
 dependencies {
-    nativeLibs "com.github.luben:zstd-jni:${project.zstd_jni_version}"
-    nativeLibs "com.github.stephengold:jolt-jni-Windows64:${project.jolt_jni_version}:ReleaseDp"
-    nativeLibs "com.github.stephengold:jolt-jni-Linux64:${project.jolt_jni_version}:ReleaseDp"
-    nativeLibs "com.github.stephengold:jolt-jni-Linux_ARM64:${project.jolt_jni_version}:ReleaseDp"
-    nativeLibs "com.github.stephengold:jolt-jni-MacOSX64:${project.jolt_jni_version}:ReleaseDp"
-    nativeLibs "com.github.stephengold:jolt-jni-MacOSX_ARM64:${project.jolt_jni_version}:ReleaseDp"
+    // We use 'api' here so that projects depending on vx-native (like common)
+    // can access the Zstd and Jolt Java classes.
+    api "com.github.luben:zstd-jni:1.5.7-6"
+    api "com.github.stephengold:jolt-jni-Linux64:${project.jolt_jni_version}"
+
+    // These are the dependencies we only download to extract the .dll and .so files.
+    nativeExtraction "com.github.luben:zstd-jni:1.5.7-6"
+    nativeExtraction "com.github.stephengold:jolt-jni-Windows64:${project.jolt_jni_version}:ReleaseDp"
+    nativeExtraction "com.github.stephengold:jolt-jni-Linux64:${project.jolt_jni_version}:ReleaseDp"
+    nativeExtraction "com.github.stephengold:jolt-jni-Linux_ARM64:${project.jolt_jni_version}:ReleaseDp"
+    nativeExtraction "com.github.stephengold:jolt-jni-MacOSX64:${project.jolt_jni_version}:ReleaseDp"
+    nativeExtraction "com.github.stephengold:jolt-jni-MacOSX_ARM64:${project.jolt_jni_version}:ReleaseDp"
+}
+
+processResources {
+    // This helper function finds the jar file in our nativeExtraction configuration.
+    def findJar = { prefix ->
+        configurations.nativeExtraction.find { it.name.startsWith(prefix) }
+    }
+
+    // Extract Zstd natives and rename them to match our custom folder structure.
+    from(zipTree(findJar('zstd-jni'))) {
+        include 'win/amd64/libzstd-jni-1.5.7-6.dll'
+        eachFile { fcd -> fcd.path = "natives/win/x86_64/zstd-jni.dll" }
+        includeEmptyDirs = false
+    }
+    from(zipTree(findJar('zstd-jni'))) {
+        include 'linux/amd64/libzstd-jni-1.5.7-6.so'
+        eachFile { fcd -> fcd.path = "natives/linux/x86_64/libzstd-jni.so" }
+        includeEmptyDirs = false
+    }
+    from(zipTree(findJar('zstd-jni'))) {
+        include 'linux/aarch64/libzstd-jni-1.5.7-6.so'
+        eachFile { fcd -> fcd.path = "natives/linux/aarch64/libzstd-jni.so" }
+        includeEmptyDirs = false
+    }
+    from(zipTree(findJar('zstd-jni'))) {
+        include 'darwin/x86_64/libzstd-jni-1.5.7-6.dylib'
+        eachFile { fcd -> fcd.path = "natives/osx/x86_64/libzstd-jni.dylib" }
+        includeEmptyDirs = false
+    }
+    from(zipTree(findJar('zstd-jni'))) {
+        include 'darwin/aarch64/libzstd-jni-1.5.7-6.dylib'
+        eachFile { fcd -> fcd.path = "natives/osx/aarch64/libzstd-jni.dylib" }
+        includeEmptyDirs = false
+    }
+
+    // Extract Jolt natives for Windows.
+    def win64 = findJar('jolt-jni-Windows64')
+    if (win64) {
+        from(zipTree(win64)) {
+            include 'windows/x86-64/com/github/stephengold/joltjni.dll'
+            eachFile { fcd -> fcd.path = "natives/win/x86_64/joltjni.dll" }
+            includeEmptyDirs = false
+        }
+    }
+
+    // Extract Jolt natives for Linux x64.
+    def linux64 = findJar('jolt-jni-Linux64')
+    if (linux64) {
+        from(zipTree(linux64)) {
+            include 'linux/x86-64/com/github/stephengold/libjoltjni.so'
+            eachFile { fcd -> fcd.path = "natives/linux/x86_64/libjoltjni.so" }
+            includeEmptyDirs = false
+        }
+    }
+
+    // Extract Jolt natives for Linux ARM64.
+    def linuxArm = findJar('jolt-jni-Linux_ARM64')
+    if (linuxArm) {
+        from(zipTree(linuxArm)) {
+            include 'linux/aarch64/com/github/stephengold/libjoltjni.so'
+            eachFile { fcd -> fcd.path = "natives/linux/aarch64/libjoltjni.so" }
+            includeEmptyDirs = false
+        }
+    }
+
+    // Extract Jolt natives for macOS x64.
+    def mac64 = findJar('jolt-jni-MacOSX64')
+    if (mac64) {
+        from(zipTree(mac64)) {
+            include 'osx/x86-64/com/github/stephengold/libjoltjni.dylib'
+            eachFile { fcd -> fcd.path = "natives/osx/x86_64/libjoltjni.dylib" }
+            includeEmptyDirs = false
+        }
+    }
+
+    // Extract Jolt natives for macOS ARM64.
+    def macArm = findJar('jolt-jni-MacOSX_ARM64')
+    if (macArm) {
+        from(zipTree(macArm)) {
+            include 'osx/aarch64/com/github/stephengold/libjoltjni.dylib'
+            eachFile { fcd -> fcd.path = "natives/osx/aarch64/libjoltjni.dylib" }
+            includeEmptyDirs = false
+        }
+    }
+
+    // If a file is found in multiple zips, we just warn instead of failing.
+    duplicatesStrategy = DuplicatesStrategy.WARN
 }
 
 jar {
     archiveBaseName.set("vxnative")
-    duplicatesStrategy = DuplicatesStrategy.FAIL
-
-    // --- ZSTD Natives ---
-    from(zipTree(configurations.nativeLibs.find { it.name.startsWith('zstd-jni') })) {
-        include 'win/amd64/libzstd-jni-1.5.7-6.dll'
-        eachFile { fcd ->
-            fcd.path = "natives/win/x86_64/zstd-jni.dll"
-        }
-        includeEmptyDirs = false
-    }
-    from(zipTree(configurations.nativeLibs.find { it.name.startsWith('zstd-jni') })) {
-        include 'linux/amd64/libzstd-jni-1.5.7-6.so'
-        eachFile { fcd ->
-            fcd.path = "natives/linux/x86_64/libzstd-jni.so"
-        }
-        includeEmptyDirs = false
-    }
-    from(zipTree(configurations.nativeLibs.find { it.name.startsWith('zstd-jni') })) {
-        include 'linux/aarch64/libzstd-jni-1.5.7-6.so'
-        eachFile { fcd ->
-            fcd.path = "natives/linux/aarch64/libzstd-jni.so"
-        }
-        includeEmptyDirs = false
-    }
-    from(zipTree(configurations.nativeLibs.find { it.name.startsWith('zstd-jni') })) {
-        include 'darwin/x86_64/libzstd-jni-1.5.7-6.dylib'
-        eachFile { fcd ->
-            fcd.path = "natives/osx/x86_64/libzstd-jni.dylib"
-        }
-        includeEmptyDirs = false
-    }
-    from(zipTree(configurations.nativeLibs.find { it.name.startsWith('zstd-jni') })) {
-        include 'darwin/aarch64/libzstd-jni-1.5.7-6.dylib'
-        eachFile { fcd ->
-            fcd.path = "natives/osx/aarch64/libzstd-jni.dylib"
-        }
-        includeEmptyDirs = false
-    }
-
-    // --- JoltJNI Natives ---
-    from(zipTree(configurations.nativeLibs.find { it.name.startsWith('jolt-jni-Windows64') })) {
-        include 'windows/x86-64/com/github/stephengold/joltjni.dll'
-        eachFile { fcd ->
-            fcd.path = "natives/win/x86_64/joltjni.dll"
-        }
-        includeEmptyDirs = false
-    }
-    from(zipTree(configurations.nativeLibs.find { it.name.startsWith('jolt-jni-Linux64') })) {
-        include 'linux/x86-64/com/github/stephengold/libjoltjni.so'
-        eachFile { fcd ->
-            fcd.path = "natives/linux/x86_64/libjoltjni.so"
-        }
-        includeEmptyDirs = false
-    }
-    from(zipTree(configurations.nativeLibs.find { it.name.startsWith('jolt-jni-Linux_ARM64') })) {
-        include 'linux/aarch64/com/github/stephengold/libjoltjni.so'
-        eachFile { fcd ->
-            fcd.path = "natives/linux/aarch64/libjoltjni.so"
-        }
-        includeEmptyDirs = false
-    }
-    from(zipTree(configurations.nativeLibs.find { it.name.startsWith('jolt-jni-MacOSX64') })) {
-        include 'osx/x86-64/com/github/stephengold/libjoltjni.dylib'
-        eachFile { fcd ->
-            fcd.path = "natives/osx/x86_64/libjoltjni.dylib"
-        }
-        includeEmptyDirs = false
-    }
-    from(zipTree(configurations.nativeLibs.find { it.name.startsWith('jolt-jni-MacOSX_ARM64') })) {
-        include 'osx/aarch64/com/github/stephengold/libjoltjni.dylib'
-        eachFile { fcd ->
-            fcd.path = "natives/osx/aarch64/libjoltjni.dylib"
-        }
-        includeEmptyDirs = false
-    }
 }
