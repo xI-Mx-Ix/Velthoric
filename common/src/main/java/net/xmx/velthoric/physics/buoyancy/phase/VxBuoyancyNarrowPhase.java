@@ -4,10 +4,7 @@
  */
 package net.xmx.velthoric.physics.buoyancy.phase;
 
-import com.github.stephengold.joltjni.Body;
-import com.github.stephengold.joltjni.BodyLockWrite;
-import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.readonly.ConstBodyLockInterface;
 import net.xmx.velthoric.physics.buoyancy.VxBuoyancyDataStore;
 import net.xmx.velthoric.physics.buoyancy.VxFluidType;
@@ -53,6 +50,7 @@ public final class VxBuoyancyNarrowPhase {
      */
     public void applyForces(ConstBodyLockInterface lockInterface, float deltaTime, VxBuoyancyDataStore dataStore) {
         int totalCount = dataStore.getCount();
+        BodyInterface bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterfaceNoLock();
 
         // Retrieve ThreadLocal buffers once per frame to avoid allocation overhead in the loop.
         RVec3 surfacePosition = tempSurfacePos.get();
@@ -63,6 +61,10 @@ public final class VxBuoyancyNarrowPhase {
         // Iterate sequentially through all active buoyant bodies.
         for (int i = 0; i < totalCount; i++) {
             int bodyId = dataStore.bodyIds[i];
+
+            if (bodyId == 0 || !bodyInterface.isAdded(bodyId)) {
+                continue;
+            }
 
             // Acquire an individual Write Lock for the body.
             // We use try-with-resources to ensure the lock is always released.
