@@ -77,31 +77,6 @@ subprojects {
             officialMojangMappings()
             parchment("org.parchmentmc.data:parchment-${minecraft_version}:${parchment_version}@zip")
         }
-
-        implementation 'com.github.luben:zstd-jni:1.5.7-6'
-        minecraftRuntimeLibraries 'com.github.luben:zstd-jni:1.5.7-6'
-
-        // Java-only Jolt library
-        implementation "com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}"
-        minecraftRuntimeLibraries "com.github.stephengold:jolt-jni-Linux64:${jolt_jni_version}"
-
-        // Native libraries classifier variable
-        def nativeClassifier = "ReleaseDp" // classifier used for all native platforms
-
-        // List of native platforms
-        def nativePlatforms = [
-                'Windows64',
-                'Linux64',
-                'Linux_ARM64',
-                'MacOSX64',
-                'MacOSX_ARM64'
-        ]
-
-        // Loop through each platform and add the native library
-        nativePlatforms.each { os ->
-            implementation "com.github.stephengold:jolt-jni-${os}:${jolt_jni_version}:${nativeClassifier}"
-            minecraftRuntimeLibraries "com.github.stephengold:jolt-jni-${os}:${jolt_jni_version}:${nativeClassifier}"
-        }
     }
 
     java {
