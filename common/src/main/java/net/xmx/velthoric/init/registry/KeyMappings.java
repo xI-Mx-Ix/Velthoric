@@ -29,8 +29,9 @@ public class KeyMappings {
     );
 
     /**
-     * The keybinding used shift down vehicle.
-     * Default key: K.
+     * Key mapping to shift the vehicle downward.
+     * <p>
+     * Default key: {@code F}
      */
     public static final VxKeyMapping VEHICLE_SHIFT_DOWN = new VxKeyMapping(
             "key.velthoric.vehicle.shift_down",
@@ -41,8 +42,9 @@ public class KeyMappings {
     );
 
     /**
-     * The keybinding used shift up vehicle.
-     * Default key: R.
+     * Key mapping to shift the vehicle upward.
+     * <p>
+     * Default key: {@code R}
      */
     public static final VxKeyMapping VEHICLE_SHIFT_UP = new VxKeyMapping(
             "key.velthoric.vehicle.shift_up",
@@ -53,8 +55,9 @@ public class KeyMappings {
     );
 
     /**
-     * The keybinding used shift down vehicle.
-     * Default key: H.
+     * Key mapping for the vehicle's special action.
+     * <p>
+     * Default key: {@code H}
      */
     public static final VxKeyMapping VEHICLE_SPECIAL = new VxKeyMapping(
             "key.velthoric.vehicle.special",
