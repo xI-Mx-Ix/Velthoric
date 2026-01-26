@@ -4,7 +4,6 @@
  */
 package net.xmx.velthoric.mixin.impl.bridge.mounting.input;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
@@ -14,7 +13,6 @@ import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.bridge.mounting.input.C2SMountInputPacket;
 import net.xmx.velthoric.bridge.mounting.input.VxMountInput;
-import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -63,19 +61,13 @@ public abstract class MixinLocalPlayer {
             if (input.jumping) flags |= VxMountInput.FLAG_HANDBRAKE;
 
             // Shift Up = R
-            if (((KeyMappingKeyAccessor) KeyMappings.VEHICLE_SHIFT_UP).velthoric_getKey().getValue() == GLFW.GLFW_KEY_UNKNOWN ?
-                    InputConstants.isKeyDown(window, GLFW.GLFW_KEY_R) :
-                    KeyMappings.VEHICLE_SHIFT_UP.isDown()) flags |= VxMountInput.FLAG_SHIFT_UP;
+            if (KeyMappings.VEHICLE_SHIFT_UP.isDown(window)) flags |= VxMountInput.FLAG_SHIFT_UP;
 
             // Shift Down = F
-            if (((KeyMappingKeyAccessor) KeyMappings.VEHICLE_SHIFT_DOWN).velthoric_getKey().getValue() == GLFW.GLFW_KEY_UNKNOWN ?
-                    InputConstants.isKeyDown(window, GLFW.GLFW_KEY_F) :
-                    KeyMappings.VEHICLE_SHIFT_DOWN.isDown()) flags |= VxMountInput.FLAG_SHIFT_DOWN;
+            if (KeyMappings.VEHICLE_SHIFT_DOWN.isDown(window)) flags |= VxMountInput.FLAG_SHIFT_DOWN;
 
             // Horn / Special = H
-            if (((KeyMappingKeyAccessor) KeyMappings.VEHICLE_SPECIAL).velthoric_getKey().getValue() == GLFW.GLFW_KEY_UNKNOWN ?
-                    InputConstants.isKeyDown(window, GLFW.GLFW_KEY_H) :
-                    KeyMappings.VEHICLE_SPECIAL.isDown()) flags |= VxMountInput.FLAG_SPECIAL_1;
+            if (KeyMappings.VEHICLE_SPECIAL.isDown(window)) flags |= VxMountInput.FLAG_SPECIAL_1;
 
             VxMountInput currentInput = new VxMountInput(forward, right, flags);
 
