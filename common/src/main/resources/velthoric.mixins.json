@@ -13,7 +13,7 @@
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
   ],
   "client": [
-    "bridge.mounting.input.KeyMappingKeyAccessor",
+    "bridge.mounting.input.KeyMappingAccessor",
     "bridge.mounting.input.MixinLocalPlayer",
     "bridge.mounting.render.MixinCamera",
     "bridge.mounting.render.MixinEntityRenderDispatcher",

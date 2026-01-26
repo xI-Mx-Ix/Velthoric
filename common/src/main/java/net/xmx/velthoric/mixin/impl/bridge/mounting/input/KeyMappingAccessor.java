@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
  * @author timtaran
  */
 @Mixin(KeyMapping.class)
-public interface KeyMappingKeyAccessor {
+public interface KeyMappingAccessor {
     @Accessor("key")
     InputConstants.Key velthoric_getKey();
 }
