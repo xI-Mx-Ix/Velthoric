@@ -6,5 +6,9 @@
   "item.velthoric.chain_creator": "Chain Creator",
   "item.velthoric.ragdoll_launcher": "Ragdoll Launcher",
   "key.velthoric.tool_config": "Open Tool Config",
-  "category.velthoric": "Velthoric"
+  "key.velthoric.vehicle.shift_up": "Shift Up",
+  "key.velthoric.vehicle.shift_down": "Shift Down",
+  "key.velthoric.vehicle.special": "Special action",
+  "category.velthoric": "Velthoric",
+  "category.velthoric.vehicle": "Velthoric — Vehicles"
 }
