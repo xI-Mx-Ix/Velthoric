@@ -6,14 +6,17 @@ package net.xmx.velthoric.mixin.impl.bridge.mounting.input;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
+import net.xmx.velthoric.init.registry.KeyMappings;
 import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.bridge.mounting.input.C2SMountInputPacket;
 import net.xmx.velthoric.bridge.mounting.input.VxMountInput;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -28,6 +31,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LocalPlayer.class)
 public abstract class MixinLocalPlayer {
 
+    @Shadow
+    public Input input;
     @Unique
     private VxMountInput velthoric_lastRideInput = null;
 
@@ -43,28 +48,34 @@ public abstract class MixinLocalPlayer {
             // 1. Calculate Analog Axis (Forward/Backward) using raw GLFW keys
             // W = Forward (+1.0), S = Backward (-1.0)
             float forward = 0.0f;
-            if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_W)) forward += 1.0f;
-            if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_S)) forward -= 1.0f;
+            if (input.up) forward += 1.0f;
+            if (input.down) forward -= 1.0f;
 
             // 2. Calculate Analog Axis (Left/Right) using raw GLFW keys
             // A = Left (-1.0), D = Right (+1.0)
             float right = 0.0f;
-            if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_A)) right -= 1.0f;
-            if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_D)) right += 1.0f;
+            if (input.left) right -= 1.0f;
+            if (input.right) right += 1.0f;
 
             // 3. Calculate Action Flags Bitmask
             int flags = 0;
             // Handbrake = Space
-            if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_SPACE)) flags |= VxMountInput.FLAG_HANDBRAKE;
+            if (input.jumping) flags |= VxMountInput.FLAG_HANDBRAKE;
 
             // Shift Up = R
-            if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_R)) flags |= VxMountInput.FLAG_SHIFT_UP;
+            if (((KeyMappingKeyAccessor) KeyMappings.VEHICLE_SHIFT_UP).velthoric_getKey().getValue() == GLFW.GLFW_KEY_UNKNOWN ?
+                    InputConstants.isKeyDown(window, GLFW.GLFW_KEY_R) :
+                    KeyMappings.VEHICLE_SHIFT_UP.isDown()) flags |= VxMountInput.FLAG_SHIFT_UP;
 
             // Shift Down = F
-            if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_F)) flags |= VxMountInput.FLAG_SHIFT_DOWN;
+            if (((KeyMappingKeyAccessor) KeyMappings.VEHICLE_SHIFT_DOWN).velthoric_getKey().getValue() == GLFW.GLFW_KEY_UNKNOWN ?
+                    InputConstants.isKeyDown(window, GLFW.GLFW_KEY_F) :
+                    KeyMappings.VEHICLE_SHIFT_DOWN.isDown()) flags |= VxMountInput.FLAG_SHIFT_DOWN;
 
             // Horn / Special = H
-            if (InputConstants.isKeyDown(window, GLFW.GLFW_KEY_H)) flags |= VxMountInput.FLAG_SPECIAL_1;
+            if (((KeyMappingKeyAccessor) KeyMappings.VEHICLE_SPECIAL).velthoric_getKey().getValue() == GLFW.GLFW_KEY_UNKNOWN ?
+                    InputConstants.isKeyDown(window, GLFW.GLFW_KEY_H) :
+                    KeyMappings.VEHICLE_SPECIAL.isDown()) flags |= VxMountInput.FLAG_SPECIAL_1;
 
             VxMountInput currentInput = new VxMountInput(forward, right, flags);
 
