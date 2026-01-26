@@ -43,13 +43,13 @@ public abstract class MixinLocalPlayer {
             // Retrieve the window handle to check raw keyboard input
             long window = Minecraft.getInstance().getWindow().getWindow();
 
-            // 1. Calculate Analog Axis (Forward/Backward) using raw GLFW keys
+            // 1. Calculate Analog Axis (Forward/Backward)
             // W = Forward (+1.0), S = Backward (-1.0)
             float forward = 0.0f;
             if (input.up) forward += 1.0f;
             if (input.down) forward -= 1.0f;
 
-            // 2. Calculate Analog Axis (Left/Right) using raw GLFW keys
+            // 2. Calculate Analog Axis (Left/Right)
             // A = Left (-1.0), D = Right (+1.0)
             float right = 0.0f;
             if (input.left) right -= 1.0f;
