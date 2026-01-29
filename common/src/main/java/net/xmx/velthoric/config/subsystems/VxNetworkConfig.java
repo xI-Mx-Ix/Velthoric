@@ -14,17 +14,24 @@ import net.xmx.velthoric.config.VxConfigValue;
  */
 public class VxNetworkConfig {
 
+    /**
+     * The target update frequency of the dedicated network thread.
+     * Lower values result in smoother movement but higher server CPU usage.
+     */
     public final VxConfigValue<Integer> networkTickRate;
-    public final VxConfigValue<Integer> maxStatesPerPacket;
-    public final VxConfigValue<Integer> maxVerticesPerPacket;
+
+    /**
+     * The maximum size in bytes for a single packet payload (specifically for spawns).
+     * Used to split huge chunks into multiple spawn packets to avoid kicking clients
+     * due to protocol buffer overflows (MTU/Netty limits).
+     */
     public final VxConfigValue<Integer> maxPayloadSize;
-    public final VxConfigValue<Integer> maxRemovalsPerPacket;
 
     public VxNetworkConfig(VxConfigSpec.Builder builder) {
-        this.networkTickRate = builder.defineInRange("network_thread_tick_rate_ms", 10, 1, 1000, "Target tick rate for the network sync thread in milliseconds.");
-        this.maxStatesPerPacket = builder.defineInRange("max_states_per_packet", 50, 1, 1000, "Max number of body states packed into one update packet.");
-        this.maxVerticesPerPacket = builder.defineInRange("max_vertices_per_packet", 50, 1, 1000, "Max number of vertex updates packed into one packet.");
-        this.maxPayloadSize = builder.define("max_packet_payload_bytes", 128 * 1024, "Max bytes per packet to prevent disconnects.");
-        this.maxRemovalsPerPacket = builder.define("max_removals_per_packet", 512, "Max body removals per packet.");
+        this.networkTickRate = builder.defineInRange("network_thread_tick_rate_ms", 10, 1, 1000,
+                "Target tick rate for the network sync thread in milliseconds.");
+
+        this.maxPayloadSize = builder.define("max_packet_payload_bytes", 128 * 1024,
+                "Max bytes per packet (approx 128KB) to prevent client disconnects during mass spawns.");
     }
 }
