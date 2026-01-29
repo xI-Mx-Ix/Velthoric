@@ -6,6 +6,7 @@ package net.xmx.velthoric.physics.body.manager;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.physics.body.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.physics.body.type.VxBody;
@@ -53,7 +54,7 @@ public class VxChunkManager {
         int index = body.getDataStoreIndex();
         if (index == -1) return;
 
-        long key = bodyManager.getBodyChunkPos(index).toLong();
+        long key = bodyManager.getChunkManager().getBodyChunkPos(index).toLong();
         dataStore.chunkKey[index] = key;
 
         synchronized (bodiesByChunk) {
@@ -150,5 +151,38 @@ public class VxChunkManager {
             List<VxBody> removed = bodiesByChunk.remove(pos.toLong());
             return removed != null ? removed : Collections.emptyList();
         }
+    }
+
+    /**
+     * Calculates the packed long representation of the chunk position for a body.
+     * This is a high-performance, garbage-free alternative to {@link #getBodyChunkPos(int)}.
+     *
+     * @param dataStoreIndex The index of the body in the data store.
+     * @return The packed chunk coordinates as a long.
+     */
+    public long getBodyChunkPosLong(int dataStoreIndex) {
+        if (dataStoreIndex >= 0 && dataStoreIndex < dataStore.getCapacity()) {
+            return ChunkPos.asLong(
+                    SectionPos.posToSectionCoord(dataStore.posX[dataStoreIndex]),
+                    SectionPos.posToSectionCoord(dataStore.posZ[dataStoreIndex])
+            );
+        }
+        return ChunkPos.asLong(0, 0);
+    }
+
+    /**
+     * Calculates the ChunkPos for a body based on its current position in the DataStore.
+     *
+     * @param dataStoreIndex The index of the body.
+     * @return The chunk position containing the body's center.
+     */
+    public ChunkPos getBodyChunkPos(int dataStoreIndex) {
+        if (dataStoreIndex >= 0 && dataStoreIndex < dataStore.getCapacity()) {
+            return new ChunkPos(
+                    SectionPos.posToSectionCoord(dataStore.posX[dataStoreIndex]),
+                    SectionPos.posToSectionCoord(dataStore.posZ[dataStoreIndex])
+            );
+        }
+        return new ChunkPos(0, 0); // Fallback to 0,0 if index invalid
     }
 }
