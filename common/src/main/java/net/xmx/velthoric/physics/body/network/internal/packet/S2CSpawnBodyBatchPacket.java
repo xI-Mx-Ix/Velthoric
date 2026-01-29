@@ -6,7 +6,6 @@ package net.xmx.velthoric.physics.body.network.internal.packet;
 
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketUtils;
@@ -15,99 +14,75 @@ import net.xmx.velthoric.physics.body.network.internal.VxSpawnData;
 import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * A network packet that contains a compressed batch of physics bodies to be spawned on the client.
- * This is more efficient than sending a separate packet for each individual body.
+ * A compressed binary stream packet for spawning multiple bodies at once.
+ * <p>
+ * This eliminates the need for individual packet headers or Java object overhead,
+ * utilizing a flat memory layout for maximum throughput.
  *
  * @author xI-Mx-Ix
  */
 public class S2CSpawnBodyBatchPacket {
 
-    private final List<VxSpawnData> spawnDataList;
+    /**
+     * Number of bodies encoded in the payload.
+     */
+    private final int count;
 
     /**
-     * Constructs a new batch packet with a list of objects to spawn.
-     *
-     * @param spawnDataList The list of {@link VxSpawnData} for each body.
+     * Compressed binary stream of spawn data.
      */
-    public S2CSpawnBodyBatchPacket(List<VxSpawnData> spawnDataList) {
-        this.spawnDataList = spawnDataList;
+    private final byte[] compressedPayload;
+
+    /**
+     * @param count             Number of bodies.
+     * @param compressedPayload Compressed Zstd blob.
+     */
+    public S2CSpawnBodyBatchPacket(int count, byte[] compressedPayload) {
+        this.count = count;
+        this.compressedPayload = compressedPayload;
     }
 
     /**
-     * Encodes the packet's data into a network buffer.
-     *
-     * @param msg The packet instance to encode.
-     * @param buf The buffer to write to.
+     * Encodes raw packet data.
      */
     public static void encode(S2CSpawnBodyBatchPacket msg, FriendlyByteBuf buf) {
-        FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
-        try {
-            tempBuf.writeVarInt(msg.spawnDataList.size());
-            for (VxSpawnData data : msg.spawnDataList) {
-                data.encode(tempBuf);
-            }
-            byte[] uncompressedData = new byte[tempBuf.readableBytes()];
-            tempBuf.readBytes(uncompressedData);
-
-            byte[] compressedData = VxPacketUtils.compress(uncompressedData);
-            buf.writeVarInt(uncompressedData.length); // Write uncompressed size for client
-            buf.writeByteArray(compressedData);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to compress spawn body batch packet", e);
-        } finally {
-            tempBuf.release();
-        }
+        buf.writeVarInt(msg.count);
+        buf.writeVarInt(msg.compressedPayload.length);
+        buf.writeByteArray(msg.compressedPayload);
     }
 
     /**
-     * Decodes the packet from a network buffer.
-     *
-     * @param buf The buffer to read from.
-     * @return A new instance of the packet.
+     * Decodes and initializes the batch.
      */
     public static S2CSpawnBodyBatchPacket decode(FriendlyByteBuf buf) {
-        int uncompressedSize = buf.readVarInt();
-        byte[] compressedData = buf.readByteArray();
-        try {
-            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
-            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
-            int size = decompressedBuf.readVarInt();
-            List<VxSpawnData> spawnDataList = new ObjectArrayList<>(size);
-            for (int i = 0; i < size; i++) {
-                spawnDataList.add(new VxSpawnData(decompressedBuf));
-            }
-            return new S2CSpawnBodyBatchPacket(spawnDataList);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to decompress spawn body batch packet", e);
-        }
+        int count = buf.readVarInt();
+        int len = buf.readVarInt();
+        return new S2CSpawnBodyBatchPacket(count, buf.readByteArray(len));
     }
 
     /**
-     * Handles the packet on the client side.
-     *
-     * @param msg             The received packet.
-     * @param contextSupplier A supplier for the network packet context.
+     * Handles decompression and sequentially spawns bodies from the stream.
      */
-    public static void handle(S2CSpawnBodyBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
-        NetworkManager.PacketContext context = contextSupplier.get();
-        context.queue(() -> {
-            VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
-            // Iterate through each spawn data entry and spawn the corresponding body on the client.
-            for (VxSpawnData data : msg.spawnDataList) {
-                // Wrap the raw byte data into a buffer for the manager to read.
-                VxByteBuf dataBuf = new VxByteBuf(Unpooled.wrappedBuffer(data.data));
+    public static void handle(S2CSpawnBodyBatchPacket msg, Supplier<NetworkManager.PacketContext> ctx) {
+        ctx.get().queue(() -> {
+            try {
+                int size = (int) com.github.luben.zstd.Zstd.decompressedSize(msg.compressedPayload);
+                byte[] raw = VxPacketUtils.decompress(msg.compressedPayload, size);
+                VxByteBuf buf = new VxByteBuf(Unpooled.wrappedBuffer(raw));
+                VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
+
                 try {
-                    manager.spawnBody(data.id, data.networkId, data.typeIdentifier, dataBuf, data.timestamp);
-                } finally {
-                    // Ensure the buffer is released to prevent memory leaks.
-                    if (dataBuf.refCnt() > 0) {
-                        dataBuf.release();
+                    for (int i = 0; i < msg.count; i++) {
+                        VxSpawnData.readAndSpawn(buf, manager);
                     }
+                } finally {
+                    buf.release();
                 }
+            } catch (IOException e) {
+                throw new RuntimeException("Decompression failure during body spawning", e);
             }
         });
     }

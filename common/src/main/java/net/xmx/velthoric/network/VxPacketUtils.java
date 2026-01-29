@@ -13,59 +13,112 @@ import java.util.Arrays;
 
 /**
  * A highly optimized utility class for compressing and decompressing packet data using Zstd via zstd-jni.
- * It leverages ThreadLocal instances of compression/decompression contexts to avoid repeated
- * memory allocations and reduce context-switching overhead, significantly minimizing
- * garbage collection pressure under high network load. This implementation uses the byte[] API
- * to ensure compatibility and avoid direct buffer allocation issues.
+ * <p>
+ * To achieve maximum performance and minimum Garbage Collector (GC) pressure, this class utilizes
+ * {@link ThreadLocal} instances of Zstd compression and decompression contexts. This avoids the
+ * significant overhead of allocating native memory for contexts on every operation.
+ * <p>
+ * This implementation is specifically designed for high-concurrency environments, supporting
+ * direct compression into reusable buffers to eliminate intermediate byte array allocations.
  *
  * @author xI-Mx-Ix
  */
 public class VxPacketUtils {
 
     /**
-     * The default compression level for Zstd. Level 3 is a good balance
-     * between speed and compression ratio for real-time game data.
+     * The default compression level for Zstd.
+     * Level 3 provides an optimal trade-off between CPU usage and compression ratio
+     * for high-frequency game state updates.
      */
     private static final int COMPRESSION_LEVEL = 3;
 
-    private static final ThreadLocal<ZstdCompressCtx> COMPRESS_CTX = ThreadLocal.withInitial(() -> new ZstdCompressCtx().setLevel(COMPRESSION_LEVEL));
+    /**
+     * Thread-local compression context to prevent allocation and ensure thread safety
+     * during the compression process.
+     */
+    private static final ThreadLocal<ZstdCompressCtx> COMPRESS_CTX = ThreadLocal.withInitial(() ->
+            new ZstdCompressCtx().setLevel(COMPRESSION_LEVEL));
+
+    /**
+     * Thread-local decompression context to prevent allocation and ensure thread safety
+     * during the decompression process.
+     */
     private static final ThreadLocal<ZstdDecompressCtx> DECOMPRESS_CTX = ThreadLocal.withInitial(ZstdDecompressCtx::new);
 
     /**
-     * Compresses a byte array using a reusable, thread-local Zstd compression context.
-     * This method is optimized to minimize memory allocations.
+     * Calculates the maximum possible size of compressed data for a given input size.
+     * This is used to pre-allocate or verify the size of destination buffers.
      *
-     * @param data The uncompressed data.
-     * @return The compressed data.
-     * @throws IOException If a compression error occurs.
+     * @param srcSize The size of the uncompressed source data in bytes.
+     * @return The maximum size the compressed data could occupy (worst-case scenario).
+     * @throws IllegalArgumentException if the size exceeds Integer.MAX_VALUE.
      */
-    public static byte[] compress(byte[] data) throws IOException {
-        ZstdCompressCtx ctx = COMPRESS_CTX.get();
-        // Zstd.compressBound provides the worst-case size for the compressed data.
-        long maxCompressedSize = Zstd.compressBound(data.length);
-        if (maxCompressedSize > Integer.MAX_VALUE) {
-            throw new IOException("Data is too large to compress.");
+    public static int getCompressBound(int srcSize) {
+        long bound = Zstd.compressBound(srcSize);
+        if (bound > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Source data size exceeds Zstd compression limits");
         }
-
-        byte[] compressed = new byte[(int) maxCompressedSize];
-        long compressedSize = ctx.compress(compressed, data);
-
-        if (Zstd.isError(compressedSize)) {
-            throw new IOException("Zstd compression failed: " + Zstd.getErrorName(compressedSize));
-        }
-
-        // Return a correctly sized array, as the allocated buffer is likely larger than needed.
-        return Arrays.copyOf(compressed, (int) compressedSize);
+        return (int) bound;
     }
 
     /**
-     * Decompresses a byte array using a reusable, thread-local Zstd decompression context.
-     * The original, uncompressed size must be known.
+     * Compresses the provided byte array into a new, exactly-sized byte array.
+     * Note: This method allocates a new array and should be used sparingly in hot loops.
      *
-     * @param data           The compressed data.
-     * @param uncompressedSize The size of the original uncompressed data.
-     * @return The original, decompressed data.
-     * @throws IOException If a decompression error occurs.
+     * @param data The uncompressed data array.
+     * @return A new byte array containing the compressed data.
+     * @throws IOException If the Zstd compression engine encounters an error.
+     */
+    public static byte[] compress(byte[] data) throws IOException {
+        return compress(data, data.length);
+    }
+
+    /**
+     * Compresses a specific length of the provided byte array into a new byte array.
+     *
+     * @param data   The source data array.
+     * @param length The number of bytes from the source to compress.
+     * @return A new byte array containing the compressed data.
+     * @throws IOException If the Zstd compression engine encounters an error.
+     */
+    public static byte[] compress(byte[] data, int length) throws IOException {
+        int maxBound = getCompressBound(length);
+        byte[] destination = new byte[maxBound];
+        int compressedSize = compressInto(data, 0, length, destination, 0);
+        return Arrays.copyOf(destination, compressedSize);
+    }
+
+    /**
+     * Compresses data from a source array directly into a destination array.
+     * This is the most performance-efficient compression method as it allows for
+     * complete buffer recycling, resulting in zero heap allocations.
+     *
+     * @param src       The source array containing uncompressed data.
+     * @param srcOffset The starting position in the source array.
+     * @param srcLen    The number of bytes to compress.
+     * @param dst       The destination array where compressed data will be written.
+     * @param dstOffset The starting position in the destination array.
+     * @return The actual number of bytes written to the destination array.
+     * @throws IOException If the destination buffer is too small or Zstd fails.
+     */
+    public static int compressInto(byte[] src, int srcOffset, int srcLen, byte[] dst, int dstOffset) throws IOException {
+        ZstdCompressCtx ctx = COMPRESS_CTX.get();
+        long result = ctx.compressByteArray(dst, dstOffset, dst.length - dstOffset, src, srcOffset, srcLen);
+
+        if (Zstd.isError(result)) {
+            throw new IOException("Zstd compression failed: " + Zstd.getErrorName(result));
+        }
+        return (int) result;
+    }
+
+    /**
+     * Decompresses a byte array using the thread-local decompression context.
+     * The exact uncompressed size must be known beforehand.
+     *
+     * @param data             The compressed data.
+     * @param uncompressedSize The expected size of the data after decompression.
+     * @return A new byte array containing the decompressed data.
+     * @throws IOException If the data is corrupt or the size mismatch occurs.
      */
     public static byte[] decompress(byte[] data, int uncompressedSize) throws IOException {
         ZstdDecompressCtx ctx = DECOMPRESS_CTX.get();
@@ -77,7 +130,7 @@ public class VxPacketUtils {
             throw new IOException("Zstd decompression failed: " + Zstd.getErrorName(decompressedSize));
         }
         if (decompressedSize != uncompressedSize) {
-            throw new IOException("Decompressed size mismatch. Expected " + uncompressedSize + ", got " + decompressedSize);
+            throw new IOException("Decompressed size mismatch. Expected " + uncompressedSize + " bytes, but got " + decompressedSize);
         }
 
         return decompressed;

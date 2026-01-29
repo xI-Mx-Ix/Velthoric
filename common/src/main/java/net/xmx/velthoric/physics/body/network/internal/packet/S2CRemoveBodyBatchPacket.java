@@ -7,97 +7,83 @@ package net.xmx.velthoric.physics.body.network.internal.packet;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * A network packet that contains a batch of network IDs for physics bodies to be removed
- * from the client. Batching and compression reduce network overhead compared to sending one packet per removal.
+ * A network packet for batched removal of physics bodies.
+ * <p>
+ * This packet uses Zstd compression on the network ID list to minimize bandwidth
+ * during mass-deletion events (e.g., chunk unloading or large-scale physics cleanup).
  *
  * @author xI-Mx-Ix
  */
 public class S2CRemoveBodyBatchPacket {
 
-    private final List<Integer> networkIds;
+    /**
+     * The list of primitive network IDs to be removed.
+     */
+    private final IntList networkIds;
 
     /**
-     * Constructs a new packet with a list of network IDs to send.
-     *
-     * @param networkIds The list of network IDs.
+     * @param networkIds List of network IDs.
      */
-    public S2CRemoveBodyBatchPacket(List<Integer> networkIds) {
+    public S2CRemoveBodyBatchPacket(IntList networkIds) {
         this.networkIds = networkIds;
     }
 
     /**
-     * Encodes the packet's data into a network buffer for sending.
-     *
-     * @param msg The packet instance to encode.
-     * @param buf The buffer to write to.
+     * Encodes the IDs into a compressed binary blob.
      */
     public static void encode(S2CRemoveBodyBatchPacket msg, FriendlyByteBuf buf) {
-        FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
+        FriendlyByteBuf temp = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            tempBuf.writeVarInt(msg.networkIds.size());
-            for (Integer id : msg.networkIds) {
-                tempBuf.writeVarInt(id);
-            }
-            byte[] uncompressedData = new byte[tempBuf.readableBytes()];
-            tempBuf.readBytes(uncompressedData);
-
-            byte[] compressedData = VxPacketUtils.compress(uncompressedData);
-            buf.writeVarInt(uncompressedData.length); // Write uncompressed size for the client
-            buf.writeByteArray(compressedData);
+            temp.writeVarInt(msg.networkIds.size());
+            for (int id : msg.networkIds) temp.writeVarInt(id);
+            byte[] raw = new byte[temp.readableBytes()];
+            temp.readBytes(raw);
+            byte[] comp = VxPacketUtils.compress(raw);
+            buf.writeVarInt(raw.length);
+            buf.writeByteArray(comp);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to compress remove body batch packet", e);
+            throw new RuntimeException("Removal batch compression failed", e);
         } finally {
-            tempBuf.release();
+            temp.release();
         }
     }
 
     /**
-     * Decodes the packet from a network buffer.
-     *
-     * @param buf The buffer to read from.
-     * @return A new instance of the packet.
+     * Decodes and decompresses the removal list.
      */
     public static S2CRemoveBodyBatchPacket decode(FriendlyByteBuf buf) {
-        int uncompressedSize = buf.readVarInt();
-        byte[] compressedData = buf.readByteArray();
         try {
-            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
-            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
-            int size = decompressedBuf.readVarInt();
-            List<Integer> ids = new IntArrayList(size);
-            for (int i = 0; i < size; i++) {
-                ids.add(decompressedBuf.readVarInt());
-            }
+            int uncompSize = buf.readVarInt();
+            byte[] comp = buf.readByteArray();
+            byte[] raw = VxPacketUtils.decompress(comp, uncompSize);
+            FriendlyByteBuf db = new FriendlyByteBuf(Unpooled.wrappedBuffer(raw));
+            int size = db.readVarInt();
+            IntList ids = new IntArrayList(size);
+            for (int i = 0; i < size; i++) ids.add(db.readVarInt());
+            db.release();
             return new S2CRemoveBodyBatchPacket(ids);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to decompress remove body batch packet", e);
+            throw new RuntimeException("Removal batch decompression failed", e);
         }
     }
 
     /**
-     * Handles the packet on the client side.
-     *
-     * @param msg            The received packet message.
-     * @param contextSupplier A supplier for the network context.
+     * Handles the removals on the client thread.
      */
-    public static void handle(S2CRemoveBodyBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
-        NetworkManager.PacketContext context = contextSupplier.get();
-        context.queue(() -> {
-            // Executed on the client thread.
+    public static void handle(S2CRemoveBodyBatchPacket msg, Supplier<NetworkManager.PacketContext> ctx) {
+        ctx.get().queue(() -> {
             VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
-            for (int networkId : msg.networkIds) {
-                manager.removeBody(networkId);
-            }
+            for (int id : msg.networkIds) manager.removeBody(id);
         });
     }
 }

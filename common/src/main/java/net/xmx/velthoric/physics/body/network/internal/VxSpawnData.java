@@ -4,89 +4,50 @@
  */
 package net.xmx.velthoric.physics.body.network.internal;
 
-import io.netty.buffer.Unpooled;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.type.VxBody;
 
 import java.util.UUID;
 
 /**
- * A data transfer object that encapsulates all necessary information to spawn a physics body on the client.
- * This includes the body's identity, type, initial state, and custom creation data.
+ * A utility class providing static helpers for high-performance serialization of spawn data.
+ * <p>
+ * Unlike traditional DTOs, this class does not hold state, but rather provides logic to write
+ * body information directly into a shared binary stream, avoiding object creation.
  *
  * @author xI-Mx-Ix
  */
 public class VxSpawnData {
-    public final UUID id;
-    public final int networkId;
-    public final ResourceLocation typeIdentifier;
-    public final long timestamp;
-    public final byte[] data;
 
     /**
-     * Constructs spawn data from a server-side {@link VxBody}.
-     * This serializes the body's initial transform and custom sync data.
+     * Serializes a physics body's complete identity and initial state into the buffer.
      *
-     * @param obj       The physics body to create spawn data for.
-     * @param timestamp The server-side timestamp of the spawn event.
+     * @param buf       The destination buffer.
+     * @param body      The body to serialize.
+     * @param timestamp Current simulation timestamp.
      */
-    public VxSpawnData(VxBody obj, long timestamp) {
-        this.id = obj.getPhysicsId();
-        this.networkId = obj.getNetworkId();
-        this.typeIdentifier = obj.getType().getTypeId();
-        this.timestamp = timestamp;
-
-        // Serialize the transform and custom sync data into a single byte array.
-        VxByteBuf buf = new VxByteBuf(Unpooled.buffer());
-        try {
-            obj.getTransform().toBuffer(buf);
-            obj.writeInitialSyncData(buf);
-
-            this.data = new byte[buf.readableBytes()];
-            buf.readBytes(this.data);
-        } finally {
-            if (buf.refCnt() > 0) {
-                buf.release();
-            }
-        }
-    }
-
-    /**
-     * Constructs spawn data by deserializing it from a network buffer.
-     *
-     * @param buf The buffer to read from.
-     */
-    public VxSpawnData(FriendlyByteBuf buf) {
-        this.id = buf.readUUID();
-        this.networkId = buf.readVarInt();
-        this.typeIdentifier = buf.readResourceLocation();
-        this.timestamp = buf.readLong();
-        this.data = buf.readByteArray();
-    }
-
-    /**
-     * Serializes this spawn data into a network buffer.
-     *
-     * @param buf The buffer to write to.
-     */
-    public void encode(FriendlyByteBuf buf) {
-        buf.writeUUID(id);
-        buf.writeVarInt(networkId);
-        buf.writeResourceLocation(typeIdentifier);
+    public static void writeRaw(VxByteBuf buf, VxBody body, long timestamp) {
+        buf.writeUUID(body.getPhysicsId());
+        buf.writeVarInt(body.getNetworkId());
+        buf.writeResourceLocation(body.getType().getTypeId());
         buf.writeLong(timestamp);
-        buf.writeByteArray(data);
+        body.getTransform().toBuffer(buf);
+        body.writeInitialSyncData(buf);
     }
 
     /**
-     * Estimates the size of this spawn data in bytes for network packet batching.
+     * Deserializes body information from a buffer and triggers a client-side spawn.
      *
-     * @return The estimated size in bytes.
+     * @param buf     The source buffer.
+     * @param manager The client-side manager to handle the instantiation.
      */
-    public int estimateSize() {
-        String typeStr = typeIdentifier.toString();
-        // Calculate size: UUID (16) + NetworkID (varint) + RL (varint + string) + Timestamp (8) + Data (varint + bytes)
-        return 16 + VxByteBuf.varIntSize(networkId) + VxByteBuf.varIntSize(typeStr.length()) + typeStr.length() + 8 + VxByteBuf.varIntSize(data.length) + data.length;
+    public static void readAndSpawn(VxByteBuf buf, VxClientBodyManager manager) {
+        UUID id = buf.readUUID();
+        int netId = buf.readVarInt();
+        ResourceLocation type = buf.readResourceLocation();
+        long timestamp = buf.readLong();
+        manager.spawnBody(id, netId, type, buf, timestamp);
     }
 }
