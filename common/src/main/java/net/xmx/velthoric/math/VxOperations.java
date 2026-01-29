@@ -24,6 +24,11 @@ import net.minecraft.util.Mth;
 public class VxOperations {
 
     /**
+     * A thread-local temporary quaternion used for intermediate calculations within interpolation methods.
+     */
+    private static final ThreadLocal<Quat> TEMP_QUAT = ThreadLocal.withInitial(Quat::new);
+
+    /**
      * Linearly interpolates between two double-precision vectors.
      *
      * @param v1    The start vector.
@@ -63,7 +68,9 @@ public class VxOperations {
         // Calculate the dot product to determine the angle between the quaternions
         double dot = q1.getX() * q2.getX() + q1.getY() * q2.getY() + q1.getZ() * q2.getZ() + q1.getW() * q2.getW();
 
-        Quat q2b = new Quat(q2);
+        // Use the thread-local temporary object to avoid allocation.
+        Quat q2b = TEMP_QUAT.get();
+        q2b.set(q2);
 
         // If dot is negative, the quaternions point in opposite directions.
         // Negate one to take the shorter path around the sphere.
@@ -207,10 +214,10 @@ public class VxOperations {
         float t3 = t2 * t;
 
         // Hermite basis functions
-        float h1 =  2f * t3 - 3f * t2 + 1f;
+        float h1 = 2f * t3 - 3f * t2 + 1f;
         float h2 = -2f * t3 + 3f * t2;
-        float h3 =      t3 - 2f * t2 + t;
-        float h4 =      t3 -      t2;
+        float h3 = t3 - 2f * t2 + t;
+        float h4 = t3 - t2;
 
         double x = h1 * p0.xx() + h2 * p1.xx() + h3 * (v0.getX() * dt) + h4 * (v1.getX() * dt);
         double y = h1 * p0.yy() + h2 * p1.yy() + h3 * (v0.getY() * dt) + h4 * (v1.getY() * dt);
