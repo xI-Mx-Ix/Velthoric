@@ -46,6 +46,15 @@ public abstract class VxBody {
     protected final UUID physicsId;
     protected final VxSynchronizedData synchronizedData;
     protected final VxBodyType<? extends VxBody> type;
+
+    /**
+     * Flag indicating whether this body should be serialized to disk.
+     * <p>
+     * If true, the body is saved when the chunk is unloaded or saved.
+     * If false, the body is discarded upon unload (useful for temporary debris or effects).
+     * Defaults to true.
+     */
+    private boolean persistent = true;
     /**
      * The ID of the body in the Jolt physics simulation. 0 if not yet added. Server-side only.
      */
@@ -489,6 +498,24 @@ public abstract class VxBody {
      */
     public ResourceLocation getTypeId() {
         return type.getTypeId();
+    }
+
+    /**
+     * Sets the persistence state of this body.
+     *
+     * @param persistent true to enable saving to disk, false to make the body temporary.
+     */
+    public void setPersistent(boolean persistent) {
+        this.persistent = persistent;
+    }
+
+    /**
+     * Checks if this body is marked for persistence.
+     *
+     * @return true if the body should be saved to disk, false otherwise.
+     */
+    public boolean isPersistent() {
+        return persistent;
     }
 
     /**

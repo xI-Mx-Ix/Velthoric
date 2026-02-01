@@ -22,14 +22,60 @@ import java.util.UUID;
  */
 public class VxConstraint {
 
+    /**
+     * The unique identifier for this specific constraint instance.
+     * Used for lookups, network synchronization, and persistence keys.
+     */
     private final UUID constraintId;
+
+    /**
+     * The UUID of the first physics body involved in this constraint.
+     * This acts as the primary anchor for the constraint connection.
+     */
     private final UUID body1Id;
+
+    /**
+     * The UUID of the second physics body involved in this constraint.
+     * <p>
+     * Can be set to {@link net.xmx.velthoric.physics.constraint.manager.VxConstraintManager#WORLD_BODY_ID}
+     * to indicate a connection to the static world geometry (e.g., pinning an object to the ground).
+     */
     private final UUID body2Id;
+
+    /**
+     * The serialized configuration data for this constraint.
+     * <p>
+     * Contains the binary representation of the Jolt {@code TwoBodyConstraintSettings},
+     * including pivot points, axes, limits, and motor settings.
+     * This array is used to reconstruct the native constraint object when loading.
+     */
     private byte[] settingsData;
+
+    /**
+     * The specific type classification of this constraint (e.g., Hinge, Slider, Fixed).
+     * Used to determine the correct settings class during deserialization.
+     */
     private final EConstraintSubType subType;
 
+    /**
+     * A reference to the active, native Jolt physics constraint object.
+     * <p>
+     * This field is {@code transient} as it represents a runtime handle that cannot be serialized.
+     * It is {@code null} if the constraint has not yet been activated in the physics world
+     * (e.g., waiting for dependent bodies to load).
+     */
     @Nullable
     private transient TwoBodyConstraint joltConstraint;
+
+    /**
+     * Flag indicating whether this constraint should be serialized to disk.
+     * <p>
+     * If {@code true}, the constraint is saved when the associated chunk is unloaded or saved.
+     * If {@code false}, the constraint is considered temporary (e.g., for visual effects or
+     * short-lived interactions) and will be discarded upon unload.
+     * Defaults to {@code true}.
+     */
+    private boolean persistent = true;
 
     /**
      * Constructs a new constraint instance from provided settings.
@@ -103,6 +149,24 @@ public class VxConstraint {
      */
     public EConstraintSubType getSubType() {
         return subType;
+    }
+
+    /**
+     * Sets the persistence state of this constraint.
+     *
+     * @param persistent true to enable saving to disk, false to make the constraint temporary.
+     */
+    public void setPersistent(boolean persistent) {
+        this.persistent = persistent;
+    }
+
+    /**
+     * Checks if this constraint is marked for persistence.
+     *
+     * @return true if the constraint should be saved to disk, false otherwise.
+     */
+    public boolean isPersistent() {
+        return persistent;
     }
 
     /**

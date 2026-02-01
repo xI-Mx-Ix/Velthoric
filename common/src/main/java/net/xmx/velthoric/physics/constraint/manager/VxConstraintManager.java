@@ -315,15 +315,18 @@ public class VxConstraintManager {
 
     /**
      * Saves all constraints associated with a given chunk.
+     * <p>
      * The determination of which constraints belong to which chunk is based on the logic
      * in {@link #isConstraintInChunk(VxConstraint, ChunkPos)}.
+     * Only constraints marked as persistent via {@link VxConstraint#isPersistent()} are saved.
      *
      * @param pos The position of the chunk.
      */
     public void saveConstraintsInChunk(ChunkPos pos) {
         List<VxConstraint> constraintsToSave = new ArrayList<>();
         for (VxConstraint constraint : activeConstraints.values()) {
-            if (isConstraintInChunk(constraint, pos)) {
+            // Check both spatial location and the persistence flag before adding to the save list.
+            if (constraint.isPersistent() && isConstraintInChunk(constraint, pos)) {
                 constraintsToSave.add(constraint);
             }
         }
