@@ -571,13 +571,20 @@ public class VxBodyManager {
 
     /**
      * Serializes all physics bodies within a given chunk and queues them for storage.
+     * Only bodies marked as persistent via {@link VxBody#isPersistent()} are included.
      * Uses the optimized chunk-based batching system.
      *
      * @param pos The position of the chunk to save.
      */
     public void saveBodiesInChunk(ChunkPos pos) {
         List<VxBody> bodiesInChunk = new ArrayList<>();
-        chunkManager.forEachBodyInChunk(pos, bodiesInChunk::add);
+
+        chunkManager.forEachBodyInChunk(pos, body -> {
+            // Only add the body to the save list if it is marked as persistent.
+            if (body.isPersistent()) {
+                bodiesInChunk.add(body);
+            }
+        });
 
         // Even if empty, we call save to ensure any previously existing data on disk is cleared
         bodyStorage.saveChunk(pos, bodiesInChunk);
