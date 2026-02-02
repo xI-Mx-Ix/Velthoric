@@ -108,8 +108,9 @@ public enum VxJoltBridge {
      * @param linearVelocity  The initial linear velocity (can be null).
      * @param angularVelocity The initial angular velocity (can be null).
      * @param activation      The initial activation state.
+     * @param motionType      The physical motion type (Static, Kinematic, or Dynamic).
      */
-    public void createAndAddJoltRigidBody(VxRigidBody body, VxBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation, @Nullable EMotionType motionType) {
+    public void createAndAddJoltRigidBody(VxRigidBody body, VxBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation, EMotionType motionType) {
         try {
             VxPhysicsWorld world = manager.getPhysicsWorld();
             VxServerBodyDataStore dataStore = manager.getDataStore();
@@ -127,14 +128,16 @@ public enum VxJoltBridge {
                         if (linearVelocity != null) bcs.setLinearVelocity(linearVelocity);
                         if (angularVelocity != null) bcs.setAngularVelocity(angularVelocity);
 
+                        // Apply the motion type to the creation settings.
+                        // This ensures the body is initialized with the correct properties from the start.
+                        bcs.setMotionType(motionType);
+
                         return world.getPhysicsSystem().getBodyInterface().createAndAddBody(bcs, activation);
                     }
                 }
             };
 
             int bodyId = body.createJoltBody(factory);
-            if (motionType != null)
-                getJoltBody(world, bodyId).setMotionType(motionType);
 
             if (bodyId == Jolt.cInvalidBodyId) {
                 VxMainClass.LOGGER.error("Jolt failed to create/add rigid body for {}", body.getPhysicsId());

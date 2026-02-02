@@ -255,12 +255,14 @@ public class VxBodyManager {
         Vec3 linearVelocity = new Vec3(dataStore.velX[index], dataStore.velY[index], dataStore.velZ[index]);
         Vec3 angularVelocity = new Vec3(dataStore.angVelX[index], dataStore.angVelY[index], dataStore.angVelZ[index]);
 
+        EMotionType motionType = dataStore.motionType[index];
+
         world.getMountingManager().onBodyAdded(body);
         networkDispatcher.onBodyAdded(body);
 
         // Bridge to Native Jolt
         if (body instanceof VxRigidBody rigidBody) {
-            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, linearVelocity, angularVelocity, activation, null);
+            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, linearVelocity, angularVelocity, activation, motionType);
         } else if (body instanceof VxSoftBody softBody) {
             VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(softBody, this, linearVelocity, angularVelocity, activation);
         }
