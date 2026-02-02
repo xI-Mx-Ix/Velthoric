@@ -260,7 +260,7 @@ public class VxBodyManager {
 
         // Bridge to Native Jolt
         if (body instanceof VxRigidBody rigidBody) {
-            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, linearVelocity, angularVelocity, activation, EMotionType.Dynamic);
+            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, linearVelocity, angularVelocity, activation, null);
         } else if (body instanceof VxSoftBody softBody) {
             VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(softBody, this, linearVelocity, angularVelocity, activation);
         }
