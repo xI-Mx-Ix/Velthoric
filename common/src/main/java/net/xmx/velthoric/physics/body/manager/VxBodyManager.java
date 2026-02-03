@@ -230,7 +230,7 @@ public class VxBodyManager {
      * Finalizes the creation of a body by adding it to the internal systems and the Jolt engine.
      * <p>
      * This method syncs the {@link VxServerBodyDataStore} with the initial transform and velocity,
-     * triggers network dispatch, and performs the native Jolt body creation.
+     * retrieves the desired motion type from the data store, and triggers the native Jolt creation.
      *
      * @param body       The body instance to add.
      * @param activation The initial activation state for the Jolt simulation.
@@ -240,7 +240,6 @@ public class VxBodyManager {
         addInternal(body);
         int index = body.getDataStoreIndex();
 
-        // Initialize DataStore values from the transform
         if (index != -1) {
             dataStore.posX[index] = transform.getTranslation().x();
             dataStore.posY[index] = transform.getTranslation().y();
@@ -251,16 +250,16 @@ public class VxBodyManager {
             dataStore.rotW[index] = transform.getRotation().getW();
         }
 
-        // Retrieve initial velocity potentially set by the configurator via the DataStore
+        // Retrieve properties from DataStore that were potentially modified by the configurator
         Vec3 linearVelocity = new Vec3(dataStore.velX[index], dataStore.velY[index], dataStore.velZ[index]);
         Vec3 angularVelocity = new Vec3(dataStore.angVelX[index], dataStore.angVelY[index], dataStore.angVelZ[index]);
+        EMotionType motionType = dataStore.motionType[index];
 
         world.getMountingManager().onBodyAdded(body);
         networkDispatcher.onBodyAdded(body);
 
-        // Bridge to Native Jolt
         if (body instanceof VxRigidBody rigidBody) {
-            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, linearVelocity, angularVelocity, activation, EMotionType.Dynamic);
+            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(rigidBody, this, linearVelocity, angularVelocity, activation, motionType);
         } else if (body instanceof VxSoftBody softBody) {
             VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(softBody, this, linearVelocity, angularVelocity, activation);
         }

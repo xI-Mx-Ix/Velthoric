@@ -156,6 +156,7 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
         int index = super.reserveIndex(body);
 
         // Initialize server-specific data
+        motionType[index] = EMotionType.Dynamic;
         bodyType[index] = type;
         chunkKey[index] = Long.MAX_VALUE; // Sentinel for "no chunk"
         return index;

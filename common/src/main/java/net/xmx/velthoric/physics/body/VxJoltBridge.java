@@ -101,13 +101,18 @@ public enum VxJoltBridge {
     }
 
     /**
-     * Creates and adds a rigid body to the Jolt physics simulation.
+     * Creates and adds a rigid body to the Jolt physics simulation using the specified motion type.
+     * <p>
+     * The method configures the body to allow transitions between static, kinematic, and dynamic states
+     * by enabling dynamic/kinematic support. This ensures that MotionProperties are allocated even
+     * for static bodies, preventing access violations during property lookups.
      *
      * @param body            The rigid body wrapper.
-     * @param manager         The body manager, used for cleanup on failure.
-     * @param linearVelocity  The initial linear velocity (can be null).
-     * @param angularVelocity The initial angular velocity (can be null).
+     * @param manager         The body manager.
+     * @param linearVelocity  The initial linear velocity.
+     * @param angularVelocity The initial angular velocity.
      * @param activation      The initial activation state.
+     * @param motionType      The specific motion type (Static, Kinematic, or Dynamic).
      */
     public void createAndAddJoltRigidBody(VxRigidBody body, VxBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation, EMotionType motionType) {
         try {
@@ -124,9 +129,16 @@ public enum VxJoltBridge {
                         bcs.setShape(shapeRef);
                         bcs.setPosition(dataStore.posX[index], dataStore.posY[index], dataStore.posZ[index]);
                         bcs.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
+
                         if (linearVelocity != null) bcs.setLinearVelocity(linearVelocity);
                         if (angularVelocity != null) bcs.setAngularVelocity(angularVelocity);
-                        bcs.setMotionType(EMotionType.Dynamic);
+
+                        // Set the exact motion type requested by the body configuration
+                        bcs.setMotionType(motionType);
+
+                        // Ensure MotionProperties are created even for static bodies to allow
+                        // future state transitions and prevent native access violations.
+                        bcs.setAllowDynamicOrKinematic(true);
 
                         return world.getPhysicsSystem().getBodyInterface().createAndAddBody(bcs, activation);
                     }
@@ -134,11 +146,10 @@ public enum VxJoltBridge {
             };
 
             int bodyId = body.createJoltBody(factory);
-            getJoltBody(world, bodyId).setMotionType(motionType);
 
             if (bodyId == Jolt.cInvalidBodyId) {
                 VxMainClass.LOGGER.error("Jolt failed to create/add rigid body for {}", body.getPhysicsId());
-                manager.removeBody(body.getPhysicsId(), VxRemovalReason.DISCARD); // Clean up failed addition.
+                manager.removeBody(body.getPhysicsId(), VxRemovalReason.DISCARD);
                 return;
             }
             body.setBodyId(bodyId);
@@ -148,7 +159,7 @@ public enum VxJoltBridge {
 
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Failed to create/add rigid body {}", body.getPhysicsId(), e);
-            manager.removeBody(body.getPhysicsId(), VxRemovalReason.DISCARD); // Clean up on exception.
+            manager.removeBody(body.getPhysicsId(), VxRemovalReason.DISCARD);
         }
     }
 
