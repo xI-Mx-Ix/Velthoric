@@ -4,16 +4,17 @@
  */
 package net.xmx.velthoric.physics.body.network.internal.packet;
 
+import com.github.luben.zstd.Zstd;
 import dev.architectury.networking.NetworkManager;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
-import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.function.Supplier;
 
 /**
@@ -39,22 +40,34 @@ public class S2CRemoveBodyBatchPacket {
     }
 
     /**
-     * Encodes the IDs into a compressed binary blob.
+     * Encodes the IDs into a compressed binary blob using direct buffers.
      */
     public static void encode(S2CRemoveBodyBatchPacket msg, FriendlyByteBuf buf) {
-        FriendlyByteBuf temp = new FriendlyByteBuf(Unpooled.buffer());
+        // Compress IDs on the fly into the FriendlyByteBuf.
+        // Step 1: Write IDs to a temporary heap buffer (fastest for simple ints) or direct.
+        // Using heap buffer here because encoding logic for var-int logic is simpler.
+        ByteBuf raw = Unpooled.directBuffer(msg.networkIds.size() * 4);
         try {
-            temp.writeVarInt(msg.networkIds.size());
-            for (int id : msg.networkIds) temp.writeVarInt(id);
-            byte[] raw = new byte[temp.readableBytes()];
-            temp.readBytes(raw);
-            byte[] comp = VxPacketUtils.compress(raw);
-            buf.writeVarInt(raw.length);
-            buf.writeByteArray(comp);
-        } catch (IOException e) {
-            throw new RuntimeException("Removal batch compression failed", e);
+            for (int id : msg.networkIds) raw.writeInt(id);
+
+            // Step 2: Prepare compression
+            ByteBuffer src = raw.nioBuffer();
+            int max = (int) Zstd.compressBound(raw.readableBytes());
+            ByteBuf comp = Unpooled.directBuffer(max); // Temporary heap buffer for output
+
+            try {
+                ByteBuffer dst = comp.nioBuffer(0, max);
+                // Level 1 is sufficient for integer lists
+                long len = Zstd.compressDirectByteBuffer(dst, 0, max, src, 0, raw.readableBytes(), 1);
+                comp.writerIndex((int) len);
+
+                buf.writeVarInt(comp.readableBytes());
+                buf.writeBytes(comp);
+            } finally {
+                comp.release();
+            }
         } finally {
-            temp.release();
+            raw.release();
         }
     }
 
@@ -62,18 +75,31 @@ public class S2CRemoveBodyBatchPacket {
      * Decodes and decompresses the removal list.
      */
     public static S2CRemoveBodyBatchPacket decode(FriendlyByteBuf buf) {
+        int len = buf.readVarInt();
+        ByteBuf comp = buf.readBytes(len);
         try {
-            int uncompSize = buf.readVarInt();
-            byte[] comp = buf.readByteArray();
-            byte[] raw = VxPacketUtils.decompress(comp, uncompSize);
-            FriendlyByteBuf db = new FriendlyByteBuf(Unpooled.wrappedBuffer(raw));
-            int size = db.readVarInt();
-            IntList ids = new IntArrayList(size);
-            for (int i = 0; i < size; i++) ids.add(db.readVarInt());
-            db.release();
-            return new S2CRemoveBodyBatchPacket(ids);
-        } catch (IOException e) {
-            throw new RuntimeException("Removal batch decompression failed", e);
+            ByteBuffer src = comp.nioBuffer();
+            long origSize = Zstd.decompressedSize(src);
+
+            // Check valid size
+            if (Zstd.isError(origSize)) throw new RuntimeException("Zstd error: " + Zstd.getErrorName(origSize));
+
+            ByteBuf raw = Unpooled.directBuffer((int)origSize);
+            try {
+                ByteBuffer dst = raw.nioBuffer(0, (int)origSize);
+                Zstd.decompressDirectByteBuffer(dst, 0, (int)origSize, src, 0, src.remaining());
+                raw.writerIndex((int)origSize);
+
+                IntList ids = new IntArrayList(raw.readableBytes() / 4);
+                while(raw.isReadable()) {
+                    ids.add(raw.readInt());
+                }
+                return new S2CRemoveBodyBatchPacket(ids);
+            } finally {
+                raw.release();
+            }
+        } finally {
+            comp.release();
         }
     }
 

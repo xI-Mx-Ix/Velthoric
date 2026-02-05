@@ -4,7 +4,8 @@
  */
 package net.xmx.velthoric.physics.body.network.internal;
 
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -18,19 +19,15 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxPacketHandler;
-import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CRemoveBodyBatchPacket;
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CSpawnBodyBatchPacket;
-import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateBodyStateBatchPacket;
-import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateVerticesBatchPacket;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.body.util.VxChunkUtil;
 
-import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -42,11 +39,12 @@ import java.util.concurrent.Executors;
  * <b>Scalability Architecture:</b>
  * 1. <b>Grouping:</b> Dirty bodies are grouped by the chunk they reside in.
  * 2. <b>Serialization:</b> Data for each chunk is serialized into a raw binary stream once.
- * 3. <b>Compression:</b> The binary stream is compressed once per chunk using Zstd.
+ * 3. <b>Compression:</b> The binary stream is compressed once per chunk using Zstd via {@link VxPacketFactory}.
  * 4. <b>Broadcasting:</b> The resulting compressed payload is sent to all players watching that chunk.
  * <p>
  * This architecture shifts the O(Players * Bodies) complexity to O(Chunks + Players),
- * drastically reducing CPU and GC overhead.
+ * drastically reducing CPU and GC overhead. The implementation uses Netty's PooledByteBuf
+ * to eliminate virtually all allocations during the sync loop.
  *
  * @author xI-Mx-Ix
  */
@@ -66,6 +64,11 @@ public class VxNetworkDispatcher {
      * The optimized Structure-of-Arrays data store for body properties.
      */
     private final VxServerBodyDataStore dataStore;
+
+    /**
+     * Factory used to generate zero-allocation packets.
+     */
+    private final VxPacketFactory packetFactory;
 
     /**
      * Frequency of the network synchronization thread in milliseconds.
@@ -108,17 +111,6 @@ public class VxNetworkDispatcher {
     private final Long2ObjectMap<IntArrayList> dirtyVerticesByChunk = new Long2ObjectOpenHashMap<>();
 
     /**
-     * Thread-local buffer for raw binary serialization to avoid per-tick allocations.
-     */
-    private static final ThreadLocal<VxByteBuf> SERIALIZATION_BUFFER = ThreadLocal.withInitial(() ->
-            new VxByteBuf(Unpooled.buffer(65536)));
-
-    /**
-     * Thread-local byte array for compression output, effectively acting as a scratchpad.
-     */
-    private static final ThreadLocal<byte[]> COMPRESSION_BUFFER = ThreadLocal.withInitial(() -> new byte[65536]);
-
-    /**
      * Constructs a new dispatcher and initializes network tuning parameters from config.
      *
      * @param level   The server level.
@@ -128,6 +120,7 @@ public class VxNetworkDispatcher {
         this.level = level;
         this.manager = manager;
         this.dataStore = manager.getDataStore();
+        this.packetFactory = new VxPacketFactory(manager);
 
         this.NETWORK_THREAD_TICK_RATE_MS = VxModConfig.NETWORK.networkTickRate.get();
         this.MAX_PACKET_PAYLOAD_SIZE = VxModConfig.NETWORK.maxPayloadSize.get();
@@ -233,6 +226,7 @@ public class VxNetworkDispatcher {
 
     /**
      * Iterates over grouped dirty bodies and creates compressed binary packets for each chunk.
+     * Delegates entirely to the VxPacketFactory for zero-allocation creation.
      *
      * @return A list of tasks containing the chunk coordinate and its corresponding pre-built packet.
      */
@@ -240,21 +234,11 @@ public class VxNetworkDispatcher {
         List<BroadcastTask> tasks = new ArrayList<>(dirtyBodiesByChunk.size() + dirtyVerticesByChunk.size());
 
         for (Long2ObjectMap.Entry<IntArrayList> entry : dirtyBodiesByChunk.long2ObjectEntrySet()) {
-            long chunkPosLong = entry.getLongKey();
-            try {
-                tasks.add(new BroadcastTask(chunkPosLong, createChunkStatePacket(chunkPosLong, entry.getValue())));
-            } catch (IOException e) {
-                VxMainClass.LOGGER.error("Failed to serialize state batch for chunk {}", chunkPosLong, e);
-            }
+            tasks.add(new BroadcastTask(entry.getLongKey(), packetFactory.createStatePacket(entry.getLongKey(), entry.getValue(), level)));
         }
 
         for (Long2ObjectMap.Entry<IntArrayList> entry : dirtyVerticesByChunk.long2ObjectEntrySet()) {
-            long chunkPosLong = entry.getLongKey();
-            try {
-                tasks.add(new BroadcastTask(chunkPosLong, createChunkVertexPacket(chunkPosLong, entry.getValue())));
-            } catch (IOException e) {
-                VxMainClass.LOGGER.error("Failed to serialize vertex batch for chunk {}", chunkPosLong, e);
-            }
+            tasks.add(new BroadcastTask(entry.getLongKey(), packetFactory.createVertexPacket(entry.getLongKey(), entry.getValue())));
         }
 
         return tasks;
@@ -281,105 +265,6 @@ public class VxNetworkDispatcher {
     }
 
     /**
-     * Serializes transform and state data for a specific chunk into a binary stream.
-     *
-     * @param chunkPosLong The chunk coordinate.
-     * @param indices      The indices of bodies within this chunk that changed.
-     * @return A packet containing the compressed binary data.
-     * @throws IOException If compression fails.
-     */
-    private S2CUpdateBodyStateBatchPacket createChunkStatePacket(long chunkPosLong, IntArrayList indices) throws IOException {
-        VxByteBuf buf = SERIALIZATION_BUFFER.get();
-        buf.clear();
-
-        ChunkPos chunkPos = new ChunkPos(chunkPosLong);
-        double chunkBaseX = chunkPos.getMinBlockX();
-        double chunkBaseY = level.getMinBuildHeight();
-        double chunkBaseZ = chunkPos.getMinBlockZ();
-
-        buf.writeVarInt(indices.size());
-        buf.writeLong(System.nanoTime());
-        buf.writeLong(chunkPosLong);
-
-        for (int i = 0; i < indices.size(); i++) {
-            int idx = indices.getInt(i);
-            buf.writeVarInt(dataStore.networkId[idx]);
-            buf.writeFloat((float) (dataStore.posX[idx] - chunkBaseX));
-            buf.writeFloat((float) (dataStore.posY[idx] - chunkBaseY));
-            buf.writeFloat((float) (dataStore.posZ[idx] - chunkBaseZ));
-            buf.writeFloat(dataStore.rotX[idx]);
-            buf.writeFloat(dataStore.rotY[idx]);
-            buf.writeFloat(dataStore.rotZ[idx]);
-            buf.writeFloat(dataStore.rotW[idx]);
-
-            boolean active = dataStore.isActive[idx];
-            buf.writeBoolean(active);
-            if (active) {
-                buf.writeFloat(dataStore.velX[idx]);
-                buf.writeFloat(dataStore.velY[idx]);
-                buf.writeFloat(dataStore.velZ[idx]);
-            }
-        }
-
-        return new S2CUpdateBodyStateBatchPacket(compressBuffer(buf));
-    }
-
-    /**
-     * Serializes vertex data for soft bodies within a specific chunk into a binary stream.
-     *
-     * @param chunkPosLong The chunk coordinate.
-     * @param indices      The indices of bodies with dirty vertex data.
-     * @return A packet containing the compressed vertex data.
-     * @throws IOException If compression fails.
-     */
-    private S2CUpdateVerticesBatchPacket createChunkVertexPacket(long chunkPosLong, IntArrayList indices) throws IOException {
-        VxByteBuf buf = SERIALIZATION_BUFFER.get();
-        buf.clear();
-
-        buf.writeVarInt(indices.size());
-        buf.writeLong(chunkPosLong);
-
-        for (int i = 0; i < indices.size(); i++) {
-            int idx = indices.getInt(i);
-            buf.writeVarInt(dataStore.networkId[idx]);
-            float[] vData = dataStore.vertexData[idx];
-            if (vData != null && vData.length > 0) {
-                buf.writeBoolean(true);
-                buf.writeVarInt(vData.length);
-                for (float v : vData) buf.writeFloat(v);
-            } else {
-                buf.writeBoolean(false);
-            }
-        }
-
-        return new S2CUpdateVerticesBatchPacket(compressBuffer(buf));
-    }
-
-    /**
-     * Compresses the contents of a VxByteBuf into a byte array using the reusable compression buffer.
-     *
-     * @param buf The buffer to compress.
-     * @return A new byte array containing compressed data.
-     * @throws IOException If compression fails.
-     */
-    private byte[] compressBuffer(VxByteBuf buf) throws IOException {
-        int uncompressedSize = buf.readableBytes();
-        byte[] compBuf = COMPRESSION_BUFFER.get();
-        int maxBound = VxPacketUtils.getCompressBound(uncompressedSize);
-
-        if (compBuf.length < maxBound) {
-            compBuf = new byte[maxBound];
-            COMPRESSION_BUFFER.set(compBuf);
-        }
-
-        byte[] srcData = new byte[uncompressedSize];
-        buf.readBytes(srcData);
-
-        int compressedSize = VxPacketUtils.compressInto(srcData, 0, uncompressedSize, compBuf, 0);
-        return Arrays.copyOf(compBuf, compressedSize);
-    }
-
-    /**
      * Called when a new body is added to the level.
      * Identifies all players watching the body's chunk and starts tracking it for them.
      *
@@ -401,9 +286,6 @@ public class VxNetworkDispatcher {
     /**
      * Called when a body is removed from the physics world.
      * Notifies all relevant players to remove the body from their clients.
-     * <p>
-     * Unlike the previous implementation, this uses the chunk map to efficiently find observers
-     * rather than maintaining a separate set of trackers per body, which scales poorly.
      *
      * @param body The body instance being removed.
      */
@@ -415,14 +297,12 @@ public class VxNetworkDispatcher {
 
         ChunkPos chunkPos = manager.getChunkManager().getBodyChunkPos(index);
         // Use the vanilla ChunkMap to find players who are currently watching this chunk.
-        // These are the only players who could possibly have the body spawned on their client.
         List<ServerPlayer> players = level.getChunkSource().chunkMap.getPlayers(chunkPos, false);
 
         if (!players.isEmpty()) {
             int networkId = body.getNetworkId();
             for (ServerPlayer player : players) {
                 // We attempt to untrack/remove the body for each player.
-                // The untrack method handles the logic of checking if the player was actually tracking it.
                 untrackBodyForPlayer(player, networkId);
             }
         }
@@ -535,65 +415,99 @@ public class VxNetworkDispatcher {
     /**
      * Processes batched spawn requests on the game tick.
      * Checks if the chunk is ready on the client before sending.
+     * Uses pooled ByteBufs to avoid allocation during serialization.
      */
     private void processPendingSpawns() {
         if (pendingSpawns.isEmpty()) return;
         synchronized (pendingSpawns) {
             Iterator<Map.Entry<ServerPlayer, ObjectArrayList<VxBody>>> it = pendingSpawns.entrySet().iterator();
             ChunkMap chunkMap = this.level.getChunkSource().chunkMap;
-            VxByteBuf spawnBuf = SERIALIZATION_BUFFER.get();
 
-            while (it.hasNext()) {
-                Map.Entry<ServerPlayer, ObjectArrayList<VxBody>> entry = it.next();
-                ServerPlayer player = entry.getKey();
-                ObjectArrayList<VxBody> bodies = entry.getValue();
-                if (bodies.isEmpty()) {
-                    it.remove();
-                    continue;
-                }
+            // Reusable pooled buffer for spawn serialization (64KB initial size)
+            ByteBuf spawnBuf = PooledByteBufAllocator.DEFAULT.directBuffer(65536);
 
-                ObjectArrayList<VxBody> toKeep = new ObjectArrayList<>();
-                spawnBuf.clear();
-                int count = 0;
-
-                for (VxBody body : bodies) {
-                    if (body.getDataStoreIndex() == -1) continue;
-                    // Only spawn if the player has received the chunk (not pending send)
-                    if (chunkMap.getPlayers(manager.getChunkManager().getBodyChunkPos(body.getDataStoreIndex()), false).contains(player)) {
-                        VxSpawnData.writeRaw(spawnBuf, body, System.nanoTime());
-                        count++;
-
-                        // Check payload limit
-                        if (spawnBuf.readableBytes() > MAX_PACKET_PAYLOAD_SIZE) {
-                            dispatchSpawnPacket(player, spawnBuf, count);
-                            spawnBuf.clear();
-                            count = 0;
-                        }
-                    } else {
-                        toKeep.add(body);
+            try {
+                while (it.hasNext()) {
+                    Map.Entry<ServerPlayer, ObjectArrayList<VxBody>> entry = it.next();
+                    ServerPlayer player = entry.getKey();
+                    ObjectArrayList<VxBody> bodies = entry.getValue();
+                    if (bodies.isEmpty()) {
+                        it.remove();
+                        continue;
                     }
+
+                    ObjectArrayList<VxBody> toKeep = new ObjectArrayList<>();
+                    spawnBuf.clear();
+                    int count = 0;
+
+                    for (VxBody body : bodies) {
+                        if (body.getDataStoreIndex() == -1) continue;
+                        // Only spawn if the player has received the chunk (not pending send)
+                        if (chunkMap.getPlayers(manager.getChunkManager().getBodyChunkPos(body.getDataStoreIndex()), false).contains(player)) {
+
+                            VxSpawnData.writeRaw(spawnBuf, body, System.nanoTime());
+                            count++;
+
+                            // Check payload limit
+                            if (spawnBuf.readableBytes() > MAX_PACKET_PAYLOAD_SIZE) {
+                                dispatchSpawnPacket(player, spawnBuf, count);
+                                spawnBuf.clear();
+                                count = 0;
+                            }
+                        } else {
+                            toKeep.add(body);
+                        }
+                    }
+
+                    // Flush remaining
+                    if (count > 0) dispatchSpawnPacket(player, spawnBuf, count);
+
+                    if (toKeep.isEmpty()) it.remove();
+                    else entry.setValue(toKeep);
                 }
-
-                // Flush remaining
-                if (count > 0) dispatchSpawnPacket(player, spawnBuf, count);
-
-                if (toKeep.isEmpty()) it.remove();
-                else entry.setValue(toKeep);
+            } finally {
+                // Return buffer to pool
+                spawnBuf.release();
             }
         }
     }
 
     /**
      * Compresses and sends a spawn batch to a specific player.
+     * Uses direct Zstd compression.
      *
      * @param player  The recipient.
      * @param rawData The serialized spawn data buffer.
      * @param count   Number of bodies in the batch.
      */
-    private void dispatchSpawnPacket(ServerPlayer player, VxByteBuf rawData, int count) {
+    private void dispatchSpawnPacket(ServerPlayer player, ByteBuf rawData, int count) {
+        int readable = rawData.readableBytes();
+        int maxCompressed = (int) com.github.luben.zstd.Zstd.compressBound(readable);
+
+        // Allocate direct buffer for compressed data
+        ByteBuf compressed = PooledByteBufAllocator.DEFAULT.directBuffer(maxCompressed);
+
         try {
-            VxPacketHandler.sendToPlayer(new S2CSpawnBodyBatchPacket(count, compressBuffer(rawData)), player);
-        } catch (IOException e) {
+            ByteBuffer src = rawData.nioBuffer(0, readable);
+            ByteBuffer dst = compressed.nioBuffer(0, maxCompressed);
+
+            // Compress direct
+            long len = com.github.luben.zstd.Zstd.compressDirectByteBuffer(dst, 0, maxCompressed, src, 0, readable, 3);
+
+            if (com.github.luben.zstd.Zstd.isError(len)) {
+                throw new RuntimeException("Spawn compression failed: " + com.github.luben.zstd.Zstd.getErrorName(len));
+            }
+
+            compressed.writerIndex((int) len);
+
+            // The packet takes ownership of the 'compressed' buffer (should release it after write)
+            VxPacketHandler.sendToPlayer(new S2CSpawnBodyBatchPacket(count, compressed), player);
+
+        } catch (Exception e) {
+            // Release the buffer if an exception prevented packet creation/sending
+            if (compressed.refCnt() > 0) {
+                compressed.release();
+            }
             VxMainClass.LOGGER.error("Failed to compress spawn packet", e);
         }
     }

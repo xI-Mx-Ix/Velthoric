@@ -4,44 +4,48 @@
  */
 package net.xmx.velthoric.physics.body.network.internal.packet;
 
+import com.github.luben.zstd.Zstd;
 import dev.architectury.networking.NetworkManager;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.velthoric.network.VxPacketUtils;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
-import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.function.Supplier;
 
 /**
  * A compressed binary batch packet for updating soft body vertex data.
  * <p>
- * This packet is sent on a lower frequency than the transform packet and uses
- * a raw stream to avoid creating thousands of float[] objects on the server.
+ * Handles vertex data updates efficiently using direct memory buffers and Zstd compression,
+ * avoiding object overhead for high-frequency soft body deformation updates.
  *
  * @author xI-Mx-Ix
  */
 public class S2CUpdateVerticesBatchPacket {
 
-    /**
-     * Compressed binary payload.
-     */
-    private final byte[] compressedPayload;
+    private static final ThreadLocal<ByteBuffer> DECOMPRESSION_BUFFER = ThreadLocal.withInitial(() -> ByteBuffer.allocateDirect(1024 * 1024));
+
+    private final ByteBuf data;
 
     /**
-     * @param compressedPayload Pre-compressed vertex data stream.
+     * @param data Pre-compressed vertex data stream (Direct ByteBuf).
      */
-    public S2CUpdateVerticesBatchPacket(byte[] compressedPayload) {
-        this.compressedPayload = compressedPayload;
+    public S2CUpdateVerticesBatchPacket(ByteBuf data) {
+        this.data = data;
     }
 
     /**
      * Encodes the compressed blob.
      */
     public static void encode(S2CUpdateVerticesBatchPacket msg, FriendlyByteBuf buf) {
-        buf.writeVarInt(msg.compressedPayload.length);
-        buf.writeByteArray(msg.compressedPayload);
+        try {
+            buf.writeVarInt(msg.data.readableBytes());
+            buf.writeBytes(msg.data);
+        } finally {
+            msg.data.release();
+        }
     }
 
     /**
@@ -49,7 +53,7 @@ public class S2CUpdateVerticesBatchPacket {
      */
     public static S2CUpdateVerticesBatchPacket decode(FriendlyByteBuf buf) {
         int len = buf.readVarInt();
-        return new S2CUpdateVerticesBatchPacket(buf.readByteArray(len));
+        return new S2CUpdateVerticesBatchPacket(buf.readBytes(len));
     }
 
     /**
@@ -58,28 +62,42 @@ public class S2CUpdateVerticesBatchPacket {
     public static void handle(S2CUpdateVerticesBatchPacket msg, Supplier<NetworkManager.PacketContext> ctx) {
         ctx.get().queue(() -> {
             try {
-                int size = (int) com.github.luben.zstd.Zstd.decompressedSize(msg.compressedPayload);
-                byte[] data = VxPacketUtils.decompress(msg.compressedPayload, size);
-                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(data));
                 VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
 
-                int count = buf.readVarInt();
-                buf.readLong(); // Read and ignore chunk context if not needed for indexing
+                ByteBuffer compressedNio = msg.data.nioBuffer();
+                long uncompressedSize = Zstd.decompressedSize(compressedNio);
+
+                ByteBuffer targetBuf = DECOMPRESSION_BUFFER.get();
+                if (targetBuf.capacity() < uncompressedSize) {
+                    targetBuf = ByteBuffer.allocateDirect((int) uncompressedSize);
+                    DECOMPRESSION_BUFFER.set(targetBuf);
+                }
+                targetBuf.clear();
+                targetBuf.limit((int) uncompressedSize);
+
+                Zstd.decompressDirectByteBuffer(targetBuf, 0, (int)uncompressedSize, compressedNio, 0, compressedNio.remaining());
+
+                ByteBuf db = Unpooled.wrappedBuffer(targetBuf);
+
+                int count = db.readInt();
+                db.readLong(); // chunkPosLong (skipped, handled via body IDs)
 
                 for (int i = 0; i < count; i++) {
-                    int netId = buf.readVarInt();
-                    if (buf.readBoolean()) {
-                        int vLen = buf.readVarInt();
+                    int netId = db.readInt();
+                    if (db.readBoolean()) {
+                        int vLen = db.readInt();
+                        // Here we still need an array because the DataStore currently stores float[].
+                        // Ideally the DataStore should use a flat FloatBuffer for soft bodies,
+                        // but strictly following the current DataStore API, we allocate the array here.
                         float[] verts = new float[vLen];
-                        for (int k = 0; k < vLen; k++) verts[k] = buf.readFloat();
+                        for (int k = 0; k < vLen; k++) verts[k] = db.readFloat();
 
                         Integer index = manager.getStore().getIndexForNetworkId(netId);
                         if (index != null) manager.getStore().state1_vertexData[index] = verts;
                     }
                 }
-                buf.release();
-            } catch (IOException e) {
-                throw new RuntimeException("Vertex batch decompression failed", e);
+            } finally {
+                msg.data.release();
             }
         });
     }
