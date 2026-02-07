@@ -5,12 +5,11 @@
 package net.xmx.velthoric.bridge.mounting.input;
 
 import dev.architectury.networking.NetworkManager;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.bridge.mounting.manager.VxMountingManager;
+import net.xmx.velthoric.network.IVxNetPacket;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.world.VxPhysicsWorld;
-
-import java.util.function.Supplier;
 
 /**
  * A network packet sent from the client to the server, containing the player's
@@ -18,7 +17,7 @@ import java.util.function.Supplier;
  *
  * @author xI-Mx-Ix
  */
-public class C2SMountInputPacket {
+public class C2SMountInputPacket implements IVxNetPacket {
 
     private final VxMountInput input;
 
@@ -32,43 +31,30 @@ public class C2SMountInputPacket {
     }
 
     /**
-     * Encodes the packet's data into a network buffer.
-     *
-     * @param msg The packet instance to encode.
-     * @param buf The buffer to write to.
-     */
-    public static void encode(C2SMountInputPacket msg, FriendlyByteBuf buf) {
-        msg.input.encode(buf);
-    }
-
-    /**
      * Decodes the packet from a network buffer.
      *
      * @param buf The buffer to read from.
      * @return A new instance of the packet.
      */
-    public static C2SMountInputPacket decode(FriendlyByteBuf buf) {
+    public static C2SMountInputPacket decode(VxByteBuf buf) {
         return new C2SMountInputPacket(new VxMountInput(buf));
     }
 
-    /**
-     * Handles the packet on the server side.
-     *
-     * @param msg             The received packet.
-     * @param contextSupplier A supplier for the network packet context.
-     */
-    public static void handle(C2SMountInputPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
-        NetworkManager.PacketContext context = contextSupplier.get();
+    @Override
+    public void encode(VxByteBuf buf) {
+        this.input.encode(buf);
+    }
+
+    @Override
+    public void handle(NetworkManager.PacketContext context) {
         context.queue(() -> {
             ServerPlayer player = (ServerPlayer) context.getPlayer();
-            if (player == null) {
-                return;
-            }
+            if (player == null) return;
 
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(player.serverLevel().dimension());
             if (physicsWorld != null) {
                 VxMountingManager mountingManager = physicsWorld.getMountingManager();
-                mountingManager.handlePlayerInput(player, msg.input);
+                mountingManager.handlePlayerInput(player, this.input);
             }
         });
     }

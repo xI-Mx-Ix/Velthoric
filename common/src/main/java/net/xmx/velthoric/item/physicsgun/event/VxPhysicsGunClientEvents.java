@@ -10,7 +10,7 @@ import net.xmx.velthoric.event.api.VxKeyEvent;
 import net.xmx.velthoric.init.registry.ItemRegistry;
 import net.xmx.velthoric.item.physicsgun.manager.VxPhysicsGunClientManager;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunActionPacket;
-import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.network.VxNetworking;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -51,12 +51,12 @@ public class VxPhysicsGunClientEvents {
             if (event.getAction() == GLFW.GLFW_PRESS) {
                 if (!clientManager.isRotationMode()) {
                     clientManager.setRotationMode(true);
-                    VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket(VxPhysicsGunActionPacket.ActionType.START_ROTATION_MODE));
+                    VxNetworking.sendToServer(new VxPhysicsGunActionPacket(VxPhysicsGunActionPacket.ActionType.START_ROTATION_MODE));
                 }
             } else if (event.getAction() == GLFW.GLFW_RELEASE) {
                 if (clientManager.isRotationMode()) {
                     clientManager.setRotationMode(false);
-                    VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket(VxPhysicsGunActionPacket.ActionType.STOP_ROTATION_MODE));
+                    VxNetworking.sendToServer(new VxPhysicsGunActionPacket(VxPhysicsGunActionPacket.ActionType.STOP_ROTATION_MODE));
                 }
             }
             return EventResult.interruptFalse();

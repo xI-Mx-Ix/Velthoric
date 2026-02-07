@@ -15,7 +15,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.math.VxOBB;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.network.VxNetworking;
 import net.xmx.velthoric.physics.body.client.VxRenderState;
 import net.xmx.velthoric.physics.vehicle.VxVehicle;
 import net.xmx.velthoric.physics.vehicle.part.packet.C2SPartInteractPacket;
@@ -99,7 +99,7 @@ public abstract class VxPart {
      */
     public boolean interact(Player player) {
         if (player.level().isClientSide) {
-            VxPacketHandler.sendToServer(new C2SPartInteractPacket(vehicle.getPhysicsId(), this.partId));
+            VxNetworking.sendToServer(new C2SPartInteractPacket(vehicle.getPhysicsId(), this.partId));
             return true;
         }
         return false;

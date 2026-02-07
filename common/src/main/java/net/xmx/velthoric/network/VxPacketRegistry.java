@@ -5,6 +5,7 @@
 package net.xmx.velthoric.network;
 
 import dev.architectury.networking.NetworkManager;
+import net.xmx.velthoric.bridge.mounting.input.C2SMountInputPacket;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunActionPacket;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunSyncPacket;
 import net.xmx.velthoric.item.tool.packet.VxToolActionPacket;
@@ -15,147 +16,75 @@ import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateBodyState
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CUpdateVerticesBatchPacket;
 import net.xmx.velthoric.physics.body.network.synchronization.packet.C2SSynchronizedDataBatchPacket;
 import net.xmx.velthoric.physics.body.network.synchronization.packet.S2CSynchronizedDataBatchPacket;
-import net.xmx.velthoric.bridge.mounting.input.C2SMountInputPacket;
 import net.xmx.velthoric.physics.vehicle.part.packet.C2SPartInteractPacket;
 
+import java.util.function.Function;
+
 /**
- * Central registry that lists all network packets used by the application.
+ * The central registry that lists all network packets used by Velthoric.
  * <p>
- * This class serves as the single source of truth for packet definitions. It delegates
- * the technical registration process to the {@link VxPacketHandler}, ensuring that
- * the list of packets remains consistent regardless of the underlying network implementation.
+ * This class is responsible for initializing the networking subsystem and
+ * assigning unique byte IDs to each packet class per network side.
  * </p>
  *
  * @author xI-Mx-Ix
  */
 public class VxPacketRegistry {
 
+    private static int c2sId = 0;
+    private static int s2cId = 0;
+
     /**
-     * Iterates through all available packet classes and passes them to the packet handler for registration.
+     * Initializes the {@link VxNetworking} system and registers all packet types.
      * <p>
-     * This method defines the essential metadata for each packet:
-     * <ul>
-     *     <li>The packet class type.</li>
-     *     <li>The unique network channel name.</li>
-     *     <li>The encoder and decoder functions.</li>
-     *     <li>The execution handler.</li>
-     *     <li>The intended network direction (Client-to-Server or Server-to-Client).</li>
-     * </ul>
-     * This method must be called during the initialization phase of the mod.
+     * This method iterates through all available packet classes and registers them
+     * with a side-specific unique ID and their decoder reference.
+     * </p>
+     * <p>
+     * <b>Note:</b> This method must be called during the common initialization phase
+     * of the mod (e.g., inside <code>onInitialize</code> or the common setup event).
+     * </p>
      */
     public static void registerPackets() {
-        // --- Client to Server Packets (C2S) ---
-        // These packets are sent by the client and handled on the server.
+        // 1. Initialize the base networking channel (The "Tunnel")
+        VxNetworking.init();
 
-        VxPacketHandler.registerPacket(
-                C2SPartInteractPacket.class,
-                "part_interact",
-                C2SPartInteractPacket::encode,
-                C2SPartInteractPacket::decode,
-                C2SPartInteractPacket::handle,
-                NetworkManager.Side.C2S
-        );
+        // ---------------------------------------------------------
+        // Client -> Server Packets (C2S)
+        // IDs are managed independently for the C2S namespace.
+        // ---------------------------------------------------------
 
-        VxPacketHandler.registerPacket(
-                C2SMountInputPacket.class,
-                "mount_input",
-                C2SMountInputPacket::encode,
-                C2SMountInputPacket::decode,
-                C2SMountInputPacket::handle,
-                NetworkManager.Side.C2S
-        );
+        registerC2S(C2SPartInteractPacket.class, C2SPartInteractPacket::decode);
+        registerC2S(C2SMountInputPacket.class, C2SMountInputPacket::decode);
+        registerC2S(VxPhysicsGunActionPacket.class, VxPhysicsGunActionPacket::decode);
+        registerC2S(VxToolActionPacket.class, VxToolActionPacket::decode);
+        registerC2S(VxToolConfigPacket.class, VxToolConfigPacket::decode);
+        registerC2S(C2SSynchronizedDataBatchPacket.class, C2SSynchronizedDataBatchPacket::decode);
 
-        VxPacketHandler.registerPacket(
-                VxPhysicsGunActionPacket.class,
-                "physics_gun_action",
-                VxPhysicsGunActionPacket::encode,
-                VxPhysicsGunActionPacket::decode,
-                VxPhysicsGunActionPacket::handle,
-                NetworkManager.Side.C2S
-        );
+        // ---------------------------------------------------------
+        // Server -> Client Packets (S2C)
+        // IDs are managed independently for the S2C namespace.
+        // ---------------------------------------------------------
 
-        VxPacketHandler.registerPacket(
-                VxToolActionPacket.class,
-                "tool_action",
-                VxToolActionPacket::encode,
-                VxToolActionPacket::decode,
-                VxToolActionPacket::handle,
-                NetworkManager.Side.C2S
-        );
+        registerS2C(S2CSynchronizedDataBatchPacket.class, S2CSynchronizedDataBatchPacket::decode);
+        registerS2C(S2CSpawnBodyBatchPacket.class, S2CSpawnBodyBatchPacket::decode);
+        registerS2C(S2CRemoveBodyBatchPacket.class, S2CRemoveBodyBatchPacket::decode);
+        registerS2C(S2CUpdateBodyStateBatchPacket.class, S2CUpdateBodyStateBatchPacket::decode);
+        registerS2C(S2CUpdateVerticesBatchPacket.class, S2CUpdateVerticesBatchPacket::decode);
+        registerS2C(VxPhysicsGunSyncPacket.class, VxPhysicsGunSyncPacket::decode);
+    }
 
-        VxPacketHandler.registerPacket(
-                VxToolConfigPacket.class,
-                "tool_config",
-                VxToolConfigPacket::encode,
-                VxToolConfigPacket::decode,
-                VxToolConfigPacket::handle,
-                NetworkManager.Side.C2S
-        );
+    /**
+     * Internal helper to register a Client-to-Server packet with an automated ID.
+     */
+    private static <T extends IVxNetPacket> void registerC2S(Class<T> clazz, Function<VxByteBuf, T> decoder) {
+        VxNetworking.register(NetworkManager.Side.C2S, c2sId++, clazz, decoder);
+    }
 
-        VxPacketHandler.registerPacket(
-                C2SSynchronizedDataBatchPacket.class,
-                "sync_data_batch_c2s",
-                C2SSynchronizedDataBatchPacket::encode,
-                C2SSynchronizedDataBatchPacket::decode,
-                C2SSynchronizedDataBatchPacket::handle,
-                NetworkManager.Side.C2S
-        );
-
-        // --- Server to Client Packets (S2C) ---
-        // These packets are sent by the server and handled on the client.
-
-        VxPacketHandler.registerPacket(
-                S2CSynchronizedDataBatchPacket.class,
-                "sync_data_batch_s2c",
-                S2CSynchronizedDataBatchPacket::encode,
-                S2CSynchronizedDataBatchPacket::decode,
-                S2CSynchronizedDataBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        VxPacketHandler.registerPacket(
-                S2CSpawnBodyBatchPacket.class,
-                "spawn_body_batch",
-                S2CSpawnBodyBatchPacket::encode,
-                S2CSpawnBodyBatchPacket::decode,
-                S2CSpawnBodyBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        VxPacketHandler.registerPacket(
-                S2CRemoveBodyBatchPacket.class,
-                "remove_body_batch",
-                S2CRemoveBodyBatchPacket::encode,
-                S2CRemoveBodyBatchPacket::decode,
-                S2CRemoveBodyBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        VxPacketHandler.registerPacket(
-                S2CUpdateBodyStateBatchPacket.class,
-                "update_body_state_batch",
-                S2CUpdateBodyStateBatchPacket::encode,
-                S2CUpdateBodyStateBatchPacket::decode,
-                S2CUpdateBodyStateBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        VxPacketHandler.registerPacket(
-                S2CUpdateVerticesBatchPacket.class,
-                "update_vertices_batch",
-                S2CUpdateVerticesBatchPacket::encode,
-                S2CUpdateVerticesBatchPacket::decode,
-                S2CUpdateVerticesBatchPacket::handle,
-                NetworkManager.Side.S2C
-        );
-
-        VxPacketHandler.registerPacket(
-                VxPhysicsGunSyncPacket.class,
-                "physics_gun_sync",
-                VxPhysicsGunSyncPacket::encode,
-                VxPhysicsGunSyncPacket::decode,
-                VxPhysicsGunSyncPacket::handle,
-                NetworkManager.Side.S2C
-        );
+    /**
+     * Internal helper to register a Server-to-Client packet with an automated ID.
+     */
+    private static <T extends IVxNetPacket> void registerS2C(Class<T> clazz, Function<VxByteBuf, T> decoder) {
+        VxNetworking.register(NetworkManager.Side.S2C, s2cId++, clazz, decoder);
     }
 }

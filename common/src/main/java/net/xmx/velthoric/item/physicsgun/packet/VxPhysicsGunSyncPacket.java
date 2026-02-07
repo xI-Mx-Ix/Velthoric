@@ -5,15 +5,15 @@
 package net.xmx.velthoric.item.physicsgun.packet;
 
 import dev.architectury.networking.NetworkManager;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.item.physicsgun.manager.VxPhysicsGunClientManager;
+import net.xmx.velthoric.network.IVxNetPacket;
+import net.xmx.velthoric.network.VxByteBuf;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -25,7 +25,7 @@ import java.util.stream.IntStream;
  *
  * @author xI-Mx-Ix
  */
-public class VxPhysicsGunSyncPacket {
+public class VxPhysicsGunSyncPacket implements IVxNetPacket {
 
     private final Map<UUID, VxPhysicsGunClientManager.ClientGrabData> activeGrabs;
     private final Set<UUID> playersTryingToGrab;
@@ -35,24 +35,7 @@ public class VxPhysicsGunSyncPacket {
         this.playersTryingToGrab = playersTryingToGrab;
     }
 
-    public static void encode(VxPhysicsGunSyncPacket msg, FriendlyByteBuf buf) {
-        buf.writeVarInt(msg.activeGrabs.size());
-        for (Map.Entry<UUID, VxPhysicsGunClientManager.ClientGrabData> entry : msg.activeGrabs.entrySet()) {
-            buf.writeUUID(entry.getKey());
-            VxPhysicsGunClientManager.ClientGrabData data = entry.getValue();
-            buf.writeUUID(data.objectUuid());
-            buf.writeDouble(data.localHitPoint().x());
-            buf.writeDouble(data.localHitPoint().y());
-            buf.writeDouble(data.localHitPoint().z());
-        }
-
-        buf.writeVarInt(msg.playersTryingToGrab.size());
-        for (UUID uuid : msg.playersTryingToGrab) {
-            buf.writeUUID(uuid);
-        }
-    }
-
-    public static VxPhysicsGunSyncPacket decode(FriendlyByteBuf buf) {
+    public static VxPhysicsGunSyncPacket decode(VxByteBuf buf) {
         int grabsSize = buf.readVarInt();
         Map<UUID, VxPhysicsGunClientManager.ClientGrabData> activeGrabs = new ConcurrentHashMap<>();
         for (int i = 0; i < grabsSize; i++) {
@@ -70,10 +53,28 @@ public class VxPhysicsGunSyncPacket {
         return new VxPhysicsGunSyncPacket(activeGrabs, playersTryingToGrab);
     }
 
-    public static void handle(VxPhysicsGunSyncPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
-        NetworkManager.PacketContext context = contextSupplier.get();
+    @Override
+    public void encode(VxByteBuf buf) {
+        buf.writeVarInt(this.activeGrabs.size());
+        for (Map.Entry<UUID, VxPhysicsGunClientManager.ClientGrabData> entry : this.activeGrabs.entrySet()) {
+            buf.writeUUID(entry.getKey());
+            VxPhysicsGunClientManager.ClientGrabData data = entry.getValue();
+            buf.writeUUID(data.objectUuid());
+            buf.writeDouble(data.localHitPoint().x());
+            buf.writeDouble(data.localHitPoint().y());
+            buf.writeDouble(data.localHitPoint().z());
+        }
+
+        buf.writeVarInt(this.playersTryingToGrab.size());
+        for (UUID uuid : this.playersTryingToGrab) {
+            buf.writeUUID(uuid);
+        }
+    }
+
+    @Override
+    public void handle(NetworkManager.PacketContext context) {
         context.queue(() -> {
-            VxPhysicsGunClientManager.getInstance().updateState(msg.activeGrabs, msg.playersTryingToGrab);
+            VxPhysicsGunClientManager.getInstance().updateState(this.activeGrabs, this.playersTryingToGrab);
         });
     }
 }

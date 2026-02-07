@@ -7,14 +7,14 @@ package net.xmx.velthoric.item.tool.event;
 import dev.architectury.event.EventResult;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.Item;
-import net.xmx.velthoric.init.registry.KeyMappings;
 import net.xmx.velthoric.event.api.VxKeyEvent;
 import net.xmx.velthoric.event.api.VxMouseEvent;
+import net.xmx.velthoric.init.registry.KeyMappings;
 import net.xmx.velthoric.item.tool.VxToolMode;
 import net.xmx.velthoric.item.tool.gui.VxToolConfigScreen;
 import net.xmx.velthoric.item.tool.packet.VxToolActionPacket;
 import net.xmx.velthoric.item.tool.registry.VxToolRegistry;
-import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.network.VxNetworking;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -102,7 +102,7 @@ public class VxToolClientEvents {
 
         // If an action was determined, send it to the server and consume the event
         if (action != VxToolMode.ActionState.IDLE || event.getAction() == GLFW.GLFW_RELEASE) {
-            VxPacketHandler.sendToServer(new VxToolActionPacket(action));
+            VxNetworking.sendToServer(new VxToolActionPacket(action));
             return EventResult.interruptFalse();
         }
 

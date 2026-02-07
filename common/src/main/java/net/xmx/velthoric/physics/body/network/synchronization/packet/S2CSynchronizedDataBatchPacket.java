@@ -4,26 +4,33 @@
  */
 package net.xmx.velthoric.physics.body.network.synchronization.packet;
 
+import com.github.luben.zstd.Zstd;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.network.FriendlyByteBuf;
-import net.xmx.velthoric.network.VxPacketUtils;
+import net.xmx.velthoric.network.IVxNetPacket;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
-import java.io.IOException;
 import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * A network packet (Server -> Client) that sends a ZSTD-compressed batch of custom data updates.
- * This is used to synchronize non-physics state from the server to clients.
+ * <p>
+ * This is used to synchronize non-physics state from the server to clients. It allows
+ * for efficient updates of arbitrary data associated with physics bodies by bundling
+ * multiple updates into a single compressed payload.
+ * </p>
  *
  * @author xI-Mx-Ix
  */
-public class S2CSynchronizedDataBatchPacket {
+public class S2CSynchronizedDataBatchPacket implements IVxNetPacket {
 
+    /**
+     * A map storing the network IDs of the bodies and their corresponding serialized custom data.
+     */
     private final Map<Integer, byte[]> dataUpdates;
 
     /**
@@ -36,17 +43,54 @@ public class S2CSynchronizedDataBatchPacket {
     }
 
     /**
-     * Encodes the packet's data into a network buffer.
-     * Uses ZSTD compression to minimize bandwidth usage.
+     * Decodes the packet from the network buffer.
+     * <p>
+     * This method reads the compressed data block, decompresses it using Zstd, and
+     * reconstructs the update map by reading from the decompressed stream.
+     * </p>
      *
-     * @param msg The packet instance to encode.
-     * @param buf The buffer to write to.
+     * @param buf The buffer to read the compressed packet data from.
+     * @return A new instance of the packet.
+     * @throws IllegalStateException If the decompression or reconstruction fails.
      */
-    public static void encode(S2CSynchronizedDataBatchPacket msg, FriendlyByteBuf buf) {
+    public static S2CSynchronizedDataBatchPacket decode(VxByteBuf buf) {
+        try {
+            int uncompressedSize = buf.readVarInt();
+            byte[] compressedData = buf.readByteArray();
+
+            // Decompress the received byte array using the uncompressed size hint
+            byte[] decompressedData = Zstd.decompress(compressedData, uncompressedSize);
+
+            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
+            int size = decompressedBuf.readVarInt();
+            Map<Integer, byte[]> dataUpdates = new Int2ObjectArrayMap<>(size);
+
+            for (int i = 0; i < size; i++) {
+                int id = decompressedBuf.readVarInt();
+                byte[] data = decompressedBuf.readByteArray();
+                dataUpdates.put(id, data);
+            }
+            return new S2CSynchronizedDataBatchPacket(dataUpdates);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to decompress S2C sync data batch packet", e);
+        }
+    }
+
+    /**
+     * Encodes the packet's data into the provided network buffer.
+     * <p>
+     * To maximize bandwidth efficiency, the update map is first written to a temporary
+     * buffer, which is then compressed using Zstd before being written to the final output buffer.
+     * </p>
+     *
+     * @param buf The extended buffer to write the compressed packet data to.
+     */
+    @Override
+    public void encode(VxByteBuf buf) {
         FriendlyByteBuf tempBuf = new FriendlyByteBuf(Unpooled.buffer());
         try {
-            tempBuf.writeVarInt(msg.dataUpdates.size());
-            for (Map.Entry<Integer, byte[]> entry : msg.dataUpdates.entrySet()) {
+            tempBuf.writeVarInt(this.dataUpdates.size());
+            for (Map.Entry<Integer, byte[]> entry : this.dataUpdates.entrySet()) {
                 tempBuf.writeVarInt(entry.getKey());
                 tempBuf.writeByteArray(entry.getValue());
             }
@@ -54,54 +98,30 @@ public class S2CSynchronizedDataBatchPacket {
             byte[] uncompressedData = new byte[tempBuf.readableBytes()];
             tempBuf.readBytes(uncompressedData);
 
-            byte[] compressedData = VxPacketUtils.compress(uncompressedData);
+            // Compress the serialized map data
+            byte[] compressedData = Zstd.compress(uncompressedData);
             buf.writeVarInt(uncompressedData.length);
             buf.writeByteArray(compressedData);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to compress S2C sync data batch packet", e);
         } finally {
             tempBuf.release();
         }
     }
 
     /**
-     * Decodes the packet from a network buffer.
-     * Decompresses the data before reconstructing the map.
-     *
-     * @param buf The buffer to read from.
-     * @return A new instance of the packet.
-     */
-    public static S2CSynchronizedDataBatchPacket decode(FriendlyByteBuf buf) {
-        try {
-            int uncompressedSize = buf.readVarInt();
-            byte[] compressedData = buf.readByteArray();
-            byte[] decompressedData = VxPacketUtils.decompress(compressedData, uncompressedSize);
-            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedData));
-
-            int size = decompressedBuf.readVarInt();
-            Map<Integer, byte[]> dataUpdates = new Int2ObjectArrayMap<>(size);
-            for (int i = 0; i < size; i++) {
-                int id = decompressedBuf.readVarInt();
-                byte[] data = decompressedBuf.readByteArray();
-                dataUpdates.put(id, data);
-            }
-            return new S2CSynchronizedDataBatchPacket(dataUpdates);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to decompress S2C sync data batch packet", e);
-        }
-    }
-
-    /**
      * Handles the packet on the client side.
+     * <p>
+     * This method applies the synchronized data updates to the corresponding bodies
+     * via the client-side body manager.
+     * </p>
      *
-     * @param msg             The received packet.
-     * @param contextSupplier A supplier for the network packet context.
+     * @param context The network context.
      */
-    public static void handle(S2CSynchronizedDataBatchPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
-        NetworkManager.PacketContext context = contextSupplier.get();
+    @Override
+    public void handle(NetworkManager.PacketContext context) {
         context.queue(() -> {
             VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
-            for (Map.Entry<Integer, byte[]> entry : msg.dataUpdates.entrySet()) {
+            for (Map.Entry<Integer, byte[]> entry : this.dataUpdates.entrySet()) {
+                // Apply the serialized data to the body's synchronized data store
                 manager.updateSynchronizedData(entry.getKey(), Unpooled.wrappedBuffer(entry.getValue()));
             }
         });

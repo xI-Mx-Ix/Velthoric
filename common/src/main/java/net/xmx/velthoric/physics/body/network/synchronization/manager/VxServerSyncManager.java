@@ -11,9 +11,9 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.network.VxPacketHandler;
-import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
+import net.xmx.velthoric.network.VxNetworking;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
+import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.physics.body.network.synchronization.packet.S2CSynchronizedDataBatchPacket;
 import net.xmx.velthoric.physics.body.type.VxBody;
@@ -128,7 +128,7 @@ public class VxServerSyncManager {
         if (!updatesByPlayer.isEmpty()) {
             bodyManager.getPhysicsWorld().getLevel().getServer().execute(() -> updatesByPlayer.forEach((player, dataMap) -> {
                 if (!dataMap.isEmpty()) {
-                    VxPacketHandler.sendToPlayer(new S2CSynchronizedDataBatchPacket(dataMap), player);
+                    VxNetworking.sendToPlayer(player, new S2CSynchronizedDataBatchPacket(dataMap));
                 }
             }));
         }

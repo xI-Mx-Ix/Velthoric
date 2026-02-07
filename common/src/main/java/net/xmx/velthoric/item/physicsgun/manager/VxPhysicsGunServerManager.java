@@ -12,7 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.xmx.velthoric.item.physicsgun.VxGrabbedBodyInfo;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunSyncPacket;
-import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.network.VxNetworking;
 import net.xmx.velthoric.physics.body.type.VxBody;
 import net.xmx.velthoric.physics.raycasting.VxHitResult;
 import net.xmx.velthoric.physics.raycasting.VxRaycaster;
@@ -353,7 +353,7 @@ public class VxPhysicsGunServerManager {
                             return new VxPhysicsGunClientManager.ClientGrabData(info.physicsId(), localHitPoint);
                         }
                 ));
-        VxPacketHandler.sendToAll(new VxPhysicsGunSyncPacket(clientGrabData, playersTryingToGrab));
+        VxNetworking.sendToAll(new VxPhysicsGunSyncPacket(clientGrabData, playersTryingToGrab));
     }
 
     public void syncStateForNewPlayer(ServerPlayer player) {
@@ -370,6 +370,6 @@ public class VxPhysicsGunServerManager {
                             return new VxPhysicsGunClientManager.ClientGrabData(info.physicsId(), localHitPoint);
                         }
                 ));
-        VxPacketHandler.sendToPlayer(new VxPhysicsGunSyncPacket(clientGrabData, playersTryingToGrab), player);
+        VxNetworking.sendToPlayer(player, new VxPhysicsGunSyncPacket(clientGrabData, playersTryingToGrab));
     }
 }

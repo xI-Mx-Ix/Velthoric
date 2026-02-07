@@ -8,14 +8,14 @@ import com.github.luben.zstd.Zstd;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.ChunkPos;
+import net.xmx.velthoric.network.IVxNetPacket;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.nio.ByteBuffer;
-import java.util.function.Supplier;
 
 /**
  * A compressed raw-data packet for synchronizing high-frequency body state updates.
@@ -29,7 +29,7 @@ import java.util.function.Supplier;
  *
  * @author xI-Mx-Ix
  */
-public class S2CUpdateBodyStateBatchPacket {
+public class S2CUpdateBodyStateBatchPacket implements IVxNetPacket {
 
     /**
      * ThreadLocal buffer for decompression on the client to avoid repeated allocations.
@@ -57,17 +57,17 @@ public class S2CUpdateBodyStateBatchPacket {
      * Writes the length prefix followed by the compressed bytes.
      * Releases the buffer after writing.
      *
-     * @param msg The packet instance.
      * @param buf The output buffer.
      */
-    public static void encode(S2CUpdateBodyStateBatchPacket msg, FriendlyByteBuf buf) {
+    @Override
+    public void encode(VxByteBuf buf) {
         try {
-            int length = msg.data.readableBytes();
+            int length = this.data.readableBytes();
             buf.writeVarInt(length);
-            buf.writeBytes(msg.data);
+            buf.writeBytes(this.data);
         } finally {
             // Important: Release the pooled buffer after writing to the wire.
-            msg.data.release();
+            this.data.release();
         }
     }
 
@@ -78,7 +78,7 @@ public class S2CUpdateBodyStateBatchPacket {
      * @param buf The input buffer.
      * @return A populated packet instance.
      */
-    public static S2CUpdateBodyStateBatchPacket decode(FriendlyByteBuf buf) {
+    public static S2CUpdateBodyStateBatchPacket decode(VxByteBuf buf) {
         int length = buf.readVarInt();
         // Read into a new ByteBuf. This makes a copy from the underlying buffer,
         // which is unavoidable with FriendlyByteBuf if we want the data to survive the handler scope.
@@ -90,18 +90,18 @@ public class S2CUpdateBodyStateBatchPacket {
      * Processes the decoded packet on the client's main thread and updates the data store.
      * Uses Zero-Copy decompression directly into the DataStore arrays.
      *
-     * @param msg The packet message.
-     * @param ctx The packet context.
+     * @param context The packet context.
      */
-    public static void handle(S2CUpdateBodyStateBatchPacket msg, Supplier<NetworkManager.PacketContext> ctx) {
-        ctx.get().queue(() -> {
+    @Override
+    public void handle(NetworkManager.PacketContext context) {
+        context.queue(() -> {
             try {
                 VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
                 VxClientBodyDataStore store = manager.getStore();
 
                 // 1. Prepare Decompression
                 // Obtain NIO buffer from Netty ByteBuf without copying
-                ByteBuffer compressedNio = msg.data.nioBuffer();
+                ByteBuffer compressedNio = this.data.nioBuffer();
 
                 // Determine required size for the output buffer
                 long uncompressedSize = Zstd.decompressedSize(compressedNio);
@@ -197,7 +197,7 @@ public class S2CUpdateBodyStateBatchPacket {
 
             } finally {
                 // Always release the pooled network buffer on client side
-                msg.data.release();
+                this.data.release();
             }
         });
     }

@@ -10,12 +10,12 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.IVxNetPacket;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.nio.ByteBuffer;
-import java.util.function.Supplier;
 
 /**
  * A network packet for batched removal of physics bodies.
@@ -25,7 +25,7 @@ import java.util.function.Supplier;
  *
  * @author xI-Mx-Ix
  */
-public class S2CRemoveBodyBatchPacket {
+public class S2CRemoveBodyBatchPacket implements IVxNetPacket {
 
     /**
      * The list of primitive network IDs to be removed.
@@ -42,13 +42,14 @@ public class S2CRemoveBodyBatchPacket {
     /**
      * Encodes the IDs into a compressed binary blob using direct buffers.
      */
-    public static void encode(S2CRemoveBodyBatchPacket msg, FriendlyByteBuf buf) {
-        // Compress IDs on the fly into the FriendlyByteBuf.
+    @Override
+    public void encode(VxByteBuf buf) {
+        // Compress IDs on the fly into the VxByteBuf.
         // Step 1: Write IDs to a temporary heap buffer (fastest for simple ints) or direct.
         // Using heap buffer here because encoding logic for var-int logic is simpler.
-        ByteBuf raw = Unpooled.directBuffer(msg.networkIds.size() * 4);
+        ByteBuf raw = Unpooled.directBuffer(this.networkIds.size() * 4);
         try {
-            for (int id : msg.networkIds) raw.writeInt(id);
+            for (int id : this.networkIds) raw.writeInt(id);
 
             // Step 2: Prepare compression
             ByteBuffer src = raw.nioBuffer();
@@ -74,7 +75,7 @@ public class S2CRemoveBodyBatchPacket {
     /**
      * Decodes and decompresses the removal list.
      */
-    public static S2CRemoveBodyBatchPacket decode(FriendlyByteBuf buf) {
+    public static S2CRemoveBodyBatchPacket decode(VxByteBuf buf) {
         int len = buf.readVarInt();
         ByteBuf comp = buf.readBytes(len);
         try {
@@ -84,14 +85,14 @@ public class S2CRemoveBodyBatchPacket {
             // Check valid size
             if (Zstd.isError(origSize)) throw new RuntimeException("Zstd error: " + Zstd.getErrorName(origSize));
 
-            ByteBuf raw = Unpooled.directBuffer((int)origSize);
+            ByteBuf raw = Unpooled.directBuffer((int) origSize);
             try {
-                ByteBuffer dst = raw.nioBuffer(0, (int)origSize);
-                Zstd.decompressDirectByteBuffer(dst, 0, (int)origSize, src, 0, src.remaining());
-                raw.writerIndex((int)origSize);
+                ByteBuffer dst = raw.nioBuffer(0, (int) origSize);
+                Zstd.decompressDirectByteBuffer(dst, 0, (int) origSize, src, 0, src.remaining());
+                raw.writerIndex((int) origSize);
 
                 IntList ids = new IntArrayList(raw.readableBytes() / 4);
-                while(raw.isReadable()) {
+                while (raw.isReadable()) {
                     ids.add(raw.readInt());
                 }
                 return new S2CRemoveBodyBatchPacket(ids);
@@ -106,10 +107,11 @@ public class S2CRemoveBodyBatchPacket {
     /**
      * Handles the removals on the client thread.
      */
-    public static void handle(S2CRemoveBodyBatchPacket msg, Supplier<NetworkManager.PacketContext> ctx) {
-        ctx.get().queue(() -> {
+    @Override
+    public void handle(NetworkManager.PacketContext context) {
+        context.queue(() -> {
             VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
-            for (int id : msg.networkIds) manager.removeBody(id);
+            for (int id : this.networkIds) manager.removeBody(id);
         });
     }
 }

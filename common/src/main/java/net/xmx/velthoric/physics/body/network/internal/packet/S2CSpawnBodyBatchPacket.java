@@ -8,14 +8,13 @@ import com.github.luben.zstd.Zstd;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.network.internal.VxSpawnData;
 import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.nio.ByteBuffer;
-import java.util.function.Supplier;
 
 /**
  * A compressed binary stream packet for spawning multiple bodies at once.
@@ -25,7 +24,7 @@ import java.util.function.Supplier;
  *
  * @author xI-Mx-Ix
  */
-public class S2CSpawnBodyBatchPacket {
+public class S2CSpawnBodyBatchPacket implements IVxNetPacket {
 
     private static final ThreadLocal<ByteBuffer> DECOMPRESSION_BUFFER = ThreadLocal.withInitial(() -> ByteBuffer.allocateDirect(128 * 1024));
 
@@ -51,20 +50,21 @@ public class S2CSpawnBodyBatchPacket {
     /**
      * Encodes raw packet data.
      */
-    public static void encode(S2CSpawnBodyBatchPacket msg, FriendlyByteBuf buf) {
+    @Override
+    public void encode(VxByteBuf buf) {
         try {
-            buf.writeVarInt(msg.count);
-            buf.writeVarInt(msg.data.readableBytes());
-            buf.writeBytes(msg.data);
+            buf.writeVarInt(this.count);
+            buf.writeVarInt(this.data.readableBytes());
+            buf.writeBytes(this.data);
         } finally {
-            msg.data.release();
+            this.data.release();
         }
     }
 
     /**
      * Decodes and initializes the batch.
      */
-    public static S2CSpawnBodyBatchPacket decode(FriendlyByteBuf buf) {
+    public static S2CSpawnBodyBatchPacket decode(VxByteBuf buf) {
         int count = buf.readVarInt();
         int len = buf.readVarInt();
         return new S2CSpawnBodyBatchPacket(count, buf.readBytes(len));
@@ -73,12 +73,13 @@ public class S2CSpawnBodyBatchPacket {
     /**
      * Handles decompression and sequentially spawns bodies from the stream.
      */
-    public static void handle(S2CSpawnBodyBatchPacket msg, Supplier<NetworkManager.PacketContext> ctx) {
-        ctx.get().queue(() -> {
+    @Override
+    public void handle(NetworkManager.PacketContext context) {
+        context.queue(() -> {
             try {
                 VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
 
-                ByteBuffer compressedNio = msg.data.nioBuffer();
+                ByteBuffer compressedNio = this.data.nioBuffer();
                 long uncompressedSize = Zstd.decompressedSize(compressedNio);
 
                 ByteBuffer targetBuf = DECOMPRESSION_BUFFER.get();
@@ -89,14 +90,14 @@ public class S2CSpawnBodyBatchPacket {
                 targetBuf.clear();
                 targetBuf.limit((int) uncompressedSize);
 
-                Zstd.decompressDirectByteBuffer(targetBuf, 0, (int)uncompressedSize, compressedNio, 0, compressedNio.remaining());
+                Zstd.decompressDirectByteBuffer(targetBuf, 0, (int) uncompressedSize, compressedNio, 0, compressedNio.remaining());
 
                 // Wrap in VxByteBuf to use the readAndSpawn helper
                 ByteBuf db = Unpooled.wrappedBuffer(targetBuf);
                 VxByteBuf wrapped = new VxByteBuf(db);
 
                 try {
-                    for (int i = 0; i < msg.count; i++) {
+                    for (int i = 0; i < this.count; i++) {
                         VxSpawnData.readAndSpawn(wrapped, manager);
                     }
                 } finally {
@@ -104,7 +105,7 @@ public class S2CSpawnBodyBatchPacket {
                 }
 
             } finally {
-                msg.data.release();
+                this.data.release();
             }
         });
     }

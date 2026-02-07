@@ -5,20 +5,19 @@
 package net.xmx.velthoric.item.tool.packet;
 
 import dev.architectury.networking.NetworkManager;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.xmx.velthoric.item.tool.VxToolMode;
 import net.xmx.velthoric.item.tool.registry.VxToolRegistry;
-
-import java.util.function.Supplier;
+import net.xmx.velthoric.network.IVxNetPacket;
+import net.xmx.velthoric.network.VxByteBuf;
 
 /**
- * Packet sent when the player uses a tool (Left/Right click).
+ * Packet sent when the player uses a tool (Left/Right click events).
  *
  * @author xI-Mx-Ix
  */
-public class VxToolActionPacket {
+public class VxToolActionPacket implements IVxNetPacket {
 
     private final VxToolMode.ActionState action;
 
@@ -26,16 +25,17 @@ public class VxToolActionPacket {
         this.action = action;
     }
 
-    public static void encode(VxToolActionPacket msg, FriendlyByteBuf buf) {
-        buf.writeEnum(msg.action);
-    }
-
-    public static VxToolActionPacket decode(FriendlyByteBuf buf) {
+    public static VxToolActionPacket decode(VxByteBuf buf) {
         return new VxToolActionPacket(buf.readEnum(VxToolMode.ActionState.class));
     }
 
-    public static void handle(VxToolActionPacket msg, Supplier<NetworkManager.PacketContext> contextSupplier) {
-        NetworkManager.PacketContext context = contextSupplier.get();
+    @Override
+    public void encode(VxByteBuf buf) {
+        buf.writeEnum(this.action);
+    }
+
+    @Override
+    public void handle(NetworkManager.PacketContext context) {
         context.queue(() -> {
             ServerPlayer player = (ServerPlayer) context.getPlayer();
             if (player == null) return;
@@ -44,7 +44,7 @@ public class VxToolActionPacket {
             VxToolMode mode = VxToolRegistry.get(heldItem);
 
             if (mode != null) {
-                mode.setState(player, msg.action);
+                mode.setState(player, this.action);
             }
         });
     }

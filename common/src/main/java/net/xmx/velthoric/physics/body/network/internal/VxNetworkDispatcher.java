@@ -19,7 +19,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.network.IVxNetPacket;
+import net.xmx.velthoric.network.VxNetworking;
 import net.xmx.velthoric.physics.body.manager.VxBodyManager;
 import net.xmx.velthoric.physics.body.manager.VxServerBodyDataStore;
 import net.xmx.velthoric.physics.body.network.internal.packet.S2CRemoveBodyBatchPacket;
@@ -258,7 +259,7 @@ public class VxNetworkDispatcher {
 
             if (!players.isEmpty()) {
                 for (ServerPlayer player : players) {
-                    VxPacketHandler.sendToPlayer(task.packet, player);
+                    VxNetworking.sendToPlayer(player, task.packet);
                 }
             }
         }
@@ -405,7 +406,7 @@ public class VxNetworkDispatcher {
             while (it.hasNext()) {
                 var entry = it.next();
                 if (!entry.getValue().isEmpty()) {
-                    VxPacketHandler.sendToPlayer(new S2CRemoveBodyBatchPacket(entry.getValue()), entry.getKey());
+                    VxNetworking.sendToPlayer(entry.getKey(), new S2CRemoveBodyBatchPacket(entry.getValue()));
                 }
                 it.remove();
             }
@@ -501,7 +502,7 @@ public class VxNetworkDispatcher {
             compressed.writerIndex((int) len);
 
             // The packet takes ownership of the 'compressed' buffer (should release it after write)
-            VxPacketHandler.sendToPlayer(new S2CSpawnBodyBatchPacket(count, compressed), player);
+            VxNetworking.sendToPlayer(player, new S2CSpawnBodyBatchPacket(count, compressed));
 
         } catch (Exception e) {
             // Release the buffer if an exception prevented packet creation/sending
@@ -553,6 +554,6 @@ public class VxNetworkDispatcher {
     /**
      * Internal record for tracking broadcast requirements.
      */
-    private record BroadcastTask(long chunkPos, Object packet) {
+    private record BroadcastTask(long chunkPos, IVxNetPacket packet) {
     }
 }

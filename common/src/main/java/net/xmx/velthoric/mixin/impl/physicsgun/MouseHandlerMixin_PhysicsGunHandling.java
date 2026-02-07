@@ -9,7 +9,7 @@ import net.minecraft.client.MouseHandler;
 import net.xmx.velthoric.init.registry.ItemRegistry;
 import net.xmx.velthoric.item.physicsgun.manager.VxPhysicsGunClientManager;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunActionPacket;
-import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.network.VxNetworking;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -41,7 +41,7 @@ public class MouseHandlerMixin_PhysicsGunHandling {
         var clientManager = VxPhysicsGunClientManager.getInstance();
         if (clientManager.isRotationMode()) {
             if (this.accumulatedDX != 0.0D || this.accumulatedDY != 0.0D) {
-                VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket((float) this.accumulatedDX, (float) this.accumulatedDY));
+                VxNetworking.sendToServer(new VxPhysicsGunActionPacket((float) this.accumulatedDX, (float) this.accumulatedDY));
             }
             // Reset accumulated values to prevent residual movement.
             this.accumulatedDX = 0.0D;
@@ -101,7 +101,7 @@ public class MouseHandlerMixin_PhysicsGunHandling {
         // Handle right-click for freezing objects.
         if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
             if (action == GLFW.GLFW_PRESS) {
-                VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket(VxPhysicsGunActionPacket.ActionType.FREEZE_OBJECT));
+                VxNetworking.sendToServer(new VxPhysicsGunActionPacket(VxPhysicsGunActionPacket.ActionType.FREEZE_OBJECT));
             }
             eventHandled = true;
         }
@@ -130,7 +130,7 @@ public class MouseHandlerMixin_PhysicsGunHandling {
         boolean isGrabbing = GLFW.glfwGetMouseButton(this.minecraft.getWindow().getWindow(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
 
         if (isGrabbing) {
-            VxPacketHandler.sendToServer(new VxPhysicsGunActionPacket((float) vertical));
+            VxNetworking.sendToServer(new VxPhysicsGunActionPacket((float) vertical));
             ci.cancel();
         }
     }

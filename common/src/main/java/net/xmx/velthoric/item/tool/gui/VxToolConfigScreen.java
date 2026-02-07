@@ -15,7 +15,7 @@ import net.xmx.velthoric.item.tool.VxToolMode;
 import net.xmx.velthoric.item.tool.config.VxToolConfig;
 import net.xmx.velthoric.item.tool.config.VxToolProperty;
 import net.xmx.velthoric.item.tool.packet.VxToolConfigPacket;
-import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.network.VxNetworking;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -116,6 +116,6 @@ public class VxToolConfigScreen extends Screen {
     @Override
     public void removed() {
         // Transmit the accumulated edits to the server when the screen closes
-        VxPacketHandler.sendToServer(new VxToolConfigPacket(Item.getId(item), edits));
+        VxNetworking.sendToServer(new VxToolConfigPacket(Item.getId(item), edits));
     }
 }

@@ -8,12 +8,12 @@ import com.github.luben.zstd.Zstd;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.network.IVxNetPacket;
+import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
 
 import java.nio.ByteBuffer;
-import java.util.function.Supplier;
 
 /**
  * A compressed binary batch packet for updating soft body vertex data.
@@ -23,7 +23,7 @@ import java.util.function.Supplier;
  *
  * @author xI-Mx-Ix
  */
-public class S2CUpdateVerticesBatchPacket {
+public class S2CUpdateVerticesBatchPacket implements IVxNetPacket {
 
     private static final ThreadLocal<ByteBuffer> DECOMPRESSION_BUFFER = ThreadLocal.withInitial(() -> ByteBuffer.allocateDirect(1024 * 1024));
 
@@ -37,34 +37,36 @@ public class S2CUpdateVerticesBatchPacket {
     }
 
     /**
-     * Encodes the compressed blob.
-     */
-    public static void encode(S2CUpdateVerticesBatchPacket msg, FriendlyByteBuf buf) {
-        try {
-            buf.writeVarInt(msg.data.readableBytes());
-            buf.writeBytes(msg.data);
-        } finally {
-            msg.data.release();
-        }
-    }
-
-    /**
      * Decodes the packet.
      */
-    public static S2CUpdateVerticesBatchPacket decode(FriendlyByteBuf buf) {
+    public static S2CUpdateVerticesBatchPacket decode(VxByteBuf buf) {
         int len = buf.readVarInt();
         return new S2CUpdateVerticesBatchPacket(buf.readBytes(len));
     }
 
     /**
+     * Encodes the compressed blob.
+     */
+    @Override
+    public void encode(VxByteBuf buf) {
+        try {
+            buf.writeVarInt(this.data.readableBytes());
+            buf.writeBytes(this.data);
+        } finally {
+            this.data.release();
+        }
+    }
+
+    /**
      * Decompresses and updates the vertex arrays in the client data store.
      */
-    public static void handle(S2CUpdateVerticesBatchPacket msg, Supplier<NetworkManager.PacketContext> ctx) {
-        ctx.get().queue(() -> {
+    @Override
+    public void handle(NetworkManager.PacketContext context) {
+        context.queue(() -> {
             try {
                 VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
 
-                ByteBuffer compressedNio = msg.data.nioBuffer();
+                ByteBuffer compressedNio = this.data.nioBuffer();
                 long uncompressedSize = Zstd.decompressedSize(compressedNio);
 
                 ByteBuffer targetBuf = DECOMPRESSION_BUFFER.get();
@@ -75,7 +77,7 @@ public class S2CUpdateVerticesBatchPacket {
                 targetBuf.clear();
                 targetBuf.limit((int) uncompressedSize);
 
-                Zstd.decompressDirectByteBuffer(targetBuf, 0, (int)uncompressedSize, compressedNio, 0, compressedNio.remaining());
+                Zstd.decompressDirectByteBuffer(targetBuf, 0, (int) uncompressedSize, compressedNio, 0, compressedNio.remaining());
 
                 ByteBuf db = Unpooled.wrappedBuffer(targetBuf);
 
@@ -97,7 +99,7 @@ public class S2CUpdateVerticesBatchPacket {
                     }
                 }
             } finally {
-                msg.data.release();
+                this.data.release();
             }
         });
     }

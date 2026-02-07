@@ -9,7 +9,7 @@ import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.network.VxPacketHandler;
+import net.xmx.velthoric.network.VxNetworking;
 import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
 import net.xmx.velthoric.physics.body.network.synchronization.packet.C2SSynchronizedDataBatchPacket;
 import net.xmx.velthoric.physics.body.type.VxBody;
@@ -119,7 +119,7 @@ public class VxClientSyncManager {
         }
 
         if (!updates.isEmpty()) {
-            VxPacketHandler.sendToServer(new C2SSynchronizedDataBatchPacket(updates));
+            VxNetworking.sendToServer(new C2SSynchronizedDataBatchPacket(updates));
         }
     }
 }

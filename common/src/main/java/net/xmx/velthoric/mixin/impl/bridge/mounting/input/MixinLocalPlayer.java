@@ -8,11 +8,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
-import net.xmx.velthoric.init.registry.KeyMappings;
-import net.xmx.velthoric.network.VxPacketHandler;
 import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.bridge.mounting.input.C2SMountInputPacket;
 import net.xmx.velthoric.bridge.mounting.input.VxMountInput;
+import net.xmx.velthoric.init.registry.KeyMappings;
+import net.xmx.velthoric.network.VxNetworking;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -73,13 +73,13 @@ public abstract class MixinLocalPlayer {
 
             // 4. Send packet only if input has changed to save bandwidth
             if (!currentInput.equals(this.velthoric_lastRideInput)) {
-                VxPacketHandler.sendToServer(new C2SMountInputPacket(currentInput));
+                VxNetworking.sendToServer(new C2SMountInputPacket(currentInput));
                 this.velthoric_lastRideInput = currentInput;
             }
         } else {
             // Reset state when not riding to ensure server clears inputs
             if (this.velthoric_lastRideInput != null && !this.velthoric_lastRideInput.equals(VxMountInput.NEUTRAL)) {
-                VxPacketHandler.sendToServer(new C2SMountInputPacket(VxMountInput.NEUTRAL));
+                VxNetworking.sendToServer(new C2SMountInputPacket(VxMountInput.NEUTRAL));
             }
             this.velthoric_lastRideInput = null;
         }
