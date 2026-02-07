@@ -4,11 +4,13 @@
  */
 package net.xmx.velthoric.debug;
 
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
 import net.xmx.velthoric.util.VxFrameTimer;
+import org.joml.Matrix4f;
 
 import java.util.function.ToIntFunction;
 
@@ -70,8 +72,12 @@ public class VxPhysicsDebugChart {
                 totalTime += timeMs;
             }
 
+            // Access the transformation matrix and vertex consumer via the buffer source to enable batch rendering.
+            Matrix4f matrix = guiGraphics.pose().last().pose();
+            VertexConsumer consumer = guiGraphics.bufferSource().getBuffer(RenderType.guiOverlay());
+
             // Second Pass: Render the Bars
-            // Bars are drawn from right to left.
+            // Bars are drawn from right to left using manual vertex construction for efficiency.
             for (int i = 0; i < barsToDisplay; ++i) {
                 // Determine the X position.
                 // The rightmost bar is located at (x + width - 2).
@@ -85,8 +91,17 @@ public class VxPhysicsDebugChart {
                 int scaledHeight = frameTimer.scaleSampleTo(durationNanos, 30, 60);
                 int color = colorSampler.applyAsInt(Mth.clamp(scaledHeight, 0, chartHeight));
 
-                // Draw the bar.
-                guiGraphics.fill(RenderType.guiOverlay(), currentX, baseY - scaledHeight, currentX + 1, baseY, color);
+                // Define coordinates for the vertices of the bar rectangle.
+                float x1 = (float) currentX;
+                float y1 = (float) (baseY - scaledHeight);
+                float x2 = (float) (currentX + 1);
+                float y2 = (float) baseY;
+
+                // Build the vertices for a filled quad representing the data bar.
+                consumer.addVertex(matrix, x1, y1, 0.0F).setColor(color);
+                consumer.addVertex(matrix, x1, y2, 0.0F).setColor(color);
+                consumer.addVertex(matrix, x2, y2, 0.0F).setColor(color);
+                consumer.addVertex(matrix, x2, y1, 0.0F).setColor(color);
             }
         }
 
