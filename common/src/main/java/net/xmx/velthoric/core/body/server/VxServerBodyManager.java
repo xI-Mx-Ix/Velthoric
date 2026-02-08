@@ -44,7 +44,7 @@ import java.util.function.Consumer;
  *     <li><b>Data Storage:</b> Managing the {@link VxServerBodyDataStore}, which uses a Structure-of-Arrays (SoA) layout for CPU-cache-efficient access to physics data.</li>
  *     <li><b>Jolt Integration:</b> Bridging the gap between high-level Java objects and the native Jolt Physics engine via {@link VxJoltBridge}.</li>
  *     <li><b>Spatial Partitioning:</b> Delegating chunk-based tracking to the {@link VxSpatialManager}.</li>
- *     <li><b>Persistence:</b> coordinating with {@link VxBodyStorage} to save and load body states to disk.</li>
+ *     <li><b>Persistence:</b> Coordinating with {@link VxBodyStorage} to save and load body states to disk.</li>
  *     <li><b>Networking:</b> Handling synchronization of physics states to clients via {@link VxNetworkDispatcher}.</li>
  * </ul>
  *
@@ -52,13 +52,44 @@ import java.util.function.Consumer;
  */
 public class VxServerBodyManager extends VxAbstractBodyManager {
 
+    /**
+     * The physics world instance this manager belongs to.
+     */
     private final VxPhysicsWorld world;
+
+    /**
+     * Handles the reading and writing of physics body data to the disk.
+     */
     private final VxBodyStorage bodyStorage;
+
+    /**
+     * The primary SoA (Structure-of-Arrays) storage for physics state data.
+     */
     private final VxServerBodyDataStore dataStore;
+
+    /**
+     * Extracts physics results from the simulation thread to the game thread.
+     */
     private final VxPhysicsExtractor physicsExtractor;
+
+    /**
+     * Manages the broadcasting of physics state updates to clients.
+     */
     private final VxNetworkDispatcher networkDispatcher;
+
+    /**
+     * Manages server-side synchronization and dirty state tracking.
+     */
     private final VxServerSyncManager serverSyncManager;
+
+    /**
+     * Handles spatial partitioning and chunk-based lookups for bodies.
+     */
     private final VxSpatialManager spatialManager;
+
+    /**
+     * Manages entity mounting and attachments relative to physics bodies.
+     */
     private final VxMountingManager mountingManager;
 
     /**
@@ -610,32 +641,51 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         bodyStorage.flush(block);
     }
 
-    // Getters for subsystems
-
+    /**
+     * @return The physics world instance managed by this manager.
+     */
     public VxPhysicsWorld getPhysicsWorld() {
         return world;
     }
 
+    /**
+     * @return The data store holding the low-level physics states for all bodies.
+     */
     public VxServerBodyDataStore getDataStore() {
         return dataStore;
     }
 
+    /**
+     * @return The storage handler for physics body persistence.
+     */
     public VxBodyStorage getBodyStorage() {
         return bodyStorage;
     }
 
+    /**
+     * @return The network dispatcher responsible for synchronizing bodies to clients.
+     */
     public VxNetworkDispatcher getNetworkDispatcher() {
         return networkDispatcher;
     }
 
+    /**
+     * @return The spatial manager tracking bodies in chunks.
+     */
     public VxSpatialManager getSpatialManager() {
         return spatialManager;
     }
 
+    /**
+     * @return The sync manager handling server-side data extraction and synchronization.
+     */
     public VxServerSyncManager getServerSyncManager() {
         return serverSyncManager;
     }
 
+    /**
+     * @return The mounting manager handling entity attachments to physics bodies.
+     */
     public VxMountingManager getMountingManager() {
         return mountingManager;
     }
