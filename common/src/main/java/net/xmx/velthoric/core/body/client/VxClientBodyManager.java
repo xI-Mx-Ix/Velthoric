@@ -12,7 +12,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.core.body.client.time.VxClientClock;
-import net.xmx.velthoric.core.body.manager.VxAbstractBodyManager;
+import net.xmx.velthoric.core.body.VxAbstractBodyManager;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.body.type.VxBody;

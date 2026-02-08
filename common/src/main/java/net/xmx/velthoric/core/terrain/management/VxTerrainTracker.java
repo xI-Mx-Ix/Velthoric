@@ -11,7 +11,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.core.body.manager.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.terrain.VxSectionPos;
 import net.xmx.velthoric.core.terrain.storage.VxChunkDataStore;

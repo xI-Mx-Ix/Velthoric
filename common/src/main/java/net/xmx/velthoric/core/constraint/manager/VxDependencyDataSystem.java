@@ -5,7 +5,7 @@
 package net.xmx.velthoric.core.constraint.manager;
 
 import net.xmx.velthoric.core.constraint.VxConstraint;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.type.VxBody;
 
 import java.util.Map;
@@ -75,7 +75,7 @@ public class VxDependencyDataSystem {
                 continue;
             }
 
-            VxBodyManager bodyManager = constraintManager.getBodyManager();
+            VxServerBodyManager bodyManager = constraintManager.getBodyManager();
             VxBody body1 = bodyManager.getVxBody(constraint.getBody1Id());
             VxBody body2 = bodyManager.getVxBody(constraint.getBody2Id());
 

@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.body.manager;
+package net.xmx.velthoric.core.body.server;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
@@ -27,7 +27,7 @@ import java.nio.FloatBuffer;
  */
 public class VxPhysicsExtractor {
 
-    private final VxBodyManager manager;
+    private final VxServerBodyManager manager;
     private final VxServerBodyDataStore dataStore;
 
     // Thread-local temporary objects to avoid GC pressure in the update loop.
@@ -43,7 +43,7 @@ public class VxPhysicsExtractor {
     // Reusable direct buffer for native soft body operations to prevent allocation every tick.
     private final ThreadLocal<FloatBuffer> softBodyBufferCache = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(1024));
 
-    public VxPhysicsExtractor(VxBodyManager manager) {
+    public VxPhysicsExtractor(VxServerBodyManager manager) {
         this.manager = manager;
         this.dataStore = manager.getDataStore();
     }

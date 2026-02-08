@@ -13,7 +13,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.core.ragdoll.body.VxBodyPartRigidBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
@@ -32,7 +32,7 @@ import java.util.Map;
 public class VxRagdollManager {
 
     private final VxPhysicsWorld world;
-    private final VxBodyManager bodyManager;
+    private final VxServerBodyManager bodyManager;
     private final VxConstraintManager constraintManager;
 
     public VxRagdollManager(VxPhysicsWorld world) {

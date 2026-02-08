@@ -14,7 +14,7 @@ import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.item.tool.VxToolMode;
 import net.xmx.velthoric.item.tool.config.VxToolConfig;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.concurrent.ThreadLocalRandom;
@@ -97,7 +97,7 @@ public class VxBoxLauncherMode extends VxToolMode {
         Vec3 launchVelocity = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z);
         launchVelocity.scaleInPlace(speed);
 
-        VxBodyManager manager = physicsWorld.getBodyManager();
+        VxServerBodyManager manager = physicsWorld.getBodyManager();
 
         // Create the rigid body
         BoxRigidBody spawnedBody = manager.createRigidBody(

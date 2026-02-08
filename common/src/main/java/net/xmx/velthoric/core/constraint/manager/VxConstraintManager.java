@@ -8,8 +8,8 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.std.StringStream;
 import net.minecraft.world.level.ChunkPos;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.constraint.VxConstraint;
 import net.xmx.velthoric.core.persistence.impl.constraint.VxConstraintStorage;
@@ -38,12 +38,12 @@ public class VxConstraintManager {
     public static final UUID WORLD_BODY_ID = new UUID(0, 0);
 
     private final VxPhysicsWorld world;
-    private final VxBodyManager bodyManager;
+    private final VxServerBodyManager bodyManager;
     private final VxConstraintStorage constraintStorage;
     private final VxDependencyDataSystem dataSystem;
     private final Map<UUID, VxConstraint> activeConstraints = new ConcurrentHashMap<>();
 
-    public VxConstraintManager(VxBodyManager bodyManager) {
+    public VxConstraintManager(VxServerBodyManager bodyManager) {
         this.bodyManager = bodyManager;
         this.world = bodyManager.getPhysicsWorld();
         this.constraintStorage = new VxConstraintStorage(world.getLevel());
@@ -290,7 +290,7 @@ public class VxConstraintManager {
         return constraintStorage;
     }
 
-    public VxBodyManager getBodyManager() {
+    public VxServerBodyManager getBodyManager() {
         return bodyManager;
     }
 

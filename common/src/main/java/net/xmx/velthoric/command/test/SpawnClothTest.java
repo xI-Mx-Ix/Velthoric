@@ -20,7 +20,7 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.cloth.ClothSoftBody;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 public class SpawnClothTest implements IVxTestCommand {
@@ -62,7 +62,7 @@ public class SpawnClothTest implements IVxTestCommand {
             source.sendFailure(Component.literal("Physics system for this dimension is not initialized."));
             return 0;
         }
-        VxBodyManager manager = physicsWorld.getBodyManager();
+        VxServerBodyManager manager = physicsWorld.getBodyManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
         ClothSoftBody spawnedCloth = manager.createSoftBody(

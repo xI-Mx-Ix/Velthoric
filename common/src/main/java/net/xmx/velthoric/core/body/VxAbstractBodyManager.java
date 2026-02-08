@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.body.manager;
+package net.xmx.velthoric.core.body;
 
 import net.xmx.velthoric.core.body.listener.VxBodyLifecycleListener;
 import net.xmx.velthoric.core.body.type.VxBody;

@@ -19,7 +19,7 @@ import com.github.stephengold.joltjni.Jolt;
 public interface VxRigidBodyFactory {
     /**
      * Creates a Jolt body from the given settings and adds it to the physics world.
-     * The implementation of this method (within VxBodyManager) is responsible for
+     * The implementation of this method (within VxServerBodyManager) is responsible for
      * the proper resource management of the Jolt objects.
      *
      * @param shapeSettings The settings for the geometric shape.

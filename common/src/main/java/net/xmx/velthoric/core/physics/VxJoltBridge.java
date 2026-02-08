@@ -9,10 +9,10 @@ import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.body.VxRemovalReason;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
-import net.xmx.velthoric.core.body.manager.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.body.type.VxRigidBody;
 import net.xmx.velthoric.core.body.type.VxSoftBody;
@@ -26,7 +26,7 @@ import java.nio.FloatBuffer;
 /**
  * A singleton bridge that handles all direct interactions with the Jolt physics library.
  * This class isolates Jolt-specific API calls, such as body creation, destruction, and
- * direct access, from the main physics management logic in {@link VxBodyManager}.
+ * direct access, from the main physics management logic in {@link VxServerBodyManager}.
  *
  * @author xI-Mx-Ix
  */
@@ -115,7 +115,7 @@ public enum VxJoltBridge {
      * @param activation      The initial activation state.
      * @param motionType      The specific motion type (Static, Kinematic, or Dynamic).
      */
-    public void createAndAddJoltRigidBody(VxRigidBody body, VxBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation, EMotionType motionType) {
+    public void createAndAddJoltRigidBody(VxRigidBody body, VxServerBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation, EMotionType motionType) {
         try {
             VxPhysicsWorld world = manager.getPhysicsWorld();
             VxServerBodyDataStore dataStore = manager.getDataStore();
@@ -173,7 +173,7 @@ public enum VxJoltBridge {
      * @param angularVelocity The initial angular velocity (can be null).
      * @param activation      The initial activation state.
      */
-    public void createAndAddJoltSoftBody(VxSoftBody body, VxBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation) {
+    public void createAndAddJoltSoftBody(VxSoftBody body, VxServerBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation) {
         try {
             VxPhysicsWorld world = manager.getPhysicsWorld();
             VxServerBodyDataStore dataStore = manager.getDataStore();

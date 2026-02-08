@@ -20,7 +20,7 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 public final class SpawnBoxGridTest implements IVxTestCommand {
@@ -86,7 +86,7 @@ public final class SpawnBoxGridTest implements IVxTestCommand {
         VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(serverLevel.dimension());
         if (physicsWorld == null) return 0;
 
-        VxBodyManager manager = physicsWorld.getBodyManager();
+        VxServerBodyManager manager = physicsWorld.getBodyManager();
         VxTransform transform = new VxTransform(new RVec3(spawnPosMc.x, spawnPosMc.y, spawnPosMc.z), Quat.sIdentity());
 
         BoxRigidBody spawnedBody = manager.createRigidBody(

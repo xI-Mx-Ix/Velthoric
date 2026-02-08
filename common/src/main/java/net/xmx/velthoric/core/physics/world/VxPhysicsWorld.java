@@ -9,7 +9,7 @@ import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.core.physics.VxPhysicsBootstrap;
 import net.xmx.velthoric.core.physics.buoyancy.VxBuoyancyManager;
@@ -58,7 +58,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     private final ServerLevel level;
     private final ResourceKey<Level> dimensionKey;
-    private final VxBodyManager bodyManager;
+    private final VxServerBodyManager bodyManager;
     private final VxConstraintManager constraintManager;
     private final VxTerrainSystem terrainSystem;
     private final VxBuoyancyManager buoyancyManager;
@@ -79,7 +79,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private VxPhysicsWorld(ServerLevel level) {
         this.level = level;
         this.dimensionKey = level.dimension();
-        this.bodyManager = new VxBodyManager(this);
+        this.bodyManager = new VxServerBodyManager(this);
         this.constraintManager = new VxConstraintManager(this.bodyManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
         this.buoyancyManager = new VxBuoyancyManager(this);
@@ -293,7 +293,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.queueCommand(task);
     }
 
-    public VxBodyManager getBodyManager() {
+    public VxServerBodyManager getBodyManager() {
         return this.bodyManager;
     }
 
@@ -339,7 +339,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     @Nullable
-    public static VxBodyManager getBodyManager(ResourceKey<Level> dimensionKey) {
+    public static VxServerBodyManager getBodyManager(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
         return world != null ? world.getBodyManager() : null;
     }

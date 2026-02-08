@@ -19,7 +19,7 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.marble.MarbleRigidBody;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 public class SpawnMarbleTest implements IVxTestCommand {
@@ -59,7 +59,7 @@ public class SpawnMarbleTest implements IVxTestCommand {
             return 0;
         }
 
-        VxBodyManager manager = physicsWorld.getBodyManager();
+        VxServerBodyManager manager = physicsWorld.getBodyManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
         MarbleRigidBody spawnedMarble = manager.createRigidBody(

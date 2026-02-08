@@ -9,11 +9,11 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerPlayer;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxNetworking;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
-import net.xmx.velthoric.core.body.manager.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.core.network.synchronization.packet.S2CSynchronizedDataBatchPacket;
 import net.xmx.velthoric.core.body.type.VxBody;
@@ -33,13 +33,13 @@ import java.util.UUID;
  */
 public class VxServerSyncManager {
 
-    private final VxBodyManager bodyManager;
+    private final VxServerBodyManager bodyManager;
     private final VxServerBodyDataStore dataStore;
 
     // A reusable thread-local buffer for serialization on the network thread.
     private static final ThreadLocal<VxByteBuf> THREAD_LOCAL_BYTE_BUF = ThreadLocal.withInitial(() -> new VxByteBuf(Unpooled.buffer(1024)));
 
-    public VxServerSyncManager(VxBodyManager bodyManager) {
+    public VxServerSyncManager(VxServerBodyManager bodyManager) {
         this.bodyManager = bodyManager;
         this.dataStore = bodyManager.getDataStore();
     }

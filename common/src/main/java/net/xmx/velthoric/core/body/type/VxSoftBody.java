@@ -54,7 +54,7 @@ public abstract class VxSoftBody extends VxBody {
      * This method must be implemented by subclasses to define the properties
      * of the soft body.
      *
-     * @param factory The factory provided by the VxBodyManager to create the body.
+     * @param factory The factory provided by the VxServerBodyManager to create the body.
      * @return The body ID assigned by Jolt.
      */
     public abstract int createJoltBody(VxSoftBodyFactory factory);

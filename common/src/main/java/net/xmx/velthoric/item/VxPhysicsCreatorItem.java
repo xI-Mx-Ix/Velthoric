@@ -20,9 +20,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.block.BlockRigidBody;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
 import net.xmx.velthoric.util.VxVoxelShapeUtil;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
@@ -64,7 +64,7 @@ public class VxPhysicsCreatorItem extends Item {
                 return InteractionResult.FAIL;
             }
 
-            VxBodyManager bodyManager = physicsWorld.getBodyManager();
+            VxServerBodyManager bodyManager = physicsWorld.getBodyManager();
 
             // Pre-check to ensure a valid physics shape can be generated from the block.
             try (var ignored = VxVoxelShapeUtil.toMutableCompoundShape(

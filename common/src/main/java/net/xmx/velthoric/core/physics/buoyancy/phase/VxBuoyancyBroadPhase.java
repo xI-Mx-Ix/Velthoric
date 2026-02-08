@@ -12,7 +12,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.FlowingFluid;
-import net.xmx.velthoric.core.body.manager.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.physics.buoyancy.VxBuoyancyDataStore;
 import net.xmx.velthoric.core.physics.buoyancy.VxFluidType;

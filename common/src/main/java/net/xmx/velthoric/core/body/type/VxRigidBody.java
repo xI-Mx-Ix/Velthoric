@@ -52,7 +52,7 @@ public abstract class VxRigidBody extends VxBody {
      * This method must be implemented by subclasses to define the shape and
      * properties of the rigid body.
      *
-     * @param factory The factory provided by the VxBodyManager to create the body.
+     * @param factory The factory provided by the VxServerBodyManager to create the body.
      * @return The body ID assigned by Jolt.
      */
     public abstract int createJoltBody(VxRigidBodyFactory factory);

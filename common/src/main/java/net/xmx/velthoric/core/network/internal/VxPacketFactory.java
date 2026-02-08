@@ -10,8 +10,8 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.world.level.ChunkPos;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
-import net.xmx.velthoric.core.body.manager.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.network.internal.packet.S2CUpdateBodyStateBatchPacket;
 import net.xmx.velthoric.core.network.internal.packet.S2CUpdateVerticesBatchPacket;
 
@@ -47,7 +47,7 @@ public class VxPacketFactory {
     /**
      * The physics body manager containing the global body list.
      */
-    private final VxBodyManager manager;
+    private final VxServerBodyManager manager;
 
     /**
      * The raw data store containing Structure-of-Arrays (SoA) physics data.
@@ -59,7 +59,7 @@ public class VxPacketFactory {
      *
      * @param manager The physics body manager.
      */
-    public VxPacketFactory(VxBodyManager manager) {
+    public VxPacketFactory(VxServerBodyManager manager) {
         this.manager = manager;
         this.dataStore = manager.getDataStore();
     }

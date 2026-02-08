@@ -18,11 +18,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.config.VxModConfig;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxNetworking;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
-import net.xmx.velthoric.core.body.manager.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.network.internal.packet.S2CRemoveBodyBatchPacket;
 import net.xmx.velthoric.core.network.internal.packet.S2CSpawnBodyBatchPacket;
 import net.xmx.velthoric.core.body.type.VxBody;
@@ -59,7 +59,7 @@ public class VxNetworkDispatcher {
     /**
      * The manager handling physics body logic.
      */
-    private final VxBodyManager manager;
+    private final VxServerBodyManager manager;
 
     /**
      * The optimized Structure-of-Arrays data store for body properties.
@@ -117,7 +117,7 @@ public class VxNetworkDispatcher {
      * @param level   The server level.
      * @param manager The physics body manager.
      */
-    public VxNetworkDispatcher(ServerLevel level, VxBodyManager manager) {
+    public VxNetworkDispatcher(ServerLevel level, VxServerBodyManager manager) {
         this.level = level;
         this.manager = manager;
         this.dataStore = manager.getDataStore();
@@ -130,7 +130,7 @@ public class VxNetworkDispatcher {
     /**
      * @return The associated body manager.
      */
-    public VxBodyManager getManager() {
+    public VxServerBodyManager getManager() {
         return this.manager;
     }
 

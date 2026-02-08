@@ -23,7 +23,7 @@ import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 public final class SpawnBoxNet implements IVxTestCommand {
@@ -69,7 +69,7 @@ public final class SpawnBoxNet implements IVxTestCommand {
         }
 
         physicsWorld.execute(() -> {
-            VxBodyManager bodyManager = physicsWorld.getBodyManager();
+            VxServerBodyManager bodyManager = physicsWorld.getBodyManager();
             VxConstraintManager constraintManager = physicsWorld.getConstraintManager();
 
             float boxHalfExtent = boxSize / 2.0f;

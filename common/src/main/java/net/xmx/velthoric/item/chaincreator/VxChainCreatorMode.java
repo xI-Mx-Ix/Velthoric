@@ -13,11 +13,11 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.ClipContext;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.item.chaincreator.body.VxChainPartRigidBody;
 import net.xmx.velthoric.item.tool.VxToolMode;
 import net.xmx.velthoric.item.tool.config.VxToolConfig;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.core.body.manager.VxBodyManager;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.core.raycast.VxClipContext;
@@ -128,7 +128,7 @@ public class VxChainCreatorMode extends VxToolMode {
      * - Directions/Axes use Vec3 (Single Precision)
      */
     private void createChain(VxPhysicsWorld world, VxHitResult startHit, VxHitResult endHit, float radius, float desiredSegmentLength) {
-        VxBodyManager bodyManager = world.getBodyManager();
+        VxServerBodyManager bodyManager = world.getBodyManager();
         VxConstraintManager constraintManager = world.getConstraintManager();
         BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterface();
 
@@ -288,7 +288,7 @@ public class VxChainCreatorMode extends VxToolMode {
         }
     }
 
-    private AttachmentInfo getAttachmentInfo(VxBodyManager bodyManager, VxHitResult hit) {
+    private AttachmentInfo getAttachmentInfo(VxServerBodyManager bodyManager, VxHitResult hit) {
         RVec3 worldPosition = new RVec3(hit.getLocation().x, hit.getLocation().y, hit.getLocation().z);
 
         if (hit.isPhysicsHit()) {

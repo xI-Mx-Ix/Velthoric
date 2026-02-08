@@ -20,7 +20,7 @@ import net.xmx.velthoric.core.body.VxBodyDataStore;
 import net.xmx.velthoric.core.body.VxRemovalReason;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.manager.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxClientAccessor;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxDataAccessor;
@@ -542,7 +542,7 @@ public abstract class VxBody {
     }
 
     /**
-     * Sets the Jolt body ID. This is called by the VxBodyManager after creation.
+     * Sets the Jolt body ID. This is called by the VxServerBodyManager after creation.
      * @param bodyId The new body ID. Server-side only.
      */
     public void setBodyId(int bodyId) {
@@ -558,7 +558,7 @@ public abstract class VxBody {
     }
 
     /**
-     * Sets the index in the data store. This is called by the VxBodyManager on addition.
+     * Sets the index in the data store. This is called by the VxServerBodyManager on addition.
      * @param dataStoreIndex The new data store index.
      */
     public void setDataStoreIndex(VxBodyDataStore dataStore, int dataStoreIndex) {
@@ -575,7 +575,7 @@ public abstract class VxBody {
     }
 
     /**
-     * Sets the session-specific network ID. Called by the VxBodyManager on addition.
+     * Sets the session-specific network ID. Called by the VxServerBodyManager on addition.
      * @param networkId The new network ID. Server-side only.
      */
     public void setNetworkId(int networkId) {

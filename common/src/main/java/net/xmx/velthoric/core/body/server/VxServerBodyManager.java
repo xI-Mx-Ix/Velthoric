@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.body.manager;
+package net.xmx.velthoric.core.body.server;
 
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
@@ -14,6 +14,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.core.body.VxRemovalReason;
+import net.xmx.velthoric.core.body.VxAbstractBodyManager;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
@@ -49,7 +50,7 @@ import java.util.function.Consumer;
  *
  * @author xI-Mx-Ix
  */
-public class VxBodyManager extends VxAbstractBodyManager {
+public class VxServerBodyManager extends VxAbstractBodyManager {
 
     private final VxPhysicsWorld world;
     private final VxBodyStorage bodyStorage;
@@ -82,7 +83,7 @@ public class VxBodyManager extends VxAbstractBodyManager {
      *
      * @param world The physics world instance this manager belongs to.
      */
-    public VxBodyManager(VxPhysicsWorld world) {
+    public VxServerBodyManager(VxPhysicsWorld world) {
         this.world = world;
         this.dataStore = new VxServerBodyDataStore();
         this.bodyStorage = new VxBodyStorage(world.getLevel());
