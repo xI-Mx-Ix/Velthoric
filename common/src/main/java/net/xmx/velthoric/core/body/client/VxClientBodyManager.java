@@ -19,10 +19,10 @@ import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.physics.world.VxClientPhysicsWorld;
+import net.xmx.velthoric.core.body.manager.VxAbstractBodyManager;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The main manager for all client-side physics bodies.
@@ -38,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author xI-Mx-Ix
  */
-public class VxClientBodyManager {
+public class VxClientBodyManager extends VxAbstractBodyManager {
 
     // The parent physics world context that owns this manager.
     private final VxClientPhysicsWorld world;
@@ -56,9 +56,6 @@ public class VxClientBodyManager {
 
     // The manager responsible for synchronizing client-authoritative data (C2S).
     private final VxClientSyncManager syncManager;
-
-    // Map of all active client-side physics body handles, keyed by their persistent UUID.
-    private final Map<UUID, VxBody> managedBodies = new ConcurrentHashMap<>();
 
     // The calculated time offset between the client and server clocks.
     // Client Render Time = Client Game Time + Offset - Interpolation Delay.
@@ -196,6 +193,9 @@ public class VxClientBodyManager {
         if (world.getLevel() != null) {
             body.onBodyAdded(world.getLevel());
         }
+
+        // Notify listeners
+        notifyBodyAdded(body);
     }
 
     /**
@@ -238,7 +238,7 @@ public class VxClientBodyManager {
 
         // Reset Velocities
         store.state0_velX[index] = store.state0_velY[index] = store.state0_velZ[index] = 0f;
-        store.state1_velX[index] = store.state1_velY[index] = store.state1_velZ[index] = 0f;
+        store.state1_velX[index] = store.state1_velX[index] = store.state1_velZ[index] = 0f;
 
         // Initialize Last Known Position (for Frustum Culling or Logic)
         if (store.lastKnownPosition[index] == null) {
@@ -270,6 +270,9 @@ public class VxClientBodyManager {
                     if (world.getLevel() != null) {
                         body.onBodyRemoved(world.getLevel());
                     }
+
+                    // Notify listeners
+                    notifyBodyRemoved(body);
                 }
 
                 managedBodies.remove(id);
@@ -307,7 +310,7 @@ public class VxClientBodyManager {
      */
     public void clearAll() {
         store.clear();
-        managedBodies.clear();
+        this.clearInternal();
         syncManager.clear();
         isClockOffsetInitialized = false;
         clockOffsetNanos = 0L;
@@ -354,15 +357,6 @@ public class VxClientBodyManager {
      */
     public VxClientBodyInterpolator getInterpolator() {
         return interpolator;
-    }
-
-    /**
-     * Gets a collection of all managed client-side physics body handles.
-     *
-     * @return A collection view of all {@link VxBody} instances.
-     */
-    public Collection<VxBody> getAllBodies() {
-        return managedBodies.values();
     }
 
     /**

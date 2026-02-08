@@ -31,7 +31,6 @@ import net.xmx.velthoric.math.VxTransform;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
@@ -49,7 +48,7 @@ import java.util.function.Consumer;
  *
  * @author xI-Mx-Ix
  */
-public class VxBodyManager {
+public class VxBodyManager extends VxAbstractBodyManager {
 
     private final VxPhysicsWorld world;
     private final VxBodyStorage bodyStorage;
@@ -58,12 +57,6 @@ public class VxBodyManager {
     private final VxNetworkDispatcher networkDispatcher;
     private final VxServerSyncManager serverSyncManager;
     private final VxSpatialManager spatialManager;
-
-    /**
-     * Primary registry of active bodies, mapped by their persistent unique identifier (UUID).
-     * This map is thread-safe to allow concurrent access during physics steps and game ticks.
-     */
-    private final Map<UUID, VxBody> managedBodies = new ConcurrentHashMap<>();
 
     /**
      * Optimized lookup map connecting Jolt's native integer BodyIDs to the Java wrapper {@link VxBody}.
@@ -126,7 +119,7 @@ public class VxBodyManager {
      * Does not handle disk persistence; use {@link #shutdown()} or {@link #removeBody} for that.
      */
     private void clear() {
-        managedBodies.clear();
+        this.clearInternal();
         joltBodyIdToVxBodyMap.clear();
         freeNetworkIds.clear();
         nextNetworkId = 1;
@@ -404,6 +397,9 @@ public class VxBodyManager {
             joltBodyIdToVxBodyMap.remove(body.getBodyId());
         }
 
+        // 8. Notify Lifecycle Listeners
+        notifyBodyRemoved(body);
+
         // Invalidate indices in the body object to prevent accidental reuse
         body.setDataStoreIndex(dataStore, -1);
         body.setNetworkId(-1);
@@ -438,6 +434,9 @@ public class VxBodyManager {
             long chunkKey = VxSpatialManager.calculateChunkKey(dataStore.posX[index], dataStore.posZ[index]);
             dataStore.chunkKey[index] = chunkKey;
             spatialManager.add(chunkKey, body);
+
+            // Notify Lifecycle Listeners
+            notifyBodyAdded(body);
 
             return body;
         });
@@ -495,27 +494,6 @@ public class VxBodyManager {
     @Nullable
     public VxBody getByJoltBodyId(int bodyId) {
         return joltBodyIdToVxBodyMap.get(bodyId);
-    }
-
-    /**
-     * Retrieves a managed body by its persistent UUID.
-     *
-     * @param id The unique identifier.
-     * @return The body, or null if it is not currently loaded.
-     */
-    @Nullable
-    public VxBody getVxBody(UUID id) {
-        return managedBodies.get(id);
-    }
-
-    /**
-     * Returns a collection of all currently active bodies.
-     * Note: The collection is backed by the concurrent map, so iteration is safe but weakly consistent.
-     *
-     * @return A collection of active bodies.
-     */
-    public Collection<VxBody> getAllBodies() {
-        return managedBodies.values();
     }
 
     /**
