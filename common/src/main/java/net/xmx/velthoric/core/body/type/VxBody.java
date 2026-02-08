@@ -88,6 +88,7 @@ public abstract class VxBody {
         this.type = type;
         this.physicsWorld = physicsWorld;
         this.physicsId = id;
+        this.persistent = type.isPersistent();
         // Use the builder to construct the synchronized data
         VxSynchronizedData.Builder builder = new VxSynchronizedData.Builder();
         this.defineSyncData(builder);
@@ -103,6 +104,7 @@ public abstract class VxBody {
     protected VxBody(VxBodyType<? extends VxBody> type, UUID id) {
         this.type = type;
         this.physicsId = id;
+        this.persistent = type.isPersistent();
         // Use the builder to construct the synchronized data
         VxSynchronizedData.Builder builder = new VxSynchronizedData.Builder();
         this.defineSyncData(builder);
