@@ -20,6 +20,7 @@ import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.body.type.VxRigidBody;
 import net.xmx.velthoric.core.body.type.VxSoftBody;
+import net.xmx.velthoric.core.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.core.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.core.network.synchronization.manager.VxServerSyncManager;
 import net.xmx.velthoric.core.persistence.impl.body.VxBodyStorage;
@@ -57,6 +58,7 @@ public class VxBodyManager extends VxAbstractBodyManager {
     private final VxNetworkDispatcher networkDispatcher;
     private final VxServerSyncManager serverSyncManager;
     private final VxSpatialManager spatialManager;
+    private final VxMountingManager mountingManager;
 
     /**
      * Optimized lookup map connecting Jolt's native integer BodyIDs to the Java wrapper {@link VxBody}.
@@ -88,6 +90,7 @@ public class VxBodyManager extends VxAbstractBodyManager {
         this.networkDispatcher = new VxNetworkDispatcher(world.getLevel(), this);
         this.serverSyncManager = new VxServerSyncManager(this);
         this.spatialManager = new VxSpatialManager();
+        this.mountingManager = new VxMountingManager(this.world);
     }
 
     /**
@@ -144,6 +147,7 @@ public class VxBodyManager extends VxAbstractBodyManager {
     public void onGameTick(ServerLevel level) {
         networkDispatcher.onGameTick();
         physicsExtractor.onGameTick(level);
+        mountingManager.onGameTick();
     }
 
     //================================================================================
@@ -249,7 +253,7 @@ public class VxBodyManager extends VxAbstractBodyManager {
         Vec3 angularVelocity = new Vec3(dataStore.angVelX[index], dataStore.angVelY[index], dataStore.angVelZ[index]);
         EMotionType motionType = dataStore.motionType[index];
 
-        world.getMountingManager().onBodyAdded(body);
+        mountingManager.onBodyAdded(body);
         networkDispatcher.onBodyAdded(body);
 
         if (body instanceof VxRigidBody rigidBody) {
@@ -301,7 +305,7 @@ public class VxBodyManager extends VxAbstractBodyManager {
         boolean shouldActivate = linearVelocity.lengthSq() > 0.0001f || angularVelocity.lengthSq() > 0.0001f;
         EActivation activation = shouldActivate ? EActivation.Activate : EActivation.DontActivate;
 
-        world.getMountingManager().onBodyAdded(body);
+        mountingManager.onBodyAdded(body);
         networkDispatcher.onBodyAdded(body);
 
         if (body instanceof VxRigidBody rigidBody) {
@@ -362,7 +366,7 @@ public class VxBodyManager extends VxAbstractBodyManager {
         managedBodies.remove(body.getPhysicsId());
 
         // 2. Notify subsystems
-        world.getMountingManager().onBodyRemoved(body);
+        mountingManager.onBodyRemoved(body);
         networkDispatcher.onBodyRemoved(body);
 
         // 3. Update spatial tracking
@@ -629,5 +633,9 @@ public class VxBodyManager extends VxAbstractBodyManager {
 
     public VxServerSyncManager getServerSyncManager() {
         return serverSyncManager;
+    }
+
+    public VxMountingManager getMountingManager() {
+        return mountingManager;
     }
 }

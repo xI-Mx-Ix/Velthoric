@@ -53,7 +53,7 @@ public class C2SMountInputPacket implements IVxNetPacket {
 
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(player.serverLevel().dimension());
             if (physicsWorld != null) {
-                VxMountingManager mountingManager = physicsWorld.getMountingManager();
+                VxMountingManager mountingManager = physicsWorld.getBodyManager().getMountingManager();
                 mountingManager.handlePlayerInput(player, this.input);
             }
         });

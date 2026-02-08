@@ -5,7 +5,6 @@
 package net.xmx.velthoric.core.physics.world;
 
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.xmx.velthoric.core.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.time.VxClientClock;
 import org.jetbrains.annotations.Nullable;
@@ -26,7 +25,6 @@ public class VxClientPhysicsWorld {
 
     private final VxClientClock clock;
     private final VxClientBodyManager bodyManager;
-    private final VxClientMountingManager mountingManager;
 
     @Nullable
     private ClientLevel level;
@@ -37,7 +35,6 @@ public class VxClientPhysicsWorld {
      */
     private VxClientPhysicsWorld() {
         this.clock = new VxClientClock();
-        this.mountingManager = new VxClientMountingManager();
         // Pass 'this' so managers can access the clock and each other
         this.bodyManager = new VxClientBodyManager(this);
     }
@@ -94,7 +91,6 @@ public class VxClientPhysicsWorld {
      */
     public void clear() {
         this.bodyManager.clearAll();
-        this.mountingManager.clearAll();
         this.clock.reset();
     }
 
@@ -118,12 +114,5 @@ public class VxClientPhysicsWorld {
      */
     public VxClientBodyManager getBodyManager() {
         return bodyManager;
-    }
-
-    /**
-     * @return The manager responsible for mountable seats on the client.
-     */
-    public VxClientMountingManager getMountingManager() {
-        return mountingManager;
     }
 }

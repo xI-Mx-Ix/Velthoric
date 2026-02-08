@@ -104,7 +104,7 @@ public class VxMountingEntity extends Entity {
             if (physicsIdOpt.isPresent() && seatIdOpt.isPresent()) {
                 VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level().dimension());
                 if (physicsWorld != null) {
-                    VxMountingManager manager = physicsWorld.getMountingManager();
+                    VxMountingManager manager = physicsWorld.getBodyManager().getMountingManager();
 
                     // If the manager does not track this player, ask the manager to restore the state.
                     if (!manager.isMounting(player)) {
@@ -235,14 +235,14 @@ public class VxMountingEntity extends Entity {
         if (level().isClientSide()) {
             return getPhysicsId().flatMap(objId ->
                     getSeatId().flatMap(seatId ->
-                            VxClientPhysicsWorld.getInstance().getMountingManager().getSeat(objId, seatId)
+                            VxClientPhysicsWorld.getInstance().getBodyManager().getMountingManager().getSeat(objId, seatId)
                     )
             ).map(seat -> new Vector3f(seat.getRiderOffset())).orElse(new Vector3f());
         } else {
             if (this.getFirstPassenger() instanceof ServerPlayer player) {
                 VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level().dimension());
                 if (physicsWorld != null) {
-                    VxMountingManager mountingManager = physicsWorld.getMountingManager();
+                    VxMountingManager mountingManager = physicsWorld.getBodyManager().getMountingManager();
                     return mountingManager.getSeatForPlayer(player)
                             .map(seat -> new Vector3f(seat.getRiderOffset()))
                             .orElse(new Vector3f());
@@ -276,7 +276,7 @@ public class VxMountingEntity extends Entity {
         if (!this.level().isClientSide() && passenger instanceof ServerPlayer player) {
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(this.level().dimension());
             if (physicsWorld != null) {
-                physicsWorld.getMountingManager().stopMounting(player);
+                physicsWorld.getBodyManager().getMountingManager().stopMounting(player);
             }
         }
     }

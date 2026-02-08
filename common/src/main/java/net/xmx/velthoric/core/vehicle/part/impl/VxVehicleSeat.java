@@ -75,7 +75,7 @@ public class VxVehicleSeat extends VxPart {
             VxPhysicsWorld world = vehicle.getPhysicsWorld();
             if (world != null) {
                 // Delegate mounting logic to the world manager
-                world.getMountingManager().requestMounting(serverPlayer, vehicle.getPhysicsId(), this.partId);
+                world.getBodyManager().getMountingManager().requestMounting(serverPlayer, vehicle.getPhysicsId(), this.partId);
                 return true;
             }
         }

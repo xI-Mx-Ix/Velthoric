@@ -8,6 +8,7 @@ import com.github.stephengold.joltjni.RVec3;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.core.mounting.VxMountable;
+import net.xmx.velthoric.core.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.core.mounting.seat.VxSeat;
 import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.VxMainClass;
@@ -67,6 +68,9 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
     // A list of recent clock offset samples used for calculating an average.
     private final List<Long> clockOffsetSamples = new ArrayList<>();
 
+    // The manager responsible for mountable seats on the client.
+    private final VxClientMountingManager mountingManager;
+
     /**
      * Constructs the client body manager.
      *
@@ -76,6 +80,7 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
         this.world = world;
         this.syncManager = new VxClientSyncManager(this);
         this.interpolationDelayNanos = VxModConfig.CLIENT.interpolationDelayNanos.get();
+        this.mountingManager = new VxClientMountingManager();
     }
 
     /**
@@ -170,7 +175,7 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
             List<VxSeat> seats = seatBuilder.build();
 
             for (VxSeat seat : seats) {
-                world.getMountingManager().addSeat(id, seat);
+                mountingManager.addSeat(id, seat);
             }
         }
 
@@ -277,7 +282,7 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
 
                 managedBodies.remove(id);
                 // Remove seats via the instance-based manager
-                world.getMountingManager().removeSeatsForBody(id);
+                mountingManager.removeSeatsForBody(id);
             }
         }
         store.removeBodyByNetworkId(networkId);
@@ -357,6 +362,13 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      */
     public VxClientBodyInterpolator getInterpolator() {
         return interpolator;
+    }
+
+    /**
+     * @return The manager responsible for mountable seats on the client.
+     */
+    public VxClientMountingManager getMountingManager() {
+        return mountingManager;
     }
 
     /**
