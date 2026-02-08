@@ -25,7 +25,7 @@ import java.nio.FloatBuffer;
  *
  * @author xI-Mx-Ix
  */
-public class VxPhysicsUpdater {
+public class VxPhysicsExtractor {
 
     private final VxBodyManager manager;
     private final VxServerBodyDataStore dataStore;
@@ -43,7 +43,7 @@ public class VxPhysicsUpdater {
     // Reusable direct buffer for native soft body operations to prevent allocation every tick.
     private final ThreadLocal<FloatBuffer> softBodyBufferCache = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(1024));
 
-    public VxPhysicsUpdater(VxBodyManager manager) {
+    public VxPhysicsExtractor(VxBodyManager manager) {
         this.manager = manager;
         this.dataStore = manager.getDataStore();
     }

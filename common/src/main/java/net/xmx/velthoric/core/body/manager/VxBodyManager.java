@@ -54,7 +54,7 @@ public class VxBodyManager {
     private final VxPhysicsWorld world;
     private final VxBodyStorage bodyStorage;
     private final VxServerBodyDataStore dataStore;
-    private final VxPhysicsUpdater physicsUpdater;
+    private final VxPhysicsExtractor physicsExtractor;
     private final VxNetworkDispatcher networkDispatcher;
     private final VxServerSyncManager serverSyncManager;
     private final VxSpatialManager spatialManager;
@@ -91,7 +91,7 @@ public class VxBodyManager {
         this.world = world;
         this.dataStore = new VxServerBodyDataStore();
         this.bodyStorage = new VxBodyStorage(world.getLevel());
-        this.physicsUpdater = new VxPhysicsUpdater(this);
+        this.physicsExtractor = new VxPhysicsExtractor(this);
         this.networkDispatcher = new VxNetworkDispatcher(world.getLevel(), this);
         this.serverSyncManager = new VxServerSyncManager(this);
         this.spatialManager = new VxSpatialManager();
@@ -139,7 +139,7 @@ public class VxBodyManager {
      * @param world The physics world being ticked.
      */
     public void onPhysicsTick(VxPhysicsWorld world) {
-        physicsUpdater.onPhysicsTick(world);
+        physicsExtractor.onPhysicsTick(world);
     }
 
     /**
@@ -150,7 +150,7 @@ public class VxBodyManager {
      */
     public void onGameTick(ServerLevel level) {
         networkDispatcher.onGameTick();
-        physicsUpdater.onGameTick(level);
+        physicsExtractor.onGameTick(level);
     }
 
     //================================================================================
