@@ -27,7 +27,8 @@ public class EntityRegistry {
                             .sized(0.5F, 0.5F)
                             .noSummon()
                             .fireImmune()
-                            .build("mounting_entity")
+                            .noSave()
+                            .build(null)
             );
 
     public static void register() {
