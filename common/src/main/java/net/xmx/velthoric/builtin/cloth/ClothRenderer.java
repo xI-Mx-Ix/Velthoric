@@ -13,7 +13,7 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.client.body.renderer.VxSoftBodyRenderer;
+import net.xmx.velthoric.core.body.client.renderer.VxSoftBodyRenderer;
 import org.joml.Vector3f;
 
 import java.util.function.BiFunction;

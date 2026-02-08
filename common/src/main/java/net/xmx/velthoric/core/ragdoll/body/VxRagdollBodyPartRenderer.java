@@ -19,7 +19,7 @@ import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.client.body.renderer.VxRigidBodyRenderer;
+import net.xmx.velthoric.core.body.client.renderer.VxRigidBodyRenderer;
 import net.xmx.velthoric.core.ragdoll.VxBodyPart;
 import org.joml.Quaternionf;
 
