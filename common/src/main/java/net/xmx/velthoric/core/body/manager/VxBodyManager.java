@@ -13,20 +13,21 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
-import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.core.physics.VxJoltBridge;
 import net.xmx.velthoric.core.body.VxRemovalReason;
+import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
+import net.xmx.velthoric.core.body.registry.VxBodyType;
+import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
+import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.type.VxRigidBody;
+import net.xmx.velthoric.core.body.type.VxSoftBody;
 import net.xmx.velthoric.core.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.core.network.synchronization.manager.VxServerSyncManager;
 import net.xmx.velthoric.core.persistence.impl.body.VxBodyStorage;
 import net.xmx.velthoric.core.persistence.impl.body.VxSerializedBodyData;
-import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
-import net.xmx.velthoric.core.body.registry.VxBodyType;
-import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.body.type.VxRigidBody;
-import net.xmx.velthoric.core.body.type.VxSoftBody;
+import net.xmx.velthoric.core.physics.VxJoltBridge;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.math.VxTransform;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -41,7 +42,7 @@ import java.util.function.Consumer;
  *     <li><b>Lifecycle Management:</b> Creating, activating, deactivating, and destroying physics bodies.</li>
  *     <li><b>Data Storage:</b> Managing the {@link VxServerBodyDataStore}, which uses a Structure-of-Arrays (SoA) layout for CPU-cache-efficient access to physics data.</li>
  *     <li><b>Jolt Integration:</b> Bridging the gap between high-level Java objects and the native Jolt Physics engine via {@link VxJoltBridge}.</li>
- *     <li><b>Spatial Partitioning:</b> Delegating chunk-based tracking to the {@link VxChunkManager}.</li>
+ *     <li><b>Spatial Partitioning:</b> Delegating chunk-based tracking to the {@link VxSpatialManager}.</li>
  *     <li><b>Persistence:</b> coordinating with {@link VxBodyStorage} to save and load body states to disk.</li>
  *     <li><b>Networking:</b> Handling synchronization of physics states to clients via {@link VxNetworkDispatcher}.</li>
  * </ul>
@@ -56,7 +57,7 @@ public class VxBodyManager {
     private final VxPhysicsUpdater physicsUpdater;
     private final VxNetworkDispatcher networkDispatcher;
     private final VxServerSyncManager serverSyncManager;
-    private final VxChunkManager chunkManager;
+    private final VxSpatialManager spatialManager;
 
     /**
      * Primary registry of active bodies, mapped by their persistent unique identifier (UUID).
@@ -93,7 +94,7 @@ public class VxBodyManager {
         this.physicsUpdater = new VxPhysicsUpdater(this);
         this.networkDispatcher = new VxNetworkDispatcher(world.getLevel(), this);
         this.serverSyncManager = new VxServerSyncManager(this);
-        this.chunkManager = new VxChunkManager(this);
+        this.spatialManager = new VxSpatialManager();
     }
 
     /**
@@ -374,8 +375,9 @@ public class VxBodyManager {
         // 3. Update spatial tracking
         // If UNLOAD, the chunk system typically initiates this call, so we skip
         // modifying the tracking map to avoid concurrent modification issues during iteration.
-        if (reason != VxRemovalReason.UNLOAD) {
-            chunkManager.stopTracking(body);
+        int index = body.getDataStoreIndex();
+        if (reason != VxRemovalReason.UNLOAD && index != -1) {
+            spatialManager.remove(dataStore.chunkKey[index], body);
         }
 
         // 4. Trigger body-specific cleanup hooks
@@ -431,9 +433,36 @@ public class VxBodyManager {
             dataStore.registerNetworkId(networkId, id);
 
             dataStore.isActive[index] = true;
-            chunkManager.startTracking(body);
+
+            // Initialize spatial tracking
+            long chunkKey = VxSpatialManager.calculateChunkKey(dataStore.posX[index], dataStore.posZ[index]);
+            dataStore.chunkKey[index] = chunkKey;
+            spatialManager.add(chunkKey, body);
+
             return body;
         });
+    }
+
+    /**
+     * Updates the chunk tracking information for a body when it moves across a chunk border.
+     * This method ensures the body is correctly listed in the new chunk and removed from the old one,
+     * and notifies the network dispatcher of the change.
+     *
+     * @param body    The body that moved.
+     * @param fromKey The long-encoded key of the chunk it moved from.
+     * @param toKey   The long-encoded key of the chunk it moved to.
+     */
+    public void updateBodyTracking(VxBody body, long fromKey, long toKey) {
+        int index = body.getDataStoreIndex();
+        if (index != -1) {
+            dataStore.chunkKey[index] = toKey;
+        }
+
+        // Update spatial manager
+        spatialManager.move(body, fromKey, toKey);
+
+        // Notify the network dispatcher about the movement for client-side tracking updates.
+        networkDispatcher.onBodyMoved(body, new ChunkPos(fromKey), new ChunkPos(toKey));
     }
 
     /**
@@ -445,7 +474,7 @@ public class VxBodyManager {
      * @param chunkPos The position of the chunk to unload.
      */
     public void onChunkUnload(ChunkPos chunkPos) {
-        List<VxBody> bodiesToUnload = chunkManager.removeAllInChunk(chunkPos);
+        List<VxBody> bodiesToUnload = spatialManager.removeAllInChunk(chunkPos.toLong());
         if (bodiesToUnload.isEmpty()) return;
 
         for (VxBody body : bodiesToUnload) {
@@ -578,7 +607,7 @@ public class VxBodyManager {
     public void saveBodiesInChunk(ChunkPos pos) {
         List<VxBody> bodiesInChunk = new ArrayList<>();
 
-        chunkManager.forEachBodyInChunk(pos, body -> {
+        spatialManager.forEachInChunk(pos.toLong(), body -> {
             // Only add the body to the save list if it is marked as persistent.
             if (body.isPersistent()) {
                 bodiesInChunk.add(body);
@@ -616,8 +645,8 @@ public class VxBodyManager {
         return networkDispatcher;
     }
 
-    public VxChunkManager getChunkManager() {
-        return chunkManager;
+    public VxSpatialManager getSpatialManager() {
+        return spatialManager;
     }
 
     public VxServerSyncManager getServerSyncManager() {

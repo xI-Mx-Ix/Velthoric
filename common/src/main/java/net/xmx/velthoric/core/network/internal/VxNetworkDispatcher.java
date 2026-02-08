@@ -210,7 +210,8 @@ public class VxNetworkDispatcher {
                 boolean vertexDirty = dataStore.isVertexDataDirty[i];
 
                 if (transformDirty || vertexDirty) {
-                    long chunkPosLong = manager.getChunkManager().getBodyChunkPosLong(i);
+                    // Use cached chunk key from DataStore
+                    long chunkPosLong = dataStore.chunkKey[i];
 
                     if (transformDirty) {
                         dirtyBodiesByChunk.computeIfAbsent(chunkPosLong, k -> new IntArrayList()).add(i);
@@ -274,7 +275,7 @@ public class VxNetworkDispatcher {
     public void onBodyAdded(VxBody body) {
         int index = body.getDataStoreIndex();
         if (index == -1) return;
-        ChunkPos bodyChunk = manager.getChunkManager().getBodyChunkPos(index);
+        ChunkPos bodyChunk = new ChunkPos(dataStore.chunkKey[index]);
 
         // Iterate all players to see who needs to be notified of this new body
         for (ServerPlayer player : this.level.players()) {
@@ -296,7 +297,7 @@ public class VxNetworkDispatcher {
         // at this point in the lifecycle (called before cleanup).
         if (index == -1) return;
 
-        ChunkPos chunkPos = manager.getChunkManager().getBodyChunkPos(index);
+        ChunkPos chunkPos = new ChunkPos(dataStore.chunkKey[index]);
         // Use the vanilla ChunkMap to find players who are currently watching this chunk.
         List<ServerPlayer> players = level.getChunkSource().chunkMap.getPlayers(chunkPos, false);
 
@@ -343,7 +344,7 @@ public class VxNetworkDispatcher {
      * @param chunkPos The chunk.
      */
     public void trackBodiesInChunkForPlayer(ServerPlayer player, ChunkPos chunkPos) {
-        manager.getChunkManager().forEachBodyInChunk(chunkPos, body -> trackBodyForPlayer(player, body));
+        manager.getSpatialManager().forEachInChunk(chunkPos.toLong(), body -> trackBodyForPlayer(player, body));
     }
 
     /**
@@ -354,7 +355,7 @@ public class VxNetworkDispatcher {
      * @param chunkPos The chunk.
      */
     public void untrackBodiesInChunkForPlayer(ServerPlayer player, ChunkPos chunkPos) {
-        manager.getChunkManager().forEachBodyInChunk(chunkPos, body -> untrackBodyForPlayer(player, body.getNetworkId()));
+        manager.getSpatialManager().forEachInChunk(chunkPos.toLong(), body -> untrackBodyForPlayer(player, body.getNetworkId()));
     }
 
     /**
@@ -442,9 +443,14 @@ public class VxNetworkDispatcher {
                     int count = 0;
 
                     for (VxBody body : bodies) {
-                        if (body.getDataStoreIndex() == -1) continue;
+                        int index = body.getDataStoreIndex();
+                        if (index == -1) continue;
+
+                        // Retrieve the cached chunk key and convert to ChunkPos for the vanilla visibility check
+                        ChunkPos bodyChunk = new ChunkPos(dataStore.chunkKey[index]);
+
                         // Only spawn if the player has received the chunk (not pending send)
-                        if (chunkMap.getPlayers(manager.getChunkManager().getBodyChunkPos(body.getDataStoreIndex()), false).contains(player)) {
+                        if (chunkMap.getPlayers(bodyChunk, false).contains(player)) {
 
                             VxSpawnData.writeRaw(spawnBuf, body, System.nanoTime());
                             count++;
@@ -544,7 +550,7 @@ public class VxNetworkDispatcher {
         VxBody body = manager.getVxBody(id);
         if (body == null || body.getDataStoreIndex() == -1) return Collections.emptySet();
 
-        ChunkPos pos = manager.getChunkManager().getBodyChunkPos(body.getDataStoreIndex());
+        ChunkPos pos = new ChunkPos(dataStore.chunkKey[body.getDataStoreIndex()]);
         List<ServerPlayer> players = level.getChunkSource().chunkMap.getPlayers(pos, false);
 
         // Wrap in HashSet to satisfy Set<ServerPlayer> return type expected by SyncManager

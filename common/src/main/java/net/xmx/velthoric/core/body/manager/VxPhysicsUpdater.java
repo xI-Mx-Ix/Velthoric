@@ -8,9 +8,8 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.readonly.*;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
-import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.ChunkPos;
+import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
@@ -158,11 +157,12 @@ public class VxPhysicsUpdater {
                 dataStore.lastUpdateTimestamp[i] = timestampNanos;
                 dataStore.isTransformDirty[i] = true;
 
+                // --- Spatial Tracking Update ---
                 final long lastKey = dataStore.chunkKey[i];
-                final long currentKey = new ChunkPos(SectionPos.posToSectionCoord(pos.xx()), SectionPos.posToSectionCoord(pos.zz())).toLong();
+                final long currentKey = VxSpatialManager.calculateChunkKey(pos.xx(), pos.zz());
+
                 if (lastKey != currentKey) {
-                    manager.getChunkManager().updateBodyTracking(obj, lastKey, currentKey);
-                    dataStore.chunkKey[i] = currentKey;
+                    manager.updateBodyTracking(obj, lastKey, currentKey);
                 }
             }
         }
