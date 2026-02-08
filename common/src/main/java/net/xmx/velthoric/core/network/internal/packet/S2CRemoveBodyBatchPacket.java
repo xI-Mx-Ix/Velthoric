@@ -13,7 +13,6 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
-import net.xmx.velthoric.core.physics.world.VxClientPhysicsWorld;
 
 import java.nio.ByteBuffer;
 
@@ -110,7 +109,7 @@ public class S2CRemoveBodyBatchPacket implements IVxNetPacket {
     @Override
     public void handle(NetworkManager.PacketContext context) {
         context.queue(() -> {
-            VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
+            VxClientBodyManager manager = VxClientBodyManager.getInstance();
             for (int id : this.networkIds) manager.removeBody(id);
         });
     }

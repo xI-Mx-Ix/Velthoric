@@ -5,25 +5,32 @@
 package net.xmx.velthoric.core.body.client;
 
 import com.github.stephengold.joltjni.RVec3;
+import dev.architectury.event.events.client.ClientTickEvent;
 import io.netty.buffer.ByteBuf;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.core.mounting.VxMountable;
-import net.xmx.velthoric.core.mounting.manager.VxClientMountingManager;
-import net.xmx.velthoric.core.mounting.seat.VxSeat;
 import net.xmx.velthoric.config.VxModConfig;
-import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.client.time.VxClientClock;
-import net.xmx.velthoric.core.network.synchronization.manager.VxClientSyncManager;
+import net.xmx.velthoric.core.body.manager.VxAbstractBodyManager;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.physics.world.VxClientPhysicsWorld;
-import net.xmx.velthoric.core.body.manager.VxAbstractBodyManager;
+import net.xmx.velthoric.core.mounting.VxMountable;
+import net.xmx.velthoric.core.mounting.manager.VxClientMountingManager;
+import net.xmx.velthoric.core.mounting.seat.VxSeat;
+import net.xmx.velthoric.core.network.synchronization.manager.VxClientSyncManager;
+import net.xmx.velthoric.event.api.VxClientLevelEvent;
+import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
+import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.math.VxTransform;
+import net.xmx.velthoric.network.VxByteBuf;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * The main manager for all client-side physics bodies.
@@ -41,46 +48,94 @@ import java.util.*;
  */
 public class VxClientBodyManager extends VxAbstractBodyManager {
 
-    // The parent physics world context that owns this manager.
-    private final VxClientPhysicsWorld world;
+    /**
+     * The singleton instance of the VxClientBodyManager.
+     */
+    private static final VxClientBodyManager INSTANCE = new VxClientBodyManager();
 
-    // The delay applied to rendering to allow for interpolation. A larger value
-    // can smooth over more network jitter but increases perceived latency.
-    // Value is in nanoseconds (150ms).
+    /**
+     * The client-side clock used for interpolation and synchronization.
+     */
+    private final VxClientClock clock = new VxClientClock();
+
+    /**
+     * The delay applied to rendering to allow for interpolation. A larger value
+     * can smooth over more network jitter but increases perceived latency.
+     * Value is in nanoseconds (150ms).
+     */
     private final long interpolationDelayNanos;
 
-    // The data store holding all body states in a Structure of Arrays format.
+    /**
+     * The data store holding all body states in a Structure of Arrays format.
+     */
     private final VxClientBodyDataStore store = new VxClientBodyDataStore();
 
-    // The interpolator responsible for calculating smooth body transforms based on history buffers.
+    /**
+     * The interpolator responsible for calculating smooth body transforms based on history buffers.
+     */
     private final VxClientBodyInterpolator interpolator = new VxClientBodyInterpolator();
 
-    // The manager responsible for synchronizing client-authoritative data (C2S).
+    /**
+     * The manager responsible for synchronizing client-authoritative data (C2S).
+     */
     private final VxClientSyncManager syncManager;
 
-    // The calculated time offset between the client and server clocks.
-    // Client Render Time = Client Game Time + Offset - Interpolation Delay.
+    /**
+     * The calculated time offset between the client and server clocks.
+     * Client Render Time = Client Game Time + Offset - Interpolation Delay.
+     */
     private long clockOffsetNanos = 0L;
 
-    // Flag indicating if the initial clock synchronization has completed.
+    /**
+     * Flag indicating if the initial clock synchronization has completed.
+     */
     private boolean isClockOffsetInitialized = false;
 
-    // A list of recent clock offset samples used for calculating an average.
+    /**
+     * A list of recent clock offset samples used for calculating an average.
+     */
     private final List<Long> clockOffsetSamples = new ArrayList<>();
 
-    // The manager responsible for mountable seats on the client.
+    /**
+     * The manager responsible for mountable seats on the client.
+     */
     private final VxClientMountingManager mountingManager;
 
     /**
-     * Constructs the client body manager.
-     *
-     * @param world The parent client physics world.
+     * Constructs the client body manager and initializes the synchronization manager
+     * and mounting manager.
      */
-    public VxClientBodyManager(VxClientPhysicsWorld world) {
-        this.world = world;
+    private VxClientBodyManager() {
         this.syncManager = new VxClientSyncManager(this);
         this.interpolationDelayNanos = VxModConfig.CLIENT.interpolationDelayNanos.get();
         this.mountingManager = new VxClientMountingManager();
+    }
+
+    /**
+     * Registers all necessary client-side event listeners.
+     * This connects level loading, unloading, and client ticks directly to the manager singleton.
+     */
+    public static void registerEvents() {
+        // Reset the manager state when a new level is loaded to ensure a clean simulation context.
+        VxClientLevelEvent.Load.EVENT.register(event -> getInstance().clearAll());
+
+        // Ensure all data is cleared when the client level is unloaded.
+        VxClientLevelEvent.Unload.EVENT.register(event -> getInstance().clearAll());
+
+        // Update the physics clock, process sync tasks, and update interpolation targets every client tick.
+        ClientTickEvent.CLIENT_PRE.register(client -> getInstance().clientTick(client.isPaused()));
+
+        // Perform a final cleanup when the player logs out to prevent stale data.
+        VxClientPlayerNetworkEvent.LoggingOut.EVENT.register(event -> getInstance().clearAll());
+    }
+
+    /**
+     * Returns the singleton instance of the client body manager.
+     *
+     * @return The singleton instance.
+     */
+    public static VxClientBodyManager getInstance() {
+        return INSTANCE;
     }
 
     /**
@@ -195,8 +250,9 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
         initializeState(index, transform, timestamp);
 
         // Notify the body that it has been added to the client level.
-        if (world.getLevel() != null) {
-            body.onBodyAdded(world.getLevel());
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level != null) {
+            body.onBodyAdded(level);
         }
 
         // Notify listeners
@@ -272,8 +328,9 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
                     syncManager.onBodyRemoved(body);
 
                     // Notify the body that it has been removed from the client level.
-                    if (world.getLevel() != null) {
-                        body.onBodyRemoved(world.getLevel());
+                    ClientLevel level = Minecraft.getInstance().level;
+                    if (level != null) {
+                        body.onBodyRemoved(level);
                     }
 
                     // Notify listeners
@@ -322,13 +379,28 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
         synchronized(clockOffsetSamples) {
             clockOffsetSamples.clear();
         }
+        this.clock.reset();
     }
 
     /**
      * The main client-side tick method.
      * Synchronizes the clock, runs body callbacks, and triggers interpolation.
+     *
+     * @param isPaused True if the client game is currently paused.
      */
-    public void clientTick() {
+    public void clientTick(boolean isPaused) {
+        if (isPaused) {
+            this.clock.pause();
+            return;
+        }
+
+        this.clock.resume();
+
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level == null) {
+            return;
+        }
+
         // Tick all active client bodies (e.g. for client-side particles or logic)
         for (VxBody body : managedBodies.values()) {
             body.onClientTick();
@@ -343,7 +415,7 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
         if (isClockOffsetInitialized) {
             // Calculate the target render time based on the synced clock.
             // Formula: GameTime + ClockOffset - InterpolationDelay
-            long renderTimestamp = world.getClock().getGameTimeNanos() + this.clockOffsetNanos - this.interpolationDelayNanos;
+            long renderTimestamp = this.clock.getGameTimeNanos() + this.clockOffsetNanos - this.interpolationDelayNanos;
 
             // Perform interpolation for all bodies in the store
             interpolator.updateInterpolationTargets(store, renderTimestamp);
@@ -351,31 +423,39 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
     }
 
     /**
-     * @return The client-side data store.
+     * Returns the client-side data store.
+     *
+     * @return The data store instance.
      */
     public VxClientBodyDataStore getStore() {
         return store;
     }
 
     /**
-     * @return The client-side body interpolator.
+     * Returns the client-side body interpolator.
+     *
+     * @return The interpolator instance.
      */
     public VxClientBodyInterpolator getInterpolator() {
         return interpolator;
     }
 
     /**
-     * @return The manager responsible for mountable seats on the client.
+     * Returns the manager responsible for mountable seats on the client.
+     *
+     * @return The mounting manager instance.
      */
     public VxClientMountingManager getMountingManager() {
         return mountingManager;
     }
 
     /**
-     * @return The client-side clock from the parent world.
+     * Returns the client-side clock.
+     *
+     * @return The clock instance.
      */
     public VxClientClock getClock() {
-        return world.getClock();
+        return clock;
     }
 
     /**

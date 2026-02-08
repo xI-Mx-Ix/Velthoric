@@ -12,7 +12,6 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
-import net.xmx.velthoric.core.physics.world.VxClientPhysicsWorld;
 
 import java.util.Map;
 
@@ -119,7 +118,7 @@ public class S2CSynchronizedDataBatchPacket implements IVxNetPacket {
     @Override
     public void handle(NetworkManager.PacketContext context) {
         context.queue(() -> {
-            VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
+            VxClientBodyManager manager = VxClientBodyManager.getInstance();
             for (Map.Entry<Integer, byte[]> entry : this.dataUpdates.entrySet()) {
                 // Apply the serialized data to the body's synchronized data store
                 manager.updateSynchronizedData(entry.getKey(), Unpooled.wrappedBuffer(entry.getValue()));

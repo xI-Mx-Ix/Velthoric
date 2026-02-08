@@ -28,7 +28,6 @@ import net.xmx.velthoric.core.body.client.VxRenderState;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.body.type.VxSoftBody;
-import net.xmx.velthoric.core.physics.world.VxClientPhysicsWorld;
 
 /**
  * The main client-side renderer/dispatcher for physics bodies.
@@ -74,7 +73,7 @@ public class VxPhysicsRenderer {
         Level level = mc.level;
         if (level == null || mc.getCameraEntity() == null) return;
 
-        VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
+        VxClientBodyManager manager = VxClientBodyManager.getInstance();
         if (manager.getAllBodies().isEmpty()) return;
 
         MultiBufferSource.BufferSource bufferSource = mc.renderBuffers().bufferSource();

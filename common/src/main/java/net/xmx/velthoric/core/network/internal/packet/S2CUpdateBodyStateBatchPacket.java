@@ -13,7 +13,6 @@ import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
-import net.xmx.velthoric.core.physics.world.VxClientPhysicsWorld;
 
 import java.nio.ByteBuffer;
 
@@ -96,7 +95,7 @@ public class S2CUpdateBodyStateBatchPacket implements IVxNetPacket {
     public void handle(NetworkManager.PacketContext context) {
         context.queue(() -> {
             try {
-                VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
+                VxClientBodyManager manager = VxClientBodyManager.getInstance();
                 VxClientBodyDataStore store = manager.getStore();
 
                 // 1. Prepare Decompression

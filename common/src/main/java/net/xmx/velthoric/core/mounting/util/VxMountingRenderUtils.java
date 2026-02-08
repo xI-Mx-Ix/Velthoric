@@ -11,7 +11,6 @@ import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.mounting.entity.VxMountingEntity;
-import net.xmx.velthoric.core.physics.world.VxClientPhysicsWorld;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -43,7 +42,7 @@ public enum VxMountingRenderUtils {
     public Optional<VxTransform> getInterpolatedTransform(VxMountingEntity proxy, float partialTicks, VxTransform transformOut) {
         return proxy.getPhysicsId().flatMap(id ->
                 getValidBodyIndex(id).map(index -> {
-                    VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
+                    VxClientBodyManager manager = VxClientBodyManager.getInstance();
                     manager.getInterpolator().interpolateFrame(
                             manager.getStore(),
                             index,
@@ -71,7 +70,7 @@ public enum VxMountingRenderUtils {
         }
 
         proxy.getPhysicsId().flatMap(this::getValidBodyIndex).ifPresent(index -> {
-            VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
+            VxClientBodyManager manager = VxClientBodyManager.getInstance();
             manager.getInterpolator().interpolateRotation(
                     manager.getStore(),
                     index,
@@ -91,7 +90,7 @@ public enum VxMountingRenderUtils {
      */
     public Optional<Quat> getInterpolatedRotation(VxMountingEntity proxy, float partialTicks) {
         return proxy.getPhysicsId().flatMap(this::getValidBodyIndex).map(index -> {
-            VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
+            VxClientBodyManager manager = VxClientBodyManager.getInstance();
             manager.getInterpolator().interpolateRotation(manager.getStore(), index, partialTicks, this.tempRotation);
             return this.tempRotation;
         });
@@ -104,7 +103,7 @@ public enum VxMountingRenderUtils {
      * @return An Optional containing the index if the body is valid, otherwise an empty Optional.
      */
     private Optional<Integer> getValidBodyIndex(UUID bodyId) {
-        VxClientBodyManager manager = VxClientPhysicsWorld.getInstance().getBodyManager();
+        VxClientBodyManager manager = VxClientBodyManager.getInstance();
         VxClientBodyDataStore store = manager.getStore();
         Integer index = store.getIndexForId(bodyId);
 

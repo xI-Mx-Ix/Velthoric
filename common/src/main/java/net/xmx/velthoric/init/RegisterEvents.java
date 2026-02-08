@@ -6,13 +6,13 @@ package net.xmx.velthoric.init;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.debug.VxF3ScreenAddition;
 import net.xmx.velthoric.item.physicsgun.beam.VxPhysicsGunBeamRenderer;
 import net.xmx.velthoric.item.physicsgun.event.VxPhysicsGunClientEvents;
 import net.xmx.velthoric.item.physicsgun.event.VxPhysicsGunEvents;
 import net.xmx.velthoric.item.tool.event.VxToolClientEvents;
 import net.xmx.velthoric.item.tool.event.VxToolEvents;
-import net.xmx.velthoric.core.lifecycle.VxClientLifecycleHandler;
 import net.xmx.velthoric.core.lifecycle.VxServerLifecycleHandler;
 import net.xmx.velthoric.core.body.client.renderer.VxPhysicsRenderer;
 import net.xmx.velthoric.core.vehicle.gui.VxVehicleHudRenderer;
@@ -30,7 +30,7 @@ public class RegisterEvents {
 
     @Environment(EnvType.CLIENT)
     public static void registerClient() {
-        VxClientLifecycleHandler.registerEvents();
+        VxClientBodyManager.registerEvents();
         VxF3ScreenAddition.registerEvents();
         VxPhysicsRenderer.registerEvents();
         VxPhysicsGunBeamRenderer.registerEvents();

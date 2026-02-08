@@ -7,11 +7,11 @@ package net.xmx.velthoric.core.vehicle.gui;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.entity.Entity;
-import net.xmx.velthoric.core.mounting.entity.VxMountingEntity;
-import net.xmx.velthoric.event.api.VxRenderEvent;
+import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.core.vehicle.VxWheeledVehicle;
-import net.xmx.velthoric.core.physics.world.VxClientPhysicsWorld;
+import net.xmx.velthoric.event.api.VxRenderEvent;
 
 import java.util.UUID;
 
@@ -48,7 +48,7 @@ public class VxVehicleHudRenderer {
             UUID physicsId = mountingEntity.getPhysicsId().get();
 
             // Retrieve the actual Physics Body from the Client Manager
-            VxBody body = VxClientPhysicsWorld.getInstance().getBodyManager().getBody(physicsId);
+            VxBody body = VxClientBodyManager.getInstance().getBody(physicsId);
 
             // Check if the body is a Vehicle
             if (body instanceof VxWheeledVehicle vxVehicle) {
