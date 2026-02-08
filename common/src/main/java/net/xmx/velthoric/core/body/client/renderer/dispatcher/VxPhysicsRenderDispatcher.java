@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.body.client.renderer;
+package net.xmx.velthoric.core.body.client.renderer.dispatcher;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
@@ -19,6 +19,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.xmx.velthoric.core.body.client.renderer.VxBodyRenderer;
 import net.xmx.velthoric.event.api.VxRenderEvent;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.mixin.impl.culling.LevelRendererAccessor;
@@ -38,7 +39,7 @@ import net.xmx.velthoric.core.body.type.VxSoftBody;
  *
  * @author xI-Mx-Ix
  */
-public class VxPhysicsRenderer {
+public class VxPhysicsRenderDispatcher {
 
     /**
      * Inflation value to prevent objects from disappearing when their center is off-screen but edges are visible.
@@ -51,13 +52,13 @@ public class VxPhysicsRenderer {
     private static final Quat interpolatedRotation = new Quat();
 
     // Dedicated debug renderer instance.
-    private static final VxDebugRenderer debugRenderer = new VxDebugRenderer();
+    private static final VxDebugRenderDispatcher debugRenderer = new VxDebugRenderDispatcher();
 
     /**
      * Registers the render event listeners.
      */
     public static void registerEvents() {
-        VxRenderEvent.ClientRenderLevelStageEvent.EVENT.register(VxPhysicsRenderer::onRenderLevelStage);
+        VxRenderEvent.ClientRenderLevelStageEvent.EVENT.register(VxPhysicsRenderDispatcher::onRenderLevelStage);
     }
 
     /**

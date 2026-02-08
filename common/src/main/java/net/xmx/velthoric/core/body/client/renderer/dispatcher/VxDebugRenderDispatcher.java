@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.body.client.renderer;
+package net.xmx.velthoric.core.body.client.renderer.dispatcher;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
@@ -28,7 +28,7 @@ import net.xmx.velthoric.core.vehicle.part.VxPart;
  *
  * @author xI-Mx-Ix
  */
-public class VxDebugRenderer {
+public class VxDebugRenderDispatcher {
 
     // Reusable objects to avoid allocations in the render loop.
     private final VxRenderState renderState = new VxRenderState();

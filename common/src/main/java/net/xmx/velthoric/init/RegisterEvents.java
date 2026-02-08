@@ -14,7 +14,7 @@ import net.xmx.velthoric.item.physicsgun.event.VxPhysicsGunEvents;
 import net.xmx.velthoric.item.tool.event.VxToolClientEvents;
 import net.xmx.velthoric.item.tool.event.VxToolEvents;
 import net.xmx.velthoric.core.lifecycle.VxServerLifecycleHandler;
-import net.xmx.velthoric.core.body.client.renderer.VxPhysicsRenderer;
+import net.xmx.velthoric.core.body.client.renderer.dispatcher.VxPhysicsRenderDispatcher;
 import net.xmx.velthoric.core.vehicle.gui.VxVehicleHudRenderer;
 
 /**
@@ -32,7 +32,7 @@ public class RegisterEvents {
     public static void registerClient() {
         VxClientBodyManager.registerEvents();
         VxF3ScreenAddition.registerEvents();
-        VxPhysicsRenderer.registerEvents();
+        VxPhysicsRenderDispatcher.registerEvents();
         VxPhysicsGunBeamRenderer.registerEvents();
         VxPhysicsGunClientEvents.registerEvents();
         VxToolClientEvents.registerEvents();
