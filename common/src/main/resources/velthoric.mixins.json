@@ -5,7 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "body.MixinChunkMap_ChunkTracking",
-    "bridge.mounting.entity.MixinEntity",
+    "mounting.entity.MixinEntity",
     "command.MixinArgumentTypeInfos",
     "misc.ExplosionMixin_TriggerExplosion",
     "persistence.MixinChunkMap_Persistence",
@@ -13,12 +13,12 @@
     "terrain.ServerLevelMixin_BlockStateChangeTerrain"
   ],
   "client": [
-    "bridge.mounting.input.KeyMappingAccessor",
-    "bridge.mounting.input.MixinLocalPlayer",
-    "bridge.mounting.render.MixinCamera",
-    "bridge.mounting.render.MixinEntityRenderDispatcher",
-    "bridge.mounting.render.MixinEntityRenderer",
-    "bridge.mounting.render.MixinGameRenderer",
+    "mounting.input.KeyMappingAccessor",
+    "mounting.input.MixinLocalPlayer",
+    "mounting.render.MixinCamera",
+    "mounting.render.MixinEntityRenderDispatcher",
+    "mounting.render.MixinEntityRenderer",
+    "mounting.render.MixinGameRenderer",
     "culling.LevelRendererAccessor",
     "debug.EntityRenderDispatcherAccessor",
     "debug.MixinDebugScreenOverlay",

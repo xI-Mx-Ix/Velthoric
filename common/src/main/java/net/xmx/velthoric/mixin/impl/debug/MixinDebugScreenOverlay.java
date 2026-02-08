@@ -9,7 +9,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.DebugScreenOverlay;
 import net.minecraft.util.Mth;
 import net.xmx.velthoric.debug.VxPhysicsDebugChart;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

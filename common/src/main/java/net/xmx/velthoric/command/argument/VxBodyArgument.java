@@ -12,7 +12,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.xmx.velthoric.physics.body.type.VxBody;
+import net.xmx.velthoric.core.body.type.VxBody;
 
 import java.util.Arrays;
 import java.util.Collection;

@@ -11,15 +11,15 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.physics.VxPhysicsLayers;
+import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
+import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.network.synchronization.VxDataSerializers;
-import net.xmx.velthoric.physics.body.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.physics.body.type.VxRigidBody;
-import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.body.registry.VxBodyType;
+import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
+import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
+import net.xmx.velthoric.core.body.type.VxRigidBody;
+import net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 

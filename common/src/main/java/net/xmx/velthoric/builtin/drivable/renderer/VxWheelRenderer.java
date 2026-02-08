@@ -15,8 +15,8 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.xmx.velthoric.physics.vehicle.part.VxPartRenderer;
-import net.xmx.velthoric.physics.vehicle.part.impl.VxVehicleWheel;
+import net.xmx.velthoric.core.vehicle.part.VxPartRenderer;
+import net.xmx.velthoric.core.vehicle.part.impl.VxVehicleWheel;
 import org.joml.Vector3f;
 
 /**

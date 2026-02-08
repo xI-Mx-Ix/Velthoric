@@ -9,8 +9,8 @@ import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.item.tool.VxToolMode;
 import net.xmx.velthoric.item.tool.config.VxToolConfig;
-import net.xmx.velthoric.physics.ragdoll.VxRagdollManager;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.ragdoll.VxRagdollManager;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 /**
  * The logic implementation for the Ragdoll Launcher tool.

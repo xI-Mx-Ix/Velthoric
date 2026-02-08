@@ -16,8 +16,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
-import net.xmx.velthoric.physics.ragdoll.VxRagdollManager;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.ragdoll.VxRagdollManager;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 /**
  * A test command to spawn a humanoid ragdoll for a specified living entity.

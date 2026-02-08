@@ -12,9 +12,9 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.xmx.velthoric.physics.body.client.VxRenderState;
-import net.xmx.velthoric.physics.body.client.body.renderer.VxRigidBodyRenderer;
-import net.xmx.velthoric.physics.vehicle.part.VxPart;
+import net.xmx.velthoric.core.body.client.VxRenderState;
+import net.xmx.velthoric.core.body.client.body.renderer.VxRigidBodyRenderer;
+import net.xmx.velthoric.core.vehicle.part.VxPart;
 import org.joml.Quaternionf;
 
 /**

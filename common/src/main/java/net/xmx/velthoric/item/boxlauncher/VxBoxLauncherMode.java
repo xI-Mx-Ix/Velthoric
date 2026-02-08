@@ -14,8 +14,8 @@ import net.xmx.velthoric.builtin.box.BoxRigidBody;
 import net.xmx.velthoric.item.tool.VxToolMode;
 import net.xmx.velthoric.item.tool.config.VxToolConfig;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.body.manager.VxBodyManager;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.body.manager.VxBodyManager;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.concurrent.ThreadLocalRandom;
 

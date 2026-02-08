@@ -25,10 +25,10 @@ import net.xmx.velthoric.builtin.sphere.SphereRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
 import net.xmx.velthoric.item.chaincreator.body.VxChainPartRenderer;
 import net.xmx.velthoric.item.chaincreator.body.VxChainPartRigidBody;
-import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.registry.VxBodyRegistry;
-import net.xmx.velthoric.physics.ragdoll.body.VxBodyPartRigidBody;
-import net.xmx.velthoric.physics.ragdoll.body.VxRagdollBodyPartRenderer;
+import net.xmx.velthoric.core.body.registry.VxBodyType;
+import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
+import net.xmx.velthoric.core.ragdoll.body.VxBodyPartRigidBody;
+import net.xmx.velthoric.core.ragdoll.body.VxRagdollBodyPartRenderer;
 
 /**
  * A central registry for all built-in physics body types. This class handles

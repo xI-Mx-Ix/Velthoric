@@ -12,7 +12,7 @@ import net.xmx.velthoric.init.registry.KeyMappings;
 import net.xmx.velthoric.init.registry.ModRegistries;
 import net.xmx.velthoric.natives.systems.NativeManager;
 import net.xmx.velthoric.network.VxPacketRegistry;
-import net.xmx.velthoric.physics.VxPhysicsBootstrap;
+import net.xmx.velthoric.core.physics.VxPhysicsBootstrap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

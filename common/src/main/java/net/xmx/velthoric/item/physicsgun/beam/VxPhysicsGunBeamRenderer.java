@@ -18,12 +18,12 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.event.api.VxRenderEvent;
 import net.xmx.velthoric.item.physicsgun.manager.VxPhysicsGunClientManager;
-import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
-import net.xmx.velthoric.physics.body.client.VxClientBodyInterpolator;
-import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
-import net.xmx.velthoric.physics.body.type.VxBody;
-import net.xmx.velthoric.physics.body.type.VxRigidBody;
-import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
+import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.core.body.client.VxClientBodyInterpolator;
+import net.xmx.velthoric.core.body.client.VxClientBodyManager;
+import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.type.VxRigidBody;
+import net.xmx.velthoric.core.physics.world.VxClientPhysicsWorld;
 import org.joml.Matrix4f;
 
 import java.util.Map;

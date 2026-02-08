@@ -22,9 +22,9 @@ import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.block.BlockRigidBody;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.body.manager.VxBodyManager;
-import net.xmx.velthoric.physics.body.util.VxVoxelShapeUtil;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.body.manager.VxBodyManager;
+import net.xmx.velthoric.util.VxVoxelShapeUtil;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 /**
  * An item that converts a standard block into a physics-based rigid body upon use.

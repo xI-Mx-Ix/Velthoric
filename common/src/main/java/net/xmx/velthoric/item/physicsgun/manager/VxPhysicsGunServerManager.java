@@ -13,10 +13,10 @@ import net.minecraft.world.entity.player.Player;
 import net.xmx.velthoric.item.physicsgun.VxGrabbedBodyInfo;
 import net.xmx.velthoric.item.physicsgun.packet.VxPhysicsGunSyncPacket;
 import net.xmx.velthoric.network.VxNetworking;
-import net.xmx.velthoric.physics.body.type.VxBody;
-import net.xmx.velthoric.physics.raycasting.VxHitResult;
-import net.xmx.velthoric.physics.raycasting.VxRaycaster;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.raycast.VxHitResult;
+import net.xmx.velthoric.core.raycast.VxRaycaster;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.Map;
 import java.util.Set;

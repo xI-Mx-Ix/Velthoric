@@ -15,10 +15,10 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.item.tool.VxToolMode;
 import net.xmx.velthoric.item.tool.config.VxToolConfig;
-import net.xmx.velthoric.physics.raycasting.VxClipContext;
-import net.xmx.velthoric.physics.raycasting.VxHitResult;
-import net.xmx.velthoric.physics.raycasting.VxRaycaster;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.raycast.VxClipContext;
+import net.xmx.velthoric.core.raycast.VxHitResult;
+import net.xmx.velthoric.core.raycast.VxRaycaster;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.Optional;
 

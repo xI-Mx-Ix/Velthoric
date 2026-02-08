@@ -19,10 +19,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.registry.VxBodyRegistry;
-import net.xmx.velthoric.physics.body.type.VxBody;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.body.registry.VxBodyType;
+import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
+import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 

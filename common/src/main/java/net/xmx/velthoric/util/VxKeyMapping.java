@@ -7,7 +7,7 @@ package net.xmx.velthoric.util;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.network.chat.Component;
-import net.xmx.velthoric.mixin.impl.bridge.mounting.input.KeyMappingAccessor;
+import net.xmx.velthoric.mixin.impl.mounting.input.KeyMappingAccessor;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
 

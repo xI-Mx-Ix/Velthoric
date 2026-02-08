@@ -20,8 +20,8 @@ import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.cloth.ClothSoftBody;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.physics.body.manager.VxBodyManager;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.body.manager.VxBodyManager;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 public class SpawnClothTest implements IVxTestCommand {
 

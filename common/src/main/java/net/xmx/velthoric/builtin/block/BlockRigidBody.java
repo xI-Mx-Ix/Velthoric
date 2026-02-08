@@ -15,16 +15,16 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.physics.body.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.physics.VxPhysicsLayers;
+import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
+import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.physics.body.registry.VxBodyType;
-import net.xmx.velthoric.physics.body.network.synchronization.VxDataSerializers;
-import net.xmx.velthoric.physics.body.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.physics.body.type.VxRigidBody;
-import net.xmx.velthoric.physics.body.type.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.physics.body.util.VxVoxelShapeUtil;
-import net.xmx.velthoric.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.body.registry.VxBodyType;
+import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
+import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
+import net.xmx.velthoric.core.body.type.VxRigidBody;
+import net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.util.VxVoxelShapeUtil;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
 

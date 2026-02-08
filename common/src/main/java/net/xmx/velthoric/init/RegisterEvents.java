@@ -12,10 +12,10 @@ import net.xmx.velthoric.item.physicsgun.event.VxPhysicsGunClientEvents;
 import net.xmx.velthoric.item.physicsgun.event.VxPhysicsGunEvents;
 import net.xmx.velthoric.item.tool.event.VxToolClientEvents;
 import net.xmx.velthoric.item.tool.event.VxToolEvents;
-import net.xmx.velthoric.physics.lifecycle.VxClientLifecycleHandler;
-import net.xmx.velthoric.physics.lifecycle.VxServerLifecycleHandler;
-import net.xmx.velthoric.physics.body.client.renderer.VxPhysicsRenderer;
-import net.xmx.velthoric.physics.vehicle.gui.VxVehicleHudRenderer;
+import net.xmx.velthoric.core.lifecycle.VxClientLifecycleHandler;
+import net.xmx.velthoric.core.lifecycle.VxServerLifecycleHandler;
+import net.xmx.velthoric.core.body.client.renderer.VxPhysicsRenderer;
+import net.xmx.velthoric.core.vehicle.gui.VxVehicleHudRenderer;
 
 /**
  * @author xI-Mx-Ix

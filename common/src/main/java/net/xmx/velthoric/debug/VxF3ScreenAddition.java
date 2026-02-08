@@ -9,12 +9,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.xmx.velthoric.event.api.VxF3ScreenAdditionEvent;
-import net.xmx.velthoric.physics.body.client.VxClientBodyManager;
-import net.xmx.velthoric.physics.body.client.VxClientBodyDataStore;
-import net.xmx.velthoric.physics.body.type.VxBody;
-import net.xmx.velthoric.physics.body.type.VxRigidBody;
-import net.xmx.velthoric.physics.body.type.VxSoftBody;
-import net.xmx.velthoric.physics.world.VxClientPhysicsWorld;
+import net.xmx.velthoric.core.body.client.VxClientBodyManager;
+import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.type.VxRigidBody;
+import net.xmx.velthoric.core.body.type.VxSoftBody;
+import net.xmx.velthoric.core.physics.world.VxClientPhysicsWorld;
 
 import java.util.List;
 import java.util.UUID;

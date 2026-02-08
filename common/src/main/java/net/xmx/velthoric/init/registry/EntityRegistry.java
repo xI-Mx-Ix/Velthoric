@@ -11,7 +11,7 @@ import dev.architectury.utils.Env;
 import net.minecraft.client.renderer.entity.NoopRenderer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.xmx.velthoric.bridge.mounting.entity.VxMountingEntity;
+import net.xmx.velthoric.core.mounting.entity.VxMountingEntity;
 
 /**
  * This class handles the registration of entity types.

@@ -15,6 +15,9 @@ loom {
         client {
             runDir "run-client"
             programArgs '--username', 'dev'
+
+            vmArg "-XX:+UnlockDiagnosticVMOptions"
+            vmArg "-XX:+DebugNonSafepoints"
         }
     }
 
