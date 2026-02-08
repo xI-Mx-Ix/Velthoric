@@ -4,6 +4,7 @@
 
 <div align="center">
   <h1>Velthoric Physics Mod</h1>
+  <p><i>Redefining physics in the world of Minecraft.</i></p>
 </div>
 
 <p align="center">
@@ -29,85 +30,56 @@
 
 ---
 
-**💥 What’s this mod all about?**
+### 👋 Welcome to Velthoric
 
-Velthoric brings **high-performance physics** to Minecraft using the full Jolt Physics engine via JoltJNI. Move, collide, and interact with rigid and soft bodies, ropes, and cloth, all with persistent worlds and a powerful developer API.
+Velthoric is a project dedicated to bringing advanced, high-performance physics to Minecraft.
 
-### ⚡ **Core Features**
+**Important Note:** Right now, this mod is a **Proof of Concept**. This means we are currently testing what’s possible and building the foundation. It is a work in progress, but it won't stay this way forever. We have big plans to turn this into a fully-fledged, stable physics engine for the community.
 
-The entire system is built on a highly performant **Structure of Arrays (SoA)** architecture to handle thousands of objects efficiently.
+### 💥 What makes this mod special?
+We aren't just adding simple animations. Velthoric integrates the professional Jolt Physics engine (via JoltJNI) directly into Minecraft. This allows for interactions that feel heavy, realistic, and incredibly smooth.
 
-* **Rigid & Soft Bodies:** Full simulation of solid objects as well as deformable things like cloth and ropes.
-* **Drivable Vehicles:** Cars and motorcycles with working suspension and wheel physics.
-* **Collision Detection:** Efficient broad and narrow phase detection that supports complex shapes and convex hulls.
-* **Humanoid Ragdolls:** Create physical ragdolls from living entities.
-* **Buoyancy:** Objects float in water and lava based on their volume and density.
-* **Block Conversion:** Convert any standard Minecraft block into a dynamic physics object.
-* **Constraints:** Connect bodies using joints and other physics constraints.
-* **Raycasting:** Precise ray and shape casting against the physics world.
-* **Persistence:** Physics bodies are saved with the world and synchronized efficiently between server and client.
-
-### 🛠️ **Developer API**
-
-Create custom physics objects, control rendering, manipulate bodies, and extend the system.  
-Documentation can be found [here](https://xi-mx-ix.github.io/velthoric-docs).
-
-### 🎯 **Testing Commands**
+**Current Features:**
+*   **True Rigid and Soft Bodies:** Interact with solid objects, or play with deformable things like cloth and ropes.
+*   **Working Vehicles:** Drive cars and motorcycles that feature actual suspension and wheel physics.
+*   **Realistic Ragdolls:** Watch living entities react to the world with physical skeletal systems.
+*   **Buoyancy:** Objects actually float in water and lava based on their weight and shape.
+*   **World Interaction:** Convert standard blocks into dynamic physics objects that fall and collide.
+*   **Optimized Performance:** Built using a "Structure of Arrays" (SoA) architecture to handle thousands of objects without killing your frame rate.
+*   **Persistence:** Everything stays where it is. Physics bodies are saved with your world and synced perfectly between the server and the client.
 
 ---
 
-**`/vxsummon`**  
-Spawn built-in and custom objects: boxes, ropes, cloth, marbles and more.  
-Also works with any objects registered via the API.
+### 🎮 How to play with it
+You can test the engine right now using these commands:
 
-**Test Vehicles:**  
-You can spawn a test car or motorcycle that you can drive using:
-```
-/vxsummon velthoric:car ~ ~ ~
-/vxsummon velthoric:motorcycle ~ ~ ~
-```
-The seat is visible when you press **F3 + B**.
+*   **`/vxsummon`**: Spawn objects like boxes, ropes, or marbles.
+    *   Try this to test a vehicle: `/vxsummon velthoric:car ~ ~ ~` (Use **F3 + B** to see where to sit).
+*   **`/vxtest`**: A quick way to spawn debug setups like chain grids or soft bodies.
+*   **`/vxkill`**: Use this to clean up. You can target specific types of objects or everything nearby.
+    *   Example: `/vxkill @x[type=velthoric:box,limit=5,sort=nearest]`
+
+### 🔧 Tools included
+We’ve added several tools to help you manipulate the world:
+*   **PhysicsGun:** Grab, move, and throw objects around.
+*   **Magnetizer:** Push or pull things with magnetic force.
+*   **Launchers:** Special tools to shoot boxes or ragdolls into the air.
+*   **ChainCreator:** Link objects together or anchor them to the ground.
+
+**Hint:** You can press **TAB** while holding any tool to open a menu and tweak settings like strength and range.
 
 ---
 
-**`/vxtest`**  
-Quickly create predefined setups for dev & debugging.  
-Includes chained boxes, configurable soft bodies, box grids, and more.
+### 💻 Supported Platforms
+Because Velthoric relies on native code for the physics engine, it currently supports:
+*   Windows (x86_64)
+*   Linux (x86_64 and Arm64)
+*   MacOS (x86_64 and Arm64)
 
----
+**Warning:** Any other platforms, such as 32-bit systems or Android, are not supported and will result in a crash.
 
-**`/vxkill @x[...]`**  
-Remove physics objects matching a selector.  
-You can target objects by `type`, `bodytype`, `distance`, `limit`, and `sort`.
-
-**Example:**
-```
-/vxkill @x[type=velthoric:box,limit=5,sort=nearest]
-```
-
-### 🔧 **Included Tools**
-
-* **PhysicsGun**: Grab, move, rotate, and throw objects around.
-* **Magnetizer**: Push things away or pull them closer to you.
-* **BoxLauncher**: Spawn and shoot boxes wherever you want.
-* **RagdollLauncher**: Launch ragdolls and watch them tumble.
-* **ChainCreator**: Connect objects together or tie them to the ground.
-
-⚙️ **Customization**: Just press **TAB** to configure your tools. You can adjust settings like **strength**, **range**, and more to fit your style.
-
-### 💻 **Supported Platforms**
-
-- Windows x86_64
-- Linux x86_64
-- Linux Arm64
-- MacOS x86_64
-- MacOS Arm64
-
-> **Note:** All other platforms (e.g., 32-bit systems, Android) are **not supported** and will **crash**.
-
-### ⚠️ **Bug Reports & Mod Compatibility**
-
-Found a bug, crash, or an incompatible mod? Please report it on the **issue tracker**:
+### ⚠️ Feedback and Bug Reports
+If you find a bug or a compatibility issue, please let us know on the issue tracker:
 
 <a href="https://github.com/xI-Mx-Ix/Velthoric/issues">
   <img src="https://raw.githubusercontent.com/xI-Mx-Ix/Velthoric/refs/heads/master/assets/issues_badge.png" alt="GitHub Issues">
@@ -116,6 +88,6 @@ Found a bug, crash, or an incompatible mod? Please report it on the **issue trac
 ---
 
 ### 🙏 Acknowledgments
-
-* [JoltJNI](https://github.com/stephengold/jolt-jni) - JNI bindings for Jolt Physics
-* [Jolt Physics](https://github.com/jrouwe/JoltPhysics) - Physics engine
+This project wouldn't be possible without these amazing resources:
+*   [JoltJNI](https://github.com/stephengold/jolt-jni): The JNI bindings for Jolt Physics.
+*   [Jolt Physics](https://github.com/jrouwe/JoltPhysics): The powerful engine behind it all.
