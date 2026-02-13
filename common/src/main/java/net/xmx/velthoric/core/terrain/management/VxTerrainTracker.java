@@ -6,19 +6,20 @@ package net.xmx.velthoric.core.terrain.management;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.config.VxModConfig;
-import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.terrain.VxSectionPos;
-import net.xmx.velthoric.core.terrain.storage.VxChunkDataStore;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.terrain.storage.VxChunkDataStore;
+import net.xmx.velthoric.init.VxMainClass;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Tracks physics bodies using a high-performance, grid-based dynamic clustering approach.
@@ -40,7 +41,11 @@ public final class VxTerrainTracker {
     private final ServerLevel level;
     private final VxServerBodyDataStore bodyDataStore;
 
-    private Set<VxSectionPos> previouslyRequiredChunks = new HashSet<>();
+    /**
+     * Stores the set of required chunks from the previous tick to calculate differences.
+     * Uses primitive long keys (bit-packed coordinates) to avoid object allocation.
+     */
+    private LongSet previouslyRequiredChunks = new LongOpenHashSet();
 
     // --- Configuration Constants ---
 
@@ -96,8 +101,9 @@ public final class VxTerrainTracker {
 
     /**
      * Reusable cache for chunk sections required during the current update tick.
+     * Uses bit-packed long coordinates to ensure zero allocation during scan loops.
      */
-    private final Set<VxSectionPos> requiredChunksCache = new HashSet<>();
+    private final LongSet requiredChunksCache = new LongOpenHashSet();
 
     /**
      * Constructs a new VxTerrainTracker.
@@ -139,24 +145,24 @@ public final class VxTerrainTracker {
         }
 
         // 1. Calculate the total set of required chunks based on dynamic clustering.
-        Set<VxSectionPos> currentlyRequiredChunks = calculateRequiredPreloadSet(currentBodies);
+        LongSet currentlyRequiredChunks = calculateRequiredPreloadSet(currentBodies);
 
-        // 2. Request new chunks.
-        for (VxSectionPos pos : currentlyRequiredChunks) {
-            if (!previouslyRequiredChunks.contains(pos)) {
-                terrainManager.requestChunk(pos);
+        // 2. Request new chunks using packed long coordinates.
+        for (long packedPos : currentlyRequiredChunks) {
+            if (!previouslyRequiredChunks.contains(packedPos)) {
+                terrainManager.requestChunk(packedPos);
             }
         }
 
-        // 3. Release old chunks.
-        for (VxSectionPos pos : previouslyRequiredChunks) {
-            if (!currentlyRequiredChunks.contains(pos)) {
-                terrainManager.releaseChunk(pos);
+        // 3. Release old chunks using packed long coordinates.
+        for (long packedPos : previouslyRequiredChunks) {
+            if (!currentlyRequiredChunks.contains(packedPos)) {
+                terrainManager.releaseChunk(packedPos);
             }
         }
 
-        // 4. Update the state for the next tick.
-        this.previouslyRequiredChunks = currentlyRequiredChunks;
+        // 4. Update the state for the next tick using a primitive-based copy.
+        this.previouslyRequiredChunks = new LongOpenHashSet(currentlyRequiredChunks);
 
         // 5. Handle fine-grained activation for bodies that are actually moving.
         updateChunkActivation(currentBodies);
@@ -171,9 +177,9 @@ public final class VxTerrainTracker {
      * instead of re-instantiating them.
      *
      * @param allBodies A list of all physics bodies currently in the world.
-     * @return A set of {@link VxSectionPos} representing all chunks that should be loaded.
+     * @return A set of bit-packed long coordinates representing all chunks that should be loaded.
      */
-    private Set<VxSectionPos> calculateRequiredPreloadSet(List<VxBody> allBodies) {
+    private LongSet calculateRequiredPreloadSet(List<VxBody> allBodies) {
         // Clear previous data without discarding the internal arrays/buckets to preserve memory capacity
         for (ObjectArrayList<VxBody> list : cachedBodyClusters.values()) {
             list.clear();
@@ -281,8 +287,8 @@ public final class VxTerrainTracker {
             }
         }
 
-        // Return a shallow copy because the caller might modify the set or keep it for comparison
-        return new HashSet<>(requiredChunksCache);
+        // Return the primitive set; the caller compares it with previous state.
+        return requiredChunksCache;
     }
 
     /**
@@ -292,7 +298,7 @@ public final class VxTerrainTracker {
      * @param allBodies The list of all physics bodies in the world.
      */
     private void updateChunkActivation(List<VxBody> allBodies) {
-        Set<VxSectionPos> requiredActiveSet = new HashSet<>();
+        LongSet requiredActiveSet = new LongOpenHashSet();
 
         for (VxBody body : allBodies) {
             int i = body.getDataStoreIndex();
@@ -322,23 +328,27 @@ public final class VxTerrainTracker {
             }
         }
 
-        requiredActiveSet.forEach(pos -> terrainManager.prioritizeChunk(pos));
+        // Convert packed coordinates back to prioritized building tasks
+        for (long packed : requiredActiveSet) {
+            terrainManager.prioritizeChunk(packed);
+        }
 
-        Set<VxSectionPos> currentlyActive = chunkDataStore.getActiveIndices().stream()
-                .filter(index -> chunkDataStore.getState(index) == VxTerrainManager.STATE_READY_ACTIVE)
-                .map(chunkDataStore::getPosForIndex)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        for (VxSectionPos pos : currentlyActive) {
-            if (!requiredActiveSet.contains(pos)) {
-                terrainManager.deactivateChunk(pos);
+        LongSet currentlyActive = new LongOpenHashSet();
+        for (int index : chunkDataStore.getActiveIndices()) {
+            if (chunkDataStore.getState(index) == VxTerrainManager.STATE_READY_ACTIVE) {
+                currentlyActive.add(chunkDataStore.getPackedPosForIndex(index));
             }
         }
 
-        for (VxSectionPos pos : requiredActiveSet) {
-            if (!currentlyActive.contains(pos)) {
-                terrainManager.activateChunk(pos);
+        for (long packed : currentlyActive) {
+            if (!requiredActiveSet.contains(packed)) {
+                terrainManager.deactivateChunk(packed);
+            }
+        }
+
+        for (long packed : requiredActiveSet) {
+            if (!currentlyActive.contains(packed)) {
+                terrainManager.activateChunk(packed);
             }
         }
     }
@@ -354,9 +364,9 @@ public final class VxTerrainTracker {
      * @param maxY           The maximum Y coordinate of the bounding box.
      * @param maxZ           The maximum Z coordinate of the bounding box.
      * @param radiusInChunks The radius in chunks to expand the box by.
-     * @param outChunks      The set to which the overlapping chunk positions will be added.
+     * @param outChunks      The set to which the overlapping bit-packed chunk positions will be added.
      */
-    private void forEachSectionInBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, int radiusInChunks, Set<VxSectionPos> outChunks) {
+    private void forEachSectionInBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, int radiusInChunks, LongSet outChunks) {
         if (Double.isNaN(minX) || Double.isNaN(maxX) || Double.isNaN(minZ) || Double.isNaN(maxZ)) return;
 
         int minSectionX = SectionPos.blockToSectionCoord(minX) - radiusInChunks;
@@ -389,7 +399,8 @@ public final class VxTerrainTracker {
             if (y < worldMinY || y >= worldMaxY) continue;
             for (int z = minSectionZ; z <= maxSectionZ; ++z) {
                 for (int x = minSectionX; x <= maxSectionX; ++x) {
-                    outChunks.add(new VxSectionPos(x, y, z));
+                    // Pack x, y, z into a single long coordinate to eliminate Garbage Collection pressure.
+                    outChunks.add(SectionPos.asLong(x, y, z));
                 }
             }
         }
@@ -400,8 +411,8 @@ public final class VxTerrainTracker {
      */
     private void releaseAllChunks() {
         if (previouslyRequiredChunks.isEmpty()) return;
-        for (VxSectionPos pos : previouslyRequiredChunks) {
-            terrainManager.releaseChunk(pos);
+        for (long packed : previouslyRequiredChunks) {
+            terrainManager.releaseChunk(packed);
         }
         previouslyRequiredChunks.clear();
     }
@@ -410,10 +421,9 @@ public final class VxTerrainTracker {
      * Deactivates all currently managed terrain chunks.
      */
     private void deactivateAllChunks() {
-        chunkDataStore.getActiveIndices().stream()
-                .map(chunkDataStore::getPosForIndex)
-                .filter(Objects::nonNull)
-                .forEach(terrainManager::deactivateChunk);
+        for (int index : chunkDataStore.getActiveIndices()) {
+            terrainManager.deactivateChunk(chunkDataStore.getPackedPosForIndex(index));
+        }
     }
 
     /**

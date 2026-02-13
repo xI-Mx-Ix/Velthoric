@@ -6,11 +6,12 @@ package net.xmx.velthoric.core.terrain.generation;
 
 import com.github.stephengold.joltjni.*;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.terrain.cache.VxTerrainShapeCache;
+import net.xmx.velthoric.init.VxMainClass;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -82,7 +83,12 @@ public final class VxTerrainGenerator implements AutoCloseable {
             boolean hasShapes = false;
             Vec3 halfExtentsKey = tempVec3Key.get();
             BlockPos.MutableBlockPos worldPos = new BlockPos.MutableBlockPos();
-            BlockPos origin = snapshot.pos().getOrigin();
+
+            // Extract the origin of the section from the bit-packed long coordinate.
+            long packedPos = snapshot.packedSectionPos();
+            int originX = SectionPos.sectionToBlockCoord(SectionPos.x(packedPos));
+            int originY = SectionPos.sectionToBlockCoord(SectionPos.y(packedPos));
+            int originZ = SectionPos.sectionToBlockCoord(SectionPos.z(packedPos));
 
             // Iterate using the count and primitive arrays.
             for (int i = 0; i < snapshot.count(); i++) {
@@ -92,7 +98,7 @@ public final class VxTerrainGenerator implements AutoCloseable {
                 int y = (packed >> 4) & 0xF;
                 int z = packed & 0xF;
 
-                worldPos.set(origin.getX() + x, origin.getY() + y, origin.getZ() + z);
+                worldPos.set(originX + x, originY + y, originZ + z);
                 VoxelShape voxelShape = snapshot.states()[i].getCollisionShape(level, worldPos);
 
                 if (voxelShape.isEmpty()) continue;
@@ -137,7 +143,8 @@ public final class VxTerrainGenerator implements AutoCloseable {
                     shapeCache.put(contentHash, newShape);
                     return newShape.getPtr().toRefC();
                 } else {
-                    VxMainClass.LOGGER.error("Failed to create StaticCompoundShape for {}: {}", snapshot.pos(), result.getError());
+                    VxMainClass.LOGGER.error("Failed to create StaticCompoundShape for {}:{}:{}: {}",
+                            SectionPos.x(packedPos), SectionPos.y(packedPos), SectionPos.z(packedPos), result.getError());
                     return null;
                 }
             }

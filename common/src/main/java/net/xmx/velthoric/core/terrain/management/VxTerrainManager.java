@@ -7,16 +7,16 @@ package net.xmx.velthoric.core.terrain.management;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
+import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.physics.VxPhysicsLayers;
-import net.xmx.velthoric.core.terrain.VxSectionPos;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.core.terrain.generation.VxChunkSnapshot;
 import net.xmx.velthoric.core.terrain.generation.VxTerrainGenerator;
 import net.xmx.velthoric.core.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.core.terrain.storage.VxChunkDataStore;
-import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.init.VxMainClass;
 
 /**
  * Manages the lifecycle of terrain chunks, including loading, unloading, activation,
@@ -54,12 +54,12 @@ public final class VxTerrainManager {
      * Requests a terrain chunk to be loaded. Increments its reference count.
      * If this is the first request, it schedules the chunk for shape generation.
      *
-     * @param pos The position of the chunk section.
+     * @param packedPos The bit-packed section coordinate.
      */
-    public void requestChunk(VxSectionPos pos) {
-        int index = chunkDataStore.addChunk(pos);
+    public void requestChunk(long packedPos) {
+        int index = chunkDataStore.addChunk(packedPos);
         if (chunkDataStore.incrementAndGetRefCount(index) == 1) {
-            scheduleShapeGeneration(pos, index, true);
+            scheduleShapeGeneration(packedPos, index, true);
         }
     }
 
@@ -67,36 +67,36 @@ public final class VxTerrainManager {
      * Releases a terrain chunk. Decrements its reference count.
      * If the reference count reaches zero, the chunk is unloaded.
      *
-     * @param pos The position of the chunk section.
+     * @param packedPos The bit-packed section coordinate.
      */
-    public void releaseChunk(VxSectionPos pos) {
-        Integer index = chunkDataStore.getIndexForPos(pos);
-        if (index != null && chunkDataStore.decrementAndGetRefCount(index) == 0) {
-            unloadChunkPhysicsInternal(pos);
+    public void releaseChunk(long packedPos) {
+        int index = chunkDataStore.getIndexForPackedPos(packedPos);
+        if (index != -1 && chunkDataStore.decrementAndGetRefCount(index) == 0) {
+            unloadChunkPhysicsInternal(packedPos);
         }
     }
 
     /**
      * Schedules a chunk for a rebuild, for example after a block update.
      *
-     * @param pos The position of the chunk to rebuild.
+     * @param packedPos The bit-packed section coordinate to rebuild.
      */
-    public void rebuildChunk(VxSectionPos pos) {
-        Integer index = chunkDataStore.getIndexForPos(pos);
-        if (index != null) {
-            scheduleShapeGeneration(pos, index, false);
+    public void rebuildChunk(long packedPos) {
+        int index = chunkDataStore.getIndexForPackedPos(packedPos);
+        if (index != -1) {
+            scheduleShapeGeneration(packedPos, index, false);
         }
     }
 
     /**
      * Prioritizes the generation of a chunk if it is not yet ready or is a placeholder.
      *
-     * @param pos The position of the chunk to prioritize.
+     * @param packedPos The bit-packed section coordinate to prioritize.
      */
-    public void prioritizeChunk(VxSectionPos pos) {
-        Integer index = chunkDataStore.getIndexForPos(pos);
-        if (index != null && (isPlaceholder(index) || !isReady(index))) {
-            scheduleShapeGeneration(pos, index, false);
+    public void prioritizeChunk(long packedPos) {
+        int index = chunkDataStore.getIndexForPackedPos(packedPos);
+        if (index != -1 && (chunkDataStore.isPlaceholder(index) || !isReady(index))) {
+            scheduleShapeGeneration(packedPos, index, false);
         }
     }
 
@@ -104,11 +104,11 @@ public final class VxTerrainManager {
      * Activates a chunk, adding its physics body to the simulation.
      * If the chunk is a placeholder, it schedules a high-priority regeneration.
      *
-     * @param pos The position of the chunk to activate.
+     * @param packedPos The bit-packed section coordinate to activate.
      */
-    public void activateChunk(VxSectionPos pos) {
-        Integer index = chunkDataStore.getIndexForPos(pos);
-        if (index == null) return;
+    public void activateChunk(long packedPos) {
+        int index = chunkDataStore.getIndexForPackedPos(packedPos);
+        if (index == -1) return;
 
         if (chunkDataStore.getState(index) == STATE_AIR_CHUNK) {
             return;
@@ -125,19 +125,19 @@ public final class VxTerrainManager {
             });
         }
 
-        if (isPlaceholder(index) && chunkDataStore.getBodyId(index) != VxChunkDataStore.UNUSED_BODY_ID) {
-            scheduleShapeGeneration(pos, index, false);
+        if (chunkDataStore.isPlaceholder(index) && chunkDataStore.getBodyId(index) != VxChunkDataStore.UNUSED_BODY_ID) {
+            scheduleShapeGeneration(packedPos, index, false);
         }
     }
 
     /**
      * Deactivates a chunk, removing its physics body from the simulation.
      *
-     * @param pos The position of the chunk to deactivate.
+     * @param packedPos The bit-packed section coordinate to deactivate.
      */
-    public void deactivateChunk(VxSectionPos pos) {
-        Integer index = chunkDataStore.getIndexForPos(pos);
-        if (index == null) return;
+    public void deactivateChunk(long packedPos) {
+        int index = chunkDataStore.getIndexForPackedPos(packedPos);
+        if (index == -1) return;
 
         if (chunkDataStore.getBodyId(index) != VxChunkDataStore.UNUSED_BODY_ID && chunkDataStore.getState(index) == STATE_READY_ACTIVE) {
             chunkDataStore.setState(index, STATE_READY_INACTIVE);
@@ -154,11 +154,11 @@ public final class VxTerrainManager {
     /**
      * Atomically schedules the generation of a physics shape for a chunk.
      *
-     * @param pos            The position of the chunk.
+     * @param packedPos      The bit-packed section coordinate.
      * @param index          The data store index of the chunk.
      * @param isInitialBuild True if this is the first time the chunk is being built.
      */
-    private void scheduleShapeGeneration(VxSectionPos pos, int index, boolean isInitialBuild) {
+    private void scheduleShapeGeneration(long packedPos, int index, boolean isInitialBuild) {
         if (jobSystem.isShutdown()) return;
 
         final int version = chunkDataStore.scheduleForGeneration(index);
@@ -174,7 +174,7 @@ public final class VxTerrainManager {
                 return;
             }
 
-            LevelChunk chunk = level.getChunkSource().getChunk(pos.x(), pos.z(), false);
+            LevelChunk chunk = level.getChunkSource().getChunk(SectionPos.x(packedPos), SectionPos.z(packedPos), false);
             if (chunk == null) {
                 // If chunk is not available, reset state to UNLOADED so it can be retried later.
                 chunkDataStore.setState(index, STATE_UNLOADED);
@@ -182,13 +182,13 @@ public final class VxTerrainManager {
             }
 
             // Create the snapshot on the main thread as required.
-            VxChunkSnapshot snapshot = VxChunkSnapshot.snapshotFromChunk(level, chunk, pos);
+            VxChunkSnapshot snapshot = VxChunkSnapshot.snapshotFromChunk(level, chunk, packedPos);
 
             // Only proceed if the state is still what we set it to. This prevents conflicts.
             if (chunkDataStore.getState(index) == STATE_LOADING_SCHEDULED) {
                 // If we successfully transition to the next state, we "own" the generation process.
                 chunkDataStore.setState(index, STATE_GENERATING_SHAPE);
-                jobSystem.submit(() -> processShapeGenerationOnWorker(pos, index, version, snapshot, isInitialBuild));
+                jobSystem.submit(() -> processShapeGenerationOnWorker(packedPos, index, version, snapshot, isInitialBuild));
             }
         });
     }
@@ -197,7 +197,7 @@ public final class VxTerrainManager {
     /**
      * Executes the shape generation on a worker thread. This method is called by the job system.
      */
-    private void processShapeGenerationOnWorker(VxSectionPos pos, int index, int version, VxChunkSnapshot snapshot, boolean isInitialBuild) {
+    private void processShapeGenerationOnWorker(long packedPos, int index, int version, VxChunkSnapshot snapshot, boolean isInitialBuild) {
         if (chunkDataStore.isVersionStale(index, version)) {
             if (chunkDataStore.getState(index) == STATE_GENERATING_SHAPE) {
                 chunkDataStore.setState(index, STATE_UNLOADED);
@@ -207,9 +207,9 @@ public final class VxTerrainManager {
 
         try {
             ShapeRefC generatedShape = terrainGenerator.generateShape(level, snapshot);
-            physicsWorld.execute(() -> applyGeneratedShape(pos, index, version, generatedShape, isInitialBuild));
+            physicsWorld.execute(() -> applyGeneratedShape(packedPos, index, version, generatedShape, isInitialBuild));
         } catch (Exception e) {
-            VxMainClass.LOGGER.error("Exception during terrain shape generation for {}", pos, e);
+            VxMainClass.LOGGER.error("Exception during terrain shape generation for {}:{}", SectionPos.x(packedPos), SectionPos.z(packedPos), e);
             chunkDataStore.setState(index, STATE_UNLOADED);
         }
     }
@@ -217,7 +217,7 @@ public final class VxTerrainManager {
     /**
      * Applies the newly generated shape to the chunk's physics body on the main physics thread.
      */
-    private void applyGeneratedShape(VxSectionPos pos, int index, int version, ShapeRefC shape, boolean isInitialBuild) {
+    private void applyGeneratedShape(long packedPos, int index, int version, ShapeRefC shape, boolean isInitialBuild) {
         if (chunkDataStore.isVersionStale(index, version) || chunkDataStore.getState(index) == STATE_REMOVING) {
             if (shape != null) shape.close();
             if (chunkDataStore.getState(index) != STATE_REMOVING) {
@@ -246,7 +246,7 @@ public final class VxTerrainManager {
                 chunkDataStore.setState(index, STATE_AIR_CHUNK);
             }
         } else if (shape != null) {
-            RVec3 position = new RVec3(pos.getOrigin().getX(), pos.getOrigin().getY(), pos.getOrigin().getZ());
+            RVec3 position = new RVec3(SectionPos.sectionToBlockCoord(SectionPos.x(packedPos)), SectionPos.sectionToBlockCoord(SectionPos.y(packedPos)), SectionPos.sectionToBlockCoord(SectionPos.z(packedPos)));
             try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxPhysicsLayers.TERRAIN)) {
                 Body body = bodyInterface.createBody(bcs);
                 if (body != null) {
@@ -255,7 +255,7 @@ public final class VxTerrainManager {
                     chunkDataStore.setShape(index, shape);
                     chunkDataStore.setState(index, wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
                 } else {
-                    VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}", pos);
+                    VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}:{}:{}", SectionPos.x(packedPos), SectionPos.y(packedPos), SectionPos.z(packedPos));
                     shape.close();
                     chunkDataStore.setState(index, STATE_UNLOADED);
                 }
@@ -266,22 +266,22 @@ public final class VxTerrainManager {
 
         chunkDataStore.setPlaceholder(index, isInitialBuild);
         if (wasActive) {
-            activateChunk(pos);
+            activateChunk(packedPos);
         }
     }
 
     /**
      * Internal logic to unload a chunk's physics resources.
      */
-    private void unloadChunkPhysicsInternal(VxSectionPos pos) {
-        Integer index = chunkDataStore.getIndexForPos(pos);
-        if (index == null) return;
+    private void unloadChunkPhysicsInternal(long packedPos) {
+        int index = chunkDataStore.getIndexForPackedPos(packedPos);
+        if (index == -1) return;
 
         chunkDataStore.setState(index, STATE_REMOVING);
 
         physicsWorld.execute(() -> {
             removeBodyAndShape(index, physicsWorld.getPhysicsSystem().getBodyInterface());
-            chunkDataStore.removeChunk(pos);
+            chunkDataStore.removeChunk(packedPos);
         });
     }
 
@@ -306,22 +306,22 @@ public final class VxTerrainManager {
     public void cleanupAllBodies() {
         BodyInterface bi = physicsWorld.getPhysicsSystem().getBodyInterface();
         if (bi != null) {
-            chunkDataStore.getManagedPositions().forEach(pos -> {
-                Integer index = chunkDataStore.getIndexForPos(pos);
-                if (index != null) {
+            chunkDataStore.getManagedPackedPositions().forEach(packed -> {
+                int index = chunkDataStore.getIndexForPackedPos(packed);
+                if (index != -1) {
                     removeBodyAndShape(index, bi);
                 }
             });
         }
     }
 
-    public boolean isManaged(VxSectionPos pos) {
-        return chunkDataStore.getIndexForPos(pos) != null;
+    public boolean isManaged(long packedPos) {
+        return chunkDataStore.getIndexForPackedPos(packedPos) != -1;
     }
 
-    public boolean isReady(VxSectionPos pos) {
-        Integer index = chunkDataStore.getIndexForPos(pos);
-        return index != null && isReady(index);
+    public boolean isReady(long packedPos) {
+        int index = chunkDataStore.getIndexForPackedPos(packedPos);
+        return index != -1 && isReady(index);
     }
 
     private boolean isReady(int index) {
@@ -329,9 +329,9 @@ public final class VxTerrainManager {
         return state == STATE_READY_ACTIVE || state == STATE_READY_INACTIVE || state == STATE_AIR_CHUNK;
     }
 
-    public boolean isPlaceholder(VxSectionPos pos) {
-        Integer index = chunkDataStore.getIndexForPos(pos);
-        if (index == null) return true;
+    public boolean isPlaceholder(long packedPos) {
+        int index = chunkDataStore.getIndexForPackedPos(packedPos);
+        if (index == -1) return true;
         return isPlaceholder(index);
     }
 

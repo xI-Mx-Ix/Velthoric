@@ -5,14 +5,16 @@
 package net.xmx.velthoric.core.terrain.storage;
 
 import com.github.stephengold.joltjni.ShapeRefC;
+import it.unimi.dsi.fastutil.longs.Long2IntMap;
+import it.unimi.dsi.fastutil.longs.Long2IntMaps;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import net.xmx.velthoric.core.AbstractDataStore;
-import net.xmx.velthoric.core.terrain.VxSectionPos;
 import net.xmx.velthoric.core.terrain.management.VxTerrainManager;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
@@ -31,8 +33,17 @@ public final class VxChunkDataStore extends AbstractDataStore {
 
     // --- Concurrency and Allocation ---
     private final Object allocationLock = new Object(); // Dedicated lock for structural changes (add/remove/resize)
-    private final ConcurrentHashMap<VxSectionPos, Integer> posToIndex = new ConcurrentHashMap<>();
-    private volatile AtomicReferenceArray<VxSectionPos> indexToPos;
+
+    /**
+     * Maps bit-packed long coordinates (SectionPos) to internal array indices.
+     */
+    private final Long2IntMap packedPosToIndex = Long2IntMaps.synchronize(new Long2IntOpenHashMap());
+
+    /**
+     * Reverse lookup array for bit-packed coordinates.
+     */
+    private volatile AtomicLongArray indexToPackedPos;
+
     private final Deque<Integer> freeIndices = new ArrayDeque<>();
     private int count = 0;
     private volatile int capacity = 0;
@@ -46,6 +57,7 @@ public final class VxChunkDataStore extends AbstractDataStore {
     private AtomicIntegerArray referenceCounts;
 
     public VxChunkDataStore() {
+        packedPosToIndex.defaultReturnValue(-1);
         allocate(INITIAL_CAPACITY);
     }
 
@@ -59,7 +71,7 @@ public final class VxChunkDataStore extends AbstractDataStore {
         referenceCounts = growAtomic(referenceCounts, newCapacity);
 
         // A volatile write ensures visibility of the new arrays to other threads before capacity is updated.
-        indexToPos = growAtomic(indexToPos, newCapacity);
+        indexToPackedPos = growAtomicLong(indexToPackedPos, newCapacity);
 
         this.capacity = newCapacity;
     }
@@ -68,21 +80,21 @@ public final class VxChunkDataStore extends AbstractDataStore {
      * Reserves a new index for a terrain chunk or retrieves an existing one.
      * This operation is highly concurrent, using a lock only for the slow path of new allocations.
      *
-     * @param pos The world-space position of the chunk section.
+     * @param packedPos The bit-packed section coordinate (SectionPos.asLong).
      * @return The data store index for the chunk.
      */
-    public int addChunk(VxSectionPos pos) {
+    public int addChunk(long packedPos) {
         // Fast path: Check if it already exists, completely lock-free.
-        Integer existingIndex = posToIndex.get(pos);
-        if (existingIndex != null) {
+        int existingIndex = packedPosToIndex.get(packedPos);
+        if (existingIndex != -1) {
             return existingIndex;
         }
 
         // Slow path: A new index must be allocated, requiring a lock.
         synchronized (allocationLock) {
             // Double-check in case another thread added it while we were waiting for the lock.
-            existingIndex = posToIndex.get(pos);
-            if (existingIndex != null) {
+            existingIndex = packedPosToIndex.get(packedPos);
+            if (existingIndex != -1) {
                 return existingIndex;
             }
 
@@ -91,8 +103,8 @@ public final class VxChunkDataStore extends AbstractDataStore {
             }
             int index = freeIndices.isEmpty() ? count++ : freeIndices.pop();
 
-            posToIndex.put(pos, index);
-            indexToPos.set(index, pos);
+            packedPosToIndex.put(packedPos, index);
+            indexToPackedPos.set(index, packedPos);
 
             resetIndex(index);
             return index;
@@ -100,24 +112,24 @@ public final class VxChunkDataStore extends AbstractDataStore {
     }
 
     /**
-     * Releases the index for a given chunk position, making it available for reuse.
+     * Releases the index for a given packed coordinate, making it available for reuse.
      * This also handles the cleanup of associated resources like {@link ShapeRefC}.
      *
-     * @param pos The position of the chunk to remove.
+     * @param packedPos The bit-packed coordinate of the chunk to remove.
      * @return The released index, or null if the chunk was not found.
      */
     @Nullable
-    public Integer removeChunk(VxSectionPos pos) {
+    public Integer removeChunk(long packedPos) {
         // Structural change, requires the lock.
         synchronized (allocationLock) {
-            Integer index = posToIndex.remove(pos);
-            if (index != null) {
+            int index = packedPosToIndex.remove(packedPos);
+            if (index != -1) {
                 ShapeRefC shape = shapeRefs.getAndSet(index, null);
                 if (shape != null) {
                     shape.close();
                 }
                 freeIndices.push(index);
-                indexToPos.set(index, null);
+                indexToPackedPos.set(index, 0L);
                 return index;
             }
         }
@@ -135,7 +147,7 @@ public final class VxChunkDataStore extends AbstractDataStore {
                     shape.close();
                 }
             }
-            posToIndex.clear();
+            packedPosToIndex.clear();
             freeIndices.clear();
             count = 0;
             allocate(INITIAL_CAPACITY);
@@ -254,25 +266,34 @@ public final class VxChunkDataStore extends AbstractDataStore {
         }
     }
 
-    @Nullable
-    public Integer getIndexForPos(VxSectionPos pos) {
-        return posToIndex.get(pos);
+    public int getIndexForPackedPos(long packedPos) {
+        return packedPosToIndex.get(packedPos);
     }
 
-    @Nullable
-    public VxSectionPos getPosForIndex(int index) {
+    /**
+     * Returns the packed long coordinate for the chunk at the given index.
+     * Uses the Minecraft SectionPos bit-packing format.
+     *
+     * @param index The index of the chunk in the SoA store.
+     * @return The packed long coordinate, or 0 if index is invalid.
+     */
+    public long getPackedPosForIndex(int index) {
         if (index < 0 || index >= capacity) {
-            return null;
+            return 0L;
         }
-        return indexToPos.get(index);
+        return indexToPackedPos.get(index);
     }
 
-    public Set<VxSectionPos> getManagedPositions() {
-        return new HashSet<>(posToIndex.keySet());
+    public Set<Long> getManagedPackedPositions() {
+        synchronized (allocationLock) {
+            return new HashSet<>(packedPosToIndex.keySet());
+        }
     }
 
     public Collection<Integer> getActiveIndices() {
-        return new ArrayList<>(posToIndex.values());
+        synchronized (allocationLock) {
+            return new ArrayList<>(packedPosToIndex.values());
+        }
     }
 
     /**
@@ -295,7 +316,7 @@ public final class VxChunkDataStore extends AbstractDataStore {
     }
 
     public int getChunkCount() {
-        return posToIndex.size();
+        return packedPosToIndex.size();
     }
 
     public int getCapacity() {
@@ -327,6 +348,17 @@ public final class VxChunkDataStore extends AbstractDataStore {
         }
         for (int i = (oldArray != null ? oldArray.length() : 0); i < newCapacity; i++) {
             newArray.set(i, defaultValue);
+        }
+        return newArray;
+    }
+
+    private static AtomicLongArray growAtomicLong(AtomicLongArray oldArray, int newCapacity) {
+        AtomicLongArray newArray = new AtomicLongArray(newCapacity);
+        if (oldArray != null) {
+            int copyLength = Math.min(oldArray.length(), newCapacity);
+            for (int i = 0; i < copyLength; i++) {
+                newArray.set(i, oldArray.get(i));
+            }
         }
         return newArray;
     }

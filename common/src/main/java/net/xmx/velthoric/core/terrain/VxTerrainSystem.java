@@ -5,11 +5,13 @@
 package net.xmx.velthoric.core.terrain;
 
 import com.github.stephengold.joltjni.BodyInterface;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.core.terrain.cache.VxTerrainShapeCache;
 import net.xmx.velthoric.core.terrain.generation.VxTerrainGenerator;
 import net.xmx.velthoric.core.terrain.job.VxTerrainJobSystem;
@@ -17,11 +19,8 @@ import net.xmx.velthoric.core.terrain.management.VxTerrainManager;
 import net.xmx.velthoric.core.terrain.management.VxTerrainTracker;
 import net.xmx.velthoric.core.terrain.storage.VxChunkDataStore;
 import net.xmx.velthoric.core.terrain.util.VxUpdateContext;
-import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.init.VxMainClass;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -47,7 +46,12 @@ public final class VxTerrainSystem implements Runnable {
     private final VxTerrainManager terrainManager;
     private final VxTerrainTracker terrainTracker;
 
-    private final Set<VxSectionPos> chunksToRebuild = ConcurrentHashMap.newKeySet();
+    /**
+     * Chunks scheduled for a rebuild due to world modification.
+     * Uses bit-packed long coordinates to prevent object allocations.
+     */
+    private final LongSet chunksToRebuild = new LongOpenHashSet();
+
     private static final ThreadLocal<VxUpdateContext> updateContext = ThreadLocal.withInitial(VxUpdateContext::new);
 
     public VxTerrainSystem(VxPhysicsWorld physicsWorld, ServerLevel level) {
@@ -153,9 +157,11 @@ public final class VxTerrainSystem implements Runnable {
             return;
         }
 
-        VxSectionPos pos = VxSectionPos.fromBlockPos(worldPos.immutable());
-        if (terrainManager.isManaged(pos)) {
-            chunksToRebuild.add(pos);
+        long packedPos = SectionPos.asLong(worldPos);
+        if (terrainManager.isManaged(packedPos)) {
+            synchronized (chunksToRebuild) {
+                chunksToRebuild.add(packedPos);
+            }
         }
 
         physicsWorld.execute(() -> {
@@ -177,34 +183,36 @@ public final class VxTerrainSystem implements Runnable {
      * Processes the queue of chunks waiting to be rebuilt, scheduling them for regeneration.
      */
     private void processRebuildQueue() {
-        if (chunksToRebuild.isEmpty()) return;
+        LongSet batch;
+        synchronized (chunksToRebuild) {
+            if (chunksToRebuild.isEmpty()) return;
+            batch = new LongOpenHashSet(chunksToRebuild);
+            chunksToRebuild.clear();
+        }
 
-        Set<VxSectionPos> batch = new HashSet<>(chunksToRebuild);
-        chunksToRebuild.removeAll(batch);
-
-        for (VxSectionPos pos : batch) {
-            terrainManager.rebuildChunk(pos);
+        for (long packedPos : batch) {
+            terrainManager.rebuildChunk(packedPos);
         }
     }
 
     /**
-     * Checks if a terrain chunk at a given position is fully loaded and ready for physics simulation.
+     * Checks if a terrain chunk at a given packed position is fully loaded and ready for physics simulation.
      *
-     * @param pos The position of the chunk section.
+     * @param packedPos The bit-packed section coordinate.
      * @return True if the chunk is ready, false otherwise.
      */
-    public boolean isReady(VxSectionPos pos) {
-        return terrainManager.isReady(pos);
+    public boolean isReady(long packedPos) {
+        return terrainManager.isReady(packedPos);
     }
 
     /**
      * Checks if a terrain chunk at a given position is using a placeholder shape.
      *
-     * @param pos The position of the chunk section.
+     * @param packedPos The bit-packed section coordinate.
      * @return True if the chunk is using a placeholder, false otherwise.
      */
-    public boolean isPlaceholder(VxSectionPos pos) {
-        return terrainManager.isPlaceholder(pos);
+    public boolean isPlaceholder(long packedPos) {
+        return terrainManager.isPlaceholder(packedPos);
     }
 
     /**
@@ -217,7 +225,7 @@ public final class VxTerrainSystem implements Runnable {
         if (sectionPos == null) {
             return false;
         }
-        return isReady(new VxSectionPos(sectionPos.x(), sectionPos.y(), sectionPos.z()));
+        return isReady(sectionPos.asLong());
     }
 
     /**
