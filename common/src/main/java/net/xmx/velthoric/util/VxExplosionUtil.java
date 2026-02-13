@@ -7,9 +7,7 @@ package net.xmx.velthoric.util;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
-import net.xmx.velthoric.core.util.intersect.VxPhysicsIntersector;
-
-import java.util.Optional;
+import net.xmx.velthoric.core.intersection.VxPhysicsIntersector;
 
 /**
  * A utility class for applying explosion forces to physic bodies.
