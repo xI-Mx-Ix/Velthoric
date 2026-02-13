@@ -7,8 +7,8 @@ package net.xmx.velthoric.core.util.raycast;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.ConstNarrowPhaseQuery;
-import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.init.VxMainClass;
 
 import java.util.Optional;
 
@@ -21,12 +21,6 @@ import java.util.Optional;
 public final class VxPhysicsRaycaster {
 
     private VxPhysicsRaycaster() {
-    }
-
-    /**
-     * A record to hold the raw results of a physics raycast, using only Jolt and primitive types.
-     */
-    public record Result(int bodyId, RVec3 hitPoint, Vec3 hitNormal, float hitFraction) {
     }
 
     /**
@@ -110,5 +104,11 @@ public final class VxPhysicsRaycaster {
             VxMainClass.LOGGER.error("Exception during physics raycast", e);
         }
         return Optional.empty();
+    }
+
+    /**
+     * A record to hold the raw results of a physics raycast, using only Jolt and primitive types.
+     */
+    public record Result(int bodyId, RVec3 hitPoint, Vec3 hitNormal, float hitFraction) {
     }
 }
