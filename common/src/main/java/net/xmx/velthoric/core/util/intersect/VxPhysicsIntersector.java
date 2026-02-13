@@ -17,9 +17,18 @@ import java.util.List;
  * Detects physics intersects for a given shape.
  *
  * @author timtaran
+ * @author xI-Mx-Ix
  */
 public class VxPhysicsIntersector {
     private static final int[] EMPTY_INT_ARRAY = new int[0];
+
+    /**
+     * Reusable default filters to minimize JNI overhead and garbage collection pressure in hot-path updates.
+     */
+    private static final ObjectLayerFilter DEFAULT_OBJECT_LAYER_FILTER = new ObjectLayerFilter();
+    private static final BroadPhaseLayerFilter DEFAULT_BROAD_PHASE_LAYER_FILTER = new BroadPhaseLayerFilter();
+    private static final BodyFilter DEFAULT_BODY_FILTER = new BodyFilter();
+    private static final ShapeFilter DEFAULT_SHAPE_FILTER = new ShapeFilter();
 
     private VxPhysicsIntersector() {
     }
@@ -32,10 +41,7 @@ public class VxPhysicsIntersector {
      * @return Body IDs of the intersecting bodies.
      */
     public static int[] broadIntersectPoint(VxPhysicsWorld physicsWorld, Vec3Arg point) {
-        try (ObjectLayerFilter olFilter = new ObjectLayerFilter();
-             BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter()) {
-            return broadIntersectPoint(physicsWorld, point, bplFilter, olFilter);
-        }
+        return broadIntersectPoint(physicsWorld, point, DEFAULT_BROAD_PHASE_LAYER_FILTER, DEFAULT_OBJECT_LAYER_FILTER);
     }
 
     /**
@@ -47,9 +53,7 @@ public class VxPhysicsIntersector {
      * @return Body IDs of the intersecting bodies.
      */
     public static int[] broadIntersectPoint(VxPhysicsWorld physicsWorld, Vec3Arg point, ObjectLayerFilter olFilter) {
-        try (BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter()) {
-            return broadIntersectPoint(physicsWorld, point, bplFilter, olFilter);
-        }
+        return broadIntersectPoint(physicsWorld, point, DEFAULT_BROAD_PHASE_LAYER_FILTER, olFilter);
     }
 
     /**
@@ -88,12 +92,7 @@ public class VxPhysicsIntersector {
      * @return Body IDs of the intersecting bodies.
      */
     public static int[] narrowIntersectPoint(VxPhysicsWorld physicsWorld, RVec3Arg point) {
-        try (ObjectLayerFilter olFilter = new ObjectLayerFilter();
-             BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
-             BodyFilter bodyFilter = new BodyFilter();
-             ShapeFilter shapeFilter = new ShapeFilter()) {
-            return narrowIntersectPoint(physicsWorld, point, bplFilter, olFilter, bodyFilter, shapeFilter);
-        }
+        return narrowIntersectPoint(physicsWorld, point, DEFAULT_BROAD_PHASE_LAYER_FILTER, DEFAULT_OBJECT_LAYER_FILTER, DEFAULT_BODY_FILTER, DEFAULT_SHAPE_FILTER);
     }
 
     /**
@@ -105,11 +104,7 @@ public class VxPhysicsIntersector {
      * @return Body IDs of the intersecting bodies.
      */
     public static int[] narrowIntersectPoint(VxPhysicsWorld physicsWorld, RVec3Arg point, ObjectLayerFilter olFilter) {
-        try (BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
-             BodyFilter bodyFilter = new BodyFilter();
-             ShapeFilter shapeFilter = new ShapeFilter()) {
-            return narrowIntersectPoint(physicsWorld, point, bplFilter, olFilter, bodyFilter, shapeFilter);
-        }
+        return narrowIntersectPoint(physicsWorld, point, DEFAULT_BROAD_PHASE_LAYER_FILTER, olFilter, DEFAULT_BODY_FILTER, DEFAULT_SHAPE_FILTER);
     }
 
     /**
@@ -123,10 +118,7 @@ public class VxPhysicsIntersector {
      */
     public static int[] narrowIntersectPoint(VxPhysicsWorld physicsWorld, RVec3Arg point, BroadPhaseLayerFilter bplFilter,
                                              ObjectLayerFilter olFilter) {
-        try (BodyFilter bodyFilter = new BodyFilter();
-             ShapeFilter shapeFilter = new ShapeFilter()) {
-            return narrowIntersectPoint(physicsWorld, point, bplFilter, olFilter, bodyFilter, shapeFilter);
-        }
+        return narrowIntersectPoint(physicsWorld, point, bplFilter, olFilter, DEFAULT_BODY_FILTER, DEFAULT_SHAPE_FILTER);
     }
 
     /**
@@ -182,10 +174,7 @@ public class VxPhysicsIntersector {
      * @return Body IDs of the intersecting bodies.
      */
     public static int[] broadIntersectSphere(VxPhysicsWorld physicsWorld, Vec3Arg center, float radius) {
-        try (ObjectLayerFilter olFilter = new ObjectLayerFilter();
-             BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter()) {
-            return broadIntersectSphere(physicsWorld, center, radius, bplFilter, olFilter);
-        }
+        return broadIntersectSphere(physicsWorld, center, radius, DEFAULT_BROAD_PHASE_LAYER_FILTER, DEFAULT_OBJECT_LAYER_FILTER);
     }
 
     /**
@@ -198,9 +187,7 @@ public class VxPhysicsIntersector {
      * @return Body IDs of the intersecting bodies.
      */
     public static int[] broadIntersectSphere(VxPhysicsWorld physicsWorld, Vec3Arg center, float radius, ObjectLayerFilter olFilter) {
-        try (BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter()) {
-            return broadIntersectSphere(physicsWorld, center, radius, bplFilter, olFilter);
-        }
+        return broadIntersectSphere(physicsWorld, center, radius, DEFAULT_BROAD_PHASE_LAYER_FILTER, olFilter);
     }
 
     /**
@@ -244,12 +231,7 @@ public class VxPhysicsIntersector {
      */
     public static List<IntersectShapeResult> narrowIntersectShape(VxPhysicsWorld physicsWorld, ConstShape shape, Vec3Arg shapeScale,
                                                                   RMat44Arg comTransform, RVec3Arg base) {
-        try (ObjectLayerFilter olFilter = new ObjectLayerFilter();
-             BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
-             BodyFilter bodyFilter = new BodyFilter();
-             ShapeFilter shapeFilter = new ShapeFilter()) {
-            return narrowIntersectShape(physicsWorld, shape, shapeScale, comTransform, base, bplFilter, olFilter, bodyFilter, shapeFilter);
-        }
+        return narrowIntersectShape(physicsWorld, shape, shapeScale, comTransform, base, DEFAULT_BROAD_PHASE_LAYER_FILTER, DEFAULT_OBJECT_LAYER_FILTER, DEFAULT_BODY_FILTER, DEFAULT_SHAPE_FILTER);
     }
 
     /**
@@ -265,11 +247,7 @@ public class VxPhysicsIntersector {
      */
     public static List<IntersectShapeResult> narrowIntersectShape(VxPhysicsWorld physicsWorld, ConstShape shape, Vec3Arg shapeScale,
                                                                   RMat44Arg comTransform, RVec3Arg base, ObjectLayerFilter olFilter) {
-        try (BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
-             BodyFilter bodyFilter = new BodyFilter();
-             ShapeFilter shapeFilter = new ShapeFilter()) {
-            return narrowIntersectShape(physicsWorld, shape, shapeScale, comTransform, base, bplFilter, olFilter, bodyFilter, shapeFilter);
-        }
+        return narrowIntersectShape(physicsWorld, shape, shapeScale, comTransform, base, DEFAULT_BROAD_PHASE_LAYER_FILTER, olFilter, DEFAULT_BODY_FILTER, DEFAULT_SHAPE_FILTER);
     }
 
     /**
@@ -288,9 +266,7 @@ public class VxPhysicsIntersector {
     public static List<IntersectShapeResult> narrowIntersectShape(VxPhysicsWorld physicsWorld, ConstShape shape, Vec3Arg shapeScale,
                                                                   RMat44Arg comTransform, RVec3Arg base, BroadPhaseLayerFilter bplFilter, ObjectLayerFilter olFilter,
                                                                   BodyFilter bodyFilter) {
-        try (ShapeFilter shapeFilter = new ShapeFilter()) {
-            return narrowIntersectShape(physicsWorld, shape, shapeScale, comTransform, base, bplFilter, olFilter, bodyFilter, shapeFilter);
-        }
+        return narrowIntersectShape(physicsWorld, shape, shapeScale, comTransform, base, bplFilter, olFilter, bodyFilter, DEFAULT_SHAPE_FILTER);
     }
 
     /**
