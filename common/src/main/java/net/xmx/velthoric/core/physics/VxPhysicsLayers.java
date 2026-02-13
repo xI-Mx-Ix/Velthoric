@@ -6,6 +6,8 @@ package net.xmx.velthoric.core.physics;
 
 import com.github.stephengold.joltjni.*;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * Defines object and broad-phase layers for the Jolt physics simulation.
  *
@@ -13,6 +15,10 @@ import com.github.stephengold.joltjni.*;
  * moving and non-moving categories, while keeping terrain in a dedicated layer.
  * This improves broad-phase performance and keeps collision rules simple
  * and predictable.</p>
+ *
+ * <p>The system supports runtime configuration by pre-allocating a fixed number
+ * of layer slots. New layers can be claimed and their collision rules modified
+ * after initialization.</p>
  *
  * <ul>
  *   <li>NON_MOVING: Static and kinematic bodies</li>
@@ -42,9 +48,9 @@ public final class VxPhysicsLayers {
     public static final short TERRAIN = 2;
 
     /**
-     * Total number of object layers
+     * Maximum number of pre-allocated object layers to allow dynamic runtime additions
      */
-    public static final short NUM_OBJECT_LAYERS = 3;
+    public static final short MAX_OBJECT_LAYERS = 64;
 
     /* ===================== Broad Phase Layers ===================== */
 
@@ -63,9 +69,11 @@ public final class VxPhysicsLayers {
      */
     public static final short NUM_BROAD_PHASE_LAYERS = 2;
 
-    private static BroadPhaseLayerInterface broadPhaseLayerInterface;
+    private static final AtomicInteger nextAvailableLayer = new AtomicInteger(3);
+
+    private static BroadPhaseLayerInterfaceTable broadPhaseLayerInterface;
     private static ObjectVsBroadPhaseLayerFilter objectVsBroadPhaseLayerFilter;
-    private static ObjectLayerPairFilter objectLayerPairFilter;
+    private static ObjectLayerPairFilterTable objectLayerPairFilter;
 
     /**
      * Initializes all collision filtering interfaces.
@@ -78,9 +86,10 @@ public final class VxPhysicsLayers {
 
         /* -------- Object Layer Pair Filter --------
          * Defines which pairs of object layers are allowed to collide.
+         * We initialize with MAX_OBJECT_LAYERS to allow dynamic configuration.
          */
         ObjectLayerPairFilterTable olpf =
-                new ObjectLayerPairFilterTable(NUM_OBJECT_LAYERS);
+                new ObjectLayerPairFilterTable(MAX_OBJECT_LAYERS);
 
         // Non-moving objects never collide with each other
         olpf.disableCollision(NON_MOVING, NON_MOVING);
@@ -101,13 +110,18 @@ public final class VxPhysicsLayers {
          */
         BroadPhaseLayerInterfaceTable bpli =
                 new BroadPhaseLayerInterfaceTable(
-                        NUM_OBJECT_LAYERS,
+                        MAX_OBJECT_LAYERS,
                         NUM_BROAD_PHASE_LAYERS
                 );
 
         bpli.mapObjectToBroadPhaseLayer(NON_MOVING, BP_NON_MOVING);
         bpli.mapObjectToBroadPhaseLayer(TERRAIN, BP_NON_MOVING);
         bpli.mapObjectToBroadPhaseLayer(MOVING, BP_MOVING);
+
+        // Initialize remaining slots to non-moving broad-phase by default
+        for (short i = 3; i < MAX_OBJECT_LAYERS; i++) {
+            bpli.mapObjectToBroadPhaseLayer(i, BP_NON_MOVING);
+        }
 
         broadPhaseLayerInterface = bpli;
 
@@ -119,8 +133,49 @@ public final class VxPhysicsLayers {
                         broadPhaseLayerInterface,
                         NUM_BROAD_PHASE_LAYERS,
                         objectLayerPairFilter,
-                        NUM_OBJECT_LAYERS
+                        MAX_OBJECT_LAYERS
                 );
+    }
+
+    /**
+     * Reserves a unique object layer ID from the pre-allocated pool.
+     *
+     * @return A new unique layer ID.
+     * @throws IllegalStateException If the maximum number of layers has been exceeded.
+     */
+    public static short claimLayer() {
+        int id = nextAvailableLayer.getAndIncrement();
+        if (id >= MAX_OBJECT_LAYERS) {
+            throw new IllegalStateException("Maximum pre-allocated physics layers reached: " + MAX_OBJECT_LAYERS);
+        }
+        return (short) id;
+    }
+
+    /**
+     * Configures whether two object layers are permitted to collide.
+     * This can be updated at runtime after initialization.
+     *
+     * @param layer1  The first object layer.
+     * @param layer2  The second object layer.
+     * @param enabled True if collision should be enabled, false otherwise.
+     */
+    public static void setCollision(short layer1, short layer2, boolean enabled) {
+        if (enabled) {
+            objectLayerPairFilter.enableCollision(layer1, layer2);
+        } else {
+            objectLayerPairFilter.disableCollision(layer1, layer2);
+        }
+    }
+
+    /**
+     * Assigns an object layer to a specific broad-phase layer.
+     * This can be updated at runtime after initialization.
+     *
+     * @param objectLayer     The object layer ID.
+     * @param broadPhaseLayer The broad-phase layer ID.
+     */
+    public static void setBroadPhaseMapping(short objectLayer, short broadPhaseLayer) {
+        broadPhaseLayerInterface.mapObjectToBroadPhaseLayer(objectLayer, broadPhaseLayer);
     }
 
     /**
