@@ -7,18 +7,18 @@ package net.xmx.velthoric.item.magnetizer;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.ConstBodyLockInterface;
-import com.github.stephengold.joltjni.readonly.ConstBroadPhaseQuery;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.util.intersect.VxPhysicsIntersector;
+import net.xmx.velthoric.core.util.raycast.VxClipContext;
+import net.xmx.velthoric.core.util.raycast.VxHitResult;
+import net.xmx.velthoric.core.util.raycast.VxRaycaster;
 import net.xmx.velthoric.item.tool.VxToolMode;
 import net.xmx.velthoric.item.tool.config.VxToolConfig;
-import net.xmx.velthoric.core.raycast.VxClipContext;
-import net.xmx.velthoric.core.raycast.VxHitResult;
-import net.xmx.velthoric.core.raycast.VxRaycaster;
-import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.Optional;
 
@@ -82,23 +82,19 @@ public class VxMagnetizerMode extends VxToolMode {
 
         // Apply physics forces
         physicsWorld.execute(() -> {
+            // Find all bodies within the radius of the target point
+            int[] intersections = VxPhysicsIntersector.broadIntersectSphere(physicsWorld, targetPointRVec.toVec3(), radius);
+
+            if (intersections.length == 0)
+                return;
+
             PhysicsSystem physicsSystem = physicsWorld.getPhysicsSystem();
             if (physicsSystem == null) return;
 
-            ConstBroadPhaseQuery broadPhaseQuery = physicsSystem.getBroadPhaseQuery();
-            AllHitCollideShapeBodyCollector collector = new AllHitCollideShapeBodyCollector();
-
-            BroadPhaseLayerFilter broadPhaseFilter = new BroadPhaseLayerFilter();
-            ObjectLayerFilter objectFilter = new ObjectLayerFilter();
-
-            // Find all bodies within the radius of the target point
-            broadPhaseQuery.collideSphere(targetPointRVec.toVec3(), radius, collector, broadPhaseFilter, objectFilter);
-
-            int[] hitBodyIds = collector.getHits();
             BodyInterface bodyInterface = physicsSystem.getBodyInterface();
             ConstBodyLockInterface lockInterface = physicsSystem.getBodyLockInterface();
 
-            for (int bodyId : hitBodyIds) {
+            for (int bodyId : intersections) {
                 // Wake up the body so it can process forces
                 bodyInterface.activateBody(bodyId);
 
@@ -132,7 +128,6 @@ public class VxMagnetizerMode extends VxToolMode {
                     }
                 }
             }
-            collector.close();
         });
     }
 }
