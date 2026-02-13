@@ -6,11 +6,13 @@ package net.xmx.velthoric.util;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
-import com.github.stephengold.joltjni.readonly.ConstBroadPhaseQuery;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.util.intersect.VxPhysicsIntersector;
+
+import java.util.Optional;
 
 /**
- * A utility class for applying explosion forces to physics bodies.
+ * A utility class for applying explosion forces to physic bodies.
  *
  * @author xI-Mx-Ix
  */
@@ -30,78 +32,71 @@ public class VxExplosionUtil {
 
         // Execute on the physics thread to ensure thread safety.
         physicsWorld.execute(() -> {
-            PhysicsSystem physicsSystem = physicsWorld.getPhysicsSystem();
-            if (physicsSystem == null) return;
+                    // Perform a sphere collision query to find intersecting bodies.
+                    int[] intersections = VxPhysicsIntersector.broadIntersectSphere(physicsWorld, explosionCenter, explosionRadius);
 
-            // Use the broad phase query to efficiently find all bodies within the explosion's AABB.
-            ConstBroadPhaseQuery broadPhaseQuery = physicsSystem.getBroadPhaseQuery();
-            AllHitCollideShapeBodyCollector collector = new AllHitCollideShapeBodyCollector();
+                    if (intersections.length == 0)
+                        return;
 
-            // Default filters that collide with everything.
-            BroadPhaseLayerFilter broadPhaseFilter = new BroadPhaseLayerFilter();
-            ObjectLayerFilter objectFilter = new ObjectLayerFilter();
+                    PhysicsSystem physicsSystem = physicsWorld.getPhysicsSystem();
+                    if (physicsSystem == null) return;
 
-            try {
-                // Perform a sphere collision query to find intersecting bodies.
-                broadPhaseQuery.collideSphere(explosionCenter, explosionRadius, collector, broadPhaseFilter, objectFilter);
+                    for (int bodyId : intersections) {
+                        // Activate the body to ensure the impulse is applied.
+                        physicsSystem.getBodyInterface().activateBody(bodyId);
 
-                int[] hitBodyIds = collector.getHits();
-
-                for (int bodyId : hitBodyIds) {
-                    // Activate the body to ensure the impulse is applied.
-                    physicsSystem.getBodyInterface().activateBody(bodyId);
-
-                    try (BodyLockWrite lock = new BodyLockWrite(physicsSystem.getBodyLockInterface(), bodyId)) {
-                        if (lock.succeededAndIsInBroadPhase()) {
-                            Body body = lock.getBody();
-                            // Static bodies are not affected by explosions.
-                            if (body.isStatic()) {
-                                continue;
-                            }
-
-                            if (body.isRigidBody()) {
-                                RVec3 bodyPosR = body.getCenterOfMassPosition();
-                                Vec3 vectorToBody = Op.minus(bodyPosR, explosionCenter.toRVec3()).toVec3();
-
-                                float distanceSq = vectorToBody.lengthSq();
-                                // Check if the body is within the radius and not at the exact center.
-                                if (distanceSq < explosionRadius * explosionRadius && distanceSq > 1.0E-6f) {
-                                    float distance = (float)Math.sqrt(distanceSq);
-
-                                    // Calculate impulse with a squared falloff.
-                                    float falloff = 1.0f - (distance / explosionRadius);
-                                    float impulseMagnitude = explosionStrength * falloff * falloff;
-
-                                    Vec3 impulseDirection = vectorToBody.normalized();
-                                    Vec3 impulse = Op.star(impulseDirection, impulseMagnitude);
-
-                                    body.addImpulse(impulse);
+                        try (BodyLockWrite lock = new BodyLockWrite(physicsSystem.getBodyLockInterface(), bodyId)) {
+                            if (lock.succeededAndIsInBroadPhase()) {
+                                Body body = lock.getBody();
+                                // Static bodies are not affected by explosions.
+                                if (body.isStatic()) {
+                                    continue;
                                 }
-                            } else if (body.isSoftBody()) {
-                                // For soft bodies, apply the impulse to each individual vertex.
-                                SoftBodyMotionProperties motionProperties = (SoftBodyMotionProperties) body.getMotionProperties();
-                                SoftBodyVertex[] vertices = motionProperties.getVertices();
-                                if (vertices.length == 0) continue;
 
-                                for(SoftBodyVertex vertex : vertices) {
-                                    Vec3 vertexPos = vertex.getPosition();
-                                    Vec3 vectorToVertex = Op.minus(vertexPos, explosionCenter);
+                                if (body.isRigidBody()) {
+                                    RVec3 bodyPosR = body.getCenterOfMassPosition();
+                                    Vec3 vectorToBody = Op.minus(bodyPosR, explosionCenter.toRVec3()).toVec3();
 
-                                    float distanceSq = vectorToVertex.lengthSq();
+                                    float distanceSq = vectorToBody.lengthSq();
+                                    // Check if the body is within the radius and not at the exact center.
                                     if (distanceSq < explosionRadius * explosionRadius && distanceSq > 1.0E-6f) {
-                                        float distance = (float)Math.sqrt(distanceSq);
+                                        float distance = (float) Math.sqrt(distanceSq);
+
+                                        // Calculate impulse with a squared falloff.
                                         float falloff = 1.0f - (distance / explosionRadius);
+                                        float impulseMagnitude = explosionStrength * falloff * falloff;
 
-                                        // Distribute the total strength among all vertices.
-                                        float impulseMagnitude = (explosionStrength / vertices.length) * falloff * falloff;
-
-                                        Vec3 impulseDirection = vectorToVertex.normalized();
+                                        Vec3 impulseDirection = vectorToBody.normalized();
                                         Vec3 impulse = Op.star(impulseDirection, impulseMagnitude);
 
-                                        // Apply the impulse by changing the vertex's velocity.
-                                        if(vertex.getInvMass() > 0) {
-                                            Vec3 deltaV = Op.star(impulse, vertex.getInvMass());
-                                            vertex.setVelocity(Op.plus(vertex.getVelocity(), deltaV));
+                                        body.addImpulse(impulse);
+                                    }
+                                } else if (body.isSoftBody()) {
+                                    // For soft bodies, apply the impulse to each individual vertex.
+                                    SoftBodyMotionProperties motionProperties = (SoftBodyMotionProperties) body.getMotionProperties();
+                                    SoftBodyVertex[] vertices = motionProperties.getVertices();
+                                    if (vertices.length == 0) continue;
+
+                                    for (SoftBodyVertex vertex : vertices) {
+                                        Vec3 vertexPos = vertex.getPosition();
+                                        Vec3 vectorToVertex = Op.minus(vertexPos, explosionCenter);
+
+                                        float distanceSq = vectorToVertex.lengthSq();
+                                        if (distanceSq < explosionRadius * explosionRadius && distanceSq > 1.0E-6f) {
+                                            float distance = (float) Math.sqrt(distanceSq);
+                                            float falloff = 1.0f - (distance / explosionRadius);
+
+                                            // Distribute the total strength among all vertices.
+                                            float impulseMagnitude = (explosionStrength / vertices.length) * falloff * falloff;
+
+                                            Vec3 impulseDirection = vectorToVertex.normalized();
+                                            Vec3 impulse = Op.star(impulseDirection, impulseMagnitude);
+
+                                            // Apply the impulse by changing the vertex's velocity.
+                                            if (vertex.getInvMass() > 0) {
+                                                Vec3 deltaV = Op.star(impulse, vertex.getInvMass());
+                                                vertex.setVelocity(Op.plus(vertex.getVelocity(), deltaV));
+                                            }
                                         }
                                     }
                                 }
@@ -109,12 +104,6 @@ public class VxExplosionUtil {
                         }
                     }
                 }
-            } finally {
-                // Ensure native resources are freed.
-                collector.close();
-                broadPhaseFilter.close();
-                objectFilter.close();
-            }
-        });
+        );
     }
 }

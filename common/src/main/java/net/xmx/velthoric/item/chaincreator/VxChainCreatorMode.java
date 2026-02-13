@@ -20,9 +20,9 @@ import net.xmx.velthoric.item.tool.config.VxToolConfig;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
-import net.xmx.velthoric.core.raycast.VxClipContext;
-import net.xmx.velthoric.core.raycast.VxHitResult;
-import net.xmx.velthoric.core.raycast.VxRaycaster;
+import net.xmx.velthoric.core.util.raycast.VxClipContext;
+import net.xmx.velthoric.core.util.raycast.VxHitResult;
+import net.xmx.velthoric.core.util.raycast.VxRaycaster;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.Map;

@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.raycast;
+package net.xmx.velthoric.core.util.raycast;
 
 import com.github.stephengold.joltjni.Vec3;
 import net.minecraft.world.phys.BlockHitResult;
