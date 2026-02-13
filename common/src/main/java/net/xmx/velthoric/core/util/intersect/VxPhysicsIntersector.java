@@ -21,12 +21,7 @@ import java.util.List;
 public class VxPhysicsIntersector {
     private static final int[] EMPTY_INT_ARRAY = new int[0];
 
-    private VxPhysicsIntersector() {}
-
-    /**
-     * A record to hold the raw results of a physics intersect via collide shape, using only Jolt and primitive types.
-     */
-    public record IntersectShapeResult(int bodyId, Vec3 shapeContactPoint, Vec3 bodyContactPoint) {
+    private VxPhysicsIntersector() {
     }
 
     /**
@@ -34,7 +29,7 @@ public class VxPhysicsIntersector {
      *
      * @param physicsWorld The physics world to perform the intersect in.
      * @param point        The point to test.
-     * @return             Body IDs of the intersecting bodies.
+     * @return Body IDs of the intersecting bodies.
      */
     public static int[] broadIntersectPoint(VxPhysicsWorld physicsWorld, Vec3Arg point) {
         try (ObjectLayerFilter olFilter = new ObjectLayerFilter();
@@ -49,7 +44,7 @@ public class VxPhysicsIntersector {
      * @param physicsWorld The physics world to perform the intersect in.
      * @param point        The point to test.
      * @param olFilter     A custom filter for object layers.
-     * @return             Body IDs of the intersecting bodies.
+     * @return Body IDs of the intersecting bodies.
      */
     public static int[] broadIntersectPoint(VxPhysicsWorld physicsWorld, Vec3Arg point, ObjectLayerFilter olFilter) {
         try (BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter()) {
@@ -64,7 +59,7 @@ public class VxPhysicsIntersector {
      * @param point        The point to test.
      * @param bplFilter    A custom filter for broad-phase layers.
      * @param olFilter     A custom filter for object layers.
-     * @return             Body IDs of the intersecting bodies.
+     * @return Body IDs of the intersecting bodies.
      */
     public static int[] broadIntersectPoint(VxPhysicsWorld physicsWorld, Vec3Arg point, BroadPhaseLayerFilter bplFilter, ObjectLayerFilter olFilter) {
         if (physicsWorld == null || !physicsWorld.isRunning() || physicsWorld.getPhysicsSystem() == null) {
@@ -90,7 +85,7 @@ public class VxPhysicsIntersector {
      *
      * @param physicsWorld The physics world to perform the intersect in.
      * @param point        The point to test.
-     * @return             Body IDs of the intersecting bodies.
+     * @return Body IDs of the intersecting bodies.
      */
     public static int[] narrowIntersectPoint(VxPhysicsWorld physicsWorld, RVec3Arg point) {
         try (ObjectLayerFilter olFilter = new ObjectLayerFilter();
@@ -107,7 +102,7 @@ public class VxPhysicsIntersector {
      * @param physicsWorld The physics world to perform the intersect in.
      * @param point        The point to test.
      * @param olFilter     A custom filter for object layers.
-     * @return             Body IDs of the intersecting bodies.
+     * @return Body IDs of the intersecting bodies.
      */
     public static int[] narrowIntersectPoint(VxPhysicsWorld physicsWorld, RVec3Arg point, ObjectLayerFilter olFilter) {
         try (BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
@@ -124,10 +119,10 @@ public class VxPhysicsIntersector {
      * @param point        The point to test.
      * @param bplFilter    A custom filter for broad-phase layers.
      * @param olFilter     A custom filter for object layers.
-     * @return             Body IDs of the intersecting bodies.
+     * @return Body IDs of the intersecting bodies.
      */
     public static int[] narrowIntersectPoint(VxPhysicsWorld physicsWorld, RVec3Arg point, BroadPhaseLayerFilter bplFilter,
-                                                         ObjectLayerFilter olFilter) {
+                                             ObjectLayerFilter olFilter) {
         try (BodyFilter bodyFilter = new BodyFilter();
              ShapeFilter shapeFilter = new ShapeFilter()) {
             return narrowIntersectPoint(physicsWorld, point, bplFilter, olFilter, bodyFilter, shapeFilter);
@@ -143,11 +138,11 @@ public class VxPhysicsIntersector {
      * @param olFilter     A custom filter for object layers.
      * @param bodyFilter   A custom filter for individual physics bodies.
      * @param shapeFilter  A custom filter for shapes.
-     * @return             Body IDs of the intersecting bodies.
+     * @return Body IDs of the intersecting bodies.
      */
     public static int[] narrowIntersectPoint(VxPhysicsWorld physicsWorld, RVec3Arg point, BroadPhaseLayerFilter bplFilter,
-                                                         ObjectLayerFilter olFilter, BodyFilter bodyFilter,
-                                                         ShapeFilter shapeFilter) {
+                                             ObjectLayerFilter olFilter, BodyFilter bodyFilter,
+                                             ShapeFilter shapeFilter) {
         if (physicsWorld == null || !physicsWorld.isRunning() || physicsWorld.getPhysicsSystem() == null) {
             return EMPTY_INT_ARRAY;
         }
@@ -184,7 +179,7 @@ public class VxPhysicsIntersector {
      * @param physicsWorld The physics world to perform the intersect in.
      * @param center       The center of the sphere.
      * @param radius       The radius of the sphere.
-     * @return             Body IDs of the intersecting bodies.
+     * @return Body IDs of the intersecting bodies.
      */
     public static int[] broadIntersectSphere(VxPhysicsWorld physicsWorld, Vec3Arg center, float radius) {
         try (ObjectLayerFilter olFilter = new ObjectLayerFilter();
@@ -200,7 +195,7 @@ public class VxPhysicsIntersector {
      * @param center       The center of the sphere.
      * @param radius       The radius of the sphere.
      * @param olFilter     A custom filter for object layers.
-     * @return             Body IDs of the intersecting bodies.
+     * @return Body IDs of the intersecting bodies.
      */
     public static int[] broadIntersectSphere(VxPhysicsWorld physicsWorld, Vec3Arg center, float radius, ObjectLayerFilter olFilter) {
         try (BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter()) {
@@ -216,10 +211,10 @@ public class VxPhysicsIntersector {
      * @param radius       The radius of the sphere.
      * @param bplFilter    A custom filter for broad-phase layers.
      * @param olFilter     A custom filter for object layers.
-     * @return             Body IDs of the intersecting bodies.
+     * @return Body IDs of the intersecting bodies.
      */
     public static int[] broadIntersectSphere(VxPhysicsWorld physicsWorld, Vec3Arg center, float radius,
-                                                                   BroadPhaseLayerFilter bplFilter, ObjectLayerFilter olFilter) {
+                                             BroadPhaseLayerFilter bplFilter, ObjectLayerFilter olFilter) {
         if (physicsWorld == null || !physicsWorld.isRunning() || physicsWorld.getPhysicsSystem() == null) {
             return EMPTY_INT_ARRAY;
         }
@@ -245,10 +240,10 @@ public class VxPhysicsIntersector {
      * @param shapeScale   The scaling vector for the shape.
      * @param comTransform The coordinate transform to apply to the shape.
      * @param base         The base location for reporting hits ((0,0,0)→world coordinates).
-     * @return             List containing generic physics intersect results.
+     * @return List containing generic physics intersect results.
      */
     public static List<IntersectShapeResult> narrowIntersectShape(VxPhysicsWorld physicsWorld, ConstShape shape, Vec3Arg shapeScale,
-                                                                      RMat44Arg comTransform, RVec3Arg base) {
+                                                                  RMat44Arg comTransform, RVec3Arg base) {
         try (ObjectLayerFilter olFilter = new ObjectLayerFilter();
              BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
              BodyFilter bodyFilter = new BodyFilter();
@@ -266,10 +261,10 @@ public class VxPhysicsIntersector {
      * @param comTransform The coordinate transform to apply to the shape.
      * @param base         The base location for reporting hits ((0,0,0)→world coordinates).
      * @param olFilter     A custom filter for object layers.
-     * @return             List containing generic physics intersect results.
+     * @return List containing generic physics intersect results.
      */
     public static List<IntersectShapeResult> narrowIntersectShape(VxPhysicsWorld physicsWorld, ConstShape shape, Vec3Arg shapeScale,
-                                                                      RMat44Arg comTransform, RVec3Arg base, ObjectLayerFilter olFilter) {
+                                                                  RMat44Arg comTransform, RVec3Arg base, ObjectLayerFilter olFilter) {
         try (BroadPhaseLayerFilter bplFilter = new BroadPhaseLayerFilter();
              BodyFilter bodyFilter = new BodyFilter();
              ShapeFilter shapeFilter = new ShapeFilter()) {
@@ -288,11 +283,11 @@ public class VxPhysicsIntersector {
      * @param bplFilter    A custom filter for broad-phase layers.
      * @param olFilter     A custom filter for object layers.
      * @param bodyFilter   A custom filter for individual physics bodies.
-     * @return             List containing generic physics intersect results.
+     * @return List containing generic physics intersect results.
      */
     public static List<IntersectShapeResult> narrowIntersectShape(VxPhysicsWorld physicsWorld, ConstShape shape, Vec3Arg shapeScale,
-                                                                      RMat44Arg comTransform, RVec3Arg base, BroadPhaseLayerFilter bplFilter, ObjectLayerFilter olFilter,
-                                                                      BodyFilter bodyFilter) {
+                                                                  RMat44Arg comTransform, RVec3Arg base, BroadPhaseLayerFilter bplFilter, ObjectLayerFilter olFilter,
+                                                                  BodyFilter bodyFilter) {
         try (ShapeFilter shapeFilter = new ShapeFilter()) {
             return narrowIntersectShape(physicsWorld, shape, shapeScale, comTransform, base, bplFilter, olFilter, bodyFilter, shapeFilter);
         }
@@ -310,12 +305,12 @@ public class VxPhysicsIntersector {
      * @param olFilter     A custom filter for object layers.
      * @param bodyFilter   A custom filter for individual physics bodies.
      * @param shapeFilter  A custom filter for shapes.
-     * @return             List containing generic physics intersect results.
+     * @return List containing generic physics intersect results.
      */
     public static List<IntersectShapeResult> narrowIntersectShape(VxPhysicsWorld physicsWorld, ConstShape shape, Vec3Arg shapeScale,
-                                                      RMat44Arg comTransform, RVec3Arg base,
-                                                      BroadPhaseLayerFilter bplFilter, ObjectLayerFilter olFilter,
-                                                      BodyFilter bodyFilter, ShapeFilter shapeFilter) {
+                                                                  RMat44Arg comTransform, RVec3Arg base,
+                                                                  BroadPhaseLayerFilter bplFilter, ObjectLayerFilter olFilter,
+                                                                  BodyFilter bodyFilter, ShapeFilter shapeFilter) {
         if (physicsWorld == null || !physicsWorld.isRunning() || physicsWorld.getPhysicsSystem() == null) {
             return Collections.emptyList();
         }
@@ -328,7 +323,7 @@ public class VxPhysicsIntersector {
 
             // Perform colliding with the provided arguments.
             narrowPhaseQuery.collideShape(shape, shapeScale, comTransform, settings, base, collector,
-                            bplFilter, olFilter, bodyFilter, shapeFilter);
+                    bplFilter, olFilter, bodyFilter, shapeFilter);
 
             List<CollideShapeResult> hits = collector.getHits();
             int size = hits.size();
@@ -350,5 +345,11 @@ public class VxPhysicsIntersector {
             VxMainClass.LOGGER.error("Exception during physics shape intersect", e);
         }
         return Collections.emptyList();
+    }
+
+    /**
+     * A record to hold the raw results of a physics intersect via collide shape, using only Jolt and primitive types.
+     */
+    public record IntersectShapeResult(int bodyId, Vec3 shapeContactPoint, Vec3 bodyContactPoint) {
     }
 }

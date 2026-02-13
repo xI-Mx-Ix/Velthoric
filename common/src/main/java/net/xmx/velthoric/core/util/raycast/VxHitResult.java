@@ -63,5 +63,6 @@ public class VxHitResult extends HitResult {
         return Optional.empty();
     }
 
-    public record PhysicsHit(int bodyId, Vec3 hitNormal, float hitFraction) {}
+    public record PhysicsHit(int bodyId, Vec3 hitNormal, float hitFraction) {
+    }
 }
