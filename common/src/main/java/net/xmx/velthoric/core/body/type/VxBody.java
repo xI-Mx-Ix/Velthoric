@@ -54,7 +54,7 @@ public abstract class VxBody {
      * If false, the body is discarded upon unload (useful for temporary debris or effects).
      * Defaults to true.
      */
-    private boolean persistent = true;
+    private boolean persistent;
     /**
      * The ID of the body in the Jolt physics simulation. 0 if not yet added. Server-side only.
      */
