@@ -91,10 +91,8 @@ public class VxConstraintManager {
         }
 
         // Remove constraints from the simulation.
-        // The 'false' parameter ensures we do not delete the persistent data from the storage index,
-        // as we are merely unloading them from RAM, not destroying them.
         for (VxConstraint constraint : constraintsToUnload) {
-            removeConstraint(constraint.getConstraintId(), false);
+            removeConstraint(constraint.getConstraintId());
         }
     }
 
@@ -251,10 +249,8 @@ public class VxConstraintManager {
      * relevant chunk is next serialized.
      *
      * @param constraintId The unique identifier of the constraint to remove.
-     * @param discardData  If true, indicates that the data should be permanently lost (e.g., broken by player).
-     *                     If false, it may imply a temporary unload or save.
      */
-    public void removeConstraint(UUID constraintId, boolean discardData) {
+    public void removeConstraint(UUID constraintId) {
         VxConstraint constraint = activeConstraints.remove(constraintId);
 
         if (constraint != null) {
@@ -275,14 +271,20 @@ public class VxConstraintManager {
         }
     }
 
-    public void removeConstraintsForBody(UUID bodyId, boolean discardData) {
+    public void removeConstraintsForBody(UUID bodyId) {
         activeConstraints.values().stream()
                 .filter(c -> c.getBody1Id().equals(bodyId) || c.getBody2Id().equals(bodyId))
-                .forEach(c -> removeConstraint(c.getConstraintId(), discardData));
+                .forEach(c -> removeConstraint(c.getConstraintId()));
         dataSystem.removeForBody(bodyId);
     }
 
-    public boolean hasActiveConstraint(UUID id) {
+    /**
+     * Checks if a constraint with the given ID is currently active in the physics simulation.
+     *
+     * @param id The UUID of the constraint to check.
+     * @return {@code true} if the constraint is active, {@code false} otherwise.
+     */
+    public boolean isConstraintActive(UUID id) {
         return activeConstraints.containsKey(id);
     }
 

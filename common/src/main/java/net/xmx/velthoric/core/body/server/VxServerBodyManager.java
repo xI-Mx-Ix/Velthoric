@@ -370,7 +370,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
             // If the body is not in memory, we cannot easily modify the chunk blob without
             // incurring a heavy I/O cost (loading, deserializing, filtering, saving).
             // Therefore, we only ensure that runtime constraints linking to this ID are severed.
-            world.getConstraintManager().removeConstraintsForBody(id, reason == VxRemovalReason.DISCARD);
+            world.getConstraintManager().removeConstraintsForBody(id);
             return;
         }
 
@@ -413,8 +413,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         body.onBodyRemoved(world, reason);
 
         // 5. Cleanup Constraints
-        // If we are discarding the body, we also want to permanently delete constraints attached to it.
-        world.getConstraintManager().removeConstraintsForBody(body.getPhysicsId(), reason == VxRemovalReason.DISCARD);
+        world.getConstraintManager().removeConstraintsForBody(body.getPhysicsId());
 
         // 6. Destroy Native Jolt Body
         // This stops the actual physics simulation for this object.
