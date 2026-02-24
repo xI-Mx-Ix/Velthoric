@@ -6,6 +6,7 @@ package net.xmx.velthoric.core.body.server;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.readonly.*;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.server.level.ServerLevel;
@@ -13,6 +14,8 @@ import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
+import java.nio.ByteBuffer;
+import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 
 /**
@@ -21,7 +24,8 @@ import java.nio.FloatBuffer;
  * <p>
  * This class is designed to be highly performant and GC-friendly by avoiding
  * allocations in its hot-path update loops. It performs a post-simulation sync
- * to update the game state with the results from the physics engine.
+ * to update the game state with the results from the physics engine using
+ * batch operations to minimize JNI overhead.
  *
  * @author xI-Mx-Ix
  */
@@ -30,15 +34,26 @@ public class VxPhysicsExtractor {
     private final VxServerBodyManager manager;
     private final VxServerBodyDataStore dataStore;
 
+    /**
+     * The maximum number of bodies processed in a single JNI batch call.
+     */
+    private static final int BATCH_SIZE = 512;
+
     // Thread-local temporary objects to avoid GC pressure in the update loop.
     private final ThreadLocal<RVec3> tempPos = ThreadLocal.withInitial(RVec3::new);
-    private final ThreadLocal<Quat> tempRot = ThreadLocal.withInitial(Quat::new);
-    private final ThreadLocal<Vec3> tempLinVel = ThreadLocal.withInitial(Vec3::new);
-    private final ThreadLocal<Vec3> tempAngVel = ThreadLocal.withInitial(Vec3::new);
 
-    // Reusable lists for batch processing to avoid reallocation.
-    private final ThreadLocal<IntArrayList> bodyIdsToLock = ThreadLocal.withInitial(() -> new IntArrayList(1024));
-    private final ThreadLocal<IntArrayList> dataIndicesToLock = ThreadLocal.withInitial(() -> new IntArrayList(1024));
+    // Reusable batch containers to avoid reallocation.
+    private final ThreadLocal<BodyIdArray> batchBodyIds = ThreadLocal.withInitial(() -> new BodyIdArray(BATCH_SIZE));
+    private final ThreadLocal<IntArrayList> batchDataIndices = ThreadLocal.withInitial(() -> new IntArrayList(BATCH_SIZE));
+
+    // Reusable direct buffers for batch JNI operations.
+    private final ThreadLocal<DoubleBuffer> posBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectDoubleBuffer(BATCH_SIZE * 3));
+    private final ThreadLocal<FloatBuffer> rotBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(BATCH_SIZE * 4));
+    private final ThreadLocal<FloatBuffer> linVelBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(BATCH_SIZE * 3));
+    private final ThreadLocal<FloatBuffer> angVelBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(BATCH_SIZE * 3));
+    private final ThreadLocal<ByteBuffer> activeBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectByteBuffer(BATCH_SIZE));
+    private final ThreadLocal<ByteBuffer> addedBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectByteBuffer(BATCH_SIZE));
+    private final ThreadLocal<ByteBuffer> motionTypeBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectByteBuffer(BATCH_SIZE));
 
     // Reusable direct buffer for native soft body operations to prevent allocation every tick.
     private final ThreadLocal<FloatBuffer> softBodyBufferCache = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(1024));
@@ -69,7 +84,7 @@ public class VxPhysicsExtractor {
      * It performs a post-sync (Jolt -> Game State) after the simulation step.
      */
     private void update(long timestampNanos, VxPhysicsWorld world) {
-        final BodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterfaceNoLock();
+        final BatchBodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterfaceNoLock();
 
         // Post-Update Sync: Retrieve simulation results and update the SoA DataStore.
         postUpdateSync(timestampNanos, world, bodyInterface);
@@ -80,112 +95,150 @@ public class VxPhysicsExtractor {
      * <p>
      * This method operates in two passes:
      * <ol>
-     *     <li><b>Lock-Free Pass:</b> Syncs Position, Rotation, and Velocity using the {@link BodyInterface}.</li>
+     *     <li><b>Batch Pass:</b> Syncs Position, Rotation, and Velocity using the {@link BatchBodyInterface}.</li>
      *     <li><b>Locked Pass:</b> Syncs AABB and SoftBody vertices. This uses sequential locking to ensure
      *     stability across different JNI implementations and platforms.</li>
      * </ol>
      *
      * @param timestampNanos The current timestamp for interpolation tracking.
      * @param world          The physics world instance.
-     * @param bodyInterface  The Jolt body interface for lock-free reads.
+     * @param bodyInterface  The Jolt batch body interface for high-performance reads.
      */
-    private void postUpdateSync(long timestampNanos, VxPhysicsWorld world, BodyInterface bodyInterface) {
-        IntArrayList localBodyIdsToLock = this.bodyIdsToLock.get();
-        IntArrayList localDataIndicesToLock = this.dataIndicesToLock.get();
-
-        // Clear the lists but keep the internal array capacity to avoid reallocation next tick.
-        localBodyIdsToLock.clear();
-        localDataIndicesToLock.clear();
-
-        // Direct array access for maximum performance and CPU cache locality.
+    private void postUpdateSync(long timestampNanos, VxPhysicsWorld world, BatchBodyInterface bodyInterface) {
         final VxBody[] bodies = dataStore.bodies;
         final int capacity = dataStore.getCapacity();
 
-        // --- Pass 1: Lock-free synchronization using BodyInterface ---
-        for (int i = 0; i < capacity; ++i) {
-            // O(1) Access - No Map Lookup required.
-            VxBody obj = bodies[i];
+        BodyIdArray localBatchIds = batchBodyIds.get();
+        IntArrayList localIndices = batchDataIndices.get();
 
-            // Skip empty slots or uninitialized bodies.
+        int currentBatchCount = 0;
+
+        for (int i = 0; i < capacity; ++i) {
+            VxBody obj = bodies[i];
             if (obj == null) continue;
 
             int bodyId = obj.getBodyId();
-            if (bodyId == 0 || !bodyInterface.isAdded(bodyId)) continue;
+            if (bodyId == 0) continue;
 
-            boolean isJoltBodyActive = bodyInterface.isActive(bodyId);
+            localBatchIds.set(currentBatchCount, bodyId);
+            localIndices.add(i);
+            currentBatchCount++;
+
+            // If the batch is full, process it immediately.
+            if (currentBatchCount == BATCH_SIZE) {
+                processBatch(timestampNanos, world, bodyInterface, currentBatchCount);
+                currentBatchCount = 0;
+                localIndices.clear();
+            }
+        }
+
+        // Process remaining bodies in the final batch.
+        if (currentBatchCount > 0) {
+            processBatch(timestampNanos, world, bodyInterface, currentBatchCount);
+            localIndices.clear();
+        }
+    }
+
+    /**
+     * Processes a single batch of bodies by invoking Jolt batch operations and updating the DataStore.
+     *
+     * @param timestampNanos The current simulation timestamp.
+     * @param world          The physics world instance.
+     * @param bodyInterface  The Jolt batch body interface.
+     * @param count          The number of bodies in the current batch.
+     */
+    private void processBatch(long timestampNanos, VxPhysicsWorld world, BatchBodyInterface bodyInterface, int count) {
+        BodyIdArray ids = batchBodyIds.get();
+        IntArrayList indices = batchDataIndices.get();
+
+        // Prepare direct buffers for batch retrieval.
+        ByteBuffer addedStates = addedBuffer.get();
+        addedStates.clear();
+        bodyInterface.areAdded(ids, addedStates);
+
+        ByteBuffer activeStates = activeBuffer.get();
+        activeStates.clear();
+        bodyInterface.areActive(ids, activeStates);
+
+        DoubleBuffer positions = posBuffer.get();
+        positions.clear();
+        bodyInterface.getPositions(ids, positions);
+
+        FloatBuffer rotations = rotBuffer.get();
+        rotations.clear();
+        bodyInterface.getRotations(ids, rotations);
+
+        FloatBuffer linVels = linVelBuffer.get();
+        linVels.clear();
+        bodyInterface.getLinearVelocities(ids, linVels);
+
+        FloatBuffer angVels = angVelBuffer.get();
+        angVels.clear();
+        bodyInterface.getAngularVelocities(ids, angVels);
+
+        ByteBuffer motionTypes = motionTypeBuffer.get();
+        motionTypes.clear();
+        bodyInterface.getMotionTypes(ids, motionTypes);
+
+        final VxBody[] bodies = dataStore.bodies;
+        ConstBodyLockInterfaceNoLock lockInterface = world.getPhysicsSystem().getBodyLockInterfaceNoLock();
+
+        for (int b = 0; b < count; b++) {
+            if (addedStates.get(b) == 0) continue;
+
+            int i = indices.getInt(b);
+            VxBody obj = bodies[i];
+            if (obj == null) continue;
+
+            boolean isJoltBodyActive = activeStates.get(b) != 0;
             boolean wasDataStoreBodyActive = dataStore.isActive[i];
 
-            // Only synchronize if the body is currently active or was active last frame (to capture sleep transition).
             if (isJoltBodyActive || wasDataStoreBodyActive) {
                 obj.onPhysicsTick(world);
 
-                // Sync transform, velocities, and motion type using performant BodyInterface methods.
-                // We use ThreadLocal temporary objects to avoid Vector allocations in the loop.
-                final RVec3 pos = tempPos.get();
-                final Quat rot = tempRot.get();
-                bodyInterface.getPositionAndRotation(bodyId, pos, rot);
+                // Update Position.
+                dataStore.posX[i] = positions.get(b * 3);
+                dataStore.posY[i] = positions.get(b * 3 + 1);
+                dataStore.posZ[i] = positions.get(b * 3 + 2);
 
-                dataStore.posX[i] = pos.xx();
-                dataStore.posY[i] = pos.yy();
-                dataStore.posZ[i] = pos.zz();
+                // Update Rotation.
+                dataStore.rotX[i] = rotations.get(b * 4);
+                dataStore.rotY[i] = rotations.get(b * 4 + 1);
+                dataStore.rotZ[i] = rotations.get(b * 4 + 2);
+                dataStore.rotW[i] = rotations.get(b * 4 + 3);
 
-                dataStore.rotX[i] = rot.getX();
-                dataStore.rotY[i] = rot.getY();
-                dataStore.rotZ[i] = rot.getZ();
-                dataStore.rotW[i] = rot.getW();
+                // Update Linear Velocity.
+                dataStore.velX[i] = linVels.get(b * 3);
+                dataStore.velY[i] = linVels.get(b * 3 + 1);
+                dataStore.velZ[i] = linVels.get(b * 3 + 2);
 
-                final Vec3 linVel = tempLinVel.get();
-                bodyInterface.getLinearVelocity(bodyId, linVel);
-                dataStore.velX[i] = linVel.getX();
-                dataStore.velY[i] = linVel.getY();
-                dataStore.velZ[i] = linVel.getZ();
+                // Update Angular Velocity.
+                dataStore.angVelX[i] = angVels.get(b * 3);
+                dataStore.angVelY[i] = angVels.get(b * 3 + 1);
+                dataStore.angVelZ[i] = angVels.get(b * 3 + 2);
 
-                final Vec3 angVel = tempAngVel.get();
-                bodyInterface.getAngularVelocity(bodyId, angVel);
-                dataStore.angVelX[i] = angVel.getX();
-                dataStore.angVelY[i] = angVel.getY();
-                dataStore.angVelZ[i] = angVel.getZ();
+                // Update Motion Type.
+                dataStore.motionType[i] = EMotionType.values()[motionTypes.get(b)];
 
-                dataStore.motionType[i] = bodyInterface.getMotionType(bodyId);
-
-                // Add to list for Pass 2 (AABB & SoftBody sync)
-                localBodyIdsToLock.add(bodyId);
-                localDataIndicesToLock.add(i);
-
-                // Update management flags
+                // Update management flags.
                 dataStore.isActive[i] = isJoltBodyActive;
                 dataStore.lastUpdateTimestamp[i] = timestampNanos;
                 dataStore.isTransformDirty[i] = true;
 
                 // --- Spatial Tracking Update ---
                 final long lastKey = dataStore.chunkKey[i];
-                final long currentKey = VxSpatialManager.calculateChunkKey(pos.xx(), pos.zz());
+                final long currentKey = VxSpatialManager.calculateChunkKey(dataStore.posX[i], dataStore.posZ[i]);
 
                 if (lastKey != currentKey) {
                     manager.updateBodyTracking(obj, lastKey, currentKey);
                 }
-            }
-        }
 
-        // --- Pass 2: Sync AABB & SoftBody data (Sequential Lock) ---
-        if (!localBodyIdsToLock.isEmpty()) {
-            ConstBodyLockInterfaceNoLock lockInterface = world.getPhysicsSystem().getBodyLockInterfaceNoLock();
-            int count = localBodyIdsToLock.size();
-
-            for (int j = 0; j < count; j++) {
-                int bodyId = localBodyIdsToLock.getInt(j);
-
-                // Acquire an individual read lock for each body.
+                // --- Pass 2: Locked data sync (AABB & SoftBody) ---
+                int bodyId = ids.get(b);
                 try (BodyLockRead lock = new BodyLockRead(lockInterface, bodyId)) {
                     ConstBody body = lock.getBody();
                     if (body != null) {
-                        // Retrieve the original DataStore index for this body ID
-                        int i = localDataIndicesToLock.getInt(j);
-
-                        // Ensure the body still exists in the array (thread safety precaution)
-                        if (bodies[i] == null) continue;
-
-                        // Sync World Space AABB
+                        // Sync World Space AABB.
                         ConstAaBox bounds = body.getWorldSpaceBounds();
                         Vec3 min = bounds.getMin();
                         Vec3 max = bounds.getMax();
@@ -197,7 +250,7 @@ public class VxPhysicsExtractor {
                         dataStore.aabbMaxY[i] = max.getY();
                         dataStore.aabbMaxZ[i] = max.getZ();
 
-                        // Sync soft body vertices if applicable
+                        // Sync soft body vertices if applicable.
                         if (dataStore.bodyType[i] == EBodyType.SoftBody) {
                             RVec3 pos = tempPos.get();
                             pos.set(dataStore.posX[i], dataStore.posY[i], dataStore.posZ[i]);
