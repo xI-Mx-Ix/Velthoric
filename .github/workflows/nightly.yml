@@ -40,8 +40,7 @@ jobs:
           name: Velthoric-Build-${{ github.sha }}
           path: |
             fabric/build/libs/*.jar
-            forge/build/libs/*.jar
-            common/build/libs/*.jar
+            neoforge/build/libs/*.jar
           retention-days: 7
 
       # Step 6: Create or update the public "nightly" pre-release
@@ -55,5 +54,4 @@ jobs:
           title: "Development Build (Nightly)"
           files: |
             fabric/build/libs/*.jar
-            forge/build/libs/*.jar
-            common/build/libs/*.jar
+            neoforge/build/libs/*.jar
