@@ -11,3 +11,13 @@ dependencies {
     modImplementation "dev.architectury:architectury:$rootProject.architectury_api_version"
     include(implementation(annotationProcessor("io.github.llamalad7:mixinextras-fabric:$mixinextras_version")))
 }
+
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = base.archivesName.get()
+            from components.java
+        }
+    }
+}
