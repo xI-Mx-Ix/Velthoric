@@ -133,7 +133,7 @@ public class S2CUpdateBodyStateBatchPacket implements IVxNetPacket {
 
                 ChunkPos cp = new ChunkPos(chunkPosLong);
                 double baseX = cp.getMinBlockX();
-                double baseY = -64.0; // Standard world bottom height
+                double baseY = context.getPlayer().level().getMinBuildHeight();
                 double baseZ = cp.getMinBlockZ();
 
                 manager.addClockSyncSample(timestamp - manager.getClock().getGameTimeNanos());
