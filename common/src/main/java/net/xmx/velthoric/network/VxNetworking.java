@@ -68,16 +68,16 @@ public class VxNetworking {
     public static void init() {
         // Register the raw payload receiver for the client side (S2C)
         if (Platform.getEnv() == EnvType.CLIENT) {
-            NetworkManager.registerReceiver(NetworkManager.Side.S2C, VxRawPayload.TYPE, VxRawPayload.CODEC, VxNetworking::handlePacket);
+            NetworkManager.registerReceiver(NetworkManager.Side.S2C, VxRawPayload.TYPE_S2C, VxRawPayload.CODEC_S2C, VxNetworking::handlePacket);
         }
 
         // Register the raw payload receiver for the server side (C2S)
-        NetworkManager.registerReceiver(NetworkManager.Side.C2S, VxRawPayload.TYPE, VxRawPayload.CODEC, VxNetworking::handlePacket);
+        NetworkManager.registerReceiver(NetworkManager.Side.C2S, VxRawPayload.TYPE_C2S, VxRawPayload.CODEC_C2S, VxNetworking::handlePacket);
 
         // For dedicated servers (or general compliance), we must register the S2C payload type
         // so that the server knows it is capable of sending this payload type to clients.
         if (Platform.getEnv() == EnvType.SERVER) {
-            NetworkManager.registerS2CPayloadType(VxRawPayload.TYPE, VxRawPayload.CODEC);
+            NetworkManager.registerS2CPayloadType(VxRawPayload.TYPE_S2C, VxRawPayload.CODEC_S2C);
         }
     }
 
@@ -197,8 +197,8 @@ public class VxNetworking {
      */
     public static void sendToServer(IVxNetPacket packet) {
         ByteBuf buf = createBuffer(packet);
-        if (NetworkManager.canServerReceive(VxRawPayload.TYPE)) {
-            NetworkManager.sendToServer(new VxRawPayload(buf));
+        if (NetworkManager.canServerReceive(VxRawPayload.TYPE_C2S)) {
+            NetworkManager.sendToServer(new VxRawPayload(buf, VxRawPayload.TYPE_C2S));
         } else {
             // Prevent memory leaks if the packet cannot be sent
             buf.release();
@@ -213,8 +213,8 @@ public class VxNetworking {
      */
     public static void sendToPlayer(ServerPlayer player, IVxNetPacket packet) {
         ByteBuf buf = createBuffer(packet);
-        if (NetworkManager.canPlayerReceive(player, VxRawPayload.TYPE)) {
-            NetworkManager.sendToPlayer(player, new VxRawPayload(buf));
+        if (NetworkManager.canPlayerReceive(player, VxRawPayload.TYPE_S2C)) {
+            NetworkManager.sendToPlayer(player, new VxRawPayload(buf, VxRawPayload.TYPE_S2C));
         } else {
             buf.release();
         }
@@ -233,7 +233,7 @@ public class VxNetworking {
         // but since we wrap a raw buffer in a record, the record creation is cheap.
         NetworkManager.sendToPlayers(
                 GameInstance.getServer().getPlayerList().getPlayers(),
-                new VxRawPayload(buf)
+                new VxRawPayload(buf, VxRawPayload.TYPE_S2C)
         );
     }
 
@@ -249,7 +249,7 @@ public class VxNetworking {
         ServerLevel level = GameInstance.getServer().getLevel(dimension);
         if (level != null) {
             ByteBuf buf = createBuffer(packet);
-            NetworkManager.sendToPlayers(level.players(), new VxRawPayload(buf));
+            NetworkManager.sendToPlayers(level.players(), new VxRawPayload(buf, VxRawPayload.TYPE_S2C));
         }
     }
 }
