@@ -109,11 +109,6 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
     // --- Dirty Flags for Synchronization ---
 
     /**
-     * Flag indicating that the game logic has modified this body's state, requiring a sync TO Jolt.
-     */
-    public boolean[] isGameStateDirty;
-
-    /**
      * Flag indicating that the body's transform (pos/rot/vel) has changed, requiring a network sync TO Clients.
      */
     public boolean[] isTransformDirty;
@@ -198,7 +193,6 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
         }
         networkId[index] = -1;
 
-        isGameStateDirty[index] = false;
         isTransformDirty[index] = false;
         isVertexDataDirty[index] = false;
         isCustomDataDirty[index] = false;
@@ -230,7 +224,6 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
         chunkKey = grow(chunkKey, newCapacity);
         networkId = grow(networkId, newCapacity);
 
-        isGameStateDirty = grow(isGameStateDirty, newCapacity);
         isTransformDirty = grow(isTransformDirty, newCapacity);
         isVertexDataDirty = grow(isVertexDataDirty, newCapacity);
         isCustomDataDirty = grow(isCustomDataDirty, newCapacity);
