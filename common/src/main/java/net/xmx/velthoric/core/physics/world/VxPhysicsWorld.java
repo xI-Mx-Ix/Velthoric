@@ -184,6 +184,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         if (this.timeAccumulator >= FIXED_TIME_STEP) {
             long startTime = System.nanoTime();
 
+            this.onPrePhysicsTick();
+
             int error = this.physicsSystem.update(FIXED_TIME_STEP, 1, this.tempAllocator, this.jobSystem);
             if (error != EPhysicsUpdateError.None) {
                 VxMainClass.LOGGER.error("Jolt physics update failed with error code: {}. Shutting down world.", error);
@@ -196,6 +198,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             this.physicsFrameTimer.logFrameDuration(System.nanoTime() - startTime);
             this.timeAccumulator -= FIXED_TIME_STEP;
         }
+    }
+
+    public void onPrePhysicsTick() {
+        this.bodyManager.onPrePhysicsTick(this);
     }
 
 

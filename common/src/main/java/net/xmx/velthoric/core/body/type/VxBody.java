@@ -129,6 +129,18 @@ public abstract class VxBody {
     public void onBodyRemoved(VxPhysicsWorld world, VxRemovalReason reason) {}
 
     /**
+     * Called on each pre-physics-step tick for this body.
+     * <p>
+     * Runs exclusively during the physics thread at a fixed rate
+     * (typically 60 times per second). Sleeping bodies do not receive
+     * pre-physics ticks.
+     *
+     * @param world The physics world instance.
+     */
+    public void onPrePhysicsTick(VxPhysicsWorld world) {}
+
+
+    /**
      * Called on each physics-step tick for this body.
      * <p>
      * Runs exclusively during the physics thread at a fixed rate

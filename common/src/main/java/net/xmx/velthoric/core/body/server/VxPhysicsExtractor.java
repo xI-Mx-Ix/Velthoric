@@ -64,7 +64,17 @@ public class VxPhysicsExtractor {
     }
 
     /**
+     * Entry point called from the main physics thread loop before each simulation step.
+     *
+     * @param world The physics world instance.
+     */
+    public void onPrePhysicsTick(VxPhysicsWorld world) {
+        this.preUpdate(world);
+    }
+
+    /**
      * Entry point called from the main physics thread loop for each simulation step.
+     *
      * @param world The physics world instance.
      */
     public void onPhysicsTick(VxPhysicsWorld world) {
@@ -73,10 +83,37 @@ public class VxPhysicsExtractor {
 
     /**
      * Entry point called from the main server thread for each game tick.
+     *
      * @param level The server level.
      */
     public void onGameTick(ServerLevel level) {
         this.manager.getAllBodies().forEach(obj -> obj.onServerTick(level));
+    }
+
+    /**
+     * The pre-update loop, executed on the physics thread before the simulation step.
+     * Iterates over all registered bodies and notifies active ones that a physics tick is about to begin.
+     * <p>
+     * This stage does not interact with the physics engine directly. It only broadcasts a pre-tick event to bodies
+     * that are currently active in the DataStore.
+     */
+    private void preUpdate(VxPhysicsWorld world) {
+        final VxBody[] bodies = dataStore.bodies;
+        final int capacity = dataStore.getCapacity();
+
+        for (int i = 0; i < capacity; ++i) {
+            VxBody obj = bodies[i];
+            if (obj == null) continue;
+
+            int bodyId = obj.getBodyId();
+            if (bodyId == 0) continue;
+
+            boolean wasDataStoreBodyActive = dataStore.isActive[i];
+
+            if (wasDataStoreBodyActive) {
+                obj.onPrePhysicsTick(world);
+            }
+        }
     }
 
     /**
@@ -126,7 +163,7 @@ public class VxPhysicsExtractor {
 
             // If the batch is full, process it immediately.
             if (currentBatchCount == BATCH_SIZE) {
-                processBatch(timestampNanos, world, bodyInterface, currentBatchCount);
+                processUpdateBatch(timestampNanos, world, bodyInterface, currentBatchCount);
                 currentBatchCount = 0;
                 localIndices.clear();
             }
@@ -134,20 +171,20 @@ public class VxPhysicsExtractor {
 
         // Process remaining bodies in the final batch.
         if (currentBatchCount > 0) {
-            processBatch(timestampNanos, world, bodyInterface, currentBatchCount);
+            processUpdateBatch(timestampNanos, world, bodyInterface, currentBatchCount);
             localIndices.clear();
         }
     }
 
     /**
-     * Processes a single batch of bodies by invoking Jolt batch operations and updating the DataStore.
+     * Processes a single batch update of bodies during update step by invoking Jolt batch operations and updating the DataStore.
      *
      * @param timestampNanos The current simulation timestamp.
      * @param world          The physics world instance.
      * @param bodyInterface  The Jolt batch body interface.
      * @param count          The number of bodies in the current batch.
      */
-    private void processBatch(long timestampNanos, VxPhysicsWorld world, BatchBodyInterface bodyInterface, int count) {
+    private void processUpdateBatch(long timestampNanos, VxPhysicsWorld world, BatchBodyInterface bodyInterface, int count) {
         BodyIdArray ids = batchBodyIds.get();
         IntArrayList indices = batchDataIndices.get();
 
@@ -268,9 +305,9 @@ public class VxPhysicsExtractor {
      * It also checks if the vertices have actually changed before updating the array in the store
      * to minimize downstream processing and network syncs.
      *
-     * @param body The locked ConstBody instance of the soft body.
+     * @param body         The locked ConstBody instance of the soft body.
      * @param bodyPosition The current position of the body's center of mass.
-     * @param dataIndex The index of the body in the DataStore.
+     * @param dataIndex    The index of the body in the DataStore.
      */
     private void updateSoftBodyVertices(ConstBody body, RVec3Arg bodyPosition, int dataIndex) {
         ConstSoftBodyMotionProperties motionProps = (ConstSoftBodyMotionProperties) body.getMotionProperties();

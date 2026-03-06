@@ -166,6 +166,15 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      *
      * @param world The physics world being ticked.
      */
+    public void onPrePhysicsTick(VxPhysicsWorld world) {
+        physicsExtractor.onPrePhysicsTick(world);
+    }
+
+    /**
+     * Called during the physics thread tick. Delegates to the updater to advance simulation state.
+     *
+     * @param world The physics world being ticked.
+     */
     public void onPhysicsTick(VxPhysicsWorld world) {
         physicsExtractor.onPhysicsTick(world);
     }
