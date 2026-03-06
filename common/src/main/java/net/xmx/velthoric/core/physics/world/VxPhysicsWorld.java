@@ -327,7 +327,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return this.dimensionKey;
     }
 
-    public float getFixedTimeStep() {
+    public static float getFixedTimeStep() {
         return FIXED_TIME_STEP;
     }
 
