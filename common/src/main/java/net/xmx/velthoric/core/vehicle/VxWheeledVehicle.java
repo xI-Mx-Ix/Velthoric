@@ -150,7 +150,7 @@ public abstract class VxWheeledVehicle extends VxVehicle {
      * @param id     The unique identifier.
      * @param config The vehicle configuration.
      */
-    public VxWheeledVehicle(VxBodyType<? extends VxWheeledVehicle> type, VxPhysicsWorld world, UUID id, VxWheeledVehicleConfig config) {
+    public VxWheeledVehicle(VxBodyType type, VxPhysicsWorld world, UUID id, VxWheeledVehicleConfig config) {
         super(type, world, id, config);
         this.initializeComponents();
     }
@@ -163,7 +163,7 @@ public abstract class VxWheeledVehicle extends VxVehicle {
      * @param config The vehicle configuration.
      */
     @Environment(EnvType.CLIENT)
-    public VxWheeledVehicle(VxBodyType<? extends VxWheeledVehicle> type, UUID id, VxWheeledVehicleConfig config) {
+    public VxWheeledVehicle(VxBodyType type, UUID id, VxWheeledVehicleConfig config) {
         super(type, id, config);
         this.initializeComponents();
     }

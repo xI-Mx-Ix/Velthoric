@@ -15,7 +15,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.type.VxSoftBody;
+import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.body.type.factory.VxSoftBodyFactory;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
@@ -27,7 +27,7 @@ import java.util.function.BiFunction;
  *
  * @author xI-Mx-Ix
  */
-public class ClothSoftBody extends VxSoftBody {
+public class ClothSoftBody extends VxBody {
 
     public static final VxServerAccessor<Integer> DATA_WIDTH_SEGMENTS = VxServerAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
     public static final VxServerAccessor<Integer> DATA_HEIGHT_SEGMENTS = VxServerAccessor.create(ClothSoftBody.class, VxDataSerializers.INTEGER);
@@ -40,7 +40,7 @@ public class ClothSoftBody extends VxSoftBody {
     /**
      * Server-side constructor.
      */
-    public ClothSoftBody(VxBodyType<ClothSoftBody> type, VxPhysicsWorld world, UUID id) {
+    public ClothSoftBody(VxBodyType type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
         this.clothWidth = 2.0f;
         this.clothHeight = 2.0f;
@@ -52,7 +52,7 @@ public class ClothSoftBody extends VxSoftBody {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    public ClothSoftBody(VxBodyType<ClothSoftBody> type, UUID id) {
+    public ClothSoftBody(VxBodyType type, UUID id) {
         super(type, id);
     }
 
@@ -71,10 +71,13 @@ public class ClothSoftBody extends VxSoftBody {
         this.compliance = compliance;
     }
 
-    @Override
-    public int createJoltBody(VxSoftBodyFactory factory) {
-        int widthSegments = get(DATA_WIDTH_SEGMENTS);
-        int heightSegments = get(DATA_HEIGHT_SEGMENTS);
+    /**
+     * Creates the Jolt soft body. Used as the {@code VxJoltSoftProvider} for this type.
+     */
+    public static int createJoltBody(VxBody body, VxSoftBodyFactory factory) {
+        ClothSoftBody cloth = (ClothSoftBody) body;
+        int widthSegments = body.get(DATA_WIDTH_SEGMENTS);
+        int heightSegments = body.get(DATA_HEIGHT_SEGMENTS);
         int numVerticesX = widthSegments + 1;
         int numVerticesY = heightSegments + 1;
         int totalVertices = numVerticesX * numVerticesY;
@@ -83,15 +86,15 @@ public class ClothSoftBody extends VxSoftBody {
                 SoftBodySharedSettings sharedSettings = new SoftBodySharedSettings();
                 SoftBodyCreationSettings creationSettings = new SoftBodyCreationSettings()
         ) {
-            float segmentWidth = clothWidth / widthSegments;
-            float segmentHeight = clothHeight / heightSegments;
-            float invMassPerVertex = (this.mass > 0) ? totalVertices / this.mass : 0f;
+            float segmentWidth = cloth.clothWidth / widthSegments;
+            float segmentHeight = cloth.clothHeight / heightSegments;
+            float invMassPerVertex = (cloth.mass > 0) ? totalVertices / cloth.mass : 0f;
 
             Vec3[] vertexPositions = new Vec3[totalVertices];
             for (int y = 0; y < numVerticesY; ++y) {
                 for (int x = 0; x < numVerticesX; ++x) {
                     int index = y * numVerticesX + x;
-                    vertexPositions[index] = new Vec3((x * segmentWidth) - (clothWidth / 2.0f), 0, (y * segmentHeight) - (clothHeight / 2.0f));
+                    vertexPositions[index] = new Vec3((x * segmentWidth) - (cloth.clothWidth / 2.0f), 0, (y * segmentHeight) - (cloth.clothHeight / 2.0f));
                     Vertex v = new Vertex();
                     v.setPosition(vertexPositions[index]);
                     v.setInvMass(invMassPerVertex);
@@ -102,13 +105,13 @@ public class ClothSoftBody extends VxSoftBody {
             BiFunction<Integer, Integer, Integer> getIndex = (x, y) -> y * numVerticesX + x;
             for (int y = 0; y < numVerticesY; ++y) {
                 for (int x = 0; x < numVerticesX; ++x) {
-                    if (x < widthSegments) addEdge(sharedSettings, getIndex.apply(x, y), getIndex.apply(x + 1, y), compliance, vertexPositions);
-                    if (y < heightSegments) addEdge(sharedSettings, getIndex.apply(x, y), getIndex.apply(x, y + 1), compliance, vertexPositions);
+                    if (x < widthSegments) addEdge(sharedSettings, getIndex.apply(x, y), getIndex.apply(x + 1, y), cloth.compliance, vertexPositions);
+                    if (y < heightSegments) addEdge(sharedSettings, getIndex.apply(x, y), getIndex.apply(x, y + 1), cloth.compliance, vertexPositions);
                     if (x < widthSegments && y < heightSegments) {
-                        addEdge(sharedSettings, getIndex.apply(x, y), getIndex.apply(x + 1, y + 1), compliance, vertexPositions);
-                        addEdge(sharedSettings, getIndex.apply(x + 1, y), getIndex.apply(x, y + 1), compliance, vertexPositions);
+                        addEdge(sharedSettings, getIndex.apply(x, y), getIndex.apply(x + 1, y + 1), cloth.compliance, vertexPositions);
+                        addEdge(sharedSettings, getIndex.apply(x + 1, y), getIndex.apply(x, y + 1), cloth.compliance, vertexPositions);
                     }
-                    float bendCompliance = compliance * 10f;
+                    float bendCompliance = cloth.compliance * 10f;
                     if (x < widthSegments - 1) addEdge(sharedSettings, getIndex.apply(x, y), getIndex.apply(x + 2, y), bendCompliance, vertexPositions);
                     if (y < heightSegments - 1) addEdge(sharedSettings, getIndex.apply(x, y), getIndex.apply(x, y + 2), bendCompliance, vertexPositions);
                 }
@@ -122,7 +125,7 @@ public class ClothSoftBody extends VxSoftBody {
         }
     }
 
-    private void addEdge(SoftBodySharedSettings settings, int v1Index, int v2Index, float edgeCompliance, Vec3[] vertexPositions) {
+    private static void addEdge(SoftBodySharedSettings settings, int v1Index, int v2Index, float edgeCompliance, Vec3[] vertexPositions) {
         Edge edge = new Edge();
         edge.setVertex(0, v1Index);
         edge.setVertex(1, v2Index);
@@ -134,23 +137,23 @@ public class ClothSoftBody extends VxSoftBody {
         settings.addEdgeConstraint(edge);
     }
 
-    @Override
-    public void writePersistenceData(VxByteBuf buf) {
-        buf.writeInt(get(DATA_WIDTH_SEGMENTS));
-        buf.writeInt(get(DATA_HEIGHT_SEGMENTS));
-        buf.writeFloat(this.clothWidth);
-        buf.writeFloat(this.clothHeight);
-        buf.writeFloat(this.mass);
-        buf.writeFloat(this.compliance);
+    public static void writePersistence(VxBody body, VxByteBuf buf) {
+        ClothSoftBody cloth = (ClothSoftBody) body;
+        buf.writeInt(body.get(DATA_WIDTH_SEGMENTS));
+        buf.writeInt(body.get(DATA_HEIGHT_SEGMENTS));
+        buf.writeFloat(cloth.clothWidth);
+        buf.writeFloat(cloth.clothHeight);
+        buf.writeFloat(cloth.mass);
+        buf.writeFloat(cloth.compliance);
     }
 
-    @Override
-    public void readPersistenceData(VxByteBuf buf) {
-        setServerData(DATA_WIDTH_SEGMENTS, buf.readInt());
-        setServerData(DATA_HEIGHT_SEGMENTS, buf.readInt());
-        this.clothWidth = buf.readFloat();
-        this.clothHeight = buf.readFloat();
-        this.mass = buf.readFloat();
-        this.compliance = buf.readFloat();
+    public static void readPersistence(VxBody body, VxByteBuf buf) {
+        ClothSoftBody cloth = (ClothSoftBody) body;
+        body.setServerData(DATA_WIDTH_SEGMENTS, buf.readInt());
+        body.setServerData(DATA_HEIGHT_SEGMENTS, buf.readInt());
+        cloth.clothWidth = buf.readFloat();
+        cloth.clothHeight = buf.readFloat();
+        cloth.mass = buf.readFloat();
+        cloth.compliance = buf.readFloat();
     }
 }

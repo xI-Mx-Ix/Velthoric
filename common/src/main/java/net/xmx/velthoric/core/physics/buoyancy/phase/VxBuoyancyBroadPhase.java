@@ -12,6 +12,7 @@ import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.FlowingFluid;
+import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.physics.buoyancy.VxBuoyancyDataStore;
@@ -99,6 +100,7 @@ public final class VxBuoyancyBroadPhase {
             if (ds.motionType[i] == EMotionType.Static || ds.getIdForIndex(i) == null || !ds.isActive[i]) {
                 continue;
             }
+            if ((ds.behaviorBits[i] & VxBehaviors.BUOYANCY.getMask()) == 0) continue;
 
             // Retrieve world-space bounds from the data store.
             float minX = ds.aabbMinX[i];

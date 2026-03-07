@@ -11,7 +11,8 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.client.renderer.VxRigidBodyRenderer;
+import net.xmx.velthoric.core.body.client.renderer.VxBodyRenderer;
+import net.xmx.velthoric.core.body.type.VxBody;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -22,13 +23,13 @@ import org.joml.Vector3f;
  *
  * @author xI-Mx-Ix
  */
-public class SphereRenderer extends VxRigidBodyRenderer<SphereRigidBody> {
+public class SphereRenderer extends VxBodyRenderer<VxBody> {
 
     private static final int STACKS = 16;
     private static final int SECTORS = 32;
 
     @Override
-    public void render(SphereRigidBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         Quat renderRotation = renderState.transform.getRotation();

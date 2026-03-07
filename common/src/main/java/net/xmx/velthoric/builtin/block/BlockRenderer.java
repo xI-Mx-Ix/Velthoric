@@ -22,7 +22,8 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.client.renderer.VxRigidBodyRenderer;
+import net.xmx.velthoric.core.body.client.renderer.VxBodyRenderer;
+import net.xmx.velthoric.core.body.type.VxBody;
 import org.joml.Quaternionf;
 
 /**
@@ -30,13 +31,13 @@ import org.joml.Quaternionf;
  *
  * @author xI-Mx-Ix
  */
-public class BlockRenderer extends VxRigidBodyRenderer<BlockRigidBody> {
+public class BlockRenderer extends VxBodyRenderer<VxBody> {
 
     private BlockEntity cachedBlockEntity;
     private BlockState lastBlockState;
 
     @Override
-    public void render(BlockRigidBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         int blockStateId = body.get(BlockRigidBody.DATA_BLOCK_STATE_ID);
         BlockState blockStateToRender = Block.stateById(blockStateId);
 

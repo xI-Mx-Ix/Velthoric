@@ -12,7 +12,8 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.client.renderer.VxRigidBodyRenderer;
+import net.xmx.velthoric.core.body.client.renderer.VxBodyRenderer;
+import net.xmx.velthoric.core.body.type.VxBody;
 import org.joml.Quaternionf;
 
 /**
@@ -24,12 +25,12 @@ import org.joml.Quaternionf;
  *
  * @author xI-Mx-Ix
  */
-public class VxChainPartRenderer extends VxRigidBodyRenderer<VxChainPartRigidBody> {
+public class VxChainPartRenderer extends VxBodyRenderer<VxBody> {
 
     private static final BlockState CHAIN_BLOCK_STATE = Blocks.CHAIN.defaultBlockState();
 
     @Override
-    public void render(VxChainPartRigidBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         Quat rot = renderState.transform.getRotation();
@@ -37,8 +38,9 @@ public class VxChainPartRenderer extends VxRigidBodyRenderer<VxChainPartRigidBod
         // Apply the physics transformation (Rotation)
         poseStack.mulPose(new Quaternionf(rot.getX(), rot.getY(), rot.getZ(), rot.getW()));
 
-        float length = body.getLength();
-        float radius = body.getRadius();
+        VxChainPartRigidBody chain = (VxChainPartRigidBody) body;
+        float length = chain.getLength();
+        float radius = chain.getRadius();
 
         // Based on the provided JSON model ("from": 6.5 to "to": 9.5), the chain texture is exactly 3 pixels wide.
         // We want this 3-pixel wide visual plane to match the physics diameter (2 * radius).

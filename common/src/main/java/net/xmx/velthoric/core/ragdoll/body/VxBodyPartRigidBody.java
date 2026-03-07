@@ -18,7 +18,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.type.VxRigidBody;
+import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.core.ragdoll.VxBodyPart;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
@@ -31,7 +31,7 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public class VxBodyPartRigidBody extends VxRigidBody {
+public class VxBodyPartRigidBody extends VxBody {
 
     public static final VxServerAccessor<Vec3> DATA_HALF_EXTENTS = VxServerAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.VEC3);
     public static final VxServerAccessor<VxBodyPart> DATA_BODY_PART = VxServerAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.BODY_PART);
@@ -40,7 +40,7 @@ public class VxBodyPartRigidBody extends VxRigidBody {
     /**
      * Server-side constructor.
      */
-    public VxBodyPartRigidBody(VxBodyType<VxBodyPartRigidBody> type, VxPhysicsWorld world, UUID id) {
+    public VxBodyPartRigidBody(VxBodyType type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
     }
 
@@ -48,7 +48,7 @@ public class VxBodyPartRigidBody extends VxRigidBody {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    public VxBodyPartRigidBody(VxBodyType<VxBodyPartRigidBody> type, UUID id) {
+    public VxBodyPartRigidBody(VxBodyType type, UUID id) {
         super(type, id);
     }
 
@@ -59,9 +59,8 @@ public class VxBodyPartRigidBody extends VxRigidBody {
         builder.define(DATA_SKIN_ID, "");
     }
 
-    @Override
-    public int createJoltBody(VxRigidBodyFactory factory) {
-        VxBodyPart partType = get(DATA_BODY_PART);
+    public static int createJoltBody(VxBody body, VxRigidBodyFactory factory) {
+        VxBodyPart partType = body.get(DATA_BODY_PART);
         Vec3 fullSize = partType.getSize();
 
         ShapeSettings shapeSettings;
@@ -118,19 +117,15 @@ public class VxBodyPartRigidBody extends VxRigidBody {
     }
 
 
-    @Override
-    public void writePersistenceData(VxByteBuf buf) {
-        super.writePersistenceData(buf);
-        VxDataSerializers.VEC3.write(buf, get(DATA_HALF_EXTENTS));
-        VxDataSerializers.BODY_PART.write(buf, get(DATA_BODY_PART));
-        VxDataSerializers.STRING.write(buf, get(DATA_SKIN_ID));
+    public static void writePersistence(VxBody body, VxByteBuf buf) {
+        VxDataSerializers.VEC3.write(buf, body.get(DATA_HALF_EXTENTS));
+        VxDataSerializers.BODY_PART.write(buf, body.get(DATA_BODY_PART));
+        VxDataSerializers.STRING.write(buf, body.get(DATA_SKIN_ID));
     }
 
-    @Override
-    public void readPersistenceData(VxByteBuf buf) {
-        super.readPersistenceData(buf);
-        setServerData(DATA_HALF_EXTENTS, VxDataSerializers.VEC3.read(buf));
-        setServerData(DATA_BODY_PART, VxDataSerializers.BODY_PART.read(buf));
-        setServerData(DATA_SKIN_ID, VxDataSerializers.STRING.read(buf));
+    public static void readPersistence(VxBody body, VxByteBuf buf) {
+        body.setServerData(DATA_HALF_EXTENTS, VxDataSerializers.VEC3.read(buf));
+        body.setServerData(DATA_BODY_PART, VxDataSerializers.BODY_PART.read(buf));
+        body.setServerData(DATA_SKIN_ID, VxDataSerializers.STRING.read(buf));
     }
 }

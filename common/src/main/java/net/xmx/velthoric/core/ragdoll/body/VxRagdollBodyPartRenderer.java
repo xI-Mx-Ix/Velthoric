@@ -19,7 +19,8 @@ import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.client.renderer.VxRigidBodyRenderer;
+import net.xmx.velthoric.core.body.client.renderer.VxBodyRenderer;
+import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.ragdoll.VxBodyPart;
 import org.joml.Quaternionf;
 
@@ -37,7 +38,7 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public class VxRagdollBodyPartRenderer extends VxRigidBodyRenderer<VxBodyPartRigidBody> {
+public class VxRagdollBodyPartRenderer extends VxBodyRenderer<VxBody> {
 
     /**
      * The model instance for the standard "Steve" skin layout (wide arms).
@@ -72,7 +73,8 @@ public class VxRagdollBodyPartRenderer extends VxRigidBodyRenderer<VxBodyPartRig
     }
 
     @Override
-    public void render(VxBodyPartRigidBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxBody abstractBody, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+        VxBodyPartRigidBody body = (VxBodyPartRigidBody) abstractBody;
         if (!isInitialized) {
             initialize();
         }

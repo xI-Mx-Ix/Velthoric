@@ -14,9 +14,11 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.xmx.velthoric.builtin.drivable.renderer.VxSeatRenderer;
 import net.xmx.velthoric.builtin.drivable.renderer.VxWheelRenderer;
-import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
+import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.physics.VxPhysicsLayers;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.core.vehicle.config.VxCarConfig;
 import net.xmx.velthoric.core.vehicle.part.VxPart;
 import net.xmx.velthoric.core.vehicle.part.definition.VxSeatDefinition;
@@ -26,7 +28,6 @@ import net.xmx.velthoric.core.vehicle.part.impl.VxVehicleWheel;
 import net.xmx.velthoric.core.vehicle.part.slot.VehicleSeatSlot;
 import net.xmx.velthoric.core.vehicle.part.slot.VehicleWheelSlot;
 import net.xmx.velthoric.core.vehicle.type.VxCar;
-import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
 import java.util.UUID;
@@ -103,12 +104,12 @@ public class CarImpl extends VxCar {
         return config;
     }
 
-    public CarImpl(VxBodyType<CarImpl> type, VxPhysicsWorld world, UUID id) {
+    public CarImpl(VxBodyType type, VxPhysicsWorld world, UUID id) {
         super(type, world, id, createDefaultConfig());
     }
 
     @Environment(EnvType.CLIENT)
-    public CarImpl(VxBodyType<CarImpl> type, UUID id) {
+    public CarImpl(VxBodyType type, UUID id) {
         super(type, id, createDefaultConfig());
     }
 
@@ -128,12 +129,12 @@ public class CarImpl extends VxCar {
         return new VehicleCollisionTesterCastCylinder(VxPhysicsLayers.MOVING);
     }
 
-    @Override
-    public int createJoltBody(VxRigidBodyFactory factory) {
-        Vector3f extents = config.getChassisHalfExtents();
+    public static int createJoltBody(VxBody abstractBody, VxRigidBodyFactory factory) {
+        CarImpl body = (CarImpl) abstractBody;
+        Vector3f extents = body.config.getChassisHalfExtents();
         try (ShapeSettings chassisShape = new BoxShapeSettings(new Vec3(extents.x, extents.y, extents.z))) {
 
-            Vector3f com = config.getCenterOfMassOffset();
+            Vector3f com = body.config.getCenterOfMassOffset();
             Vec3 centerOfMassOffset = new Vec3(com.x, com.y, com.z);
 
             try (
@@ -146,7 +147,7 @@ public class CarImpl extends VxCar {
                 bcs.setMotionQuality(EMotionQuality.LinearCast);
                 bcs.setMaxLinearVelocity(500.0f);
                 bcs.setMaxAngularVelocity(100.0f);
-                bcs.getMassPropertiesOverride().setMass(config.getMass());
+                bcs.getMassPropertiesOverride().setMass(body.config.getMass());
                 bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
                 return factory.create(finalShapeSettings, bcs);
             }

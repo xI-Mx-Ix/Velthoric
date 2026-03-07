@@ -13,195 +13,188 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
-import net.xmx.velthoric.core.body.client.VxClientBodyManager;
-import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.VxBodyDataStore;
 import net.xmx.velthoric.core.body.VxRemovalReason;
-import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.VxRenderState;
+import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxClientAccessor;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxDataAccessor;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.math.VxTransform;
+import net.xmx.velthoric.network.VxByteBuf;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.UUID;
 
 /**
- * The abstract base class for all physics bodies in Velthoric.
- * This unified class handles both server-side logic (physics simulation, persistence)
- * and client-side logic (rendering state calculation).
- * Users should inherit from this class's children, {@link VxRigidBody} or {@link VxSoftBody}.
+ * Acts as a primary handle and management delegate for a physics object.
+ * <p>
+ * This class provides a high-level API for interacting with the underlying Structure of Arrays (SoA)
+ * data storage. It coordinates synchronized data, lifecycle events, and serves as the bridge
+ * between the game world and the physics simulation.
  *
  * @author xI-Mx-Ix
  */
-public abstract class VxBody {
-
-    // --- Common Fields ---
-    protected final UUID physicsId;
-    protected final VxSynchronizedData synchronizedData;
-    protected final VxBodyType<? extends VxBody> type;
+public class VxBody {
 
     /**
-     * Flag indicating whether this body should be serialized to disk.
-     * <p>
-     * If true, the body is saved when the chunk is unloaded or saved.
-     * If false, the body is discarded upon unload (useful for temporary debris or effects).
-     * Defaults to true.
+     * The unique persistent identifier for this body instance.
      */
-    private boolean persistent;
+    protected final UUID physicsId;
+
     /**
-     * The ID of the body in the Jolt physics simulation. 0 if not yet added. Server-side only.
+     * Container for all data synchronized between server and client.
+     */
+    protected final VxSynchronizedData synchronizedData;
+
+    /**
+     * The immutable type definition that describes the properties of this body.
+     */
+    protected final VxBodyType type;
+
+    /**
+     * The native Jolt Body ID assigned to this instance. Only valid on the server.
      */
     private int bodyId = 0;
+
     /**
-     * The index of this body's data in the data store. -1 if not yet added.
+     * The current index of this body within the Structure of Arrays (SoA) data store.
      */
     private int dataStoreIndex = -1;
+
     /**
-     * The session-specific network ID for this body. -1 if not assigned. Server-side only.
+     * A session-unique integer ID used for optimized network packets.
      */
     private int networkId = -1;
 
     /**
-     * The data store backing this body.
-     * On the Server, this is the {@link VxServerBodyDataStore} (Simulation state).
-     * On the Client, this is the {@link VxClientBodyDataStore} (Interpolated render state).
+     * The data store instance that manages the physical state of this body.
      */
     protected VxBodyDataStore dataStore;
 
-    // --- Server-Only Fields ---
+    /**
+     * The physics world this body is currently simulated in.
+     */
     protected final VxPhysicsWorld physicsWorld;
 
     /**
-     * Server-side constructor.
-     * @param type         The body type definition.
-     * @param physicsWorld The physics world this body belongs to.
-     * @param id           The unique UUID for this body.
+     * Constructs a new server-side body instance.
+     *
+     * @param type         The type definition for this body.
+     * @param physicsWorld The physics world it belongs to.
+     * @param id           The unique identifier for this instance.
      */
-    protected VxBody(VxBodyType<? extends VxBody> type, VxPhysicsWorld physicsWorld, UUID id) {
+    public VxBody(VxBodyType type, VxPhysicsWorld physicsWorld, UUID id) {
         this.type = type;
         this.physicsWorld = physicsWorld;
         this.physicsId = id;
-        this.persistent = type.isPersistent();
-        // Use the builder to construct the synchronized data
         VxSynchronizedData.Builder builder = new VxSynchronizedData.Builder();
         this.defineSyncData(builder);
         this.synchronizedData = builder.build();
     }
 
     /**
-     * Client-side constructor.
-     * @param type The body type definition.
-     * @param id The unique UUID for this body.
+     * Constructs a new client-side body instance.
+     *
+     * @param type The type definition for this body.
+     * @param id   The unique identifier for this instance.
      */
     @Environment(EnvType.CLIENT)
-    protected VxBody(VxBodyType<? extends VxBody> type, UUID id) {
+    public VxBody(VxBodyType type, UUID id) {
         this.type = type;
         this.physicsId = id;
-        this.persistent = type.isPersistent();
-        // Use the builder to construct the synchronized data
         VxSynchronizedData.Builder builder = new VxSynchronizedData.Builder();
         this.defineSyncData(builder);
         this.synchronizedData = builder.build();
-        // Server-only fields are left null on the client.
         this.physicsWorld = null;
     }
 
-    // --- Server-Side Lifecycle and Ticking ---
-
     /**
-     * Called when the body is successfully added to the Jolt physics world.
-     * @param world The physics world the body was added to.
-     */
-    public void onBodyAdded(VxPhysicsWorld world) {}
-
-    /**
-     * Called when the body is removed from the world.
-     * @param world The physics world.
-     * @param reason The reason for removal.
-     */
-    public void onBodyRemoved(VxPhysicsWorld world, VxRemovalReason reason) {}
-
-    /**
-     * Called on each pre-physics-step tick for this body.
-     * <p>
-     * Runs exclusively during the physics thread at a fixed rate
-     * (typically 60 times per second). Sleeping bodies do not receive
-     * pre-physics ticks.
+     * Invoked when the body is successfully integrated into the native physics simulation.
      *
      * @param world The physics world instance.
      */
-    public void onPrePhysicsTick(VxPhysicsWorld world) {}
-
+    public void onBodyAdded(VxPhysicsWorld world) {
+    }
 
     /**
-     * Called on each physics-step tick for this body.
-     * <p>
-     * Runs exclusively during the physics thread at a fixed rate
-     * (typically 60 times per second). Sleeping bodies do not receive
-     * physics ticks.
+     * Invoked when the body is being removed from the physics world.
+     *
+     * @param world  The physics world instance.
+     * @param reason The context behind the removal.
+     */
+    public void onBodyRemoved(VxPhysicsWorld world, VxRemovalReason reason) {
+    }
+
+    /**
+     * Logic executed before the physics simulation step on the physics thread.
      *
      * @param world The physics world instance.
      */
-    public void onPhysicsTick(VxPhysicsWorld world) {}
+    public void onPrePhysicsTick(VxPhysicsWorld world) {
+    }
 
     /**
-     * Called on each game-thread tick for this body.
-     * <p>
-     * Executed only on the server thread. This method is not invoked
-     * for sleeping bodies unless they are explicitly woken up.
+     * Logic executed after the physics simulation step on the physics thread.
+     *
+     * @param world The physics world instance.
+     */
+    public void onPhysicsTick(VxPhysicsWorld world) {
+    }
+
+    /**
+     * Logic executed once per game tick on the main server thread.
      *
      * @param level The server level instance.
      */
-    public void onServerTick(ServerLevel level) {}
-
-
-    // --- Client-Side Lifecycle and Ticking ---
+    public void onServerTick(ServerLevel level) {
+    }
 
     /**
-     * Called when the body is successfully added to the client world.
-     * This can be used to initialize client-side state or effects related to the body.
+     * Invoked when the body is registered in a client-side level.
      *
-     * @param level The client level the body was added to.
-     */
-    public void onBodyAdded(ClientLevel level) {}
-
-    /**
-     * Called when the body is removed from the client world.
-     * Use this to clean up any client-side state or effects associated with the body.
-     *
-     * @param level The client level the body was removed from.
-     */
-    public void onBodyRemoved(ClientLevel level) {}
-
-
-    /**
-     * Called on every client tick for this body (Client Only).
-     * This occurs before interpolation and rendering updates.
+     * @param level The client level instance.
      */
     @Environment(EnvType.CLIENT)
-    public void onClientTick() {}
-
-
-    // --- Common Synchronized Data Management ---
+    public void onBodyAdded(ClientLevel level) {
+    }
 
     /**
-     * Called in the constructor to define all synchronized data fields for this body type.
-     * Implementations should call {@code builder.define(ACCESSOR, defaultValue)}.
-     * @param builder The builder to define data on.
-     */
-    protected abstract void defineSyncData(VxSynchronizedData.Builder builder);
-
-    /**
-     * Gets the value of a synchronized data field. Reading is allowed on both sides.
+     * Invoked when the body is removed from a client-side level.
      *
-     * @param accessor The accessor for the data (can be Client or Server type).
+     * @param level The client level instance.
+     */
+    @Environment(EnvType.CLIENT)
+    public void onBodyRemoved(ClientLevel level) {
+    }
+
+    /**
+     * Logic executed once per client tick.
+     */
+    @Environment(EnvType.CLIENT)
+    public void onClientTick() {
+    }
+
+    /**
+     * Defines the synchronized data fields for this body.
+     *
+     * @param builder The builder used to define data accessors.
+     */
+    protected void defineSyncData(VxSynchronizedData.Builder builder) {
+        type.defineSyncData(builder);
+    }
+
+    /**
+     * Retrieves the value of a synchronized data field.
+     *
+     * @param accessor The accessor key.
+     * @param <T>      The type of data.
      * @return The current value.
      */
     public <T> T get(VxDataAccessor<T> accessor) {
@@ -209,75 +202,55 @@ public abstract class VxBody {
     }
 
     /**
-     * Sets SERVER-Authoritative data.
-     * This method is only for use on the Logical Server.
+     * Sets the value of a server-authoritative data field and marks it for synchronization.
      *
-     * @param accessor A strongly-typed {@link VxServerAccessor}.
+     * @param accessor The accessor key.
      * @param value    The new value.
-     * @throws IllegalStateException If called on the client (where physicsWorld is null).
+     * @param <T>      The type of data.
      */
     public <T> void setServerData(VxServerAccessor<T> accessor, T value) {
         if (this.physicsWorld == null) {
             throw new IllegalStateException("Cannot set SERVER-authoritative data on the Client. Data: " + accessor.getId());
         }
-
-        // Apply update to internal storage
         this.synchronizedData.set(accessor, value);
-
-        // Mark dirty for S2C replication via the server manager
         if (this.synchronizedData.isDirty()) {
             this.physicsWorld.getBodyManager().markCustomDataDirty(this);
         }
     }
 
     /**
-     * Sets CLIENT-Authoritative data.
-     * This method is only for use on the Logical Client.
+     * Sets the value of a client-authoritative data field and marks it for synchronization.
      *
-     * @param accessor A strongly-typed {@link VxClientAccessor}.
+     * @param accessor The accessor key.
      * @param value    The new value.
-     * @throws IllegalStateException If called on the server (where physicsWorld is not null).
+     * @param <T>      The type of data.
      */
     public <T> void setClientData(VxClientAccessor<T> accessor, T value) {
         if (this.physicsWorld != null) {
             throw new IllegalStateException("Cannot set CLIENT-authoritative data on the Server. Data: " + accessor.getId());
         }
-
-        // Apply update to internal storage
         this.synchronizedData.set(accessor, value);
-
-        // Mark dirty for C2S replication via the client manager
         if (this.synchronizedData.isDirty()) {
             VxClientBodyManager.getInstance().markBodyDirty(this);
         }
     }
 
     /**
-     * Called when SERVER-authoritative synchronized data has been updated.
-     * <p>
-     * - On Client: Triggered when an S2C packet updates this data.
-     *
-     * @param accessor The specific server data accessor that was just updated.
+     * Callback for when a server-authoritative field is updated.
      */
     public void onSyncedDataUpdated(VxServerAccessor<?> accessor) {
-        // This is a hook for subclasses to implement.
     }
 
     /**
-     * Called when CLIENT-authoritative synchronized data has been updated.
-     * <p>
-     * - On Server: Triggered when a C2S packet updates this data.
-     * - On Client: Triggered when other clients update this data (via Server relay).
-     *
-     * @param accessor The specific client data accessor that was just updated.
+     * Callback for when a client-authoritative field is updated.
      */
     public void onSyncedDataUpdated(VxClientAccessor<?> accessor) {
-        // This is a hook for subclasses to implement.
     }
 
     /**
-     * Writes all defined synchronized data to the buffer. Used for spawning the body on the client.
-     * @param buf The buffer to write to.
+     * Writes all synchronized data to a buffer for initial spawning.
+     *
+     * @param buf The buffer to write into.
      */
     public void writeInitialSyncData(VxByteBuf buf) {
         List<VxSynchronizedData.Entry<?>> allEntries = this.synchronizedData.getAllEntries();
@@ -285,52 +258,36 @@ public abstract class VxBody {
     }
 
     /**
-     * Writes only the dirty synchronized data entries to the buffer for updates.
-     * @param buf The buffer to write to.
-     * @return True if any data was written, false otherwise.
+     * Writes only modified synchronized data to a buffer.
+     *
+     * @param buf The buffer to write into.
+     * @return True if data was written, false if no fields were dirty.
      */
     public boolean writeDirtySyncData(VxByteBuf buf) {
         List<VxSynchronizedData.Entry<?>> dirtyEntries = this.synchronizedData.getDirtyEntries();
-        if (dirtyEntries == null) {
-            return false;
-        }
+        if (dirtyEntries == null) return false;
         VxSynchronizedData.writeEntries(buf, dirtyEntries);
         this.synchronizedData.clearDirty();
         return true;
     }
 
-
-    // --- Server-Side Persistence ---
-
     /**
-     * Writes the comprehensive internal state of this body to the buffer for persistence.
-     * This includes standard physics data (position, rotation, velocity) and delegates
-     * to {@link #writePersistenceData(VxByteBuf)} for custom user data.
-     * <p>
-     * Subclasses (like {@link VxSoftBody}) should override this to save additional
-     * internal state (e.g., vertex data) but must call super or handle the standard data manually.
+     * Serializes the internal state of the body for persistent storage.
      *
-     * @param buf The buffer to write the state to.
+     * @param buf The buffer to write into.
      */
     public void writeInternalPersistenceData(VxByteBuf buf) {
-        if (this.physicsWorld == null || this.dataStoreIndex == -1) {
-            return;
-        }
+        if (this.physicsWorld == null || this.dataStoreIndex == -1) return;
         VxServerBodyDataStore store = this.physicsWorld.getBodyManager().getDataStore();
         int idx = this.dataStoreIndex;
 
-        // Write Position (as double for precision storage)
         buf.writeDouble(store.posX[idx]);
         buf.writeDouble(store.posY[idx]);
         buf.writeDouble(store.posZ[idx]);
-
-        // Write Rotation
         buf.writeFloat(store.rotX[idx]);
         buf.writeFloat(store.rotY[idx]);
         buf.writeFloat(store.rotZ[idx]);
         buf.writeFloat(store.rotW[idx]);
-
-        // Write Velocities
         buf.writeFloat(store.velX[idx]);
         buf.writeFloat(store.velY[idx]);
         buf.writeFloat(store.velZ[idx]);
@@ -338,87 +295,74 @@ public abstract class VxBody {
         buf.writeFloat(store.angVelY[idx]);
         buf.writeFloat(store.angVelZ[idx]);
 
-        // Write Motion Type
         EMotionType motionType = store.motionType[idx];
         buf.writeByte(motionType != null ? motionType.ordinal() : EMotionType.Static.ordinal());
 
-        // Write User Persistence Data
-        this.writePersistenceData(buf);
+        if (VxBehaviors.SOFT_PHYSICS.isSet(store.behaviorBits[idx])) {
+            float[] vertices = this.physicsWorld.getBodyManager().retrieveSoftBodyVertices(this);
+            if (vertices != null) {
+                buf.writeInt(vertices.length);
+                for (float val : vertices) buf.writeFloat(val);
+            } else {
+                buf.writeInt(0);
+            }
+        }
+
+        this.type.getPersistenceHandler().write(this, buf);
     }
 
     /**
-     * Reads the internal state written by {@link #writeInternalPersistenceData(VxByteBuf)}.
-     * This reconstructs the physics state and custom user data.
+     * Deserializes and restores the internal state of the body from storage.
      *
-     * @param buf The buffer containing the body state.
+     * @param buf The buffer to read from.
      */
     public void readInternalPersistenceData(VxByteBuf buf) {
-        // Read Position (read as double)
-        double px = buf.readDouble();
-        double py = buf.readDouble();
-        double pz = buf.readDouble();
-
-        // Read Rotation
-        float rx = buf.readFloat();
-        float ry = buf.readFloat();
-        float rz = buf.readFloat();
-        float rw = buf.readFloat();
-
-        // Read Velocities
-        float vx = buf.readFloat();
-        float vy = buf.readFloat();
-        float vz = buf.readFloat();
-        float avx = buf.readFloat();
-        float avy = buf.readFloat();
-        float avz = buf.readFloat();
-
-        // Read Motion Type
+        double px = buf.readDouble(), py = buf.readDouble(), pz = buf.readDouble();
+        float rx = buf.readFloat(), ry = buf.readFloat(), rz = buf.readFloat(), rw = buf.readFloat();
+        float vx = buf.readFloat(), vy = buf.readFloat(), vz = buf.readFloat();
+        float avx = buf.readFloat(), avy = buf.readFloat(), avz = buf.readFloat();
         int motionOrdinal = buf.readByte();
 
-        // Apply read values to the current data store if connected, or hold them for initialization
         if (this.physicsWorld != null && this.dataStoreIndex != -1) {
             VxServerBodyDataStore store = this.physicsWorld.getBodyManager().getDataStore();
             int idx = this.dataStoreIndex;
-
-            // Store directly as doubles to preserve precision from persistence
             store.posX[idx] = px;
             store.posY[idx] = py;
             store.posZ[idx] = pz;
-
-            store.rotX[idx] = rx; store.rotY[idx] = ry; store.rotZ[idx] = rz; store.rotW[idx] = rw;
-            store.velX[idx] = vx; store.velY[idx] = vy; store.velZ[idx] = vz;
-            store.angVelX[idx] = avx; store.angVelY[idx] = avy; store.angVelZ[idx] = avz;
+            store.rotX[idx] = rx;
+            store.rotY[idx] = ry;
+            store.rotZ[idx] = rz;
+            store.rotW[idx] = rw;
+            store.velX[idx] = vx;
+            store.velY[idx] = vy;
+            store.velZ[idx] = vz;
+            store.angVelX[idx] = avx;
+            store.angVelY[idx] = avy;
+            store.angVelZ[idx] = avz;
             store.motionType[idx] = EMotionType.values()[Math.max(0, Math.min(motionOrdinal, EMotionType.values().length - 1))];
         }
 
-        // Read User Persistence Data
-        this.readPersistenceData(buf);
+        if (this.type.isSoft()) {
+            int vertexCount = buf.readInt();
+            if (vertexCount > 0) {
+                float[] vertices = new float[vertexCount];
+                for (int i = 0; i < vertexCount; i++) vertices[i] = buf.readFloat();
+                if (this.physicsWorld != null) {
+                    this.physicsWorld.getBodyManager().updateSoftBodyVertices(this, vertices);
+                }
+            }
+        }
+
+        this.type.getPersistenceHandler().read(this, buf);
     }
 
     /**
-     * Writes data needed to save this body to disk.
-     * This is used for persistence.
-     * @param buf The buffer to write to.
-     */
-    public void writePersistenceData(VxByteBuf buf) {}
-
-    /**
-     * Reads the data written by {@link #writePersistenceData(VxByteBuf)} when loading from disk.
-     * @param buf The buffer to read from.
-     */
-    public void readPersistenceData(VxByteBuf buf) {}
-
-
-    /**
-     * Populates the given transform with this body's current state from the data store.
-     * <p>
-     * This method is agnostic to the execution side (Client/Server).
+     * Populates the provided transform object with current data.
      *
      * @param outTransform The transform object to populate.
      */
     public void getTransform(VxTransform outTransform) {
         if (this.dataStore != null && this.dataStoreIndex != -1) {
-            // Ensure the index is within bounds before access
             if (this.dataStoreIndex < this.dataStore.getCapacity()) {
                 outTransform.getTranslation().set(
                         this.dataStore.posX[this.dataStoreIndex],
@@ -436,9 +380,7 @@ public abstract class VxBody {
     }
 
     /**
-     * Returns a new transform representing this body's current state.
-     *
-     * @return A new VxTransform containing the position and rotation.
+     * @return A new transform instance representing the current state.
      */
     public VxTransform getTransform() {
         VxTransform transform = new VxTransform();
@@ -446,27 +388,30 @@ public abstract class VxBody {
         return transform;
     }
 
-    // --- Client-Side Rendering Logic ---
-
     /**
-     * Calculates the final, interpolated render state for the body for the current frame.
-     * This method populates the provided output bodies with the interpolated transform.
-     * Client-side only.
+     * Calculates the interpolated state for rendering.
      *
-     * @param partialTicks The fraction of a tick that has passed since the last full tick.
-     * @param outState     The {@link VxRenderState} object to populate with the final state.
-     * @param tempPos      A reusable {@link RVec3} to store the intermediate interpolated position.
-     * @param tempRot      A reusable {@link Quat} to store the intermediate interpolated rotation.
+     * @param partialTicks The frame interpolation factor.
+     * @param outState     The state object to populate.
+     * @param tempPos      Temporary vector for calculation.
+     * @param tempRot      Temporary quaternion for calculation.
      */
     @Environment(EnvType.CLIENT)
-    public abstract void calculateRenderState(float partialTicks, VxRenderState outState, RVec3 tempPos, Quat tempRot);
+    public void calculateRenderState(float partialTicks, VxRenderState outState, RVec3 tempPos, Quat tempRot) {
+        VxClientBodyManager manager = VxClientBodyManager.getInstance();
+        manager.getInterpolator().interpolateFrame(manager.getStore(), this.dataStoreIndex, partialTicks, tempPos, tempRot);
+        outState.transform.getTranslation().set(tempPos);
+        outState.transform.getRotation().set(tempRot);
+
+        if (this.type.isSoft()) {
+            outState.vertexData = manager.getInterpolator().getInterpolatedVertexData(manager.getStore(), this.dataStoreIndex, partialTicks);
+        } else {
+            outState.vertexData = null;
+        }
+    }
 
     /**
-     * Gets the Axis-Aligned Bounding Box used for frustum culling.
-     * Client-side only.
-     *
-     * @param inflation The amount to inflate the box by, to prevent culling at screen edges.
-     * @return A new AABB for culling.
+     * @return An Axis-Aligned Bounding Box used for frustum culling.
      */
     @Environment(EnvType.CLIENT)
     public AABB getCullingAABB(float inflation) {
@@ -478,21 +423,15 @@ public abstract class VxBody {
     }
 
     /**
-     * Checks if the client-side representation of this body has been fully initialized.
-     * Client-side only.
-     *
-     * @return True if initialized, false otherwise.
+     * @return True if the body has been fully initialized for rendering.
      */
     @Environment(EnvType.CLIENT)
     public boolean isInitialized() {
         return VxClientBodyManager.getInstance().getStore().render_isInitialized[dataStoreIndex];
     }
 
-
-    // --- Getters and Setters ---
-
     /**
-     * @return The unique ID of this physics body instance.
+     * @return The persistent UUID of this body.
      */
     public UUID getPhysicsId() {
         return this.physicsId;
@@ -501,39 +440,19 @@ public abstract class VxBody {
     /**
      * @return The type definition of this body.
      */
-    public VxBodyType<? extends VxBody> getType() {
+    public VxBodyType getType() {
         return type;
     }
 
     /**
-     * Gets the ResourceLocation that identifies this body's type.
-     *
-     * @return The type identifier.
+     * @return The ResourceLocation ID of this body's type.
      */
     public ResourceLocation getTypeId() {
         return type.getTypeId();
     }
 
     /**
-     * Sets the persistence state of this body.
-     *
-     * @param persistent true to enable saving to disk, false to make the body temporary.
-     */
-    public void setPersistent(boolean persistent) {
-        this.persistent = persistent;
-    }
-
-    /**
-     * Checks if this body is marked for persistence.
-     *
-     * @return true if the body should be saved to disk, false otherwise.
-     */
-    public boolean isPersistent() {
-        return persistent;
-    }
-
-    /**
-     * @return The physics world this body belongs to. Null on the client.
+     * @return The physics world this body belongs to. Null on client.
      */
     @Nullable
     public VxPhysicsWorld getPhysicsWorld() {
@@ -541,39 +460,35 @@ public abstract class VxBody {
     }
 
     /**
-     * @return The body's synchronized data container.
+     * @return The internal synchronized data container.
      */
     public VxSynchronizedData getSynchronizedData() {
         return synchronizedData;
     }
 
     /**
-     * Gets the Jolt body ID.
-     * @return The body ID. Server-side only.
+     * @return The native Jolt ID.
      */
     public int getBodyId() {
         return this.bodyId;
     }
 
     /**
-     * Sets the Jolt body ID. This is called by the VxServerBodyManager after creation.
-     * @param bodyId The new body ID. Server-side only.
+     * Sets the native Jolt ID.
      */
     public void setBodyId(int bodyId) {
         this.bodyId = bodyId;
     }
 
     /**
-     * Gets the index in the data store.
-     * @return The data store index.
+     * @return The index in the data store.
      */
     public int getDataStoreIndex() {
         return dataStoreIndex;
     }
 
     /**
-     * Sets the index in the data store. This is called by the VxServerBodyManager on addition.
-     * @param dataStoreIndex The new data store index.
+     * Sets the data store and index for this body.
      */
     public void setDataStoreIndex(VxBodyDataStore dataStore, int dataStoreIndex) {
         this.dataStore = dataStore;
@@ -581,16 +496,14 @@ public abstract class VxBody {
     }
 
     /**
-     * Gets the session-specific network ID.
-     * @return The network ID. Server-side only.
+     * @return The session-unique network ID.
      */
     public int getNetworkId() {
         return networkId;
     }
 
     /**
-     * Sets the session-specific network ID. Called by the VxServerBodyManager on addition.
-     * @param networkId The new network ID. Server-side only.
+     * Sets the session-unique network ID.
      */
     public void setNetworkId(int networkId) {
         this.networkId = networkId;

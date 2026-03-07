@@ -22,7 +22,6 @@ import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.core.body.client.VxClientBodyInterpolator;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.body.type.VxRigidBody;
 import org.joml.Matrix4f;
 
 import java.util.Map;
@@ -97,7 +96,7 @@ public class VxPhysicsGunBeamRenderer {
             Integer index = store.getIndexForId(objectUuid);
             VxBody body = bodyManager.getBody(objectUuid);
 
-            if (index == null || !store.render_isInitialized[index] || !(body instanceof VxRigidBody)) continue;
+            if (index == null || !store.render_isInitialized[index] || !body.getType().isRigid()) continue;
 
             // Interpolate physics body position for smooth rendering
             interpolator.interpolateFrame(store, index, partialTicks, INTERPOLATED_POSITION, INTERPOLATED_ROTATION);

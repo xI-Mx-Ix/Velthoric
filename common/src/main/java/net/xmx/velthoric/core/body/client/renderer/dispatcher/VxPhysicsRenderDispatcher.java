@@ -28,7 +28,6 @@ import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.VxRenderState;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.body.type.VxSoftBody;
 
 /**
  * The main client-side renderer/dispatcher for physics bodies.
@@ -181,7 +180,7 @@ public class VxPhysicsRenderDispatcher {
      */
     private static int getPackedLight(VxBody body, Level level, RVec3 absPos, VxRenderState state) {
         BlockPos lightPos;
-        if (body instanceof VxSoftBody && state.vertexData != null && state.vertexData.length >= 3) {
+        if (body.getType().isSoft() && state.vertexData != null && state.vertexData.length >= 3) {
             lightPos = BlockPos.containing(state.vertexData[0], state.vertexData[1], state.vertexData[2]);
         } else {
             lightPos = BlockPos.containing(absPos.xx(), absPos.yy(), absPos.zz());

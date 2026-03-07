@@ -9,13 +9,13 @@ import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
+import net.xmx.velthoric.core.body.type.provider.VxJoltRigidProvider;
+import net.xmx.velthoric.core.body.type.provider.VxJoltSoftProvider;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.body.VxRemovalReason;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.body.type.VxRigidBody;
-import net.xmx.velthoric.core.body.type.VxSoftBody;
 import net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.core.body.type.factory.VxSoftBodyFactory;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
@@ -104,21 +104,26 @@ public enum VxJoltBridge {
     /**
      * Creates and adds a rigid body to the Jolt physics simulation using the specified motion type.
      * <p>
-     * The method configures the body to allow transitions between static, kinematic, and dynamic states
-     * by enabling dynamic/kinematic support. This ensures that MotionProperties are allocated even
-     * for static bodies, preventing access violations during property lookups.
+     * Uses the body type's {@link VxJoltRigidProvider} to determine the shape and creation settings.
      *
-     * @param body            The rigid body wrapper.
+     * @param body            The body wrapper.
      * @param manager         The body manager.
      * @param linearVelocity  The initial linear velocity.
      * @param angularVelocity The initial angular velocity.
      * @param activation      The initial activation state.
      * @param motionType      The specific motion type (Static, Kinematic, or Dynamic).
      */
-    public void createAndAddJoltRigidBody(VxRigidBody body, VxServerBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation, EMotionType motionType) {
+    public void createAndAddJoltRigidBody(VxBody body, VxServerBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation, EMotionType motionType) {
         try {
             VxPhysicsWorld world = manager.getPhysicsWorld();
             VxServerBodyDataStore dataStore = manager.getDataStore();
+            VxJoltRigidProvider provider = body.getType().getRigidProvider();
+
+            if (provider == null) {
+                VxMainClass.LOGGER.error("Body type {} has no rigid provider", body.getType().getTypeId());
+                manager.removeBody(body.getPhysicsId(), VxRemovalReason.DISCARD);
+                return;
+            }
 
             VxRigidBodyFactory factory = (shapeSettings, bcs) -> {
                 try (ShapeResult shapeResult = shapeSettings.create()) {
@@ -146,7 +151,7 @@ public enum VxJoltBridge {
                 }
             };
 
-            int bodyId = body.createJoltBody(factory);
+            int bodyId = provider.createJoltBody(body, factory);
 
             if (bodyId == Jolt.cInvalidBodyId) {
                 VxMainClass.LOGGER.error("Jolt failed to create/add rigid body for {}", body.getPhysicsId());
@@ -166,17 +171,26 @@ public enum VxJoltBridge {
 
     /**
      * Creates and adds a soft body to the Jolt physics simulation.
+     * <p>
+     * Uses the body type's {@link VxJoltSoftProvider} to determine the mesh and creation settings.
      *
-     * @param body            The soft body wrapper.
+     * @param body            The body wrapper.
      * @param manager         The body manager, used for cleanup on failure.
      * @param linearVelocity  The initial linear velocity (can be null).
      * @param angularVelocity The initial angular velocity (can be null).
      * @param activation      The initial activation state.
      */
-    public void createAndAddJoltSoftBody(VxSoftBody body, VxServerBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation) {
+    public void createAndAddJoltSoftBody(VxBody body, VxServerBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation) {
         try {
             VxPhysicsWorld world = manager.getPhysicsWorld();
             VxServerBodyDataStore dataStore = manager.getDataStore();
+            VxJoltSoftProvider provider = body.getType().getSoftProvider();
+
+            if (provider == null) {
+                VxMainClass.LOGGER.error("Body type {} has no soft provider", body.getType().getTypeId());
+                manager.removeBody(body.getPhysicsId(), VxRemovalReason.DISCARD);
+                return;
+            }
 
             VxSoftBodyFactory factory = (sharedSettings, creationSettings) -> {
                 try (sharedSettings; creationSettings) {
@@ -188,7 +202,7 @@ public enum VxJoltBridge {
                 }
             };
 
-            int bodyId = body.createJoltBody(factory);
+            int bodyId = provider.createJoltBody(body, factory);
 
             if (bodyId == Jolt.cInvalidBodyId) {
                 VxMainClass.LOGGER.error("Jolt failed to create/add soft body for {}", body.getPhysicsId());
@@ -246,10 +260,10 @@ public enum VxJoltBridge {
      * Retrieves the current vertex positions of a soft body from the Jolt simulation.
      *
      * @param world The physics world.
-     * @param body  The soft body wrapper.
+     * @param body  The body wrapper.
      * @return An array of vertex positions in world space, or null if the body is invalid.
      */
-    public float @Nullable [] retrieveSoftBodyVertices(VxPhysicsWorld world, VxSoftBody body) {
+    public float @Nullable [] retrieveSoftBodyVertices(VxPhysicsWorld world, VxBody body) {
         if (body.getBodyId() == 0) return null;
 
         try (ConstBody joltBody = getConstJoltBody(world, body)) {
@@ -282,10 +296,10 @@ public enum VxJoltBridge {
      * to the body's local space (relative to Center of Mass) before being applied.
      *
      * @param world    The physics world.
-     * @param body     The soft body wrapper.
+     * @param body     The body wrapper.
      * @param vertices The vertex positions to apply (x, y, z floats) in World Space.
      */
-    public void setSoftBodyVertices(VxPhysicsWorld world, VxSoftBody body, float[] vertices) {
+    public void setSoftBodyVertices(VxPhysicsWorld world, VxBody body, float[] vertices) {
         if (body.getBodyId() == 0 || vertices == null) return;
 
         try (Body joltBody = getJoltBody(world, body)) {

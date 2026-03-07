@@ -13,7 +13,8 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.client.renderer.VxRigidBodyRenderer;
+import net.xmx.velthoric.core.body.client.renderer.VxBodyRenderer;
+import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.vehicle.part.VxPart;
 import org.joml.Quaternionf;
 
@@ -22,7 +23,7 @@ import org.joml.Quaternionf;
  *
  * @author xI-Mx-Ix
  */
-public class CarRenderer extends VxRigidBodyRenderer<CarImpl> {
+public class CarRenderer extends VxBodyRenderer<VxBody> {
 
     private static final BlockState CHASSIS_STATE = Blocks.BLUE_CONCRETE.defaultBlockState();
 
@@ -30,7 +31,7 @@ public class CarRenderer extends VxRigidBodyRenderer<CarImpl> {
     private static final Vec3 CHASSIS_HALF_EXTENTS = new Vec3(1.1f, 0.5f, 2.4f);
 
     @Override
-    public void render(CarImpl body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         poseStack.pushPose();
 
         // Apply Main Body Transform
@@ -48,7 +49,8 @@ public class CarRenderer extends VxRigidBodyRenderer<CarImpl> {
         // 2. Render Parts (Wheels, Seats, etc.) using their own assigned renderers
         // We pass the PoseStack which is currently at the vehicle's origin.
         // The parts will translate themselves using their local position.
-        for (VxPart part : body.getParts()) {
+        CarImpl car = (CarImpl) body;
+        for (VxPart part : car.getParts()) {
             part.render(poseStack, bufferSource, partialTicks, packedLight);
         }
 

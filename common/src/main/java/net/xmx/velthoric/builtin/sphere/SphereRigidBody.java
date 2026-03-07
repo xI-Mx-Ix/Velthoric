@@ -16,8 +16,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.type.VxRigidBody;
-import net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
@@ -27,22 +26,16 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public class SphereRigidBody extends VxRigidBody {
+public class SphereRigidBody extends VxBody {
 
     public static final VxServerAccessor<Float> DATA_RADIUS = VxServerAccessor.create(SphereRigidBody.class, VxDataSerializers.FLOAT);
 
-    /**
-     * Server-side constructor.
-     */
-    public SphereRigidBody(VxBodyType<SphereRigidBody> type, VxPhysicsWorld world, UUID id) {
+    public SphereRigidBody(VxBodyType type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
     }
 
-    /**
-     * Client-side constructor.
-     */
     @Environment(EnvType.CLIENT)
-    public SphereRigidBody(VxBodyType<SphereRigidBody> type, UUID id) {
+    public SphereRigidBody(VxBodyType type, UUID id) {
         super(type, id);
     }
 
@@ -59,10 +52,9 @@ public class SphereRigidBody extends VxRigidBody {
         return get(DATA_RADIUS);
     }
 
-    @Override
-    public int createJoltBody(VxRigidBodyFactory factory) {
+    public static int createJoltBody(VxBody body, net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory factory) {
         try (
-                ShapeSettings shapeSettings = new SphereShapeSettings(this.getRadius());
+                ShapeSettings shapeSettings = new SphereShapeSettings(body.get(DATA_RADIUS));
                 BodyCreationSettings bcs = new BodyCreationSettings()
         ) {
             bcs.setMotionType(EMotionType.Dynamic);
@@ -71,13 +63,11 @@ public class SphereRigidBody extends VxRigidBody {
         }
     }
 
-    @Override
-    public void writePersistenceData(VxByteBuf buf) {
-        buf.writeFloat(getRadius());
+    public static void writePersistence(VxBody body, VxByteBuf buf) {
+        buf.writeFloat(body.get(DATA_RADIUS));
     }
 
-    @Override
-    public void readPersistenceData(VxByteBuf buf) {
-        setRadius(buf.readFloat());
+    public static void readPersistence(VxBody body, VxByteBuf buf) {
+        body.setServerData(DATA_RADIUS, buf.readFloat());
     }
 }

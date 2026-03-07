@@ -61,7 +61,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxServerBodyManager bodyManager;
     private final VxConstraintManager constraintManager;
     private final VxTerrainSystem terrainSystem;
-    private final VxBuoyancyManager buoyancyManager;
     private final VxRagdollManager ragdollManager;
 
     private final VxFrameTimer physicsFrameTimer = new VxFrameTimer();
@@ -82,7 +81,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.bodyManager = new VxServerBodyManager(this);
         this.constraintManager = new VxConstraintManager(this.bodyManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
-        this.buoyancyManager = new VxBuoyancyManager(this);
         this.ragdollManager = new VxRagdollManager(this);
     }
 
@@ -207,12 +205,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public void onPhysicsTick() {
         this.bodyManager.onPhysicsTick(this);
-        this.buoyancyManager.applyBuoyancyForces(FIXED_TIME_STEP);
     }
 
     public void onGameTick(ServerLevel level) {
         this.bodyManager.onGameTick(level);
-        this.buoyancyManager.updateFluidStates();
     }
 
     private void processCommandQueue() {
@@ -267,9 +263,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         if (this.bodyManager != null) {
             this.bodyManager.shutdown();
         }
-        if (this.buoyancyManager != null) {
-            this.buoyancyManager.shutdown();
-        }
     }
 
     private void cleanupJolt() {
@@ -309,10 +302,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public VxTerrainSystem getTerrainSystem() {
         return this.terrainSystem;
-    }
-
-    public VxBuoyancyManager getBuoyancyManager() {
-        return this.buoyancyManager;
     }
 
     public VxRagdollManager getRagdollManager() {
@@ -360,12 +349,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     public static VxTerrainSystem getTerrainSystem(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
         return world != null ? world.getTerrainSystem() : null;
-    }
-
-    @Nullable
-    public static VxBuoyancyManager getBuoyancyManager(ResourceKey<Level> dimensionKey) {
-        VxPhysicsWorld world = get(dimensionKey);
-        return world != null ? world.getBuoyancyManager() : null;
     }
 
     @Nullable

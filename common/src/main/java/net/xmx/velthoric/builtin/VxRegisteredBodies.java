@@ -23,63 +23,94 @@ import net.xmx.velthoric.builtin.rope.RopeRenderer;
 import net.xmx.velthoric.builtin.rope.RopeSoftBody;
 import net.xmx.velthoric.builtin.sphere.SphereRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
-import net.xmx.velthoric.item.chaincreator.body.VxChainPartRenderer;
-import net.xmx.velthoric.item.chaincreator.body.VxChainPartRigidBody;
-import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
+import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.ragdoll.body.VxBodyPartRigidBody;
 import net.xmx.velthoric.core.ragdoll.body.VxRagdollBodyPartRenderer;
+import net.xmx.velthoric.item.chaincreator.body.VxChainPartRenderer;
+import net.xmx.velthoric.item.chaincreator.body.VxChainPartRigidBody;
 
 /**
  * A central registry for all built-in physics body types. This class handles
  * the registration of server-side body logic and client-side rendering factories.
+ * <p>
+ * Each body type is defined using the composition-based {@link VxBodyType.Builder},
+ * with Jolt shape providers and persistence handlers registered declaratively.
  *
  * @author xI-Mx-Ix
  */
-@SuppressWarnings("unchecked")
 public class VxRegisteredBodies {
 
-    public static final VxBodyType<BlockRigidBody> BLOCK = VxBodyType.Builder
-            .<BlockRigidBody>create(BlockRigidBody::new)
+    // --- Rigid Bodies ---
+
+    public static final VxBodyType BLOCK = VxBodyType.Builder
+            .create(BlockRigidBody::new)
             .noSummon()
+            .rigidProvider(BlockRigidBody::createJoltBody)
+            .persistence(BlockRigidBody::writePersistence, BlockRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "block"));
 
-    public static final VxBodyType<SphereRigidBody> SPHERE = VxBodyType.Builder
-            .<SphereRigidBody>create(SphereRigidBody::new)
+    public static final VxBodyType SPHERE = VxBodyType.Builder
+            .create(SphereRigidBody::new)
+            .rigidProvider(SphereRigidBody::createJoltBody)
+            .buoyant()
+            .persistence(SphereRigidBody::writePersistence, SphereRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "sphere"));
 
-    public static final VxBodyType<BoxRigidBody> BOX = VxBodyType.Builder
-            .<BoxRigidBody>create(BoxRigidBody::new)
+    public static final VxBodyType BOX = VxBodyType.Builder
+            .create(BoxRigidBody::new)
+            .rigidProvider(BoxRigidBody::createJoltBody)
+            .buoyant()
+            .persistence(BoxRigidBody::writePersistence, BoxRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "box"));
 
-    public static final VxBodyType<MarbleRigidBody> MARBLE = VxBodyType.Builder
-            .<MarbleRigidBody>create(MarbleRigidBody::new)
+    public static final VxBodyType MARBLE = VxBodyType.Builder
+            .create(MarbleRigidBody::new)
+            .rigidProvider(MarbleRigidBody::createJoltBody)
+            .buoyant()
+            .persistence(MarbleRigidBody::writePersistence, MarbleRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "marble"));
 
-    public static final VxBodyType<ClothSoftBody> CLOTH = VxBodyType.Builder
-            .<ClothSoftBody>create(ClothSoftBody::new)
+    // --- Soft Bodies ---
+
+    public static final VxBodyType CLOTH = VxBodyType.Builder
+            .create(ClothSoftBody::new)
+            .softProvider(ClothSoftBody::createJoltBody)
+            .persistence(ClothSoftBody::writePersistence, ClothSoftBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "cloth"));
 
-    public static final VxBodyType<RopeSoftBody> ROPE = VxBodyType.Builder
-            .<RopeSoftBody>create(RopeSoftBody::new)
+    public static final VxBodyType ROPE = VxBodyType.Builder
+            .create(RopeSoftBody::new)
+            .softProvider(RopeSoftBody::createJoltBody)
+            .persistence(RopeSoftBody::writePersistence, RopeSoftBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "rope"));
 
-    public static final VxBodyType<CarImpl> CAR = VxBodyType.Builder
-            .<CarImpl>create(CarImpl::new)
+    // --- Vehicles ---
+
+    public static final VxBodyType CAR = VxBodyType.Builder
+            .create(CarImpl::new)
+            .rigidProvider(CarImpl::createJoltBody)
+            .buoyant()
             .build(ResourceLocation.tryBuild("velthoric", "car"));
 
-    public static final VxBodyType<MotorcycleImpl> MOTORCYCLE = VxBodyType.Builder
-            .<MotorcycleImpl>create(MotorcycleImpl::new)
+    public static final VxBodyType MOTORCYCLE = VxBodyType.Builder
+            .create(MotorcycleImpl::new)
+            .rigidProvider(MotorcycleImpl::createJoltBody)
+            .buoyant()
             .build(ResourceLocation.tryBuild("velthoric", "motorcycle"));
 
-    public static final VxBodyType<VxChainPartRigidBody> CHAIN_PART = VxBodyType.Builder
-            .<VxChainPartRigidBody>create(VxChainPartRigidBody::new)
+    // --- Internal Bodies ---
+
+    public static final VxBodyType CHAIN_PART = VxBodyType.Builder
+            .create(VxChainPartRigidBody::new)
             .noSummon()
+            .rigidProvider(VxChainPartRigidBody::createJoltBody)
             .build(ResourceLocation.tryBuild("velthoric", "chain_part"));
 
-    public static final VxBodyType<VxBodyPartRigidBody> BODY_PART = VxBodyType.Builder
-            .<VxBodyPartRigidBody>create(VxBodyPartRigidBody::new)
+    public static final VxBodyType BODY_PART = VxBodyType.Builder
+            .create(VxBodyPartRigidBody::new)
             .noSummon()
+            .rigidProvider(VxBodyPartRigidBody::createJoltBody)
             .build(ResourceLocation.tryBuild("velthoric", "body_part"));
 
     /**
@@ -107,16 +138,16 @@ public class VxRegisteredBodies {
     @Environment(EnvType.CLIENT)
     public static void registerClientFactories() {
         var registry = VxBodyRegistry.getInstance();
-        registry.registerClientFactory(BLOCK.getTypeId(), (type, id) -> new BlockRigidBody((VxBodyType<BlockRigidBody>) type, id));
-        registry.registerClientFactory(SPHERE.getTypeId(), (type, id) -> new SphereRigidBody((VxBodyType<SphereRigidBody>) type, id));
-        registry.registerClientFactory(BOX.getTypeId(), (type, id) -> new BoxRigidBody((VxBodyType<BoxRigidBody>) type, id));
-        registry.registerClientFactory(MARBLE.getTypeId(), (type, id) -> new MarbleRigidBody((VxBodyType<MarbleRigidBody>) type, id));
-        registry.registerClientFactory(CLOTH.getTypeId(), (type, id) -> new ClothSoftBody((VxBodyType<ClothSoftBody>) type, id));
-        registry.registerClientFactory(ROPE.getTypeId(), (type, id) -> new RopeSoftBody((VxBodyType<RopeSoftBody>) type, id));
-        registry.registerClientFactory(CAR.getTypeId(), (type, id) -> new CarImpl((VxBodyType<CarImpl>) type, id));
-        registry.registerClientFactory(MOTORCYCLE.getTypeId(), (type, id) -> new MotorcycleImpl((VxBodyType<MotorcycleImpl>) type, id));
-        registry.registerClientFactory(CHAIN_PART.getTypeId(), (type, id) -> new VxChainPartRigidBody((VxBodyType<VxChainPartRigidBody>) type, id));
-        registry.registerClientFactory(BODY_PART.getTypeId(), (type, id) -> new VxBodyPartRigidBody((VxBodyType<VxBodyPartRigidBody>) type, id));
+        registry.registerClientFactory(BLOCK.getTypeId(), (type, id) -> new BlockRigidBody(type, id));
+        registry.registerClientFactory(SPHERE.getTypeId(), (type, id) -> new SphereRigidBody(type, id));
+        registry.registerClientFactory(BOX.getTypeId(), (type, id) -> new BoxRigidBody(type, id));
+        registry.registerClientFactory(MARBLE.getTypeId(), (type, id) -> new MarbleRigidBody(type, id));
+        registry.registerClientFactory(CLOTH.getTypeId(), (type, id) -> new ClothSoftBody(type, id));
+        registry.registerClientFactory(ROPE.getTypeId(), (type, id) -> new RopeSoftBody(type, id));
+        registry.registerClientFactory(CAR.getTypeId(), (type, id) -> new CarImpl(type, id));
+        registry.registerClientFactory(MOTORCYCLE.getTypeId(), (type, id) -> new MotorcycleImpl(type, id));
+        registry.registerClientFactory(CHAIN_PART.getTypeId(), (type, id) -> new VxChainPartRigidBody(type, id));
+        registry.registerClientFactory(BODY_PART.getTypeId(), (type, id) -> new VxBodyPartRigidBody(type, id));
     }
 
     /**

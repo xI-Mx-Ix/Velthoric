@@ -155,11 +155,12 @@ public class VxRagdollManager {
         // The individual part inherits the global rotation (including pitch if launched)
         VxTransform partTransform = new VxTransform(partPosition, initialTransform.getRotation());
 
-        return bodyManager.createRigidBody(
+        return (VxBodyPartRigidBody) bodyManager.createBody(
                 VxRegisteredBodies.BODY_PART,
                 partTransform,
                 EActivation.Activate,
-                body -> {
+                abstractBody -> {
+                    VxBodyPartRigidBody body = (VxBodyPartRigidBody) abstractBody;
                     body.setServerData(VxBodyPartRigidBody.DATA_HALF_EXTENTS, halfExtents);
                     body.setServerData(VxBodyPartRigidBody.DATA_BODY_PART, partType);
                     body.setServerData(VxBodyPartRigidBody.DATA_SKIN_ID, skinId);

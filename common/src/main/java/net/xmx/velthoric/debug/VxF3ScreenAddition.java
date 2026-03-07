@@ -12,8 +12,6 @@ import net.xmx.velthoric.event.api.VxF3ScreenAdditionEvent;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.body.type.VxRigidBody;
-import net.xmx.velthoric.core.body.type.VxSoftBody;
 
 import java.util.List;
 import java.util.UUID;
@@ -58,9 +56,9 @@ public class VxF3ScreenAddition {
             VxBody body = clientManager.getBody(id);
             if (body == null) continue;
 
-            if (body instanceof VxRigidBody) {
+            if (body.getType().isRigid()) {
                 clientRigidCount++;
-            } else if (body instanceof VxSoftBody) {
+            } else if (body.getType().isSoft()) {
                 clientSoftCount++;
             }
         }

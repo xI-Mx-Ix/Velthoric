@@ -12,7 +12,8 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.level.block.state.BlockState;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.client.renderer.VxRigidBodyRenderer;
+import net.xmx.velthoric.core.body.client.renderer.VxBodyRenderer;
+import net.xmx.velthoric.core.body.type.VxBody;
 import org.joml.Quaternionf;
 
 /**
@@ -20,10 +21,10 @@ import org.joml.Quaternionf;
  *
  * @author xI-Mx-Ix
  */
-public class BoxRenderer extends VxRigidBodyRenderer<BoxRigidBody> {
+public class BoxRenderer extends VxBodyRenderer<VxBody> {
 
     @Override
-    public void render(BoxRigidBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         int colorOrdinal = body.get(BoxRigidBody.DATA_COLOR_ORDINAL);
         BoxColor color = (colorOrdinal >= 0 && colorOrdinal < BoxColor.values().length) ? BoxColor.values()[colorOrdinal] : BoxColor.RED;
         BlockState blockState = color.getBlock().defaultBlockState();

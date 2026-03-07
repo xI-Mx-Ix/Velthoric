@@ -5,184 +5,245 @@
 package net.xmx.velthoric.core.body.registry;
 
 import net.minecraft.resources.ResourceLocation;
+import net.xmx.velthoric.core.behavior.VxBehaviorId;
+import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.core.behavior.VxPersistenceHandler;
 import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.type.provider.VxJoltRigidProvider;
+import net.xmx.velthoric.core.body.type.provider.VxJoltSoftProvider;
+import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
- * Represents the type of a physics body.
- * This class is an immutable container for the type's unique identifier, a factory
- * for creating instances of the body, and metadata such as whether it can be
- * summoned by a command and its default persistence behavior.
+ * Represents an immutable definition of a physics body type.
+ * <p>
+ * This class describes how a body should be constructed, which behaviors it possesses by default,
+ * and how its physical shape is provided to the Jolt engine.
  *
- * @param <T> The class of the {@link VxBody} this type represents.
  * @author xI-Mx-Ix
  */
-public final class VxBodyType<T extends VxBody> {
+public final class VxBodyType {
 
     /**
-     * The unique identifier for this body type (e.g., "modid:my_physics_object").
+     * Unique identifier for this body type.
      */
     private final ResourceLocation typeId;
 
     /**
-     * The factory function used to create new instances of this body type.
+     * Factory used to instantiate new body objects.
      */
-    private final Factory<T> factory;
+    private final Factory factory;
 
     /**
-     * Whether this body type can be summoned via commands.
+     * Determines if this type can be summoned via commands.
      */
     private final boolean summonable;
 
     /**
-     * The default persistence state for bodies created of this type.
-     * If true, bodies are saved to disk by default; if false, they are temporary.
+     * Determines if this type is saved to disk by default.
      */
     private final boolean persistent;
 
     /**
-     * Private constructor for the body type, called by the Builder.
-     *
-     * @param typeId     The unique identifier.
-     * @param factory    The creation factory.
-     * @param summonable Whether the type is summonable.
-     * @param persistent The default persistence state.
+     * Bitmask of behavior IDs attached to instances of this type at creation.
      */
-    private VxBodyType(ResourceLocation typeId, Factory<T> factory, boolean summonable, boolean persistent) {
+    private final long defaultBehaviors;
+
+    /**
+     * Provider for rigid body shapes. Null if this is a soft body.
+     */
+    @Nullable
+    private final VxJoltRigidProvider rigidProvider;
+
+    /**
+     * Provider for soft body meshes. Null if this is a rigid body.
+     */
+    @Nullable
+    private final VxJoltSoftProvider softProvider;
+
+    /**
+     * Handler for custom persistence data serialization.
+     */
+    private final VxPersistenceHandler persistenceHandler;
+
+    /**
+     * Optional callback to define synchronized data entries.
+     */
+    @Nullable
+    private final Consumer<VxSynchronizedData.Builder> syncDataDefiner;
+
+    private VxBodyType(ResourceLocation typeId, Factory factory, boolean summonable, boolean persistent,
+                       long defaultBehaviors, @Nullable VxJoltRigidProvider rigidProvider,
+                       @Nullable VxJoltSoftProvider softProvider, VxPersistenceHandler persistenceHandler,
+                       @Nullable Consumer<VxSynchronizedData.Builder> syncDataDefiner) {
         this.typeId = typeId;
         this.factory = factory;
         this.summonable = summonable;
         this.persistent = persistent;
+        this.defaultBehaviors = defaultBehaviors;
+        this.rigidProvider = rigidProvider;
+        this.softProvider = softProvider;
+        this.persistenceHandler = persistenceHandler;
+        this.syncDataDefiner = syncDataDefiner;
     }
 
     /**
-     * Creates a new instance of the physics body using the registered factory.
+     * Creates a new instance of a body using this type definition.
      *
-     * @param world The physics world the body will belong to.
-     * @param id    The unique UUID for the new instance.
-     * @return A new body instance of type T.
+     * @param world The physics world.
+     * @param id    The unique identifier.
+     * @return A new body instance.
      */
-    public T create(VxPhysicsWorld world, UUID id) {
+    public VxBody create(VxPhysicsWorld world, UUID id) {
         return this.factory.create(this, world, id);
     }
 
     /**
-     * Gets the unique resource location associated with this type.
+     * Invokes the definition logic for synchronized data fields.
      *
-     * @return The unique {@link ResourceLocation} of this type.
+     * @param builder The sync data builder.
      */
+    public void defineSyncData(VxSynchronizedData.Builder builder) {
+        if (syncDataDefiner != null) {
+            syncDataDefiner.accept(builder);
+        }
+    }
+
     public ResourceLocation getTypeId() {
         return typeId;
     }
 
-    /**
-     * Checks if this body type is allowed to be summoned via command-line interfaces.
-     *
-     * @return True if this body type can be summoned by commands, false otherwise.
-     */
     public boolean isSummonable() {
         return summonable;
     }
 
-    /**
-     * Gets the default persistence state for this type.
-     *
-     * @return True if bodies of this type should be saved to disk by default.
-     */
     public boolean isPersistent() {
         return persistent;
     }
 
-    /**
-     * A functional interface for a factory that creates physics bodies.
-     *
-     * @param <T> The type of body to create.
-     */
-    @FunctionalInterface
-    public interface Factory<T extends VxBody> {
-        /**
-         * Creates a new instance of the body.
-         *
-         * @param type  The {@link VxBodyType} definition.
-         * @param world The physics world (logical server side).
-         * @param id    The instance's unique UUID.
-         * @return A new instance of type T.
-         */
-        T create(VxBodyType<T> type, VxPhysicsWorld world, UUID id);
+    public long getDefaultBehaviors() {
+        return defaultBehaviors;
+    }
+
+    @Nullable
+    public VxJoltRigidProvider getRigidProvider() {
+        return rigidProvider;
+    }
+
+    @Nullable
+    public VxJoltSoftProvider getSoftProvider() {
+        return softProvider;
+    }
+
+    public VxPersistenceHandler getPersistenceHandler() {
+        return persistenceHandler;
+    }
+
+    public boolean isRigid() {
+        return rigidProvider != null;
+    }
+
+    public boolean isSoft() {
+        return softProvider != null;
     }
 
     /**
-     * A builder for creating {@link VxBodyType} instances with a fluent API.
-     *
-     * @param <T> The class of the {@link VxBody}.
+     * Functional interface for instantiating body handles.
      */
-    public static class Builder<T extends VxBody> {
-        /**
-         * The factory used for instantiation.
-         */
-        private final Factory<T> factory;
+    @FunctionalInterface
+    public interface Factory {
+        VxBody create(VxBodyType type, VxPhysicsWorld world, UUID id);
+    }
 
-        /**
-         * The summonable flag, defaults to true.
-         */
+    /**
+     * Fluent builder for creating type definitions.
+     */
+    public static class Builder {
+        private final Factory factory;
         private boolean summonable = true;
-
-        /**
-         * The default persistence flag, defaults to true.
-         */
         private boolean persistent = true;
+        private long defaultBehaviors = 0;
+        private VxJoltRigidProvider rigidProvider;
+        private VxJoltSoftProvider softProvider;
+        private VxPersistenceHandler persistenceHandler = VxPersistenceHandler.EMPTY;
+        private Consumer<VxSynchronizedData.Builder> syncDataDefiner;
 
-        /**
-         * Private builder constructor.
-         *
-         * @param factory The factory function.
-         */
-        private Builder(Factory<T> factory) {
+        private Builder(Factory factory) {
             this.factory = factory;
         }
 
-        /**
-         * Creates a new builder for a specific body type.
-         *
-         * @param factory The factory function for this type.
-         * @param <T>     The class of the {@link VxBody}.
-         * @return A new Builder instance.
-         */
-        public static <T extends VxBody> Builder<T> create(Factory<T> factory) {
-            return new Builder<>(factory);
+        public static Builder create(Factory factory) {
+            return new Builder(factory);
         }
 
-        /**
-         * Marks this body type as not summonable by commands.
-         *
-         * @return This builder, for chaining.
-         */
-        public Builder<T> noSummon() {
+        public Builder noSummon() {
             this.summonable = false;
             return this;
         }
 
-        /**
-         * Sets the default persistence state for this body type.
-         *
-         * @param persistent true if bodies should be saved to disk by default, false otherwise.
-         * @return This builder, for chaining.
-         */
-        public Builder<T> setPersistent(boolean persistent) {
+        public Builder setPersistent(boolean persistent) {
             this.persistent = persistent;
             return this;
         }
 
         /**
-         * Builds the final, immutable {@link VxBodyType}.
-         *
-         * @param typeId The unique {@link ResourceLocation} for this type.
-         * @return A new {@link VxBodyType} instance.
+         * Registers a rigid body shape provider and attaches physics synchronization behaviors.
          */
-        public VxBodyType<T> build(ResourceLocation typeId) {
-            return new VxBodyType<>(typeId, factory, summonable, persistent);
+        public Builder rigidProvider(VxJoltRigidProvider provider) {
+            this.rigidProvider = provider;
+            this.defaultBehaviors |= VxBehaviors.RIGID_PHYSICS.getMask();
+            this.defaultBehaviors |= VxBehaviors.PHYSICS_SYNC.getMask();
+            return this;
+        }
+
+        /**
+         * Registers a soft body mesh provider and attaches physics synchronization behaviors.
+         */
+        public Builder softProvider(VxJoltSoftProvider provider) {
+            this.softProvider = provider;
+            this.defaultBehaviors |= VxBehaviors.SOFT_PHYSICS.getMask();
+            this.defaultBehaviors |= VxBehaviors.PHYSICS_SYNC.getMask();
+            return this;
+        }
+
+        public Builder buoyant() {
+            this.defaultBehaviors |= VxBehaviors.BUOYANCY.getMask();
+            return this;
+        }
+
+        public Builder persistence(VxPersistenceHandler handler) {
+            this.persistenceHandler = handler;
+            return this;
+        }
+
+        public Builder persistence(VxPersistenceHandler.Writer writer, VxPersistenceHandler.Reader reader) {
+            this.persistenceHandler = VxPersistenceHandler.of(writer, reader);
+            return this;
+        }
+
+        public Builder syncData(Consumer<VxSynchronizedData.Builder> definer) {
+            this.syncDataDefiner = definer;
+            return this;
+        }
+
+        public Builder behavior(VxBehaviorId behaviorId) {
+            this.defaultBehaviors |= behaviorId.getMask();
+            return this;
+        }
+
+        /**
+         * Builds the final immutable type.
+         */
+        public VxBodyType build(ResourceLocation typeId) {
+            if (persistent) {
+                defaultBehaviors |= VxBehaviors.PERSISTENCE.getMask();
+            }
+            return new VxBodyType(typeId, factory, summonable, persistent,
+                    defaultBehaviors, rigidProvider, softProvider, persistenceHandler, syncDataDefiner);
         }
     }
 }

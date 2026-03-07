@@ -208,7 +208,7 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
         }
 
         VxBodyRegistry registry = VxBodyRegistry.getInstance();
-        VxBodyType<?> type = registry.getRegistrationData(typeId);
+        VxBodyType type = registry.getRegistrationData(typeId);
 
         if (type == null) {
             VxMainClass.LOGGER.error("Could not spawn client body with type ID '{}', type not registered on client.", typeId);

@@ -29,12 +29,12 @@ public abstract class VxCar extends VxWheeledVehicle {
 
     private WheeledVehicleController controller;
 
-    public VxCar(VxBodyType<? extends VxCar> type, VxPhysicsWorld world, UUID id, VxCarConfig config) {
+    public VxCar(VxBodyType type, VxPhysicsWorld world, UUID id, VxCarConfig config) {
         super(type, world, id, config);
     }
 
     @Environment(EnvType.CLIENT)
-    public VxCar(VxBodyType<? extends VxCar> type, UUID id, VxCarConfig config) {
+    public VxCar(VxBodyType type, UUID id, VxCarConfig config) {
         super(type, id, config);
     }
 

@@ -72,7 +72,7 @@ public final class VxSummonCommand {
 
         try {
             // Look up the registered body type
-            VxBodyType<?> type = VxBodyRegistry.getInstance().getRegistrationData(typeId);
+            VxBodyType type = VxBodyRegistry.getInstance().getRegistrationData(typeId);
 
             if (type == null) {
                 source.sendFailure(Component.literal("Physics body type not found: " + typeId));

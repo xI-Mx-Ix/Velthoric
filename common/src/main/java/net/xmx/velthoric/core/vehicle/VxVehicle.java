@@ -15,7 +15,7 @@ import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
-import net.xmx.velthoric.core.body.type.VxRigidBody;
+import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.vehicle.config.VxVehicleConfig;
 import net.xmx.velthoric.core.vehicle.part.VxPart;
 import net.xmx.velthoric.core.vehicle.part.definition.VxSeatDefinition;
@@ -42,7 +42,7 @@ import java.util.*;
  *
  * @author xI-Mx-Ix
  */
-public abstract class VxVehicle extends VxRigidBody implements VxMountable {
+public abstract class VxVehicle extends VxBody implements VxMountable {
 
     /**
      * Synchronizes the vehicle's linear speed in km/h.
@@ -88,7 +88,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
      * @param id     The unique entity ID.
      * @param config The vehicle configuration data.
      */
-    public VxVehicle(VxBodyType<? extends VxVehicle> type, VxPhysicsWorld world, UUID id, VxVehicleConfig config) {
+    public VxVehicle(VxBodyType type, VxPhysicsWorld world, UUID id, VxVehicleConfig config) {
         super(type, world, id);
         this.config = config;
         this.initializeBaseComponents();
@@ -102,7 +102,7 @@ public abstract class VxVehicle extends VxRigidBody implements VxMountable {
      * @param config The vehicle configuration data.
      */
     @Environment(EnvType.CLIENT)
-    public VxVehicle(VxBodyType<? extends VxVehicle> type, UUID id, VxVehicleConfig config) {
+    public VxVehicle(VxBodyType type, UUID id, VxVehicleConfig config) {
         super(type, id);
         this.config = config;
         this.initializeBaseComponents();

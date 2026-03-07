@@ -98,7 +98,7 @@ public final class SpawnGhostBoxTest implements IVxTestCommand {
                 VxTransform transform = new VxTransform(new RVec3(pos.x, pos.y, pos.z), Quat.sIdentity());
                 float halfExtent = boxSize / 2.0f;
 
-                // Create the rigid body. Subclasses of VxRigidBody default to the MOVING layer.
+                // Create the body with rigid simulation parameters.
                 BoxRigidBody ghostBody = manager.createRigidBody(
                         VxRegisteredBodies.BOX,
                         transform,

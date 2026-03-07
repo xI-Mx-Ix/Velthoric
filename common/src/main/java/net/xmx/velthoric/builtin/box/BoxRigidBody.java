@@ -11,15 +11,15 @@ import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.core.physics.VxPhysicsLayers;
-import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
+import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.type.VxRigidBody;
-import net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
+import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.network.VxByteBuf;
 
 import java.util.UUID;
 
@@ -28,7 +28,7 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public class BoxRigidBody extends VxRigidBody {
+public class BoxRigidBody extends VxBody {
 
     public static final VxServerAccessor<Vec3> DATA_HALF_EXTENTS = VxServerAccessor.create(BoxRigidBody.class, VxDataSerializers.VEC3);
     public static final VxServerAccessor<Integer> DATA_COLOR_ORDINAL = VxServerAccessor.create(BoxRigidBody.class, VxDataSerializers.INTEGER);
@@ -36,7 +36,7 @@ public class BoxRigidBody extends VxRigidBody {
     /**
      * Server-side constructor.
      */
-    public BoxRigidBody(VxBodyType<BoxRigidBody> type, VxPhysicsWorld world, UUID id) {
+    public BoxRigidBody(VxBodyType type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
     }
 
@@ -44,7 +44,7 @@ public class BoxRigidBody extends VxRigidBody {
      * Client-side constructor.
      */
     @Environment(EnvType.CLIENT)
-    public BoxRigidBody(VxBodyType<BoxRigidBody> type, UUID id) {
+    public BoxRigidBody(VxBodyType type, UUID id) {
         super(type, id);
     }
 
@@ -71,10 +71,12 @@ public class BoxRigidBody extends VxRigidBody {
         return (ordinal >= 0 && ordinal < BoxColor.values().length) ? BoxColor.values()[ordinal] : BoxColor.RED;
     }
 
-    @Override
-    public int createJoltBody(VxRigidBodyFactory factory) {
+    /**
+     * Creates the Jolt rigid body. Used as the {@code VxJoltRigidProvider} for this type.
+     */
+    public static int createJoltBody(VxBody body, VxRigidBodyFactory factory) {
         try (
-                ShapeSettings shapeSettings = new BoxShapeSettings(this.getHalfExtents());
+                ShapeSettings shapeSettings = new BoxShapeSettings(body.get(DATA_HALF_EXTENTS));
                 BodyCreationSettings bcs = new BodyCreationSettings()
         ) {
             bcs.setMotionType(EMotionType.Dynamic);
@@ -84,16 +86,20 @@ public class BoxRigidBody extends VxRigidBody {
         }
     }
 
-    @Override
-    public void writePersistenceData(VxByteBuf buf) {
-        Vec3 halfExtents = get(DATA_HALF_EXTENTS);
+    /**
+     * Writes type-specific persistence data.
+     */
+    public static void writePersistence(VxBody body, VxByteBuf buf) {
+        Vec3 halfExtents = body.get(DATA_HALF_EXTENTS);
         buf.writeJoltVec3(halfExtents);
-        buf.writeInt(get(DATA_COLOR_ORDINAL));
+        buf.writeInt(body.get(DATA_COLOR_ORDINAL));
     }
 
-    @Override
-    public void readPersistenceData(VxByteBuf buf) {
-        this.setServerData(DATA_HALF_EXTENTS, buf.readJoltVec3());
-        this.setServerData(DATA_COLOR_ORDINAL, buf.readInt());
+    /**
+     * Reads type-specific persistence data.
+     */
+    public static void readPersistence(VxBody body, VxByteBuf buf) {
+        body.setServerData(DATA_HALF_EXTENTS, buf.readJoltVec3());
+        body.setServerData(DATA_COLOR_ORDINAL, buf.readInt());
     }
 }

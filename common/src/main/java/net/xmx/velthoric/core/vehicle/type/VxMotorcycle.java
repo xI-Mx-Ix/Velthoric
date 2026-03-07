@@ -29,12 +29,12 @@ public abstract class VxMotorcycle extends VxWheeledVehicle {
 
     private MotorcycleController controller;
 
-    public VxMotorcycle(VxBodyType<? extends VxMotorcycle> type, VxPhysicsWorld world, UUID id, VxMotorcycleConfig config) {
+    public VxMotorcycle(VxBodyType type, VxPhysicsWorld world, UUID id, VxMotorcycleConfig config) {
         super(type, world, id, config);
     }
 
     @Environment(EnvType.CLIENT)
-    public VxMotorcycle(VxBodyType<? extends VxMotorcycle> type, UUID id, VxMotorcycleConfig config) {
+    public VxMotorcycle(VxBodyType type, UUID id, VxMotorcycleConfig config) {
         super(type, id, config);
     }
 

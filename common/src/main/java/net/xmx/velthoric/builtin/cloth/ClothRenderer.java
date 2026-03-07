@@ -13,7 +13,8 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.client.renderer.VxSoftBodyRenderer;
+import net.xmx.velthoric.core.body.client.renderer.VxBodyRenderer;
+import net.xmx.velthoric.core.body.type.VxBody;
 import org.joml.Vector3f;
 
 import java.util.function.BiFunction;
@@ -23,12 +24,12 @@ import java.util.function.BiFunction;
  *
  * @author xI-Mx-Ix
  */
-public class ClothRenderer extends VxSoftBodyRenderer<ClothSoftBody> {
+public class ClothRenderer extends VxBodyRenderer<VxBody> {
 
     private static final ResourceLocation BLUE_WOOL_TEXTURE = ResourceLocation.tryParse("minecraft:block/blue_wool");
 
     @Override
-    public void render(ClothSoftBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         float[] renderVertexData = renderState.vertexData;
         int widthSegments = body.get(ClothSoftBody.DATA_WIDTH_SEGMENTS);
         int heightSegments = body.get(ClothSoftBody.DATA_HEIGHT_SEGMENTS);

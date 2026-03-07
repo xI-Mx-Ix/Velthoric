@@ -16,14 +16,15 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.client.renderer.VxSoftBodyRenderer;
+import net.xmx.velthoric.core.body.client.renderer.VxBodyRenderer;
+import net.xmx.velthoric.core.body.type.VxBody;
 
 /**
  * Renderer for the {@link RopeSoftBody}.
  *
  * @author xI-Mx-Ix
  */
-public class RopeRenderer extends VxSoftBodyRenderer<RopeSoftBody> {
+public class RopeRenderer extends VxBodyRenderer<VxBody> {
 
     private static final ResourceLocation YELLOW_WOOL_BLOCK_TEXTURE = ResourceLocation.tryParse("minecraft:block/yellow_wool");
     private static final int SIDES = 12;
@@ -31,7 +32,7 @@ public class RopeRenderer extends VxSoftBodyRenderer<RopeSoftBody> {
     private static final Vec3 JOLT_UNIT_Y = new Vec3(0, 1, 0);
 
     @Override
-    public void render(RopeSoftBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
+    public void render(VxBody body, PoseStack poseStack, MultiBufferSource bufferSource, float partialTicks, int packedLight, VxRenderState renderState) {
         float[] renderVertexData = renderState.vertexData;
         if (renderVertexData == null || renderVertexData.length < 6) {
             return;

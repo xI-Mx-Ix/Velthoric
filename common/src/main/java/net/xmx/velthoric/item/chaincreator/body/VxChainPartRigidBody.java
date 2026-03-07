@@ -15,7 +15,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.type.VxRigidBody;
+import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
@@ -28,7 +28,7 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public class VxChainPartRigidBody extends VxRigidBody {
+public class VxChainPartRigidBody extends VxBody {
 
     private static final VxServerAccessor<Float> DATA_LENGTH = VxServerAccessor.create(VxChainPartRigidBody.class, VxDataSerializers.FLOAT);
     private static final VxServerAccessor<Float> DATA_RADIUS = VxServerAccessor.create(VxChainPartRigidBody.class, VxDataSerializers.FLOAT);
@@ -39,7 +39,7 @@ public class VxChainPartRigidBody extends VxRigidBody {
      * @param world The physics world this body belongs to.
      * @param id The unique UUID for this body.
      */
-    public VxChainPartRigidBody(VxBodyType<VxChainPartRigidBody> type, VxPhysicsWorld world, UUID id) {
+    public VxChainPartRigidBody(VxBodyType type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
     }
 
@@ -49,7 +49,7 @@ public class VxChainPartRigidBody extends VxRigidBody {
      * @param id The unique UUID for this body.
      */
     @Environment(EnvType.CLIENT)
-    public VxChainPartRigidBody(VxBodyType<VxChainPartRigidBody> type, UUID id) {
+    public VxChainPartRigidBody(VxBodyType type, UUID id) {
         super(type, id);
     }
 
@@ -67,22 +67,18 @@ public class VxChainPartRigidBody extends VxRigidBody {
      * Writes the body's dynamic dimensions to a buffer for saving.
      * @param buf The buffer to write to.
      */
-    @Override
-    public void writePersistenceData(VxByteBuf buf) {
-        super.writePersistenceData(buf);
-        buf.writeFloat(get(DATA_LENGTH));
-        buf.writeFloat(get(DATA_RADIUS));
+    public static void writePersistence(VxBody body, VxByteBuf buf) {
+        buf.writeFloat(body.get(DATA_LENGTH));
+        buf.writeFloat(body.get(DATA_RADIUS));
     }
 
     /**
      * Reads the body's dynamic dimensions from a buffer for loading.
      * @param buf The buffer to read from.
      */
-    @Override
-    public void readPersistenceData(VxByteBuf buf) {
-        super.readPersistenceData(buf);
-        this.setServerData(DATA_LENGTH, buf.readFloat());
-        this.setServerData(DATA_RADIUS, buf.readFloat());
+    public static void readPersistence(VxBody body, VxByteBuf buf) {
+        body.setServerData(DATA_LENGTH, buf.readFloat());
+        body.setServerData(DATA_RADIUS, buf.readFloat());
     }
 
     /**
@@ -93,10 +89,10 @@ public class VxChainPartRigidBody extends VxRigidBody {
      * @param factory The factory to create the Jolt body.
      * @return The integer ID of the created Jolt body.
      */
-    @Override
-    public int createJoltBody(VxRigidBodyFactory factory) {
-        float currentRadius = get(DATA_RADIUS);
-        float currentLength = get(DATA_LENGTH);
+    public static int createJoltBody(VxBody abstractBody, VxRigidBodyFactory factory) {
+        VxChainPartRigidBody body = (VxChainPartRigidBody) abstractBody;
+        float currentRadius = body.get(DATA_RADIUS);
+        float currentLength = body.get(DATA_LENGTH);
 
         // The TaperedCapsuleShape defines height as the half-height of the cylindrical part only.
         // Total Length = (2 * halfCylinderHeight) + (2 * radius).

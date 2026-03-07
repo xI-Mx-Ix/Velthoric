@@ -21,10 +21,11 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.block.BlockRigidBody;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
+import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.util.VxVoxelShapeUtil;
-import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 /**
  * An item that converts a standard block into a physics-based rigid body upon use.
@@ -87,11 +88,11 @@ public class VxPhysicsCreatorItem extends Item {
                 VxTransform transform = new VxTransform(position, rotation);
 
                 // Create the rigid body in the physics world.
-                BlockRigidBody body = bodyManager.createRigidBody(
+                VxBody body = bodyManager.createBody(
                         VxRegisteredBodies.BLOCK,
                         transform,
                         EActivation.Activate,
-                        b -> b.setRepresentedBlockState(originalState)
+                        b -> ((BlockRigidBody) b).setRepresentedBlockState(originalState)
                 );
 
                 if (body == null) {
