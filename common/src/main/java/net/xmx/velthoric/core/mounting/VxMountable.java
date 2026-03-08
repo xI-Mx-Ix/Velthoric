@@ -5,7 +5,7 @@
 package net.xmx.velthoric.core.mounting;
 
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.core.behavior.impl.VxMountBehavior;
+import net.xmx.velthoric.core.mounting.behavior.VxMountBehavior;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.core.mounting.input.VxMountInput;
 import net.xmx.velthoric.core.mounting.seat.VxSeat;

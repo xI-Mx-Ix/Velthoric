@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.behavior.impl;
+package net.xmx.velthoric.core.physics.buoyancy.behavior;
 
 import com.github.stephengold.joltjni.readonly.ConstBodyLockInterface;
 import net.minecraft.server.level.ServerLevel;

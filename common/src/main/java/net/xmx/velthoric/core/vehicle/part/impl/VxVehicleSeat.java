@@ -7,7 +7,7 @@ package net.xmx.velthoric.core.vehicle.part.impl;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
-import net.xmx.velthoric.core.behavior.impl.VxMountBehavior;
+import net.xmx.velthoric.core.mounting.behavior.VxMountBehavior;
 import net.xmx.velthoric.core.mounting.seat.VxSeat;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.core.vehicle.VxVehicle;

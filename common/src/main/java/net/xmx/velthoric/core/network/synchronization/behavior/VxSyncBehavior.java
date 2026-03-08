@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.behavior.impl;
+package net.xmx.velthoric.core.network.synchronization.behavior;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;

@@ -14,7 +14,7 @@ import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorManager;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
-import net.xmx.velthoric.core.behavior.impl.VxSyncBehavior;
+import net.xmx.velthoric.core.network.synchronization.behavior.VxSyncBehavior;
 import net.xmx.velthoric.core.body.VxAbstractBodyManager;
 import net.xmx.velthoric.core.body.client.time.VxClientClock;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
