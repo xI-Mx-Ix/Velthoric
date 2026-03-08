@@ -7,11 +7,11 @@ package net.xmx.velthoric.core.body.registry;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
-import net.xmx.velthoric.core.persistence.impl.body.VxPersistenceHandler;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.body.type.provider.VxJoltRigidProvider;
 import net.xmx.velthoric.core.body.type.provider.VxJoltSoftProvider;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
+import net.xmx.velthoric.core.persistence.impl.body.VxPersistenceHandler;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -212,6 +212,16 @@ public final class VxBodyType {
 
         public Builder buoyant() {
             this.defaultBehaviors |= VxBehaviors.BUOYANCY.getMask();
+            return this;
+        }
+
+        public Builder netSync() {
+            this.defaultBehaviors |= VxBehaviors.NET_SYNC.getMask();
+            return this;
+        }
+
+        public Builder customDataSync() {
+            this.defaultBehaviors |= VxBehaviors.CUSTOM_DATA_SYNC.getMask();
             return this;
         }
 

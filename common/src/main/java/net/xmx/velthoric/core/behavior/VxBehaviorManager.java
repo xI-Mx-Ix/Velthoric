@@ -5,61 +5,92 @@
 package net.xmx.velthoric.core.behavior;
 
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
+import net.xmx.velthoric.core.behavior.impl.*;
+import net.xmx.velthoric.core.body.VxBodyDataStore;
+import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.init.VxMainClass;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 /**
- * Central orchestrator for the behavior-based composition system.
+ * Central singleton orchestrator for the behavior-based composition system.
  * <p>
  * This manager is responsible for:
  * <ul>
  *     <li>Registering global behavior instances.</li>
  *     <li>Dispatching lifecycle events (attach/detach) when behaviors are added to or removed from bodies.</li>
- *     <li>Iterating behaviors during tick phases (pre-physics, physics, server tick).</li>
+ *     <li>Iterating behaviors during tick phases (pre-physics, physics, server tick, client tick).</li>
  * </ul>
  * <p>
- * Each {@link VxPhysicsWorld} owns one instance of this manager.
  * The behaviors are iterated in registration order, which allows control over execution priority.
  *
  * @author xI-Mx-Ix
  */
-public class VxBehaviorManager {
-
-    /**
-     * The data store backing this manager's physics world.
-     */
-    private final VxServerBodyDataStore dataStore;
+public final class VxBehaviorManager {
 
     /**
      * All registered behaviors, iterated in order during tick phases.
-     * This list is populated during initialization and should not be modified during simulation.
      */
     private final List<VxBehavior> behaviors = new ArrayList<>();
+
+    /**
+     * Level associated with this manager.
+     */
+    private Level level;
 
     /**
      * An unmodifiable view of the behavior list for external iteration.
      */
     private final List<VxBehavior> behaviorsView = Collections.unmodifiableList(behaviors);
 
+    public VxBehaviorManager() {
+    }
+
+
     /**
-     * Constructs a new behavior manager for the given data store.
-     *
-     * @param dataStore The server-side SoA data store.
+     * Initializes the behavior system with built-in server-side behaviors.
      */
-    public VxBehaviorManager(VxServerBodyDataStore dataStore) {
-        this.dataStore = dataStore;
+    public void init(Level level, @Nullable VxPhysicsWorld physicsWorld) {
+        this.level = level;
+        if (getBehavior(VxBehaviors.NET_SYNC) != null) return;
+
+        if (!level.isClientSide()) {
+            registerBehavior(new VxRigidPhysicsBehavior());
+            registerBehavior(new VxSoftPhysicsBehavior());
+            registerBehavior(new VxPersistenceBehavior());
+            if (physicsWorld != null) {
+                registerBehavior(new VxBuoyancyBehavior(physicsWorld));
+            }
+            registerBehavior(new VxPhysicsSyncBehavior());
+            registerBehavior(new VxNetSyncBehavior());
+            registerBehavior(new VxTickBehavior());
+        }
+
+        // Use consolidated sync behavior for both sides
+        if (getBehavior(VxBehaviors.CUSTOM_DATA_SYNC) == null) {
+            registerBehavior(new VxSyncBehavior());
+        }
+    }
+
+    /**
+     * @return The level associated with this manager.
+     */
+    public Level getLevel() {
+        return level;
     }
 
     /**
      * Registers a behavior with this manager.
      * <p>
-     * Behaviors should be registered during world initialization, before any bodies are created.
+     * Behaviors should be registered during mod initialization.
      * Registration order determines tick execution order.
      *
      * @param behavior The behavior to register.
@@ -84,7 +115,8 @@ public class VxBehaviorManager {
      */
     public void attachBehavior(VxBody body, VxBehavior behavior) {
         int index = body.getDataStoreIndex();
-        if (index == -1) return;
+        VxBodyDataStore dataStore = body.getDataStore();
+        if (index == -1 || dataStore == null) return;
 
         long mask = behavior.getId().getMask();
         if ((dataStore.behaviorBits[index] & mask) != 0) {
@@ -124,7 +156,8 @@ public class VxBehaviorManager {
      */
     public void detachBehavior(VxBody body, VxBehavior behavior) {
         int index = body.getDataStoreIndex();
-        if (index == -1) return;
+        VxBodyDataStore dataStore = body.getDataStore();
+        if (index == -1 || dataStore == null) return;
 
         long mask = behavior.getId().getMask();
         if ((dataStore.behaviorBits[index] & mask) == 0) {
@@ -142,7 +175,8 @@ public class VxBehaviorManager {
      */
     public void detachAllBehaviors(VxBody body) {
         int index = body.getDataStoreIndex();
-        if (index == -1) return;
+        VxBodyDataStore dataStore = body.getDataStore();
+        if (index == -1 || dataStore == null) return;
 
         long bits = dataStore.behaviorBits[index];
         if (bits == 0) return;
@@ -164,8 +198,32 @@ public class VxBehaviorManager {
      */
     public boolean hasBehavior(VxBody body, VxBehaviorId behaviorId) {
         int index = body.getDataStoreIndex();
-        if (index == -1) return false;
+        VxBodyDataStore dataStore = body.getDataStore();
+        if (index == -1 || dataStore == null) return false;
         return behaviorId.isSet(dataStore.behaviorBits[index]);
+    }
+
+    /**
+     * Retrieves a registered behavior instance by its unique identifier.
+     * <p>
+     * This method iterates through the internal registry to find a behavior
+     * that matches the provided ID. It automatically casts the result to the
+     * requested subtype.
+     * </p>
+     *
+     * @param behaviorId The unique ID of the behavior to find.
+     * @param <T>        The specific type of the behavior (must extend {@link VxBehavior}).
+     * @return The behavior instance if found, or {@code null} if no behavior with
+     * this ID is registered.
+     */
+    @SuppressWarnings("unchecked")
+    public <T extends VxBehavior> T getBehavior(VxBehaviorId behaviorId) {
+        for (VxBehavior behavior : behaviors) {
+            if (behavior.getId() == behaviorId) {
+                return (T) behavior;
+            }
+        }
+        return null;
     }
 
     // ================================================================================
@@ -173,47 +231,55 @@ public class VxBehaviorManager {
     // ================================================================================
 
     /**
-     * Dispatches the pre-physics-tick event to all registered behaviors.
-     * Called on the physics thread before the Jolt simulation step.
+     * Dispatches the pre-physics tick event to all registered behaviors.
      *
-     * @param world The physics world instance.
+     * @param world The physics world.
+     * @param store The server-side body data store.
      */
-    public void onPrePhysicsTick(VxPhysicsWorld world) {
+    public void onPrePhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore store) {
         for (int i = 0, size = behaviors.size(); i < size; i++) {
-            behaviors.get(i).onPrePhysicsTick(world, dataStore);
+            behaviors.get(i).onPrePhysicsTick(world, store);
         }
     }
 
     /**
-     * Dispatches the post-physics-tick event to all registered behaviors.
-     * Called on the physics thread after the Jolt simulation step.
+     * Dispatches the physics tick event to all registered behaviors.
      *
-     * @param world The physics world instance.
+     * @param world The physics world.
+     * @param store The server-side body data store.
      */
-    public void onPhysicsTick(VxPhysicsWorld world) {
+    public void onPhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore store) {
         for (int i = 0, size = behaviors.size(); i < size; i++) {
-            behaviors.get(i).onPhysicsTick(world, dataStore);
+            behaviors.get(i).onPhysicsTick(world, store);
         }
     }
 
     /**
-     * Dispatches the server-tick event to all registered behaviors.
-     * Called on the main server thread.
+     * Dispatches the server tick event to all registered behaviors.
      *
-     * @param level The server level instance.
+     * @param level The server level.
+     * @param store The server-side body data store.
      */
-    public void onServerTick(ServerLevel level) {
+    public void onServerTick(ServerLevel level, VxServerBodyDataStore store) {
         for (int i = 0, size = behaviors.size(); i < size; i++) {
-            behaviors.get(i).onServerTick(level, dataStore);
+            behaviors.get(i).onServerTick(level, store);
         }
     }
 
-    // ================================================================================
-    // Accessors
-    // ================================================================================
+    /**
+     * Dispatches the client tick event to all registered behaviors.
+     *
+     * @param manager The client body manager.
+     * @param store   The client data store.
+     */
+    public void onClientTick(VxClientBodyManager manager, VxClientBodyDataStore store) {
+        for (int i = 0, size = behaviors.size(); i < size; i++) {
+            behaviors.get(i).onClientTick(manager, store);
+        }
+    }
 
     /**
-     * @return An unmodifiable view of all registered behaviors.
+     * @return An unmodifiable list of all currently registered behaviors.
      */
     public List<VxBehavior> getBehaviors() {
         return behaviorsView;

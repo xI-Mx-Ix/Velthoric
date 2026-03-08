@@ -12,7 +12,6 @@ import net.minecraft.world.level.Level;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.core.physics.VxPhysicsBootstrap;
-import net.xmx.velthoric.core.physics.buoyancy.VxBuoyancyManager;
 import net.xmx.velthoric.core.ragdoll.VxRagdollManager;
 import net.xmx.velthoric.core.terrain.VxTerrainSystem;
 import net.xmx.velthoric.init.VxMainClass;

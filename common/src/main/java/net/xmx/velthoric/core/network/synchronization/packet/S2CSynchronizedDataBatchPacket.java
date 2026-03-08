@@ -9,9 +9,9 @@ import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.network.FriendlyByteBuf;
+import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 
 import java.util.Map;
 
@@ -110,7 +110,7 @@ public class S2CSynchronizedDataBatchPacket implements IVxNetPacket {
      * Handles the packet on the client side.
      * <p>
      * This method applies the synchronized data updates to the corresponding bodies
-     * via the client-side body manager.
+     * via the client-side body manager, which forwards it to the behavior.
      * </p>
      *
      * @param context The network context.

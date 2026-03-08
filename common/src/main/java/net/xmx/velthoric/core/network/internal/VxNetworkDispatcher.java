@@ -18,17 +18,17 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.config.VxModConfig;
+import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.core.behavior.impl.VxSyncBehavior;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
+import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.network.internal.packet.S2CRemoveBodyBatchPacket;
+import net.xmx.velthoric.core.network.internal.packet.S2CSpawnBodyBatchPacket;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxNetworking;
-import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
-import net.xmx.velthoric.core.network.internal.packet.S2CRemoveBodyBatchPacket;
-import net.xmx.velthoric.core.network.internal.packet.S2CSpawnBodyBatchPacket;
-import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.util.VxChunkUtil;
-
-import net.xmx.velthoric.core.behavior.VxBehaviors;
 
 import java.nio.ByteBuffer;
 import java.util.*;
@@ -183,7 +183,8 @@ public class VxNetworkDispatcher {
                 }
 
                 // Sync custom data
-                this.manager.getServerSyncManager().sendSynchronizedDataUpdates(this);
+                VxSyncBehavior behavior = this.manager.getBehaviorManager().getBehavior(VxBehaviors.CUSTOM_DATA_SYNC);
+                behavior.sendSynchronizedDataUpdates(this.manager, this);
 
                 long durationMs = (System.nanoTime() - start) / 1_000_000;
                 Thread.sleep(Math.max(0, NETWORK_THREAD_TICK_RATE_MS - durationMs));
@@ -217,6 +218,8 @@ public class VxNetworkDispatcher {
                         // Clear the dirty flags anyway so they don't pile up
                         dataStore.isTransformDirty[i] = false;
                         dataStore.isVertexDataDirty[i] = false;
+                        // But don't continue/skip if the body might still need custom data sync
+                        // (sendSynchronizedDataUpdates handles its own loop, so we just skip the chunk batching)
                         continue;
                     }
 
@@ -376,8 +379,9 @@ public class VxNetworkDispatcher {
      * @param body   The body.
      */
     public void trackBodyForPlayer(ServerPlayer player, VxBody body) {
-        // Prevent tracking a body if it doesn't want network synchronization
-        if (!VxBehaviors.NET_SYNC.isSet(dataStore.behaviorBits[body.getDataStoreIndex()])) return;
+        // Prevent tracking a body if it doesn't want any network synchronization at all
+        long behaviorBits = dataStore.behaviorBits[body.getDataStoreIndex()];
+        if (!VxBehaviors.NET_SYNC.isSet(behaviorBits) && !VxBehaviors.CUSTOM_DATA_SYNC.isSet(behaviorBits)) return;
 
         IntSet tracked = playerTrackedBodies.computeIfAbsent(player.getUUID(), k -> IntSets.synchronize(new IntOpenHashSet()));
         if (tracked.add(body.getNetworkId())) {

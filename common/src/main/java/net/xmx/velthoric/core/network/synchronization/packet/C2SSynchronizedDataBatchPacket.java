@@ -10,10 +10,11 @@ import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
+import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.core.behavior.impl.VxSyncBehavior;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.core.network.synchronization.manager.VxServerSyncManager;
-import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.Map;
 
@@ -126,11 +127,11 @@ public class C2SSynchronizedDataBatchPacket implements IVxNetPacket {
                 return;
             }
 
-            VxServerSyncManager syncManager = world.getBodyManager().getServerSyncManager();
+            VxSyncBehavior syncBehavior = world.getBodyManager().getBehaviorManager().getBehavior(VxBehaviors.CUSTOM_DATA_SYNC);
 
             for (Map.Entry<Integer, byte[]> entry : this.dataUpdates.entrySet()) {
-                // Delegate validation and application to the server sync manager
-                syncManager.processClientUpdate(entry.getKey(), entry.getValue(), player);
+                // Delegate validation and application to the server sync behavior
+                syncBehavior.processClientUpdate(world.getBodyManager(), entry.getKey(), entry.getValue(), player);
             }
         });
     }

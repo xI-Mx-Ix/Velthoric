@@ -5,6 +5,8 @@
 package net.xmx.velthoric.core.behavior;
 
 import net.minecraft.server.level.ServerLevel;
+import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
@@ -22,6 +24,7 @@ import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
  *     <li>{@link #onPrePhysicsTick} — Called before each physics simulation step (physics thread).</li>
  *     <li>{@link #onPhysicsTick} — Called after each physics simulation step (physics thread).</li>
  *     <li>{@link #onServerTick} — Called on the main server thread each game tick.</li>
+ *     <li>{@link #onClientTick} — Called on the client thread each game tick.</li>
  *     <li>{@link #onDetached} — Called when a body loses this behavior. Clean up per-body data here.</li>
  * </ol>
  *
@@ -42,12 +45,13 @@ public interface VxBehavior {
      * Called when a body gains this behavior.
      * <p>
      * Use this to initialize any behavior-specific data at the body's DataStore index.
-     * This method is called on the server thread during body construction.
+     * This method is called on the side where the body is constructed.
      *
      * @param index The data store index of the body.
      * @param body  The body instance.
      */
-    default void onAttached(int index, VxBody body) {}
+    default void onAttached(int index, VxBody body) {
+    }
 
     /**
      * Called when a body loses this behavior (either through explicit removal or body destruction).
@@ -57,7 +61,8 @@ public interface VxBehavior {
      * @param index The data store index of the body.
      * @param body  The body instance.
      */
-    default void onDetached(int index, VxBody body) {}
+    default void onDetached(int index, VxBody body) {
+    }
 
     /**
      * Called before each physics simulation step on the physics thread.
@@ -67,7 +72,8 @@ public interface VxBehavior {
      * @param world The physics world instance.
      * @param store The server-side SoA data store.
      */
-    default void onPrePhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore store) {}
+    default void onPrePhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore store) {
+    }
 
     /**
      * Called after each physics simulation step on the physics thread.
@@ -77,7 +83,8 @@ public interface VxBehavior {
      * @param world The physics world instance.
      * @param store The server-side SoA data store.
      */
-    default void onPhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore store) {}
+    default void onPhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore store) {
+    }
 
     /**
      * Called on each game tick on the server thread.
@@ -85,5 +92,17 @@ public interface VxBehavior {
      * @param level The server level instance.
      * @param store The server-side SoA data store.
      */
-    default void onServerTick(ServerLevel level, VxServerBodyDataStore store) {}
+    default void onServerTick(ServerLevel level, VxServerBodyDataStore store) {
+    }
+
+    /**
+     * Called once per client game tick for all bodies that have this behavior attached.
+     * <p>
+     * Use this to process client-side logic or send updates to the server.
+     *
+     * @param manager The client body manager.
+     * @param store   The client data store.
+     */
+    default void onClientTick(VxClientBodyManager manager, VxClientBodyDataStore store) {
+    }
 }

@@ -15,7 +15,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.core.behavior.VxBehaviorManager;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
-import net.xmx.velthoric.core.behavior.impl.*;
 import net.xmx.velthoric.core.body.VxAbstractBodyManager;
 import net.xmx.velthoric.core.body.VxRemovalReason;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
@@ -24,7 +23,6 @@ import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.core.network.internal.VxNetworkDispatcher;
-import net.xmx.velthoric.core.network.synchronization.manager.VxServerSyncManager;
 import net.xmx.velthoric.core.persistence.impl.body.VxBodyCodec;
 import net.xmx.velthoric.core.persistence.impl.body.VxBodyStorage;
 import net.xmx.velthoric.core.persistence.impl.body.VxSerializedBodyData;
@@ -75,11 +73,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
     private final VxNetworkDispatcher networkDispatcher;
 
     /**
-     * Manages server-side synchronization and dirty state tracking.
-     */
-    private final VxServerSyncManager serverSyncManager;
-
-    /**
      * Handles spatial partitioning and chunk-based lookups for bodies.
      */
     private final VxSpatialManager spatialManager;
@@ -122,21 +115,12 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         this.dataStore = new VxServerBodyDataStore();
         this.bodyStorage = new VxBodyStorage(world.getLevel());
         this.networkDispatcher = new VxNetworkDispatcher(world.getLevel(), this);
-        this.serverSyncManager = new VxServerSyncManager(this);
         this.spatialManager = new VxSpatialManager();
         this.mountingManager = new VxMountingManager(this.world);
+        this.behaviorManager = new VxBehaviorManager();
 
         // Initialize the behavior system with built-in behaviors.
-        this.behaviorManager = new VxBehaviorManager(dataStore);
-        this.behaviorManager.registerBehavior(new VxRigidPhysicsBehavior());
-        this.behaviorManager.registerBehavior(new VxSoftPhysicsBehavior());
-        this.behaviorManager.registerBehavior(new VxPersistenceBehavior());
-        this.behaviorManager.registerBehavior(new VxBuoyancyBehavior(world));
-        this.behaviorManager.registerBehavior(new VxPhysicsSyncBehavior());
-        
-        // Marker and Tick Behaviors
-        this.behaviorManager.registerBehavior(new VxNetSyncBehavior());
-        this.behaviorManager.registerBehavior(new VxTickBehavior());
+        this.behaviorManager.init(world.getLevel(), world);
     }
 
     /**
@@ -181,7 +165,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      * @param world The physics world being ticked.
      */
     public void onPrePhysicsTick(VxPhysicsWorld world) {
-        behaviorManager.onPrePhysicsTick(world);
+        behaviorManager.onPrePhysicsTick(this.world, this.dataStore);
     }
 
     /**
@@ -190,7 +174,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      * @param world The physics world being ticked.
      */
     public void onPhysicsTick(VxPhysicsWorld world) {
-        behaviorManager.onPhysicsTick(world);
+        behaviorManager.onPhysicsTick(this.world, this.dataStore);
     }
 
     /**
@@ -201,7 +185,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      */
     public void onGameTick(ServerLevel level) {
         networkDispatcher.onGameTick();
-        behaviorManager.onServerTick(level);
+        behaviorManager.onServerTick(level, this.dataStore);
         mountingManager.onGameTick();
     }
 
@@ -704,13 +688,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      */
     public VxSpatialManager getSpatialManager() {
         return spatialManager;
-    }
-
-    /**
-     * @return The sync manager handling server-side data extraction and synchronization.
-     */
-    public VxServerSyncManager getServerSyncManager() {
-        return serverSyncManager;
     }
 
     /**

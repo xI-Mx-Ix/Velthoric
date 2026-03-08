@@ -17,7 +17,9 @@ package net.xmx.velthoric.core.behavior;
  */
 public final class VxBehaviors {
 
-    private VxBehaviors() {} // No instantiation
+    private VxBehaviors() {
+        // No instantiation
+    }
 
     // --- Physics Type Behaviors ---
 
@@ -61,12 +63,16 @@ public final class VxBehaviors {
      */
     public static final VxBehaviorId BUOYANCY = new VxBehaviorId("Buoyancy");
 
-    // --- User-Facing Behaviors ---
-
     /**
      * Enables ticking callbacks for a body.
      * Bodies with this behavior receive updates on the server thread (per-game-tick),
      * and on the physics thread (pre and post simulation step).
      */
     public static final VxBehaviorId TICK = new VxBehaviorId("Tick");
+
+    /**
+     * Enables custom data synchronization between client and server.
+     * Bodies with this behavior can use the VxSynchronizedData system to replicate custom properties.
+     */
+    public static final VxBehaviorId CUSTOM_DATA_SYNC = new VxBehaviorId("CustomDataSync");
 }

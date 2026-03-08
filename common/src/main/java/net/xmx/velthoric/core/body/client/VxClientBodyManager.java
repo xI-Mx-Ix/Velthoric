@@ -11,15 +11,18 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.config.VxModConfig;
-import net.xmx.velthoric.core.body.client.time.VxClientClock;
+import net.xmx.velthoric.core.behavior.VxBehavior;
+import net.xmx.velthoric.core.behavior.VxBehaviorManager;
+import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.core.behavior.impl.VxSyncBehavior;
 import net.xmx.velthoric.core.body.VxAbstractBodyManager;
+import net.xmx.velthoric.core.body.client.time.VxClientClock;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.mounting.VxMountable;
 import net.xmx.velthoric.core.mounting.manager.VxClientMountingManager;
 import net.xmx.velthoric.core.mounting.seat.VxSeat;
-import net.xmx.velthoric.core.network.synchronization.manager.VxClientSyncManager;
 import net.xmx.velthoric.event.api.VxClientLevelEvent;
 import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.init.VxMainClass;
@@ -76,11 +79,6 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
     private final VxClientBodyInterpolator interpolator = new VxClientBodyInterpolator();
 
     /**
-     * The manager responsible for synchronizing client-authoritative data (C2S).
-     */
-    private final VxClientSyncManager syncManager;
-
-    /**
      * The calculated time offset between the client and server clocks.
      * Client Render Time = Client Game Time + Offset - Interpolation Delay.
      */
@@ -102,13 +100,18 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
     private final VxClientMountingManager mountingManager;
 
     /**
-     * Constructs the client body manager and initializes the synchronization manager
+     * Central orchestrator for the behavior-based composition system.
+     */
+    private final VxBehaviorManager behaviorManager;
+
+    /**
+     * Constructs the client body manager and initializes the synchronization behavior
      * and mounting manager.
      */
     private VxClientBodyManager() {
-        this.syncManager = new VxClientSyncManager(this);
         this.interpolationDelayNanos = VxModConfig.CLIENT.interpolationDelayNanos.get();
         this.mountingManager = new VxClientMountingManager();
+        this.behaviorManager = new VxBehaviorManager();
     }
 
     /**
@@ -117,7 +120,10 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      */
     public static void registerEvents() {
         // Reset the manager state when a new level is loaded to ensure a clean simulation context.
-        VxClientLevelEvent.Load.EVENT.register(event -> getInstance().clearAll());
+        VxClientLevelEvent.Load.EVENT.register(event -> {
+            getInstance().clearAll();
+            getInstance().behaviorManager.init(event.getLevel(), null);
+        });
 
         // Ensure all data is cleared when the client level is unloaded.
         VxClientLevelEvent.Unload.EVENT.register(event -> getInstance().clearAll());
@@ -136,6 +142,13 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      */
     public static VxClientBodyManager getInstance() {
         return INSTANCE;
+    }
+
+    /**
+     * @return The behavior manager instance.
+     */
+    public VxBehaviorManager getBehaviorManager() {
+        return behaviorManager;
     }
 
     /**
@@ -239,6 +252,16 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
         body.setDataStoreIndex(store, index);
         managedBodies.put(id, body);
 
+        // Attach default behaviors defined in the type definition.
+        long defaultBehaviors = type.getDefaultBehaviors();
+        if (defaultBehaviors != 0) {
+            for (VxBehavior behavior : behaviorManager.getBehaviors()) {
+                if (behavior.getId().isSet(defaultBehaviors)) {
+                    behaviorManager.attachBehavior(body, behavior);
+                }
+            }
+        }
+
         // Deserialize initial transform
         VxTransform transform = new VxTransform();
         transform.fromBuffer(data);
@@ -324,8 +347,9 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
                 VxBody body = managedBodies.get(id);
 
                 if (body != null) {
-                    // Notify sync manager to stop tracking dirtiness for this body
-                    syncManager.onBodyRemoved(body);
+                    // Notify sync behavior to stop tracking dirtiness for this body
+                    VxSyncBehavior sync = behaviorManager.getBehavior(VxBehaviors.CUSTOM_DATA_SYNC);
+                    if (sync != null) sync.onBodyRemoved(body);
 
                     // Notify the body that it has been removed from the client level.
                     ClientLevel level = Minecraft.getInstance().level;
@@ -352,18 +376,20 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      * @param body The body that changed.
      */
     public void markBodyDirty(VxBody body) {
-        syncManager.markBodyDirty(body);
+        VxSyncBehavior sync = behaviorManager.getBehavior(VxBehaviors.CUSTOM_DATA_SYNC);
+        if (sync != null) sync.markBodyDirty(body);
     }
 
     /**
-     * Delegates handling of server-sent synchronized data updates to the SyncManager.
+     * Delegates handling of server-sent synchronized data updates to the SyncBehavior.
      * This handles updates to custom SyncedDataEntries.
      *
      * @param networkId The network ID of the body.
      * @param data      The buffer containing the data.
      */
     public void updateSynchronizedData(int networkId, ByteBuf data) {
-        syncManager.handleServerUpdate(networkId, data);
+        VxSyncBehavior sync = behaviorManager.getBehavior(VxBehaviors.CUSTOM_DATA_SYNC);
+        if (sync != null) sync.handleServerUpdate(this, networkId, data);
     }
 
     /**
@@ -373,7 +399,8 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
     public void clearAll() {
         store.clear();
         this.clearInternal();
-        syncManager.clear();
+        VxSyncBehavior sync = behaviorManager.getBehavior(VxBehaviors.CUSTOM_DATA_SYNC);
+        if (sync != null) sync.clear();
         isClockOffsetInitialized = false;
         clockOffsetNanos = 0L;
         synchronized(clockOffsetSamples) {
@@ -387,6 +414,13 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      * Synchronizes the clock, runs body callbacks, and triggers interpolation.
      *
      * @param isPaused True if the client game is currently paused.
+     */
+    /**
+     * Ticks the client-side physics manager.
+     * <p>
+     * This handles interpolation, clock synchronization, and sending C2S custom data updates.
+     *
+     * @param isPaused Whether the game is currently paused.
      */
     public void clientTick(boolean isPaused) {
         if (isPaused) {
@@ -407,7 +441,7 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
         }
 
         // Process synchronization tasks (sending C2S updates for dirty bodies)
-        syncManager.tick();
+        behaviorManager.onClientTick(this, store);
 
         // Calculate and smooth clock offset
         synchronizeClock();

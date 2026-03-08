@@ -47,6 +47,8 @@ public class VxRegisteredBodies {
             .create(BlockRigidBody::new)
             .noSummon()
             .rigidProvider(BlockRigidBody::createJoltBody)
+            .netSync()
+            .customDataSync()
             .persistence(BlockRigidBody::writePersistence, BlockRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "block"));
 
@@ -54,6 +56,8 @@ public class VxRegisteredBodies {
             .create(SphereRigidBody::new)
             .rigidProvider(SphereRigidBody::createJoltBody)
             .buoyant()
+            .netSync()
+            .customDataSync()
             .persistence(SphereRigidBody::writePersistence, SphereRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "sphere"));
 
@@ -61,6 +65,8 @@ public class VxRegisteredBodies {
             .create(BoxRigidBody::new)
             .rigidProvider(BoxRigidBody::createJoltBody)
             .buoyant()
+            .netSync()
+            .customDataSync()
             .persistence(BoxRigidBody::writePersistence, BoxRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "box"));
 
@@ -68,6 +74,8 @@ public class VxRegisteredBodies {
             .create(MarbleRigidBody::new)
             .rigidProvider(MarbleRigidBody::createJoltBody)
             .buoyant()
+            .netSync()
+            .customDataSync()
             .persistence(MarbleRigidBody::writePersistence, MarbleRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "marble"));
 
@@ -76,12 +84,16 @@ public class VxRegisteredBodies {
     public static final VxBodyType CLOTH = VxBodyType.Builder
             .create(ClothSoftBody::new)
             .softProvider(ClothSoftBody::createJoltBody)
+            .netSync()
+            .customDataSync()
             .persistence(ClothSoftBody::writePersistence, ClothSoftBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "cloth"));
 
     public static final VxBodyType ROPE = VxBodyType.Builder
             .create(RopeSoftBody::new)
             .softProvider(RopeSoftBody::createJoltBody)
+            .netSync()
+            .customDataSync()
             .persistence(RopeSoftBody::writePersistence, RopeSoftBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "rope"));
 
@@ -91,12 +103,16 @@ public class VxRegisteredBodies {
             .create(CarImpl::new)
             .rigidProvider(CarImpl::createJoltBody)
             .buoyant()
+            .netSync()
+            .customDataSync()
             .build(ResourceLocation.tryBuild("velthoric", "car"));
 
     public static final VxBodyType MOTORCYCLE = VxBodyType.Builder
             .create(MotorcycleImpl::new)
             .rigidProvider(MotorcycleImpl::createJoltBody)
             .buoyant()
+            .netSync()
+            .customDataSync()
             .build(ResourceLocation.tryBuild("velthoric", "motorcycle"));
 
     // --- Internal Bodies ---
@@ -105,12 +121,16 @@ public class VxRegisteredBodies {
             .create(VxChainPartRigidBody::new)
             .noSummon()
             .rigidProvider(VxChainPartRigidBody::createJoltBody)
+            .netSync()
+            .customDataSync()
             .build(ResourceLocation.tryBuild("velthoric", "chain_part"));
 
     public static final VxBodyType BODY_PART = VxBodyType.Builder
             .create(VxBodyPartRigidBody::new)
             .noSummon()
             .rigidProvider(VxBodyPartRigidBody::createJoltBody)
+            .netSync()
+            .customDataSync()
             .build(ResourceLocation.tryBuild("velthoric", "body_part"));
 
     /**

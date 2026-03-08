@@ -268,8 +268,6 @@ public class VxBody {
         return true;
     }
 
-
-
     /**
      * Populates the provided transform object with current data.
      *
@@ -407,6 +405,13 @@ public class VxBody {
     public void setDataStoreIndex(VxBodyDataStore dataStore, int dataStoreIndex) {
         this.dataStore = dataStore;
         this.dataStoreIndex = dataStoreIndex;
+    }
+
+    /**
+     * @return The data store that manages the physical state of this body.
+     */
+    public VxBodyDataStore getDataStore() {
+        return dataStore;
     }
 
     /**
