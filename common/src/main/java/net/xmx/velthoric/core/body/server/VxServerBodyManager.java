@@ -426,9 +426,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
             joltBodyIdToVxBodyMap.remove(body.getBodyId());
         }
 
-        // 8. Notify Lifecycle Listeners
-        notifyBodyRemoved(body);
-
         // Invalidate indices in the body object to prevent accidental reuse
         body.setDataStoreIndex(dataStore, -1);
         body.setNetworkId(-1);
@@ -473,9 +470,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
             long chunkKey = VxSpatialManager.calculateChunkKey(dataStore.posX[index], dataStore.posZ[index]);
             dataStore.chunkKey[index] = chunkKey;
             spatialManager.add(chunkKey, body);
-
-            // Notify Lifecycle Listeners
-            notifyBodyAdded(body);
 
             return body;
         });

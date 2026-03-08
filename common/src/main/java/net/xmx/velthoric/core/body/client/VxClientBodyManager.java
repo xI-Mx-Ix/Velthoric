@@ -257,9 +257,6 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
         if (level != null) {
             body.onBodyAdded(level);
         }
-
-        // Notify listeners
-        notifyBodyAdded(body);
     }
 
     /**
@@ -336,9 +333,6 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
                     if (level != null) {
                         body.onBodyRemoved(level);
                     }
-
-                    // Notify listeners
-                    notifyBodyRemoved(body);
                 }
  
                 managedBodies.remove(id);
