@@ -33,24 +33,41 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Consolidated behavior for custom data synchronization.
+ * Consolidated behavior for custom data synchronization between server and client.
  * <p>
- * This class handles both Server-to-Client (S2C) and Client-to-Server (C2S) synchronization.
- * It is designed to work in both dedicated server environments and integrated singleplayer environments
- * where side-specific logic might share the same behavior instance.
+ * This behavior provides a lightweight mechanism to synchronize custom user data entries 
+ * attached to physics bodies. It follows a delta-based synchronization model:
+ * <ul>
+ *   <li><b>Server-to-Client (S2C):</b> Synchronizes state changes to tracking players.</li>
+ *   <li><b>Client-to-Server (C2S):</b> Allows clients to send authoritative updates for logic 
+ *   they control (e.g. input-driven custom data).</li>
+ * </ul>
+ * <p>
+ * To minimize allocations and GC pressure, this system uses thread-local serialization 
+ * buffers and data-driven bitmask checks for efficiency.
  *
  * @author xI-Mx-Ix
  */
 public class VxSyncBehavior implements VxBehavior {
 
-    // --- Serialization Buffers ---
-    private static final ThreadLocal<VxByteBuf> THREAD_LOCAL_BUF = ThreadLocal.withInitial(() -> new VxByteBuf(Unpooled.buffer(1024)));
-
-    // --- Client-Side State ---
-    private final IntSet dirtyBodies = new IntOpenHashSet();
+    /**
+     * The default initial size for the thread-local serialization buffers.
+     */
+    private static final int DEFAULT_BUFFER_SIZE = 1024;
 
     /**
-     * Default constructor for the consolidated sync behavior.
+     * Reusable thread-local buffer to avoid frequent allocations during bulk synchronization.
+     */
+    private static final ThreadLocal<VxByteBuf> THREAD_LOCAL_BUF = ThreadLocal.withInitial(() -> 
+            new VxByteBuf(Unpooled.buffer(DEFAULT_BUFFER_SIZE)));
+
+    /**
+     * Set of network IDs of bodies that have dirty C2S data on the client.
+     */
+    private final IntSet dirtyBodiesC2S = new IntOpenHashSet();
+
+    /**
+     * Default constructor.
      */
     public VxSyncBehavior() {
     }
@@ -61,42 +78,89 @@ public class VxSyncBehavior implements VxBehavior {
     }
 
     // ================================================================================
-    // Client-Side Logic (C2S)
+    // Client-Side Logic (C2S Outgoing, S2C Incoming)
     // ================================================================================
 
     /**
-     * Marks a body as dirty so its custom data is synchronized to the server.
+     * Marks a body as dirty on the client, notifying the system that its custom data 
+     * should be sent to the server in the next tick.
      *
-     * @param body The body that changed.
+     * @param body The body whose custom data has changed.
      */
-    public synchronized void markBodyDirty(VxBody body) {
-        this.dirtyBodies.add(body.getNetworkId());
+    public synchronized void markDirtyC2S(VxBody body) {
+        this.dirtyBodiesC2S.add(body.getNetworkId());
     }
 
     /**
-     * Cleans up tracking data for a removed body.
+     * Handles the removal of a body on the client by cleaning up sync trackers.
      *
-     * @param body The body being removed.
+     * @param body The body instance being removed.
      */
     public synchronized void onBodyRemoved(VxBody body) {
-        this.dirtyBodies.remove(body.getNetworkId());
+        this.dirtyBodiesC2S.remove(body.getNetworkId());
     }
 
     /**
-     * Clears all tracked dirty bodies.
+     * Clears all client-side synchronization state.
      */
     public synchronized void clear() {
-        this.dirtyBodies.clear();
+        this.dirtyBodiesC2S.clear();
     }
 
     /**
-     * Updates synchronized data on a body from a server packet (S2C).
-     *
-     * @param manager   The client body manager.
-     * @param networkId The network ID of the body.
-     * @param data      The raw byte buffer containing update data.
+     * Logic executed during the client game tick. 
+     * Scans for dirty bodies, serializes their changes, and dispatches them to the server.
      */
-    public void handleServerUpdate(VxClientBodyManager manager, int networkId, ByteBuf data) {
+    @Override
+    public void onClientTick(VxClientBodyManager manager, VxClientBodyDataStore store) {
+        if (dirtyBodiesC2S.isEmpty()) return;
+
+        Map<Integer, byte[]> batchUpdates = new Object2ObjectArrayMap<>();
+        VxByteBuf serializationBuffer = THREAD_LOCAL_BUF.get();
+
+        synchronized (this) {
+            Iterator<Integer> it = dirtyBodiesC2S.iterator();
+            while (it.hasNext()) {
+                int netId = it.next();
+                Integer index = store.getIndexForNetworkId(netId);
+
+                // Body might have been removed or is no longer tracked
+                if (index == null) {
+                    it.remove();
+                    continue;
+                }
+
+                UUID id = store.getIdForIndex(index);
+                VxBody body = manager.getBody(id);
+                if (body == null) {
+                    it.remove();
+                    continue;
+                }
+
+                serializationBuffer.clear();
+                // Serialize only dirty entries for this specific body
+                if (body.writeDirtySyncData(serializationBuffer)) {
+                    byte[] payload = new byte[serializationBuffer.readableBytes()];
+                    serializationBuffer.readBytes(payload);
+                    batchUpdates.put(netId, payload);
+                }
+                it.remove();
+            }
+        }
+
+        if (!batchUpdates.isEmpty()) {
+            VxNetworking.sendToServer(new C2SSynchronizedDataBatchPacket(batchUpdates));
+        }
+    }
+
+    /**
+     * Processes an incoming custom data update from the server.
+     *
+     * @param manager   The client-side body manager.
+     * @param networkId The network ID of the body being updated.
+     * @param payload   The raw data containing the synchronized entries.
+     */
+    public void applyS2CUpdate(VxClientBodyManager manager, int networkId, ByteBuf payload) {
         VxClientBodyDataStore store = manager.getStore();
         Integer index = store.getIndexForNetworkId(networkId);
         if (index == null) return;
@@ -107,144 +171,105 @@ public class VxSyncBehavior implements VxBehavior {
         VxBody body = manager.getBody(id);
         if (body != null) {
             try {
-                body.getSynchronizedData().readEntries(new VxByteBuf(data), body);
+                // Apply the received entries to the body's synchronized data container
+                body.getSynchronizedData().readEntries(new VxByteBuf(payload), body);
             } catch (Exception e) {
-                VxMainClass.LOGGER.error("Failed to read synchronized data for body {}", id, e);
+                VxMainClass.LOGGER.error("Failed to apply S2C synchronized data for body {}", id, e);
             }
         }
     }
 
-    /**
-     * Scans for bodies with dirty custom synchronized data, serializes it, and sends it to the server.
-     * <p>
-     * This method is called once per client game tick.
-     *
-     * @param manager The client body manager.
-     * @param store   The client data store.
-     */
-    @Override
-    public void onClientTick(VxClientBodyManager manager, VxClientBodyDataStore store) {
-        Map<Integer, byte[]> updates = new Object2ObjectArrayMap<>();
-        VxByteBuf buffer = THREAD_LOCAL_BUF.get();
-
-        synchronized (this) {
-            if (dirtyBodies.isEmpty()) return;
-
-            Iterator<Integer> iterator = dirtyBodies.iterator();
-            while (iterator.hasNext()) {
-                int networkId = iterator.next();
-                Integer index = store.getIndexForNetworkId(networkId);
-
-                if (index == null) {
-                    iterator.remove();
-                    continue;
-                }
-
-                UUID id = store.getIdForIndex(index);
-                VxBody body = manager.getBody(id);
-                if (body == null) {
-                    iterator.remove();
-                    continue;
-                }
-
-                buffer.clear();
-                if (body.writeDirtySyncData(buffer)) {
-                    byte[] data = new byte[buffer.readableBytes()];
-                    buffer.readBytes(data);
-                    updates.put(networkId, data);
-                }
-                iterator.remove();
-            }
-        }
-
-        if (!updates.isEmpty()) {
-            VxNetworking.sendToServer(new C2SSynchronizedDataBatchPacket(updates));
-        }
-    }
-
     // ================================================================================
-    // Server-Side Logic (S2C)
+    // Server-Side Logic (C2S Incoming, S2C Outgoing)
     // ================================================================================
 
     /**
-     * Processes a batch of synchronized data updates from a client.
-     * This method validates that the client has authority over the data it is trying to change.
+     * Processes a synchronization request sent by a client.
      *
-     * @param bodyManager The server body manager.
-     * @param networkId   The network ID of the body being updated.
-     * @param data        The raw byte array containing the update data.
-     * @param player      The player who sent the update.
+     * @param bodyManager The server-side body manager.
+     * @param networkId   The network ID of the body.
+     * @param payload     The serialized sync data.
+     * @param sender      The player who sent the update.
      */
-    public void processClientUpdate(VxServerBodyManager bodyManager, int networkId, byte[] data, ServerPlayer player) {
+    public void handleC2SUpdate(VxServerBodyManager bodyManager, int networkId, byte[] payload, ServerPlayer sender) {
         VxServerBodyDataStore dataStore = bodyManager.getDataStore();
         UUID bodyId = dataStore.getIdForNetworkId(networkId);
-
         if (bodyId == null) return;
 
         VxBody body = bodyManager.getVxBody(bodyId);
         if (body == null) return;
 
         try {
-            VxByteBuf buf = new VxByteBuf(Unpooled.wrappedBuffer(data));
-            body.getSynchronizedData().readEntriesC2S(buf, body, player);
+            VxByteBuf buf = new VxByteBuf(Unpooled.wrappedBuffer(payload));
+            // Delegate logic to entries, which might perform authority checks
+            body.getSynchronizedData().readEntriesC2S(buf, body, sender);
         } catch (Exception e) {
-            VxMainClass.LOGGER.error("Failed to process C2S sync for body {} from player {}", bodyId, player.getName().getString(), e);
+            VxMainClass.LOGGER.error("Failed to process C2S sync for body {} from player {}", 
+                    bodyId, sender.getName().getString(), e);
         }
     }
 
     /**
-     * Scans for bodies with dirty custom synchronized data, serializes it, and sends it to tracking players.
+     * Scans for bodies with dirty synchronized data and broadcasts updates to tracking players.
      * <p>
-     * This method is called from the {@link VxNetworkDispatcher}'s dedicated thread.
+     * This method is designed to be called from the network thread to offload serialization.
      *
-     * @param bodyManager The server body manager.
-     * @param dispatcher  The network dispatcher instance used to resolve player visibility.
+     * @param bodyManager The server-side body manager.
+     * @param dispatcher  The network dispatcher for tracker resolution.
      */
-    public void sendSynchronizedDataUpdates(VxServerBodyManager bodyManager, VxNetworkDispatcher dispatcher) {
+    public void broadcastS2CUpdates(VxServerBodyManager bodyManager, VxNetworkDispatcher dispatcher) {
         VxServerBodyDataStore dataStore = bodyManager.getDataStore();
-        IntArrayList dirtyDataIndices = new IntArrayList();
+        IntArrayList dirtyIndices = new IntArrayList();
 
+        // 1. Collect indices of bodies with server-side dirty flags
         synchronized (dataStore) {
             for (int i = 0; i < dataStore.getCapacity(); i++) {
                 if (dataStore.isCustomDataDirty[i]) {
-                    dirtyDataIndices.add(i);
+                    dirtyIndices.add(i);
                     dataStore.isCustomDataDirty[i] = false;
                 }
             }
         }
 
-        if (dirtyDataIndices.isEmpty()) return;
+        if (dirtyIndices.isEmpty()) return;
 
-        Map<ServerPlayer, Map<Integer, byte[]>> updatesByPlayer = new Object2ObjectOpenHashMap<>();
-        VxByteBuf buffer = THREAD_LOCAL_BUF.get();
+        Map<ServerPlayer, Map<Integer, byte[]>> playerUpdateMap = new Object2ObjectOpenHashMap<>();
+        VxByteBuf serializationBuffer = THREAD_LOCAL_BUF.get();
 
-        for (int dirtyIndex : dirtyDataIndices) {
-            UUID bodyId = dataStore.getIdForIndex(dirtyIndex);
-            if (bodyId == null) continue;
+        // 2. Serialize updates once per body and identify interested players
+        for (int index : dirtyIndices) {
+            UUID id = dataStore.getIdForIndex(index);
+            if (id == null) continue;
 
-            VxBody body = bodyManager.getVxBody(bodyId);
+            VxBody body = bodyManager.getVxBody(id);
             if (body == null) continue;
 
-            buffer.clear();
-            if (body.writeDirtySyncData(buffer)) {
-                byte[] data = new byte[buffer.readableBytes()];
-                buffer.readBytes(data);
+            serializationBuffer.clear();
+            if (body.writeDirtySyncData(serializationBuffer)) {
+                byte[] payload = new byte[serializationBuffer.readableBytes()];
+                serializationBuffer.readBytes(payload);
 
-                Set<ServerPlayer> trackers = dispatcher.getTrackersForBody(body.getNetworkId());
-                if (trackers != null) {
+                int netId = body.getNetworkId();
+                Set<ServerPlayer> trackers = dispatcher.getTrackersForBody(netId);
+                
+                if (trackers != null && !trackers.isEmpty()) {
                     for (ServerPlayer player : trackers) {
-                        updatesByPlayer.computeIfAbsent(player, k -> new Object2ObjectArrayMap<>()).put(body.getNetworkId(), data);
+                        playerUpdateMap.computeIfAbsent(player, p -> new Object2ObjectArrayMap<>())
+                                .put(netId, payload);
                     }
                 }
             }
         }
 
-        if (!updatesByPlayer.isEmpty()) {
-            bodyManager.getPhysicsWorld().getLevel().getServer().execute(() -> updatesByPlayer.forEach((player, dataMap) -> {
-                if (!dataMap.isEmpty()) {
-                    VxNetworking.sendToPlayer(player, new S2CSynchronizedDataBatchPacket(dataMap));
-                }
-            }));
+        // 3. Dispatch batch packets to players on the server thread
+        if (!playerUpdateMap.isEmpty()) {
+            bodyManager.getPhysicsWorld().getLevel().getServer().execute(() -> 
+                playerUpdateMap.forEach((player, data) -> {
+                    if (!data.isEmpty()) {
+                        VxNetworking.sendToPlayer(player, new S2CSynchronizedDataBatchPacket(data));
+                    }
+                })
+            );
         }
     }
 }

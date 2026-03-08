@@ -184,7 +184,7 @@ public class VxNetworkDispatcher {
 
                 // Sync custom data
                 VxSyncBehavior behavior = this.manager.getBehaviorManager().getBehavior(VxBehaviors.CUSTOM_DATA_SYNC);
-                behavior.sendSynchronizedDataUpdates(this.manager, this);
+                behavior.broadcastS2CUpdates(this.manager, this);
 
                 long durationMs = (System.nanoTime() - start) / 1_000_000;
                 Thread.sleep(Math.max(0, NETWORK_THREAD_TICK_RATE_MS - durationMs));

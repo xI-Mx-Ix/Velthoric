@@ -349,7 +349,7 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      */
     public void markBodyDirty(VxBody body) {
         VxSyncBehavior sync = behaviorManager.getBehavior(VxBehaviors.CUSTOM_DATA_SYNC);
-        if (sync != null) sync.markBodyDirty(body);
+        if (sync != null) sync.markDirtyC2S(body);
     }
 
     /**
@@ -361,7 +361,7 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      */
     public void updateSynchronizedData(int networkId, ByteBuf data) {
         VxSyncBehavior sync = behaviorManager.getBehavior(VxBehaviors.CUSTOM_DATA_SYNC);
-        if (sync != null) sync.handleServerUpdate(this, networkId, data);
+        if (sync != null) sync.applyS2CUpdate(this, networkId, data);
     }
 
     /**

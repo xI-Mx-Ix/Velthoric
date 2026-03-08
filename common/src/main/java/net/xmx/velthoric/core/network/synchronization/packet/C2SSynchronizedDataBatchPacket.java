@@ -131,7 +131,7 @@ public class C2SSynchronizedDataBatchPacket implements IVxNetPacket {
 
             for (Map.Entry<Integer, byte[]> entry : this.dataUpdates.entrySet()) {
                 // Delegate validation and application to the server sync behavior
-                syncBehavior.processClientUpdate(world.getBodyManager(), entry.getKey(), entry.getValue(), player);
+                syncBehavior.handleC2SUpdate(world.getBodyManager(), entry.getKey(), entry.getValue(), player);
             }
         });
     }
