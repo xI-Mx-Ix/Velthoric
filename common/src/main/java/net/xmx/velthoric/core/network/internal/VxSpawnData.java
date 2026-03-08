@@ -8,7 +8,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;

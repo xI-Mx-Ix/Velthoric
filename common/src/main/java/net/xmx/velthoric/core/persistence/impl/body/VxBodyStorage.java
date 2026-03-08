@@ -6,7 +6,7 @@ package net.xmx.velthoric.core.persistence.impl.body;
 
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.persistence.VxChunkBasedStorage;
 
 /**

@@ -10,13 +10,14 @@ import com.github.stephengold.joltjni.SphereShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
 import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.core.body.registry.VxBodyType;
+import net.xmx.velthoric.core.body.VxBodyType;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 import java.util.UUID;
@@ -52,7 +53,7 @@ public class SphereRigidBody extends VxBody {
         return get(DATA_RADIUS);
     }
 
-    public static int createJoltBody(VxBody body, net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory factory) {
+    public static int createJoltBody(VxBody body, VxRigidBodyFactory factory) {
         try (
                 ShapeSettings shapeSettings = new SphereShapeSettings(body.get(DATA_RADIUS));
                 BodyCreationSettings bcs = new BodyCreationSettings()

@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.body.type.factory;
+package net.xmx.velthoric.core.body.factory;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.ShapeSettings;

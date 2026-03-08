@@ -9,7 +9,7 @@ import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 /**

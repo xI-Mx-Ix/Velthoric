@@ -21,7 +21,7 @@ import net.xmx.velthoric.item.physicsgun.manager.VxPhysicsGunClientManager;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.core.body.client.VxClientBodyInterpolator;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import org.joml.Matrix4f;
 
 import java.util.Map;

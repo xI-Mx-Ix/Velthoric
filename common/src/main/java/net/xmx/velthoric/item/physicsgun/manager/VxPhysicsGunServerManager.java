@@ -10,7 +10,7 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.intersection.raycast.VxHitResult;
 import net.xmx.velthoric.core.intersection.raycast.VxRaycaster;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;

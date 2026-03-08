@@ -9,7 +9,7 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.xmx.velthoric.core.body.VxBodyDataStore;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;

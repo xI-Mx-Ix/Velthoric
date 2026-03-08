@@ -21,7 +21,7 @@ import net.xmx.velthoric.core.behavior.VxBehaviorManager;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.behavior.impl.VxMountBehavior;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;

@@ -15,11 +15,11 @@ import net.fabricmc.api.Environment;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
 import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.core.body.registry.VxBodyType;
+import net.xmx.velthoric.core.body.VxBodyType;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.body.type.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.core.ragdoll.VxBodyPart;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 

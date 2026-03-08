@@ -16,7 +16,7 @@ import net.xmx.velthoric.core.behavior.VxBehaviorId;
 import net.xmx.velthoric.core.behavior.VxBehaviorManager;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.mounting.VxMountable;
 import net.xmx.velthoric.core.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.core.mounting.input.VxMountInput;

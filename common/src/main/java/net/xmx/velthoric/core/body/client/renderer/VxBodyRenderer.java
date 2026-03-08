@@ -7,7 +7,7 @@ package net.xmx.velthoric.core.body.client.renderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.xmx.velthoric.core.body.client.VxRenderState;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 
 /**
  * An abstract base class for rendering a specific type of {@link VxBody}.

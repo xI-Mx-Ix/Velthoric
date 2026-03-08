@@ -12,7 +12,7 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxClientAccessor;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxDataAccessor;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;

@@ -22,7 +22,7 @@ import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.behavior.impl.VxSyncBehavior;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.network.internal.packet.S2CRemoveBodyBatchPacket;
 import net.xmx.velthoric.core.network.internal.packet.S2CSpawnBodyBatchPacket;
 import net.xmx.velthoric.init.VxMainClass;

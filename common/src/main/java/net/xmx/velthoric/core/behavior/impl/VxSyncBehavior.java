@@ -19,7 +19,7 @@ import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.core.network.synchronization.packet.C2SSynchronizedDataBatchPacket;
 import net.xmx.velthoric.core.network.synchronization.packet.S2CSynchronizedDataBatchPacket;

@@ -9,7 +9,7 @@ import io.netty.buffer.ByteBufAllocator;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import com.github.stephengold.joltjni.enumerate.EMotionType;

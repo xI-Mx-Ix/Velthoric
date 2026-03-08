@@ -9,7 +9,6 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.xmx.velthoric.core.AbstractDataStore;
-import net.xmx.velthoric.core.body.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;

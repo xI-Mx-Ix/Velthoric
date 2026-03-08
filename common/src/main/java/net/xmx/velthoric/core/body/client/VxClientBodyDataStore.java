@@ -8,7 +8,7 @@ import com.github.stephengold.joltjni.RVec3;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import net.xmx.velthoric.core.body.VxBodyDataStore;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.ByteBuffer;

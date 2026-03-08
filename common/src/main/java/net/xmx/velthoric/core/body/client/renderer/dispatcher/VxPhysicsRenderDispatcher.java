@@ -27,7 +27,7 @@ import net.xmx.velthoric.mixin.impl.debug.EntityRenderDispatcherAccessor;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.VxRenderState;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 
 /**
  * The main client-side renderer/dispatcher for physics bodies.

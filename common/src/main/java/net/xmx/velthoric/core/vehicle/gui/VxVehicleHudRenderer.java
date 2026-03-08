@@ -8,7 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.core.vehicle.VxWheeledVehicle;
 import net.xmx.velthoric.event.api.VxRenderEvent;

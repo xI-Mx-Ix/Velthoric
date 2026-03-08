@@ -16,7 +16,7 @@ import net.xmx.velthoric.core.body.VxRemovalReason;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.core.body.registry.VxBodyType;
+import net.xmx.velthoric.core.body.VxBodyType;
 import net.xmx.velthoric.core.vehicle.config.VxWheeledVehicleConfig;
 import net.xmx.velthoric.core.vehicle.module.VxSteeringModule;
 import net.xmx.velthoric.core.vehicle.module.transmission.VxAutomaticTransmissionModule;

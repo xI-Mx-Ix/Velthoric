@@ -6,7 +6,7 @@ package net.xmx.velthoric.core.constraint.manager;
 
 import net.xmx.velthoric.core.constraint.VxConstraint;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 
 import java.util.Map;
 import java.util.Set;

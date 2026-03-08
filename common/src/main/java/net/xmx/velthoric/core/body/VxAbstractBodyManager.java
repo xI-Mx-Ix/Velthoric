@@ -4,7 +4,6 @@
  */
 package net.xmx.velthoric.core.body;
 
-import net.xmx.velthoric.core.body.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;

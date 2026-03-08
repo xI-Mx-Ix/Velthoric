@@ -24,7 +24,7 @@ import net.xmx.velthoric.builtin.rope.RopeSoftBody;
 import net.xmx.velthoric.builtin.sphere.SphereRenderer;
 import net.xmx.velthoric.builtin.sphere.SphereRigidBody;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
-import net.xmx.velthoric.core.body.registry.VxBodyType;
+import net.xmx.velthoric.core.body.VxBodyType;
 import net.xmx.velthoric.core.ragdoll.body.VxBodyPartRigidBody;
 import net.xmx.velthoric.core.ragdoll.body.VxRagdollBodyPartRenderer;
 import net.xmx.velthoric.item.chaincreator.body.VxChainPartRenderer;

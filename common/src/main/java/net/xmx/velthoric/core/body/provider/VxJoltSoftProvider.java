@@ -2,10 +2,10 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.body.type.provider;
+package net.xmx.velthoric.core.body.provider;
 
-import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.body.type.factory.VxSoftBodyFactory;
+import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.body.factory.VxSoftBodyFactory;
 
 /**
  * A functional interface defining how a Jolt soft body is constructed for a specific body type.

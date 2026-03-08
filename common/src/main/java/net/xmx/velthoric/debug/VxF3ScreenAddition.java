@@ -11,7 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.xmx.velthoric.event.api.VxF3ScreenAdditionEvent;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 
 import java.util.List;
 import java.util.UUID;

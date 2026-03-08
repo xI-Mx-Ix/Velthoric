@@ -4,14 +4,15 @@
  */
 package net.xmx.velthoric.core.persistence.impl.body;
 
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.body.VxBodyType;
 import net.xmx.velthoric.network.VxByteBuf;
 
 /**
  * A pair of callbacks for reading and writing type-specific persistence data.
  * <p>
  * Each body type registers its persistence handler on
- * {@link net.xmx.velthoric.core.body.registry.VxBodyType.Builder#persistence}.
+ * {@link VxBodyType.Builder#persistence}.
  *
  * @author xI-Mx-Ix
  */

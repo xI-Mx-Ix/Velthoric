@@ -15,7 +15,7 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.core.intersection.raycast.VxHitResult;
 import net.xmx.velthoric.core.intersection.raycast.VxRaycaster;

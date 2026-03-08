@@ -12,7 +12,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.math.VxConversions;
 import net.xmx.velthoric.math.VxTransform;
-import net.xmx.velthoric.core.body.type.VxBody;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.core.mounting.util.VxMountingRenderUtils;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;

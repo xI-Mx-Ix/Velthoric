@@ -2,14 +2,13 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.body.registry;
+package net.xmx.velthoric.core.body;
 
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
-import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.body.type.provider.VxJoltRigidProvider;
-import net.xmx.velthoric.core.body.type.provider.VxJoltSoftProvider;
+import net.xmx.velthoric.core.body.provider.VxJoltRigidProvider;
+import net.xmx.velthoric.core.body.provider.VxJoltSoftProvider;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.persistence.impl.body.VxPersistenceHandler;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
