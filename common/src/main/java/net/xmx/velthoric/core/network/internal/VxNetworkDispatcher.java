@@ -28,6 +28,8 @@ import net.xmx.velthoric.core.network.internal.packet.S2CSpawnBodyBatchPacket;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.util.VxChunkUtil;
 
+import net.xmx.velthoric.core.behavior.VxBehaviors;
+
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -210,6 +212,14 @@ public class VxNetworkDispatcher {
                 boolean vertexDirty = dataStore.isVertexDataDirty[i];
 
                 if (transformDirty || vertexDirty) {
+                    // Only process bodies that actually want network synchronization
+                    if (!VxBehaviors.NET_SYNC.isSet(dataStore.behaviorBits[i])) {
+                        // Clear the dirty flags anyway so they don't pile up
+                        dataStore.isTransformDirty[i] = false;
+                        dataStore.isVertexDataDirty[i] = false;
+                        continue;
+                    }
+
                     // Use cached chunk key from DataStore
                     long chunkPosLong = dataStore.chunkKey[i];
 
@@ -366,6 +376,9 @@ public class VxNetworkDispatcher {
      * @param body   The body.
      */
     public void trackBodyForPlayer(ServerPlayer player, VxBody body) {
+        // Prevent tracking a body if it doesn't want network synchronization
+        if (!VxBehaviors.NET_SYNC.isSet(dataStore.behaviorBits[body.getDataStoreIndex()])) return;
+
         IntSet tracked = playerTrackedBodies.computeIfAbsent(player.getUUID(), k -> IntSets.synchronize(new IntOpenHashSet()));
         if (tracked.add(body.getNetworkId())) {
             synchronized (pendingSpawns) {

@@ -64,20 +64,9 @@ public final class VxBehaviors {
     // --- User-Facing Behaviors ---
 
     /**
-     * Enables server-tick callbacks for a body.
-     * Bodies with this behavior receive per-game-tick updates on the server thread.
+     * Enables ticking callbacks for a body.
+     * Bodies with this behavior receive updates on the server thread (per-game-tick),
+     * and on the physics thread (pre and post simulation step).
      */
-    public static final VxBehaviorId SERVER_TICK = new VxBehaviorId("ServerTick");
-
-    /**
-     * Enables pre-physics-tick callbacks for a body.
-     * Bodies with this behavior receive updates before each physics step.
-     */
-    public static final VxBehaviorId PRE_PHYSICS_TICK = new VxBehaviorId("PrePhysicsTick");
-
-    /**
-     * Enables post-physics-tick callbacks for a body.
-     * Bodies with this behavior receive updates after each physics step.
-     */
-    public static final VxBehaviorId PHYSICS_TICK = new VxBehaviorId("PhysicsTick");
+    public static final VxBehaviorId TICK = new VxBehaviorId("Tick");
 }

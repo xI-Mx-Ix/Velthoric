@@ -131,9 +131,12 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         this.behaviorManager.registerBehavior(new VxRigidPhysicsBehavior());
         this.behaviorManager.registerBehavior(new VxSoftPhysicsBehavior());
         this.behaviorManager.registerBehavior(new VxPersistenceBehavior());
-        this.behaviorManager.registerBehavior(new VxServerTickBehavior());
         this.behaviorManager.registerBehavior(new VxBuoyancyBehavior(world));
         this.behaviorManager.registerBehavior(new VxPhysicsSyncBehavior());
+        
+        // Marker and Tick Behaviors
+        this.behaviorManager.registerBehavior(new VxNetSyncBehavior());
+        this.behaviorManager.registerBehavior(new VxTickBehavior());
     }
 
     /**
