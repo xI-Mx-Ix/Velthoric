@@ -47,6 +47,7 @@ public class VxRegisteredBodies {
             .create(BlockRigidBody::new)
             .noSummon()
             .rigidProvider(BlockRigidBody::createJoltBody)
+            .buoyant()
             .netSync()
             .customDataSync()
             .persistence(BlockRigidBody::writePersistence, BlockRigidBody::readPersistence)
@@ -121,6 +122,7 @@ public class VxRegisteredBodies {
             .create(VxChainPartRigidBody::new)
             .noSummon()
             .rigidProvider(VxChainPartRigidBody::createJoltBody)
+            .buoyant()
             .netSync()
             .customDataSync()
             .build(ResourceLocation.tryBuild("velthoric", "chain_part"));
@@ -129,6 +131,7 @@ public class VxRegisteredBodies {
             .create(VxBodyPartRigidBody::new)
             .noSummon()
             .rigidProvider(VxBodyPartRigidBody::createJoltBody)
+            .buoyant()
             .netSync()
             .customDataSync()
             .build(ResourceLocation.tryBuild("velthoric", "body_part"));
