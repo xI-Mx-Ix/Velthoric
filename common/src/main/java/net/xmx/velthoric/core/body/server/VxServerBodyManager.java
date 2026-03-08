@@ -25,6 +25,7 @@ import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.core.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.core.network.synchronization.manager.VxServerSyncManager;
+import net.xmx.velthoric.core.persistence.impl.body.VxBodyCodec;
 import net.xmx.velthoric.core.persistence.impl.body.VxBodyStorage;
 import net.xmx.velthoric.core.persistence.impl.body.VxSerializedBodyData;
 import net.xmx.velthoric.core.physics.VxJoltBridge;
@@ -334,7 +335,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
 
         // Deserialize internal state (transform, velocity, vertices, user data) into the body and DataStore.
         // This must occur after addInternal so the body has a valid DataStore index.
-        body.readInternalPersistenceData(data.bodyData());
+        VxBodyCodec.readInternalPersistenceData(body, data.bodyData());
         data.bodyData().release();
 
         int index = body.getDataStoreIndex();

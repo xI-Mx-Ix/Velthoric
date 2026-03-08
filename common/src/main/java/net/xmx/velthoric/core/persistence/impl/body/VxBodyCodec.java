@@ -12,6 +12,10 @@ import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.type.VxBody;
 import org.jetbrains.annotations.Nullable;
 
+import com.github.stephengold.joltjni.enumerate.EMotionType;
+import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+
 import java.util.UUID;
 
 /**
@@ -51,7 +55,7 @@ public final class VxBodyCodec {
         ByteBuf tempBuf = ByteBufAllocator.DEFAULT.ioBuffer();
         try {
             VxByteBuf tempVxBuf = new VxByteBuf(tempBuf);
-            body.writeInternalPersistenceData(tempVxBuf);
+            writeInternalPersistenceData(body, tempVxBuf);
 
             int length = tempBuf.readableBytes();
 
@@ -67,7 +71,7 @@ public final class VxBodyCodec {
     /**
      * Deserializes physics body data from a buffer into a {@link VxSerializedBodyData} record.
      * This record contains the ID, Type, and a buffer slice of the remaining data
-     * (the payload written by {@link VxBody#writeInternalPersistenceData(VxByteBuf)}).
+     * (the payload written by {@link VxBodyCodec#writeInternalPersistenceData(VxBody, VxByteBuf)}).
      *
      * @param buf The buffer to read the serialized data from.
      * @return A {@link VxSerializedBodyData} record, or null if deserialization fails.
@@ -97,5 +101,92 @@ public final class VxBodyCodec {
             VxMainClass.LOGGER.error("Failed to deserialize physics body from data", e);
             return null;
         }
+    }
+
+    /**
+     * Serializes the internal state of the body for persistent storage.
+     *
+     * @param body The body to serialize.
+     * @param buf  The buffer to write into.
+     */
+    public static void writeInternalPersistenceData(VxBody body, VxByteBuf buf) {
+        if (body.getPhysicsWorld() == null || body.getDataStoreIndex() == -1) return;
+        VxServerBodyDataStore store = body.getPhysicsWorld().getBodyManager().getDataStore();
+        int idx = body.getDataStoreIndex();
+
+        buf.writeDouble(store.posX[idx]);
+        buf.writeDouble(store.posY[idx]);
+        buf.writeDouble(store.posZ[idx]);
+        buf.writeFloat(store.rotX[idx]);
+        buf.writeFloat(store.rotY[idx]);
+        buf.writeFloat(store.rotZ[idx]);
+        buf.writeFloat(store.rotW[idx]);
+        buf.writeFloat(store.velX[idx]);
+        buf.writeFloat(store.velY[idx]);
+        buf.writeFloat(store.velZ[idx]);
+        buf.writeFloat(store.angVelX[idx]);
+        buf.writeFloat(store.angVelY[idx]);
+        buf.writeFloat(store.angVelZ[idx]);
+
+        EMotionType motionType = store.motionType[idx];
+        buf.writeByte(motionType != null ? motionType.ordinal() : EMotionType.Static.ordinal());
+
+        if (VxBehaviors.SOFT_PHYSICS.isSet(store.behaviorBits[idx])) {
+            float[] vertices = body.getPhysicsWorld().getBodyManager().retrieveSoftBodyVertices(body);
+            if (vertices != null) {
+                buf.writeInt(vertices.length);
+                for (float val : vertices) buf.writeFloat(val);
+            } else {
+                buf.writeInt(0);
+            }
+        }
+
+        body.getType().getPersistenceHandler().write(body, buf);
+    }
+
+    /**
+     * Deserializes and restores the internal state of the body from storage.
+     *
+     * @param body The body to deserialize into.
+     * @param buf  The buffer to read from.
+     */
+    public static void readInternalPersistenceData(VxBody body, VxByteBuf buf) {
+        double px = buf.readDouble(), py = buf.readDouble(), pz = buf.readDouble();
+        float rx = buf.readFloat(), ry = buf.readFloat(), rz = buf.readFloat(), rw = buf.readFloat();
+        float vx = buf.readFloat(), vy = buf.readFloat(), vz = buf.readFloat();
+        float avx = buf.readFloat(), avy = buf.readFloat(), avz = buf.readFloat();
+        int motionOrdinal = buf.readByte();
+
+        if (body.getPhysicsWorld() != null && body.getDataStoreIndex() != -1) {
+            VxServerBodyDataStore store = body.getPhysicsWorld().getBodyManager().getDataStore();
+            int idx = body.getDataStoreIndex();
+            store.posX[idx] = px;
+            store.posY[idx] = py;
+            store.posZ[idx] = pz;
+            store.rotX[idx] = rx;
+            store.rotY[idx] = ry;
+            store.rotZ[idx] = rz;
+            store.rotW[idx] = rw;
+            store.velX[idx] = vx;
+            store.velY[idx] = vy;
+            store.velZ[idx] = vz;
+            store.angVelX[idx] = avx;
+            store.angVelY[idx] = avy;
+            store.angVelZ[idx] = avz;
+            store.motionType[idx] = EMotionType.values()[Math.max(0, Math.min(motionOrdinal, EMotionType.values().length - 1))];
+        }
+
+        if (body.getType().isSoft()) {
+            int vertexCount = buf.readInt();
+            if (vertexCount > 0) {
+                float[] vertices = new float[vertexCount];
+                for (int i = 0; i < vertexCount; i++) vertices[i] = buf.readFloat();
+                if (body.getPhysicsWorld() != null) {
+                    body.getPhysicsWorld().getBodyManager().updateSoftBodyVertices(body, vertices);
+                }
+            }
+        }
+
+        body.getType().getPersistenceHandler().read(body, buf);
     }
 }

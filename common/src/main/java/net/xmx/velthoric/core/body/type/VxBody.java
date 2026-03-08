@@ -6,20 +6,17 @@ package net.xmx.velthoric.core.body.type;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.VxBodyDataStore;
 import net.xmx.velthoric.core.body.VxRemovalReason;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.VxRenderState;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
-import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxClientAccessor;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxDataAccessor;
@@ -271,90 +268,7 @@ public class VxBody {
         return true;
     }
 
-    /**
-     * Serializes the internal state of the body for persistent storage.
-     *
-     * @param buf The buffer to write into.
-     */
-    public void writeInternalPersistenceData(VxByteBuf buf) {
-        if (this.physicsWorld == null || this.dataStoreIndex == -1) return;
-        VxServerBodyDataStore store = this.physicsWorld.getBodyManager().getDataStore();
-        int idx = this.dataStoreIndex;
 
-        buf.writeDouble(store.posX[idx]);
-        buf.writeDouble(store.posY[idx]);
-        buf.writeDouble(store.posZ[idx]);
-        buf.writeFloat(store.rotX[idx]);
-        buf.writeFloat(store.rotY[idx]);
-        buf.writeFloat(store.rotZ[idx]);
-        buf.writeFloat(store.rotW[idx]);
-        buf.writeFloat(store.velX[idx]);
-        buf.writeFloat(store.velY[idx]);
-        buf.writeFloat(store.velZ[idx]);
-        buf.writeFloat(store.angVelX[idx]);
-        buf.writeFloat(store.angVelY[idx]);
-        buf.writeFloat(store.angVelZ[idx]);
-
-        EMotionType motionType = store.motionType[idx];
-        buf.writeByte(motionType != null ? motionType.ordinal() : EMotionType.Static.ordinal());
-
-        if (VxBehaviors.SOFT_PHYSICS.isSet(store.behaviorBits[idx])) {
-            float[] vertices = this.physicsWorld.getBodyManager().retrieveSoftBodyVertices(this);
-            if (vertices != null) {
-                buf.writeInt(vertices.length);
-                for (float val : vertices) buf.writeFloat(val);
-            } else {
-                buf.writeInt(0);
-            }
-        }
-
-        this.type.getPersistenceHandler().write(this, buf);
-    }
-
-    /**
-     * Deserializes and restores the internal state of the body from storage.
-     *
-     * @param buf The buffer to read from.
-     */
-    public void readInternalPersistenceData(VxByteBuf buf) {
-        double px = buf.readDouble(), py = buf.readDouble(), pz = buf.readDouble();
-        float rx = buf.readFloat(), ry = buf.readFloat(), rz = buf.readFloat(), rw = buf.readFloat();
-        float vx = buf.readFloat(), vy = buf.readFloat(), vz = buf.readFloat();
-        float avx = buf.readFloat(), avy = buf.readFloat(), avz = buf.readFloat();
-        int motionOrdinal = buf.readByte();
-
-        if (this.physicsWorld != null && this.dataStoreIndex != -1) {
-            VxServerBodyDataStore store = this.physicsWorld.getBodyManager().getDataStore();
-            int idx = this.dataStoreIndex;
-            store.posX[idx] = px;
-            store.posY[idx] = py;
-            store.posZ[idx] = pz;
-            store.rotX[idx] = rx;
-            store.rotY[idx] = ry;
-            store.rotZ[idx] = rz;
-            store.rotW[idx] = rw;
-            store.velX[idx] = vx;
-            store.velY[idx] = vy;
-            store.velZ[idx] = vz;
-            store.angVelX[idx] = avx;
-            store.angVelY[idx] = avy;
-            store.angVelZ[idx] = avz;
-            store.motionType[idx] = EMotionType.values()[Math.max(0, Math.min(motionOrdinal, EMotionType.values().length - 1))];
-        }
-
-        if (this.type.isSoft()) {
-            int vertexCount = buf.readInt();
-            if (vertexCount > 0) {
-                float[] vertices = new float[vertexCount];
-                for (int i = 0; i < vertexCount; i++) vertices[i] = buf.readFloat();
-                if (this.physicsWorld != null) {
-                    this.physicsWorld.getBodyManager().updateSoftBodyVertices(this, vertices);
-                }
-            }
-        }
-
-        this.type.getPersistenceHandler().read(this, buf);
-    }
 
     /**
      * Populates the provided transform object with current data.
