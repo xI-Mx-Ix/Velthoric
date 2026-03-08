@@ -7,7 +7,7 @@ package net.xmx.velthoric.core.body.registry;
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
-import net.xmx.velthoric.core.behavior.VxPersistenceHandler;
+import net.xmx.velthoric.core.persistence.impl.body.VxPersistenceHandler;
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.body.type.provider.VxJoltRigidProvider;
 import net.xmx.velthoric.core.body.type.provider.VxJoltSoftProvider;

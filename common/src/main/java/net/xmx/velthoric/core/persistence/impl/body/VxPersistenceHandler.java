@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.behavior;
+package net.xmx.velthoric.core.persistence.impl.body;
 
 import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.network.VxByteBuf;
@@ -22,9 +22,12 @@ public interface VxPersistenceHandler {
      */
     VxPersistenceHandler EMPTY = new VxPersistenceHandler() {
         @Override
-        public void write(VxBody body, VxByteBuf buf) {}
+        public void write(VxBody body, VxByteBuf buf) {
+        }
+
         @Override
-        public void read(VxBody body, VxByteBuf buf) {}
+        public void read(VxBody body, VxByteBuf buf) {
+        }
     };
 
     /**
@@ -53,9 +56,14 @@ public interface VxPersistenceHandler {
     static VxPersistenceHandler of(Writer writer, Reader reader) {
         return new VxPersistenceHandler() {
             @Override
-            public void write(VxBody body, VxByteBuf buf) { writer.write(body, buf); }
+            public void write(VxBody body, VxByteBuf buf) {
+                writer.write(body, buf);
+            }
+
             @Override
-            public void read(VxBody body, VxByteBuf buf) { reader.read(body, buf); }
+            public void read(VxBody body, VxByteBuf buf) {
+                reader.read(body, buf);
+            }
         };
     }
 
