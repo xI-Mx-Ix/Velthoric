@@ -8,6 +8,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
@@ -16,109 +17,174 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.phys.Vec3;
+import net.xmx.velthoric.core.behavior.VxBehaviorManager;
+import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.core.behavior.impl.VxMountBehavior;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
-import net.xmx.velthoric.core.mounting.manager.VxMountingManager;
+import net.xmx.velthoric.core.body.type.VxBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * An invisible entity that acts as a client-side bridge between a Minecraft player
- * and a mountable physics body. The player "mounts" this proxy entity. Its primary
- * role is to hold the physics body ID and the specific seat ID for the client to
- * perform efficient lookups.
+ * An invisible "proxy" entity that acts as a bridge between the physical Minecraft player
+ * and a physics-backed body in the Velthoric engine.
  * <p>
- * This entity persists its association with the physics body to ensure riders remain
- * seated after server restarts or chunk reloads. It is stripped of almost all vanilla
- * physics, collision, and interaction logic to maximize performance and stability.
+ * This entity is mounted by the player on the server, while its position is precisely
+ * managed by the {@link VxMountBehavior} to match a specific seat on a {@link VxBody}.
+ * This architecture allows players to "ride" physics objects without legacy vanilla
+ * entity physics interfering with the sub-tick simulation.
+ * <p>
+ * <b>Key Responsibilities:</b>
+ * <ul>
+ *   <li><b>State Synchronization:</b> Syncs the target body ID and seat ID to clients via {@link SynchedEntityData}.</li>
+ *   <li><b>Lifecycle Management:</b> Automatically discards itself if it has no riders or its target body disappears.</li>
+ *   <li><b>Persistence:</b> Saves its link to the physics body in NBT to restore rider sessions after restarts.</li>
+ *   <li><b>Physics Optimization:</b> Overrides almost all interaction and movement logic to prevent vanilla performance overhead.</li>
+ * </ul>
  *
  * @author xI-Mx-Ix
  */
 public class VxMountingEntity extends Entity {
 
+    /**
+     * Synced data accessor for the UUID of the physics body this entity is attached to.
+     * This is used by the client to find the correct interpolation target.
+     */
     private static final EntityDataAccessor<Optional<UUID>> PHYSICS_ID =
             SynchedEntityData.defineId(VxMountingEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+
+    /**
+     * Synced data accessor for the UUID of the specific seat on the body.
+     * This allows the client to retrieve the correct local-space offset and orientation.
+     */
     private static final EntityDataAccessor<Optional<UUID>> SEAT_ID =
             SynchedEntityData.defineId(VxMountingEntity.class, EntityDataSerializers.OPTIONAL_UUID);
 
     /**
-     * Constructs a new mounting entity.
+     * Standard constructor used by Minecraft's entity factory.
+     * Configures the entity to be as lightweight as possible.
      *
-     * @param entityType The entity type.
-     * @param level      The level the entity is in.
+     * @param entityType The registry type of this entity.
+     * @param level      The world level it belongs to.
      */
     public VxMountingEntity(EntityType<?> entityType, Level level) {
         super(entityType, level);
+        // Disable vanilla entity gravity and collision logic.
         this.noPhysics = true;
-        // Prevents client-side interpolation issues when the physics body moves.
+        // Prevents the client from trying to "build" or interpolate this entity in ways that flicker.
         this.blocksBuilding = false;
-        // Disables gravity logic completely.
+        // Explicitly tells the engine there is no mass-based gravity applied here.
         this.setNoGravity(true);
     }
 
+    /**
+     * Main lifecycle loop called every server/client tick.
+     * Manages cleanup and association restoration.
+     */
     @Override
     public void tick() {
-        // Calls the base entity ticking logic (handling passengers, etc.) but skips
-        // unnecessary logic if specific overrides are in place.
+        // Base entity tick handles passenger updates and basic state.
         super.tick();
 
+        // Server-side specific validation logic.
         if (!level().isClientSide) {
-            // If the proxy has no passengers on the server, it is no longer needed.
+
+            // 1. Cleanup Check: If no one is riding this proxy anymore, it's garbage.
             if (getPassengers().isEmpty()) {
                 discard();
                 return;
             }
 
-            // Check if the associated physics body still exists.
-            // If the body was removed (e.g., destroyed), the seat proxy must be removed as well.
+            // 2. Integrity Check: Ensure the physics body it point to still exists in the world.
             Optional<UUID> physicsIdOpt = getPhysicsId();
             if (physicsIdOpt.isPresent()) {
                 VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level().dimension());
                 if (physicsWorld != null) {
-                    // Query the manager to see if the body with this ID exists.
-                    // If getVxBody returns null, the body no longer exists.
+                    // If the body is gone (e.g., deleted), we cannot maintain the mounting.
                     if (physicsWorld.getBodyManager().getVxBody(physicsIdOpt.get()) == null) {
                         this.discard();
-                        return;
+                        return; // Exit early as the entity is now marked for removal.
                     }
                 }
             }
 
-            // Checks if this entity needs to re-establish its connection to the mounting manager.
-            // This usually occurs after the entity has been loaded from disk (e.g., server restart).
+            // 3. Session Restoration: Handle edge cases where the entity is loaded but not yet tracked.
+            // This is primarily for server restarts or chunk re-entries.
             restoreMountingLinkIfNeeded();
+        } else {
+            // Client-side Snapping:
+            // Precisely align the proxy entity with the target seat on the physics body every frame.
+            // This ensures the player's world-space position is updated without network lag.
+            getPhysicsId().ifPresent(physicsId -> {
+                getSeatId().ifPresent(seatId -> {
+                    VxClientBodyManager manager = VxClientBodyManager.getInstance();
+                    VxBody body = manager.getVxBody(physicsId);
+                    if (body != null) {
+                        VxMountBehavior behavior = manager.getBehaviorManager().getBehavior(VxBehaviors.MOUNTABLE);
+                        if (behavior != null) {
+                            behavior.getSeat(physicsId, seatId).ifPresent(seat -> {
+                                // 1. Get current body transform (interpolated).
+                                var transform = body.getTransform();
+                                Vector3f bodyPos = new Vector3f();
+                                Quaternionf bodyRot = new Quaternionf();
+                                transform.getTranslation(bodyPos);
+                                transform.getRotation(bodyRot);
+
+                                // 2. Calculate world-space seat position.
+                                Vector3f seatOffset = new Vector3f(seat.getRiderOffset());
+                                bodyRot.transform(seatOffset);
+
+                                // 3. Snap proxy to seat position.
+                                this.setPos(bodyPos.x + seatOffset.x, bodyPos.y + seatOffset.y, bodyPos.z + seatOffset.z);
+
+                                // 4. Sync rotation.
+                                float yaw = (float) Math.toDegrees(bodyRot.getEulerAnglesXYZ(new Vector3f()).y);
+                                this.setYRot(yaw);
+                                this.setYHeadRot(yaw);
+                            });
+                        }
+                    }
+                });
+            });
         }
     }
 
     /**
-     * Checks if this proxy entity has passengers and valid IDs but is not currently
-     * tracked by the {@link VxMountingManager}. If so, it attempts to restore the session.
+     * Re-establishes the connection between a riding player and the {@link VxMountBehavior}.
+     * This is necessary because players riding entities are saved by vanilla, but the
+     * behavior's runtime tracking map is lost on server restart.
      */
     private void restoreMountingLinkIfNeeded() {
         if (this.getFirstPassenger() instanceof ServerPlayer player) {
             Optional<UUID> physicsIdOpt = getPhysicsId();
             Optional<UUID> seatIdOpt = getSeatId();
 
+            // If we have all required IDs, notify the behavior to reclaim this session.
             if (physicsIdOpt.isPresent() && seatIdOpt.isPresent()) {
                 VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level().dimension());
                 if (physicsWorld != null) {
-                    VxMountingManager manager = physicsWorld.getBodyManager().getMountingManager();
+                    VxBehaviorManager behaviorManager = physicsWorld.getBodyManager().getBehaviorManager();
+                    VxMountBehavior behavior = behaviorManager.getBehavior(VxBehaviors.MOUNTABLE);
 
-                    // If the manager does not track this player, ask the manager to restore the state.
-                    if (!manager.isMounting(player)) {
-                        manager.restoreMounting(player, physicsIdOpt.get(), seatIdOpt.get());
+                    // If the behavior doesn't know about this player yet, restore the link.
+                    if (behavior != null && !behavior.isMounting(player)) {
+                        behavior.restoreMounting(player, physicsIdOpt.get(), seatIdOpt.get());
                     }
                 }
             }
         }
     }
 
-    // --- Interaction & Physics Optimization Overrides ---
+    // ================================================================================
+    // Optimization Overrides: Stripping vanilla overhead
+    // ================================================================================
 
     /**
-     * Prevents the entity from being pushed by other entities (e.g., pistons or players).
+     * Disables repulsion between entities. This proxy should never be moved by bumping into mobs/players.
      */
     @Override
     public boolean isPushable() {
@@ -126,15 +192,15 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Prevents the entity from pushing other entities.
+     * Prevents this entity from pushing others.
      */
     @Override
     public void push(Entity entity) {
-        // No-op
+        // No-op - prevents the O(N^2) collision check logic from firing here.
     }
 
     /**
-     * Prevents the entity from being pushed by fluids (water/lava).
+     * Disables fluid physics (water/lava flows).
      */
     @Override
     public boolean isPushedByFluid() {
@@ -142,17 +208,15 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Prevents any vanilla movement logic from applying. The position is strictly controlled
-     * by the VxMountingManager.
+     * Blocks all vanilla movement calculations. The position is teleported by the physics engine.
      */
     @Override
     public void move(MoverType type, Vec3 pos) {
-        // No-op: This entity should only be moved via setPos() by the manager.
+        // No-op - positions are set directly via setPos on the server tick.
     }
 
     /**
-     * Prevents the entity from being targeted by raycasts (e.g., attacking or interacting).
-     * The player should interact with the physics body's bounding box instead.
+     * Prevents players from hitting, clicking, or interacting with the invisible proxy.
      */
     @Override
     public boolean isPickable() {
@@ -160,7 +224,7 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Defines the collision behavior. This entity ignores all collisions.
+     * Disables broad-phase collision detection for this entity.
      */
     @Override
     public boolean canBeCollidedWith() {
@@ -168,7 +232,7 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Prevents the entity from taking damage.
+     * Makes the proxy entity completely immune to all forms of damage.
      */
     @Override
     public boolean isInvulnerableTo(DamageSource source) {
@@ -176,7 +240,7 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Prevents the entity from catching fire or displaying fire effects.
+     * Prevents fire rendering and fire damage logic.
      */
     @Override
     public boolean fireImmune() {
@@ -184,8 +248,8 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Optimization: Tells the game engine that this entity should never be rendered via standard checks,
-     * saving frustum culling calculations.
+     * Performance optimization: Tells the engine that this entity should never be "culled"
+     * or Rendered in the traditional way, as it has no model.
      */
     @Override
     public boolean shouldRenderAtSqrDistance(double distance) {
@@ -193,13 +257,16 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Defines how this entity reacts to piston pushes. IGNORE prevents it from moving or breaking.
+     * Prevents pistons from moving this entity.
      */
     @Override
     public PushReaction getPistonPushReaction() {
         return PushReaction.IGNORE;
     }
 
+    /**
+     * Registers the synced data fields for physics and seat ID.
+     */
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(PHYSICS_ID, Optional.empty());
@@ -207,45 +274,49 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Gets the UUID of the physics body this proxy is associated with.
+     * Retrieves the unique identifier of the target physics body.
      *
-     * @return An Optional containing the physics body's UUID.
+     * @return An Optional containing the target's UUID.
      */
     public Optional<UUID> getPhysicsId() {
         return this.entityData.get(PHYSICS_ID);
     }
 
     /**
-     * Gets the UUID of the seat the passenger of this proxy is occupying.
+     * Retrieves the specific seat identifier on the target body.
      *
-     * @return An Optional containing the seat's UUID.
+     * @return An Optional containing the seat UUID.
      */
     public Optional<UUID> getSeatId() {
         return this.entityData.get(SEAT_ID);
     }
 
     /**
-     * Gets the local-space position offset for the mounted entity.
-     * On the client, this performs an efficient lookup using the synced body and seat IDs.
-     * On the server, it queries the Mounting Manager to find the offset for the passenger.
+     * Calculates the local position offset for the rider relative to the body's center.
+     * <p>
+     * <b>On Client:</b> Uses synced data to lookup the seat offset in the local mounting map.
+     * <b>On Server:</b> Queries the {@link VxMountBehavior} directly for the player's seat.
      *
-     * @return The rider's position offset vector. Returns a zero vector if not found.
+     * @return A vector representing the local-space rider offset.
      */
     public Vector3f getMountPositionOffset() {
         if (level().isClientSide()) {
+            // Client: Lookup via synced IDs
             return getPhysicsId().flatMap(objId ->
-                    getSeatId().flatMap(seatId ->
-                            VxClientBodyManager.getInstance().getMountingManager().getSeat(objId, seatId)
-                    )
+                    getSeatId().flatMap(seatId -> {
+                        VxMountBehavior behavior = VxClientBodyManager.getInstance().getBehaviorManager().getBehavior(VxBehaviors.MOUNTABLE);
+                        return behavior != null ? behavior.getSeat(objId, seatId) : Optional.empty();
+                    })
             ).map(seat -> new Vector3f(seat.getRiderOffset())).orElse(new Vector3f());
         } else {
+            // Server: Lookup via player session in behavior
             if (this.getFirstPassenger() instanceof ServerPlayer player) {
                 VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level().dimension());
                 if (physicsWorld != null) {
-                    VxMountingManager mountingManager = physicsWorld.getBodyManager().getMountingManager();
-                    return mountingManager.getSeatForPlayer(player)
+                    VxMountBehavior behavior = physicsWorld.getBodyManager().getBehaviorManager().getBehavior(VxBehaviors.MOUNTABLE);
+                    return behavior != null ? behavior.getSeatForPlayer(player)
                             .map(seat -> new Vector3f(seat.getRiderOffset()))
-                            .orElse(new Vector3f());
+                            .orElse(new Vector3f()) : new Vector3f();
                 }
             }
             return new Vector3f();
@@ -253,11 +324,11 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Sets the necessary data for the client to track the physics body and seat.
-     * This is called on the server before the entity is spawned.
+     * Initializes the linkage between this entity and the physics body.
+     * Should be called immediately after spawning the proxy.
      *
-     * @param physicsId The UUID of the physics body.
-     * @param seatId    The UUID of the seat being occupied.
+     * @param physicsId The target body UUID.
+     * @param seatId    The target seat UUID.
      */
     public void setMountInfo(UUID physicsId, UUID seatId) {
         this.entityData.set(PHYSICS_ID, Optional.of(physicsId));
@@ -265,31 +336,37 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Handles passenger removal. If a player dismounts, it notifies the manager to cleanup the session.
+     * Cleans up the mounting session when a passenger leaves.
+     * If a player dismounts (via shift or command), we must notify the behavior system.
      *
-     * @param passenger The entity that is dismounting.
+     * @param passenger The entity leaving the proxy.
      */
     @Override
     protected void removePassenger(Entity passenger) {
         super.removePassenger(passenger);
 
+        // Notify the server-side behavior to cleanup tracking and call 'onStopMounting' hooks.
         if (!this.level().isClientSide() && passenger instanceof ServerPlayer player) {
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(this.level().dimension());
             if (physicsWorld != null) {
-                physicsWorld.getBodyManager().getMountingManager().stopMounting(player);
+                VxMountBehavior behavior = physicsWorld.getBodyManager().getBehaviorManager().getBehavior(VxBehaviors.MOUNTABLE);
+                if (behavior != null) {
+                    behavior.stopMounting((ServerLevel) this.level(), player);
+                }
             }
         }
     }
 
+    /**
+     * Ensures the entity is never rendered.
+     */
     @Override
     public boolean isInvisible() {
         return true;
     }
 
     /**
-     * Reads the physics body ID and seat ID from NBT to restore state after a restart.
-     *
-     * @param compound The NBT tag to read from.
+     * Internal: Serializes association data to disk.
      */
     @Override
     protected void readAdditionalSaveData(CompoundTag compound) {
@@ -302,9 +379,7 @@ public class VxMountingEntity extends Entity {
     }
 
     /**
-     * Saves the physics body ID and seat ID to NBT to persist state across restarts.
-     *
-     * @param compound The NBT tag to write to.
+     * Internal: Deserializes association data from disk.
      */
     @Override
     protected void addAdditionalSaveData(CompoundTag compound) {

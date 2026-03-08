@@ -5,7 +5,7 @@
 package net.xmx.velthoric.core.mounting;
 
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.core.mounting.manager.VxMountingManager;
+import net.xmx.velthoric.core.behavior.impl.VxMountBehavior;
 import net.xmx.velthoric.math.VxTransform;
 import net.xmx.velthoric.core.mounting.input.VxMountInput;
 import net.xmx.velthoric.core.mounting.seat.VxSeat;
@@ -45,7 +45,7 @@ public interface VxMountable {
 
     /**
      * Defines all seats for this mountable body by adding them to the provided builder.
-     * This method is called by the {@link VxMountingManager}
+     * This method is called by the {@link VxMountBehavior}
      * when the body is created to automatically register its seats.
      * <p>
      * The seat's UUID is generated deterministically from the physics body's UUID and the seat's unique

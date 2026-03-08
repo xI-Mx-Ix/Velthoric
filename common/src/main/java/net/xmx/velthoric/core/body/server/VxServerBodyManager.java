@@ -21,7 +21,6 @@ import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
 import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.mounting.manager.VxMountingManager;
 import net.xmx.velthoric.core.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.core.persistence.impl.body.VxBodyCodec;
 import net.xmx.velthoric.core.persistence.impl.body.VxBodyStorage;
@@ -78,11 +77,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
     private final VxSpatialManager spatialManager;
 
     /**
-     * Manages entity mounting and attachments relative to physics bodies.
-     */
-    private final VxMountingManager mountingManager;
-
-    /**
      * The behavior manager that handles composition-based behavior dispatch.
      * This uses a data-driven bitmask system for maximum cache efficiency.
      */
@@ -116,7 +110,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         this.bodyStorage = new VxBodyStorage(world.getLevel());
         this.networkDispatcher = new VxNetworkDispatcher(world.getLevel(), this);
         this.spatialManager = new VxSpatialManager();
-        this.mountingManager = new VxMountingManager(this.world);
         this.behaviorManager = new VxBehaviorManager();
 
         // Initialize the behavior system with built-in behaviors.
@@ -186,7 +179,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
     public void onGameTick(ServerLevel level) {
         networkDispatcher.onGameTick();
         behaviorManager.onServerTick(level, this.dataStore);
-        mountingManager.onGameTick();
     }
 
     //================================================================================
@@ -286,7 +278,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         Vec3 angularVelocity = new Vec3(dataStore.angVelX[index], dataStore.angVelY[index], dataStore.angVelZ[index]);
         EMotionType motionType = dataStore.motionType[index];
 
-        mountingManager.onBodyAdded(body);
         networkDispatcher.onBodyAdded(body);
 
         // Dispatch Jolt creation based on body type's provider (no instanceof needed)
@@ -339,7 +330,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         boolean shouldActivate = linearVelocity.lengthSq() > 0.0001f || angularVelocity.lengthSq() > 0.0001f;
         EActivation activation = shouldActivate ? EActivation.Activate : EActivation.DontActivate;
 
-        mountingManager.onBodyAdded(body);
         networkDispatcher.onBodyAdded(body);
 
         if (body.getType().isRigid()) {
@@ -400,7 +390,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         managedBodies.remove(body.getPhysicsId());
 
         // 2. Notify subsystems
-        mountingManager.onBodyRemoved(body);
         networkDispatcher.onBodyRemoved(body);
 
         // 3. Update spatial tracking
@@ -688,13 +677,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      */
     public VxSpatialManager getSpatialManager() {
         return spatialManager;
-    }
-
-    /**
-     * @return The mounting manager handling entity attachments to physics bodies.
-     */
-    public VxMountingManager getMountingManager() {
-        return mountingManager;
     }
 
     /**

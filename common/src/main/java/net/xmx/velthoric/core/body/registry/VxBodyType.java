@@ -220,6 +220,11 @@ public final class VxBodyType {
             return this;
         }
 
+        public Builder mountable() {
+            this.defaultBehaviors |= VxBehaviors.MOUNTABLE.getMask();
+            return this;
+        }
+
         public Builder customDataSync() {
             this.defaultBehaviors |= VxBehaviors.CUSTOM_DATA_SYNC.getMask();
             return this;

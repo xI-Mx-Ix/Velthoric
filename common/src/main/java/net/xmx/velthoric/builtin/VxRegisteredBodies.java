@@ -105,6 +105,7 @@ public class VxRegisteredBodies {
             .rigidProvider(CarImpl::createJoltBody)
             .buoyant()
             .netSync()
+            .mountable()
             .customDataSync()
             .build(ResourceLocation.tryBuild("velthoric", "car"));
 
@@ -113,6 +114,7 @@ public class VxRegisteredBodies {
             .rigidProvider(MotorcycleImpl::createJoltBody)
             .buoyant()
             .netSync()
+            .mountable()
             .customDataSync()
             .build(ResourceLocation.tryBuild("velthoric", "motorcycle"));
 

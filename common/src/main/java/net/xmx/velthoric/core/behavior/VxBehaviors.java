@@ -75,4 +75,12 @@ public final class VxBehaviors {
      * Bodies with this behavior can use the VxSynchronizedData system to replicate custom properties.
      */
     public static final VxBehaviorId CUSTOM_DATA_SYNC = new VxBehaviorId("CustomDataSync");
+
+    /**
+     * Marks a body as mountable by players.
+     * Bodies with this behavior have their seats registered in the {@link net.xmx.velthoric.core.mounting.manager.VxMountingManager}
+     * when they are added to the world, enabling player mounting interaction.
+     * The body must implement {@link net.xmx.velthoric.core.mounting.VxMountable} to define its seats.
+     */
+    public static final VxBehaviorId MOUNTABLE = new VxBehaviorId("Mountable");
 }

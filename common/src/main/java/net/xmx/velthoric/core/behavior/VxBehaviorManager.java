@@ -74,6 +74,10 @@ public final class VxBehaviorManager {
             registerBehavior(new VxTickBehavior());
         }
 
+        if (getBehavior(VxBehaviors.MOUNTABLE) == null) {
+            registerBehavior(new VxMountBehavior());
+        }
+
         // Use consolidated sync behavior for both sides
         if (getBehavior(VxBehaviors.CUSTOM_DATA_SYNC) == null) {
             registerBehavior(new VxSyncBehavior());

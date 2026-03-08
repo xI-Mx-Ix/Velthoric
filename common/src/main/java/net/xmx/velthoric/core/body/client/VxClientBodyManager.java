@@ -20,9 +20,6 @@ import net.xmx.velthoric.core.body.client.time.VxClientClock;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
 import net.xmx.velthoric.core.body.registry.VxBodyType;
 import net.xmx.velthoric.core.body.type.VxBody;
-import net.xmx.velthoric.core.mounting.VxMountable;
-import net.xmx.velthoric.core.mounting.manager.VxClientMountingManager;
-import net.xmx.velthoric.core.mounting.seat.VxSeat;
 import net.xmx.velthoric.event.api.VxClientLevelEvent;
 import net.xmx.velthoric.event.api.VxClientPlayerNetworkEvent;
 import net.xmx.velthoric.init.VxMainClass;
@@ -95,11 +92,6 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
     private final List<Long> clockOffsetSamples = new ArrayList<>();
 
     /**
-     * The manager responsible for mountable seats on the client.
-     */
-    private final VxClientMountingManager mountingManager;
-
-    /**
      * Central orchestrator for the behavior-based composition system.
      */
     private final VxBehaviorManager behaviorManager;
@@ -110,7 +102,6 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      */
     private VxClientBodyManager() {
         this.interpolationDelayNanos = VxModConfig.CLIENT.interpolationDelayNanos.get();
-        this.mountingManager = new VxClientMountingManager();
         this.behaviorManager = new VxBehaviorManager();
     }
 
@@ -236,17 +227,6 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
             return;
         }
 
-        // If the body is mountable, register its seats on the client via the MountingManager.
-        if (body instanceof VxMountable mountable) {
-            VxSeat.Builder seatBuilder = new VxSeat.Builder();
-            mountable.defineSeats(seatBuilder);
-            List<VxSeat> seats = seatBuilder.build();
-
-            for (VxSeat seat : seats) {
-                mountingManager.addSeat(id, seat);
-            }
-        }
-
         // Register in SoA DataStore
         int index = store.addBody(body, networkId);
         body.setDataStoreIndex(store, index);
@@ -360,10 +340,8 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
                     // Notify listeners
                     notifyBodyRemoved(body);
                 }
-
+ 
                 managedBodies.remove(id);
-                // Remove seats via the instance-based manager
-                mountingManager.removeSeatsForBody(id);
             }
         }
         store.removeBodyByNetworkId(networkId);
@@ -472,15 +450,6 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      */
     public VxClientBodyInterpolator getInterpolator() {
         return interpolator;
-    }
-
-    /**
-     * Returns the manager responsible for mountable seats on the client.
-     *
-     * @return The mounting manager instance.
-     */
-    public VxClientMountingManager getMountingManager() {
-        return mountingManager;
     }
 
     /**
