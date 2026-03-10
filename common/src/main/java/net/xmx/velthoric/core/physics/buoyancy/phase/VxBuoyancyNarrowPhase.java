@@ -21,12 +21,37 @@ import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
  */
 public final class VxBuoyancyNarrowPhase {
 
+    /**
+     * Number of bodies processed in a single JNI batch operation.
+     */
+    private static final int BATCH_SIZE = 512;
+
+    /**
+     * The physics world instance containing the simulation context.
+     */
     private final VxPhysicsWorld physicsWorld;
 
-    // --- Thread-Local Temporaries to avoid allocation ---
-    // These objects are reused every frame to prevent GC pressure.
+    /**
+     * Reusable native array for collecting body IDs for batching.
+     * This prevents per-batch allocations and reduces garbage collector pressure.
+     */
+    private final ThreadLocal<BodyIdArray> batchBodyIds = ThreadLocal.withInitial(() -> new BodyIdArray(BATCH_SIZE));
+
+    /**
+     * Reusable mutable vector used to store the fluid surface position for buoyancy calculations.
+     * Thread-local to ensure safety during multi-threaded physics ticks.
+     */
     private final ThreadLocal<RVec3> tempSurfacePos = ThreadLocal.withInitial(RVec3::new);
+
+    /**
+     * Reusable mutable vector used to store the fluid surface normal.
+     * Standard fluid surfaces in Minecraft utilize an upward normal (0, 1, 0).
+     */
     private final ThreadLocal<Vec3> tempSurfaceNormal = ThreadLocal.withInitial(() -> new Vec3(0, 1, 0));
+
+    /**
+     * Reusable mutable vector used to store the fluid flow velocity at a specific body position.
+     */
     private final ThreadLocal<Vec3> tempFluidVelocity = ThreadLocal.withInitial(Vec3::new);
 
     /**
@@ -39,7 +64,7 @@ public final class VxBuoyancyNarrowPhase {
     }
 
     /**
-     * Iterates through the bodies and applies buoyancy forces using individual write locks.
+     * Iterates through the bodies and applies buoyancy forces using batch write locks.
      * <p>
      * This method retrieves the environmental data populated by the broad-phase and uses the
      * native Jolt Physics engine to calculate exact submerged volumes and drag forces.
@@ -49,40 +74,54 @@ public final class VxBuoyancyNarrowPhase {
      * @param dataStore     The data store containing all information about buoyant bodies.
      */
     public void applyForces(ConstBodyLockInterface lockInterface, float deltaTime, VxBuoyancyDataStore dataStore) {
-        int totalCount = dataStore.getCount();
-        BodyInterface bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterfaceNoLock();
+        final int totalCount = dataStore.getCount();
+        if (totalCount == 0) return;
+
+        final BodyInterface bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterfaceNoLock();
+        final Vec3 gravity = physicsWorld.getPhysicsSystem().getGravity();
 
         // Retrieve ThreadLocal buffers once per frame to avoid allocation overhead in the loop.
-        RVec3 surfacePosition = tempSurfacePos.get();
-        Vec3 surfaceNormal = tempSurfaceNormal.get();
-        Vec3 fluidVelocity = tempFluidVelocity.get();
-        Vec3 gravity = physicsWorld.getPhysicsSystem().getGravity();
+        final RVec3 surfacePosition = tempSurfacePos.get();
+        final Vec3 surfaceNormal = tempSurfaceNormal.get();
+        final Vec3 fluidVelocity = tempFluidVelocity.get();
+        final BodyIdArray localBatchIds = batchBodyIds.get();
 
-        // Iterate sequentially through all active buoyant bodies.
-        for (int i = 0; i < totalCount; i++) {
-            int bodyId = dataStore.bodyIds[i];
+        for (int batchStart = 0; batchStart < totalCount; batchStart += BATCH_SIZE) {
+            int currentBatchCount = Math.min(BATCH_SIZE, totalCount - batchStart);
 
-            if (bodyId == 0 || !bodyInterface.isAdded(bodyId)) {
-                continue;
+            BodyIdArray currentIds;
+            if (currentBatchCount == BATCH_SIZE) {
+                currentIds = localBatchIds;
+            } else {
+                // Create a temporary array for the tail batch to ensure the lock only covers valid IDs.
+                currentIds = new BodyIdArray(currentBatchCount);
             }
 
-            // Acquire an individual Write Lock for the body.
-            // We use try-with-resources to ensure the lock is always released.
-            try (BodyLockWrite lock = new BodyLockWrite(lockInterface, bodyId)) {
-                Body body = lock.getBody();
+            for (int b = 0; b < currentBatchCount; b++) {
+                currentIds.set(b, dataStore.bodyIds[batchStart + b]);
+            }
 
-                // Apply forces only if the body was successfully locked and is active.
-                if (body != null && body.isActive()) {
-                    applyNativeBuoyancy(
-                            body,
-                            deltaTime,
-                            i,
-                            dataStore,
-                            gravity,
-                            surfacePosition,
-                            surfaceNormal,
-                            fluidVelocity
-                    );
+            // Acquire batch write locks to avoid per-body allocation of lock objects.
+            try (BodyLockMultiWrite multiLock = new BodyLockMultiWrite(lockInterface, currentIds)) {
+                Body[] lockedBodies = multiLock.getBodies();
+
+                for (int b = 0; b < currentBatchCount; b++) {
+                    Body body = lockedBodies[b];
+                    int dataIndex = batchStart + b;
+
+                    // Apply forces only if the body was successfully locked and is active.
+                    if (body != null && bodyInterface.isAdded(body.getId()) && body.isActive()) {
+                        applyNativeBuoyancy(
+                                body,
+                                deltaTime,
+                                dataIndex,
+                                dataStore,
+                                gravity,
+                                surfacePosition,
+                                surfaceNormal,
+                                fluidVelocity
+                        );
+                    }
                 }
             }
         }
