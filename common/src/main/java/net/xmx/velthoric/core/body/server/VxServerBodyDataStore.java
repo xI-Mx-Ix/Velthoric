@@ -8,6 +8,8 @@ import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 import net.xmx.velthoric.core.body.VxBodyDataStore;
 import net.xmx.velthoric.core.body.VxBody;
 import org.jetbrains.annotations.Nullable;
@@ -124,6 +126,12 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
     public boolean[] isCustomDataDirty;
 
     /**
+     * Set of indices that have pending network updates.
+     * Used to avoid O(N) scanning in the NetworkDispatcher.
+     */
+    public final IntSet dirtyIndices = new IntOpenHashSet(2048);
+
+    /**
      * The server timestamp of the last physics update for this body.
      */
     public long[] lastUpdateTimestamp;
@@ -166,7 +174,11 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
     @Override
     @Nullable
     public synchronized Integer removeBody(UUID id) {
-        return super.removeBody(id);
+        Integer index = super.removeBody(id);
+        if (index != null) {
+            dirtyIndices.remove((int) index);
+        }
+        return index;
     }
 
     /**
@@ -197,6 +209,7 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
         isVertexDataDirty[index] = false;
         isCustomDataDirty[index] = false;
         lastUpdateTimestamp[index] = 0L;
+        dirtyIndices.remove(index);
     }
 
     /**
@@ -268,6 +281,7 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
     @Override
     public synchronized void clear() {
         networkIdToUuid.clear();
+        dirtyIndices.clear();
         super.clear();
     }
 }
