@@ -78,7 +78,7 @@ public final class VxBehaviors {
 
     /**
      * Marks a body as mountable by players.
-     * Bodies with this behavior have their seats registered in the {@link net.xmx.velthoric.core.mounting.manager.VxMountingManager}
+     * Bodies with this behavior have their seats registered in the {@link net.xmx.velthoric.core.mounting.behavior.VxMountBehavior}
      * when they are added to the world, enabling player mounting interaction.
      * The body must implement {@link net.xmx.velthoric.core.mounting.VxMountable} to define its seats.
      */
