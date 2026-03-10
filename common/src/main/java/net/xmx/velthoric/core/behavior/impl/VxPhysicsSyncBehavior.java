@@ -238,12 +238,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
                     double ny = positions.get(b * 3 + 1);
                     double nz = positions.get(b * 3 + 2);
 
-                    // Network Sync Optimization: Only mark dirty if movement is visually relevant.
-                    double dx = nx - dataStore.posX[i];
-                    double dy = ny - dataStore.posY[i];
-                    double dz = nz - dataStore.posZ[i];
-
-                    if (dx * dx + dy * dy + dz * dz > 1e-6 || !wasDataStoreBodyActive) {
+                    if (isJoltBodyActive || isJoltBodyActive != wasDataStoreBodyActive) {
                         dataStore.isTransformDirty[i] = true;
                         synchronized (dataStore) {
                             dataStore.dirtyIndices.add(i);
