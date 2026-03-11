@@ -90,7 +90,7 @@ public class VxMagnetizerMode extends VxToolMode {
         Vec3 joltDir = new Vec3((float) lookVec.x, (float) lookVec.y, (float) lookVec.z);
 
         // 1. Raycast against dynamic Jolt physics bodies.
-        Optional<VxHitResult> physicsHitOpt = VxRaycaster.raycastPhysics(physicsWorld, joltOrigin, joltDir, range);
+        Optional<VxHitResult> physicsHitOpt = VxRaycaster.raycastClosest(physicsWorld, joltOrigin, joltDir, range);
 
         // 2. Raycast against static Minecraft blocks/terrain.
         Optional<BlockHitResult> blockHitOpt = VxRaycastUtil.raycastBlocks(level, eyePos, rayEnd, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player);

@@ -344,7 +344,7 @@ public class VxChainCreatorMode extends VxToolMode {
         Vec3 joltLook = new Vec3((float) look.x, (float) look.y, (float) look.z);
 
         // 1. Check for dynamic/kinematic physics bodies (Optimized Raycast).
-        Optional<VxHitResult> physicsHitOpt = VxRaycaster.raycastPhysics(world, joltFrom, joltLook, (float) reachDistance);
+        Optional<VxHitResult> physicsHitOpt = VxRaycaster.raycastClosest(world, joltFrom, joltLook, (float) reachDistance);
 
         // 2. Check for Minecraft terrain (Block/Liquid Raycast).
         Optional<BlockHitResult> blockHitOpt = VxRaycastUtil.raycastBlocks(player.level(), from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player);

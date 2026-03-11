@@ -222,7 +222,7 @@ public class VxPhysicsGunServerManager {
             var rayDirection = new Vec3((float) lookVec.x(), (float) lookVec.y(), (float) lookVec.z());
 
             // Perform specialized physics raycast (ignoring terrain)
-            VxRaycaster.raycastPhysics(physicsWorld, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(hitResult -> {
+            VxRaycaster.raycastClosest(physicsWorld, rayOrigin, rayDirection, MAX_DISTANCE).ifPresent(hitResult -> {
                 // Get the raw physics hit data
                 VxHitResult.PhysicsHit hit = hitResult.getPhysicsHit().get();
 
