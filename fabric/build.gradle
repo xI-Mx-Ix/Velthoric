@@ -89,6 +89,7 @@ processResources {
 shadowJar {
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = 'dev-shadow'
+    destinationDirectory = file("${project.layout.buildDirectory.get()}/intermediates")
 
     // Natives are bundled in vx-native, no need to include them here
     exclude 'aix/**'
