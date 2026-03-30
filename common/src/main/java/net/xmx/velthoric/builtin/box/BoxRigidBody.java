@@ -9,6 +9,7 @@ import com.github.stephengold.joltjni.BoxShapeSettings;
 import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.core.body.VxBodyType;
@@ -30,7 +31,7 @@ import java.util.UUID;
  */
 public class BoxRigidBody extends VxBody {
 
-    public static final VxServerAccessor<Vec3> DATA_HALF_EXTENTS = VxServerAccessor.create(BoxRigidBody.class, VxDataSerializers.VEC3);
+    public static final VxServerAccessor<Vec3Arg> DATA_HALF_EXTENTS = VxServerAccessor.create(BoxRigidBody.class, VxDataSerializers.VEC3);
     public static final VxServerAccessor<Integer> DATA_COLOR_ORDINAL = VxServerAccessor.create(BoxRigidBody.class, VxDataSerializers.INTEGER);
 
     /**
@@ -54,11 +55,11 @@ public class BoxRigidBody extends VxBody {
         builder.define(DATA_COLOR_ORDINAL, BoxColor.RED.ordinal());
     }
 
-    public void setHalfExtents(Vec3 halfExtents) {
+    public void setHalfExtents(Vec3Arg halfExtents) {
         this.setServerData(DATA_HALF_EXTENTS, halfExtents);
     }
 
-    public Vec3 getHalfExtents() {
+    public Vec3Arg getHalfExtents() {
         return get(DATA_HALF_EXTENTS);
     }
 
@@ -90,7 +91,7 @@ public class BoxRigidBody extends VxBody {
      * Writes type-specific persistence data.
      */
     public static void writePersistence(VxBody body, VxByteBuf buf) {
-        Vec3 halfExtents = body.get(DATA_HALF_EXTENTS);
+        Vec3Arg halfExtents = body.get(DATA_HALF_EXTENTS);
         buf.writeJoltVec3(halfExtents);
         buf.writeInt(body.get(DATA_COLOR_ORDINAL));
     }

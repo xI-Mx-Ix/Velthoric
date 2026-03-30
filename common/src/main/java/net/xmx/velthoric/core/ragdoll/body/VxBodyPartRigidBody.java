@@ -10,6 +10,7 @@ import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.TaperedCapsuleShapeSettings;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
@@ -33,7 +34,7 @@ import java.util.UUID;
  */
 public class VxBodyPartRigidBody extends VxBody {
 
-    public static final VxServerAccessor<Vec3> DATA_HALF_EXTENTS = VxServerAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.VEC3);
+    public static final VxServerAccessor<Vec3Arg> DATA_HALF_EXTENTS = VxServerAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.VEC3);
     public static final VxServerAccessor<VxBodyPart> DATA_BODY_PART = VxServerAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.BODY_PART);
     public static final VxServerAccessor<String> DATA_SKIN_ID = VxServerAccessor.create(VxBodyPartRigidBody.class, VxDataSerializers.STRING);
 

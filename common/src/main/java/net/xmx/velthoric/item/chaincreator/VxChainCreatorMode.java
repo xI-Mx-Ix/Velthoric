@@ -7,6 +7,7 @@ package net.xmx.velthoric.item.chaincreator;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.RVec3Arg;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -110,7 +111,7 @@ public class VxChainCreatorMode extends VxToolMode {
             // Map the start point to the player's unique identifier.
             startPoints.put(player.getUUID(), info);
             // Retrieve position for sound feedback.
-            RVec3 pos = info.worldPosition;
+            RVec3Arg pos = info.worldPosition;
             // Provide localized audio feedback to the player.
             player.level().playSound(null,
                     new BlockPos((int) pos.xx(), (int) pos.yy(), (int) pos.zz()),
@@ -132,7 +133,7 @@ public class VxChainCreatorMode extends VxToolMode {
         // Perform raycast for the second endpoint.
         findAttachment(player).ifPresent(endInfo -> {
             // Retrieve position for sound feedback.
-            RVec3 pos = endInfo.worldPosition;
+            RVec3Arg pos = endInfo.worldPosition;
             // Play sound indicating the chain is being forged.
             player.level().playSound(null,
                     new BlockPos((int) pos.xx(), (int) pos.yy(), (int) pos.zz()),
@@ -179,8 +180,8 @@ public class VxChainCreatorMode extends VxToolMode {
         if (endBody != null) bodyInterface.activateBody(endBody.getBodyId());
 
         // Calculate world distance and direction between anchors.
-        RVec3 startPos = startInfo.worldPosition;
-        RVec3 endPos = endInfo.worldPosition;
+        RVec3Arg startPos = startInfo.worldPosition;
+        RVec3Arg endPos = endInfo.worldPosition;
         RVec3 vector = Op.minus(endPos, startPos);
         double distance = vector.length();
 
@@ -201,7 +202,7 @@ public class VxChainCreatorMode extends VxToolMode {
 
         // Keep track of the link to connect to.
         UUID previousBodyUuid = startInfo.bodyUUID;
-        RVec3 pivotOnPreviousBody = startInfo.localPivot;
+        RVec3Arg pivotOnPreviousBody = startInfo.localPivot;
 
         // Iteratively create segments and connect them.
         for (int i = 0; i < numSegments; ++i) {
@@ -386,6 +387,6 @@ public class VxChainCreatorMode extends VxToolMode {
      * @param worldPosition Global world coordinates of the attachment point.
      * @param localPivot    Coordinates relative to the body's center of mass.
      */
-    private record AttachmentInfo(UUID bodyUUID, RVec3 worldPosition, RVec3 localPivot) {
+    private record AttachmentInfo(UUID bodyUUID, RVec3Arg worldPosition, RVec3Arg localPivot) {
     }
 }

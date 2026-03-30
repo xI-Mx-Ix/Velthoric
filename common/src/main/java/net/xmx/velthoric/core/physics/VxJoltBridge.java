@@ -9,6 +9,7 @@ import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.xmx.velthoric.core.body.provider.VxJoltRigidProvider;
 import net.xmx.velthoric.core.body.provider.VxJoltSoftProvider;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
@@ -113,7 +114,7 @@ public enum VxJoltBridge {
      * @param activation      The initial activation state.
      * @param motionType      The specific motion type (Static, Kinematic, or Dynamic).
      */
-    public void createAndAddJoltRigidBody(VxBody body, VxServerBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation, EMotionType motionType) {
+    public void createAndAddJoltRigidBody(VxBody body, VxServerBodyManager manager, @Nullable Vec3Arg linearVelocity, @Nullable Vec3Arg angularVelocity, EActivation activation, EMotionType motionType) {
         try {
             VxPhysicsWorld world = manager.getPhysicsWorld();
             VxServerBodyDataStore dataStore = manager.getDataStore();
@@ -180,7 +181,7 @@ public enum VxJoltBridge {
      * @param angularVelocity The initial angular velocity (can be null).
      * @param activation      The initial activation state.
      */
-    public void createAndAddJoltSoftBody(VxBody body, VxServerBodyManager manager, @Nullable Vec3 linearVelocity, @Nullable Vec3 angularVelocity, EActivation activation) {
+    public void createAndAddJoltSoftBody(VxBody body, VxServerBodyManager manager, @Nullable Vec3Arg linearVelocity, @Nullable Vec3Arg angularVelocity, EActivation activation) {
         try {
             VxPhysicsWorld world = manager.getPhysicsWorld();
             VxServerBodyDataStore dataStore = manager.getDataStore();

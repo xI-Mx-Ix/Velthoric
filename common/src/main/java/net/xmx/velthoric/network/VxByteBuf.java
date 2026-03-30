@@ -14,6 +14,7 @@ import com.github.stephengold.joltjni.UVec4;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.Vec4;
 import com.github.stephengold.joltjni.VertexList;
+import com.github.stephengold.joltjni.readonly.*;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.FriendlyByteBuf;
 
@@ -54,7 +55,7 @@ public class VxByteBuf extends FriendlyByteBuf {
      *
      * @param vec The vector to write.
      */
-    public void writeJoltVec3(Vec3 vec) {
+    public void writeJoltVec3(Vec3Arg vec) {
         this.writeFloat(vec.getX());
         this.writeFloat(vec.getY());
         this.writeFloat(vec.getZ());
@@ -78,7 +79,7 @@ public class VxByteBuf extends FriendlyByteBuf {
      *
      * @param quat The quaternion to write.
      */
-    public void writeQuat(Quat quat) {
+    public void writeQuat(QuatArg quat) {
         this.writeFloat(quat.getX());
         this.writeFloat(quat.getY());
         this.writeFloat(quat.getZ());
@@ -126,7 +127,7 @@ public class VxByteBuf extends FriendlyByteBuf {
      *
      * @param rvec The RVec3 to write.
      */
-    public void writeRVec3(RVec3 rvec) {
+    public void writeRVec3(RVec3Arg rvec) {
         this.writeDouble(rvec.xx());
         this.writeDouble(rvec.yy());
         this.writeDouble(rvec.zz());
@@ -222,7 +223,7 @@ public class VxByteBuf extends FriendlyByteBuf {
      *
      * @param uvec The UVec4 to write.
      */
-    public void writeUVec4(UVec4 uvec) {
+    public void writeUVec4(UVec4Arg uvec) {
         this.writeInt(uvec.getX());
         this.writeInt(uvec.getY());
         this.writeInt(uvec.getZ());
@@ -247,7 +248,7 @@ public class VxByteBuf extends FriendlyByteBuf {
      *
      * @param vec The Vec4 to write.
      */
-    public void writeVec4(Vec4 vec) {
+    public void writeVec4(Vec4Arg vec) {
         this.writeFloat(vec.getX());
         this.writeFloat(vec.getY());
         this.writeFloat(vec.getZ());

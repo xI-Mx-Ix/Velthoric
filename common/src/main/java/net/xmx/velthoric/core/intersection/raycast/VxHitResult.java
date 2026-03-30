@@ -4,8 +4,8 @@
  */
 package net.xmx.velthoric.core.intersection.raycast;
 
-import com.github.stephengold.joltjni.RVec3;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.readonly.RVec3Arg;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 
 import java.util.Optional;
 
@@ -29,7 +29,7 @@ public class VxHitResult {
      * @param normal      The surface normal at the hit position.
      * @param hitFraction The fraction of the ray distance where the hit occurred (0.0 - 1.0).
      */
-    public VxHitResult(int bodyId, RVec3 position, Vec3 normal, float hitFraction) {
+    public VxHitResult(int bodyId, RVec3Arg position, Vec3Arg normal, float hitFraction) {
         this.physicsHit = new PhysicsHit(bodyId, position, normal, hitFraction);
     }
 
@@ -50,6 +50,6 @@ public class VxHitResult {
      * @param hitNormal   The surface normal at the point of impact.
      * @param hitFraction The distance fraction (0 to 1) along the ray.
      */
-    public record PhysicsHit(int bodyId, RVec3 position, Vec3 hitNormal, float hitFraction) {
+    public record PhysicsHit(int bodyId, RVec3Arg position, Vec3Arg hitNormal, float hitFraction) {
     }
 }

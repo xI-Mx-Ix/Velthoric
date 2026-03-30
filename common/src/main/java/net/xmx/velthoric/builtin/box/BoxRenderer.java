@@ -5,7 +5,7 @@
 package net.xmx.velthoric.builtin.box;
 
 import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -29,7 +29,7 @@ public class BoxRenderer extends VxBodyRenderer<VxBody> {
         BoxColor color = (colorOrdinal >= 0 && colorOrdinal < BoxColor.values().length) ? BoxColor.values()[colorOrdinal] : BoxColor.RED;
         BlockState blockState = color.getBlock().defaultBlockState();
 
-        Vec3 halfExtents = body.get(BoxRigidBody.DATA_HALF_EXTENTS);
+        Vec3Arg halfExtents = body.get(BoxRigidBody.DATA_HALF_EXTENTS);
         float hx = halfExtents.getX();
         float hy = halfExtents.getY();
         float hz = halfExtents.getZ();

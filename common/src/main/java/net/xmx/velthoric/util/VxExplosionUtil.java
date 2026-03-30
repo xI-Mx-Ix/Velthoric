@@ -6,6 +6,7 @@ package net.xmx.velthoric.util;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.core.intersection.VxPhysicsIntersector;
 
@@ -25,7 +26,7 @@ public class VxExplosionUtil {
      * @param explosionRadius   The radius of the explosion's effect.
      * @param explosionStrength The magnitude of the impulse at the center of the explosion.
      */
-    public void applyExplosion(VxPhysicsWorld physicsWorld, Vec3 explosionCenter, float explosionRadius, float explosionStrength) {
+    public void applyExplosion(VxPhysicsWorld physicsWorld, Vec3Arg explosionCenter, float explosionRadius, float explosionStrength) {
         if (!physicsWorld.isRunning()) return;
 
         // Execute on the physics thread to ensure thread safety.

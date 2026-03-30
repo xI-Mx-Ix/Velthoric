@@ -6,6 +6,8 @@ package net.xmx.velthoric.core.intersection.raycast;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.RVec3Arg;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.init.VxMainClass;
 
@@ -35,13 +37,13 @@ public final class VxRaycaster {
      * @param maxDistance  The maximum length of the ray.
      * @return An Optional containing the {@link VxHitResult} if a valid body was hit.
      */
-    public static Optional<VxHitResult> raycastClosest(VxPhysicsWorld physicsWorld, RVec3 origin, Vec3 direction, float maxDistance) {
+    public static Optional<VxHitResult> raycastClosest(VxPhysicsWorld physicsWorld, RVec3Arg origin, Vec3Arg direction, float maxDistance) {
         if (physicsWorld == null || !physicsWorld.isRunning()) {
             return Optional.empty();
         }
 
         // Calculate the ray vector (Direction * Distance)
-        Vec3 rayVector = Op.star(direction, maxDistance);
+        Vec3Arg rayVector = Op.star(direction, maxDistance);
 
         // Use the cached filter that strictly ignores terrain
         return raycastClosestInternal(physicsWorld, origin, rayVector, VxRaycastFilters.BROADPHASE_ALL, VxRaycastFilters.IGNORE_TERRAIN, VxRaycastFilters.BODY_ALL);
@@ -57,14 +59,14 @@ public final class VxRaycaster {
      * @param objectLayerFilter     The filter determining which object layers to hit.
      * @return The hit result.
      */
-    public static Optional<VxHitResult> raycastClosest(VxPhysicsWorld physicsWorld, RVec3 origin, Vec3 direction,
+    public static Optional<VxHitResult> raycastClosest(VxPhysicsWorld physicsWorld, RVec3Arg origin, Vec3Arg direction,
                                                 float maxDistance, ObjectLayerFilter objectLayerFilter) {
         if (physicsWorld == null || !physicsWorld.isRunning()) {
             return Optional.empty();
         }
 
         // Calculate the ray vector (Direction * Distance)
-        Vec3 rayVector = Op.star(direction, maxDistance);
+        Vec3Arg rayVector = Op.star(direction, maxDistance);
 
         return raycastClosestInternal(physicsWorld, origin, rayVector, VxRaycastFilters.BROADPHASE_ALL, objectLayerFilter, VxRaycastFilters.BODY_ALL);
     }
@@ -81,7 +83,7 @@ public final class VxRaycaster {
      * @param bodyFilter            The filter determining which bodies to hit.
      * @return The hit result.
      */
-    public static Optional<VxHitResult> raycastClosest(VxPhysicsWorld physicsWorld, RVec3 origin, Vec3 direction,
+    public static Optional<VxHitResult> raycastClosest(VxPhysicsWorld physicsWorld, RVec3Arg origin, Vec3Arg direction,
                                                 float maxDistance, BroadPhaseLayerFilter broadPhaseLayerFilter,
                                                 ObjectLayerFilter objectLayerFilter, BodyFilter bodyFilter) {
         if (physicsWorld == null || !physicsWorld.isRunning()) {
@@ -89,7 +91,7 @@ public final class VxRaycaster {
         }
 
         // Calculate the ray vector (Direction * Distance)
-        Vec3 rayVector = Op.star(direction, maxDistance);
+        Vec3Arg rayVector = Op.star(direction, maxDistance);
 
         return raycastClosestInternal(physicsWorld, origin, rayVector, broadPhaseLayerFilter, objectLayerFilter, bodyFilter);
     }
@@ -105,7 +107,7 @@ public final class VxRaycaster {
      * @param bodyFilter            The filter determining which bodies to hit.
      * @return The hit result.
      */
-    private static Optional<VxHitResult> raycastClosestInternal(VxPhysicsWorld physicsWorld, RVec3 origin, Vec3 directionAndDist,
+    private static Optional<VxHitResult> raycastClosestInternal(VxPhysicsWorld physicsWorld, RVec3Arg origin, Vec3Arg directionAndDist,
                                                          BroadPhaseLayerFilter broadPhaseLayerFilter, ObjectLayerFilter objectLayerFilter,
                                                          BodyFilter bodyFilter) {
         PhysicsSystem system = physicsWorld.getPhysicsSystem();
@@ -132,10 +134,10 @@ public final class VxRaycaster {
                 // Retrieve data
                 int bodyId = hit.getBodyId();
                 float fraction = hit.getFraction();
-                RVec3 hitPos = ray.getPointOnRay(fraction);
+                RVec3Arg hitPos = ray.getPointOnRay(fraction);
 
                 // We need to lock the body briefly to get the exact world normal
-                Vec3 normal;
+                Vec3Arg normal;
                 try (BodyLockRead lock = new BodyLockRead(system.getBodyLockInterface(), bodyId)) {
                     if (lock.succeededAndIsInBroadPhase()) {
                         normal = lock.getBody().getWorldSpaceSurfaceNormal(hit.getSubShapeId2(), hitPos);
@@ -167,13 +169,13 @@ public final class VxRaycaster {
      * @param maxDistance  The maximum length of the ray.
      * @return An Optional containing the {@link VxHitResult} if a valid body was hit.
      */
-    public static List<VxHitResult> raycastAll(VxPhysicsWorld physicsWorld, RVec3 origin, Vec3 direction, float maxDistance) {
+    public static List<VxHitResult> raycastAll(VxPhysicsWorld physicsWorld, RVec3Arg origin, Vec3Arg direction, float maxDistance) {
         if (physicsWorld == null || !physicsWorld.isRunning()) {
             return Collections.emptyList();
         }
 
         // Calculate the ray vector (Direction * Distance)
-        Vec3 rayVector = Op.star(direction, maxDistance);
+        Vec3Arg rayVector = Op.star(direction, maxDistance);
 
         // Use the cached filter that strictly ignores terrain
         return raycastAllInternal(physicsWorld, origin, rayVector, VxRaycastFilters.BROADPHASE_ALL, VxRaycastFilters.IGNORE_TERRAIN, VxRaycastFilters.BODY_ALL);
@@ -189,14 +191,14 @@ public final class VxRaycaster {
      * @param objectLayerFilter     The filter determining which object layers to hit.
      * @return The hit result.
      */
-    public static List<VxHitResult> raycastAll(VxPhysicsWorld physicsWorld, RVec3 origin, Vec3 direction,
+    public static List<VxHitResult> raycastAll(VxPhysicsWorld physicsWorld, RVec3Arg origin, Vec3Arg direction,
                                                        float maxDistance, ObjectLayerFilter objectLayerFilter) {
         if (physicsWorld == null || !physicsWorld.isRunning()) {
             return Collections.emptyList();
         }
 
         // Calculate the ray vector (Direction * Distance)
-        Vec3 rayVector = Op.star(direction, maxDistance);
+        Vec3Arg rayVector = Op.star(direction, maxDistance);
 
         return raycastAllInternal(physicsWorld, origin, rayVector, VxRaycastFilters.BROADPHASE_ALL, objectLayerFilter, VxRaycastFilters.BODY_ALL);
     }
@@ -213,7 +215,7 @@ public final class VxRaycaster {
      * @param bodyFilter            The filter determining which bodies to hit.
      * @return The hit result.
      */
-    public static List<VxHitResult> raycastAll(VxPhysicsWorld physicsWorld, RVec3 origin, Vec3 direction,
+    public static List<VxHitResult> raycastAll(VxPhysicsWorld physicsWorld, RVec3Arg origin, Vec3Arg direction,
                                                        float maxDistance, BroadPhaseLayerFilter broadPhaseLayerFilter,
                                                        ObjectLayerFilter objectLayerFilter, BodyFilter bodyFilter) {
         if (physicsWorld == null || !physicsWorld.isRunning()) {
@@ -221,7 +223,7 @@ public final class VxRaycaster {
         }
 
         // Calculate the ray vector (Direction * Distance)
-        Vec3 rayVector = Op.star(direction, maxDistance);
+        Vec3Arg rayVector = Op.star(direction, maxDistance);
 
         return raycastAllInternal(physicsWorld, origin, rayVector, broadPhaseLayerFilter, objectLayerFilter, bodyFilter);
     }
@@ -237,7 +239,7 @@ public final class VxRaycaster {
      * @param bodyFilter            The filter determining which bodies to hit.
      * @return The hit result.
      */
-    private static List<VxHitResult> raycastAllInternal(VxPhysicsWorld physicsWorld, RVec3 origin, Vec3 directionAndDist,
+    private static List<VxHitResult> raycastAllInternal(VxPhysicsWorld physicsWorld, RVec3Arg origin, Vec3Arg directionAndDist,
                                                         BroadPhaseLayerFilter broadPhaseLayerFilter, ObjectLayerFilter objectLayerFilter,
                                                         BodyFilter bodyFilter) {
         PhysicsSystem system = physicsWorld.getPhysicsSystem();
@@ -268,10 +270,10 @@ public final class VxRaycaster {
                     // Retrieve data
                     int bodyId = hit.getBodyId();
                     float fraction = hit.getFraction();
-                    RVec3 hitPos = ray.getPointOnRay(fraction);
+                    RVec3Arg hitPos = ray.getPointOnRay(fraction);
 
                     // We need to lock the body briefly to get the exact world normal
-                    Vec3 normal;
+                    Vec3Arg normal;
                     try (BodyLockRead lock = new BodyLockRead(system.getBodyLockInterface(), bodyId)) {
                         if (lock.succeededAndIsInBroadPhase()) {
                             normal = lock.getBody().getWorldSpaceSurfaceNormal(hit.getSubShapeId2(), hitPos);

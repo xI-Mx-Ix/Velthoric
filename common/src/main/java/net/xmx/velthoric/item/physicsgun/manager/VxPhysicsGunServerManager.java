@@ -8,6 +8,8 @@ import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.QuatArg;
+import com.github.stephengold.joltjni.readonly.RVec3Arg;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.xmx.velthoric.core.body.VxBody;
@@ -247,7 +249,7 @@ public class VxPhysicsGunServerManager {
                         if (motionProperties == null) return;
 
                         // Precise hit point from the result
-                        RVec3 hitPointWorld = hit.position();
+                        RVec3Arg hitPointWorld = hit.position();
 
                         // Calculate the local hit point relative to the body's center of mass
                         try (var invBodyTransform = body.getInverseCenterOfMassTransform()) {
@@ -481,7 +483,7 @@ public class VxPhysicsGunServerManager {
                 }
 
                 // --- Angular Torque Calculation (Rotation) ---
-                Quat targetBodyRotation;
+                QuatArg targetBodyRotation;
                 if (info.inRotationMode()) {
                     // In manual rotation mode, we use the stored base rotation
                     targetBodyRotation = info.initialBodyRotation();

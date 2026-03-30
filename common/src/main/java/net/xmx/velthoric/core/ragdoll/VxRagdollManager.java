@@ -9,6 +9,8 @@ import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.enumerate.ESwingType;
 import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.RVec3Arg;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
@@ -49,7 +51,7 @@ public class VxRagdollManager {
      * @param entity        The entity to create a ragdoll from.
      * @param spawnPosition The world position where the ragdoll should be spawned.
      */
-    public void createHumanoidRagdoll(LivingEntity entity, RVec3 spawnPosition) {
+    public void createHumanoidRagdoll(LivingEntity entity, RVec3Arg spawnPosition) {
         // Pass null for velocity to indicate a static/standing spawn
         world.execute(() -> spawnHumanoidRagdollInternal(entity, spawnPosition, null));
     }
@@ -63,7 +65,7 @@ public class VxRagdollManager {
      * @param spawnPosition   The world position where the ragdoll should be spawned.
      * @param initialVelocity The initial velocity to apply to every body part.
      */
-    public void launchHumanoidRagdoll(LivingEntity entity, RVec3 spawnPosition, Vec3 initialVelocity) {
+    public void launchHumanoidRagdoll(LivingEntity entity, RVec3Arg spawnPosition, Vec3Arg initialVelocity) {
         world.execute(() -> spawnHumanoidRagdollInternal(entity, spawnPosition, initialVelocity));
     }
 
@@ -74,7 +76,7 @@ public class VxRagdollManager {
      * @param spawnPosition   The spawn location.
      * @param initialVelocity The optional initial velocity. If provided, the ragdoll includes Pitch in its rotation.
      */
-    private void spawnHumanoidRagdollInternal(LivingEntity entity, RVec3 spawnPosition, @Nullable Vec3 initialVelocity) {
+    private void spawnHumanoidRagdollInternal(LivingEntity entity, RVec3Arg spawnPosition, @Nullable Vec3Arg initialVelocity) {
         // Calculate Rotation
         // Minecraft Yaw rotates clockwise in degrees. Invert for standard counter-clockwise math.
         float rotY = (float) Math.toRadians(-entity.getYRot());

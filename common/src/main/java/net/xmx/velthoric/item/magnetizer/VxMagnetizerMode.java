@@ -7,6 +7,7 @@ package net.xmx.velthoric.item.magnetizer;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.operator.Op;
 import com.github.stephengold.joltjni.readonly.ConstBodyLockInterface;
+import com.github.stephengold.joltjni.readonly.RVec3Arg;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -100,7 +101,7 @@ public class VxMagnetizerMode extends VxToolMode {
         double blockDistSq = blockHitOpt.map(h -> h.getLocation().distanceToSqr(eyePos)).orElse(Double.MAX_VALUE);
 
         // Initialize the target center point for the magnetic field.
-        RVec3 targetPointRVec;
+        RVec3Arg targetPointRVec;
         net.minecraft.world.phys.Vec3 particlePos;
 
         // Select the closest collision point, or use the ray's end if nothing was hit.

@@ -4,8 +4,8 @@
  */
 package net.xmx.velthoric.item.physicsgun;
 
-import com.github.stephengold.joltjni.Quat;
-import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.readonly.QuatArg;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 
 import java.util.UUID;
 
@@ -17,10 +17,10 @@ import java.util.UUID;
 public record VxGrabbedBodyInfo(
         UUID physicsId,
         int bodyId,
-        Vec3 grabPointLocal,
+        Vec3Arg grabPointLocal,
         float currentDistance,
         float originalAngularDamping,
-        Quat initialBodyRotation,
-        Quat initialPlayerRotation,
+        QuatArg initialBodyRotation,
+        QuatArg initialPlayerRotation,
         boolean inRotationMode
 ) {}

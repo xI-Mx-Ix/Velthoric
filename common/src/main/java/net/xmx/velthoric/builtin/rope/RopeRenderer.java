@@ -7,6 +7,7 @@ package net.xmx.velthoric.builtin.rope;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -111,7 +112,7 @@ public class RopeRenderer extends VxBodyRenderer<VxBody> {
         }
     }
 
-    private void addQuad(VertexConsumer buffer, PoseStack poseStack, Vec3 v1, Vec3 v2, Vec3 v3, Vec3 v4, Vec3 normal, int packedLight, TextureAtlasSprite sprite) {
+    private void addQuad(VertexConsumer buffer, PoseStack poseStack, Vec3Arg v1, Vec3Arg v2, Vec3Arg v3, Vec3Arg v4, Vec3Arg normal, int packedLight, TextureAtlasSprite sprite) {
         PoseStack.Pose last = poseStack.last();
 
         buffer.addVertex(last, v1.getX(), v1.getY(), v1.getZ())

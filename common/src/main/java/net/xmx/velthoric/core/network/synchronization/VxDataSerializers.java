@@ -6,6 +6,7 @@ package net.xmx.velthoric.core.network.synchronization;
 
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.ESpringMode;
+import com.github.stephengold.joltjni.readonly.*;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.xmx.velthoric.network.VxByteBuf;
@@ -93,9 +94,9 @@ public final class VxDataSerializers {
         }
     });
 
-    public static final VxDataSerializer<RVec3> RVEC3 = register(new VxDataSerializer<>() {
+    public static final VxDataSerializer<RVec3Arg> RVEC3 = register(new VxDataSerializer<>() {
         @Override
-        public void write(VxByteBuf buf, RVec3 value) {
+        public void write(VxByteBuf buf, RVec3Arg value) {
             buf.writeRVec3(value);
         }
 
@@ -105,14 +106,14 @@ public final class VxDataSerializers {
         }
 
         @Override
-        public RVec3 copy(RVec3 value) {
+        public RVec3 copy(RVec3Arg value) {
             return new RVec3(value);
         }
     });
 
-    public static final VxDataSerializer<Quat> QUAT = register(new VxDataSerializer<>() {
+    public static final VxDataSerializer<QuatArg> QUAT = register(new VxDataSerializer<>() {
         @Override
-        public void write(VxByteBuf buf, Quat value) {
+        public void write(VxByteBuf buf, QuatArg value) {
             buf.writeQuat(value);
         }
 
@@ -122,14 +123,14 @@ public final class VxDataSerializers {
         }
 
         @Override
-        public Quat copy(Quat value) {
+        public Quat copy(QuatArg value) {
             return new Quat(value);
         }
     });
 
-    public static final VxDataSerializer<Vec3> VEC3 = register(new VxDataSerializer<>() {
+    public static final VxDataSerializer<Vec3Arg> VEC3 = register(new VxDataSerializer<>() {
         @Override
-        public void write(VxByteBuf buf, Vec3 value) {
+        public void write(VxByteBuf buf, Vec3Arg value) {
             buf.writeJoltVec3(value);
         }
 
@@ -139,14 +140,14 @@ public final class VxDataSerializers {
         }
 
         @Override
-        public Vec3 copy(Vec3 value) {
+        public Vec3 copy(Vec3Arg value) {
             return new Vec3(value);
         }
     });
 
-    public static final VxDataSerializer<Vec4> VEC4 = register(new VxDataSerializer<>() {
+    public static final VxDataSerializer<Vec4Arg> VEC4 = register(new VxDataSerializer<>() {
         @Override
-        public void write(VxByteBuf buf, Vec4 value) {
+        public void write(VxByteBuf buf, Vec4Arg value) {
             buf.writeVec4(value);
         }
 
@@ -156,7 +157,7 @@ public final class VxDataSerializers {
         }
 
         @Override
-        public Vec4 copy(Vec4 value) {
+        public Vec4 copy(Vec4Arg value) {
             return new Vec4(value);
         }
     });
@@ -195,9 +196,9 @@ public final class VxDataSerializers {
         }
     });
 
-    public static final VxDataSerializer<UVec4> UVEC4 = register(new VxDataSerializer<>() {
+    public static final VxDataSerializer<UVec4Arg> UVEC4 = register(new VxDataSerializer<>() {
         @Override
-        public void write(VxByteBuf buf, UVec4 value) {
+        public void write(VxByteBuf buf, UVec4Arg value) {
             buf.writeUVec4(value);
         }
 
@@ -207,7 +208,7 @@ public final class VxDataSerializers {
         }
 
         @Override
-        public UVec4 copy(UVec4 value) {
+        public UVec4 copy(UVec4Arg value) {
             return new UVec4(value);
         }
     });

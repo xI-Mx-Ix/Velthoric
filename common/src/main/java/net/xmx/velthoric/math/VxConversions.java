@@ -8,6 +8,10 @@ import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RMat44;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.readonly.QuatArg;
+import com.github.stephengold.joltjni.readonly.RMat44Arg;
+import com.github.stephengold.joltjni.readonly.RVec3Arg;
+import com.github.stephengold.joltjni.readonly.Vec3Arg;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
@@ -32,59 +36,59 @@ public final class VxConversions {
     // --- To JOML Conversions ---
 
     /**
-     * Converts a Jolt {@link Vec3} (single-precision) to a JOML {@link Vector3f}.
+     * Converts a Jolt {@link Vec3Arg} (single-precision) to a JOML {@link Vector3f}.
      * This method creates a new {@link Vector3f} instance.
      *
-     * @param in The source Jolt {@link Vec3}.
+     * @param in The source Jolt {@link Vec3Arg}.
      * @return A new {@link Vector3f} instance with the converted values.
      */
-    public static Vector3f toJoml(Vec3 in) {
+    public static Vector3f toJoml(Vec3Arg in) {
         return toJoml(in, new Vector3f());
     }
 
     /**
-     * Converts a Jolt {@link Vec3} (single-precision) to a JOML {@link Vector3f}.
+     * Converts a Jolt {@link Vec3Arg} (single-precision) to a JOML {@link Vector3f}.
      * This method populates a pre-existing {@link Vector3f} instance for performance.
      *
-     * @param in  The source Jolt {@link Vec3}.
+     * @param in  The source Jolt {@link Vec3Arg}.
      * @param out The target JOML {@link Vector3f} to store the result in.
      * @return The populated {@link Vector3f} (the same instance as {@code out}).
      */
-    public static Vector3f toJoml(Vec3 in, Vector3f out) {
+    public static Vector3f toJoml(Vec3Arg in, Vector3f out) {
         return out.set(in.getX(), in.getY(), in.getZ());
     }
 
     /**
-     * Converts a Jolt {@link RVec3} (double-precision) to a JOML {@link Vector3d}.
+     * Converts a Jolt {@link RVec3Arg} (double-precision) to a JOML {@link Vector3d}.
      * This method creates a new {@link Vector3d} instance.
      *
-     * @param in The source Jolt {@link RVec3}.
+     * @param in The source Jolt {@link RVec3Arg}.
      * @return A new {@link Vector3d} instance with the converted values.
      */
-    public static Vector3d toJoml(RVec3 in) {
+    public static Vector3d toJoml(RVec3Arg in) {
         return toJoml(in, new Vector3d());
     }
 
     /**
-     * Converts a Jolt {@link RVec3} (double-precision) to a JOML {@link Vector3d}.
+     * Converts a Jolt {@link RVec3Arg} (double-precision) to a JOML {@link Vector3d}.
      * This method populates a pre-existing {@link Vector3d} instance for performance.
      *
-     * @param in  The source Jolt {@link RVec3}.
+     * @param in  The source Jolt {@link RVec3Arg}.
      * @param out The target JOML {@link Vector3d} to store the result in.
      * @return The populated {@link Vector3d} (the same instance as {@code out}).
      */
-    public static Vector3d toJoml(RVec3 in, Vector3d out) {
+    public static Vector3d toJoml(RVec3Arg in, Vector3d out) {
         return out.set(in.xx(), in.yy(), in.zz());
     }
 
     /**
-     * Converts a Jolt {@link Quat} (single-precision) to a JOML {@link Quaternionf}.
+     * Converts a Jolt {@link QuatArg} (single-precision) to a JOML {@link Quaternionf}.
      * This method creates a new {@link Quaternionf} instance.
      *
      * @param in The source Jolt {@link Quat}.
      * @return A new {@link Quaternionf} instance with the converted values.
      */
-    public static Quaternionf toJoml(Quat in) {
+    public static Quaternionf toJoml(QuatArg in) {
         return toJoml(in, new Quaternionf());
     }
 
@@ -96,7 +100,7 @@ public final class VxConversions {
      * @param out The target JOML {@link Quaternionf} to store the result in.
      * @return The populated {@link Quaternionf} (the same instance as {@code out}).
      */
-    public static Quaternionf toJoml(Quat in, Quaternionf out) {
+    public static Quaternionf toJoml(QuatArg in, Quaternionf out) {
         return out.set(in.getX(), in.getY(), in.getZ(), in.getW());
     }
 
@@ -130,7 +134,7 @@ public final class VxConversions {
      * This method creates a new {@link Vec3} instance.
      *
      * @param in The source JOML {@link Vector3f}.
-     * @return A new {@link Vec3} instance with the converted values.
+     * @return A new {@link Vec3Arg} instance with the converted values.
      */
     public static Vec3 toJolt(Vector3f in) {
         return toJolt(in, new Vec3());
@@ -246,24 +250,24 @@ public final class VxConversions {
     }
 
     /**
-     * Converts a Jolt {@link RVec3} (double-precision) to a Minecraft {@link net.minecraft.world.phys.Vec3}.
+     * Converts a Jolt {@link RVec3Arg} (double-precision) to a Minecraft {@link net.minecraft.world.phys.Vec3}.
      * Note: A new {@link net.minecraft.world.phys.Vec3} is always returned as it is an immutable type.
      *
-     * @param in The source Jolt {@link RVec3}.
+     * @param in The source Jolt {@link RVec3Arg}.
      * @return A new Minecraft {@link net.minecraft.world.phys.Vec3} instance.
      */
-    public static net.minecraft.world.phys.Vec3 toMinecraft(RVec3 in) {
+    public static net.minecraft.world.phys.Vec3 toMinecraft(RVec3Arg in) {
         return new net.minecraft.world.phys.Vec3(in.xx(), in.yy(), in.zz());
     }
 
     /**
-     * Converts a Jolt {@link Vec3} (single-precision) to a Minecraft {@link net.minecraft.world.phys.Vec3}.
+     * Converts a Jolt {@link Vec3Arg} (single-precision) to a Minecraft {@link net.minecraft.world.phys.Vec3}.
      * Note: A new {@link net.minecraft.world.phys.Vec3} is always returned as it is an immutable type.
      *
-     * @param in The source Jolt {@link Vec3}.
+     * @param in The source Jolt {@link Vec3Arg}.
      * @return A new Minecraft {@link net.minecraft.world.phys.Vec3} instance.
      */
-    public static net.minecraft.world.phys.Vec3 toMinecraft(Vec3 in) {
+    public static net.minecraft.world.phys.Vec3 toMinecraft(Vec3Arg in) {
         return new net.minecraft.world.phys.Vec3(in.getX(), in.getY(), in.getZ());
     }
 
@@ -273,7 +277,7 @@ public final class VxConversions {
      * Extracts the translation component from a Jolt {@link RMat44} and converts it to a Minecraft {@link net.minecraft.world.phys.Vec3}.
      * Note: A new {@link net.minecraft.world.phys.Vec3} is always returned as it is an immutable type.
      *
-     * @param in The source Jolt {@link RMat44} matrix.
+     * @param in The source Jolt {@link RMat44Arg} matrix.
      * @return A new Minecraft {@link net.minecraft.world.phys.Vec3} instance representing the translation.
      */
     public static net.minecraft.world.phys.Vec3 getTranslation(RMat44 in) {
@@ -282,13 +286,13 @@ public final class VxConversions {
     }
 
     /**
-     * Extracts the translation component from a Jolt {@link RMat44} and stores it in a JOML {@link Vector3d}.
+     * Extracts the translation component from a Jolt {@link RMat44Arg} and stores it in a JOML {@link Vector3d}.
      *
-     * @param in  The source Jolt {@link RMat44} matrix.
+     * @param in  The source Jolt {@link RMat44Arg} matrix.
      * @param out The target JOML {@link Vector3d} to store the translation in.
      * @return The populated {@link Vector3d} (the same instance as {@code out}).
      */
-    public static Vector3d getTranslation(RMat44 in, Vector3d out) {
+    public static Vector3d getTranslation(RMat44Arg in, Vector3d out) {
         RVec3 joltTranslation = in.getTranslation();
         return toJoml(joltTranslation, out);
     }
