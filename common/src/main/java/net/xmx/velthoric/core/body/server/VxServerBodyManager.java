@@ -619,8 +619,8 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         List<VxBody> bodiesInChunk = new ArrayList<>();
 
         spatialManager.forEachInChunk(pos.toLong(), body -> {
-            // Only add the body to the save list if it is marked as persistent.
-            if (behaviorManager.hasBehavior(body, VxBehaviors.PERSISTENCE)) {
+            // Only add the body to the save list if it is marked as persistent and is not being removed.
+            if (body.getDataStoreIndex() != -1 && behaviorManager.hasBehavior(body, VxBehaviors.PERSISTENCE)) {
                 bodiesInChunk.add(body);
             }
         });

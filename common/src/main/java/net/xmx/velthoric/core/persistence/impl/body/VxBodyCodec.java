@@ -58,6 +58,9 @@ public final class VxBodyCodec {
             writeInternalPersistenceData(body, tempVxBuf);
 
             int length = tempBuf.readableBytes();
+            if (length == 0) {
+                return; // Do not write invalid/empty bodies
+            }
 
             // Write length prefix
             buf.writeInt(length);
@@ -151,8 +154,19 @@ public final class VxBodyCodec {
      * @param buf  The buffer to read from.
      */
     public static void readInternalPersistenceData(VxBody body, VxByteBuf buf) {
+        if (buf.readableBytes() < 40) { // px, py, pz (24) + rx, ry, rz, rw (16) = 40
+            VxMainClass.LOGGER.warn("Skipping body state deserialization for ID {}: buffer has only {} readable bytes.", body.getPhysicsId(), buf.readableBytes());
+            return;
+        }
+
         double px = buf.readDouble(), py = buf.readDouble(), pz = buf.readDouble();
         float rx = buf.readFloat(), ry = buf.readFloat(), rz = buf.readFloat(), rw = buf.readFloat();
+
+        if (buf.readableBytes() < 25) { // Check before reading velocities and motion
+            VxMainClass.LOGGER.warn("Partially read body state for ID {}: buffer truncated.", body.getPhysicsId());
+            return;
+        }
+
         float vx = buf.readFloat(), vy = buf.readFloat(), vz = buf.readFloat();
         float avx = buf.readFloat(), avy = buf.readFloat(), avz = buf.readFloat();
         int motionOrdinal = buf.readByte();
