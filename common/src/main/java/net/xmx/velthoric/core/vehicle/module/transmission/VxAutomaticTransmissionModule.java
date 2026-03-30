@@ -6,6 +6,7 @@ package net.xmx.velthoric.core.vehicle.module.transmission;
 
 import com.github.stephengold.joltjni.WheeledVehicleController;
 import net.xmx.velthoric.core.mounting.input.VxMountInput;
+import net.xmx.velthoric.network.VxByteBuf;
 
 /**
  * Implements an automatic transmission with arcade-style reversing.
@@ -79,5 +80,15 @@ public class VxAutomaticTransmissionModule implements VxTransmissionModule {
     @Override
     public int getDisplayGear() {
         return displayGear;
+    }
+
+    @Override
+    public void writePersistence(VxByteBuf buf) {
+        buf.writeInt(driveDirection);
+    }
+
+    @Override
+    public void readPersistence(VxByteBuf buf) {
+        this.driveDirection = buf.readInt();
     }
 }

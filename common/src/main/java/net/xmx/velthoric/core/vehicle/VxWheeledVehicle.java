@@ -14,6 +14,8 @@ import net.xmx.velthoric.core.mounting.input.VxMountInput;
 import net.xmx.velthoric.core.physics.VxJoltBridge;
 import net.xmx.velthoric.core.body.VxRemovalReason;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
+import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
 import net.xmx.velthoric.core.body.VxBodyType;
@@ -166,6 +168,30 @@ public abstract class VxWheeledVehicle extends VxVehicle {
     public VxWheeledVehicle(VxBodyType type, UUID id, VxWheeledVehicleConfig config) {
         super(type, id, config);
         this.initializeComponents();
+    }
+
+    /**
+     * Serializes the vehicle state for persistence.
+     *
+     * @param body The vehicle body instance.
+     * @param buf  The buffer to write into.
+     */
+    public static void writePersistence(VxBody body, VxByteBuf buf) {
+        if (body instanceof VxWheeledVehicle vehicle && vehicle.transmissionModule != null) {
+            vehicle.transmissionModule.writePersistence(buf);
+        }
+    }
+
+    /**
+     * Deserializes the vehicle state from persistence.
+     *
+     * @param body The vehicle body instance.
+     * @param buf  The buffer to read from.
+     */
+    public static void readPersistence(VxBody body, VxByteBuf buf) {
+        if (body instanceof VxWheeledVehicle vehicle && vehicle.transmissionModule != null) {
+            vehicle.transmissionModule.readPersistence(buf);
+        }
     }
 
     /**

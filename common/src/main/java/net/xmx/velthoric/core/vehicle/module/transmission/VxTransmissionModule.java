@@ -6,6 +6,7 @@ package net.xmx.velthoric.core.vehicle.module.transmission;
 
 import com.github.stephengold.joltjni.WheeledVehicleController;
 import net.xmx.velthoric.core.mounting.input.VxMountInput;
+import net.xmx.velthoric.network.VxByteBuf;
 
 /**
  * Interface for translating driver inputs into Jolt vehicle physics commands.
@@ -35,4 +36,16 @@ public interface VxTransmissionModule {
      * @return The current gear index.
      */
     int getDisplayGear();
+
+    /**
+     * Serializes the internal state of the transmission into the provided buffer.
+     * @param buf The buffer to write into.
+     */
+    void writePersistence(VxByteBuf buf);
+
+    /**
+     * Deserializes the internal state of the transmission from the provided buffer.
+     * @param buf The buffer to read from.
+     */
+    void readPersistence(VxByteBuf buf);
 }

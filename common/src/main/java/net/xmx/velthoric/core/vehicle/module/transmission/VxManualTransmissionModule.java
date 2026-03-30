@@ -6,6 +6,7 @@ package net.xmx.velthoric.core.vehicle.module.transmission;
 
 import com.github.stephengold.joltjni.WheeledVehicleController;
 import net.xmx.velthoric.core.mounting.input.VxMountInput;
+import net.xmx.velthoric.network.VxByteBuf;
 
 /**
  * Implements a sequential manual transmission.
@@ -98,5 +99,15 @@ public class VxManualTransmissionModule implements VxTransmissionModule {
     @Override
     public int getDisplayGear() {
         return currentGear;
+    }
+
+    @Override
+    public void writePersistence(VxByteBuf buf) {
+        buf.writeInt(currentGear);
+    }
+
+    @Override
+    public void readPersistence(VxByteBuf buf) {
+        this.currentGear = buf.readInt();
     }
 }
