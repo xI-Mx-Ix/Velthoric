@@ -107,7 +107,7 @@ public enum VxMountingRenderUtils {
         VxClientBodyDataStore store = manager.getStore();
         Integer index = store.getIndexForId(bodyId);
 
-        if (index == null || !store.render_isInitialized[index]) {
+        if (index == null || !store.clientCurrent().render_isInitialized[index]) {
             return Optional.empty();
         }
         return Optional.of(index);

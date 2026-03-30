@@ -35,9 +35,9 @@ import java.util.UUID;
 public abstract class VxBodyDataStore extends AbstractDataStore {
 
     /**
-     * The initial capacity of the data arrays.
+     * The default initial capacity of the data arrays before any growth occurs.
      */
-    protected static final int INITIAL_CAPACITY = 256;
+    protected static final int INITIAL_CAPACITY = 1024;
 
     // --- ID Management ---
 
@@ -67,93 +67,10 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
      */
     protected int capacity = 0;
 
-    // --- Shared Physical State (SoA) ---
-
     /**
-     * X position (Double precision for world-space coordinates).
-     * On Client: Interpolated Render Position.
+     * Structural double-buffered container for thread-safe resizing.
      */
-    public double[] posX;
-
-    /**
-     * Y position (Double precision for world-space coordinates).
-     * On Client: Interpolated Render Position.
-     */
-    public double[] posY;
-
-    /**
-     * Z position (Double precision for world-space coordinates).
-     * On Client: Interpolated Render Position.
-     */
-    public double[] posZ;
-
-    /**
-     * Rotation X component (Quaternion).
-     * On Client: Interpolated Render Rotation.
-     */
-    public float[] rotX;
-
-    /**
-     * Rotation Y component (Quaternion).
-     * On Client: Interpolated Render Rotation.
-     */
-    public float[] rotY;
-
-    /**
-     * Rotation Z component (Quaternion).
-     * On Client: Interpolated Render Rotation.
-     */
-    public float[] rotZ;
-
-    /**
-     * Rotation W component (Quaternion).
-     * On Client: Interpolated Render Rotation.
-     */
-    public float[] rotW;
-
-    /**
-     * Linear Velocity X.
-     */
-    public float[] velX;
-
-    /**
-     * Linear Velocity Y.
-     */
-    public float[] velY;
-
-    /**
-     * Linear Velocity Z.
-     */
-    public float[] velZ;
-
-    /**
-     * Soft Body Vertex Data (Null for rigid bodies).
-     * Contains flattened [x, y, z, x, y, z...] data.
-     */
-    public float[] @Nullable [] vertexData;
-
-    /**
-     * Active state flag. True if the body is currently simulated/rendered.
-     */
-    public boolean[] isActive;
-
-    /**
-     * Behavior bitmask for each body.
-     * <p>
-     * Each bit corresponds to a registered {@link net.xmx.velthoric.core.behavior.VxBehaviorId}.
-     * A set bit indicates that the body has the corresponding behavior attached.
-     * This enables O(1) membership checks in hot loops via bitwise AND.
-     */
-    public long[] behaviorBits;
-
-    /**
-     * Direct reference array to the VxBody objects.
-     * <p>
-     * This array mirrors the internal structure-of-arrays indices. It allows O(1) access
-     * to the body object given an index, bypassing the need for UUID map lookups
-     * in hot loops like the physics updater.
-     */
-    public VxBody[] bodies;
+    protected volatile VxBodyDataContainer currentContainer;
 
     /**
      * Constructs the data store and initializes ID maps.
@@ -163,11 +80,15 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
         uuidToIndex.defaultReturnValue(-1);
     }
 
+    public VxBodyDataContainer current() {
+        return currentContainer;
+    }
+
     /**
      * Reserves a new index for the specified body object.
      * <p>
      * If the arrays are full, this method triggers a {@link #allocate(int)} call to grow them.
-     * This method automatically populates the {@link #bodies} reference array at the reserved index.
+     * This method automatically populates the {@code bodies} reference array at the reserved index.
      *
      * @param body The body instance to add to the store.
      * @return The assigned data store index.
@@ -196,7 +117,7 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
         }
 
         // Directly map the body object for O(1) access
-        this.bodies[index] = body;
+        currentContainer.bodies[index] = body;
 
         return index;
     }
@@ -229,14 +150,15 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
      * @param index The index to reset.
      */
     protected void resetIndex(int index) {
-        bodies[index] = null;
-        posX[index] = posY[index] = posZ[index] = 0.0;
-        rotX[index] = rotY[index] = rotZ[index] = 0f;
-        rotW[index] = 1f; // Identity Quaternion
-        velX[index] = velY[index] = velZ[index] = 0f;
-        vertexData[index] = null;
-        isActive[index] = false;
-        behaviorBits[index] = 0L;
+        VxBodyDataContainer c = currentContainer;
+        c.bodies[index] = null;
+        c.posX[index] = c.posY[index] = c.posZ[index] = 0.0;
+        c.rotX[index] = c.rotY[index] = c.rotZ[index] = 0f;
+        c.rotW[index] = 1f; // Identity Quaternion
+        c.velX[index] = c.velY[index] = c.velZ[index] = 0f;
+        c.vertexData[index] = null;
+        c.isActive[index] = false;
+        c.behaviorBits[index] = 0L;
     }
 
     /**
@@ -252,57 +174,56 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
      * Helper method for subclasses to grow the base shared arrays.
      * <p>
      * Extends the capacity of the position, rotation, velocity, and reference arrays.
-     * This method handles both expansion and contraction of the arrays, ensuring
-     * that data is preserved up to the limit of the new capacity.
+     * This method handles expansion of the arrays by creating a new container
+     * and swapping it atomically.
      *
      * @param newCapacity The new capacity for the data arrays.
      */
     protected void growBaseArrays(int newCapacity) {
-        posX = grow(posX, newCapacity);
-        posY = grow(posY, newCapacity);
-        posZ = grow(posZ, newCapacity);
+        VxBodyDataContainer old = currentContainer;
+        VxBodyDataContainer next = createContainer(newCapacity);
 
-        rotX = grow(rotX, newCapacity);
-        rotY = grow(rotY, newCapacity);
-        rotZ = grow(rotZ, newCapacity);
-        rotW = grow(rotW, newCapacity);
-
-        velX = grow(velX, newCapacity);
-        velY = grow(velY, newCapacity);
-        velZ = grow(velZ, newCapacity);
-
-        vertexData = grow(vertexData, newCapacity);
-        isActive = grow(isActive, newCapacity);
-        behaviorBits = grow(behaviorBits, newCapacity);
-
-        // Reallocate the direct reference array.
-        VxBody[] newBodies = new VxBody[newCapacity];
-        if (bodies != null) {
-            // Determine the number of elements to copy, ensuring we do not overflow
-            // the destination if shrinking, or read past the source if growing.
-            int copyLength = Math.min(bodies.length, newCapacity);
-            System.arraycopy(bodies, 0, newBodies, 0, copyLength);
+        if (old != null) {
+            int copyLength = Math.min(old.capacity, newCapacity);
+            System.arraycopy(old.posX, 0, next.posX, 0, copyLength);
+            System.arraycopy(old.posY, 0, next.posY, 0, copyLength);
+            System.arraycopy(old.posZ, 0, next.posZ, 0, copyLength);
+            System.arraycopy(old.rotX, 0, next.rotX, 0, copyLength);
+            System.arraycopy(old.rotY, 0, next.rotY, 0, copyLength);
+            System.arraycopy(old.rotZ, 0, next.rotZ, 0, copyLength);
+            System.arraycopy(old.rotW, 0, next.rotW, 0, copyLength);
+            System.arraycopy(old.velX, 0, next.velX, 0, copyLength);
+            System.arraycopy(old.velY, 0, next.velY, 0, copyLength);
+            System.arraycopy(old.velZ, 0, next.velZ, 0, copyLength);
+            System.arraycopy(old.vertexData, 0, next.vertexData, 0, copyLength);
+            System.arraycopy(old.isActive, 0, next.isActive, 0, copyLength);
+            System.arraycopy(old.behaviorBits, 0, next.behaviorBits, 0, copyLength);
+            System.arraycopy(old.bodies, 0, next.bodies, 0, copyLength);
         }
-        bodies = newBodies;
 
+        this.currentContainer = next;
         this.capacity = newCapacity;
     }
 
     /**
-     * Clears all bodies and resets the store to its initial state.
+     * Factory method to create a container of the correct type.
+     */
+    protected abstract VxBodyDataContainer createContainer(int newCapacity);
+
+    /**
+     * Clears all mapped bodies and resets the store to its initial state.
      * <p>
-     * This removes all mappings, resets counters, and re-allocates the internal
-     * arrays to the initial capacity. The reference to the body array is nullified
-     * before allocation to ensure that no stale references are copied into the
-     * new store, allowing for immediate garbage collection of removed bodies.
+     * Reallocates the default initial capacity to ensure that all data 
+     * is physically cleared and memory is reclaimed, while maintaining
+     * the structural mapping capacity.
      */
     public void clear() {
         uuidToIndex.clear();
         indexToUuid.clear();
         freeIndices.clear();
         count = 0;
-        this.bodies = null;
 
+        // Allocation will create a fresh container, effectively clearing data.
         allocate(INITIAL_CAPACITY);
     }
 

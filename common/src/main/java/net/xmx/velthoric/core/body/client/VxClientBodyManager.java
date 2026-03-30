@@ -269,6 +269,7 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      * @param timestamp The spawn timestamp.
      */
     private void initializeState(int index, VxTransform transform, long timestamp) {
+        VxClientBodyDataContainer c = store.clientCurrent();
         // Extract values
         double x = transform.getTranslation().x();
         double y = transform.getTranslation().y();
@@ -279,36 +280,33 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
         float rw = transform.getRotation().getW();
 
         // Initialize timestamps
-        store.state0_timestamp[index] = timestamp;
-        store.state1_timestamp[index] = timestamp;
+        c.state0_timestamp[index] = timestamp;
+        c.state1_timestamp[index] = timestamp;
 
         // Mark as active
-        store.state0_isActive[index] = true;
-        store.state1_isActive[index] = true;
+        c.state0_isActive[index] = true;
+        c.state1_isActive[index] = true;
 
         // Initialize Position Buffers (State 0, State 1, Render, Previous Frame)
-        store.state0_posX[index] = store.state1_posX[index] = store.posX[index] = store.prev_posX[index] = x;
-        store.state0_posY[index] = store.state1_posY[index] = store.posY[index] = store.prev_posY[index] = y;
-        store.state0_posZ[index] = store.state1_posZ[index] = store.posZ[index] = store.prev_posZ[index] = z;
+        c.state0_posX[index] = c.state1_posX[index] = c.posX[index] = c.prev_posX[index] = x;
+        c.state0_posY[index] = c.state1_posY[index] = c.posY[index] = c.prev_posY[index] = y;
+        c.state0_posZ[index] = c.state1_posZ[index] = c.posZ[index] = c.prev_posZ[index] = z;
 
         // Initialize Rotation Buffers
-        store.state0_rotX[index] = store.state1_rotX[index] = store.rotX[index] = store.prev_rotX[index] = rx;
-        store.state0_rotY[index] = store.state1_rotY[index] = store.rotY[index] = store.prev_rotY[index] = ry;
-        store.state0_rotZ[index] = store.state1_rotZ[index] = store.rotZ[index] = store.prev_rotZ[index] = rz;
-        store.state0_rotW[index] = store.state1_rotW[index] = store.rotW[index] = store.prev_rotW[index] = rw;
+        c.state0_rotX[index] = c.state1_rotX[index] = c.rotX[index] = c.prev_rotX[index] = rx;
+        c.state0_rotY[index] = c.state1_rotY[index] = c.rotY[index] = c.prev_rotY[index] = ry;
+        c.state0_rotZ[index] = c.state1_rotZ[index] = c.rotZ[index] = c.prev_rotZ[index] = rz;
+        c.state0_rotW[index] = c.state1_rotW[index] = c.rotW[index] = c.prev_rotW[index] = rw;
 
         // Reset Velocities
-        store.state0_velX[index] = store.state0_velY[index] = store.state0_velZ[index] = 0f;
-        store.state1_velX[index] = store.state1_velX[index] = store.state1_velZ[index] = 0f;
+        c.state0_velX[index] = c.state0_velY[index] = c.state0_velZ[index] = 0f;
+        c.state1_velX[index] = c.state1_velX[index] = c.state1_velZ[index] = 0f;
 
         // Initialize Last Known Position (for Frustum Culling or Logic)
-        if (store.lastKnownPosition[index] == null) {
-            store.lastKnownPosition[index] = new RVec3();
-        }
-        store.lastKnownPosition[index].set(x, y, z);
+        c.lastKnownPosition[index].set(x, y, z);
 
         // Mark render state as initialized
-        store.render_isInitialized[index] = true;
+        c.render_isInitialized[index] = true;
     }
 
     /**

@@ -13,6 +13,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.core.terrain.storage.VxChunkDataStore;
@@ -188,15 +189,16 @@ public final class VxTerrainTracker {
         requiredChunksCache.clear();
 
         // Iterate via index to avoid Iterator allocation
+        VxServerBodyDataContainer c = bodyDataStore.serverCurrent();
         for (int b = 0, size = allBodies.size(); b < size; b++) {
             VxBody body = allBodies.get(b);
             int i = body.getDataStoreIndex();
             if (i == -1) continue;
 
             // Access raw primitive arrays from the DataStore
-            float px = (float) bodyDataStore.posX[i];
-            float py = (float) bodyDataStore.posY[i];
-            float pz = (float) bodyDataStore.posZ[i];
+            float px = (float) c.posX[i];
+            float py = (float) c.posY[i];
+            float pz = (float) c.posZ[i];
 
             // Safety check for NaN values which could crash the spatial hashing
             if (!Float.isFinite(px) || !Float.isFinite(py) || !Float.isFinite(pz)) {
@@ -236,12 +238,12 @@ public final class VxTerrainTracker {
                 int i = body.getDataStoreIndex();
                 if (i == -1) continue;
 
-                float bMinX = bodyDataStore.aabbMinX[i];
-                float bMinY = bodyDataStore.aabbMinY[i];
-                float bMinZ = bodyDataStore.aabbMinZ[i];
-                float bMaxX = bodyDataStore.aabbMaxX[i];
-                float bMaxY = bodyDataStore.aabbMaxY[i];
-                float bMaxZ = bodyDataStore.aabbMaxZ[i];
+                float bMinX = c.aabbMinX[i];
+                float bMinY = c.aabbMinY[i];
+                float bMinZ = c.aabbMinZ[i];
+                float bMaxX = c.aabbMaxX[i];
+                float bMaxY = c.aabbMaxY[i];
+                float bMaxZ = c.aabbMaxZ[i];
 
                 if (!Float.isFinite(bMinX) || !Float.isFinite(bMaxX)) continue;
 
@@ -257,9 +259,9 @@ public final class VxTerrainTracker {
 
                 // Velocity Prediction: Expand AABB based on where the body is projected to be.
                 // This allows terrain to load ahead of moving objects.
-                float velX = bodyDataStore.velX[i];
-                float velY = bodyDataStore.velY[i];
-                float velZ = bodyDataStore.velZ[i];
+                float velX = c.velX[i];
+                float velY = c.velY[i];
+                float velZ = c.velZ[i];
 
                 if (Math.abs(velX) > 0.01f || Math.abs(velY) > 0.01f || Math.abs(velZ) > 0.01f) {
                     float predictedOffsetX = velX * PREDICTION_SECONDS;
@@ -299,25 +301,26 @@ public final class VxTerrainTracker {
      */
     private void updateChunkActivation(List<VxBody> allBodies) {
         LongSet requiredActiveSet = new LongOpenHashSet();
+        VxServerBodyDataContainer c = bodyDataStore.serverCurrent();
 
         for (VxBody body : allBodies) {
             int i = body.getDataStoreIndex();
 
             // Check active status
-            if (i != -1 && bodyDataStore.isActive[i]) {
-                float py = (float) bodyDataStore.posY[i];
+            if (i != -1 && c.isActive[i]) {
+                float py = (float) c.posY[i];
 
                 // Check height limits
                 if (py > MAX_GENERATION_HEIGHT || py < MIN_GENERATION_HEIGHT) {
                     continue;
                 }
 
-                float minX = bodyDataStore.aabbMinX[i];
-                float minY = bodyDataStore.aabbMinY[i];
-                float minZ = bodyDataStore.aabbMinZ[i];
-                float maxX = bodyDataStore.aabbMaxX[i];
-                float maxY = bodyDataStore.aabbMaxY[i];
-                float maxZ = bodyDataStore.aabbMaxZ[i];
+                float minX = c.aabbMinX[i];
+                float minY = c.aabbMinY[i];
+                float minZ = c.aabbMinZ[i];
+                float maxX = c.aabbMaxX[i];
+                float maxY = c.aabbMaxY[i];
+                float maxZ = c.aabbMaxZ[i];
 
                 // Ensure bounds are valid before iterating
                 if (Float.isFinite(minX) && Float.isFinite(maxX) &&

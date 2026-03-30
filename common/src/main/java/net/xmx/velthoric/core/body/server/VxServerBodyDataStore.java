@@ -8,9 +8,8 @@ import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
 import net.xmx.velthoric.core.body.VxBodyDataStore;
+import net.xmx.velthoric.core.body.VxBodyDataContainer;
 import net.xmx.velthoric.core.body.VxBody;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,107 +33,17 @@ import java.util.UUID;
  */
 public class VxServerBodyDataStore extends VxBodyDataStore {
 
-    // --- Server-Specific Physics Data ---
-
-    /**
-     * Angular Velocity X component.
-     */
-    public float[] angVelX;
-
-    /**
-     * Angular Velocity Y component.
-     */
-    public float[] angVelY;
-
-    /**
-     * Angular Velocity Z component.
-     */
-    public float[] angVelZ;
-
-    /**
-     * AABB Minimum X coordinate.
-     */
-    public float[] aabbMinX;
-
-    /**
-     * AABB Minimum Y coordinate.
-     */
-    public float[] aabbMinY;
-
-    /**
-     * AABB Minimum Z coordinate.
-     */
-    public float[] aabbMinZ;
-
-    /**
-     * AABB Maximum X coordinate.
-     */
-    public float[] aabbMaxX;
-
-    /**
-     * AABB Maximum Y coordinate.
-     */
-    public float[] aabbMaxY;
-
-    /**
-     * AABB Maximum Z coordinate.
-     */
-    public float[] aabbMaxZ;
-
-    /**
-     * The Jolt Body Type (Rigid vs Soft).
-     */
-    public EBodyType[] bodyType;
-
-    /**
-     * The Motion Type (Static, Kinematic, Dynamic).
-     */
-    public EMotionType[] motionType;
-
     // --- Server Logic & Networking ---
-
-    /**
-     * The packed chunk key (ChunkPos long) identifying the chunk this body resides in.
-     */
-    public long[] chunkKey;
-
-    /**
-     * The session-unique integer Network ID used for packet optimization.
-     */
-    public int[] networkId;
 
     /**
      * Reverse lookup map for network synchronization (Network ID -> Body UUID).
      */
     private final Int2ObjectMap<UUID> networkIdToUuid = new Int2ObjectOpenHashMap<>();
 
-    // --- Dirty Flags for Synchronization ---
-
     /**
-     * Flag indicating that the body's transform (pos/rot/vel) has changed, requiring a network sync TO Clients.
+     * Structural double-buffered container for thread-safe resizing.
      */
-    public boolean[] isTransformDirty;
-
-    /**
-     * Flag indicating that the body's vertex data (for soft bodies) has changed, requiring a network sync TO Clients.
-     */
-    public boolean[] isVertexDataDirty;
-
-    /**
-     * Flag indicating that the body's custom data has changed, requiring a network sync TO Clients.
-     */
-    public boolean[] isCustomDataDirty;
-
-    /**
-     * Set of indices that have pending network updates.
-     * Used to avoid O(N) scanning in the NetworkDispatcher.
-     */
-    public final IntSet dirtyIndices = new IntOpenHashSet(2048);
-
-    /**
-     * The server timestamp of the last physics update for this body.
-     */
-    public long[] lastUpdateTimestamp;
+    protected volatile VxServerBodyDataContainer serverCurrentContainer;
 
     /**
      * Constructs the server data store.
@@ -159,9 +68,10 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
         int index = super.reserveIndex(body);
 
         // Initialize server-specific data
-        motionType[index] = EMotionType.Dynamic;
-        bodyType[index] = type;
-        chunkKey[index] = Long.MAX_VALUE; // Sentinel for "no chunk"
+        VxServerBodyDataContainer c = serverCurrentContainer;
+        c.motionType[index] = EMotionType.Dynamic;
+        c.bodyType[index] = type;
+        c.chunkKey[index] = Long.MAX_VALUE; // Sentinel for "no chunk"
         return index;
     }
 
@@ -176,7 +86,7 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
     public synchronized Integer removeBody(UUID id) {
         Integer index = super.removeBody(id);
         if (index != null) {
-            dirtyIndices.remove((int) index);
+            serverCurrentContainer.dirtyIndices.remove((int) index);
         }
         return index;
     }
@@ -189,27 +99,28 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
     @Override
     protected void resetIndex(int index) {
         super.resetIndex(index);
+        VxServerBodyDataContainer c = serverCurrentContainer;
 
-        angVelX[index] = angVelY[index] = angVelZ[index] = 0f;
-        aabbMinX[index] = aabbMinY[index] = aabbMinZ[index] = 0f;
-        aabbMaxX[index] = aabbMaxY[index] = aabbMaxZ[index] = 0f;
+        c.angVelX[index] = c.angVelY[index] = c.angVelZ[index] = 0f;
+        c.aabbMinX[index] = c.aabbMinY[index] = c.aabbMinZ[index] = 0f;
+        c.aabbMaxX[index] = c.aabbMaxY[index] = c.aabbMaxZ[index] = 0f;
 
-        bodyType[index] = null;
-        motionType[index] = null;
-        chunkKey[index] = Long.MAX_VALUE;
+        c.bodyType[index] = null;
+        c.motionType[index] = null;
+        c.chunkKey[index] = Long.MAX_VALUE;
 
         // Handle Network ID cleanup
-        int netId = networkId[index];
+        int netId = c.networkId[index];
         if (netId != -1) {
             unregisterNetworkId(netId);
         }
-        networkId[index] = -1;
+        c.networkId[index] = -1;
 
-        isTransformDirty[index] = false;
-        isVertexDataDirty[index] = false;
-        isCustomDataDirty[index] = false;
-        lastUpdateTimestamp[index] = 0L;
-        dirtyIndices.remove(index);
+        c.isTransformDirty[index] = false;
+        c.isVertexDataDirty[index] = false;
+        c.isCustomDataDirty[index] = false;
+        c.lastUpdateTimestamp[index] = 0L;
+        c.dirtyIndices.remove(index);
     }
 
     /**
@@ -221,26 +132,41 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
     protected void allocate(int newCapacity) {
         super.growBaseArrays(newCapacity);
 
-        angVelX = grow(angVelX, newCapacity);
-        angVelY = grow(angVelY, newCapacity);
-        angVelZ = grow(angVelZ, newCapacity);
+        VxServerBodyDataContainer old = serverCurrentContainer;
+        VxServerBodyDataContainer next = (VxServerBodyDataContainer) currentContainer;
 
-        aabbMinX = grow(aabbMinX, newCapacity);
-        aabbMinY = grow(aabbMinY, newCapacity);
-        aabbMinZ = grow(aabbMinZ, newCapacity);
-        aabbMaxX = grow(aabbMaxX, newCapacity);
-        aabbMaxY = grow(aabbMaxY, newCapacity);
-        aabbMaxZ = grow(aabbMaxZ, newCapacity);
+        if (old != null) {
+            int copyLength = Math.min(old.capacity, newCapacity);
+            System.arraycopy(old.angVelX, 0, next.angVelX, 0, copyLength);
+            System.arraycopy(old.angVelY, 0, next.angVelY, 0, copyLength);
+            System.arraycopy(old.angVelZ, 0, next.angVelZ, 0, copyLength);
+            System.arraycopy(old.aabbMinX, 0, next.aabbMinX, 0, copyLength);
+            System.arraycopy(old.aabbMinY, 0, next.aabbMinY, 0, copyLength);
+            System.arraycopy(old.aabbMinZ, 0, next.aabbMinZ, 0, copyLength);
+            System.arraycopy(old.aabbMaxX, 0, next.aabbMaxX, 0, copyLength);
+            System.arraycopy(old.aabbMaxY, 0, next.aabbMaxY, 0, copyLength);
+            System.arraycopy(old.aabbMaxZ, 0, next.aabbMaxZ, 0, copyLength);
+            System.arraycopy(old.bodyType, 0, next.bodyType, 0, copyLength);
+            System.arraycopy(old.motionType, 0, next.motionType, 0, copyLength);
+            System.arraycopy(old.chunkKey, 0, next.chunkKey, 0, copyLength);
+            System.arraycopy(old.networkId, 0, next.networkId, 0, copyLength);
+            System.arraycopy(old.isTransformDirty, 0, next.isTransformDirty, 0, copyLength);
+            System.arraycopy(old.isVertexDataDirty, 0, next.isVertexDataDirty, 0, copyLength);
+            System.arraycopy(old.isCustomDataDirty, 0, next.isCustomDataDirty, 0, copyLength);
+            System.arraycopy(old.lastUpdateTimestamp, 0, next.lastUpdateTimestamp, 0, copyLength);
+            next.dirtyIndices.addAll(old.dirtyIndices);
+        }
 
-        bodyType = grow(bodyType, newCapacity);
-        motionType = grow(motionType, newCapacity);
-        chunkKey = grow(chunkKey, newCapacity);
-        networkId = grow(networkId, newCapacity);
+        this.serverCurrentContainer = next;
+    }
 
-        isTransformDirty = grow(isTransformDirty, newCapacity);
-        isVertexDataDirty = grow(isVertexDataDirty, newCapacity);
-        isCustomDataDirty = grow(isCustomDataDirty, newCapacity);
-        lastUpdateTimestamp = grow(lastUpdateTimestamp, newCapacity);
+    public VxServerBodyDataContainer serverCurrent() {
+        return serverCurrentContainer;
+    }
+
+    @Override
+    protected VxBodyDataContainer createContainer(int newCapacity) {
+        return new VxServerBodyDataContainer(newCapacity);
     }
 
     // --- Network ID Management ---
@@ -281,7 +207,6 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
     @Override
     public synchronized void clear() {
         networkIdToUuid.clear();
-        dirtyIndices.clear();
         super.clear();
     }
 }

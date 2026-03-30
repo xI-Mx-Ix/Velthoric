@@ -4,17 +4,17 @@
  */
 package net.xmx.velthoric.core.persistence.impl.body;
 
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import net.minecraft.resources.ResourceLocation;
+import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
-import net.xmx.velthoric.core.body.VxBody;
 import org.jetbrains.annotations.Nullable;
-
-import com.github.stephengold.joltjni.enumerate.EMotionType;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
-import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 
 import java.util.UUID;
 
@@ -29,7 +29,8 @@ import java.util.UUID;
  */
 public final class VxBodyCodec {
 
-    private VxBodyCodec() {}
+    private VxBodyCodec() {
+    }
 
     /**
      * Serializes a {@link VxBody} and its current physics state into a buffer.
@@ -42,8 +43,8 @@ public final class VxBodyCodec {
      *     <li>Body Data (Variable payload)</li>
      * </ul>
      *
-     * @param body      The physics body to serialize.
-     * @param buf       The buffer to write the serialized data into.
+     * @param body The physics body to serialize.
+     * @param buf  The buffer to write the serialized data into.
      */
     public static void serialize(VxBody body, VxByteBuf buf) {
         buf.writeUUID(body.getPhysicsId());
@@ -115,26 +116,27 @@ public final class VxBodyCodec {
     public static void writeInternalPersistenceData(VxBody body, VxByteBuf buf) {
         if (body.getPhysicsWorld() == null || body.getDataStoreIndex() == -1) return;
         VxServerBodyDataStore store = body.getPhysicsWorld().getBodyManager().getDataStore();
+        VxServerBodyDataContainer c = store.serverCurrent();
         int idx = body.getDataStoreIndex();
 
-        buf.writeDouble(store.posX[idx]);
-        buf.writeDouble(store.posY[idx]);
-        buf.writeDouble(store.posZ[idx]);
-        buf.writeFloat(store.rotX[idx]);
-        buf.writeFloat(store.rotY[idx]);
-        buf.writeFloat(store.rotZ[idx]);
-        buf.writeFloat(store.rotW[idx]);
-        buf.writeFloat(store.velX[idx]);
-        buf.writeFloat(store.velY[idx]);
-        buf.writeFloat(store.velZ[idx]);
-        buf.writeFloat(store.angVelX[idx]);
-        buf.writeFloat(store.angVelY[idx]);
-        buf.writeFloat(store.angVelZ[idx]);
+        buf.writeDouble(c.posX[idx]);
+        buf.writeDouble(c.posY[idx]);
+        buf.writeDouble(c.posZ[idx]);
+        buf.writeFloat(c.rotX[idx]);
+        buf.writeFloat(c.rotY[idx]);
+        buf.writeFloat(c.rotZ[idx]);
+        buf.writeFloat(c.rotW[idx]);
+        buf.writeFloat(c.velX[idx]);
+        buf.writeFloat(c.velY[idx]);
+        buf.writeFloat(c.velZ[idx]);
+        buf.writeFloat(c.angVelX[idx]);
+        buf.writeFloat(c.angVelY[idx]);
+        buf.writeFloat(c.angVelZ[idx]);
 
-        EMotionType motionType = store.motionType[idx];
+        EMotionType motionType = c.motionType[idx];
         buf.writeByte(motionType != null ? motionType.ordinal() : EMotionType.Static.ordinal());
 
-        if (VxBehaviors.SOFT_PHYSICS.isSet(store.behaviorBits[idx])) {
+        if (VxBehaviors.SOFT_PHYSICS.isSet(c.behaviorBits[idx])) {
             float[] vertices = body.getPhysicsWorld().getBodyManager().retrieveSoftBodyVertices(body);
             if (vertices != null) {
                 buf.writeInt(vertices.length);
@@ -173,21 +175,22 @@ public final class VxBodyCodec {
 
         if (body.getPhysicsWorld() != null && body.getDataStoreIndex() != -1) {
             VxServerBodyDataStore store = body.getPhysicsWorld().getBodyManager().getDataStore();
+            VxServerBodyDataContainer c = store.serverCurrent();
             int idx = body.getDataStoreIndex();
-            store.posX[idx] = px;
-            store.posY[idx] = py;
-            store.posZ[idx] = pz;
-            store.rotX[idx] = rx;
-            store.rotY[idx] = ry;
-            store.rotZ[idx] = rz;
-            store.rotW[idx] = rw;
-            store.velX[idx] = vx;
-            store.velY[idx] = vy;
-            store.velZ[idx] = vz;
-            store.angVelX[idx] = avx;
-            store.angVelY[idx] = avy;
-            store.angVelZ[idx] = avz;
-            store.motionType[idx] = EMotionType.values()[Math.max(0, Math.min(motionOrdinal, EMotionType.values().length - 1))];
+            c.posX[idx] = px;
+            c.posY[idx] = py;
+            c.posZ[idx] = pz;
+            c.rotX[idx] = rx;
+            c.rotY[idx] = ry;
+            c.rotZ[idx] = rz;
+            c.rotW[idx] = rw;
+            c.velX[idx] = vx;
+            c.velY[idx] = vy;
+            c.velZ[idx] = vz;
+            c.angVelX[idx] = avx;
+            c.angVelY[idx] = avy;
+            c.angVelZ[idx] = avz;
+            c.motionType[idx] = EMotionType.values()[Math.max(0, Math.min(motionOrdinal, EMotionType.values().length - 1))];
         }
 
         if (body.getType().isSoft()) {

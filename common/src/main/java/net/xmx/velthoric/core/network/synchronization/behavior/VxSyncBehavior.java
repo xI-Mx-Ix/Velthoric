@@ -18,6 +18,7 @@ import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.network.internal.VxNetworkDispatcher;
@@ -222,11 +223,12 @@ public class VxSyncBehavior implements VxBehavior {
         IntArrayList dirtyIndices = new IntArrayList();
 
         // 1. Collect indices of bodies with server-side dirty flags
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
         synchronized (dataStore) {
             for (int i = 0; i < dataStore.getCapacity(); i++) {
-                if (dataStore.isCustomDataDirty[i]) {
+                if (c.isCustomDataDirty[i]) {
                     dirtyIndices.add(i);
-                    dataStore.isCustomDataDirty[i] = false;
+                    c.isCustomDataDirty[i] = false;
                 }
             }
         }

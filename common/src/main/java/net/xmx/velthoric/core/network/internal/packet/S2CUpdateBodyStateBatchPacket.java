@@ -11,6 +11,7 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.core.body.client.VxClientBodyDataContainer;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 
@@ -139,6 +140,7 @@ public class S2CUpdateBodyStateBatchPacket implements IVxNetPacket {
                 manager.addClockSyncSample(timestamp - manager.getClock().getGameTimeNanos());
 
                 // 4. Update Data Store (Zero Object Allocation)
+                VxClientBodyDataContainer c = store.clientCurrent();
                 for (int i = 0; i < count; i++) {
                     int netId = db.readInt();
                     Integer idx = store.getIndexForNetworkId(netId);
@@ -158,40 +160,48 @@ public class S2CUpdateBodyStateBatchPacket implements IVxNetPacket {
 
                     int index = idx; // Unbox index once
 
+                    // Bounds check for race condition during container resize
+                    if (index >= c.getCapacity()) {
+                        db.skipBytes(12); // Position
+                        db.skipBytes(16); // Rotation
+                        if (db.readBoolean()) { // isActive
+                            db.skipBytes(12); // Velocity
+                        }
+                        continue;
+                    }
+
                     // Cycle history states (current -> old)
-                    store.state0_timestamp[index] = store.state1_timestamp[index];
-                    store.state0_posX[index] = store.state1_posX[index];
-                    store.state0_posY[index] = store.state1_posY[index];
-                    store.state0_posZ[index] = store.state1_posZ[index];
-                    store.state0_rotX[index] = store.state1_rotX[index];
-                    store.state0_rotY[index] = store.state1_rotY[index];
-                    store.state0_rotZ[index] = store.state1_rotZ[index];
-                    store.state0_rotW[index] = store.state1_rotW[index];
-                    store.state0_isActive[index] = store.state1_isActive[index];
+                    c.state0_timestamp[index] = c.state1_timestamp[index];
+                    c.state0_posX[index] = c.state1_posX[index];
+                    c.state0_posY[index] = c.state1_posY[index];
+                    c.state0_posZ[index] = c.state1_posZ[index];
+                    c.state0_rotX[index] = c.state1_rotX[index];
+                    c.state0_rotY[index] = c.state1_rotY[index];
+                    c.state0_rotZ[index] = c.state1_rotZ[index];
+                    c.state0_rotW[index] = c.state1_rotW[index];
+                    c.state0_isActive[index] = c.state1_isActive[index];
 
                     // Read New State into state1
-                    store.state1_timestamp[index] = timestamp;
-                    store.state1_posX[index] = baseX + db.readFloat();
-                    store.state1_posY[index] = baseY + db.readFloat();
-                    store.state1_posZ[index] = baseZ + db.readFloat();
-                    store.state1_rotX[index] = db.readFloat();
-                    store.state1_rotY[index] = db.readFloat();
-                    store.state1_rotZ[index] = db.readFloat();
-                    store.state1_rotW[index] = db.readFloat();
+                    c.state1_timestamp[index] = timestamp;
+                    c.state1_posX[index] = baseX + db.readFloat();
+                    c.state1_posY[index] = baseY + db.readFloat();
+                    c.state1_posZ[index] = baseZ + db.readFloat();
+                    c.state1_rotX[index] = db.readFloat();
+                    c.state1_rotY[index] = db.readFloat();
+                    c.state1_rotZ[index] = db.readFloat();
+                    c.state1_rotW[index] = db.readFloat();
 
                     boolean active = db.readBoolean();
-                    store.state1_isActive[index] = active;
+                    c.state1_isActive[index] = active;
 
                     if (active) {
-                        store.state1_velX[index] = db.readFloat();
-                        store.state1_velY[index] = db.readFloat();
-                        store.state1_velZ[index] = db.readFloat();
+                        c.state1_velX[index] = db.readFloat();
+                        c.state1_velY[index] = db.readFloat();
+                        c.state1_velZ[index] = db.readFloat();
                     }
 
                     // Update culling position for renderer frustum checks
-                    if (store.lastKnownPosition[index] != null) {
-                        store.lastKnownPosition[index].set(store.state1_posX[index], store.state1_posY[index], store.state1_posZ[index]);
-                    }
+                    c.lastKnownPosition[index].set(c.state1_posX[index], c.state1_posY[index], c.state1_posZ[index]);
                 }
 
             } finally {

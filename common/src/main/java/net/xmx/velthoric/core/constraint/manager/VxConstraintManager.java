@@ -310,7 +310,7 @@ public class VxConstraintManager {
         VxBody body = bodyManager.getVxBody(bodyId);
         if (body != null) {
             int index = body.getDataStoreIndex();
-            return index != -1 && bodyManager.getDataStore().chunkKey[index] == pos.toLong();
+            return index != -1 && bodyManager.getDataStore().serverCurrent().chunkKey[index] == pos.toLong();
         }
         return false;
     }

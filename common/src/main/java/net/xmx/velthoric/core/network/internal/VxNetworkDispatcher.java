@@ -18,6 +18,7 @@ import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.network.synchronization.behavior.VxSyncBehavior;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.network.internal.packet.S2CRemoveBodyBatchPacket;
@@ -217,31 +218,32 @@ public class VxNetworkDispatcher {
         dirtyIndicesSnapshot.clear();
 
         // Atomically retrieve dirty indices to minimize lock duration
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
         synchronized (dataStore) {
-            if (dataStore.dirtyIndices.isEmpty()) return;
-            IntIterator it = dataStore.dirtyIndices.iterator();
+            if (c.dirtyIndices.isEmpty()) return;
+            IntIterator it = c.dirtyIndices.iterator();
             while (it.hasNext()) {
                 dirtyIndicesSnapshot.add(it.nextInt());
             }
-            dataStore.dirtyIndices.clear();
+            c.dirtyIndices.clear();
         }
 
         // Group indices by chunk outside the lock
         for (int i = 0; i < dirtyIndicesSnapshot.size(); i++) {
             int idx = dirtyIndicesSnapshot.getInt(i);
-            if (dataStore.networkId[idx] == -1) continue;
-            if (!VxBehaviors.NET_SYNC.isSet(dataStore.behaviorBits[idx])) continue;
+            if (idx >= c.getCapacity() || c.networkId[idx] == -1) continue;
+            if (!VxBehaviors.NET_SYNC.isSet(c.behaviorBits[idx])) continue;
 
-            long chunkPosLong = dataStore.chunkKey[idx];
+            long chunkPosLong = c.chunkKey[idx];
 
-            if (dataStore.isTransformDirty[idx]) {
+            if (c.isTransformDirty[idx]) {
                 getOrCreateList(dirtyBodiesByChunk, chunkPosLong).add(idx);
-                dataStore.isTransformDirty[idx] = false;
+                c.isTransformDirty[idx] = false;
             }
 
-            if (dataStore.isVertexDataDirty[idx]) {
+            if (c.isVertexDataDirty[idx]) {
                 getOrCreateList(dirtyVerticesByChunk, chunkPosLong).add(idx);
-                dataStore.isVertexDataDirty[idx] = false;
+                c.isVertexDataDirty[idx] = false;
             }
         }
     }
@@ -326,7 +328,8 @@ public class VxNetworkDispatcher {
     public void onBodyAdded(VxBody body) {
         int index = body.getDataStoreIndex();
         if (index == -1) return;
-        ChunkPos bodyChunk = new ChunkPos(dataStore.chunkKey[index]);
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
+        ChunkPos bodyChunk = new ChunkPos(c.chunkKey[index]);
 
         // Iterate all players to see who needs to be notified of this new body
         for (ServerPlayer player : this.level.players()) {
@@ -348,7 +351,8 @@ public class VxNetworkDispatcher {
         // at this point in the lifecycle (called before cleanup).
         if (index == -1) return;
 
-        ChunkPos chunkPos = new ChunkPos(dataStore.chunkKey[index]);
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
+        ChunkPos chunkPos = new ChunkPos(c.chunkKey[index]);
         // Use the vanilla ChunkMap to find players who are currently watching this chunk.
         List<ServerPlayer> players = level.getChunkSource().chunkMap.getPlayers(chunkPos, false);
 
@@ -421,7 +425,8 @@ public class VxNetworkDispatcher {
         int index = body.getDataStoreIndex();
         if (index == -1) return;
 
-        long behaviorBits = dataStore.behaviorBits[index];
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
+        long behaviorBits = c.behaviorBits[index];
         if (!VxBehaviors.NET_SYNC.isSet(behaviorBits) && !VxBehaviors.CUSTOM_DATA_SYNC.isSet(behaviorBits)) return;
 
         IntSet tracked = playerTrackedBodies.computeIfAbsent(player.getUUID(), k -> IntSets.synchronize(new IntOpenHashSet()));
@@ -504,8 +509,9 @@ public class VxNetworkDispatcher {
                         int index = body.getDataStoreIndex();
                         if (index == -1) continue;
 
+                        VxServerBodyDataContainer c = dataStore.serverCurrent();
                         // Retrieve the cached chunk key and convert to ChunkPos for the vanilla visibility check
-                        ChunkPos bodyChunk = new ChunkPos(dataStore.chunkKey[index]);
+                        ChunkPos bodyChunk = new ChunkPos(c.chunkKey[index]);
 
                         // Only spawn if the player has received the chunk (not pending send)
                         if (chunkMap.getPlayers(bodyChunk, false).contains(player)) {
@@ -606,7 +612,7 @@ public class VxNetworkDispatcher {
         VxBody body = manager.getVxBody(id);
         if (body == null || body.getDataStoreIndex() == -1) return Collections.emptySet();
 
-        ChunkPos pos = new ChunkPos(dataStore.chunkKey[body.getDataStoreIndex()]);
+        ChunkPos pos = new ChunkPos(dataStore.serverCurrent().chunkKey[body.getDataStoreIndex()]);
         List<ServerPlayer> players = level.getChunkSource().chunkMap.getPlayers(pos, false);
 
         // Wrap in HashSet to satisfy Set<ServerPlayer> return type expected by SyncManager

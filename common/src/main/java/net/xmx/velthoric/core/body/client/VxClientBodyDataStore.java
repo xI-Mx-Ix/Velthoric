@@ -4,14 +4,12 @@
  */
 package net.xmx.velthoric.core.body.client;
 
-import com.github.stephengold.joltjni.RVec3;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
-import net.xmx.velthoric.core.body.VxBodyDataStore;
 import net.xmx.velthoric.core.body.VxBody;
-import org.jetbrains.annotations.Nullable;
+import net.xmx.velthoric.core.body.VxBodyDataContainer;
+import net.xmx.velthoric.core.body.VxBodyDataStore;
 
-import java.nio.ByteBuffer;
 import java.util.UUID;
 
 /**
@@ -39,54 +37,10 @@ public class VxClientBodyDataStore extends VxBodyDataStore {
      */
     private final Int2IntMap networkIdToIndex = new Int2IntOpenHashMap();
 
-    // --- State 0 Buffers (Previous Server State) ---
-
     /**
-     * Timestamp of the 'from' state.
+     * Structural double-buffered container for thread-safe resizing.
      */
-    public long[] state0_timestamp;
-    public double[] state0_posX, state0_posY, state0_posZ;
-    public float[] state0_rotX, state0_rotY, state0_rotZ, state0_rotW;
-    public float[] state0_velX, state0_velY, state0_velZ;
-    public boolean[] state0_isActive;
-    public float[] @Nullable [] state0_vertexData;
-
-    // --- State 1 Buffers (Latest Server State) ---
-
-    /**
-     * Timestamp of the 'to' state.
-     */
-    public long[] state1_timestamp;
-    public double[] state1_posX, state1_posY, state1_posZ;
-    public float[] state1_rotX, state1_rotY, state1_rotZ, state1_rotW;
-    public float[] state1_velX, state1_velY, state1_velZ;
-    public boolean[] state1_isActive;
-    public float[] @Nullable [] state1_vertexData;
-
-    // --- Prev Frame Buffers (Frame Interpolation) ---
-
-    // The render state from the *previous frame*. Used to interpolate with the current
-    // target (this.posX, etc.) based on partial ticks.
-    public double[] prev_posX, prev_posY, prev_posZ;
-    public float[] prev_rotX, prev_rotY, prev_rotZ, prev_rotW;
-    public float[] @Nullable [] prev_vertexData;
-
-    /**
-     * Flag indicating if the render state has been populated at least once.
-     */
-    public boolean[] render_isInitialized;
-
-    // --- Metadata ---
-
-    /**
-     * Buffer for custom data sent from the server.
-     */
-    public ByteBuffer[] customData;
-
-    /**
-     * The last known position of the body, used for frustum culling.
-     */
-    public RVec3[] lastKnownPosition;
+    protected volatile VxClientBodyDataContainer clientCurrentContainer;
 
     /**
      * Constructs the client data store.
@@ -134,31 +88,32 @@ public class VxClientBodyDataStore extends VxBodyDataStore {
     @Override
     protected void resetIndex(int index) {
         super.resetIndex(index);
+        VxClientBodyDataContainer c = clientCurrentContainer;
 
-        state0_timestamp[index] = 0;
-        state1_timestamp[index] = 0;
+        c.state0_timestamp[index] = 0;
+        c.state1_timestamp[index] = 0;
 
-        state0_isActive[index] = false;
-        state1_isActive[index] = false;
+        c.state0_isActive[index] = false;
+        c.state1_isActive[index] = false;
 
-        state0_vertexData[index] = null;
-        state1_vertexData[index] = null;
+        c.state0_vertexData[index] = null;
+        c.state1_vertexData[index] = null;
 
-        render_isInitialized[index] = false;
-        prev_vertexData[index] = null;
+        c.render_isInitialized[index] = false;
+        c.prev_vertexData[index] = null;
 
-        customData[index] = null;
-        if (lastKnownPosition != null && lastKnownPosition[index] != null) {
-            lastKnownPosition[index].loadZero();
+        c.customData[index] = null;
+        if (c.lastKnownPosition != null && c.lastKnownPosition[index] != null) {
+            c.lastKnownPosition[index].loadZero();
         }
 
         // Reset buffer vectors
-        state0_velX[index] = state0_velY[index] = state0_velZ[index] = 0;
-        state1_velX[index] = state1_velY[index] = state1_velZ[index] = 0;
+        c.state0_velX[index] = c.state0_velY[index] = c.state0_velZ[index] = 0;
+        c.state1_velX[index] = c.state1_velY[index] = c.state1_velZ[index] = 0;
 
-        state0_posX[index] = state0_posY[index] = state0_posZ[index] = 0.0;
-        state1_posX[index] = state1_posY[index] = state1_posZ[index] = 0.0;
-        prev_posX[index] = prev_posY[index] = prev_posZ[index] = 0.0;
+        c.state0_posX[index] = c.state0_posY[index] = c.state0_posZ[index] = 0.0;
+        c.state1_posX[index] = c.state1_posY[index] = c.state1_posZ[index] = 0.0;
+        c.prev_posX[index] = c.prev_posY[index] = c.prev_posZ[index] = 0.0;
     }
 
     /**
@@ -170,50 +125,66 @@ public class VxClientBodyDataStore extends VxBodyDataStore {
     protected void allocate(int newCapacity) {
         super.growBaseArrays(newCapacity);
 
-        // State 0
-        state0_timestamp = grow(state0_timestamp, newCapacity);
-        state0_posX = grow(state0_posX, newCapacity);
-        state0_posY = grow(state0_posY, newCapacity);
-        state0_posZ = grow(state0_posZ, newCapacity);
-        state0_rotX = grow(state0_rotX, newCapacity);
-        state0_rotY = grow(state0_rotY, newCapacity);
-        state0_rotZ = grow(state0_rotZ, newCapacity);
-        state0_rotW = grow(state0_rotW, newCapacity);
-        state0_velX = grow(state0_velX, newCapacity);
-        state0_velY = grow(state0_velY, newCapacity);
-        state0_velZ = grow(state0_velZ, newCapacity);
-        state0_isActive = grow(state0_isActive, newCapacity);
-        state0_vertexData = grow(state0_vertexData, newCapacity);
+        VxClientBodyDataContainer old = clientCurrentContainer;
+        VxClientBodyDataContainer next = (VxClientBodyDataContainer) currentContainer;
 
-        // State 1
-        state1_timestamp = grow(state1_timestamp, newCapacity);
-        state1_posX = grow(state1_posX, newCapacity);
-        state1_posY = grow(state1_posY, newCapacity);
-        state1_posZ = grow(state1_posZ, newCapacity);
-        state1_rotX = grow(state1_rotX, newCapacity);
-        state1_rotY = grow(state1_rotY, newCapacity);
-        state1_rotZ = grow(state1_rotZ, newCapacity);
-        state1_rotW = grow(state1_rotW, newCapacity);
-        state1_velX = grow(state1_velX, newCapacity);
-        state1_velY = grow(state1_velY, newCapacity);
-        state1_velZ = grow(state1_velZ, newCapacity);
-        state1_isActive = grow(state1_isActive, newCapacity);
-        state1_vertexData = grow(state1_vertexData, newCapacity);
+        if (old != null) {
+            int copyLength = Math.min(old.capacity, newCapacity);
+            System.arraycopy(old.state0_timestamp, 0, next.state0_timestamp, 0, copyLength);
+            System.arraycopy(old.state0_posX, 0, next.state0_posX, 0, copyLength);
+            System.arraycopy(old.state0_posY, 0, next.state0_posY, 0, copyLength);
+            System.arraycopy(old.state0_posZ, 0, next.state0_posZ, 0, copyLength);
+            System.arraycopy(old.state0_rotX, 0, next.state0_rotX, 0, copyLength);
+            System.arraycopy(old.state0_rotY, 0, next.state0_rotY, 0, copyLength);
+            System.arraycopy(old.state0_rotZ, 0, next.state0_rotZ, 0, copyLength);
+            System.arraycopy(old.state0_rotW, 0, next.state0_rotW, 0, copyLength);
+            System.arraycopy(old.state0_velX, 0, next.state0_velX, 0, copyLength);
+            System.arraycopy(old.state0_velY, 0, next.state0_velY, 0, copyLength);
+            System.arraycopy(old.state0_velZ, 0, next.state0_velZ, 0, copyLength);
+            System.arraycopy(old.state0_isActive, 0, next.state0_isActive, 0, copyLength);
+            System.arraycopy(old.state0_vertexData, 0, next.state0_vertexData, 0, copyLength);
 
-        // Prev (Inter-frame history)
-        prev_posX = grow(prev_posX, newCapacity);
-        prev_posY = grow(prev_posY, newCapacity);
-        prev_posZ = grow(prev_posZ, newCapacity);
-        prev_rotX = grow(prev_rotX, newCapacity);
-        prev_rotY = grow(prev_rotY, newCapacity);
-        prev_rotZ = grow(prev_rotZ, newCapacity);
-        prev_rotW = grow(prev_rotW, newCapacity);
-        prev_vertexData = grow(prev_vertexData, newCapacity);
+            System.arraycopy(old.state1_timestamp, 0, next.state1_timestamp, 0, copyLength);
+            System.arraycopy(old.state1_posX, 0, next.state1_posX, 0, copyLength);
+            System.arraycopy(old.state1_posY, 0, next.state1_posY, 0, copyLength);
+            System.arraycopy(old.state1_posZ, 0, next.state1_posZ, 0, copyLength);
+            System.arraycopy(old.state1_rotX, 0, next.state1_rotX, 0, copyLength);
+            System.arraycopy(old.state1_rotY, 0, next.state1_rotY, 0, copyLength);
+            System.arraycopy(old.state1_rotZ, 0, next.state1_rotZ, 0, copyLength);
+            System.arraycopy(old.state1_rotW, 0, next.state1_rotW, 0, copyLength);
+            System.arraycopy(old.state1_velX, 0, next.state1_velX, 0, copyLength);
+            System.arraycopy(old.state1_velY, 0, next.state1_velY, 0, copyLength);
+            System.arraycopy(old.state1_velZ, 0, next.state1_velZ, 0, copyLength);
+            System.arraycopy(old.state1_isActive, 0, next.state1_isActive, 0, copyLength);
+            System.arraycopy(old.state1_vertexData, 0, next.state1_vertexData, 0, copyLength);
 
-        // Metadata
-        render_isInitialized = grow(render_isInitialized, newCapacity);
-        customData = grow(customData, newCapacity);
-        lastKnownPosition = grow(lastKnownPosition, newCapacity);
+            System.arraycopy(old.prev_posX, 0, next.prev_posX, 0, copyLength);
+            System.arraycopy(old.prev_posY, 0, next.prev_posY, 0, copyLength);
+            System.arraycopy(old.prev_posZ, 0, next.prev_posZ, 0, copyLength);
+            System.arraycopy(old.prev_rotX, 0, next.prev_rotX, 0, copyLength);
+            System.arraycopy(old.prev_rotY, 0, next.prev_rotY, 0, copyLength);
+            System.arraycopy(old.prev_rotZ, 0, next.prev_rotZ, 0, copyLength);
+            System.arraycopy(old.prev_rotW, 0, next.prev_rotW, 0, copyLength);
+            System.arraycopy(old.prev_vertexData, 0, next.prev_vertexData, 0, copyLength);
+
+            System.arraycopy(old.render_isInitialized, 0, next.render_isInitialized, 0, copyLength);
+            System.arraycopy(old.customData, 0, next.customData, 0, copyLength);
+            // lastKnownPosition is already initialized in new container constructor
+            for (int i = 0; i < copyLength; i++) {
+                next.lastKnownPosition[i].set(old.lastKnownPosition[i]);
+            }
+        }
+
+        this.clientCurrentContainer = next;
+    }
+
+    @Override
+    protected VxBodyDataContainer createContainer(int newCapacity) {
+        return new VxClientBodyDataContainer(newCapacity);
+    }
+
+    public VxClientBodyDataContainer clientCurrent() {
+        return clientCurrentContainer;
     }
 
     /**
@@ -222,7 +193,6 @@ public class VxClientBodyDataStore extends VxBodyDataStore {
      * @param networkId The network ID of the body.
      * @return The integer index, or null if the body is not in the store.
      */
-    @Nullable
     public Integer getIndexForNetworkId(int networkId) {
         int index = networkIdToIndex.get(networkId);
         return index == -1 ? null : index;

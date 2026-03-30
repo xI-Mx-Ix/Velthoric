@@ -52,7 +52,7 @@ public class VxBodySelector {
             predicate = predicate.and(obj -> {
                 int index = obj.getDataStoreIndex();
                 if (index != -1) {
-                    return obj.getPhysicsWorld().getBodyManager().getDataStore().bodyType[index] == bodyType;
+                    return obj.getPhysicsWorld().getBodyManager().getDataStore().serverCurrent().bodyType[index] == bodyType;
                 }
                 return false;
             });

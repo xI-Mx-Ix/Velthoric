@@ -15,6 +15,7 @@ import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.body.VxRemovalReason;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.core.body.factory.VxSoftBodyFactory;
@@ -131,10 +132,11 @@ public enum VxJoltBridge {
                         throw new IllegalStateException("Shape creation failed: " + shapeResult.getError());
                     }
                     try (ShapeRefC shapeRef = shapeResult.get()) {
+                        VxServerBodyDataContainer c = dataStore.serverCurrent();
                         int index = body.getDataStoreIndex();
                         bcs.setShape(shapeRef);
-                        bcs.setPosition(dataStore.posX[index], dataStore.posY[index], dataStore.posZ[index]);
-                        bcs.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
+                        bcs.setPosition(c.posX[index], c.posY[index], c.posZ[index]);
+                        bcs.setRotation(new Quat(c.rotX[index], c.rotY[index], c.rotZ[index], c.rotW[index]));
 
                         if (linearVelocity != null) bcs.setLinearVelocity(linearVelocity);
                         if (angularVelocity != null) bcs.setAngularVelocity(angularVelocity);
@@ -194,9 +196,10 @@ public enum VxJoltBridge {
 
             VxSoftBodyFactory factory = (sharedSettings, creationSettings) -> {
                 try (sharedSettings; creationSettings) {
+                    VxServerBodyDataContainer c = dataStore.serverCurrent();
                     int index = body.getDataStoreIndex();
-                    creationSettings.setPosition(dataStore.posX[index], dataStore.posY[index], dataStore.posZ[index]);
-                    creationSettings.setRotation(new Quat(dataStore.rotX[index], dataStore.rotY[index], dataStore.rotZ[index], dataStore.rotW[index]));
+                    creationSettings.setPosition(c.posX[index], c.posY[index], c.posZ[index]);
+                    creationSettings.setRotation(new Quat(c.rotX[index], c.rotY[index], c.rotZ[index], c.rotW[index]));
 
                     return world.getPhysicsSystem().getBodyInterface().createAndAddSoftBody(creationSettings, activation);
                 }
@@ -225,9 +228,10 @@ public enum VxJoltBridge {
 
             // If we have restored vertex data (e.g. from a save file), apply it now to the live body.
             // This restores the deformation state.
+            VxServerBodyDataContainer c = dataStore.serverCurrent();
             int index = body.getDataStoreIndex();
-            if (index != -1 && dataStore.vertexData[index] != null) {
-                setSoftBodyVertices(world, body, dataStore.vertexData[index]);
+            if (index != -1 && c.vertexData[index] != null) {
+                setSoftBodyVertices(world, body, c.vertexData[index]);
             }
 
             world.getConstraintManager().getDataSystem().onDependencyLoaded(body.getPhysicsId());

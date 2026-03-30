@@ -11,6 +11,7 @@ import io.netty.buffer.Unpooled;
 import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
+import net.xmx.velthoric.core.body.client.VxClientBodyDataContainer;
 
 import java.nio.ByteBuffer;
 
@@ -94,7 +95,10 @@ public class S2CUpdateVerticesBatchPacket implements IVxNetPacket {
                         for (int k = 0; k < vLen; k++) verts[k] = db.readFloat();
 
                         Integer index = manager.getStore().getIndexForNetworkId(netId);
-                        if (index != null) manager.getStore().state1_vertexData[index] = verts;
+                        VxClientBodyDataContainer c = manager.getStore().clientCurrent();
+                        if (index != null && index < c.getCapacity()) {
+                            c.state1_vertexData[index] = verts;
+                        }
                     }
                 }
             } finally {

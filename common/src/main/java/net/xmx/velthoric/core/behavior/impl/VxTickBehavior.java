@@ -10,6 +10,7 @@ import net.xmx.velthoric.core.behavior.VxBehaviorId;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 
 /**
@@ -36,14 +37,15 @@ public class VxTickBehavior implements VxBehavior {
 
     @Override
     public void onServerTick(ServerLevel level, VxServerBodyDataStore store) {
+        VxServerBodyDataContainer c = store.serverCurrent();
         final long mask = VxBehaviors.TICK.getMask();
-        final VxBody[] bodies = store.bodies;
-        final int capacity = store.getCapacity();
+        final VxBody[] bodies = c.bodies;
+        final int capacity = c.getCapacity();
 
         for (int i = 0; i < capacity; i++) {
             VxBody obj = bodies[i];
             if (obj == null) continue;
-            if ((store.behaviorBits[i] & mask) == 0) continue;
+            if ((c.behaviorBits[i] & mask) == 0) continue;
 
             obj.onServerTick(level);
         }
@@ -51,15 +53,16 @@ public class VxTickBehavior implements VxBehavior {
 
     @Override
     public void onPrePhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore store) {
+        VxServerBodyDataContainer c = store.serverCurrent();
         final long mask = VxBehaviors.TICK.getMask();
-        final VxBody[] bodies = store.bodies;
-        final int capacity = store.getCapacity();
+        final VxBody[] bodies = c.bodies;
+        final int capacity = c.getCapacity();
 
         for (int i = 0; i < capacity; i++) {
             VxBody obj = bodies[i];
             if (obj == null) continue;
-            if ((store.behaviorBits[i] & mask) == 0) continue;
-            if (!store.isActive[i]) continue;
+            if ((c.behaviorBits[i] & mask) == 0) continue;
+            if (!c.isActive[i]) continue;
 
             obj.onPrePhysicsTick(world);
         }
@@ -67,15 +70,16 @@ public class VxTickBehavior implements VxBehavior {
 
     @Override
     public void onPhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore store) {
+        VxServerBodyDataContainer c = store.serverCurrent();
         final long mask = VxBehaviors.TICK.getMask();
-        final VxBody[] bodies = store.bodies;
-        final int capacity = store.getCapacity();
+        final VxBody[] bodies = c.bodies;
+        final int capacity = c.getCapacity();
 
         for (int i = 0; i < capacity; i++) {
             VxBody obj = bodies[i];
             if (obj == null) continue;
-            if ((store.behaviorBits[i] & mask) == 0) continue;
-            if (!store.isActive[i]) continue;
+            if ((c.behaviorBits[i] & mask) == 0) continue;
+            if (!c.isActive[i]) continue;
 
             obj.onPhysicsTick(world);
         }

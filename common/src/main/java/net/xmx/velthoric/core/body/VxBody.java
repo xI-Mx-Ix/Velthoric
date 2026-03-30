@@ -13,6 +13,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
+import net.xmx.velthoric.core.body.client.VxClientBodyDataContainer;
 import net.xmx.velthoric.core.body.client.VxRenderState;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxClientAccessor;
@@ -272,17 +273,18 @@ public class VxBody {
      */
     public void getTransform(VxTransform outTransform) {
         if (this.dataStore != null && this.dataStoreIndex != -1) {
-            if (this.dataStoreIndex < this.dataStore.getCapacity()) {
+            VxBodyDataContainer c = this.dataStore.current();
+            if (this.dataStoreIndex < c.capacity) {
                 outTransform.getTranslation().set(
-                        this.dataStore.posX[this.dataStoreIndex],
-                        this.dataStore.posY[this.dataStoreIndex],
-                        this.dataStore.posZ[this.dataStoreIndex]
+                        c.posX[this.dataStoreIndex],
+                        c.posY[this.dataStoreIndex],
+                        c.posZ[this.dataStoreIndex]
                 );
                 outTransform.getRotation().set(
-                        this.dataStore.rotX[this.dataStoreIndex],
-                        this.dataStore.rotY[this.dataStoreIndex],
-                        this.dataStore.rotZ[this.dataStoreIndex],
-                        this.dataStore.rotW[this.dataStoreIndex]
+                        c.rotX[this.dataStoreIndex],
+                        c.rotY[this.dataStoreIndex],
+                        c.rotZ[this.dataStoreIndex],
+                        c.rotW[this.dataStoreIndex]
                 );
             }
         }
@@ -324,7 +326,8 @@ public class VxBody {
      */
     @Environment(EnvType.CLIENT)
     public AABB getCullingAABB(float inflation) {
-        RVec3 lastPos = VxClientBodyManager.getInstance().getStore().lastKnownPosition[dataStoreIndex];
+        VxClientBodyDataContainer c = VxClientBodyManager.getInstance().getStore().clientCurrent();
+        RVec3 lastPos = c.lastKnownPosition[dataStoreIndex];
         return new AABB(
                 lastPos.xx() - inflation, lastPos.yy() - inflation, lastPos.zz() - inflation,
                 lastPos.xx() + inflation, lastPos.yy() + inflation, lastPos.zz() + inflation
@@ -336,7 +339,8 @@ public class VxBody {
      */
     @Environment(EnvType.CLIENT)
     public boolean isInitialized() {
-        return VxClientBodyManager.getInstance().getStore().render_isInitialized[dataStoreIndex];
+        VxClientBodyDataContainer c = VxClientBodyManager.getInstance().getStore().clientCurrent();
+        return c.render_isInitialized[dataStoreIndex];
     }
 
     /**

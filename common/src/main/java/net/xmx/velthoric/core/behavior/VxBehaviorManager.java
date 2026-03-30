@@ -7,6 +7,7 @@ package net.xmx.velthoric.core.behavior;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.core.behavior.impl.*;
+import net.xmx.velthoric.core.body.VxBodyDataContainer;
 import net.xmx.velthoric.core.body.VxBodyDataStore;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
@@ -123,16 +124,19 @@ public final class VxBehaviorManager {
      * @param behavior The behavior to attach.
      */
     public void attachBehavior(VxBody body, VxBehavior behavior) {
-        int index = body.getDataStoreIndex();
         VxBodyDataStore dataStore = body.getDataStore();
-        if (index == -1 || dataStore == null) return;
+        if (dataStore == null) return;
+
+        VxBodyDataContainer c = dataStore.current();
+        int index = body.getDataStoreIndex();
+        if (index == -1 || index >= c.capacity) return; // Case: index too new for cached container
 
         long mask = behavior.getId().getMask();
-        if ((dataStore.behaviorBits[index] & mask) != 0) {
+        if ((c.behaviorBits[index] & mask) != 0) {
             return; // Already attached
         }
 
-        dataStore.behaviorBits[index] |= mask;
+        c.behaviorBits[index] |= mask;
         behavior.onAttached(index, body);
     }
 
@@ -164,17 +168,20 @@ public final class VxBehaviorManager {
      * @param behavior The behavior to detach.
      */
     public void detachBehavior(VxBody body, VxBehavior behavior) {
-        int index = body.getDataStoreIndex();
         VxBodyDataStore dataStore = body.getDataStore();
-        if (index == -1 || dataStore == null) return;
+        if (dataStore == null) return;
+
+        VxBodyDataContainer c = dataStore.current();
+        int index = body.getDataStoreIndex();
+        if (index == -1 || index >= c.capacity) return;
 
         long mask = behavior.getId().getMask();
-        if ((dataStore.behaviorBits[index] & mask) == 0) {
+        if ((c.behaviorBits[index] & mask) == 0) {
             return; // Not attached
         }
 
         behavior.onDetached(index, body);
-        dataStore.behaviorBits[index] &= ~mask;
+        c.behaviorBits[index] &= ~mask;
     }
 
     /**
@@ -183,11 +190,14 @@ public final class VxBehaviorManager {
      * @param body The body being removed.
      */
     public void detachAllBehaviors(VxBody body) {
-        int index = body.getDataStoreIndex();
         VxBodyDataStore dataStore = body.getDataStore();
-        if (index == -1 || dataStore == null) return;
+        if (dataStore == null) return;
 
-        long bits = dataStore.behaviorBits[index];
+        VxBodyDataContainer c = dataStore.current();
+        int index = body.getDataStoreIndex();
+        if (index == -1 || index >= c.capacity) return;
+
+        long bits = c.behaviorBits[index];
         if (bits == 0) return;
 
         for (VxBehavior behavior : behaviors) {
@@ -195,7 +205,7 @@ public final class VxBehaviorManager {
                 behavior.onDetached(index, body);
             }
         }
-        dataStore.behaviorBits[index] = 0;
+        c.behaviorBits[index] = 0;
     }
 
     /**
@@ -206,10 +216,16 @@ public final class VxBehaviorManager {
      * @return True if the behavior is attached to the body.
      */
     public boolean hasBehavior(VxBody body, VxBehaviorId behaviorId) {
-        int index = body.getDataStoreIndex();
         VxBodyDataStore dataStore = body.getDataStore();
-        if (index == -1 || dataStore == null) return false;
-        return behaviorId.isSet(dataStore.behaviorBits[index]);
+        if (dataStore == null) return false;
+
+        VxBodyDataContainer c = dataStore.current();
+        int index = body.getDataStoreIndex();
+
+        // Safety check: skip if index is invalid or too new for this container reference
+        if (index == -1 || index >= c.capacity) return false;
+
+        return behaviorId.isSet(c.behaviorBits[index]);
     }
 
     /**

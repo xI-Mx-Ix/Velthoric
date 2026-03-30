@@ -261,22 +261,23 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      */
     public void addConstructedBody(VxBody body, EActivation activation, VxTransform transform) {
         addInternal(body);
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
         int index = body.getDataStoreIndex();
 
         if (index != -1) {
-            dataStore.posX[index] = transform.getTranslation().x();
-            dataStore.posY[index] = transform.getTranslation().y();
-            dataStore.posZ[index] = transform.getTranslation().z();
-            dataStore.rotX[index] = transform.getRotation().getX();
-            dataStore.rotY[index] = transform.getRotation().getY();
-            dataStore.rotZ[index] = transform.getRotation().getZ();
-            dataStore.rotW[index] = transform.getRotation().getW();
+            c.posX[index] = transform.getTranslation().x();
+            c.posY[index] = transform.getTranslation().y();
+            c.posZ[index] = transform.getTranslation().z();
+            c.rotX[index] = transform.getRotation().getX();
+            c.rotY[index] = transform.getRotation().getY();
+            c.rotZ[index] = transform.getRotation().getZ();
+            c.rotW[index] = transform.getRotation().getW();
         }
 
         // Retrieve properties from DataStore that were potentially modified by the configurator
-        Vec3 linearVelocity = new Vec3(dataStore.velX[index], dataStore.velY[index], dataStore.velZ[index]);
-        Vec3 angularVelocity = new Vec3(dataStore.angVelX[index], dataStore.angVelY[index], dataStore.angVelZ[index]);
-        EMotionType motionType = dataStore.motionType[index];
+        Vec3 linearVelocity = new Vec3(c.velX[index], c.velY[index], c.velZ[index]);
+        Vec3 angularVelocity = new Vec3(c.angVelX[index], c.angVelY[index], c.angVelZ[index]);
+        EMotionType motionType = c.motionType[index];
 
         networkDispatcher.onBodyAdded(body);
 
@@ -316,15 +317,16 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         VxBodyCodec.readInternalPersistenceData(body, data.bodyData());
         data.bodyData().release();
 
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
         int index = body.getDataStoreIndex();
         if (index == -1) {
             return null; // Should technically be unreachable if addInternal succeeded
         }
 
         // Extract restored kinematics from DataStore
-        Vec3 linearVelocity = new Vec3(dataStore.velX[index], dataStore.velY[index], dataStore.velZ[index]);
-        Vec3 angularVelocity = new Vec3(dataStore.angVelX[index], dataStore.angVelY[index], dataStore.angVelZ[index]);
-        EMotionType motionType = dataStore.motionType[index];
+        Vec3 linearVelocity = new Vec3(c.velX[index], c.velY[index], c.velZ[index]);
+        Vec3 angularVelocity = new Vec3(c.angVelX[index], c.angVelY[index], c.angVelZ[index]);
+        EMotionType motionType = c.motionType[index];
 
         // Determine if the body should be awake based on its velocity
         boolean shouldActivate = linearVelocity.lengthSq() > 0.0001f || angularVelocity.lengthSq() > 0.0001f;
@@ -395,9 +397,10 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         // 3. Update spatial tracking
         // If UNLOAD, the chunk system typically initiates this call, so we skip
         // modifying the tracking map to avoid concurrent modification issues during iteration.
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
         int index = body.getDataStoreIndex();
         if (reason != VxRemovalReason.UNLOAD && index != -1) {
-            spatialManager.remove(dataStore.chunkKey[index], body);
+            spatialManager.remove(c.chunkKey[index], body);
         }
 
         // 4. Trigger body-specific cleanup hooks
@@ -448,27 +451,29 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
             int index = dataStore.addBody(body, type);
             body.setDataStoreIndex(dataStore, index);
 
+            VxServerBodyDataContainer c = dataStore.serverCurrent();
+
             // Assign Network ID (recycle if available, else increment)
             int networkId = freeNetworkIds.isEmpty() ? nextNetworkId++ : freeNetworkIds.pop();
             body.setNetworkId(networkId);
-            dataStore.networkId[index] = networkId;
+            c.networkId[index] = networkId;
             dataStore.registerNetworkId(networkId, id);
 
-            dataStore.isActive[index] = true;
+            c.isActive[index] = true;
 
             // --- Behavior Attachment ---
             // Apply all default behaviors from the body type's bitmask
-            dataStore.behaviorBits[index] = body.getType().getDefaultBehaviors();
+            c.behaviorBits[index] = body.getType().getDefaultBehaviors();
             // Notify each behavior of attachment
             for (var behavior : behaviorManager.getBehaviors()) {
-                if (behavior.getId().isSet(dataStore.behaviorBits[index])) {
+                if (behavior.getId().isSet(c.behaviorBits[index])) {
                     behavior.onAttached(index, body);
                 }
             }
 
             // Initialize spatial tracking
-            long chunkKey = VxSpatialManager.calculateChunkKey(dataStore.posX[index], dataStore.posZ[index]);
-            dataStore.chunkKey[index] = chunkKey;
+            long chunkKey = VxSpatialManager.calculateChunkKey(c.posX[index], c.posZ[index]);
+            c.chunkKey[index] = chunkKey;
             spatialManager.add(chunkKey, body);
 
             return body;
@@ -485,9 +490,10 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      * @param toKey   The long-encoded key of the chunk it moved to.
      */
     public void updateBodyTracking(VxBody body, long fromKey, long toKey) {
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
         int index = body.getDataStoreIndex();
         if (index != -1) {
-            dataStore.chunkKey[index] = toKey;
+            c.chunkKey[index] = toKey;
         }
 
         // Update spatial manager
@@ -536,9 +542,10 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      * @param out            The transform object to populate.
      */
     public void getTransform(int dataStoreIndex, VxTransform out) {
-        if (dataStoreIndex >= 0 && dataStoreIndex < dataStore.getCapacity()) {
-            out.getTranslation().set(dataStore.posX[dataStoreIndex], dataStore.posY[dataStoreIndex], dataStore.posZ[dataStoreIndex]);
-            out.getRotation().set(dataStore.rotX[dataStoreIndex], dataStore.rotY[dataStoreIndex], dataStore.rotZ[dataStoreIndex], dataStore.rotW[dataStoreIndex]);
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
+        if (dataStoreIndex >= 0 && dataStoreIndex < c.getCapacity()) {
+            out.getTranslation().set(c.posX[dataStoreIndex], c.posY[dataStoreIndex], c.posZ[dataStoreIndex]);
+            out.getRotation().set(c.rotX[dataStoreIndex], c.rotY[dataStoreIndex], c.rotZ[dataStoreIndex], c.rotW[dataStoreIndex]);
         }
     }
 
@@ -548,8 +555,9 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      * @param body The body whose data changed.
      */
     public void markCustomDataDirty(VxBody body) {
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
         if (body.getDataStoreIndex() != -1) {
-            getDataStore().isCustomDataDirty[body.getDataStoreIndex()] = true;
+            c.isCustomDataDirty[body.getDataStoreIndex()] = true;
         }
     }
 
@@ -578,7 +586,8 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         if (index == -1) return null;
 
         // Try to get cached vertices from the last physics tick
-        float[] cached = dataStore.vertexData[index];
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
+        float[] cached = c.vertexData[index];
         if (cached != null && cached.length > 0) {
             return cached;
         }
@@ -601,8 +610,9 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         if (index == -1) return;
 
         // Update cache and mark dirty for sync
-        dataStore.vertexData[index] = vertices;
-        dataStore.isVertexDataDirty[index] = true;
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
+        c.vertexData[index] = vertices;
+        c.isVertexDataDirty[index] = true;
 
         // Apply immediately to Jolt
         VxJoltBridge.INSTANCE.setSoftBodyVertices(world, body, vertices);
@@ -618,10 +628,16 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
     public void saveBodiesInChunk(ChunkPos pos) {
         List<VxBody> bodiesInChunk = new ArrayList<>();
 
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
+        long persistenceMask = VxBehaviors.PERSISTENCE.getMask();
+
         spatialManager.forEachInChunk(pos.toLong(), body -> {
-            // Only add the body to the save list if it is marked as persistent and is not being removed.
-            if (body.getDataStoreIndex() != -1 && behaviorManager.hasBehavior(body, VxBehaviors.PERSISTENCE)) {
-                bodiesInChunk.add(body);
+            int index = body.getDataStoreIndex();
+            // Bounds check for race condition during container resize
+            if (index != -1 && index < c.getCapacity()) {
+                if ((c.behaviorBits[index] & persistenceMask) != 0) {
+                    bodiesInChunk.add(body);
+                }
             }
         });
 

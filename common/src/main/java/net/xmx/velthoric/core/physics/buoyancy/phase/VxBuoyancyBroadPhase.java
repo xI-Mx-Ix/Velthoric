@@ -14,6 +14,7 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.FlowingFluid;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.physics.buoyancy.VxBuoyancyDataStore;
 import net.xmx.velthoric.core.physics.buoyancy.VxFluidType;
@@ -89,26 +90,27 @@ public final class VxBuoyancyBroadPhase {
      */
     public void findPotentialFluidContacts(VxBuoyancyDataStore dataStore) {
         VxServerBodyDataStore ds = physicsWorld.getBodyManager().getDataStore();
+        VxServerBodyDataContainer c = ds.serverCurrent();
 
         // Reusable mutable position used for volume iteration.
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
 
-        int capacity = ds.getCapacity();
+        int capacity = c.getCapacity();
 
         for (int i = 0; i < capacity; ++i) {
             // Static bodies or inactive slots are ignored.
-            if (ds.motionType[i] == EMotionType.Static || ds.getIdForIndex(i) == null || !ds.isActive[i]) {
+            if (c.motionType[i] == EMotionType.Static || ds.getIdForIndex(i) == null || !c.isActive[i]) {
                 continue;
             }
-            if ((ds.behaviorBits[i] & VxBehaviors.BUOYANCY.getMask()) == 0) continue;
+            if ((c.behaviorBits[i] & VxBehaviors.BUOYANCY.getMask()) == 0) continue;
 
             // Retrieve world-space bounds from the data store.
-            float minX = ds.aabbMinX[i];
-            float minY = ds.aabbMinY[i];
-            float minZ = ds.aabbMinZ[i];
-            float maxX = ds.aabbMaxX[i];
-            float maxY = ds.aabbMaxY[i];
-            float maxZ = ds.aabbMaxZ[i];
+            float minX = c.aabbMinX[i];
+            float minY = c.aabbMinY[i];
+            float minZ = c.aabbMinZ[i];
+            float maxX = c.aabbMaxX[i];
+            float maxY = c.aabbMaxY[i];
+            float maxZ = c.aabbMaxZ[i];
 
             int minBlockX, maxBlockX;
             int minBlockY, maxBlockY;
@@ -130,9 +132,9 @@ public final class VxBuoyancyBroadPhase {
                 bottomThreshold = minY;
             } else {
                 // Use a default radius if the bounding box is not yet initialized.
-                double posX = ds.posX[i];
-                double posY = ds.posY[i];
-                double posZ = ds.posZ[i];
+                double posX = c.posX[i];
+                double posY = c.posY[i];
+                double posZ = c.posZ[i];
 
                 minBlockX = (int) Math.floor(posX - SCAN_RADIUS);
                 maxBlockX = (int) Math.floor(posX + SCAN_RADIUS);

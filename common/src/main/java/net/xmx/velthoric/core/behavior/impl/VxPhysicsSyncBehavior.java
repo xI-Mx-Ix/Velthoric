@@ -13,6 +13,7 @@ import net.xmx.velthoric.core.behavior.VxBehaviorId;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
@@ -99,12 +100,13 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
 
     @Override
     public void onPrePhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore dataStore) {
-        final VxBody[] bodies = dataStore.bodies;
-        final int capacity = dataStore.getCapacity();
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
+        final VxBody[] bodies = c.bodies;
+        final int capacity = c.getCapacity();
         long mask = getId().getMask();
 
         for (int i = 0; i < capacity; ++i) {
-            if ((dataStore.behaviorBits[i] & mask) == 0) continue;
+            if ((c.behaviorBits[i] & mask) == 0) continue;
 
             VxBody obj = bodies[i];
             if (obj == null) continue;
@@ -112,7 +114,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
             int bodyId = obj.getBodyId();
             if (bodyId == 0) continue;
 
-            if (dataStore.isActive[i]) {
+            if (c.isActive[i]) {
                 obj.onPrePhysicsTick(world);
             }
         }
@@ -134,8 +136,9 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
      * @param bodyInterface  The native batch interface.
      */
     private void postUpdateSync(long timestampNanos, VxPhysicsWorld world, VxServerBodyDataStore dataStore, BatchBodyInterface bodyInterface) {
-        final VxBody[] bodies = dataStore.bodies;
-        final int capacity = dataStore.getCapacity();
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
+        final VxBody[] bodies = c.bodies;
+        final int capacity = c.getCapacity();
         long mask = getId().getMask();
 
         BodyIdArray localBatchIds = batchBodyIds.get();
@@ -144,7 +147,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
         int currentBatchCount = 0;
 
         for (int i = 0; i < capacity; ++i) {
-            if ((dataStore.behaviorBits[i] & mask) == 0) continue;
+            if ((c.behaviorBits[i] & mask) == 0) continue;
 
             VxBody obj = bodies[i];
             if (obj == null) continue;
@@ -157,7 +160,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
             currentBatchCount++;
 
             if (currentBatchCount == BATCH_SIZE) {
-                processUpdateBatch(timestampNanos, world, dataStore, bodyInterface, localBatchIds, currentBatchCount);
+                processUpdateBatch(timestampNanos, world, dataStore, c, bodyInterface, localBatchIds, currentBatchCount);
                 currentBatchCount = 0;
                 localIndices.clear();
             }
@@ -168,7 +171,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
             for (int j = 0; j < currentBatchCount; j++) {
                 tailIds.set(j, localBatchIds.get(j));
             }
-            processUpdateBatch(timestampNanos, world, dataStore, bodyInterface, tailIds, currentBatchCount);
+            processUpdateBatch(timestampNanos, world, dataStore, c, bodyInterface, tailIds, currentBatchCount);
             localIndices.clear();
         }
     }
@@ -183,7 +186,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
      * @param ids            The array of body IDs to process.
      * @param count          Number of bodies in this batch.
      */
-    private void processUpdateBatch(long timestampNanos, VxPhysicsWorld world, VxServerBodyDataStore dataStore, BatchBodyInterface bodyInterface, ConstBodyIdArray ids, int count) {
+    private void processUpdateBatch(long timestampNanos, VxPhysicsWorld world, VxServerBodyDataStore dataStore, VxServerBodyDataContainer c, BatchBodyInterface bodyInterface, ConstBodyIdArray ids, int count) {
         IntArrayList indices = batchDataIndices.get();
 
         ByteBuffer addedStates = addedBuffer.get();
@@ -214,7 +217,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
         motionTypes.clear();
         bodyInterface.getMotionTypes(ids, motionTypes);
 
-        final VxBody[] bodies = dataStore.bodies;
+        final VxBody[] bodies = c.bodies;
         ConstBodyLockInterfaceNoLock lockInterface = world.getPhysicsSystem().getBodyLockInterfaceNoLock();
         VxServerBodyManager manager = world.getBodyManager();
 
@@ -225,11 +228,13 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
                 if (addedStates.get(b) == 0) continue;
 
                 int i = indices.getInt(b);
+                // Critical bounds check: ensure the index is valid for our cached container reference
+                if (i >= c.getCapacity()) continue;
                 VxBody obj = bodies[i];
                 if (obj == null) continue;
 
                 boolean isJoltBodyActive = activeStates.get(b) != 0;
-                boolean wasDataStoreBodyActive = dataStore.isActive[i];
+                boolean wasDataStoreBodyActive = c.isActive[i];
 
                 if (isJoltBodyActive || wasDataStoreBodyActive) {
                     obj.onPhysicsTick(world);
@@ -239,35 +244,35 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
                     double nz = positions.get(b * 3 + 2);
 
                     if (isJoltBodyActive || isJoltBodyActive != wasDataStoreBodyActive) {
-                        dataStore.isTransformDirty[i] = true;
+                        c.isTransformDirty[i] = true;
                         synchronized (dataStore) {
-                            dataStore.dirtyIndices.add(i);
+                            c.dirtyIndices.add(i);
                         }
                     }
 
-                    dataStore.posX[i] = nx;
-                    dataStore.posY[i] = ny;
-                    dataStore.posZ[i] = nz;
+                    c.posX[i] = nx;
+                    c.posY[i] = ny;
+                    c.posZ[i] = nz;
 
-                    dataStore.rotX[i] = rotations.get(b * 4);
-                    dataStore.rotY[i] = rotations.get(b * 4 + 1);
-                    dataStore.rotZ[i] = rotations.get(b * 4 + 2);
-                    dataStore.rotW[i] = rotations.get(b * 4 + 3);
+                    c.rotX[i] = rotations.get(b * 4);
+                    c.rotY[i] = rotations.get(b * 4 + 1);
+                    c.rotZ[i] = rotations.get(b * 4 + 2);
+                    c.rotW[i] = rotations.get(b * 4 + 3);
 
-                    dataStore.velX[i] = linVels.get(b * 3);
-                    dataStore.velY[i] = linVels.get(b * 3 + 1);
-                    dataStore.velZ[i] = linVels.get(b * 3 + 2);
+                    c.velX[i] = linVels.get(b * 3);
+                    c.velY[i] = linVels.get(b * 3 + 1);
+                    c.velZ[i] = linVels.get(b * 3 + 2);
 
-                    dataStore.angVelX[i] = angVels.get(b * 3);
-                    dataStore.angVelY[i] = angVels.get(b * 3 + 1);
-                    dataStore.angVelZ[i] = angVels.get(b * 3 + 2);
+                    c.angVelX[i] = angVels.get(b * 3);
+                    c.angVelY[i] = angVels.get(b * 3 + 1);
+                    c.angVelZ[i] = angVels.get(b * 3 + 2);
 
-                    dataStore.motionType[i] = EMotionType.values()[motionTypes.get(b)];
-                    dataStore.isActive[i] = isJoltBodyActive;
-                    dataStore.lastUpdateTimestamp[i] = timestampNanos;
+                    c.motionType[i] = EMotionType.values()[motionTypes.get(b)];
+                    c.isActive[i] = isJoltBodyActive;
+                    c.lastUpdateTimestamp[i] = timestampNanos;
 
-                    final long lastKey = dataStore.chunkKey[i];
-                    final long currentKey = VxSpatialManager.calculateChunkKey(dataStore.posX[i], dataStore.posZ[i]);
+                    final long lastKey = c.chunkKey[i];
+                    final long currentKey = VxSpatialManager.calculateChunkKey(c.posX[i], c.posZ[i]);
 
                     if (lastKey != currentKey) {
                         manager.updateBodyTracking(obj, lastKey, currentKey);
@@ -280,17 +285,17 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
                         Vec3 min = bounds.getMin();
                         Vec3 max = bounds.getMax();
 
-                        dataStore.aabbMinX[i] = min.getX();
-                        dataStore.aabbMinY[i] = min.getY();
-                        dataStore.aabbMinZ[i] = min.getZ();
-                        dataStore.aabbMaxX[i] = max.getX();
-                        dataStore.aabbMaxY[i] = max.getY();
-                        dataStore.aabbMaxZ[i] = max.getZ();
+                        c.aabbMinX[i] = min.getX();
+                        c.aabbMinY[i] = min.getY();
+                        c.aabbMinZ[i] = min.getZ();
+                        c.aabbMaxX[i] = max.getX();
+                        c.aabbMaxY[i] = max.getY();
+                        c.aabbMaxZ[i] = max.getZ();
 
-                        if (isJoltBodyActive && VxBehaviors.SOFT_PHYSICS.isSet(dataStore.behaviorBits[i])) {
+                        if (isJoltBodyActive && VxBehaviors.SOFT_PHYSICS.isSet(c.behaviorBits[i])) {
                             RVec3 pos = tempPos.get();
-                            pos.set(dataStore.posX[i], dataStore.posY[i], dataStore.posZ[i]);
-                            updateSoftBodyVertices(dataStore, body, pos, i);
+                            pos.set(c.posX[i], c.posY[i], c.posZ[i]);
+                            updateSoftBodyVertices(c, dataStore, body, pos, i);
                         }
                     }
                 }
@@ -306,7 +311,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
      * @param bodyPosition The body's center of mass position.
      * @param dataIndex    The index in the SoA store.
      */
-    private void updateSoftBodyVertices(VxServerBodyDataStore dataStore, ConstBody body, RVec3Arg bodyPosition, int dataIndex) {
+    private void updateSoftBodyVertices(VxServerBodyDataContainer c, VxServerBodyDataStore dataStore, ConstBody body, RVec3Arg bodyPosition, int dataIndex) {
         ConstSoftBodyMotionProperties motionProps = (ConstSoftBodyMotionProperties) body.getMotionProperties();
         int numVertices = motionProps.getSettings().countVertices();
         if (numVertices <= 0) return;
@@ -324,12 +329,12 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
         motionProps.putVertexLocations(bodyPosition, buffer);
         buffer.flip();
 
-        float[] existing = dataStore.vertexData[dataIndex];
+        float[] existing = c.vertexData[dataIndex];
         boolean changed = false;
 
         if (existing == null || existing.length != requiredFloats) {
             existing = new float[requiredFloats];
-            dataStore.vertexData[dataIndex] = existing;
+            c.vertexData[dataIndex] = existing;
             changed = true;
             buffer.get(existing);
         } else {
@@ -343,9 +348,9 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
         }
 
         if (changed) {
-            dataStore.isVertexDataDirty[dataIndex] = true;
+            c.isVertexDataDirty[dataIndex] = true;
             synchronized (dataStore) {
-                dataStore.dirtyIndices.add(dataIndex);
+                c.dirtyIndices.add(dataIndex);
             }
         }
     }

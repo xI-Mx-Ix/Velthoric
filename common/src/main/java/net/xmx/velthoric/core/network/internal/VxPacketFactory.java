@@ -10,6 +10,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.world.level.ChunkPos;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.network.internal.packet.S2CUpdateBodyStateBatchPacket;
@@ -97,32 +98,35 @@ public class VxPacketFactory {
             rawBuf.writeLong(System.nanoTime());
             rawBuf.writeLong(chunkPosLong);
 
+            // Local container reference for thread-safe access
+            VxServerBodyDataContainer c = dataStore.serverCurrent();
+
             // Write Body Data (Structure of Arrays -> Stream)
             // We iterate over the indices and write primitives directly to off-heap memory.
             for (int i = 0; i < indices.size(); i++) {
                 int idx = indices.getInt(i);
 
-                rawBuf.writeInt(dataStore.networkId[idx]);
+                rawBuf.writeInt(c.networkId[idx]);
                 
                 // Relative positions are sent as floats to save bandwidth (double -> float precision loss is acceptable for rendering relative to chunk)
-                rawBuf.writeFloat((float) (dataStore.posX[idx] - chunkBaseX));
-                rawBuf.writeFloat((float) (dataStore.posY[idx] - chunkBaseY));
-                rawBuf.writeFloat((float) (dataStore.posZ[idx] - chunkBaseZ));
+                rawBuf.writeFloat((float) (c.posX[idx] - chunkBaseX));
+                rawBuf.writeFloat((float) (c.posY[idx] - chunkBaseY));
+                rawBuf.writeFloat((float) (c.posZ[idx] - chunkBaseZ));
                 
                 // Rotations (quaternion)
-                rawBuf.writeFloat(dataStore.rotX[idx]);
-                rawBuf.writeFloat(dataStore.rotY[idx]);
-                rawBuf.writeFloat(dataStore.rotZ[idx]);
-                rawBuf.writeFloat(dataStore.rotW[idx]);
+                rawBuf.writeFloat(c.rotX[idx]);
+                rawBuf.writeFloat(c.rotY[idx]);
+                rawBuf.writeFloat(c.rotZ[idx]);
+                rawBuf.writeFloat(c.rotW[idx]);
 
-                boolean active = dataStore.isActive[idx];
+                boolean active = c.isActive[idx];
                 rawBuf.writeBoolean(active);
                 
                 // Only send velocity if the body is active/awake
                 if (active) {
-                    rawBuf.writeFloat(dataStore.velX[idx]);
-                    rawBuf.writeFloat(dataStore.velY[idx]);
-                    rawBuf.writeFloat(dataStore.velZ[idx]);
+                    rawBuf.writeFloat(c.velX[idx]);
+                    rawBuf.writeFloat(c.velY[idx]);
+                    rawBuf.writeFloat(c.velZ[idx]);
                 }
             }
 
@@ -154,11 +158,12 @@ public class VxPacketFactory {
             rawBuf.writeInt(indices.size());
             rawBuf.writeLong(chunkPosLong);
 
+            VxServerBodyDataContainer c = dataStore.serverCurrent();
             for (int i = 0; i < indices.size(); i++) {
                 int idx = indices.getInt(i);
-                rawBuf.writeInt(dataStore.networkId[idx]);
+                rawBuf.writeInt(c.networkId[idx]);
                 
-                float[] vData = dataStore.vertexData[idx];
+                float[] vData = c.vertexData[idx];
                 if (vData != null && vData.length > 0) {
                     rawBuf.writeBoolean(true);
                     rawBuf.writeInt(vData.length);
