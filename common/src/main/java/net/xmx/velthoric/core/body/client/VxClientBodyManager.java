@@ -380,16 +380,11 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
 
     /**
      * The main client-side tick method.
-     * Synchronizes the clock, runs body callbacks, and triggers interpolation.
+     * <p>
+     * This handles interpolation, clock synchronization, sending C2S custom data updates,
+     * and triggering body specific logic via {@link VxBody#onClientTick()}.
      *
      * @param isPaused True if the client game is currently paused.
-     */
-    /**
-     * Ticks the client-side physics manager.
-     * <p>
-     * This handles interpolation, clock synchronization, and sending C2S custom data updates.
-     *
-     * @param isPaused Whether the game is currently paused.
      */
     public void clientTick(boolean isPaused) {
         if (isPaused) {
