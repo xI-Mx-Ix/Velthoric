@@ -99,28 +99,6 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
     }
 
     @Override
-    public void onPrePhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore dataStore) {
-        VxServerBodyDataContainer c = dataStore.serverCurrent();
-        final VxBody[] bodies = c.bodies;
-        final int capacity = c.getCapacity();
-        long mask = getId().getMask();
-
-        for (int i = 0; i < capacity; ++i) {
-            if ((c.behaviorBits[i] & mask) == 0) continue;
-
-            VxBody obj = bodies[i];
-            if (obj == null) continue;
-
-            int bodyId = obj.getBodyId();
-            if (bodyId == 0) continue;
-
-            if (c.isActive[i]) {
-                obj.onPrePhysicsTick(world);
-            }
-        }
-    }
-
-    @Override
     public void onPhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore dataStore) {
         long timestampNanos = System.nanoTime();
         final BatchBodyInterface bodyInterface = world.getPhysicsSystem().getBodyInterfaceNoLock();
@@ -237,7 +215,6 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
                 boolean wasDataStoreBodyActive = c.isActive[i];
 
                 if (isJoltBodyActive || wasDataStoreBodyActive) {
-                    obj.onPhysicsTick(world);
 
                     double nx = positions.get(b * 3);
                     double ny = positions.get(b * 3 + 1);

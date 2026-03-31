@@ -229,6 +229,14 @@ public final class VxBodyType {
             return this;
         }
 
+        /**
+         * Attaches the {@link VxBehaviors#TICK} behavior, enabling server and physics thread callbacks.
+         */
+        public Builder ticking() {
+            this.defaultBehaviors |= VxBehaviors.TICK.getMask();
+            return this;
+        }
+
         public Builder persistence(VxPersistenceHandler handler) {
             this.persistenceHandler = handler;
             return this;

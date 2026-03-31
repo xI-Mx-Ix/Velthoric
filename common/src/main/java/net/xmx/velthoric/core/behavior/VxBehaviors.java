@@ -4,6 +4,8 @@
  */
 package net.xmx.velthoric.core.behavior;
 
+import net.xmx.velthoric.core.body.VxBody;
+
 /**
  * Central registry of all built-in {@link VxBehaviorId} constants.
  * <p>
@@ -53,6 +55,9 @@ public final class VxBehaviors {
 
     /**
      * Extracts physics data from Jolt back into the Java DataStore.
+     * <p>
+     * This behavior focuses strictly on data synchronization (transforms, velocities, etc.).
+     * It does <b>not</b> trigger lifecycle callbacks on the {@link VxBody}.
      * Required for any moving body.
      */
     public static final VxBehaviorId PHYSICS_SYNC = new VxBehaviorId("PhysicsSync");
@@ -65,8 +70,11 @@ public final class VxBehaviors {
 
     /**
      * Enables ticking callbacks for a body.
+     * <p>
      * Bodies with this behavior receive updates on the server thread (per-game-tick),
-     * and on the physics thread (pre and post simulation step).
+     * and on the physics thread (pre and post simulation step). This is the <b>sole</b>
+     * source of {@link VxBody#onPhysicsTick} and
+     * {@link VxBody#onPrePhysicsTick} calls.
      */
     public static final VxBehaviorId TICK = new VxBehaviorId("Tick");
 

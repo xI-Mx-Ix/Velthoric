@@ -107,6 +107,7 @@ public class VxRegisteredBodies {
             .buoyant()
             .netSync()
             .mountable()
+            .ticking()
             .customDataSync()
             .persistence(VxWheeledVehicle::writePersistence, VxWheeledVehicle::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "car"));
@@ -117,6 +118,7 @@ public class VxRegisteredBodies {
             .buoyant()
             .netSync()
             .mountable()
+            .ticking()
             .customDataSync()
             .persistence(VxWheeledVehicle::writePersistence, VxWheeledVehicle::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "motorcycle"));
