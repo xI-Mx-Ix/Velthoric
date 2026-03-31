@@ -7,14 +7,15 @@ package net.xmx.velthoric.core.persistence;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
+import io.netty.util.IllegalReferenceCountException;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.storage.LevelResource;
-import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.persistence.region.VxRegionFile;
 import net.xmx.velthoric.core.persistence.region.VxRegionFileCache;
+import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.network.VxByteBuf;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -200,6 +201,11 @@ public abstract class VxChunkBasedStorage<T, D> {
     public CompletableFuture<Void> flush(boolean sync) {
         if (pendingWrites.isEmpty()) return CompletableFuture.completedFuture(null);
 
+        // Check if the I/O processor is already shut down to avoid RejectedExecutionException.
+        if (ioProcessor.isShutdown()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         // Create a snapshot of keys to iterate over the currently pending tasks
@@ -209,40 +215,62 @@ public abstract class VxChunkBasedStorage<T, D> {
             // The buffer might have been removed concurrently, so check for null.
             if (buffer == null) continue;
 
+            // If the buffer is already deallocated, skip it to avoid IllegalReferenceCountException.
+            if (buffer != Unpooled.EMPTY_BUFFER && buffer.refCnt() <= 0) {
+                continue;
+            }
+
             // Increment the reference count to keep the buffer alive for the asynchronous I/O task.
-            // This prevents the buffer from being deallocated if the map entry is replaced concurrently.
-            buffer.retain();
+            if (buffer != Unpooled.EMPTY_BUFFER) {
+                try {
+                    buffer.retain();
+                } catch (IllegalReferenceCountException e) {
+                    // Buffer was deallocated between our check and retain call.
+                    continue;
+                }
+            }
 
             ChunkPos pos = new ChunkPos(chunkKey);
 
-            CompletableFuture<Void> writeTask = CompletableFuture.runAsync(() -> {
-                try {
-                    writeToDisk(pos, buffer);
-                } finally {
-                    // Conditional Removal:
-                    // Remove the entry from the map only if it still maps to the specific buffer we just wrote.
-                    // If the map contains a different buffer, a new save occurred during the write,
-                    // and we must leave the new data pending.
-                    if (pendingWrites.remove(chunkKey, buffer)) {
-                        // If we successfully removed it, we are responsible for releasing the map's reference.
+            try {
+                CompletableFuture<Void> writeTask = CompletableFuture.runAsync(() -> {
+                    try {
+                        writeToDisk(pos, buffer);
+                    } finally {
+                        // Conditional Removal:
+                        // Remove the entry from the map only if it still maps to the specific buffer we just wrote.
+                        // If the map contains a different buffer, a new save occurred during the write,
+                        // and we must leave the new data pending.
+                        if (pendingWrites.remove(chunkKey, buffer)) {
+                            // If we successfully removed it, we are responsible for releasing the map's reference.
+                            if (buffer != Unpooled.EMPTY_BUFFER) {
+                                buffer.release();
+                            }
+                        }
+
+                        // Release the reference acquired by retain() at the start of the loop.
                         if (buffer != Unpooled.EMPTY_BUFFER) {
                             buffer.release();
                         }
                     }
+                }, ioProcessor.getExecutor());
 
-                    // Release the reference acquired by retain() at the start of the loop.
-                    if (buffer != Unpooled.EMPTY_BUFFER) {
-                        buffer.release();
-                    }
+                futures.add(writeTask);
+            } catch (Exception e) {
+                // If submission fails (e.g. executor shut down concurrently), release our local reference.
+                if (buffer != Unpooled.EMPTY_BUFFER) {
+                    buffer.release();
                 }
-            }, ioProcessor.getExecutor());
-
-            futures.add(writeTask);
+            }
         }
 
         CompletableFuture<Void> allDone = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
         if (sync) {
-            allDone.join();
+            try {
+                allDone.join();
+            } catch (Exception e) {
+                VxMainClass.LOGGER.error("Failed to join flush futures", e);
+            }
         }
         return allDone;
     }

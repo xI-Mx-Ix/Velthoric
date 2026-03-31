@@ -70,6 +70,15 @@ public class VxIOProcessor implements AutoCloseable {
     }
 
     /**
+     * Checks if the I/O processor's executor has been shut down.
+     *
+     * @return {@code true} if the processor is shut down, {@code false} otherwise.
+     */
+    public boolean isShutdown() {
+        return executor.isShutdown();
+    }
+
+    /**
      * Submits a simple runnable task to the I/O thread.
      *
      * @param task The task to execute.
