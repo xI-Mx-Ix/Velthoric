@@ -4,7 +4,6 @@
  */
 package net.xmx.velthoric.core.body.client;
 
-import com.github.stephengold.joltjni.RVec3;
 import dev.architectury.event.events.client.ClientTickEvent;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
