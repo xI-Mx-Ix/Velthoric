@@ -121,6 +121,9 @@ public class VxConstraintManager {
      * @param constraint The constraint loaded from storage.
      */
     public void addConstraintFromStorage(VxConstraint constraint) {
+        if (isConstraintActive(constraint.getConstraintId()) || dataSystem.isPending(constraint.getConstraintId())) {
+            return;
+        }
         dataSystem.addPendingConstraint(constraint);
     }
 
