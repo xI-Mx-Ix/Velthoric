@@ -167,13 +167,13 @@ public final class VxBuoyancyNarrowPhase {
         if (fluidType == VxFluidType.LAVA) {
             // Lava is denser and more viscous than water.
             baseBuoyancyFactor = 2.5f;
-            baseLinearDrag = 5.0f;
-            baseAngularDrag = 2.0f;
+            baseLinearDrag = 1.2f;
+            baseAngularDrag = 0.8f;
         } else {
             // Standard water properties.
             baseBuoyancyFactor = 1.1f;
-            baseLinearDrag = 0.5f;
-            baseAngularDrag = 0.05f;
+            baseLinearDrag = 0.4f;
+            baseAngularDrag = 0.2f;
         }
 
         // Apply area fraction. Jolt assumes an infinite plane, so bodies partially overhanging
