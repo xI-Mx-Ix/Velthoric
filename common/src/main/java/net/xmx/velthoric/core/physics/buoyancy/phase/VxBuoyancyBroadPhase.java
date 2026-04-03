@@ -209,7 +209,7 @@ public final class VxBuoyancyBroadPhase {
                     float averageSurfaceHeight = getSmoothSurfaceHeight(centerX, centerZ, (int) Math.floor(baseSurfaceHeight));
 
                     // Surface Normal calculation via Central Difference Gradient
-                    float eps = 0.1f;
+                    float eps = 0.5f;
                     int baseY = (int) Math.floor(baseSurfaceHeight);
                     float hL = getSmoothSurfaceHeight(centerX - eps, centerZ, baseY);
                     float hR = getSmoothSurfaceHeight(centerX + eps, centerZ, baseY);
@@ -219,6 +219,14 @@ public final class VxBuoyancyBroadPhase {
                     float nx = hL - hR;
                     float ny = 2.0f * eps;
                     float nz = hD - hU;
+
+                    // Cap horizontal slope to prevent sheer waterfall edges from pushing bodies 100% sideways
+                    float horizontalSq = nx * nx + nz * nz;
+                    if (horizontalSq > ny * ny) {
+                        float scale = ny / (float) Math.sqrt(horizontalSq);
+                        nx *= scale;
+                        nz *= scale;
+                    }
 
                     float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
                     if (len > 0) {
