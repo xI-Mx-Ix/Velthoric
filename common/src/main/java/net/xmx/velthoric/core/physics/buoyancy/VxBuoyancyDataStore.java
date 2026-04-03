@@ -67,6 +67,21 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
     public float[] flowZ;
 
     /**
+     * The X component of the fluid's surface normal vector.
+     */
+    public float[] normalX;
+
+    /**
+     * The Y component of the fluid's surface normal vector.
+     */
+    public float[] normalY;
+
+    /**
+     * The Z component of the fluid's surface normal vector.
+     */
+    public float[] normalZ;
+
+    /**
      * Constructs a new data store with a default initial capacity.
      */
     public VxBuoyancyDataStore() {
@@ -99,6 +114,9 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
         flowX = grow(flowX, newCapacity);
         flowY = grow(flowY, newCapacity);
         flowZ = grow(flowZ, newCapacity);
+        normalX = grow(normalX, newCapacity);
+        normalY = grow(normalY, newCapacity);
+        normalZ = grow(normalZ, newCapacity);
 
         this.capacity = newCapacity;
     }
@@ -115,9 +133,13 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
      * @param fX            The X component of the fluid velocity.
      * @param fY            The Y component of the fluid velocity.
      * @param fZ            The Z component of the fluid velocity.
+     * @param nX            The X component of the fluid surface normal.
+     * @param nY            The Y component of the fluid surface normal.
+     * @param nZ            The Z component of the fluid surface normal.
      */
     public void add(int bodyId, float surfaceHeight, VxFluidType fluidType, float areaFraction,
-                    float centerX, float centerZ, float fX, float fY, float fZ) {
+                    float centerX, float centerZ, float fX, float fY, float fZ,
+                    float nX, float nY, float nZ) {
         if (count == capacity) {
             allocate(capacity * 2);
         }
@@ -130,6 +152,9 @@ public final class VxBuoyancyDataStore extends AbstractDataStore {
         flowX[count] = fX;
         flowY[count] = fY;
         flowZ[count] = fZ;
+        normalX[count] = nX;
+        normalY[count] = nY;
+        normalZ[count] = nZ;
         count++;
     }
 

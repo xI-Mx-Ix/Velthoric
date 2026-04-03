@@ -10,7 +10,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.material.FlowingFluid;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
@@ -68,6 +70,8 @@ public final class VxBuoyancyBroadPhase {
      * A reusable vector to store fluid flow directions for each body.
      */
     private final Vector3f flowVector = new Vector3f();
+
+    private static final FluidState EMPTY_FLUID = Fluids.EMPTY.defaultFluidState();
 
     /**
      * Constructs a new broad-phase handler.
@@ -165,8 +169,7 @@ public final class VxBuoyancyBroadPhase {
                     float foundHeight = -1;
 
                     // Check the top-most point for submersion.
-                    mutablePos.set(x, maxBlockY, z);
-                    FluidState topFluid = chunk.getFluidState(mutablePos);
+                    FluidState topFluid = getFluidStateFromContainer(chunk, x, maxBlockY, z);
 
                     if (!topFluid.isEmpty()) {
                         // Scan upwards to find the true surface if the body is fully under fluid.
@@ -175,9 +178,9 @@ public final class VxBuoyancyBroadPhase {
                     } else {
                         // Scan downwards within the volume to find the fluid surface.
                         for (int y = maxBlockY - 1; y >= minBlockY; --y) {
-                            mutablePos.set(x, y, z);
-                            FluidState fluidState = chunk.getFluidState(mutablePos);
+                            FluidState fluidState = getFluidStateFromContainer(chunk, x, y, z);
                             if (!fluidState.isEmpty()) {
+                                mutablePos.set(x, y, z);
                                 foundHeight = y + fluidState.getHeight(level, mutablePos);
                                 if (detectedType == null) detectedType = getFluidTypeFromState(fluidState);
                                 break;
@@ -195,13 +198,36 @@ public final class VxBuoyancyBroadPhase {
             }
 
             if (fluidColumnCount > 0 && detectedType != null) {
-                float averageSurfaceHeight = totalSurfaceHeight / fluidColumnCount;
+                float baseSurfaceHeight = totalSurfaceHeight / fluidColumnCount;
 
                 // Ensure the surface is high enough to affect the body.
-                if (averageSurfaceHeight > bottomThreshold) {
+                if (baseSurfaceHeight > bottomThreshold) {
                     float areaFraction = (float) fluidColumnCount / totalScannedColumns;
                     float centerX = sumX / fluidColumnCount;
                     float centerZ = sumZ / fluidColumnCount;
+
+                    float averageSurfaceHeight = getSmoothSurfaceHeight(centerX, centerZ, (int) Math.floor(baseSurfaceHeight));
+
+                    // Surface Normal calculation via Central Difference Gradient
+                    float eps = 0.1f;
+                    int baseY = (int) Math.floor(baseSurfaceHeight);
+                    float hL = getSmoothSurfaceHeight(centerX - eps, centerZ, baseY);
+                    float hR = getSmoothSurfaceHeight(centerX + eps, centerZ, baseY);
+                    float hD = getSmoothSurfaceHeight(centerX, centerZ - eps, baseY);
+                    float hU = getSmoothSurfaceHeight(centerX, centerZ + eps, baseY);
+
+                    float nx = hL - hR;
+                    float ny = 2.0f * eps;
+                    float nz = hD - hU;
+
+                    float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+                    if (len > 0) {
+                        nx /= len;
+                        ny /= len;
+                        nz /= len;
+                    } else {
+                        nx = 0f; ny = 1f; nz = 0f;
+                    }
 
                     // Sample the fluid flow at the calculated center of buoyancy.
                     mutablePos.set(centerX, averageSurfaceHeight - 0.5f, centerZ);
@@ -220,7 +246,10 @@ public final class VxBuoyancyBroadPhase {
                                     centerZ,
                                     flowVector.x(),
                                     flowVector.y(),
-                                    flowVector.z()
+                                    flowVector.z(),
+                                    nx,
+                                    ny,
+                                    nz
                             );
                         }
                     }
@@ -241,11 +270,10 @@ public final class VxBuoyancyBroadPhase {
      */
     private float findSurfaceUpwards(ChunkAccess chunk, int x, int startY, int z, BlockPos.MutableBlockPos pos) {
         for (int y = startY + 1; y <= startY + MAX_UPWARD_SEARCH; y++) {
-            pos.set(x, y, z);
-            FluidState state = chunk.getFluidState(pos);
+            FluidState state = getFluidStateFromContainer(chunk, x, y, z);
             if (state.isEmpty()) {
                 pos.set(x, y - 1, z);
-                FluidState below = chunk.getFluidState(pos);
+                FluidState below = getFluidStateFromContainer(chunk, x, y - 1, z);
                 return (y - 1) + below.getHeight(level, pos);
             }
         }
@@ -281,15 +309,7 @@ public final class VxBuoyancyBroadPhase {
 
             if (neighborState.getType().isSame(flowing)) {
                 float neighborHeight = neighborState.getOwnHeight();
-                float diff = 0.0f;
-
-                // Handle logic for falling water or source blocks.
-                if (neighborHeight >= 0.8f) {
-                    diff = neighborHeight;
-                } else {
-                    float currentHeight = state.getOwnHeight();
-                    diff = currentHeight - neighborHeight;
-                }
+                float diff = state.getOwnHeight() - neighborHeight;
 
                 if (diff != 0.0f) {
                     dx += (float) direction.getStepX() * diff;
@@ -304,6 +324,70 @@ public final class VxBuoyancyBroadPhase {
         if (dest.lengthSquared() > 1e-6f) {
             dest.normalize();
         }
+    }
+
+    /**
+     * Gets the fluid state directly from the region's PalettedContainer to optimize read speeds.
+     */
+    private FluidState getFluidStateFromContainer(ChunkAccess chunk, int x, int y, int z) {
+        int sectionIndex = chunk.getSectionIndex(y);
+        LevelChunkSection[] sections = chunk.getSections();
+        if (sectionIndex >= 0 && sectionIndex < sections.length) {
+            LevelChunkSection section = sections[sectionIndex];
+            if (section != null && !section.hasOnlyAir()) {
+                return section.getStates().get(x & 15, y & 15, z & 15).getFluidState();
+            }
+        }
+        return EMPTY_FLUID;
+    }
+
+    /**
+     * Bilinearly interpolates the exact fluid height over sub-block coordinates.
+     */
+    private float getSmoothSurfaceHeight(float startPx, float startPz, int baseY) {
+        float px = startPx - 0.5f;
+        float pz = startPz - 0.5f;
+
+        int x1 = (int) Math.floor(px);
+        int z1 = (int) Math.floor(pz);
+        int x2 = x1 + 1;
+        int z2 = z1 + 1;
+
+        float fx = px - x1;
+        float fz = pz - z1;
+
+        float h00 = getFluidHeightAtFast(x1, baseY, z1);
+        float h10 = getFluidHeightAtFast(x2, baseY, z1);
+        float h01 = getFluidHeightAtFast(x1, baseY, z2);
+        float h11 = getFluidHeightAtFast(x2, baseY, z2);
+
+        return h00 * (1 - fx) * (1 - fz)
+             + h10 * fx * (1 - fz)
+             + h01 * (1 - fx) * fz
+             + h11 * fx * fz;
+    }
+
+    private float getFluidHeightAtFast(int x, int baseY, int z) {
+        ChunkAccess chunk = this.level.getChunkSource().getChunkNow(x >> 4, z >> 4);
+        if (chunk == null) return baseY;
+
+        FluidState state = getFluidStateFromContainer(chunk, x, baseY, z);
+        if (!state.isEmpty()) {
+            FluidState stateAbove = getFluidStateFromContainer(chunk, x, baseY + 1, z);
+            if (!stateAbove.isEmpty()) {
+                return baseY + 1.0f;
+            }
+            neighborPos.set(x, baseY, z);
+            return baseY + state.getHeight(level, neighborPos);
+        }
+
+        FluidState stateBelow = getFluidStateFromContainer(chunk, x, baseY - 1, z);
+        if (!stateBelow.isEmpty()) {
+            neighborPos.set(x, baseY - 1, z);
+            return (baseY - 1) + stateBelow.getHeight(level, neighborPos);
+        }
+
+        return baseY;
     }
 
     /**

@@ -151,9 +151,8 @@ public final class VxBuoyancyNarrowPhase {
         // Update mutable vectors with data for this specific body.
         surfacePosition.set(dataStore.waterCenterX[index], surfaceY, dataStore.waterCenterZ[index]);
 
-        // Assuming a flat water surface with Normal UP (0, 1, 0).
-        // For standard Minecraft water, this is sufficient.
-        surfaceNormal.set(0f, 1f, 0f);
+        // Assign the actual fluid surface slope using dynamically processed normals
+        surfaceNormal.set(dataStore.normalX[index], dataStore.normalY[index], dataStore.normalZ[index]);
 
         // Populate fluid velocity from the DataStore.
         // This vector represents the current/flow of the water affecting the body.
@@ -161,21 +160,28 @@ public final class VxBuoyancyNarrowPhase {
 
         // Determine physical constants based on fluid type.
         // Buoyancy factor: >1.0 makes objects float higher, 1.0 is neutral.
-        final float buoyancyFactor;
-        final float linearDrag;
-        final float angularDrag;
+        final float baseBuoyancyFactor;
+        final float baseLinearDrag;
+        final float baseAngularDrag;
 
         if (fluidType == VxFluidType.LAVA) {
             // Lava is denser and more viscous than water.
-            buoyancyFactor = 2.5f;
-            linearDrag = 5.0f;
-            angularDrag = 2.0f;
+            baseBuoyancyFactor = 2.5f;
+            baseLinearDrag = 5.0f;
+            baseAngularDrag = 2.0f;
         } else {
             // Standard water properties.
-            buoyancyFactor = 1.1f;
-            linearDrag = 0.5f;
-            angularDrag = 0.05f;
+            baseBuoyancyFactor = 1.1f;
+            baseLinearDrag = 0.5f;
+            baseAngularDrag = 0.05f;
         }
+
+        // Apply area fraction. Jolt assumes an infinite plane, so bodies partially overhanging
+        // blocks will receive too much force unless we scale it down by the physical intersection Area Fraction.
+        float fraction = dataStore.areaFractions[index];
+        float appliedBuoyancyFactor = baseBuoyancyFactor * fraction;
+        float appliedLinearDrag = baseLinearDrag * fraction;
+        float appliedAngularDrag = baseAngularDrag * fraction;
 
         // Call the native Jolt method directly.
         // This calculates the exact submerged volume of the shape (including compounds) in C++,
@@ -183,9 +189,9 @@ public final class VxBuoyancyNarrowPhase {
         body.applyBuoyancyImpulse(
                 surfacePosition,
                 surfaceNormal,
-                buoyancyFactor,
-                linearDrag,
-                angularDrag,
+                appliedBuoyancyFactor,
+                appliedLinearDrag,
+                appliedAngularDrag,
                 fluidVelocity,
                 gravity,
                 deltaTime
