@@ -9,7 +9,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.Item;
 import net.xmx.velthoric.item.tool.VxToolMode;
 import net.xmx.velthoric.item.tool.config.VxToolConfig;
-import net.xmx.velthoric.item.tool.config.VxToolProperty;
 import net.xmx.velthoric.item.tool.registry.VxToolRegistry;
 import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxByteBuf;
@@ -74,27 +73,7 @@ public class VxToolConfigPacket implements IVxNetPacket {
 
             if (mode != null) {
                 VxToolConfig config = mode.getConfig(player.getUUID());
-
-                // Parse values back to their original types based on the property definition
-                for (Map.Entry<String, String> entry : this.stringifiedValues.entrySet()) {
-                    String key = entry.getKey();
-                    String valStr = entry.getValue();
-
-                    if (config.getProperties().containsKey(key)) {
-                        VxToolProperty<?> prop = config.getProperties().get(key);
-                        try {
-                            if (prop.getType() == Integer.class) {
-                                config.setValue(key, Integer.parseInt(valStr));
-                            } else if (prop.getType() == Float.class) {
-                                config.setValue(key, Float.parseFloat(valStr));
-                            } else if (prop.getType() == Boolean.class) {
-                                config.setValue(key, Boolean.parseBoolean(valStr));
-                            }
-                        } catch (NumberFormatException ignored) {
-                            // Invalid input from client, ignore the change
-                        }
-                    }
-                }
+                config.applyEdits(this.stringifiedValues);
             }
         });
     }

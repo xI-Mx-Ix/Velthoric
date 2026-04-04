@@ -183,4 +183,65 @@ public class VxToolConfig {
     public Map<String, VxToolProperty<?>> getProperties() {
         return properties;
     }
+
+    /**
+     * Resets all configuration properties to their default values.
+     */
+    public void resetToDefaults() {
+        for (VxToolProperty<?> prop : properties.values()) {
+            prop.setValue(prop.getDefaultValue());
+        }
+    }
+
+    /**
+     * Loads the configuration from the client's local storage.
+     *
+     * @param toolId The ID of the tool.
+     */
+    public void load(String toolId) {
+        VxToolPersistence.load(toolId, this);
+    }
+
+    /**
+     * Saves the configuration to the client's local storage.
+     *
+     * @param toolId The ID of the tool.
+     */
+    public void save(String toolId) {
+        VxToolPersistence.save(toolId, this);
+    }
+
+    /**
+     * Applies a map of string-represented values to the configuration.
+     *
+     * @param edits A map of keys to string values.
+     */
+    public void applyEdits(Map<String, String> edits) {
+        for (Map.Entry<String, String> entry : edits.entrySet()) {
+            String key = entry.getKey();
+            String valStr = entry.getValue();
+
+            if (properties.containsKey(key)) {
+                VxToolProperty<?> prop = properties.get(key);
+                try {
+                    Class<?> type = prop.getType();
+                    if (type == Integer.class) {
+                        setValue(key, Integer.parseInt(valStr));
+                    } else if (type == Long.class) {
+                        setValue(key, Long.parseLong(valStr));
+                    } else if (type == Float.class) {
+                        setValue(key, Float.parseFloat(valStr));
+                    } else if (type == Double.class) {
+                        setValue(key, Double.parseDouble(valStr));
+                    } else if (type == Boolean.class) {
+                        setValue(key, Boolean.parseBoolean(valStr));
+                    } else if (type == String.class) {
+                        setValue(key, valStr);
+                    }
+                } catch (NumberFormatException ignored) {
+                    // Skip invalid inputs
+                }
+            }
+        }
+    }
 }

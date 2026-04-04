@@ -15,6 +15,7 @@ import org.jetbrains.annotations.Nullable;
 public class VxToolProperty<T> {
     private final String name;
     private T value;
+    private final T defaultValue;
     private final Number min;
     private final Number max;
     private final Class<T> type;
@@ -31,6 +32,7 @@ public class VxToolProperty<T> {
     public VxToolProperty(String name, T value, @Nullable Number min, @Nullable Number max, Class<T> type) {
         this.name = name;
         this.value = value;
+        this.defaultValue = value;
         this.min = min;
         this.max = max;
         this.type = type;
@@ -52,6 +54,15 @@ public class VxToolProperty<T> {
      */
     public T getValue() {
         return value;
+    }
+
+    /**
+     * Gets the original default value.
+     *
+     * @return The default value.
+     */
+    public T getDefaultValue() {
+        return defaultValue;
     }
 
     /**

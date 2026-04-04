@@ -9,6 +9,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.xmx.velthoric.item.tool.VxToolMode;
@@ -46,6 +47,8 @@ public class VxToolConfigScreen extends Screen {
         this.mode = mode;
         // Retrieve the configuration structure associated with the client player
         this.config = mode.getConfig(Minecraft.getInstance().player.getUUID());
+        // Load persistent values from local storage
+        this.config.load(BuiltInRegistries.ITEM.getKey(item).getPath());
     }
 
     @Override
@@ -100,10 +103,18 @@ public class VxToolConfigScreen extends Screen {
             y += 25;
         }
 
-        // Save & Close button at the bottom of the screen
+        // Reset to Defaults button (Left)
+        this.addRenderableWidget(Button.builder(Component.literal("Reset to Defaults"), b -> {
+            this.config.resetToDefaults();
+            // Clear edits map and refresh the screen widgets
+            this.edits.clear();
+            this.init(this.minecraft, this.width, this.height);
+        }).bounds(centerX - 105, this.height - 30, 100, 20).build());
+
+        // Save & Close button (Right)
         this.addRenderableWidget(Button.builder(Component.literal("Save & Close"), b -> {
             this.onClose();
-        }).bounds(centerX - 50, this.height - 30, 100, 20).build());
+        }).bounds(centerX + 5, this.height - 30, 100, 20).build());
     }
 
     @Override
@@ -115,6 +126,10 @@ public class VxToolConfigScreen extends Screen {
 
     @Override
     public void removed() {
+        // Apply current UI edits to the local configuration object
+        this.config.applyEdits(this.edits);
+        // Save the configuration to client's local storage
+        this.config.save(BuiltInRegistries.ITEM.getKey(item).getPath());
         // Transmit the accumulated edits to the server when the screen closes
         VxNetworking.sendToServer(new VxToolConfigPacket(Item.getId(item), edits));
     }
