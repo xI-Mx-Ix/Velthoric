@@ -7,7 +7,6 @@ package net.xmx.velthoric.init;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
-import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.init.registry.KeyMappings;
 import net.xmx.velthoric.init.registry.ModRegistries;
 import net.xmx.velthoric.natives.systems.NativeManager;
@@ -33,11 +32,6 @@ public class VxMainClass {
      * Initializes registries, packets, and loads native libraries.
      */
     public static void onInit() {
-        // Initialize config structure
-        VxModConfig.init();
-        // Load common settings (Physics, Terrain, Network)
-        VxModConfig.loadCommon();
-
         ModRegistries.register();
         VxRegisteredBodies.register();
         VxPacketRegistry.registerPackets();
@@ -52,9 +46,6 @@ public class VxMainClass {
      */
     @Environment(EnvType.CLIENT)
     public static void onClientInit() {
-        // Load client-specific settings (Rendering, Controls)
-        VxModConfig.loadClient();
-
         VxRegisteredBodies.registerClientFactories();
         VxRegisteredBodies.registerClientRenderers();
         RegisterEvents.registerClient();

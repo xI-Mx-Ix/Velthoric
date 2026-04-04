@@ -11,7 +11,6 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
-import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.VxBody;
@@ -53,46 +52,46 @@ public final class VxTerrainTracker {
     /**
      * Defines the size of the coarse grid cells used for clustering, in chunks.
      */
-    private final int GRID_CELL_SIZE_IN_CHUNKS;
+    private final int GRID_CELL_SIZE_IN_CHUNKS = 4;
 
     /**
      * The radius, in chunks, around a moving body's bounding box to keep active.
      */
-    private final int ACTIVATION_RADIUS_CHUNKS;
+    private final int ACTIVATION_RADIUS_CHUNKS = 1;
 
     /**
      * The radius, in chunks, to preload around a cluster's bounding box.
      */
-    private final int PRELOAD_RADIUS_CHUNKS;
+    private final int PRELOAD_RADIUS_CHUNKS = 3;
 
     /**
      * The time, in seconds, to predict a body's future position for preloading terrain.
      */
-    private final float PREDICTION_SECONDS;
+    private final float PREDICTION_SECONDS = 0.5f;
 
     /**
      * The maximum distance, in blocks, that the system will look ahead based on velocity.
      * This prevents requesting thousands of chunks if a body glitches and gains excessive speed.
      */
-    private final float MAX_PREDICTION_DISTANCE;
+    private final float MAX_PREDICTION_DISTANCE = 64.0f;
 
     /**
      * The maximum number of chunks a single cluster can request in one update tick.
      * This acts as a safety brake against physics glitches or infinite bounding boxes.
      */
-    private final int MAX_CHUNKS_PER_CLUSTER_ITERATION;
+    private final int MAX_CHUNKS_PER_CLUSTER_ITERATION = 20000;
 
     /**
      * The maximum Y-level at which terrain generation is tracked.
      * Bodies above this height will not trigger terrain loading.
      */
-    private final int MAX_GENERATION_HEIGHT;
+    private final int MAX_GENERATION_HEIGHT = 500;
 
     /**
      * The minimum Y-level at which terrain generation is tracked.
      * Bodies below this height will not trigger terrain loading.
      */
-    private final int MIN_GENERATION_HEIGHT;
+    private final int MIN_GENERATION_HEIGHT = -250;
 
     /**
      * Reusable map that groups bodies into grid-based clusters to avoid allocations.
@@ -120,15 +119,6 @@ public final class VxTerrainTracker {
         this.chunkDataStore = chunkDataStore;
         this.level = level;
         this.bodyDataStore = physicsWorld.getBodyManager().getDataStore();
-
-        this.GRID_CELL_SIZE_IN_CHUNKS = VxModConfig.TERRAIN.gridCellSize.get();
-        this.ACTIVATION_RADIUS_CHUNKS = VxModConfig.TERRAIN.activationRadius.get();
-        this.PRELOAD_RADIUS_CHUNKS = VxModConfig.TERRAIN.preloadRadius.get();
-        this.PREDICTION_SECONDS = VxModConfig.TERRAIN.predictionSeconds.get().floatValue();
-        this.MAX_PREDICTION_DISTANCE = VxModConfig.TERRAIN.maxPredictionDistance.get().floatValue();
-        this.MAX_CHUNKS_PER_CLUSTER_ITERATION = VxModConfig.TERRAIN.maxChunksPerCluster.get();
-        this.MAX_GENERATION_HEIGHT = VxModConfig.TERRAIN.maxGenHeight.get();
-        this.MIN_GENERATION_HEIGHT = VxModConfig.TERRAIN.minGenHeight.get();
     }
 
     /**

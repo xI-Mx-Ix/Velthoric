@@ -9,7 +9,6 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.config.VxModConfig;
 import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorManager;
 import net.xmx.velthoric.core.behavior.VxBehaviors;
@@ -62,7 +61,7 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      * can smooth over more network jitter but increases perceived latency.
      * Value is in nanoseconds (150ms).
      */
-    private final long interpolationDelayNanos;
+    private final long interpolationDelayNanos = 150_000_000L;
 
     /**
      * The data store holding all body states in a Structure of Arrays format.
@@ -100,7 +99,6 @@ public class VxClientBodyManager extends VxAbstractBodyManager {
      * and mounting manager.
      */
     private VxClientBodyManager() {
-        this.interpolationDelayNanos = VxModConfig.CLIENT.interpolationDelayNanos.get();
         this.behaviorManager = new VxBehaviorManager();
     }
 

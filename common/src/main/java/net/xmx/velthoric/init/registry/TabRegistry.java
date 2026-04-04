@@ -10,7 +10,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
-import net.xmx.velthoric.config.VxModConfig;
 
 /**
  * Handles the registration of creative tabs.
@@ -34,8 +33,6 @@ public class TabRegistry {
 					));
 
 	public static void register() {
-		if (VxModConfig.CLIENT.enableCreativeTab.get()) {
-			ModRegistries.CREATIVE_MODE_TABS.register();
-		}
+		ModRegistries.CREATIVE_MODE_TABS.register();
 	}
 }
