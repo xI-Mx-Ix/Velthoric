@@ -10,7 +10,6 @@ import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.network.synchronization.behavior.VxSyncBehavior;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.network.IVxNetPacket;
@@ -127,7 +126,7 @@ public class C2SSynchronizedDataBatchPacket implements IVxNetPacket {
                 return;
             }
 
-            VxSyncBehavior syncBehavior = world.getBodyManager().getBehaviorManager().getBehavior(VxBehaviors.CUSTOM_DATA_SYNC);
+            VxSyncBehavior syncBehavior = world.getBodyManager().getBehaviorManager().getBehavior(VxSyncBehavior.ID);
 
             for (Map.Entry<Integer, byte[]> entry : this.dataUpdates.entrySet()) {
                 // Delegate validation and application to the server sync behavior

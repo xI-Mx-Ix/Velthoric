@@ -14,8 +14,8 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
+import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
@@ -24,7 +24,6 @@ import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.network.internal.VxNetworkDispatcher;
 import net.xmx.velthoric.core.network.synchronization.packet.C2SSynchronizedDataBatchPacket;
 import net.xmx.velthoric.core.network.synchronization.packet.S2CSynchronizedDataBatchPacket;
-import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.network.VxNetworking;
 
@@ -73,9 +72,20 @@ public class VxSyncBehavior implements VxBehavior {
     public VxSyncBehavior() {
     }
 
+    /**
+     * The unique identifier for this behavior.
+     * Consumed by the behavior manager for bitmask allocation and dispatch.
+     */
+    public static final VxBehaviorId ID = new VxBehaviorId(VxMainClass.MODID, "CustomDataSync");
+
+    /**
+     * Retrieves the unique identifier for this behavior.
+     *
+     * @return The behavior ID.
+     */
     @Override
     public VxBehaviorId getId() {
-        return VxBehaviors.CUSTOM_DATA_SYNC;
+        return ID;
     }
 
     // ================================================================================

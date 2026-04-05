@@ -6,8 +6,8 @@ package net.xmx.velthoric.core.persistence.behavior;
 
 import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.body.VxBody;
 
 /**
@@ -24,9 +24,20 @@ import net.xmx.velthoric.core.body.VxBody;
  */
 public class VxPersistenceBehavior implements VxBehavior {
 
+    /**
+     * The unique identifier for this behavior.
+     * Consumed by the behavior manager for bitmask allocation and dispatch.
+     */
+    public static final VxBehaviorId ID = new VxBehaviorId(VxMainClass.MODID, "Persistence");
+
+    /**
+     * Retrieves the unique identifier for this behavior.
+     *
+     * @return The behavior ID.
+     */
     @Override
     public VxBehaviorId getId() {
-        return VxBehaviors.PERSISTENCE;
+        return ID;
     }
 
     @Override
@@ -43,6 +54,6 @@ public class VxPersistenceBehavior implements VxBehavior {
      * @return True if the body should be saved.
      */
     public static boolean isPersistent(VxServerBodyDataStore store, int index) {
-        return VxBehaviors.PERSISTENCE.isSet(store.serverCurrent().behaviorBits[index]);
+        return ID.isSet(store.serverCurrent().behaviorBits[index]);
     }
 }

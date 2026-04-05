@@ -18,7 +18,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.core.behavior.VxBehaviorManager;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.mounting.behavior.VxMountBehavior;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.VxBody;
@@ -124,7 +123,7 @@ public class VxMountingEntity extends Entity {
                     VxClientBodyManager manager = VxClientBodyManager.getInstance();
                     VxBody body = manager.getVxBody(physicsId);
                     if (body != null) {
-                        VxMountBehavior behavior = manager.getBehaviorManager().getBehavior(VxBehaviors.MOUNTABLE);
+                        VxMountBehavior behavior = manager.getBehaviorManager().getBehavior(VxMountBehavior.ID);
                         if (behavior != null) {
                             behavior.getSeat(physicsId, seatId).ifPresent(seat -> {
                                 // 1. Get current body transform (interpolated).
@@ -168,7 +167,7 @@ public class VxMountingEntity extends Entity {
                 VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level().dimension());
                 if (physicsWorld != null) {
                     VxBehaviorManager behaviorManager = physicsWorld.getBodyManager().getBehaviorManager();
-                    VxMountBehavior behavior = behaviorManager.getBehavior(VxBehaviors.MOUNTABLE);
+                    VxMountBehavior behavior = behaviorManager.getBehavior(VxMountBehavior.ID);
 
                     // If the behavior doesn't know about this player yet, restore the link.
                     if (behavior != null && !behavior.isMounting(player)) {
@@ -304,7 +303,7 @@ public class VxMountingEntity extends Entity {
             // Client: Lookup via synced IDs
             return getPhysicsId().flatMap(objId ->
                     getSeatId().flatMap(seatId -> {
-                        VxMountBehavior behavior = VxClientBodyManager.getInstance().getBehaviorManager().getBehavior(VxBehaviors.MOUNTABLE);
+                        VxMountBehavior behavior = VxClientBodyManager.getInstance().getBehaviorManager().getBehavior(VxMountBehavior.ID);
                         return behavior != null ? behavior.getSeat(objId, seatId) : Optional.empty();
                     })
             ).map(seat -> new Vector3f(seat.getRiderOffset())).orElse(new Vector3f());
@@ -313,7 +312,7 @@ public class VxMountingEntity extends Entity {
             if (this.getFirstPassenger() instanceof ServerPlayer player) {
                 VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(level().dimension());
                 if (physicsWorld != null) {
-                    VxMountBehavior behavior = physicsWorld.getBodyManager().getBehaviorManager().getBehavior(VxBehaviors.MOUNTABLE);
+                    VxMountBehavior behavior = physicsWorld.getBodyManager().getBehaviorManager().getBehavior(VxMountBehavior.ID);
                     return behavior != null ? behavior.getSeatForPlayer(player)
                             .map(seat -> new Vector3f(seat.getRiderOffset()))
                             .orElse(new Vector3f()) : new Vector3f();
@@ -349,7 +348,7 @@ public class VxMountingEntity extends Entity {
         if (!this.level().isClientSide() && passenger instanceof ServerPlayer player) {
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(this.level().dimension());
             if (physicsWorld != null) {
-                VxMountBehavior behavior = physicsWorld.getBodyManager().getBehaviorManager().getBehavior(VxBehaviors.MOUNTABLE);
+                VxMountBehavior behavior = physicsWorld.getBodyManager().getBehaviorManager().getBehavior(VxMountBehavior.ID);
                 if (behavior != null) {
                     behavior.stopMounting((ServerLevel) this.level(), player);
                 }

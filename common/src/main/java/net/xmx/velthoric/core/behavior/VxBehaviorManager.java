@@ -66,7 +66,7 @@ public final class VxBehaviorManager {
      */
     public void init(Level level, @Nullable VxPhysicsWorld physicsWorld) {
         this.level = level;
-        if (getBehavior(VxBehaviors.NET_SYNC) != null) return;
+        if (getBehavior(VxNetSyncBehavior.ID) != null) return;
 
         if (!level.isClientSide()) {
             registerBehavior(new VxRigidPhysicsBehavior());
@@ -80,12 +80,12 @@ public final class VxBehaviorManager {
             registerBehavior(new VxTickBehavior());
         }
 
-        if (getBehavior(VxBehaviors.MOUNTABLE) == null) {
+        if (getBehavior(VxMountBehavior.ID) == null) {
             registerBehavior(new VxMountBehavior());
         }
 
         // Use consolidated sync behavior for both sides
-        if (getBehavior(VxBehaviors.CUSTOM_DATA_SYNC) == null) {
+        if (getBehavior(VxSyncBehavior.ID) == null) {
             registerBehavior(new VxSyncBehavior());
         }
     }

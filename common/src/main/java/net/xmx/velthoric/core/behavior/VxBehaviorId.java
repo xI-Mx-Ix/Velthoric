@@ -36,6 +36,11 @@ public final class VxBehaviorId {
     private final long mask;
 
     /**
+     * The namespace of the mod that created this behavior, used to prevent collisions and for debugging.
+     */
+    private final String namespace;
+
+    /**
      * A human-readable name for this behavior, used in logging and debugging.
      */
     private final String name;
@@ -43,13 +48,15 @@ public final class VxBehaviorId {
     /**
      * Creates a new behavior ID with an automatically assigned bit position.
      *
-     * @param name A human-readable name for debugging (e.g., "RigidPhysics", "Buoyancy").
+     * @param namespace The namespace of the mod (e.g. "velthoric").
+     * @param name      A human-readable name for debugging (e.g., "RigidPhysics", "Buoyancy").
      * @throws IllegalStateException If more than 64 behaviors are registered.
      */
-    public VxBehaviorId(String name) {
+    public VxBehaviorId(String namespace, String name) {
         if (nextBit >= 64) {
-            throw new IllegalStateException("Cannot register more than 64 behaviors. Exceeded limit with: " + name);
+            throw new IllegalStateException("Cannot register more than 64 behaviors. Exceeded limit with: " + namespace + ":" + name);
         }
+        this.namespace = namespace;
         this.name = name;
         this.bit = nextBit++;
         this.mask = 1L << bit;
@@ -67,6 +74,13 @@ public final class VxBehaviorId {
      */
     public long getMask() {
         return mask;
+    }
+
+    /**
+     * @return The namespace of this behavior.
+     */
+    public String getNamespace() {
+        return namespace;
     }
 
     /**
@@ -108,6 +122,6 @@ public final class VxBehaviorId {
 
     @Override
     public String toString() {
-        return "VxBehaviorId{" + name + ", bit=" + bit + "}";
+        return "VxBehaviorId{" + namespace + ":" + name + ", bit=" + bit + "}";
     }
 }

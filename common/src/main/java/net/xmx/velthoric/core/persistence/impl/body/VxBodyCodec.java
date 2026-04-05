@@ -8,7 +8,7 @@ import com.github.stephengold.joltjni.enumerate.EMotionType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import net.minecraft.resources.ResourceLocation;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.core.behavior.impl.VxSoftPhysicsBehavior;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
@@ -136,7 +136,7 @@ public final class VxBodyCodec {
         EMotionType motionType = c.motionType[idx];
         buf.writeByte(motionType != null ? motionType.ordinal() : EMotionType.Static.ordinal());
 
-        if (VxBehaviors.SOFT_PHYSICS.isSet(c.behaviorBits[idx])) {
+        if (VxSoftPhysicsBehavior.ID.isSet(c.behaviorBits[idx])) {
             float[] vertices = body.getPhysicsWorld().getBodyManager().retrieveSoftBodyVertices(body);
             if (vertices != null) {
                 buf.writeInt(vertices.length);

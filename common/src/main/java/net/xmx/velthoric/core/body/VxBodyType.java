@@ -6,7 +6,10 @@ package net.xmx.velthoric.core.body;
 
 import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.core.behavior.impl.VxPhysicsSyncBehavior;
+import net.xmx.velthoric.core.behavior.impl.VxRigidPhysicsBehavior;
+import net.xmx.velthoric.core.behavior.impl.VxSoftPhysicsBehavior;
+import net.xmx.velthoric.core.persistence.behavior.VxPersistenceBehavior;
 import net.xmx.velthoric.core.body.provider.VxJoltRigidProvider;
 import net.xmx.velthoric.core.body.provider.VxJoltSoftProvider;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
@@ -194,8 +197,8 @@ public final class VxBodyType {
          */
         public Builder rigidProvider(VxJoltRigidProvider provider) {
             this.rigidProvider = provider;
-            this.defaultBehaviors |= VxBehaviors.RIGID_PHYSICS.getMask();
-            this.defaultBehaviors |= VxBehaviors.PHYSICS_SYNC.getMask();
+            this.defaultBehaviors |= VxRigidPhysicsBehavior.ID.getMask();
+            this.defaultBehaviors |= VxPhysicsSyncBehavior.ID.getMask();
             return this;
         }
 
@@ -204,36 +207,8 @@ public final class VxBodyType {
          */
         public Builder softProvider(VxJoltSoftProvider provider) {
             this.softProvider = provider;
-            this.defaultBehaviors |= VxBehaviors.SOFT_PHYSICS.getMask();
-            this.defaultBehaviors |= VxBehaviors.PHYSICS_SYNC.getMask();
-            return this;
-        }
-
-        public Builder buoyant() {
-            this.defaultBehaviors |= VxBehaviors.BUOYANCY.getMask();
-            return this;
-        }
-
-        public Builder netSync() {
-            this.defaultBehaviors |= VxBehaviors.NET_SYNC.getMask();
-            return this;
-        }
-
-        public Builder mountable() {
-            this.defaultBehaviors |= VxBehaviors.MOUNTABLE.getMask();
-            return this;
-        }
-
-        public Builder customDataSync() {
-            this.defaultBehaviors |= VxBehaviors.CUSTOM_DATA_SYNC.getMask();
-            return this;
-        }
-
-        /**
-         * Attaches the {@link VxBehaviors#TICK} behavior, enabling server and physics thread callbacks.
-         */
-        public Builder ticking() {
-            this.defaultBehaviors |= VxBehaviors.TICK.getMask();
+            this.defaultBehaviors |= VxSoftPhysicsBehavior.ID.getMask();
+            this.defaultBehaviors |= VxPhysicsSyncBehavior.ID.getMask();
             return this;
         }
 
@@ -262,7 +237,7 @@ public final class VxBodyType {
          */
         public VxBodyType build(ResourceLocation typeId) {
             if (persistent) {
-                defaultBehaviors |= VxBehaviors.PERSISTENCE.getMask();
+                defaultBehaviors |= VxPersistenceBehavior.ID.getMask();
             }
             return new VxBodyType(typeId, factory, summonable, persistent,
                     defaultBehaviors, rigidProvider, softProvider, persistenceHandler, syncDataDefiner);

@@ -6,7 +6,7 @@ package net.xmx.velthoric.core.network.internal.behavior;
 
 import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.init.VxMainClass;
 
 /**
  * A marker behavior for network synchronization.
@@ -19,8 +19,19 @@ import net.xmx.velthoric.core.behavior.VxBehaviors;
  */
 public class VxNetSyncBehavior implements VxBehavior {
 
+    /**
+     * The unique identifier for this behavior.
+     * Consumed by the behavior manager for bitmask allocation and dispatch.
+     */
+    public static final VxBehaviorId ID = new VxBehaviorId(VxMainClass.MODID, "NetSync");
+
+    /**
+     * Retrieves the unique identifier for this behavior.
+     *
+     * @return The behavior ID.
+     */
     @Override
     public VxBehaviorId getId() {
-        return VxBehaviors.NET_SYNC;
+        return ID;
     }
 }

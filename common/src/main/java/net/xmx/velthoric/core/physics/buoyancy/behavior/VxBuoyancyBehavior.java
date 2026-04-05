@@ -8,8 +8,8 @@ import com.github.stephengold.joltjni.readonly.ConstBodyLockInterface;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.physics.buoyancy.VxBuoyancyDataStore;
 import net.xmx.velthoric.core.physics.buoyancy.phase.VxBuoyancyBroadPhase;
 import net.xmx.velthoric.core.physics.buoyancy.phase.VxBuoyancyNarrowPhase;
@@ -57,9 +57,20 @@ public class VxBuoyancyBehavior implements VxBehavior {
         this.readingBuffer = new VxBuoyancyDataStore();
     }
 
+    /**
+     * The unique identifier for this behavior.
+     * Consumed by the behavior manager for bitmask allocation and dispatch.
+     */
+    public static final VxBehaviorId ID = new VxBehaviorId(VxMainClass.MODID, "Buoyancy");
+
+    /**
+     * Retrieves the unique identifier for this behavior.
+     *
+     * @return The behavior ID.
+     */
     @Override
     public VxBehaviorId getId() {
-        return VxBehaviors.BUOYANCY;
+        return ID;
     }
 
     @Override

@@ -6,7 +6,6 @@ package net.xmx.velthoric.core.vehicle.part.impl;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.mounting.behavior.VxMountBehavior;
 import net.xmx.velthoric.core.mounting.seat.VxSeat;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
@@ -77,7 +76,7 @@ public class VxVehicleSeat extends VxPart {
             VxPhysicsWorld world = vehicle.getPhysicsWorld();
             if (world != null) {
                 // Delegate mounting logic to the world manager
-                VxMountBehavior behavior = world.getBodyManager().getBehaviorManager().getBehavior(VxBehaviors.MOUNTABLE);
+                VxMountBehavior behavior = world.getBodyManager().getBehaviorManager().getBehavior(VxMountBehavior.ID);
                 if (behavior != null) {
                     behavior.requestMounting(world.getLevel(), serverPlayer, vehicle.getPhysicsId(), this.partId);
                 }

@@ -6,15 +6,15 @@ package net.xmx.velthoric.core.behavior.impl;
 
 import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.provider.VxJoltRigidProvider;
+import net.xmx.velthoric.init.VxMainClass;
 
 /**
  * The behavior for rigid body physics simulation.
  * <p>
  * Bodies with this behavior are simulated using Jolt's rigid body dynamics engine.
  * This behavior handles pre/post-physics tick callbacks for rigid bodies by iterating
- * the SoA data store and dispatching to bodies that have the {@link VxBehaviors#RIGID_PHYSICS} bit set.
+ * the SoA data store and dispatching to bodies that have the {@link #ID} bit set.
  * <p>
  * <b>Note:</b> The actual Jolt body creation is handled by the body's registered
  * {@link VxJoltRigidProvider},
@@ -25,8 +25,19 @@ import net.xmx.velthoric.core.body.provider.VxJoltRigidProvider;
  */
 public class VxRigidPhysicsBehavior implements VxBehavior {
 
+    /**
+     * The unique identifier for this behavior.
+     * Consumed by the behavior manager for bitmask allocation and dispatch.
+     */
+    public static final VxBehaviorId ID = new VxBehaviorId(VxMainClass.MODID, "RigidPhysics");
+
+    /**
+     * Retrieves the unique identifier for this behavior.
+     *
+     * @return The behavior ID.
+     */
     @Override
     public VxBehaviorId getId() {
-        return VxBehaviors.RIGID_PHYSICS;
+        return ID;
     }
 }

@@ -7,7 +7,6 @@ package net.xmx.velthoric.core.mounting.input;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.mounting.behavior.VxMountBehavior;
 import net.xmx.velthoric.network.IVxNetPacket;
 import net.xmx.velthoric.network.VxByteBuf;
@@ -55,7 +54,7 @@ public class C2SMountInputPacket implements IVxNetPacket {
 
             VxPhysicsWorld physicsWorld = VxPhysicsWorld.get(player.serverLevel().dimension());
             if (physicsWorld != null) {
-                VxMountBehavior behavior = physicsWorld.getBodyManager().getBehaviorManager().getBehavior(VxBehaviors.MOUNTABLE);
+                VxMountBehavior behavior = physicsWorld.getBodyManager().getBehaviorManager().getBehavior(VxMountBehavior.ID);
                 if (behavior != null) {
                     behavior.handlePlayerInput((ServerLevel) player.level(), player, this.input);
                 }

@@ -14,7 +14,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.core.behavior.VxBehaviorManager;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.core.persistence.behavior.VxPersistenceBehavior;
 import net.xmx.velthoric.core.body.VxAbstractBodyManager;
 import net.xmx.velthoric.core.body.VxRemovalReason;
 import net.xmx.velthoric.core.body.registry.VxBodyRegistry;
@@ -620,7 +620,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
 
     /**
      * Serializes all physics bodies within a given chunk and queues them for storage.
-     * Only bodies that have the {@link VxBehaviors#PERSISTENCE} behavior attached are included.
+     * Only bodies that have the {@link VxPersistenceBehavior#ID} behavior attached are included.
      * Uses the optimized chunk-based batching system.
      *
      * @param pos The position of the chunk to save.
@@ -629,7 +629,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         List<VxBody> bodiesInChunk = new ArrayList<>();
 
         VxServerBodyDataContainer c = dataStore.serverCurrent();
-        long persistenceMask = VxBehaviors.PERSISTENCE.getMask();
+        long persistenceMask = VxPersistenceBehavior.ID.getMask();
 
         spatialManager.forEachInChunk(pos.toLong(), body -> {
             int index = body.getDataStoreIndex();

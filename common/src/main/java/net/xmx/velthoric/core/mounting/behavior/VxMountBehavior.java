@@ -13,8 +13,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
-import net.xmx.velthoric.core.behavior.VxBehaviorManager;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.mounting.VxMountable;
@@ -87,14 +85,19 @@ public class VxMountBehavior implements VxBehavior {
     }
 
     /**
-     * Returns the unique identifier for this behavior.
-     * Consumed by the {@link VxBehaviorManager} for bitmask allocation and dispatch.
+     * The unique identifier for this behavior.
+     * Consumed by the behavior manager for bitmask allocation and dispatch.
+     */
+    public static final VxBehaviorId ID = new VxBehaviorId(VxMainClass.MODID, "Mountable");
+
+    /**
+     * Retrieves the unique identifier for this behavior.
      *
-     * @return The MOUNTABLE behavior ID.
+     * @return The behavior ID.
      */
     @Override
     public VxBehaviorId getId() {
-        return VxBehaviors.MOUNTABLE;
+        return ID;
     }
 
     // ================================================================================

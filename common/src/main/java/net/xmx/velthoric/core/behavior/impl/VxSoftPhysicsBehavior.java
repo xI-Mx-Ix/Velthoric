@@ -6,7 +6,7 @@ package net.xmx.velthoric.core.behavior.impl;
 
 import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
-import net.xmx.velthoric.core.behavior.VxBehaviors;
+import net.xmx.velthoric.init.VxMainClass;
 
 /**
  * The behavior for soft body physics simulation.
@@ -18,8 +18,19 @@ import net.xmx.velthoric.core.behavior.VxBehaviors;
  */
 public class VxSoftPhysicsBehavior implements VxBehavior {
 
+    /**
+     * The unique identifier for this behavior.
+     * Consumed by the behavior manager for bitmask allocation and dispatch.
+     */
+    public static final VxBehaviorId ID = new VxBehaviorId(VxMainClass.MODID, "SoftPhysics");
+
+    /**
+     * Retrieves the unique identifier for this behavior.
+     *
+     * @return The behavior ID.
+     */
     @Override
     public VxBehaviorId getId() {
-        return VxBehaviors.SOFT_PHYSICS;
+        return ID;
     }
 }

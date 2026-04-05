@@ -7,6 +7,11 @@ package net.xmx.velthoric.builtin;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.resources.ResourceLocation;
+import net.xmx.velthoric.core.physics.buoyancy.behavior.VxBuoyancyBehavior;
+import net.xmx.velthoric.core.network.internal.behavior.VxNetSyncBehavior;
+import net.xmx.velthoric.core.network.synchronization.behavior.VxSyncBehavior;
+import net.xmx.velthoric.core.mounting.behavior.VxMountBehavior;
+import net.xmx.velthoric.core.behavior.impl.VxTickBehavior;
 import net.xmx.velthoric.builtin.block.BlockRenderer;
 import net.xmx.velthoric.builtin.block.BlockRigidBody;
 import net.xmx.velthoric.builtin.box.BoxRenderer;
@@ -48,36 +53,36 @@ public class VxRegisteredBodies {
             .create(BlockRigidBody::new)
             .noSummon()
             .rigidProvider(BlockRigidBody::createJoltBody)
-            .buoyant()
-            .netSync()
-            .customDataSync()
+            .behavior(VxBuoyancyBehavior.ID)
+            .behavior(VxNetSyncBehavior.ID)
+            .behavior(VxSyncBehavior.ID)
             .persistence(BlockRigidBody::writePersistence, BlockRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "block"));
 
     public static final VxBodyType SPHERE = VxBodyType.Builder
             .create(SphereRigidBody::new)
             .rigidProvider(SphereRigidBody::createJoltBody)
-            .buoyant()
-            .netSync()
-            .customDataSync()
+            .behavior(VxBuoyancyBehavior.ID)
+            .behavior(VxNetSyncBehavior.ID)
+            .behavior(VxSyncBehavior.ID)
             .persistence(SphereRigidBody::writePersistence, SphereRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "sphere"));
 
     public static final VxBodyType BOX = VxBodyType.Builder
             .create(BoxRigidBody::new)
             .rigidProvider(BoxRigidBody::createJoltBody)
-            .buoyant()
-            .netSync()
-            .customDataSync()
+            .behavior(VxBuoyancyBehavior.ID)
+            .behavior(VxNetSyncBehavior.ID)
+            .behavior(VxSyncBehavior.ID)
             .persistence(BoxRigidBody::writePersistence, BoxRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "box"));
 
     public static final VxBodyType MARBLE = VxBodyType.Builder
             .create(MarbleRigidBody::new)
             .rigidProvider(MarbleRigidBody::createJoltBody)
-            .buoyant()
-            .netSync()
-            .customDataSync()
+            .behavior(VxBuoyancyBehavior.ID)
+            .behavior(VxNetSyncBehavior.ID)
+            .behavior(VxSyncBehavior.ID)
             .persistence(MarbleRigidBody::writePersistence, MarbleRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "marble"));
 
@@ -86,16 +91,16 @@ public class VxRegisteredBodies {
     public static final VxBodyType CLOTH = VxBodyType.Builder
             .create(ClothSoftBody::new)
             .softProvider(ClothSoftBody::createJoltBody)
-            .netSync()
-            .customDataSync()
+            .behavior(VxNetSyncBehavior.ID)
+            .behavior(VxSyncBehavior.ID)
             .persistence(ClothSoftBody::writePersistence, ClothSoftBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "cloth"));
 
     public static final VxBodyType ROPE = VxBodyType.Builder
             .create(RopeSoftBody::new)
             .softProvider(RopeSoftBody::createJoltBody)
-            .netSync()
-            .customDataSync()
+            .behavior(VxNetSyncBehavior.ID)
+            .behavior(VxSyncBehavior.ID)
             .persistence(RopeSoftBody::writePersistence, RopeSoftBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "rope"));
 
@@ -104,22 +109,22 @@ public class VxRegisteredBodies {
     public static final VxBodyType CAR = VxBodyType.Builder
             .create(CarImpl::new)
             .rigidProvider(CarImpl::createJoltBody)
-            .buoyant()
-            .netSync()
-            .mountable()
-            .ticking()
-            .customDataSync()
+            .behavior(VxBuoyancyBehavior.ID)
+            .behavior(VxNetSyncBehavior.ID)
+            .behavior(VxMountBehavior.ID)
+            .behavior(VxTickBehavior.ID)
+            .behavior(VxSyncBehavior.ID)
             .persistence(VxWheeledVehicle::writePersistence, VxWheeledVehicle::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "car"));
 
     public static final VxBodyType MOTORCYCLE = VxBodyType.Builder
             .create(MotorcycleImpl::new)
             .rigidProvider(MotorcycleImpl::createJoltBody)
-            .buoyant()
-            .netSync()
-            .mountable()
-            .ticking()
-            .customDataSync()
+            .behavior(VxBuoyancyBehavior.ID)
+            .behavior(VxNetSyncBehavior.ID)
+            .behavior(VxMountBehavior.ID)
+            .behavior(VxTickBehavior.ID)
+            .behavior(VxSyncBehavior.ID)
             .persistence(VxWheeledVehicle::writePersistence, VxWheeledVehicle::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "motorcycle"));
 
@@ -129,9 +134,9 @@ public class VxRegisteredBodies {
             .create(VxChainPartRigidBody::new)
             .noSummon()
             .rigidProvider(VxChainPartRigidBody::createJoltBody)
-            .buoyant()
-            .netSync()
-            .customDataSync()
+            .behavior(VxBuoyancyBehavior.ID)
+            .behavior(VxNetSyncBehavior.ID)
+            .behavior(VxSyncBehavior.ID)
             .persistence(VxChainPartRigidBody::writePersistence, VxChainPartRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "chain_part"));
 
@@ -139,9 +144,9 @@ public class VxRegisteredBodies {
             .create(VxBodyPartRigidBody::new)
             .noSummon()
             .rigidProvider(VxBodyPartRigidBody::createJoltBody)
-            .buoyant()
-            .netSync()
-            .customDataSync()
+            .behavior(VxBuoyancyBehavior.ID)
+            .behavior(VxNetSyncBehavior.ID)
+            .behavior(VxSyncBehavior.ID)
             .persistence(VxBodyPartRigidBody::writePersistence, VxBodyPartRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "body_part"));
 
