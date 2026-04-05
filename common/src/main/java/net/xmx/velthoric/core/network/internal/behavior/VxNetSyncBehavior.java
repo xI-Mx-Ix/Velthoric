@@ -20,6 +20,12 @@ import net.xmx.velthoric.init.VxMainClass;
 public class VxNetSyncBehavior implements VxBehavior {
 
     /**
+     * Default constructor for net sync behavior.
+     */
+    public VxNetSyncBehavior() {
+    }
+
+    /**
      * The unique identifier for this behavior.
      * Consumed by the behavior manager for bitmask allocation and dispatch.
      */

@@ -32,6 +32,12 @@ public class VxRigidPhysicsBehavior implements VxBehavior {
     public static final VxBehaviorId ID = new VxBehaviorId(VxMainClass.MODID, "RigidPhysics");
 
     /**
+     * Default constructor for rigid physics behavior.
+     */
+    public VxRigidPhysicsBehavior() {
+    }
+
+    /**
      * Retrieves the unique identifier for this behavior.
      *
      * @return The behavior ID.

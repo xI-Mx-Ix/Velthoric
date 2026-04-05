@@ -19,6 +19,12 @@ import net.xmx.velthoric.init.VxMainClass;
 public class VxSoftPhysicsBehavior implements VxBehavior {
 
     /**
+     * Default constructor for soft physics behavior.
+     */
+    public VxSoftPhysicsBehavior() {
+    }
+
+    /**
      * The unique identifier for this behavior.
      * Consumed by the behavior manager for bitmask allocation and dispatch.
      */

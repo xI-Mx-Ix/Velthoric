@@ -121,6 +121,9 @@ public class VxSyncBehavior implements VxBehavior {
     /**
      * Logic executed during the client game tick. 
      * Scans for dirty bodies, serializes their changes, and dispatches them to the server.
+     *
+     * @param manager The client body manager.
+     * @param store   The client body data store.
      */
     @Override
     public void onClientTick(VxClientBodyManager manager, VxClientBodyDataStore store) {

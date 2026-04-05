@@ -13,8 +13,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
-import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.mounting.VxMountable;
 import net.xmx.velthoric.core.mounting.entity.VxMountingEntity;
 import net.xmx.velthoric.core.mounting.input.VxMountInput;
@@ -81,6 +81,9 @@ public class VxMountBehavior implements VxBehavior {
      */
     private final Object2ObjectMap<UUID, VxSeat> playerToSeatMap = new Object2ObjectOpenHashMap<>();
 
+    /**
+     * Default constructor.
+     */
     public VxMountBehavior() {
     }
 
@@ -183,35 +186,34 @@ public class VxMountBehavior implements VxBehavior {
                 if (rider.isRemoved() || !rider.isPassenger() || !(rider.getVehicle() instanceof VxMountingEntity)) {
                     playersToStopMounting.add(rider);
                 } else {
-                    // 2. Transformation Logic: Mapping local-space seat to world-space entity.
-                        // Transformation Logic: Mapping local-space seat to world-space entity.
-                        VxSeat seat = this.playerToSeatMap.get(rider.getUUID());
-                        if (seat != null) {
-                            Entity vehicle = rider.getVehicle();
+                    // Transformation Logic: Mapping local-space seat to world-space entity.
+                    VxSeat seat = this.playerToSeatMap.get(rider.getUUID());
+                    if (seat != null) {
+                        Entity vehicle = rider.getVehicle();
 
-                            // Start with the static local seat offset defined in the body type.
-                            Vector3f rideOffset = new Vector3f(seat.getRiderOffset());
+                        // Start with the static local seat offset defined in the body type.
+                        Vector3f rideOffset = new Vector3f(seat.getRiderOffset());
 
-                            // Rotate the local offset vector into world-space orientation using the body's native rotation.
-                            jomlQuat.transform(rideOffset);
+                        // Rotate the local offset vector into world-space orientation using the body's native rotation.
+                        jomlQuat.transform(rideOffset);
 
-                            // Final World-Space Position = Body Center + Rotated Local Offset.
-                            double finalX = pos.x() + rideOffset.x();
-                            double finalY = pos.y() + rideOffset.y();
-                            double finalZ = pos.z() + rideOffset.z();
+                        // Final World-Space Position = Body Center + Rotated Local Offset.
+                        double finalX = pos.x() + rideOffset.x();
+                        double finalY = pos.y() + rideOffset.y();
+                        double finalZ = pos.z() + rideOffset.z();
 
-                            // Update the proxy entity which the player is actually riding.
-                            // By placing the proxy at the seat location, the player appears
-                            // correctly in-seat on both server and client.
-                            vehicle.setPos(finalX, finalY, finalZ);
-                            vehicle.setYRot(yawDegrees);
-                            vehicle.setYHeadRot(yawDegrees);
+                        // Update the proxy entity which the player is actually riding.
+                        // By placing the proxy at the seat location, the player appears
+                        // correctly in-seat on both server and client.
+                        vehicle.setPos(finalX, finalY, finalZ);
+                        vehicle.setYRot(yawDegrees);
+                        vehicle.setYHeadRot(yawDegrees);
 
-                            // Force a network update bit to ensure the client receives the position delta promptly.
-                            vehicle.hurtMarked = true;
-                        } else {
-                            playersToStopMounting.add(rider);
-                        }
+                        // Force a network update bit to ensure the client receives the position delta promptly.
+                        vehicle.hurtMarked = true;
+                    } else {
+                        playersToStopMounting.add(rider);
+                    }
                 }
             }
         }
@@ -371,6 +373,10 @@ public class VxMountBehavior implements VxBehavior {
 
     /**
      * Internal helper to atomically update all tracking maps for a mounting session.
+     *
+     * @param player    The player being registered.
+     * @param physicsId The body the player is mounting.
+     * @param seat      The seat the player is occupying.
      */
     private void registerMountingInternal(ServerPlayer player, UUID physicsId, VxSeat seat) {
         bodyToRidersMap.computeIfAbsent(physicsId, k -> Maps.newHashMap()).put(player.getUUID(), player);
@@ -381,6 +387,10 @@ public class VxMountBehavior implements VxBehavior {
     /**
      * Restores a mapping between a player and a seat.
      * Used primarily when entities load from disk.
+     *
+     * @param player    The player whose session needs restoration.
+     * @param physicsId The ID of the physics body.
+     * @param seatId    The ID of the seat.
      */
     public void restoreMounting(ServerPlayer player, UUID physicsId, UUID seatId) {
         getSeat(physicsId, seatId).ifPresent(seat -> registerMountingInternal(player, physicsId, seat));
@@ -472,6 +482,9 @@ public class VxMountBehavior implements VxBehavior {
 
     /**
      * Specialized lookup to retrieve the current seat assigned to a player.
+     *
+     * @param player The rider.
+     * @return An Optional containing the seat definition.
      */
     public Optional<VxSeat> getSeatForPlayer(ServerPlayer player) {
         return Optional.ofNullable(playerToSeatMap.get(player.getUUID()));

@@ -31,6 +31,12 @@ public class VxPersistenceBehavior implements VxBehavior {
     public static final VxBehaviorId ID = new VxBehaviorId(VxMainClass.MODID, "Persistence");
 
     /**
+     * Default constructor for persistence behavior.
+     */
+    public VxPersistenceBehavior() {
+    }
+
+    /**
      * Retrieves the unique identifier for this behavior.
      *
      * @return The behavior ID.
@@ -40,6 +46,12 @@ public class VxPersistenceBehavior implements VxBehavior {
         return ID;
     }
 
+    /**
+     * Called when this behavior is attached to a body.
+     *
+     * @param index The index of the body in the data store.
+     * @param body  The body instance.
+     */
     @Override
     public void onAttached(int index, VxBody body) {
         // The persistence flag is now tracked via behaviorBits.

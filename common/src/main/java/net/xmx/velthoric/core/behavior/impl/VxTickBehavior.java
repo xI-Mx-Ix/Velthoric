@@ -31,6 +31,12 @@ import net.xmx.velthoric.init.VxMainClass;
 public class VxTickBehavior implements VxBehavior {
 
     /**
+     * Default constructor for the ticking behavior.
+     */
+    public VxTickBehavior() {
+    }
+
+    /**
      * The unique identifier for this behavior.
      * Consumed by the behavior manager for bitmask allocation and dispatch.
      */
@@ -46,6 +52,12 @@ public class VxTickBehavior implements VxBehavior {
         return ID;
     }
 
+    /**
+     * Ticks the entities on the server thread.
+     *
+     * @param level The server level.
+     * @param store The data store.
+     */
     @Override
     public void onServerTick(ServerLevel level, VxServerBodyDataStore store) {
         VxServerBodyDataContainer c = store.serverCurrent();
@@ -62,6 +74,12 @@ public class VxTickBehavior implements VxBehavior {
         }
     }
 
+    /**
+     * Called before the Jolt simulation step.
+     *
+     * @param world The physics world.
+     * @param store The data store.
+     */
     @Override
     public void onPrePhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore store) {
         VxServerBodyDataContainer c = store.serverCurrent();
@@ -79,6 +97,12 @@ public class VxTickBehavior implements VxBehavior {
         }
     }
 
+    /**
+     * Called after the Jolt simulation step.
+     *
+     * @param world The physics world.
+     * @param store The data store.
+     */
     @Override
     public void onPhysicsTick(VxPhysicsWorld world, VxServerBodyDataStore store) {
         VxServerBodyDataContainer c = store.serverCurrent();
