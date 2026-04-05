@@ -15,7 +15,6 @@ import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.shape.VxCollisionShape;
 import net.xmx.velthoric.core.body.shape.VxShapeCodec;
-import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.network.internal.packet.S2CUpdateBodyStateBatchPacket;
 import net.xmx.velthoric.core.network.internal.packet.S2CUpdateShapeBatchPacket;
 import net.xmx.velthoric.core.network.internal.packet.S2CUpdateVerticesBatchPacket;
@@ -256,8 +255,7 @@ public class VxPacketFactory {
                 int idx = indices.getInt(i);
                 wrapped.writeVarInt(c.networkId[idx]);
 
-                VxBody body = c.bodies[idx];
-                VxCollisionShape shape = (body != null) ? body.getShape() : null;
+                VxCollisionShape shape = c.shape[idx];
                 if (shape != null) {
                     rawBuf.writeBoolean(true);
                     VxShapeCodec.write(wrapped, shape);

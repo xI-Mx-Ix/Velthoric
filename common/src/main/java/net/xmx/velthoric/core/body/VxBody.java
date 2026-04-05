@@ -12,11 +12,11 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
-import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataContainer;
+import net.xmx.velthoric.core.body.client.VxClientBodyManager;
+import net.xmx.velthoric.core.body.client.VxRenderState;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.shape.VxCollisionShape;
-import net.xmx.velthoric.core.body.client.VxRenderState;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxClientAccessor;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxDataAccessor;
@@ -54,11 +54,6 @@ public class VxBody {
      * The immutable type definition that describes the properties of this body.
      */
     protected final VxBodyType type;
-
-    /**
-     * The current collision shape of this body, synchronized between server and client.
-     */
-    protected VxCollisionShape shape;
 
     /**
      * The native Jolt Body ID assigned to this instance. Only valid on the server.
@@ -441,7 +436,8 @@ public class VxBody {
      */
     @Nullable
     public VxCollisionShape getShape() {
-        return this.shape;
+        if (this.dataStoreIndex == -1 || this.dataStore == null) return null;
+        return this.dataStore.current().shape[this.dataStoreIndex];
     }
 
     /**
@@ -453,12 +449,16 @@ public class VxBody {
      * @param shape The new collision shape.
      */
     public void setShape(VxCollisionShape shape) {
-        this.shape = shape;
-        if (this.physicsWorld != null && this.dataStoreIndex != -1) {
-            VxServerBodyDataContainer c = (VxServerBodyDataContainer) this.dataStore.current();
-            c.isShapeDirty[this.dataStoreIndex] = true;
+        if (this.dataStoreIndex == -1 || this.dataStore == null) return;
+
+        VxBodyDataContainer c = this.dataStore.current();
+        c.shape[this.dataStoreIndex] = shape;
+
+        if (this.physicsWorld != null) { // Server-side specific dirty flagging
+            VxServerBodyDataContainer sc = (VxServerBodyDataContainer) c;
+            sc.isShapeDirty[this.dataStoreIndex] = true;
             synchronized (this.dataStore) {
-                c.dirtyIndices.add(this.dataStoreIndex);
+                sc.dirtyIndices.add(this.dataStoreIndex);
             }
         }
     }

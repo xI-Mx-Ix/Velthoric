@@ -4,6 +4,8 @@
  */
 package net.xmx.velthoric.core.body;
 
+import net.xmx.velthoric.core.body.shape.VxCollisionShape;
+
 /**
  * A container for the base Structure of Arrays (SoA) physics data.
  * This class is designed to be swapped atomically within a {@link VxBodyDataStore}
@@ -59,6 +61,12 @@ public class VxBodyDataContainer {
      * Per-vertex data for complex collision shapes or rendering (e.g. heightmaps, meshes).
      */
     public final float[][] vertexData;
+
+    /**
+     * The collision shape of the body, synchronized between server and client.
+     */
+    public final VxCollisionShape[] shape;
+
     /**
      * Whether the body is currently active and ticking in the physics simulation.
      */
@@ -95,6 +103,7 @@ public class VxBodyDataContainer {
         this.velY = new float[capacity];
         this.velZ = new float[capacity];
         this.vertexData = new float[capacity][];
+        this.shape = new VxCollisionShape[capacity];
         this.isActive = new boolean[capacity];
         this.behaviorBits = new long[capacity];
         this.bodies = new VxBody[capacity];
