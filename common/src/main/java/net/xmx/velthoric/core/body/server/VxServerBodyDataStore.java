@@ -119,6 +119,7 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
         c.isTransformDirty[index] = false;
         c.isVertexDataDirty[index] = false;
         c.isCustomDataDirty[index] = false;
+        c.isShapeDirty[index] = false;
         c.lastUpdateTimestamp[index] = 0L;
         c.dirtyIndices.remove(index);
     }
@@ -153,6 +154,7 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
             System.arraycopy(old.isTransformDirty, 0, next.isTransformDirty, 0, copyLength);
             System.arraycopy(old.isVertexDataDirty, 0, next.isVertexDataDirty, 0, copyLength);
             System.arraycopy(old.isCustomDataDirty, 0, next.isCustomDataDirty, 0, copyLength);
+            System.arraycopy(old.isShapeDirty, 0, next.isShapeDirty, 0, copyLength);
             System.arraycopy(old.lastUpdateTimestamp, 0, next.lastUpdateTimestamp, 0, copyLength);
             next.dirtyIndices.addAll(old.dirtyIndices);
         }
