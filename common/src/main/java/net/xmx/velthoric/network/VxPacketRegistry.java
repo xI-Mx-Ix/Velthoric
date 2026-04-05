@@ -13,6 +13,7 @@ import net.xmx.velthoric.item.tool.packet.VxToolConfigPacket;
 import net.xmx.velthoric.core.network.internal.packet.S2CRemoveBodyBatchPacket;
 import net.xmx.velthoric.core.network.internal.packet.S2CSpawnBodyBatchPacket;
 import net.xmx.velthoric.core.network.internal.packet.S2CUpdateBodyStateBatchPacket;
+import net.xmx.velthoric.core.network.internal.packet.S2CUpdateShapeBatchPacket;
 import net.xmx.velthoric.core.network.internal.packet.S2CUpdateVerticesBatchPacket;
 import net.xmx.velthoric.core.network.synchronization.packet.C2SSynchronizedDataBatchPacket;
 import net.xmx.velthoric.core.network.synchronization.packet.S2CSynchronizedDataBatchPacket;
@@ -71,6 +72,7 @@ public class VxPacketRegistry {
         registerS2C(S2CRemoveBodyBatchPacket.class, S2CRemoveBodyBatchPacket::decode);
         registerS2C(S2CUpdateBodyStateBatchPacket.class, S2CUpdateBodyStateBatchPacket::decode);
         registerS2C(S2CUpdateVerticesBatchPacket.class, S2CUpdateVerticesBatchPacket::decode);
+        registerS2C(S2CUpdateShapeBatchPacket.class, S2CUpdateShapeBatchPacket::decode);
         registerS2C(VxPhysicsGunSyncPacket.class, VxPhysicsGunSyncPacket::decode);
     }
 

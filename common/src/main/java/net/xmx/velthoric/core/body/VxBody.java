@@ -14,6 +14,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataContainer;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
+import net.xmx.velthoric.core.body.shape.VxCollisionShape;
 import net.xmx.velthoric.core.body.client.VxRenderState;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxClientAccessor;
@@ -52,6 +54,11 @@ public class VxBody {
      * The immutable type definition that describes the properties of this body.
      */
     protected final VxBodyType type;
+
+    /**
+     * The current collision shape of this body, synchronized between server and client.
+     */
+    protected VxCollisionShape shape;
 
     /**
      * The native Jolt Body ID assigned to this instance. Only valid on the server.
@@ -427,5 +434,32 @@ public class VxBody {
      */
     public void setNetworkId(int networkId) {
         this.networkId = networkId;
+    }
+
+    /**
+     * @return The current collision shape, or null if not set.
+     */
+    @Nullable
+    public VxCollisionShape getShape() {
+        return this.shape;
+    }
+
+    /**
+     * Sets the collision shape of this body.
+     * <p>
+     * When called on the server, the shape is marked dirty for network synchronization
+     * so that the change is broadcast to all tracking clients.
+     *
+     * @param shape The new collision shape.
+     */
+    public void setShape(VxCollisionShape shape) {
+        this.shape = shape;
+        if (this.physicsWorld != null && this.dataStoreIndex != -1) {
+            VxServerBodyDataContainer c = (VxServerBodyDataContainer) this.dataStore.current();
+            c.isShapeDirty[this.dataStoreIndex] = true;
+            synchronized (this.dataStore) {
+                c.dirtyIndices.add(this.dataStoreIndex);
+            }
+        }
     }
 }
