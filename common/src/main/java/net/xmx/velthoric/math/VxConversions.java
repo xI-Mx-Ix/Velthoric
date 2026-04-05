@@ -9,6 +9,7 @@ import com.github.stephengold.joltjni.RMat44;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
 import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
@@ -174,26 +175,26 @@ public final class VxConversions {
     }
 
     /**
-     * Converts a JOML {@link Quaternionf} to a Jolt {@link Quat} (single-precision).
+     * Converts a JOML {@link Quaternionfc} to a Jolt {@link Quat} (single-precision).
      * This method creates a new {@link Quat} instance.
      *
-     * @param in The source JOML {@link Quaternionf}.
+     * @param in The source JOML {@link Quaternionfc}.
      * @return A new {@link Quat} instance with the converted values.
      */
-    public static Quat toJolt(Quaternionf in) {
+    public static Quat toJolt(Quaternionfc in) {
         return toJolt(in, new Quat());
     }
 
     /**
-     * Converts a JOML {@link Quaternionf} to a Jolt {@link Quat} (single-precision).
+     * Converts a JOML {@link Quaternionfc} to a Jolt {@link Quat} (single-precision).
      * This method populates a pre-existing {@link Quat} instance for performance.
      *
-     * @param in  The source JOML {@link Quaternionf}.
+     * @param in  The source JOML {@link Quaternionfc}.
      * @param out The target Jolt {@link Quat} to store the result in.
      * @return The populated {@link Quat} (the same instance as {@code out}).
      */
-    public static Quat toJolt(Quaternionf in, Quat out) {
-        out.set(in.x, in.y, in.z, in.w);
+    public static Quat toJolt(Quaternionfc in, Quat out) {
+        out.set(in.x(), in.y(), in.z(), in.w());
         return out;
     }
 
