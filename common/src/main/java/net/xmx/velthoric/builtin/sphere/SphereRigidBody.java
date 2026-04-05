@@ -5,20 +5,19 @@
 package net.xmx.velthoric.builtin.sphere;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.ShapeSettings;
-import com.github.stephengold.joltjni.SphereShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.core.physics.VxPhysicsLayers;
-import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.VxBodyType;
+import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.body.shape.VxSphereShape;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
+import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.network.VxByteBuf;
 
 import java.util.UUID;
 
@@ -54,13 +53,11 @@ public class SphereRigidBody extends VxBody {
     }
 
     public static int createJoltBody(VxBody body, VxRigidBodyFactory factory) {
-        try (
-                ShapeSettings shapeSettings = new SphereShapeSettings(body.get(DATA_RADIUS));
-                BodyCreationSettings bcs = new BodyCreationSettings()
-        ) {
+        VxSphereShape shape = new VxSphereShape(body.get(DATA_RADIUS));
+        try (BodyCreationSettings bcs = new BodyCreationSettings()) {
             bcs.setMotionType(EMotionType.Dynamic);
             bcs.setObjectLayer(VxPhysicsLayers.MOVING);
-            return factory.create(shapeSettings, bcs);
+            return factory.create(shape, bcs);
         }
     }
 

@@ -10,6 +10,7 @@ import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.body.shape.VxSphereShape;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
 import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.network.VxByteBuf;
@@ -55,16 +56,15 @@ public class MarbleRigidBody extends VxBody {
 
     public static int createJoltBody(VxBody body, VxRigidBodyFactory factory) {
         float radius = body.get(DATA_RADIUS);
-        try (
-                ShapeSettings shapeSettings = new SphereShapeSettings(radius);
-                BodyCreationSettings bcs = new BodyCreationSettings()
-        ) {
+        VxSphereShape shape = new VxSphereShape(radius);
+
+        try (BodyCreationSettings bcs = new BodyCreationSettings()) {
             bcs.setMotionType(EMotionType.Dynamic);
             bcs.setObjectLayer(VxPhysicsLayers.MOVING);
             bcs.setRestitution(0.3f);
             bcs.setFriction(0.2f);
 
-            try (var shapeResult = shapeSettings.create(); var shapeRef = shapeResult.get()) {
+            try (ShapeRefC shapeRef = shape.createShapeRef()) {
                 try (MassProperties massProperties = new MassProperties()) {
                     float volume = (float) ((4.0 / 3.0) * Math.PI * radius * radius * radius);
                     massProperties.setMassAndInertiaOfSolidBox(shapeRef.getLocalBounds().getExtent(), DENSITY * volume);
@@ -72,7 +72,7 @@ public class MarbleRigidBody extends VxBody {
                     bcs.setMassPropertiesOverride(massProperties);
                 }
             }
-            return factory.create(shapeSettings, bcs);
+            return factory.create(shape, bcs);
         }
     }
 

@@ -5,7 +5,6 @@
 package net.xmx.velthoric.builtin.block;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -14,17 +13,18 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.core.physics.VxPhysicsLayers;
-import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.VxBodyType;
+import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.body.shape.VxCollisionShape;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.VxBody;
-import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.util.VxVoxelShapeUtil;
+import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
+import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.util.VxVoxelShapeUtil;
 
 import java.util.UUID;
 
@@ -66,22 +66,19 @@ public class BlockRigidBody extends VxBody {
         if (stateForShape.isAir()) stateForShape = Blocks.STONE.defaultBlockState();
 
         VoxelShape voxelShape = stateForShape.getCollisionShape(body.getPhysicsWorld().getLevel(), BlockPos.ZERO);
+        VxCollisionShape shape = VxVoxelShapeUtil.toVxCompoundShape(voxelShape);
 
-        try (ShapeSettings shapeSettings = VxVoxelShapeUtil.toMutableCompoundShape(voxelShape)) {
-            if (shapeSettings == null) {
-                VxMainClass.LOGGER.warn("VoxelShape conversion for BlockState {} failed. Using default BoxShape.", stateForShape);
-                try (var boxSettings = VxVoxelShapeUtil.toMutableCompoundShape(Blocks.STONE.defaultBlockState().getCollisionShape(body.getPhysicsWorld().getLevel(), BlockPos.ZERO));
-                     BodyCreationSettings bcs = new BodyCreationSettings()) {
-                    bcs.setMotionType(EMotionType.Dynamic);
-                    bcs.setObjectLayer(VxPhysicsLayers.MOVING);
-                    return factory.create(boxSettings, bcs);
-                }
-            }
-            try (BodyCreationSettings bcs = new BodyCreationSettings()) {
-                bcs.setMotionType(EMotionType.Dynamic);
-                bcs.setObjectLayer(VxPhysicsLayers.MOVING);
-                return factory.create(shapeSettings, bcs);
-            }
+        if (shape == null) {
+            VxMainClass.LOGGER.warn("VoxelShape conversion for BlockState {} failed. Using default BoxShape.", stateForShape);
+            shape = VxVoxelShapeUtil.toVxCompoundShape(
+                    Blocks.STONE.defaultBlockState().getCollisionShape(body.getPhysicsWorld().getLevel(), BlockPos.ZERO)
+            );
+        }
+
+        try (BodyCreationSettings bcs = new BodyCreationSettings()) {
+            bcs.setMotionType(EMotionType.Dynamic);
+            bcs.setObjectLayer(VxPhysicsLayers.MOVING);
+            return factory.create(shape, bcs);
         }
     }
 

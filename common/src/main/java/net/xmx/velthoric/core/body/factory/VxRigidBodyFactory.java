@@ -5,8 +5,8 @@
 package net.xmx.velthoric.core.body.factory;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.Jolt;
+import net.xmx.velthoric.core.body.shape.VxCollisionShape;
 
 /**
  * A functional interface that serves as a factory for creating Jolt rigid bodies.
@@ -18,13 +18,13 @@ import com.github.stephengold.joltjni.Jolt;
 @FunctionalInterface
 public interface VxRigidBodyFactory {
     /**
-     * Creates a Jolt body from the given settings and adds it to the physics world.
+     * Creates a Jolt body from the given collision shape and adds it to the physics world.
      * The implementation of this method (within VxServerBodyManager) is responsible for
      * the proper resource management of the Jolt objects.
      *
-     * @param shapeSettings The settings for the geometric shape.
-     * @param bodySettings  The settings for the physical properties.
+     * @param shape        The collision shape wrapper describing the geometry.
+     * @param bodySettings The settings for the physical properties.
      * @return The Jolt body ID of the created body, or {@link Jolt#cInvalidBodyId} on failure.
      */
-    int create(ShapeSettings shapeSettings, BodyCreationSettings bodySettings);
+    int create(VxCollisionShape shape, BodyCreationSettings bodySettings);
 }
