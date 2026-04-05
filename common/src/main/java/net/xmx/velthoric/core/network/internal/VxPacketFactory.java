@@ -11,8 +11,8 @@ import io.netty.buffer.PooledByteBufAllocator;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
-import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.shape.VxCollisionShape;
 import net.xmx.velthoric.core.body.shape.VxShapeCodec;
 import net.xmx.velthoric.core.network.internal.packet.S2CUpdateBodyStateBatchPacket;
@@ -111,12 +111,12 @@ public class VxPacketFactory {
                 int idx = indices.getInt(i);
 
                 rawBuf.writeInt(c.networkId[idx]);
-                
+
                 // Relative positions are sent as floats to save bandwidth (double -> float precision loss is acceptable for rendering relative to chunk)
                 rawBuf.writeFloat((float) (c.posX[idx] - chunkBaseX));
                 rawBuf.writeFloat((float) (c.posY[idx] - chunkBaseY));
                 rawBuf.writeFloat((float) (c.posZ[idx] - chunkBaseZ));
-                
+
                 // Rotations (quaternion)
                 rawBuf.writeFloat(c.rotX[idx]);
                 rawBuf.writeFloat(c.rotY[idx]);
@@ -125,7 +125,7 @@ public class VxPacketFactory {
 
                 boolean active = c.isActive[idx];
                 rawBuf.writeBoolean(active);
-                
+
                 // Only send velocity if the body is active/awake
                 if (active) {
                     rawBuf.writeFloat(c.velX[idx]);
@@ -156,7 +156,7 @@ public class VxPacketFactory {
      */
     public S2CUpdateVerticesBatchPacket createVertexPacket(long chunkPosLong, IntArrayList indices) {
         // Estimate size: Header + approx 128 bytes per soft body (variable)
-        ByteBuf rawBuf = ALLOCATOR.directBuffer(16 + indices.size() * 128); 
+        ByteBuf rawBuf = ALLOCATOR.directBuffer(16 + indices.size() * 128);
 
         try {
             rawBuf.writeInt(indices.size());
@@ -166,7 +166,7 @@ public class VxPacketFactory {
             for (int i = 0; i < indices.size(); i++) {
                 int idx = indices.getInt(i);
                 rawBuf.writeInt(c.networkId[idx]);
-                
+
                 float[] vData = c.vertexData[idx];
                 if (vData != null && vData.length > 0) {
                     rawBuf.writeBoolean(true);
@@ -203,7 +203,7 @@ public class VxPacketFactory {
         int maxCompressedLen = (int) Zstd.compressBound(uncompressedLen);
 
         ByteBuf dest = ALLOCATOR.directBuffer(maxCompressedLen);
-        
+
         // Use NIO buffers for Zstd-JNI to avoid array copies.
         // nioBuffer() returns a wrapper, it does NOT copy the memory.
         ByteBuffer srcNio = source.nioBuffer(source.readerIndex(), uncompressedLen);
@@ -211,15 +211,15 @@ public class VxPacketFactory {
 
         // Perform compression directly in native memory
         long compressedSize = Zstd.compressDirectByteBuffer(
-            dstNio, 
-            0, // dst offset
-            maxCompressedLen, // dst size
-            srcNio, 
-            0, // src offset
-            uncompressedLen, // src size
-            ZSTD_COMPRESSION_LEVEL
+                dstNio,
+                0, // dst offset
+                maxCompressedLen, // dst size
+                srcNio,
+                0, // src offset
+                uncompressedLen, // src size
+                ZSTD_COMPRESSION_LEVEL
         );
-        
+
         if (Zstd.isError(compressedSize)) {
             dest.release(); // Prevent leak on error
             throw new RuntimeException("Compression failed: " + Zstd.getErrorName(compressedSize));
