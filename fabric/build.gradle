@@ -115,13 +115,9 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             artifactId = base.archivesName.get()
-            from components.java
 
-            // Filters out development and shadow artifacts to reduce file size
-            // and ensure only the production jar is published.
-            artifacts.removeAll { artifact ->
-                artifact.classifier in ['dev', 'shadow', 'dev-shadow']
-            }
+            artifact(tasks.named("remapJar"))
+            artifact(tasks.named("remapSourcesJar"))
         }
     }
 }
