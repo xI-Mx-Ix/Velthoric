@@ -17,6 +17,7 @@ import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.core.ragdoll.body.VxBodyPartRigidBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.service.IVxPhysicsService;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
@@ -26,10 +27,12 @@ import java.util.Map;
  * Manages the creation and lifecycle of ragdolls within a physics world.
  * This class handles spawning the individual rigid bodies for each body part
  * and connecting them with appropriate constraints to simulate ragdoll physics.
+ * <p>
+ * This system is registered as an {@link IVxPhysicsService} within the physics world.
  *
  * @author xI-Mx-Ix
  */
-public class VxRagdollManager {
+public class VxRagdollManager implements IVxPhysicsService {
 
     private final VxPhysicsWorld world;
     private final VxServerBodyManager bodyManager;
@@ -39,6 +42,11 @@ public class VxRagdollManager {
         this.world = world;
         this.bodyManager = world.getBodyManager();
         this.constraintManager = world.getConstraintManager();
+    }
+
+    @Override
+    public String getIdentification() {
+        return "RagdollManager";
     }
 
     /**

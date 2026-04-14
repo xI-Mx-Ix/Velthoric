@@ -64,7 +64,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxServerBodyManager bodyManager;
     private final VxConstraintManager constraintManager;
     private final VxTerrainSystem terrainSystem;
-    private final VxRagdollManager ragdollManager;
 
     private final VxServiceManager serviceManager;
 
@@ -86,9 +85,9 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.bodyManager = new VxServerBodyManager(this);
         this.constraintManager = new VxConstraintManager(this.bodyManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
-        this.ragdollManager = new VxRagdollManager(this);
 
-        this.serviceManager = new VxServiceManager(this,level);
+        this.serviceManager = new VxServiceManager(this, level);
+        this.serviceManager.registerService(new VxRagdollManager(this));
     }
 
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
@@ -319,10 +318,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return this.terrainSystem;
     }
 
-    public VxRagdollManager getRagdollManager() {
-        return this.ragdollManager;
-    }
-
     public ServerLevel getLevel() {
         return this.level;
     }
@@ -366,11 +361,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return world != null ? world.getTerrainSystem() : null;
     }
 
-    @Nullable
-    public static VxRagdollManager getRagdollManager(ResourceKey<Level> dimensionKey) {
-        VxPhysicsWorld world = get(dimensionKey);
-        return world != null ? world.getRagdollManager() : null;
-    }
 
     /**
      * Retrieves a specific physics service for the given dimension.
