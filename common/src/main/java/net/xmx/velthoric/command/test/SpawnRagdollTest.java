@@ -64,7 +64,7 @@ public final class SpawnRagdollTest implements IVxTestCommand {
         }
 
         // Access the ragdoll manager and request the creation of a humanoid ragdoll.
-        VxRagdollManager ragdollManager = world.getRagdollManager();
+        VxRagdollManager ragdollManager = world.getService(VxRagdollManager.class);
         if (ragdollManager != null) {
             // Convert Minecraft's Vec3 to Jolt's RVec3 for the physics engine.
             RVec3 joltSpawnPos = new RVec3((float) spawnPos.x, (float) spawnPos.y, (float) spawnPos.z);
