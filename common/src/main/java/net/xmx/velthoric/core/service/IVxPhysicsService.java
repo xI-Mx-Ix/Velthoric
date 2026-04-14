@@ -32,7 +32,9 @@ public interface IVxPhysicsService {
      *
      * @return The unique service identification string.
      */
-    String getIdentification();
+    default String getIdentification() {
+        return "";
+    }
 
     /**
      * Called during the initialization phase of the physics world.
@@ -40,7 +42,8 @@ public interface IVxPhysicsService {
      * <p>
      * <b>Threading:</b> Called from the Main Server Thread.
      */
-    void initialize();
+    default void initialize() {
+    }
 
     /**
      * Called during the shutdown sequence of the physics world.
@@ -48,7 +51,8 @@ public interface IVxPhysicsService {
      * <p>
      * <b>Threading:</b> Called from the Main Server Thread.
      */
-    void shutdown();
+    default void shutdown() {
+    }
 
     /**
      * Optional: Invoked at the start of each physics simulation frame.
