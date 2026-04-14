@@ -53,7 +53,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private static final float speculativeContactDistance = 0.02f;
     private static final float baumgarteFactor = 0.2f;
     private static final float penetrationSlop = 0.001f;
-    private static final float timeBeforeSleep = 0.2f;
+    private static final float timeBeforeSleep = 1f;
     private static final float pointVelocitySleepThreshold = 0.005f;
     private static final float gravityY = -9.81f;
     private static final int tempAllocatorSize = 64 * 1024 * 1024; // 64MB
