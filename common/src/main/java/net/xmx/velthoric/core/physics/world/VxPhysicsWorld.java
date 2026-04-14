@@ -79,6 +79,11 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private float timeAccumulator = 0.0f;
     private long lastTimeNanos = 0L;
 
+    static {
+        // Register built-in Velthoric services
+        VxServiceManager.registerFactory(VxRagdollManager::new);
+    }
+
     private VxPhysicsWorld(ServerLevel level) {
         this.level = level;
         this.dimensionKey = level.dimension();
@@ -87,7 +92,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.terrainSystem = new VxTerrainSystem(this, this.level);
 
         this.serviceManager = new VxServiceManager(this, level);
-        this.serviceManager.registerService(new VxRagdollManager(this));
     }
 
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
