@@ -14,16 +14,43 @@ import java.util.function.Supplier;
 
 /**
  * High-performance service registry for optional physics subsystems.
+ * <p>
+ * This manager provides a thread-safe, lock-free (for reads) registry for {@link IVxPhysicsService} implementations.
+ * It allows decoupled systems to interact with the physics world without being hard-coded into the core managers.
+ * Responsibilities include:
+ * <ul>
+ *     <li><b>Service Discovery:</b> Efficient lookups for registered physics services via class-based keys.</li>
+ *     <li><b>Lifecycle Management:</b> Coordinating initialization and shutdown sequences for all registered subsystems.</li>
+ *     <li><b>Event Dispatching:</b> Routing physics and game thread ticks to active services.</li>
+ *     <li><b>Concurrency:</b> Ensuring safe access to services across multiple threads using a copy-on-write registry.</li>
+ * </ul>
  *
- * @author LOLAtom
+ * @author xI-Mx-Ix
  */
 public class VxServiceManager {
 
+    /**
+     * Map of registered service classes to their singleton instances.
+     * Uses a copy-on-write strategy with a volatile reference for O(1) lock-free reads.
+     */
     private volatile Object2ObjectOpenHashMap<Class<? extends IVxPhysicsService>, IVxPhysicsService> services;
 
+    /**
+     * The physics world instance these services are associated with.
+     */
     private final VxPhysicsWorld physicsWorld;
+
+    /**
+     * The Minecraft server level this manager operates within.
+     */
     private final ServerLevel level;
 
+    /**
+     * Constructs a new service manager for the specified world and level.
+     *
+     * @param physicsWorld The physics world instance this manager belongs to.
+     * @param level        The Minecraft server level.
+     */
     public VxServiceManager(VxPhysicsWorld physicsWorld, ServerLevel level) {
         this.physicsWorld = physicsWorld;
         this.level = level;
@@ -276,14 +303,23 @@ public class VxServiceManager {
         }
     }
 
+    /**
+     * @return The physics world instance managed by this manager.
+     */
     public VxPhysicsWorld getPhysicsWorld() {
         return physicsWorld;
     }
 
+    /**
+     * @return The Minecraft server level this manager is associated with.
+     */
     public ServerLevel getLevel() {
         return level;
     }
 
+    /**
+     * @return The total number of currently registered services.
+     */
     public int getServiceCount() {
         Object2ObjectOpenHashMap<Class<? extends IVxPhysicsService>, IVxPhysicsService> map = services;
         return map != null ? map.size() : 0;

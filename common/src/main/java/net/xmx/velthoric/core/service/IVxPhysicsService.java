@@ -11,63 +11,77 @@ import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
  * Base interface for optional physics subsystem services.
  * <p>
  * Services registered with {@link VxServiceManager} must implement this interface.
- * Core managers (bodies, constraints, etc.) should remain as direct fields
- * in VxPhysicsWorld for maximum performance.
+ * These subsystems allow for extending the physics engine's functionality with global systems
+ * (e.g., custom spatial querying, specialized debugging subsystems, or third-party integrations)
+ * in a modular fashion.
+ * <p>
+ * <b>Note:</b> For logic that applies to specific physics bodies (like buoyancy, aerodynamics, or engines),
+ * use the {@code VxBehavior} system instead.
+ * <p>
+ * <b>Performance Note:</b> Core managers (bodies, constraints, etc.) remain as direct fields in
+ * {@link VxPhysicsWorld} for maximum cache efficiency and reduced pointer indirection. High-frequency
+ * logic within these services should prioritize SoA data access where possible.
  *
- * @author LOLAtom
+ * @author xI-Mx-Ix
  */
 public interface IVxPhysicsService {
 
     /**
      * Returns a unique identifier for this service type.
-     * Used for debugging and logging.
+     * This identifier is used for debugging, logging, and potentially networking.
      *
-     * @return The service identification string.
+     * @return The unique service identification string.
      */
     String getIdentification();
 
     /**
-     * Called when the physics world is initializing.
-     * Use this to set up resources, register events, etc.
+     * Called during the initialization phase of the physics world.
+     * Use this to allocate resources, register listeners, or perform initial state setup.
      * <p>
-     * Called from: Server thread, during {@code VxPhysicsWorld.initializeAndStart()}
+     * <b>Threading:</b> Called from the Main Server Thread.
      */
     void initialize();
 
     /**
-     * Called when the physics world is shutting down.
-     * Use this to clean up resources, unregister events, etc.
+     * Called during the shutdown sequence of the physics world.
+     * Implementations must release all resources and unregister any hooks to prevent memory leaks.
      * <p>
-     * Called from: Server thread, during {@code VxPhysicsWorld.shutdown()}
+     * <b>Threading:</b> Called from the Main Server Thread.
      */
     void shutdown();
 
     /**
-     * Optional: Called before each physics simulation step.
+     * Optional: Invoked at the start of each physics simulation frame.
+     * Useful for applying forces or modifying body states before Jolt performs the integration step.
      * <p>
-     * Called from: Physics thread, at 60Hz
+     * <b>Threading:</b> Called from the Physics Thread (High Frequency: 60Hz default).
      *
-     * @implSpec Default implementation does nothing.
+     * @param world The physics world instance being simulated.
+     * @implSpec The default implementation is a no-op.
      */
     default void onPrePhysicsTick(VxPhysicsWorld world) {
     }
 
     /**
-     * Optional: Called after each physics simulation step.
+     * Optional: Invoked after each physics simulation frame has completed.
+     * Useful for post-processing results, updating custom spatial indexes, or triggering collision callbacks.
      * <p>
-     * Called from: Physics thread, at 60Hz
+     * <b>Threading:</b> Called from the Physics Thread (High Frequency: 60Hz default).
      *
-     * @implSpec Default implementation does nothing.
+     * @param world The physics world instance that was just simulated.
+     * @implSpec The default implementation is a no-op.
      */
     default void onPhysicsTick(VxPhysicsWorld world) {
     }
 
     /**
-     * Optional: Called on game tick (server thread, not physics thread).
+     * Optional: Invoked once per Minecraft game tick.
+     * Useful for synchronization between the physics world and the Minecraft level (e.g., entity spawning, block updates).
      * <p>
-     * Called from: Server thread, at 20Hz (Minecraft tick rate)
+     * <b>Threading:</b> Called from the Main Server Thread (Frequency: 20Hz).
      *
-     * @implSpec Default implementation does nothing.
+     * @param level The Minecraft server level associated with the physics world.
+     * @implSpec The default implementation is a no-op.
      */
     default void onGameTick(ServerLevel level) {
     }

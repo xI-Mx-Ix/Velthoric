@@ -373,11 +373,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     /**
-     * This method allow you to get a Service for later Use
-     * @param dimensionKey is for the dimension you are checking
-     * @param clazz the class of the service you are getting
-     * @return the service you are asking for
-     * @param <T> any class that extends {@link IVxPhysicsService}
+     * Retrieves a specific physics service for the given dimension.
+     *
+     * @param dimensionKey The registry key of the dimension.
+     * @param clazz        The class type of the service to retrieve.
+     * @param <T>          The service type.
+     * @return The service instance, or null if not registered or if the world is missing.
      */
     @Nullable
     public static <T extends IVxPhysicsService> T getService(ResourceKey<Level> dimensionKey, Class<T> clazz) {
@@ -386,11 +387,13 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     /**
-     * This method allow you to register a Service to integrate your own systems to Velthorics PhysicsWorld
-     * @param dimensionKey is for the dimension you are checking
-     * @param service is for the service you are registering
-     * @return the service you registered
-     * @param <T> any class that extends {@link IVxPhysicsService}
+     * Registers a physics service for a specific dimension.
+     * This allows integrating custom subsystems into the physics world lifecycle.
+     *
+     * @param dimensionKey The registry key of the dimension.
+     * @param service      The service instance to register.
+     * @param <T>          The service type.
+     * @return The registered service instance, or null if the world is missing.
      */
     @Nullable
     public static <T extends IVxPhysicsService> T registerService(ResourceKey<Level> dimensionKey, T service) {
@@ -401,22 +404,23 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     @Nullable
     public static <T extends IVxPhysicsService> T getServiceOrDefault(ResourceKey<Level> dimensionKey, Class<T> clazz, T defaultValue) {
         VxPhysicsWorld world = get(dimensionKey);
-        return world != null ? world.getServiceOrDefault(clazz,defaultValue) : null;
+        return world != null ? world.getServiceOrDefault(clazz, defaultValue) : null;
     }
 
     @Nullable
     public static <T extends IVxPhysicsService> T getServiceOrCreate(ResourceKey<Level> dimensionKey, Class<T> clazz, Supplier<T> creator) {
         VxPhysicsWorld world = get(dimensionKey);
-        return world != null ? world.getServiceOrCreate(clazz,creator) : null;
+        return world != null ? world.getServiceOrCreate(clazz, creator) : null;
     }
 
     /**
-     * Check if level has a certain service
-     * @param dimensionKey is for the dimension you are checking
-     * @param clazz is the class of the service you are checking presence of
-     * @return if yes or not a service is currently present in asked level
+     * Checks if a specific dimension has a registered physics service.
+     *
+     * @param dimensionKey The registry key of the dimension.
+     * @param clazz        The service class to check.
+     * @return True if the service is present, false otherwise.
      */
-    public static boolean hasService(ResourceKey<Level> dimensionKey,Class<? extends IVxPhysicsService> clazz) {
+    public static boolean hasService(ResourceKey<Level> dimensionKey, Class<? extends IVxPhysicsService> clazz) {
         VxPhysicsWorld world = get(dimensionKey);
         return world != null && world.hasService(clazz);
     }
@@ -425,6 +429,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return this.serviceManager;
     }
 
+    @Nullable
     public <T extends IVxPhysicsService> T getService(Class<T> clazz) {
         return this.serviceManager.getService(clazz);
     }
