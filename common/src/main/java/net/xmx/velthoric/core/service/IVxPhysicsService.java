@@ -22,6 +22,7 @@ import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
  * {@link VxPhysicsWorld} for maximum cache efficiency and reduced pointer indirection. High-frequency
  * logic within these services should prioritize SoA data access where possible.
  *
+ * @author LOLAtom
  * @author xI-Mx-Ix
  */
 public interface IVxPhysicsService {

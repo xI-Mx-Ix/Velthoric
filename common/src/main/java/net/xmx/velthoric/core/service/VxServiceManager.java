@@ -25,6 +25,7 @@ import java.util.function.Supplier;
  *     <li><b>Concurrency:</b> Ensuring safe access to services across multiple threads using a copy-on-write registry.</li>
  * </ul>
  *
+ * @author LOLAtom
  * @author xI-Mx-Ix
  */
 public class VxServiceManager {
