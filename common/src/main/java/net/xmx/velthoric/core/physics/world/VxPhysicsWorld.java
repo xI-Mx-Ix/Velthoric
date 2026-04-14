@@ -13,6 +13,8 @@ import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.core.physics.VxPhysicsBootstrap;
 import net.xmx.velthoric.core.ragdoll.VxRagdollManager;
+import net.xmx.velthoric.core.services.IPhysicsService;
+import net.xmx.velthoric.core.services.ServiceManager;
 import net.xmx.velthoric.core.terrain.VxTerrainSystem;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.util.VxFrameTimer;
@@ -24,6 +26,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
+import java.util.function.Supplier;
 
 /**
  * Manages the entire physics simulation for a single Minecraft dimension.
@@ -50,7 +53,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private static final float speculativeContactDistance = 0.02f;
     private static final float baumgarteFactor = 0.2f;
     private static final float penetrationSlop = 0.001f;
-    private static final float timeBeforeSleep = 1.0f;
+    private static final float timeBeforeSleep = 0.2f;
     private static final float pointVelocitySleepThreshold = 0.005f;
     private static final float gravityY = -9.81f;
     private static final int tempAllocatorSize = 64 * 1024 * 1024; // 64MB
@@ -61,6 +64,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxConstraintManager constraintManager;
     private final VxTerrainSystem terrainSystem;
     private final VxRagdollManager ragdollManager;
+
+    private final ServiceManager serviceManager;
 
     private final VxFrameTimer physicsFrameTimer = new VxFrameTimer();
 
@@ -81,6 +86,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.constraintManager = new VxConstraintManager(this.bodyManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
         this.ragdollManager = new VxRagdollManager(this);
+
+        this.serviceManager = new ServiceManager(this,level);
     }
 
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
@@ -116,6 +123,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.bodyManager.initialize();
         this.constraintManager.initialize();
         this.terrainSystem.initialize();
+
+        this.serviceManager.initialize();
 
         this.isRunning = true;
         String threadName = "Velthoric Physics Thread - " + dimensionKey.location().getPath().replace('/', '_');
@@ -199,15 +208,18 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public void onPrePhysicsTick() {
         this.bodyManager.onPrePhysicsTick(this);
+        this.serviceManager.onPrePhysicsTick(this);
     }
 
 
     public void onPhysicsTick() {
         this.bodyManager.onPhysicsTick(this);
+        this.serviceManager.onPhysicsTick(this);
     }
 
     public void onGameTick(ServerLevel level) {
         this.bodyManager.onGameTick(level);
+        this.serviceManager.onGameTick(level);
     }
 
     private void processCommandQueue() {
@@ -261,6 +273,9 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
         if (this.bodyManager != null) {
             this.bodyManager.shutdown();
+        }
+        if (this.serviceManager != null) {
+            this.serviceManager.shutdown();
         }
     }
 
@@ -354,6 +369,85 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     public static VxRagdollManager getRagdollManager(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
         return world != null ? world.getRagdollManager() : null;
+    }
+
+    /**
+     * This method allow you to get a Service for later Use
+     * @param dimensionKey is for the dimension you are checking
+     * @param clazz the class of the service you are getting
+     * @return the service you are asking for
+     * @param <T> any class that extends {@link IPhysicsService}
+     *
+     * @author LOLAtom
+     */
+    @Nullable
+    public static <T extends IPhysicsService> T getService(ResourceKey<Level> dimensionKey,Class<T> clazz) {
+        VxPhysicsWorld world = get(dimensionKey);
+        return world != null ? world.getService(clazz) : null;
+    }
+
+    /**
+     * This method allow you to register a Service to integrate your own systems to Velthorics PhysicsWorld
+     * @param dimensionKey is for the dimension you are checking
+     * @param service is for the service you are registering
+     * @return the service you registered
+     * @param <T> any class that extends {@link IPhysicsService}
+     *
+     * @author LOLAtom
+     */
+    @Nullable
+    public static <T extends IPhysicsService> T registerService(ResourceKey<Level> dimensionKey,T service) {
+        VxPhysicsWorld world = get(dimensionKey);
+        return world != null ? world.registerService(service) : null;
+    }
+
+    @Nullable
+    public static <T extends IPhysicsService> T getServiceOrDefault(ResourceKey<Level> dimensionKey, Class<T> clazz, T defaultValue) {
+        VxPhysicsWorld world = get(dimensionKey);
+        return world != null ? world.getServiceOrDefault(clazz,defaultValue) : null;
+    }
+
+    @Nullable
+    public static <T extends IPhysicsService> T getServiceOrCreate(ResourceKey<Level> dimensionKey,Class<T> clazz, Supplier<T> creator) {
+        VxPhysicsWorld world = get(dimensionKey);
+        return world != null ? world.getServiceOrCreate(clazz,creator) : null;
+    }
+
+    /**
+     * Check if level has a certain service
+     * @param dimensionKey is for the dimension you are checking
+     * @param clazz is the class of the service you are checking presence of
+     * @return if yes or not a service is currently present in asked level
+     *
+     * @author LOLAtom
+     */
+    public static boolean hasService(ResourceKey<Level> dimensionKey,Class<? extends IPhysicsService> clazz) {
+        VxPhysicsWorld world = get(dimensionKey);
+        return world != null && world.hasService(clazz);
+    }
+
+    public ServiceManager getServiceManager() {
+        return this.serviceManager;
+    }
+
+    public <T extends IPhysicsService> T getService(Class<T> clazz) {
+        return this.serviceManager.getService(clazz);
+    }
+
+    public <T extends IPhysicsService> T registerService(T service) {
+        return this.serviceManager.registerService(service);
+    }
+
+    public <T extends IPhysicsService> T getServiceOrDefault(Class<T> clazz, T defaultValue) {
+        return this.serviceManager.getServiceOrDefault(clazz, defaultValue);
+    }
+
+    public <T extends IPhysicsService> T getServiceOrCreate(Class<T> clazz, Supplier<T> creator) {
+        return this.serviceManager.getServiceOrCreate(clazz, creator);
+    }
+
+    public boolean hasService(Class<? extends IPhysicsService> clazz) {
+        return this.serviceManager.hasService(clazz);
     }
 
     public static Collection<VxPhysicsWorld> getAll() {
