@@ -407,6 +407,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return world != null ? world.getServiceOrCreate(clazz, creator) : null;
     }
 
+    @SafeVarargs
+    public final <T extends IVxPhysicsService> T[] registerServices(ResourceKey<Level> dimensionKey, T... services) {
+        VxPhysicsWorld world = get(dimensionKey);
+        return world != null ? this.serviceManager.registerServices(services) : null;
+    }
+
     /**
      * Checks if a specific dimension has a registered physics service.
      *
@@ -430,6 +436,11 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public <T extends IVxPhysicsService> T registerService(T service) {
         return this.serviceManager.registerService(service);
+    }
+
+    @SafeVarargs
+    public final <T extends IVxPhysicsService> T[] registerServices(T... services) {
+        return this.serviceManager.registerServices(services);
     }
 
     public <T extends IVxPhysicsService> T getServiceOrDefault(Class<T> clazz, T defaultValue) {

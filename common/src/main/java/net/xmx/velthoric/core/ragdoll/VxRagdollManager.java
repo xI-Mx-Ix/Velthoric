@@ -49,6 +49,11 @@ public class VxRagdollManager implements IVxPhysicsService {
         return "RagdollManager";
     }
 
+    @Override
+    public int getCapabilities() {
+        return 0;
+    }
+
     /**
      * Creates a humanoid ragdoll based on the state of a living entity at a specific world position.
      * The ragdoll is spawned with the entity's Yaw orientation but remains upright (no Pitch),

@@ -27,14 +27,53 @@ import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
  */
 public interface IVxPhysicsService {
 
+    /** Service implements {@link #onPrePhysicsTick}
+     * bit for onPrePhysicsTick to be called or not
+     **/
+    int CAP_PRE_TICK = 1 << 0;
+
+    /** Service implements {@link #onPhysicsTick}
+     * bit for onPhysicsTick to be called or not
+     **/
+    int CAP_PHYSICS_TICK = 1 << 1;
+
+    /** Service implements {@link #onGameTick}
+     * bit for onGameTick to be called or not
+     **/
+    int CAP_GAME_TICK = 1 << 2;
+
+    //TODO:Add more (if needed) and make it a long instead of an int if you ever see the use to
+
+    /**
+     * All Capabilities Enabled, allow for :
+     * {@link #onPrePhysicsTick}
+     * {@link #onPhysicsTick}
+     * {@link #onGameTick}
+     * to all be called
+     **/
+    int CAP_ALL = CAP_PRE_TICK | CAP_PHYSICS_TICK | CAP_GAME_TICK;
+
+
     /**
      * Returns a unique identifier for this service type.
-     * This identifier is used for debugging, logging, and potentially networking.
+     * Used for debugging, logging, and networking.
      *
      * @return The unique service identification string.
      */
     default String getIdentification() {
-        return "";
+        return this.getClass().getSimpleName();
+    }
+
+    /**
+     * Returns a bitmask of which tick phases this service implements.
+     * <p>
+     * Override to skip unused phases and reduce virtual dispatch overhead.
+     * Default: all phases enabled (for backwards compatibility).
+     *
+     * @return Bitmask of {@code CAP_} flags.
+     */
+    default int getCapabilities() {
+        return CAP_ALL;
     }
 
     /**
@@ -42,52 +81,52 @@ public interface IVxPhysicsService {
      * Use this to allocate resources, register listeners, or perform initial state setup.
      * <p>
      * <b>Threading:</b> Called from the Main Server Thread.
+     * <br><b>Performance:</b> May allocate; called once per world lifetime.
      */
-    default void initialize() {
-    }
+    default void initialize() {}
 
     /**
      * Called during the shutdown sequence of the physics world.
      * Implementations must release all resources and unregister any hooks to prevent memory leaks.
      * <p>
      * <b>Threading:</b> Called from the Main Server Thread.
+     * <br><b>Performance:</b> May allocate; called once per world lifetime.
      */
-    default void shutdown() {
-    }
+    default void shutdown() {}
 
     /**
      * Optional: Invoked at the start of each physics simulation frame.
      * Useful for applying forces or modifying body states before Jolt performs the integration step.
      * <p>
      * <b>Threading:</b> Called from the Physics Thread (High Frequency: 60Hz default).
+     * <br><b>Performance Contract:</b> MUST NOT allocate memory.
      *
      * @param world The physics world instance being simulated.
      * @implSpec The default implementation is a no-op.
      */
-    default void onPrePhysicsTick(VxPhysicsWorld world) {
-    }
+    default void onPrePhysicsTick(VxPhysicsWorld world) {}
 
     /**
      * Optional: Invoked after each physics simulation frame has completed.
      * Useful for post-processing results, updating custom spatial indexes, or triggering collision callbacks.
      * <p>
      * <b>Threading:</b> Called from the Physics Thread (High Frequency: 60Hz default).
+     * <br><b>Performance Contract:</b> MUST NOT allocate memory.
      *
      * @param world The physics world instance that was just simulated.
      * @implSpec The default implementation is a no-op.
      */
-    default void onPhysicsTick(VxPhysicsWorld world) {
-    }
+    default void onPhysicsTick(VxPhysicsWorld world) {}
 
     /**
      * Optional: Invoked once per Minecraft game tick.
      * Useful for synchronization between the physics world and the Minecraft level (e.g., entity spawning, block updates).
      * <p>
      * <b>Threading:</b> Called from the Main Server Thread (Frequency: 20Hz).
+     * <br><b>Performance:</b> May allocate; lower frequency than physics ticks.
      *
      * @param level The Minecraft server level associated with the physics world.
      * @implSpec The default implementation is a no-op.
      */
-    default void onGameTick(ServerLevel level) {
-    }
+    default void onGameTick(ServerLevel level) {}
 }
