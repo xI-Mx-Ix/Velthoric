@@ -131,8 +131,13 @@ public class VxPacketFactory {
             }
 
             // Compress directly from rawBuf to a new compressedBuf using Zstd
-            return new S2CUpdateBodyStateBatchPacket(compressDirect(rawBuf));
+            ByteBuf compressed = compressDirect(rawBuf);
 
+            byte[] data = new byte[compressed.readableBytes()];
+            compressed.readBytes(data);
+            compressed.release();
+
+            return new S2CUpdateBodyStateBatchPacket(data);
         } finally {
             // Ensure the raw buffer is returned to the pool immediately after compression.
             // This is crucial for the "Zero Allocation" strategy to work (recycling memory).

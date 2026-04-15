@@ -9,11 +9,11 @@ import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.minecraft.world.level.ChunkPos;
-import net.xmx.velthoric.network.IVxNetPacket;
-import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataContainer;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataStore;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
+import net.xmx.velthoric.network.IVxNetPacket;
+import net.xmx.velthoric.network.VxByteBuf;
 
 import java.nio.ByteBuffer;
 
@@ -40,7 +40,7 @@ public class S2CUpdateBodyStateBatchPacket implements IVxNetPacket {
     /**
      * The compressed binary payload. On Server, this is a Pooled Direct Buffer. On Client, it's a slice of the network buffer.
      */
-    private final ByteBuf data;
+    private final byte[] data;
 
     /**
      * Server-side constructor wrapping a pre-built compressed payload.
@@ -48,7 +48,7 @@ public class S2CUpdateBodyStateBatchPacket implements IVxNetPacket {
      *
      * @param data The compressed Zstd data blob.
      */
-    public S2CUpdateBodyStateBatchPacket(ByteBuf data) {
+    public S2CUpdateBodyStateBatchPacket(byte[] data) {
         this.data = data;
     }
 
@@ -61,14 +61,8 @@ public class S2CUpdateBodyStateBatchPacket implements IVxNetPacket {
      */
     @Override
     public void encode(VxByteBuf buf) {
-        try {
-            int length = this.data.readableBytes();
-            buf.writeVarInt(length);
-            buf.writeBytes(this.data);
-        } finally {
-            // Important: Release the pooled buffer after writing to the wire.
-            this.data.release();
-        }
+        buf.writeVarInt(this.data.length);
+        buf.writeBytes(this.data);
     }
 
     /**
@@ -80,10 +74,9 @@ public class S2CUpdateBodyStateBatchPacket implements IVxNetPacket {
      */
     public static S2CUpdateBodyStateBatchPacket decode(VxByteBuf buf) {
         int length = buf.readVarInt();
-        // Read into a new ByteBuf. This makes a copy from the underlying buffer,
-        // which is unavoidable with FriendlyByteBuf if we want the data to survive the handler scope.
-        ByteBuf copied = buf.readBytes(length);
-        return new S2CUpdateBodyStateBatchPacket(copied);
+        byte[] data = new byte[length];
+        buf.readBytes(data);
+        return new S2CUpdateBodyStateBatchPacket(data);
     }
 
     /**
@@ -95,118 +88,114 @@ public class S2CUpdateBodyStateBatchPacket implements IVxNetPacket {
     @Override
     public void handle(NetworkManager.PacketContext context) {
         context.queue(() -> {
-            try {
-                VxClientBodyManager manager = VxClientBodyManager.getInstance();
-                VxClientBodyDataStore store = manager.getStore();
+            VxClientBodyManager manager = VxClientBodyManager.getInstance();
+            VxClientBodyDataStore store = manager.getStore();
 
-                // 1. Prepare Decompression
-                // Obtain NIO buffer from Netty ByteBuf without copying
-                ByteBuffer compressedNio = this.data.nioBuffer();
+            // 1. Prepare Decompression
+            // Obtain NIO buffer from Netty ByteBuf without copying
+            ByteBuffer compressedNio = ByteBuffer.allocateDirect(this.data.length);
+            compressedNio.put(this.data);
+            compressedNio.flip();
 
-                // Determine required size for the output buffer
-                long uncompressedSize = Zstd.decompressedSize(compressedNio);
+            // Determine required size for the output buffer
+            long uncompressedSize = Zstd.decompressedSize(compressedNio);
 
-                // Acquire and resize thread-local buffer if necessary
-                ByteBuffer targetBuf = DECOMPRESSION_BUFFER.get();
-                if (targetBuf.capacity() < uncompressedSize) {
-                    targetBuf = ByteBuffer.allocateDirect((int) uncompressedSize);
-                    DECOMPRESSION_BUFFER.set(targetBuf);
+            // Acquire and resize thread-local buffer if necessary
+            ByteBuffer targetBuf = DECOMPRESSION_BUFFER.get();
+            if (targetBuf.capacity() < uncompressedSize) {
+                targetBuf = ByteBuffer.allocateDirect((int) uncompressedSize);
+                DECOMPRESSION_BUFFER.set(targetBuf);
+            }
+
+            // Reset buffer state before writing
+            targetBuf.clear();
+
+            // 2. Decompress (Direct Memory -> Direct Memory)
+            // Writes the raw physics data directly into the reusable buffer
+            Zstd.decompressDirectByteBuffer(targetBuf, 0, (int) uncompressedSize, compressedNio, 0, compressedNio.remaining());
+
+            // Set the limit to the actual data size so the wrapped ByteBuf behaves correctly
+            targetBuf.position(0);
+            targetBuf.limit((int) uncompressedSize);
+
+            // 3. Read directly from the decompressed buffer
+            // Wrapping it in a ByteBuf allows easy reading of primitives without manual offsets
+            ByteBuf db = Unpooled.wrappedBuffer(targetBuf);
+
+            int count = db.readInt();
+            long timestamp = db.readLong();
+            long chunkPosLong = db.readLong();
+
+            ChunkPos cp = new ChunkPos(chunkPosLong);
+            double baseX = cp.getMinBlockX();
+            double baseY = context.getPlayer().level().getMinBuildHeight();
+            double baseZ = cp.getMinBlockZ();
+
+            manager.addClockSyncSample(timestamp - manager.getClock().getGameTimeNanos());
+
+            // 4. Update Data Store (Zero Object Allocation)
+            VxClientBodyDataContainer c = store.clientCurrent();
+            for (int i = 0; i < count; i++) {
+                int netId = db.readInt();
+                Integer idx = store.getIndexForNetworkId(netId);
+
+                // If the body is not tracked locally (e.g., desync or unloaded), skip the data stream
+                // to maintain correct buffer offsets for subsequent bodies.
+                if (idx == null) {
+                    db.skipBytes(12); // Position (3 floats * 4 bytes)
+                    db.skipBytes(16); // Rotation (4 floats * 4 bytes)
+
+                    boolean isActive = db.readBoolean(); // Must read the activity flag
+                    if (isActive) {
+                        db.skipBytes(12); // Velocity (3 floats * 4 bytes)
+                    }
+                    continue;
                 }
 
-                // Reset buffer state before writing
-                targetBuf.clear();
+                int index = idx; // Unbox index once
 
-                // 2. Decompress (Direct Memory -> Direct Memory)
-                // Writes the raw physics data directly into the reusable buffer
-                Zstd.decompressDirectByteBuffer(targetBuf, 0, (int) uncompressedSize, compressedNio, 0, compressedNio.remaining());
-
-                // Set the limit to the actual data size so the wrapped ByteBuf behaves correctly
-                targetBuf.position(0);
-                targetBuf.limit((int) uncompressedSize);
-
-                // 3. Read directly from the decompressed buffer
-                // Wrapping it in a ByteBuf allows easy reading of primitives without manual offsets
-                ByteBuf db = Unpooled.wrappedBuffer(targetBuf);
-
-                int count = db.readInt();
-                long timestamp = db.readLong();
-                long chunkPosLong = db.readLong();
-
-                ChunkPos cp = new ChunkPos(chunkPosLong);
-                double baseX = cp.getMinBlockX();
-                double baseY = context.getPlayer().level().getMinBuildHeight();
-                double baseZ = cp.getMinBlockZ();
-
-                manager.addClockSyncSample(timestamp - manager.getClock().getGameTimeNanos());
-
-                // 4. Update Data Store (Zero Object Allocation)
-                VxClientBodyDataContainer c = store.clientCurrent();
-                for (int i = 0; i < count; i++) {
-                    int netId = db.readInt();
-                    Integer idx = store.getIndexForNetworkId(netId);
-
-                    // If the body is not tracked locally (e.g., desync or unloaded), skip the data stream
-                    // to maintain correct buffer offsets for subsequent bodies.
-                    if (idx == null) {
-                        db.skipBytes(12); // Position (3 floats * 4 bytes)
-                        db.skipBytes(16); // Rotation (4 floats * 4 bytes)
-
-                        boolean isActive = db.readBoolean(); // Must read the activity flag
-                        if (isActive) {
-                            db.skipBytes(12); // Velocity (3 floats * 4 bytes)
-                        }
-                        continue;
+                // Bounds check for race condition during container resize
+                if (index >= c.getCapacity()) {
+                    db.skipBytes(12); // Position
+                    db.skipBytes(16); // Rotation
+                    if (db.readBoolean()) { // isActive
+                        db.skipBytes(12); // Velocity
                     }
-
-                    int index = idx; // Unbox index once
-
-                    // Bounds check for race condition during container resize
-                    if (index >= c.getCapacity()) {
-                        db.skipBytes(12); // Position
-                        db.skipBytes(16); // Rotation
-                        if (db.readBoolean()) { // isActive
-                            db.skipBytes(12); // Velocity
-                        }
-                        continue;
-                    }
-
-                    // Cycle history states (current -> old)
-                    c.state0_timestamp[index] = c.state1_timestamp[index];
-                    c.state0_posX[index] = c.state1_posX[index];
-                    c.state0_posY[index] = c.state1_posY[index];
-                    c.state0_posZ[index] = c.state1_posZ[index];
-                    c.state0_rotX[index] = c.state1_rotX[index];
-                    c.state0_rotY[index] = c.state1_rotY[index];
-                    c.state0_rotZ[index] = c.state1_rotZ[index];
-                    c.state0_rotW[index] = c.state1_rotW[index];
-                    c.state0_isActive[index] = c.state1_isActive[index];
-
-                    // Read New State into state1
-                    c.state1_timestamp[index] = timestamp;
-                    c.state1_posX[index] = baseX + db.readFloat();
-                    c.state1_posY[index] = baseY + db.readFloat();
-                    c.state1_posZ[index] = baseZ + db.readFloat();
-                    c.state1_rotX[index] = db.readFloat();
-                    c.state1_rotY[index] = db.readFloat();
-                    c.state1_rotZ[index] = db.readFloat();
-                    c.state1_rotW[index] = db.readFloat();
-
-                    boolean active = db.readBoolean();
-                    c.state1_isActive[index] = active;
-
-                    if (active) {
-                        c.state1_velX[index] = db.readFloat();
-                        c.state1_velY[index] = db.readFloat();
-                        c.state1_velZ[index] = db.readFloat();
-                    }
-
-                    // Update culling position for renderer frustum checks
-                    c.lastKnownPosition[index].set(c.state1_posX[index], c.state1_posY[index], c.state1_posZ[index]);
+                    continue;
                 }
 
-            } finally {
-                // Always release the pooled network buffer on client side
-                this.data.release();
+                // Cycle history states (current -> old)
+                c.state0_timestamp[index] = c.state1_timestamp[index];
+                c.state0_posX[index] = c.state1_posX[index];
+                c.state0_posY[index] = c.state1_posY[index];
+                c.state0_posZ[index] = c.state1_posZ[index];
+                c.state0_rotX[index] = c.state1_rotX[index];
+                c.state0_rotY[index] = c.state1_rotY[index];
+                c.state0_rotZ[index] = c.state1_rotZ[index];
+                c.state0_rotW[index] = c.state1_rotW[index];
+                c.state0_isActive[index] = c.state1_isActive[index];
+
+                // Read New State into state1
+                c.state1_timestamp[index] = timestamp;
+                c.state1_posX[index] = baseX + db.readFloat();
+                c.state1_posY[index] = baseY + db.readFloat();
+                c.state1_posZ[index] = baseZ + db.readFloat();
+                c.state1_rotX[index] = db.readFloat();
+                c.state1_rotY[index] = db.readFloat();
+                c.state1_rotZ[index] = db.readFloat();
+                c.state1_rotW[index] = db.readFloat();
+
+                boolean active = db.readBoolean();
+                c.state1_isActive[index] = active;
+
+                if (active) {
+                    c.state1_velX[index] = db.readFloat();
+                    c.state1_velY[index] = db.readFloat();
+                    c.state1_velZ[index] = db.readFloat();
+                }
+
+                // Update culling position for renderer frustum checks
+                c.lastKnownPosition[index].set(c.state1_posX[index], c.state1_posY[index], c.state1_posZ[index]);
             }
         });
     }
