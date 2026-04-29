@@ -4,30 +4,27 @@
  */
 package net.xmx.velthoric.core.behavior.impl;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.BatchBodyInterface;
+import com.github.stephengold.joltjni.BodyIdArray;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
-import com.github.stephengold.joltjni.readonly.*;
+import com.github.stephengold.joltjni.readonly.ConstBodyIdArray;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import net.xmx.velthoric.core.behavior.VxBehavior;
 import net.xmx.velthoric.core.behavior.VxBehaviorId;
 import net.xmx.velthoric.core.body.VxBody;
-import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.init.VxMainClass;
 
-import java.nio.ByteBuffer;
-import java.nio.DoubleBuffer;
-import java.nio.FloatBuffer;
-
 /**
  * Synchronizes the native Jolt simulation results with the Java-side data store.
  * <p>
- * This behavior utilizes batch JNI calls to minimize overhead when processing large numbers
- * of bodies. It extracts transformations, velocities, activity states, and vertex data
- * for soft bodies, updating the Structure of Arrays (SoA) layout directly.
+ * This behavior utilizes high-performance native batch calls to minimize JNI overhead when processing 
+ * large numbers of bodies. It extracts transformations, velocities, activity states, and vertex data
+ * for soft bodies, updating the Structure of Arrays (SoA) layout directly in memory.
  *
  * @author xI-Mx-Ix
  */
@@ -45,62 +42,37 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
     private static final int BATCH_SIZE = 512;
 
     /**
-     * Reusable vector for position calculations.
-     */
-    private final ThreadLocal<RVec3> tempPos = ThreadLocal.withInitial(RVec3::new);
-
-    /**
      * Reusable array for collecting body IDs for batching.
+     * This avoids per-tick allocations on the physics thread.
      */
     private final ThreadLocal<BodyIdArray> batchBodyIds = ThreadLocal.withInitial(() -> new BodyIdArray(BATCH_SIZE));
 
     /**
      * Reusable list for tracking data store indices during batching.
+     * Maps the batch-local body IDs to their global SoA indices.
      */
     private final ThreadLocal<IntArrayList> batchDataIndices = ThreadLocal.withInitial(() -> new IntArrayList(BATCH_SIZE));
 
     /**
-     * Buffer for batch position retrieval.
+     * Buffer for dirty indices returned from native code.
+     * Populated by the native sync function to indicate which bodies require network updates.
      */
-    private final ThreadLocal<DoubleBuffer> posBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectDoubleBuffer(BATCH_SIZE * 3));
+    private final ThreadLocal<int[]> dirtyIndicesBuffer = ThreadLocal.withInitial(() -> new int[BATCH_SIZE]);
 
     /**
-     * Buffer for batch rotation retrieval.
+     * Buffer for motion types (ordinals) returned from native code.
+     * Used to sync the mobility state (Static, Kinematic, Dynamic) from Jolt to Java.
      */
-    private final ThreadLocal<FloatBuffer> rotBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(BATCH_SIZE * 4));
+    private final ThreadLocal<byte[]> motionTypeOutputBuffer = ThreadLocal.withInitial(() -> new byte[BATCH_SIZE]);
 
     /**
-     * Buffer for batch linear velocity retrieval.
+     * Buffer for behavior bits passed to native code.
+     * Allows the native side to filter logic (e.g., only processing vertices for soft bodies).
      */
-    private final ThreadLocal<FloatBuffer> linVelBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(BATCH_SIZE * 3));
+    private final ThreadLocal<long[]> behaviorBitsBuffer = ThreadLocal.withInitial(() -> new long[BATCH_SIZE]);
 
     /**
-     * Buffer for batch angular velocity retrieval.
-     */
-    private final ThreadLocal<FloatBuffer> angVelBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(BATCH_SIZE * 3));
-
-    /**
-     * Buffer for batch activity state retrieval.
-     */
-    private final ThreadLocal<ByteBuffer> activeBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectByteBuffer(BATCH_SIZE));
-
-    /**
-     * Buffer for batch added-state verification.
-     */
-    private final ThreadLocal<ByteBuffer> addedBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectByteBuffer(BATCH_SIZE));
-
-    /**
-     * Buffer for batch motion type retrieval.
-     */
-    private final ThreadLocal<ByteBuffer> motionTypeBuffer = ThreadLocal.withInitial(() -> Jolt.newDirectByteBuffer(BATCH_SIZE));
-
-    /**
-     * Cached buffer for soft body vertex extraction.
-     */
-    private final ThreadLocal<FloatBuffer> softBodyBufferCache = ThreadLocal.withInitial(() -> Jolt.newDirectFloatBuffer(1024));
-
-    /**
-     * Default constructor.
+     * Default constructor for the synchronization behavior.
      */
     public VxPhysicsSyncBehavior() {
     }
@@ -117,6 +89,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
 
     /**
      * Extracts results from the Jolt simulation and synchronizes them to the data store.
+     * Called by the behavior manager during the post-simulation sync phase.
      *
      * @param world     The physics world.
      * @param dataStore The server body data store.
@@ -129,7 +102,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
     }
 
     /**
-     * Orchestrates the batch-based synchronization process.
+     * Orchestrates the batch-based synchronization process by segmenting active bodies into batches.
      *
      * @param timestampNanos Current simulation timestamp.
      * @param world          The physics world.
@@ -148,6 +121,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
         int currentBatchCount = 0;
 
         for (int i = 0; i < capacity; ++i) {
+            // Only process bodies that have the PhysicsSync behavior attached.
             if ((c.behaviorBits[i] & mask) == 0) continue;
 
             VxBody obj = bodies[i];
@@ -167,6 +141,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
             }
         }
 
+        // Process remaining bodies in the final partial batch.
         if (currentBatchCount > 0) {
             BodyIdArray tailIds = new BodyIdArray(currentBatchCount);
             for (int j = 0; j < currentBatchCount; j++) {
@@ -179,6 +154,9 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
 
     /**
      * Executes a single synchronization batch.
+     * <p>
+     * This method offloads the extraction of all physical properties (transforms, velocities, 
+     * AABBs, and soft body vertices) to a highly optimized native bridge.
      *
      * @param timestampNanos Current timestamp.
      * @param world          The physics world.
@@ -190,170 +168,114 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
      */
     private void processUpdateBatch(long timestampNanos, VxPhysicsWorld world, VxServerBodyDataStore dataStore, VxServerBodyDataContainer c, BatchBodyInterface bodyInterface, ConstBodyIdArray ids, int count) {
         IntArrayList indices = batchDataIndices.get();
+        int[] bodyIds = new int[count];
+        long[] behaviorBits = behaviorBitsBuffer.get();
+        for (int b = 0; b < count; b++) {
+            bodyIds[b] = ids.get(b);
+            behaviorBits[b] = c.behaviorBits[indices.getInt(b)];
+        }
 
-        ByteBuffer addedStates = addedBuffer.get();
-        addedStates.clear();
-        bodyInterface.areAdded(ids, addedStates);
+        int[] dirtyIndices = dirtyIndicesBuffer.get();
+        byte[] motionTypes = motionTypeOutputBuffer.get();
 
-        ByteBuffer activeStates = activeBuffer.get();
-        activeStates.clear();
-        bodyInterface.areActive(ids, activeStates);
+        int dirtyCount = syncPhysicsNative(
+                world.getPhysicsSystemPtr(),
+                count,
+                indices.elements(),
+                bodyIds,
+                behaviorBits,
+                c.posX, c.posY, c.posZ,
+                c.rotX, c.rotY, c.rotZ, c.rotW,
+                c.velX, c.velY, c.velZ,
+                c.angVelX, c.angVelY, c.angVelZ,
+                c.aabbMinX, c.aabbMinY, c.aabbMinZ,
+                c.aabbMaxX, c.aabbMaxY, c.aabbMaxZ,
+                c.isActive,
+                c.isTransformDirty,
+                c.isVertexDataDirty,
+                c.lastUpdateTimestamp,
+                motionTypes,
+                dirtyIndices,
+                c.vertexData,
+                VxSoftPhysicsBehavior.ID.getMask(),
+                timestampNanos
+        );
 
-        DoubleBuffer positions = posBuffer.get();
-        positions.clear();
-        bodyInterface.getPositions(ids, positions);
+        if (dirtyCount > 0) {
+            synchronized (dataStore) {
+                for (int i = 0; i < dirtyCount; i++) {
+                    c.dirtyIndices.add(dirtyIndices[i]);
+                }
+            }
+        }
 
-        FloatBuffer rotations = rotBuffer.get();
-        rotations.clear();
-        bodyInterface.getRotations(ids, rotations);
-
-        FloatBuffer linVels = linVelBuffer.get();
-        linVels.clear();
-        bodyInterface.getLinearVelocities(ids, linVels);
-
-        FloatBuffer angVels = angVelBuffer.get();
-        angVels.clear();
-        bodyInterface.getAngularVelocities(ids, angVels);
-
-        ByteBuffer motionTypes = motionTypeBuffer.get();
-        motionTypes.clear();
-        bodyInterface.getMotionTypes(ids, motionTypes);
-
-        final VxBody[] bodies = c.bodies;
-        ConstBodyLockInterfaceNoLock lockInterface = world.getPhysicsSystem().getBodyLockInterfaceNoLock();
         VxServerBodyManager manager = world.getBodyManager();
 
-        try (BodyLockMultiRead multiLock = new BodyLockMultiRead(lockInterface, ids)) {
-            ConstBody[] lockedBodies = multiLock.getBodies();
-
-            for (int b = 0; b < count; b++) {
-                if (addedStates.get(b) == 0) continue;
-
-                int i = indices.getInt(b);
-                // Critical bounds check: ensure the index is valid for our cached container reference
-                if (i >= c.getCapacity()) continue;
-                VxBody obj = bodies[i];
+        // Handle post-sync metadata updates (chunk tracking, motion types)
+        for (int b = 0; b < count; b++) {
+            int i = indices.getInt(b);
+            if (c.isActive[i] || c.isTransformDirty[i] || c.isVertexDataDirty[i]) {
+                VxBody obj = c.bodies[i];
                 if (obj == null) continue;
 
-                boolean isJoltBodyActive = activeStates.get(b) != 0;
-                boolean wasDataStoreBodyActive = c.isActive[i];
+                // Sync motion type ordinal from native to Java enum.
+                c.motionType[i] = EMotionType.values()[motionTypes[b]];
 
-                if (isJoltBodyActive || wasDataStoreBodyActive) {
-
-                    double nx = positions.get(b * 3);
-                    double ny = positions.get(b * 3 + 1);
-                    double nz = positions.get(b * 3 + 2);
-
-                    if (isJoltBodyActive || isJoltBodyActive != wasDataStoreBodyActive) {
-                        c.isTransformDirty[i] = true;
-                        synchronized (dataStore) {
-                            c.dirtyIndices.add(i);
-                        }
-                    }
-
-                    c.posX[i] = nx;
-                    c.posY[i] = ny;
-                    c.posZ[i] = nz;
-
-                    c.rotX[i] = rotations.get(b * 4);
-                    c.rotY[i] = rotations.get(b * 4 + 1);
-                    c.rotZ[i] = rotations.get(b * 4 + 2);
-                    c.rotW[i] = rotations.get(b * 4 + 3);
-
-                    c.velX[i] = linVels.get(b * 3);
-                    c.velY[i] = linVels.get(b * 3 + 1);
-                    c.velZ[i] = linVels.get(b * 3 + 2);
-
-                    c.angVelX[i] = angVels.get(b * 3);
-                    c.angVelY[i] = angVels.get(b * 3 + 1);
-                    c.angVelZ[i] = angVels.get(b * 3 + 2);
-
-                    c.motionType[i] = EMotionType.values()[motionTypes.get(b)];
-                    c.isActive[i] = isJoltBodyActive;
-                    c.lastUpdateTimestamp[i] = timestampNanos;
-
-                    final long lastKey = c.chunkKey[i];
-                    final long currentKey = VxSpatialManager.calculateChunkKey(c.posX[i], c.posZ[i]);
-
-                    if (lastKey != currentKey) {
-                        manager.updateBodyTracking(obj, lastKey, currentKey);
-                    }
-
-                    // Retrieve AABB from the batch-locked body reference
-                    ConstBody body = lockedBodies[b];
-                    if (body != null) {
-                        ConstAaBox bounds = body.getWorldSpaceBounds();
-                        Vec3 min = bounds.getMin();
-                        Vec3 max = bounds.getMax();
-
-                        c.aabbMinX[i] = min.getX();
-                        c.aabbMinY[i] = min.getY();
-                        c.aabbMinZ[i] = min.getZ();
-                        c.aabbMaxX[i] = max.getX();
-                        c.aabbMaxY[i] = max.getY();
-                        c.aabbMaxZ[i] = max.getZ();
-
-                        if (isJoltBodyActive && VxSoftPhysicsBehavior.ID.isSet(c.behaviorBits[i])) {
-                            RVec3 pos = tempPos.get();
-                            pos.set(c.posX[i], c.posY[i], c.posZ[i]);
-                            updateSoftBodyVertices(c, dataStore, body, pos, i);
-                        }
-                    }
+                // Update spatial tracking if the body crossed a chunk boundary.
+                final long lastKey = c.chunkKey[i];
+                final long currentKey = VxSpatialManager.calculateChunkKey(c.posX[i], c.posZ[i]);
+                if (lastKey != currentKey) {
+                    manager.updateBodyTracking(obj, lastKey, currentKey);
                 }
             }
         }
     }
 
     /**
-     * Synchronizes soft body vertex data for deformable objects.
-     *
-     * @param c              The data container.
-     * @param dataStore    The server data store.
-     * @param body         The native body.
-     * @param bodyPosition The body's center of mass position.
-     * @param dataIndex    The index in the SoA store.
+     * Native bridge for physics state synchronization.
+     * 
+     * @param physicsSystemPtr Native address of the Jolt PhysicsSystem.
+     * @param count Batch size.
+     * @param indices Data store indices.
+     * @param bodyIds Jolt body IDs.
+     * @param behaviorBits Behavior bitmasks for filtering.
+     * @param posX, posY, posZ Positions.
+     * @param rotX, rotY, rotZ, rotW Rotations.
+     * @param velX, velY, velZ Velocities.
+     * @param angVelX, angVelY, angVelZ Angular velocities.
+     * @param aabbMinX, aabbMinY, aabbMinZ AABB mins.
+     * @param aabbMaxX, aabbMaxY, aabbMaxZ AABB maxs.
+     * @param isActive Active states.
+     * @param isTransformDirty Transform dirty flags.
+     * @param isVertexDataDirty Vertex data dirty flags.
+     * @param lastUpdateTimestamp Update timestamps.
+     * @param motionTypeOutput Mobility state ordinals.
+     * @param dirtyIndicesOutput Buffer for indices requiring network update.
+     * @param vertexData Vertex arrays for soft bodies.
+     * @param softBodyBehaviorMask Mask for vertex processing.
+     * @param timestampNanos Current simulation time.
+     * @return Total number of dirty indices.
      */
-    private void updateSoftBodyVertices(VxServerBodyDataContainer c, VxServerBodyDataStore dataStore, ConstBody body, RVec3Arg bodyPosition, int dataIndex) {
-        ConstSoftBodyMotionProperties motionProps = (ConstSoftBodyMotionProperties) body.getMotionProperties();
-        int numVertices = motionProps.getSettings().countVertices();
-        if (numVertices <= 0) return;
-
-        int requiredFloats = numVertices * 3;
-
-        FloatBuffer buffer = softBodyBufferCache.get();
-        if (buffer.capacity() < requiredFloats) {
-            buffer = Jolt.newDirectFloatBuffer(Math.max(requiredFloats, buffer.capacity() * 2));
-            softBodyBufferCache.set(buffer);
-        }
-        buffer.clear();
-        buffer.limit(requiredFloats);
-
-        motionProps.putVertexLocations(bodyPosition, buffer);
-        buffer.flip();
-
-        float[] existing = c.vertexData[dataIndex];
-        boolean changed = false;
-
-        if (existing == null || existing.length != requiredFloats) {
-            existing = new float[requiredFloats];
-            c.vertexData[dataIndex] = existing;
-            changed = true;
-            buffer.get(existing);
-        } else {
-            for (int k = 0; k < requiredFloats; k++) {
-                float newVal = buffer.get(k);
-                if (Math.abs(existing[k] - newVal) > 1e-4f) {
-                    existing[k] = newVal;
-                    changed = true;
-                }
-            }
-        }
-
-        if (changed) {
-            c.isVertexDataDirty[dataIndex] = true;
-            synchronized (dataStore) {
-                c.dirtyIndices.add(dataIndex);
-            }
-        }
-    }
+    private native int syncPhysicsNative(
+            long physicsSystemPtr,
+            int count,
+            int[] indices,
+            int[] bodyIds,
+            long[] behaviorBits,
+            double[] posX, double[] posY, double[] posZ,
+            float[] rotX, float[] rotY, float[] rotZ, float[] rotW,
+            float[] velX, float[] velY, float[] velZ,
+            float[] angVelX, float[] angVelY, float[] angVelZ,
+            float[] aabbMinX, float[] aabbMinY, float[] aabbMinZ,
+            float[] aabbMaxX, float[] aabbMaxY, float[] aabbMaxZ,
+            boolean[] isActive,
+            boolean[] isTransformDirty,
+            boolean[] isVertexDataDirty,
+            long[] lastUpdateTimestamp,
+            byte[] motionTypeOutput,
+            int[] dirtyIndicesOutput,
+            float[][] vertexData,
+            long softBodyBehaviorMask,
+            long timestampNanos
+    );
 }

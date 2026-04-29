@@ -101,7 +101,9 @@ else()
 endif()
 
 # Define vxnative Library
-add_library(vxnative SHARED vxnative.cpp)
+add_library(vxnative SHARED
+    src/Velthoric/PhysicsSync/VxPhysicsSyncBehavior.cpp
+)
 
 target_include_directories(vxnative PRIVATE 
     ${JNI_INCLUDE_DIRS}

@@ -332,6 +332,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         return this.physicsFrameTimer;
     }
 
+    public long getPhysicsSystemPtr() {
+        return this.physicsSystem != null ? this.physicsSystem.va() : 0L;
+    }
+
     @Nullable
     public static VxServerBodyManager getBodyManager(ResourceKey<Level> dimensionKey) {
         VxPhysicsWorld world = get(dimensionKey);
