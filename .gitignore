@@ -40,4 +40,5 @@ out/
 /vx-native/src/main/cpp/build/
 /vx-native/src/main/cpp/include/
 /vx-native/src/main/cpp/external/
+/vx-native/src/main/cpp/generated/
 /.cmake/

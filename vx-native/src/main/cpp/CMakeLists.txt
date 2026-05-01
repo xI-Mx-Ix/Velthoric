@@ -114,6 +114,7 @@ add_library(vxnative SHARED
 target_include_directories(vxnative PRIVATE 
     ${JNI_INCLUDE_DIRS}
     ${INCLUDE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/generated
 )
 
 target_compile_definitions(vxnative PRIVATE 

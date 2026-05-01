@@ -11,6 +11,11 @@ repositories {
     mavenCentral()
 }
 
+tasks.withType(JavaCompile) {
+    // Generates JNI headers automatically into a dedicated generated folder
+    options.headerOutputDirectory = file("src/main/cpp/generated")
+}
+
 // We define a specific configuration to download the jars that contain the native libraries.
 // We don't want these jars on the classpath directly, we just want to extract files from them.
 configurations {
@@ -177,6 +182,10 @@ tasks.register('cmakeConfigure', Exec) {
 
         commandLine args
     }
+}
+
+tasks.named('cmakeConfigure') {
+    dependsOn 'compileJava'
 }
 
 tasks.register('cmakeBuild', Exec) {
