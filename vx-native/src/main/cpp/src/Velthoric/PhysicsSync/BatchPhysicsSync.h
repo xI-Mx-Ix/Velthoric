@@ -64,7 +64,7 @@ extern "C" {
  * @param timestampNanos The current simulation timestamp in nanoseconds.
  * @return The number of dirty indices written to dirtyIndicesOutputArr.
  */
-JNIEXPORT jint JNICALL Java_net_xmx_velthoric_core_behavior_impl_VxPhysicsSyncBehavior_syncPhysicsNative(
+JNIEXPORT jint JNICALL Java_net_xmx_velthoric_jni_BatchPhysicsSync_syncPhysicsNative(
     JNIEnv* env, jobject thiz,
     jlong physicsSystemPtr,
     jint count,

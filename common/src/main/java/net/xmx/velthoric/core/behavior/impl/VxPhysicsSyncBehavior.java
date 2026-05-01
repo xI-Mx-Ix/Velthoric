@@ -18,11 +18,12 @@ import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.jni.BatchPhysicsSync;
 
 /**
  * Synchronizes the native Jolt simulation results with the Java-side data store.
  * <p>
- * This behavior utilizes high-performance native batch calls to minimize JNI overhead when processing 
+ * This behavior utilizes high-performance native batch calls to minimize JNI overhead when processing
  * large numbers of bodies. It extracts transformations, velocities, activity states, and vertex data
  * for soft bodies, updating the Structure of Arrays (SoA) layout directly in memory.
  *
@@ -155,7 +156,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
     /**
      * Executes a single synchronization batch.
      * <p>
-     * This method offloads the extraction of all physical properties (transforms, velocities, 
+     * This method offloads the extraction of all physical properties (transforms, velocities,
      * AABBs, and soft body vertices) to a highly optimized native bridge.
      *
      * @param timestampNanos Current timestamp.
@@ -178,7 +179,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
         int[] dirtyIndices = dirtyIndicesBuffer.get();
         byte[] motionTypes = motionTypeOutputBuffer.get();
 
-        int dirtyCount = syncPhysicsNative(
+        int dirtyCount = BatchPhysicsSync.syncPhysicsNative(
                 world.getPhysicsSystemPtr(),
                 count,
                 indices.elements(),
@@ -230,52 +231,4 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
             }
         }
     }
-
-    /**
-     * Native bridge for physics state synchronization.
-     * 
-     * @param physicsSystemPtr Native address of the Jolt PhysicsSystem.
-     * @param count Batch size.
-     * @param indices Data store indices.
-     * @param bodyIds Jolt body IDs.
-     * @param behaviorBits Behavior bitmasks for filtering.
-     * @param posX, posY, posZ Positions.
-     * @param rotX, rotY, rotZ, rotW Rotations.
-     * @param velX, velY, velZ Velocities.
-     * @param angVelX, angVelY, angVelZ Angular velocities.
-     * @param aabbMinX, aabbMinY, aabbMinZ AABB mins.
-     * @param aabbMaxX, aabbMaxY, aabbMaxZ AABB maxs.
-     * @param isActive Active states.
-     * @param isTransformDirty Transform dirty flags.
-     * @param isVertexDataDirty Vertex data dirty flags.
-     * @param lastUpdateTimestamp Update timestamps.
-     * @param motionTypeOutput Mobility state ordinals.
-     * @param dirtyIndicesOutput Buffer for indices requiring network update.
-     * @param vertexData Vertex arrays for soft bodies.
-     * @param softBodyBehaviorMask Mask for vertex processing.
-     * @param timestampNanos Current simulation time.
-     * @return Total number of dirty indices.
-     */
-    private native int syncPhysicsNative(
-            long physicsSystemPtr,
-            int count,
-            int[] indices,
-            int[] bodyIds,
-            long[] behaviorBits,
-            double[] posX, double[] posY, double[] posZ,
-            float[] rotX, float[] rotY, float[] rotZ, float[] rotW,
-            float[] velX, float[] velY, float[] velZ,
-            float[] angVelX, float[] angVelY, float[] angVelZ,
-            float[] aabbMinX, float[] aabbMinY, float[] aabbMinZ,
-            float[] aabbMaxX, float[] aabbMaxY, float[] aabbMaxZ,
-            boolean[] isActive,
-            boolean[] isTransformDirty,
-            boolean[] isVertexDataDirty,
-            long[] lastUpdateTimestamp,
-            byte[] motionTypeOutput,
-            int[] dirtyIndicesOutput,
-            float[][] vertexData,
-            long softBodyBehaviorMask,
-            long timestampNanos
-    );
 }

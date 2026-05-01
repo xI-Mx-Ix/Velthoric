@@ -108,7 +108,7 @@ endif()
 
 # Define vxnative Library
 add_library(vxnative SHARED
-    src/Velthoric/PhysicsSync/VxPhysicsSyncBehavior.cpp
+    src/Velthoric/PhysicsSync/BatchPhysicsSync.cpp
 )
 
 target_include_directories(vxnative PRIVATE 

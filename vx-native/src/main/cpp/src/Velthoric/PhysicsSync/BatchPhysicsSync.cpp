@@ -3,7 +3,7 @@
  * Licensed under LGPL 3.0.
  * Author: xI-Mx-Ix
  */
-#include "VxPhysicsSyncBehavior.h"
+#include "BatchPhysicsSync.h"
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/Body/BodyInterface.h>
@@ -24,7 +24,7 @@ using namespace JPH;
  * 2. A standard JNI pass to handle soft body vertex extraction (requires object array access).
  * 3. A final synchronization pass to ensure all dirty states are correctly reported for networking.
  */
-JNIEXPORT jint JNICALL Java_net_xmx_velthoric_core_behavior_impl_VxPhysicsSyncBehavior_syncPhysicsNative(
+JNIEXPORT jint JNICALL Java_net_xmx_velthoric_jni_BatchPhysicsSync_syncPhysicsNative(
     JNIEnv* env, jobject thiz,
     jlong physicsSystemPtr,
     jint count,
