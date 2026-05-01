@@ -47,6 +47,9 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+          # Use x64 for all x86_64 targets and for Linux cross-compilation (where the host is x64).
+          # Use aarch64 only when building for ARM64 on a macOS ARM64 runner.
+          architecture: ${{ (matrix.target_arch == 'aarch64' && matrix.os == 'macos-14') && 'aarch64' || 'x64' }}
           cache: 'gradle'
 
       # Step 3: Install aarch64 cross-compiler (Linux cross-compile only)
