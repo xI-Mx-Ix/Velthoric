@@ -4,7 +4,6 @@
  */
 package net.xmx.velthoric.natives;
 
-import net.xmx.vxnative.NativeBootstrap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -30,11 +30,6 @@ dependencies {
     nativeExtraction "vx-jolt-jni:joltjni:${project.jolt_jni_version}:linux-arm64-ReleaseDp@so"
     nativeExtraction "vx-jolt-jni:joltjni:${project.jolt_jni_version}:macos-x64-ReleaseDp@dylib"
     nativeExtraction "vx-jolt-jni:joltjni:${project.jolt_jni_version}:macos-arm64-ReleaseDp@dylib"
-
-    // Use Fabric @Environment only; do not use other Fabric Loader classes.
-    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
-    modImplementation "dev.architectury:architectury:$rootProject.architectury_api_version"
-    include(implementation(annotationProcessor("io.github.llamalad7:mixinextras-fabric:$mixinextras_version")))
 }
 
 processResources {

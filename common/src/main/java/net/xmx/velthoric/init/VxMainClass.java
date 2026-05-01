@@ -4,6 +4,7 @@
  */
 package net.xmx.velthoric.init;
 
+import dev.architectury.platform.Platform;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
@@ -45,7 +46,7 @@ public class VxMainClass {
         NativeManager.register(new NativeJolt());
         NativeManager.register(new NativeVelthoric());
 
-        NativeManager.initialize();
+        NativeManager.initialize(Platform.getGameFolder());
         VxPhysicsBootstrap.initialize();
     }
 

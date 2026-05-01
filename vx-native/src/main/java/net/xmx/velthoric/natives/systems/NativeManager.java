@@ -4,7 +4,6 @@
  */
 package net.xmx.velthoric.natives.systems;
 
-import dev.architectury.platform.Platform;
 import net.xmx.velthoric.natives.NativeLoader;
 import net.xmx.velthoric.natives.VxNativeLibrary;
 import net.xmx.velthoric.natives.os.Arch;
@@ -40,14 +39,15 @@ public class NativeManager {
 
     /**
      * Initializes and loads all registered native libraries.
+     * @param gameFolder The base folder of the game where natives will be extracted.
      */
-    public static synchronized void initialize() {
+    public static synchronized void initialize(Path gameFolder) {
         if (areNativesInitialized) {
             return;
         }
 
         LOGGER.info("Initializing Velthoric native libraries...");
-        Path extractionPath = Platform.getGameFolder().resolve("velthoric").resolve("natives");
+        Path extractionPath = gameFolder.resolve("velthoric").resolve("natives");
 
         OS os = OS.detect();
         Arch arch = Arch.detect();
