@@ -20,9 +20,9 @@ import java.nio.ByteBuffer;
  *
  * @author xI-Mx-Ix
  */
-public final class VxTerrainMesher {
+public final class TerrainMesher {
 
-    private VxTerrainMesher() {
+    private TerrainMesher() {
         // Utility class, do not instantiate
     }
 
@@ -59,7 +59,16 @@ public final class VxTerrainMesher {
     public static native void nUpdateBodyShape(long bodyInterfaceVa, int bodyId, int contentHash);
 
     /**
-     * Clears the native C++ shape cache, freeing all unreferenced geometry.
+     * Clears the native terrain shape cache.
+     * Called during shutdown to free all unreferenced mesh resources.
      */
     public static native void nClearCache();
+
+    /**
+     * Registers a terrain material in the native C++ physics cache.
+     * @param id The internal material ID (1-255).
+     * @param friction The friction coefficient.
+     * @param restitution The restitution (bounciness).
+     */
+    public static native void nRegisterMaterial(int id, float friction, float restitution);
 }

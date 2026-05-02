@@ -16,6 +16,9 @@ import net.xmx.velthoric.natives.impl.NativeZstd;
 import net.xmx.velthoric.natives.systems.NativeManager;
 import net.xmx.velthoric.network.VxPacketRegistry;
 import net.xmx.velthoric.core.physics.VxPhysicsBootstrap;
+import dev.architectury.registry.ReloadListenerRegistry;
+import net.minecraft.server.packs.PackType;
+import net.xmx.velthoric.core.terrain.material.VxTerrainMaterialLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -40,6 +43,8 @@ public class VxMainClass {
         VxRegisteredBodies.register();
         VxPacketRegistry.registerPackets();
         RegisterEvents.register();
+        
+        ReloadListenerRegistry.register(PackType.SERVER_DATA, new VxTerrainMaterialLoader());
 
         // Register native libraries in order of dependency
         NativeManager.register(new NativeZstd());

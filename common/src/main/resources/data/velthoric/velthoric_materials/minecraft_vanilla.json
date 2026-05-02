@@ -1,0 +1,4939 @@
+{
+  "values": {
+    "minecraft:acacia_button": {
+      "friction": 0.614,
+      "restitution": 0.102,
+      "weight": 2.56
+    },
+    "minecraft:acacia_door": {
+      "friction": 0.595,
+      "restitution": 0.099,
+      "weight": 19.83
+    },
+    "minecraft:acacia_fence": {
+      "friction": 0.616,
+      "restitution": 0.103,
+      "weight": 25.67
+    },
+    "minecraft:acacia_fence_gate": {
+      "friction": 0.625,
+      "restitution": 0.104,
+      "weight": 26.05
+    },
+    "minecraft:acacia_hanging_sign": {
+      "friction": 0.587,
+      "restitution": 0.098,
+      "weight": 4.89
+    },
+    "minecraft:acacia_leaves": {
+      "friction": 0.822,
+      "restitution": 0.0,
+      "weight": 5.14
+    },
+    "minecraft:acacia_log": {
+      "friction": 0.604,
+      "restitution": 0.101,
+      "weight": 50.34
+    },
+    "minecraft:acacia_planks": {
+      "friction": 0.605,
+      "restitution": 0.101,
+      "weight": 50.42
+    },
+    "minecraft:acacia_pressure_plate": {
+      "friction": 0.581,
+      "restitution": 0.097,
+      "weight": 2.42
+    },
+    "minecraft:acacia_sapling": {
+      "friction": 0.839,
+      "restitution": 0.0,
+      "weight": 0.26
+    },
+    "minecraft:acacia_sign": {
+      "friction": 0.611,
+      "restitution": 0.102,
+      "weight": 5.09
+    },
+    "minecraft:acacia_slab": {
+      "friction": 0.609,
+      "restitution": 0.102,
+      "weight": 25.38
+    },
+    "minecraft:acacia_stairs": {
+      "friction": 0.616,
+      "restitution": 0.103,
+      "weight": 38.5
+    },
+    "minecraft:acacia_trapdoor": {
+      "friction": 0.629,
+      "restitution": 0.105,
+      "weight": 20.96
+    },
+    "minecraft:acacia_wall_hanging_sign": {
+      "friction": 0.622,
+      "restitution": 0.104,
+      "weight": 41.48
+    },
+    "minecraft:acacia_wall_sign": {
+      "friction": 0.605,
+      "restitution": 0.101,
+      "weight": 40.36
+    },
+    "minecraft:acacia_wood": {
+      "friction": 0.59,
+      "restitution": 0.098,
+      "weight": 49.13
+    },
+    "minecraft:activator_rail": {
+      "friction": 0.801,
+      "restitution": 0.05,
+      "weight": 150.18
+    },
+    "minecraft:allium": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 143.21
+    },
+    "minecraft:amethyst_block": {
+      "friction": 0.408,
+      "restitution": 0.408,
+      "weight": 91.75
+    },
+    "minecraft:amethyst_cluster": {
+      "friction": 0.393,
+      "restitution": 0.393,
+      "weight": 88.43
+    },
+    "minecraft:ancient_debris": {
+      "friction": 0.715,
+      "restitution": 0.048,
+      "weight": 953.5
+    },
+    "minecraft:andesite": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 155.88
+    },
+    "minecraft:andesite_slab": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 75.04
+    },
+    "minecraft:andesite_stairs": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 107.26
+    },
+    "minecraft:andesite_wall": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 122.84
+    },
+    "minecraft:anvil": {
+      "friction": 0.6,
+      "restitution": 0.02,
+      "weight": 1500.15
+    },
+    "minecraft:azalea": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 146.5
+    },
+    "minecraft:azalea_leaves": {
+      "friction": 0.772,
+      "restitution": 0.0,
+      "weight": 4.82
+    },
+    "minecraft:azure_bluet": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 154.95
+    },
+    "minecraft:bamboo": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 50.2
+    },
+    "minecraft:bamboo_block": {
+      "friction": 0.587,
+      "restitution": 0.098,
+      "weight": 48.95
+    },
+    "minecraft:bamboo_button": {
+      "friction": 0.591,
+      "restitution": 0.098,
+      "weight": 2.46
+    },
+    "minecraft:bamboo_door": {
+      "friction": 0.577,
+      "restitution": 0.096,
+      "weight": 19.22
+    },
+    "minecraft:bamboo_fence": {
+      "friction": 0.598,
+      "restitution": 0.1,
+      "weight": 24.91
+    },
+    "minecraft:bamboo_fence_gate": {
+      "friction": 0.62,
+      "restitution": 0.103,
+      "weight": 25.85
+    },
+    "minecraft:bamboo_hanging_sign": {
+      "friction": 0.57,
+      "restitution": 0.095,
+      "weight": 4.75
+    },
+    "minecraft:bamboo_mosaic": {
+      "friction": 0.588,
+      "restitution": 0.098,
+      "weight": 48.98
+    },
+    "minecraft:bamboo_mosaic_slab": {
+      "friction": 0.617,
+      "restitution": 0.103,
+      "weight": 25.69
+    },
+    "minecraft:bamboo_mosaic_stairs": {
+      "friction": 0.606,
+      "restitution": 0.101,
+      "weight": 37.87
+    },
+    "minecraft:bamboo_planks": {
+      "friction": 0.606,
+      "restitution": 0.101,
+      "weight": 50.52
+    },
+    "minecraft:bamboo_pressure_plate": {
+      "friction": 0.573,
+      "restitution": 0.096,
+      "weight": 2.39
+    },
+    "minecraft:bamboo_sign": {
+      "friction": 0.571,
+      "restitution": 0.095,
+      "weight": 4.76
+    },
+    "minecraft:bamboo_slab": {
+      "friction": 0.612,
+      "restitution": 0.102,
+      "weight": 25.49
+    },
+    "minecraft:bamboo_stairs": {
+      "friction": 0.601,
+      "restitution": 0.1,
+      "weight": 37.56
+    },
+    "minecraft:bamboo_trapdoor": {
+      "friction": 0.572,
+      "restitution": 0.095,
+      "weight": 19.06
+    },
+    "minecraft:bamboo_wall_hanging_sign": {
+      "friction": 0.6,
+      "restitution": 0.1,
+      "weight": 40.0
+    },
+    "minecraft:bamboo_wall_sign": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 40.11
+    },
+    "minecraft:barrel": {
+      "friction": 0.762,
+      "restitution": 0.048,
+      "weight": 142.84
+    },
+    "minecraft:barrier": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 154.52
+    },
+    "minecraft:basalt": {
+      "friction": 0.797,
+      "restitution": 0.05,
+      "weight": 149.52
+    },
+    "minecraft:beacon": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 153.91
+    },
+    "minecraft:bedrock": {
+      "friction": 0.745,
+      "restitution": 0.05,
+      "weight": 596.28
+    },
+    "minecraft:bee_nest": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 149.25
+    },
+    "minecraft:beehive": {
+      "friction": 0.832,
+      "restitution": 0.052,
+      "weight": 156.04
+    },
+    "minecraft:beetroots": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 157.31
+    },
+    "minecraft:bell": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 146.7
+    },
+    "minecraft:big_dripleaf": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 151.83
+    },
+    "minecraft:big_dripleaf_stem": {
+      "friction": 0.579,
+      "restitution": 0.097,
+      "weight": 48.27
+    },
+    "minecraft:birch_button": {
+      "friction": 0.585,
+      "restitution": 0.097,
+      "weight": 2.44
+    },
+    "minecraft:birch_door": {
+      "friction": 0.618,
+      "restitution": 0.103,
+      "weight": 20.59
+    },
+    "minecraft:birch_fence": {
+      "friction": 0.609,
+      "restitution": 0.101,
+      "weight": 25.36
+    },
+    "minecraft:birch_fence_gate": {
+      "friction": 0.624,
+      "restitution": 0.104,
+      "weight": 26.01
+    },
+    "minecraft:birch_hanging_sign": {
+      "friction": 0.613,
+      "restitution": 0.102,
+      "weight": 5.11
+    },
+    "minecraft:birch_leaves": {
+      "friction": 0.802,
+      "restitution": 0.0,
+      "weight": 5.01
+    },
+    "minecraft:birch_log": {
+      "friction": 0.576,
+      "restitution": 0.096,
+      "weight": 47.97
+    },
+    "minecraft:birch_planks": {
+      "friction": 0.603,
+      "restitution": 0.101,
+      "weight": 50.27
+    },
+    "minecraft:birch_pressure_plate": {
+      "friction": 0.573,
+      "restitution": 0.096,
+      "weight": 2.39
+    },
+    "minecraft:birch_sapling": {
+      "friction": 0.779,
+      "restitution": 0.0,
+      "weight": 0.24
+    },
+    "minecraft:birch_sign": {
+      "friction": 0.599,
+      "restitution": 0.1,
+      "weight": 4.99
+    },
+    "minecraft:birch_slab": {
+      "friction": 0.612,
+      "restitution": 0.102,
+      "weight": 25.48
+    },
+    "minecraft:birch_stairs": {
+      "friction": 0.587,
+      "restitution": 0.098,
+      "weight": 36.7
+    },
+    "minecraft:birch_trapdoor": {
+      "friction": 0.626,
+      "restitution": 0.104,
+      "weight": 20.88
+    },
+    "minecraft:birch_wall_hanging_sign": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 40.15
+    },
+    "minecraft:birch_wall_sign": {
+      "friction": 0.574,
+      "restitution": 0.096,
+      "weight": 38.25
+    },
+    "minecraft:birch_wood": {
+      "friction": 0.608,
+      "restitution": 0.101,
+      "weight": 50.7
+    },
+    "minecraft:black_banner": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 14.72
+    },
+    "minecraft:black_bed": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 90.69
+    },
+    "minecraft:black_candle": {
+      "friction": 0.778,
+      "restitution": 0.049,
+      "weight": 2.92
+    },
+    "minecraft:black_carpet": {
+      "friction": 0.771,
+      "restitution": 0.048,
+      "weight": 7.23
+    },
+    "minecraft:black_concrete": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 147.07
+    },
+    "minecraft:black_concrete_powder": {
+      "friction": 0.829,
+      "restitution": 0.0,
+      "weight": 113.95
+    },
+    "minecraft:black_glazed_terracotta": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 148.29
+    },
+    "minecraft:black_shulker_box": {
+      "friction": 0.808,
+      "restitution": 0.051,
+      "weight": 151.54
+    },
+    "minecraft:black_stained_glass": {
+      "friction": 0.305,
+      "restitution": 0.254,
+      "weight": 25.4
+    },
+    "minecraft:black_stained_glass_pane": {
+      "friction": 0.31,
+      "restitution": 0.258,
+      "weight": 7.75
+    },
+    "minecraft:black_terracotta": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 157.0
+    },
+    "minecraft:black_wall_banner": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 119.16
+    },
+    "minecraft:black_wool": {
+      "friction": 0.998,
+      "restitution": 0.0,
+      "weight": 9.98
+    },
+    "minecraft:blackstone": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 147.45
+    },
+    "minecraft:blackstone_slab": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 75.63
+    },
+    "minecraft:blackstone_stairs": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 116.16
+    },
+    "minecraft:blackstone_wall": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 117.34
+    },
+    "minecraft:blast_furnace": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 143.06
+    },
+    "minecraft:blue_banner": {
+      "friction": 0.816,
+      "restitution": 0.051,
+      "weight": 15.31
+    },
+    "minecraft:blue_bed": {
+      "friction": 0.814,
+      "restitution": 0.051,
+      "weight": 91.63
+    },
+    "minecraft:blue_candle": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 2.9
+    },
+    "minecraft:blue_carpet": {
+      "friction": 0.792,
+      "restitution": 0.049,
+      "weight": 7.42
+    },
+    "minecraft:blue_concrete": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 156.66
+    },
+    "minecraft:blue_concrete_powder": {
+      "friction": 0.788,
+      "restitution": 0.0,
+      "weight": 108.4
+    },
+    "minecraft:blue_glazed_terracotta": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 147.0
+    },
+    "minecraft:blue_ice": {
+      "friction": 0.01,
+      "restitution": 0.051,
+      "weight": 82.35
+    },
+    "minecraft:blue_orchid": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 145.68
+    },
+    "minecraft:blue_shulker_box": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 151.28
+    },
+    "minecraft:blue_stained_glass": {
+      "friction": 0.303,
+      "restitution": 0.252,
+      "weight": 25.23
+    },
+    "minecraft:blue_stained_glass_pane": {
+      "friction": 0.312,
+      "restitution": 0.26,
+      "weight": 7.81
+    },
+    "minecraft:blue_terracotta": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 150.06
+    },
+    "minecraft:blue_wall_banner": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 121.52
+    },
+    "minecraft:blue_wool": {
+      "friction": 0.996,
+      "restitution": 0.0,
+      "weight": 9.96
+    },
+    "minecraft:bone_block": {
+      "friction": 0.766,
+      "restitution": 0.048,
+      "weight": 143.55
+    },
+    "minecraft:bookshelf": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 144.25
+    },
+    "minecraft:brain_coral": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 156.73
+    },
+    "minecraft:brain_coral_block": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 152.12
+    },
+    "minecraft:brain_coral_fan": {
+      "friction": 0.814,
+      "restitution": 0.051,
+      "weight": 152.59
+    },
+    "minecraft:brain_coral_wall_fan": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 121.75
+    },
+    "minecraft:brewing_stand": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 149.25
+    },
+    "minecraft:brick_slab": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 73.67
+    },
+    "minecraft:brick_stairs": {
+      "friction": 0.767,
+      "restitution": 0.048,
+      "weight": 107.8
+    },
+    "minecraft:brick_wall": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 121.42
+    },
+    "minecraft:bricks": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 146.7
+    },
+    "minecraft:brown_banner": {
+      "friction": 0.792,
+      "restitution": 0.05,
+      "weight": 14.86
+    },
+    "minecraft:brown_bed": {
+      "friction": 0.771,
+      "restitution": 0.048,
+      "weight": 86.75
+    },
+    "minecraft:brown_candle": {
+      "friction": 0.768,
+      "restitution": 0.048,
+      "weight": 2.88
+    },
+    "minecraft:brown_carpet": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 7.46
+    },
+    "minecraft:brown_concrete": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 147.7
+    },
+    "minecraft:brown_concrete_powder": {
+      "friction": 0.818,
+      "restitution": 0.0,
+      "weight": 112.49
+    },
+    "minecraft:brown_glazed_terracotta": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 145.11
+    },
+    "minecraft:brown_mushroom": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 155.31
+    },
+    "minecraft:brown_mushroom_block": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 150.49
+    },
+    "minecraft:brown_shulker_box": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 156.59
+    },
+    "minecraft:brown_stained_glass": {
+      "friction": 0.301,
+      "restitution": 0.25,
+      "weight": 25.05
+    },
+    "minecraft:brown_stained_glass_pane": {
+      "friction": 0.298,
+      "restitution": 0.249,
+      "weight": 7.46
+    },
+    "minecraft:brown_terracotta": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 157.38
+    },
+    "minecraft:brown_wall_banner": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 116.86
+    },
+    "minecraft:brown_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 10.0
+    },
+    "minecraft:bubble_coral": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 154.6
+    },
+    "minecraft:bubble_coral_block": {
+      "friction": 0.778,
+      "restitution": 0.049,
+      "weight": 145.97
+    },
+    "minecraft:bubble_coral_fan": {
+      "friction": 0.77,
+      "restitution": 0.048,
+      "weight": 144.28
+    },
+    "minecraft:bubble_coral_wall_fan": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 121.09
+    },
+    "minecraft:budding_amethyst": {
+      "friction": 0.391,
+      "restitution": 0.391,
+      "weight": 87.97
+    },
+    "minecraft:cactus": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 148.91
+    },
+    "minecraft:cake": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 144.81
+    },
+    "minecraft:calcite": {
+      "friction": 0.776,
+      "restitution": 0.049,
+      "weight": 145.54
+    },
+    "minecraft:calibrated_sculk_sensor": {
+      "friction": 0.83,
+      "restitution": 0.052,
+      "weight": 155.55
+    },
+    "minecraft:campfire": {
+      "friction": 0.822,
+      "restitution": 0.051,
+      "weight": 154.06
+    },
+    "minecraft:candle": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 2.94
+    },
+    "minecraft:carrots": {
+      "friction": 0.761,
+      "restitution": 0.048,
+      "weight": 142.6
+    },
+    "minecraft:cartography_table": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 151.35
+    },
+    "minecraft:carved_pumpkin": {
+      "friction": 0.79,
+      "restitution": 0.049,
+      "weight": 148.2
+    },
+    "minecraft:cauldron": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 144.81
+    },
+    "minecraft:cave_vines": {
+      "friction": 0.776,
+      "restitution": 0.0,
+      "weight": 4.85
+    },
+    "minecraft:chain": {
+      "friction": 0.799,
+      "restitution": 0.05,
+      "weight": 149.88
+    },
+    "minecraft:chain_command_block": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 155.82
+    },
+    "minecraft:cherry_button": {
+      "friction": 0.604,
+      "restitution": 0.101,
+      "weight": 2.52
+    },
+    "minecraft:cherry_door": {
+      "friction": 0.591,
+      "restitution": 0.098,
+      "weight": 19.69
+    },
+    "minecraft:cherry_fence": {
+      "friction": 0.612,
+      "restitution": 0.102,
+      "weight": 25.5
+    },
+    "minecraft:cherry_fence_gate": {
+      "friction": 0.622,
+      "restitution": 0.104,
+      "weight": 25.93
+    },
+    "minecraft:cherry_hanging_sign": {
+      "friction": 0.6,
+      "restitution": 0.1,
+      "weight": 5.0
+    },
+    "minecraft:cherry_leaves": {
+      "friction": 0.803,
+      "restitution": 0.0,
+      "weight": 5.02
+    },
+    "minecraft:cherry_log": {
+      "friction": 0.591,
+      "restitution": 0.099,
+      "weight": 49.29
+    },
+    "minecraft:cherry_planks": {
+      "friction": 0.603,
+      "restitution": 0.1,
+      "weight": 50.21
+    },
+    "minecraft:cherry_pressure_plate": {
+      "friction": 0.591,
+      "restitution": 0.098,
+      "weight": 2.46
+    },
+    "minecraft:cherry_sapling": {
+      "friction": 0.81,
+      "restitution": 0.0,
+      "weight": 0.25
+    },
+    "minecraft:cherry_sign": {
+      "friction": 0.579,
+      "restitution": 0.097,
+      "weight": 4.83
+    },
+    "minecraft:cherry_slab": {
+      "friction": 0.62,
+      "restitution": 0.103,
+      "weight": 25.85
+    },
+    "minecraft:cherry_stairs": {
+      "friction": 0.622,
+      "restitution": 0.104,
+      "weight": 38.89
+    },
+    "minecraft:cherry_trapdoor": {
+      "friction": 0.598,
+      "restitution": 0.1,
+      "weight": 19.92
+    },
+    "minecraft:cherry_wall_hanging_sign": {
+      "friction": 0.615,
+      "restitution": 0.102,
+      "weight": 41.0
+    },
+    "minecraft:cherry_wall_sign": {
+      "friction": 0.615,
+      "restitution": 0.103,
+      "weight": 41.01
+    },
+    "minecraft:cherry_wood": {
+      "friction": 0.594,
+      "restitution": 0.099,
+      "weight": 49.47
+    },
+    "minecraft:chest": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 153.91
+    },
+    "minecraft:chipped_anvil": {
+      "friction": 0.617,
+      "restitution": 0.021,
+      "weight": 1542.15
+    },
+    "minecraft:chiseled_bookshelf": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 151.2
+    },
+    "minecraft:chiseled_copper": {
+      "friction": 0.451,
+      "restitution": 0.201,
+      "weight": 300.93
+    },
+    "minecraft:chiseled_deepslate": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 147.16
+    },
+    "minecraft:chiseled_nether_bricks": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 145.75
+    },
+    "minecraft:chiseled_polished_blackstone": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 154.71
+    },
+    "minecraft:chiseled_quartz_block": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 157.26
+    },
+    "minecraft:chiseled_red_sandstone": {
+      "friction": 0.783,
+      "restitution": 0.0,
+      "weight": 107.61
+    },
+    "minecraft:chiseled_sandstone": {
+      "friction": 0.776,
+      "restitution": 0.0,
+      "weight": 106.68
+    },
+    "minecraft:chiseled_stone_bricks": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 149.62
+    },
+    "minecraft:chiseled_tuff": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 155.75
+    },
+    "minecraft:chiseled_tuff_bricks": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 147.42
+    },
+    "minecraft:chorus_flower": {
+      "friction": 0.808,
+      "restitution": 0.0,
+      "weight": 0.25
+    },
+    "minecraft:chorus_plant": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 7.52
+    },
+    "minecraft:clay": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 144.1
+    },
+    "minecraft:coal_block": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 154.02
+    },
+    "minecraft:coal_ore": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 154.92
+    },
+    "minecraft:coarse_dirt": {
+      "friction": 0.94,
+      "restitution": 0.0,
+      "weight": 94.03
+    },
+    "minecraft:cobbled_deepslate": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 147.34
+    },
+    "minecraft:cobbled_deepslate_slab": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 77.65
+    },
+    "minecraft:cobbled_deepslate_stairs": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 117.38
+    },
+    "minecraft:cobbled_deepslate_wall": {
+      "friction": 0.783,
+      "restitution": 0.049,
+      "weight": 117.48
+    },
+    "minecraft:cobblestone": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 150.57
+    },
+    "minecraft:cobblestone_slab": {
+      "friction": 0.813,
+      "restitution": 0.051,
+      "weight": 76.23
+    },
+    "minecraft:cobblestone_stairs": {
+      "friction": 0.773,
+      "restitution": 0.048,
+      "weight": 108.66
+    },
+    "minecraft:cobblestone_wall": {
+      "friction": 0.787,
+      "restitution": 0.049,
+      "weight": 118.0
+    },
+    "minecraft:cobweb": {
+      "friction": 0.834,
+      "restitution": 0.052,
+      "weight": 156.39
+    },
+    "minecraft:cocoa": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 147.21
+    },
+    "minecraft:command_block": {
+      "friction": 0.776,
+      "restitution": 0.049,
+      "weight": 145.56
+    },
+    "minecraft:comparator": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 148.86
+    },
+    "minecraft:composter": {
+      "friction": 0.833,
+      "restitution": 0.052,
+      "weight": 156.22
+    },
+    "minecraft:conduit": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 154.88
+    },
+    "minecraft:copper_block": {
+      "friction": 0.468,
+      "restitution": 0.208,
+      "weight": 312.27
+    },
+    "minecraft:copper_bulb": {
+      "friction": 0.43,
+      "restitution": 0.191,
+      "weight": 286.53
+    },
+    "minecraft:copper_door": {
+      "friction": 0.428,
+      "restitution": 0.19,
+      "weight": 114.26
+    },
+    "minecraft:copper_grate": {
+      "friction": 0.447,
+      "restitution": 0.199,
+      "weight": 297.81
+    },
+    "minecraft:copper_ore": {
+      "friction": 0.451,
+      "restitution": 0.2,
+      "weight": 300.42
+    },
+    "minecraft:copper_trapdoor": {
+      "friction": 0.449,
+      "restitution": 0.2,
+      "weight": 119.75
+    },
+    "minecraft:cornflower": {
+      "friction": 0.836,
+      "restitution": 0.0,
+      "weight": 0.26
+    },
+    "minecraft:cracked_deepslate_bricks": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 149.32
+    },
+    "minecraft:cracked_deepslate_tiles": {
+      "friction": 0.79,
+      "restitution": 0.049,
+      "weight": 148.17
+    },
+    "minecraft:cracked_nether_bricks": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 148.68
+    },
+    "minecraft:cracked_polished_blackstone_bricks": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 145.36
+    },
+    "minecraft:cracked_stone_bricks": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 145.32
+    },
+    "minecraft:crafter": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 147.96
+    },
+    "minecraft:crafting_table": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 147.9
+    },
+    "minecraft:creeper_head": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 144.12
+    },
+    "minecraft:creeper_wall_head": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 121.12
+    },
+    "minecraft:crimson_button": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 7.51
+    },
+    "minecraft:crimson_door": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 58.42
+    },
+    "minecraft:crimson_fence": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 73.27
+    },
+    "minecraft:crimson_fence_gate": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 77.59
+    },
+    "minecraft:crimson_fungus": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 147.13
+    },
+    "minecraft:crimson_hanging_sign": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 14.51
+    },
+    "minecraft:crimson_hyphae": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 48.54
+    },
+    "minecraft:crimson_nylium": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 153.22
+    },
+    "minecraft:crimson_planks": {
+      "friction": 0.63,
+      "restitution": 0.105,
+      "weight": 52.47
+    },
+    "minecraft:crimson_pressure_plate": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 7.87
+    },
+    "minecraft:crimson_roots": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 146.02
+    },
+    "minecraft:crimson_sign": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 15.05
+    },
+    "minecraft:crimson_slab": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 72.35
+    },
+    "minecraft:crimson_stairs": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 108.96
+    },
+    "minecraft:crimson_stem": {
+      "friction": 0.583,
+      "restitution": 0.097,
+      "weight": 48.55
+    },
+    "minecraft:crimson_trapdoor": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 57.25
+    },
+    "minecraft:crimson_wall_hanging_sign": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 122.8
+    },
+    "minecraft:crimson_wall_sign": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 120.95
+    },
+    "minecraft:crying_obsidian": {
+      "friction": 0.713,
+      "restitution": 0.048,
+      "weight": 950.5
+    },
+    "minecraft:cut_copper": {
+      "friction": 0.443,
+      "restitution": 0.197,
+      "weight": 295.5
+    },
+    "minecraft:cut_copper_slab": {
+      "friction": 0.448,
+      "restitution": 0.199,
+      "weight": 149.41
+    },
+    "minecraft:cut_copper_stairs": {
+      "friction": 0.447,
+      "restitution": 0.199,
+      "weight": 223.47
+    },
+    "minecraft:cut_red_sandstone": {
+      "friction": 0.805,
+      "restitution": 0.0,
+      "weight": 110.67
+    },
+    "minecraft:cut_red_sandstone_slab": {
+      "friction": 0.81,
+      "restitution": 0.0,
+      "weight": 55.67
+    },
+    "minecraft:cut_sandstone": {
+      "friction": 0.782,
+      "restitution": 0.0,
+      "weight": 107.59
+    },
+    "minecraft:cut_sandstone_slab": {
+      "friction": 0.789,
+      "restitution": 0.0,
+      "weight": 54.22
+    },
+    "minecraft:cyan_banner": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 15.13
+    },
+    "minecraft:cyan_bed": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 88.16
+    },
+    "minecraft:cyan_candle": {
+      "friction": 0.805,
+      "restitution": 0.05,
+      "weight": 3.02
+    },
+    "minecraft:cyan_carpet": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 7.46
+    },
+    "minecraft:cyan_concrete": {
+      "friction": 0.78,
+      "restitution": 0.049,
+      "weight": 146.2
+    },
+    "minecraft:cyan_concrete_powder": {
+      "friction": 0.761,
+      "restitution": 0.0,
+      "weight": 104.7
+    },
+    "minecraft:cyan_glazed_terracotta": {
+      "friction": 0.765,
+      "restitution": 0.048,
+      "weight": 143.43
+    },
+    "minecraft:cyan_shulker_box": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 149.95
+    },
+    "minecraft:cyan_stained_glass": {
+      "friction": 0.3,
+      "restitution": 0.25,
+      "weight": 25.01
+    },
+    "minecraft:cyan_stained_glass_pane": {
+      "friction": 0.297,
+      "restitution": 0.248,
+      "weight": 7.43
+    },
+    "minecraft:cyan_terracotta": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 149.07
+    },
+    "minecraft:cyan_wall_banner": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 114.58
+    },
+    "minecraft:cyan_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 10.0
+    },
+    "minecraft:damaged_anvil": {
+      "friction": 0.575,
+      "restitution": 0.019,
+      "weight": 1436.4
+    },
+    "minecraft:dandelion": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 145.2
+    },
+    "minecraft:dark_oak_button": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 2.51
+    },
+    "minecraft:dark_oak_door": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 19.39
+    },
+    "minecraft:dark_oak_fence": {
+      "friction": 0.609,
+      "restitution": 0.101,
+      "weight": 25.37
+    },
+    "minecraft:dark_oak_fence_gate": {
+      "friction": 0.579,
+      "restitution": 0.096,
+      "weight": 24.11
+    },
+    "minecraft:dark_oak_hanging_sign": {
+      "friction": 0.629,
+      "restitution": 0.105,
+      "weight": 5.24
+    },
+    "minecraft:dark_oak_leaves": {
+      "friction": 0.805,
+      "restitution": 0.0,
+      "weight": 5.03
+    },
+    "minecraft:dark_oak_log": {
+      "friction": 0.616,
+      "restitution": 0.103,
+      "weight": 51.35
+    },
+    "minecraft:dark_oak_planks": {
+      "friction": 0.6,
+      "restitution": 0.1,
+      "weight": 49.97
+    },
+    "minecraft:dark_oak_pressure_plate": {
+      "friction": 0.608,
+      "restitution": 0.101,
+      "weight": 2.53
+    },
+    "minecraft:dark_oak_sapling": {
+      "friction": 0.797,
+      "restitution": 0.0,
+      "weight": 0.25
+    },
+    "minecraft:dark_oak_sign": {
+      "friction": 0.584,
+      "restitution": 0.097,
+      "weight": 4.87
+    },
+    "minecraft:dark_oak_slab": {
+      "friction": 0.597,
+      "restitution": 0.099,
+      "weight": 24.87
+    },
+    "minecraft:dark_oak_stairs": {
+      "friction": 0.599,
+      "restitution": 0.1,
+      "weight": 37.45
+    },
+    "minecraft:dark_oak_trapdoor": {
+      "friction": 0.586,
+      "restitution": 0.098,
+      "weight": 19.55
+    },
+    "minecraft:dark_oak_wall_hanging_sign": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 38.82
+    },
+    "minecraft:dark_oak_wall_sign": {
+      "friction": 0.591,
+      "restitution": 0.098,
+      "weight": 39.37
+    },
+    "minecraft:dark_oak_wood": {
+      "friction": 0.581,
+      "restitution": 0.097,
+      "weight": 48.44
+    },
+    "minecraft:dark_prismarine": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 143.34
+    },
+    "minecraft:dark_prismarine_slab": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 73.7
+    },
+    "minecraft:dark_prismarine_stairs": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 109.56
+    },
+    "minecraft:daylight_detector": {
+      "friction": 0.767,
+      "restitution": 0.048,
+      "weight": 143.88
+    },
+    "minecraft:dead_brain_coral": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 151.86
+    },
+    "minecraft:dead_brain_coral_block": {
+      "friction": 0.833,
+      "restitution": 0.052,
+      "weight": 156.15
+    },
+    "minecraft:dead_brain_coral_fan": {
+      "friction": 0.813,
+      "restitution": 0.051,
+      "weight": 152.46
+    },
+    "minecraft:dead_brain_coral_wall_fan": {
+      "friction": 0.822,
+      "restitution": 0.051,
+      "weight": 123.32
+    },
+    "minecraft:dead_bubble_coral": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 152.85
+    },
+    "minecraft:dead_bubble_coral_block": {
+      "friction": 0.77,
+      "restitution": 0.048,
+      "weight": 144.28
+    },
+    "minecraft:dead_bubble_coral_fan": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 152.22
+    },
+    "minecraft:dead_bubble_coral_wall_fan": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 120.32
+    },
+    "minecraft:dead_bush": {
+      "friction": 0.835,
+      "restitution": 0.0,
+      "weight": 5.22
+    },
+    "minecraft:dead_fire_coral": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 150.38
+    },
+    "minecraft:dead_fire_coral_block": {
+      "friction": 0.838,
+      "restitution": 0.052,
+      "weight": 157.17
+    },
+    "minecraft:dead_fire_coral_fan": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 150.57
+    },
+    "minecraft:dead_fire_coral_wall_fan": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 121.46
+    },
+    "minecraft:dead_horn_coral": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 146.02
+    },
+    "minecraft:dead_horn_coral_block": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 148.83
+    },
+    "minecraft:dead_horn_coral_fan": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 145.6
+    },
+    "minecraft:dead_horn_coral_wall_fan": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 120.26
+    },
+    "minecraft:dead_tube_coral": {
+      "friction": 0.761,
+      "restitution": 0.048,
+      "weight": 142.75
+    },
+    "minecraft:dead_tube_coral_block": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 152.86
+    },
+    "minecraft:dead_tube_coral_fan": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 151.77
+    },
+    "minecraft:dead_tube_coral_wall_fan": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 114.4
+    },
+    "minecraft:decorated_pot": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 152.83
+    },
+    "minecraft:deepslate": {
+      "friction": 0.804,
+      "restitution": 0.05,
+      "weight": 150.76
+    },
+    "minecraft:deepslate_brick_slab": {
+      "friction": 0.823,
+      "restitution": 0.051,
+      "weight": 77.12
+    },
+    "minecraft:deepslate_brick_stairs": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 110.31
+    },
+    "minecraft:deepslate_brick_wall": {
+      "friction": 0.79,
+      "restitution": 0.049,
+      "weight": 118.5
+    },
+    "minecraft:deepslate_bricks": {
+      "friction": 0.822,
+      "restitution": 0.051,
+      "weight": 154.22
+    },
+    "minecraft:deepslate_coal_ore": {
+      "friction": 0.823,
+      "restitution": 0.051,
+      "weight": 154.29
+    },
+    "minecraft:deepslate_copper_ore": {
+      "friction": 0.471,
+      "restitution": 0.209,
+      "weight": 313.98
+    },
+    "minecraft:deepslate_diamond_ore": {
+      "friction": 0.477,
+      "restitution": 0.143,
+      "weight": 333.97
+    },
+    "minecraft:deepslate_emerald_ore": {
+      "friction": 0.506,
+      "restitution": 0.152,
+      "weight": 354.34
+    },
+    "minecraft:deepslate_gold_ore": {
+      "friction": 0.481,
+      "restitution": 0.144,
+      "weight": 337.05
+    },
+    "minecraft:deepslate_iron_ore": {
+      "friction": 0.484,
+      "restitution": 0.145,
+      "weight": 338.97
+    },
+    "minecraft:deepslate_lapis_ore": {
+      "friction": 0.505,
+      "restitution": 0.151,
+      "weight": 353.22
+    },
+    "minecraft:deepslate_redstone_ore": {
+      "friction": 0.808,
+      "restitution": 0.05,
+      "weight": 151.49
+    },
+    "minecraft:deepslate_tile_slab": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 75.85
+    },
+    "minecraft:deepslate_tile_stairs": {
+      "friction": 0.824,
+      "restitution": 0.051,
+      "weight": 115.83
+    },
+    "minecraft:deepslate_tile_wall": {
+      "friction": 0.822,
+      "restitution": 0.051,
+      "weight": 123.25
+    },
+    "minecraft:deepslate_tiles": {
+      "friction": 0.833,
+      "restitution": 0.052,
+      "weight": 156.19
+    },
+    "minecraft:detector_rail": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 156.82
+    },
+    "minecraft:diamond_block": {
+      "friction": 0.511,
+      "restitution": 0.153,
+      "weight": 357.6
+    },
+    "minecraft:diamond_ore": {
+      "friction": 0.495,
+      "restitution": 0.148,
+      "weight": 346.5
+    },
+    "minecraft:diorite": {
+      "friction": 0.787,
+      "restitution": 0.049,
+      "weight": 147.64
+    },
+    "minecraft:diorite_slab": {
+      "friction": 0.805,
+      "restitution": 0.05,
+      "weight": 75.46
+    },
+    "minecraft:diorite_stairs": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 114.1
+    },
+    "minecraft:diorite_wall": {
+      "friction": 0.823,
+      "restitution": 0.051,
+      "weight": 123.46
+    },
+    "minecraft:dirt": {
+      "friction": 0.892,
+      "restitution": 0.0,
+      "weight": 89.18
+    },
+    "minecraft:dirt_path": {
+      "friction": 0.941,
+      "restitution": 0.0,
+      "weight": 94.13
+    },
+    "minecraft:dispenser": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 156.57
+    },
+    "minecraft:dragon_egg": {
+      "friction": 0.823,
+      "restitution": 0.051,
+      "weight": 154.26
+    },
+    "minecraft:dragon_head": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 145.68
+    },
+    "minecraft:dragon_wall_head": {
+      "friction": 0.818,
+      "restitution": 0.051,
+      "weight": 122.63
+    },
+    "minecraft:dried_kelp_block": {
+      "friction": 0.795,
+      "restitution": 0.0,
+      "weight": 4.97
+    },
+    "minecraft:dripstone_block": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 148.74
+    },
+    "minecraft:dropper": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 154.81
+    },
+    "minecraft:emerald_block": {
+      "friction": 0.495,
+      "restitution": 0.149,
+      "weight": 346.71
+    },
+    "minecraft:emerald_ore": {
+      "friction": 0.508,
+      "restitution": 0.152,
+      "weight": 355.53
+    },
+    "minecraft:enchanting_table": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 153.96
+    },
+    "minecraft:end_portal_frame": {
+      "friction": 0.79,
+      "restitution": 0.049,
+      "weight": 148.19
+    },
+    "minecraft:end_rod": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 148.29
+    },
+    "minecraft:end_stone": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 145.17
+    },
+    "minecraft:end_stone_brick_slab": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 77.01
+    },
+    "minecraft:end_stone_brick_stairs": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 107.43
+    },
+    "minecraft:end_stone_brick_wall": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 119.75
+    },
+    "minecraft:end_stone_bricks": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 151.63
+    },
+    "minecraft:ender_chest": {
+      "friction": 0.805,
+      "restitution": 0.05,
+      "weight": 151.02
+    },
+    "minecraft:exposed_chiseled_copper": {
+      "friction": 0.47,
+      "restitution": 0.209,
+      "weight": 313.26
+    },
+    "minecraft:exposed_copper": {
+      "friction": 0.441,
+      "restitution": 0.196,
+      "weight": 293.67
+    },
+    "minecraft:exposed_copper_bulb": {
+      "friction": 0.449,
+      "restitution": 0.2,
+      "weight": 299.64
+    },
+    "minecraft:exposed_copper_door": {
+      "friction": 0.451,
+      "restitution": 0.201,
+      "weight": 120.4
+    },
+    "minecraft:exposed_copper_grate": {
+      "friction": 0.453,
+      "restitution": 0.201,
+      "weight": 302.1
+    },
+    "minecraft:exposed_copper_trapdoor": {
+      "friction": 0.446,
+      "restitution": 0.198,
+      "weight": 118.9
+    },
+    "minecraft:exposed_cut_copper": {
+      "friction": 0.469,
+      "restitution": 0.208,
+      "weight": 312.72
+    },
+    "minecraft:exposed_cut_copper_slab": {
+      "friction": 0.458,
+      "restitution": 0.203,
+      "weight": 152.55
+    },
+    "minecraft:exposed_cut_copper_stairs": {
+      "friction": 0.459,
+      "restitution": 0.204,
+      "weight": 229.39
+    },
+    "minecraft:farmland": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 155.76
+    },
+    "minecraft:fern": {
+      "friction": 0.799,
+      "restitution": 0.0,
+      "weight": 4.99
+    },
+    "minecraft:fire_coral": {
+      "friction": 0.78,
+      "restitution": 0.049,
+      "weight": 146.28
+    },
+    "minecraft:fire_coral_block": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 152.03
+    },
+    "minecraft:fire_coral_fan": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 145.29
+    },
+    "minecraft:fire_coral_wall_fan": {
+      "friction": 0.818,
+      "restitution": 0.051,
+      "weight": 122.76
+    },
+    "minecraft:fletching_table": {
+      "friction": 0.808,
+      "restitution": 0.05,
+      "weight": 151.41
+    },
+    "minecraft:flower_pot": {
+      "friction": 0.761,
+      "restitution": 0.0,
+      "weight": 0.24
+    },
+    "minecraft:flowering_azalea": {
+      "friction": 0.792,
+      "restitution": 0.0,
+      "weight": 0.25
+    },
+    "minecraft:flowering_azalea_leaves": {
+      "friction": 0.826,
+      "restitution": 0.0,
+      "weight": 0.26
+    },
+    "minecraft:frogspawn": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 153.48
+    },
+    "minecraft:furnace": {
+      "friction": 0.813,
+      "restitution": 0.051,
+      "weight": 152.46
+    },
+    "minecraft:gilded_blackstone": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 149.1
+    },
+    "minecraft:glass": {
+      "friction": 0.301,
+      "restitution": 0.251,
+      "weight": 25.06
+    },
+    "minecraft:glass_pane": {
+      "friction": 0.31,
+      "restitution": 0.258,
+      "weight": 7.74
+    },
+    "minecraft:glow_lichen": {
+      "friction": 0.776,
+      "restitution": 0.048,
+      "weight": 145.44
+    },
+    "minecraft:glowstone": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 149.92
+    },
+    "minecraft:gold_block": {
+      "friction": 0.481,
+      "restitution": 0.144,
+      "weight": 336.63
+    },
+    "minecraft:gold_ore": {
+      "friction": 0.48,
+      "restitution": 0.144,
+      "weight": 335.79
+    },
+    "minecraft:granite": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 156.7
+    },
+    "minecraft:granite_slab": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 76.74
+    },
+    "minecraft:granite_stairs": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 114.06
+    },
+    "minecraft:granite_wall": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 122.21
+    },
+    "minecraft:grass_block": {
+      "friction": 0.774,
+      "restitution": 0.0,
+      "weight": 4.84
+    },
+    "minecraft:gravel": {
+      "friction": 0.826,
+      "restitution": 0.0,
+      "weight": 113.6
+    },
+    "minecraft:gray_banner": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 15.57
+    },
+    "minecraft:gray_bed": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 85.83
+    },
+    "minecraft:gray_candle": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 3.04
+    },
+    "minecraft:gray_carpet": {
+      "friction": 0.832,
+      "restitution": 0.052,
+      "weight": 7.8
+    },
+    "minecraft:gray_concrete": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 156.59
+    },
+    "minecraft:gray_concrete_powder": {
+      "friction": 0.778,
+      "restitution": 0.0,
+      "weight": 107.02
+    },
+    "minecraft:gray_glazed_terracotta": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 155.34
+    },
+    "minecraft:gray_shulker_box": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 151.68
+    },
+    "minecraft:gray_stained_glass": {
+      "friction": 0.315,
+      "restitution": 0.262,
+      "weight": 26.23
+    },
+    "minecraft:gray_stained_glass_pane": {
+      "friction": 0.299,
+      "restitution": 0.249,
+      "weight": 7.48
+    },
+    "minecraft:gray_terracotta": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 156.93
+    },
+    "minecraft:gray_wall_banner": {
+      "friction": 0.818,
+      "restitution": 0.051,
+      "weight": 122.68
+    },
+    "minecraft:gray_wool": {
+      "friction": 0.951,
+      "restitution": 0.0,
+      "weight": 9.51
+    },
+    "minecraft:green_banner": {
+      "friction": 0.818,
+      "restitution": 0.051,
+      "weight": 15.34
+    },
+    "minecraft:green_bed": {
+      "friction": 0.778,
+      "restitution": 0.049,
+      "weight": 87.52
+    },
+    "minecraft:green_candle": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 2.99
+    },
+    "minecraft:green_carpet": {
+      "friction": 0.83,
+      "restitution": 0.052,
+      "weight": 7.78
+    },
+    "minecraft:green_concrete": {
+      "friction": 0.823,
+      "restitution": 0.051,
+      "weight": 154.35
+    },
+    "minecraft:green_concrete_powder": {
+      "friction": 0.82,
+      "restitution": 0.0,
+      "weight": 112.77
+    },
+    "minecraft:green_glazed_terracotta": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 153.99
+    },
+    "minecraft:green_shulker_box": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 155.19
+    },
+    "minecraft:green_stained_glass": {
+      "friction": 0.31,
+      "restitution": 0.258,
+      "weight": 25.82
+    },
+    "minecraft:green_stained_glass_pane": {
+      "friction": 0.291,
+      "restitution": 0.242,
+      "weight": 7.27
+    },
+    "minecraft:green_terracotta": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 145.66
+    },
+    "minecraft:green_wall_banner": {
+      "friction": 0.778,
+      "restitution": 0.049,
+      "weight": 116.71
+    },
+    "minecraft:green_wool": {
+      "friction": 0.98,
+      "restitution": 0.0,
+      "weight": 9.8
+    },
+    "minecraft:grindstone": {
+      "friction": 0.762,
+      "restitution": 0.048,
+      "weight": 142.83
+    },
+    "minecraft:hanging_roots": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 146.92
+    },
+    "minecraft:hay_block": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 153.15
+    },
+    "minecraft:heavy_core": {
+      "friction": 0.606,
+      "restitution": 0.02,
+      "weight": 1515.3
+    },
+    "minecraft:heavy_weighted_pressure_plate": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 7.66
+    },
+    "minecraft:honey_block": {
+      "friction": 0.994,
+      "restitution": 0.05,
+      "weight": 39.76
+    },
+    "minecraft:honeycomb_block": {
+      "friction": 1.0,
+      "restitution": 0.051,
+      "weight": 41.19
+    },
+    "minecraft:hopper": {
+      "friction": 0.77,
+      "restitution": 0.048,
+      "weight": 144.45
+    },
+    "minecraft:horn_coral": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 154.78
+    },
+    "minecraft:horn_coral_block": {
+      "friction": 0.773,
+      "restitution": 0.048,
+      "weight": 144.91
+    },
+    "minecraft:horn_coral_fan": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 152.82
+    },
+    "minecraft:horn_coral_wall_fan": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 120.35
+    },
+    "minecraft:ice": {
+      "friction": 0.019,
+      "restitution": 0.048,
+      "weight": 76.78
+    },
+    "minecraft:infested_chiseled_stone_bricks": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 150.6
+    },
+    "minecraft:infested_cobblestone": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 154.91
+    },
+    "minecraft:infested_cracked_stone_bricks": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 152.78
+    },
+    "minecraft:infested_deepslate": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 147.31
+    },
+    "minecraft:infested_mossy_stone_bricks": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 149.07
+    },
+    "minecraft:infested_stone": {
+      "friction": 0.783,
+      "restitution": 0.049,
+      "weight": 146.77
+    },
+    "minecraft:infested_stone_bricks": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 156.82
+    },
+    "minecraft:iron_bars": {
+      "friction": 0.491,
+      "restitution": 0.147,
+      "weight": 343.59
+    },
+    "minecraft:iron_block": {
+      "friction": 0.5,
+      "restitution": 0.15,
+      "weight": 350.35
+    },
+    "minecraft:iron_door": {
+      "friction": 0.48,
+      "restitution": 0.144,
+      "weight": 134.44
+    },
+    "minecraft:iron_ore": {
+      "friction": 0.504,
+      "restitution": 0.151,
+      "weight": 352.94
+    },
+    "minecraft:iron_trapdoor": {
+      "friction": 0.486,
+      "restitution": 0.146,
+      "weight": 136.18
+    },
+    "minecraft:jack_o_lantern": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 147.25
+    },
+    "minecraft:jigsaw": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 155.75
+    },
+    "minecraft:jukebox": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 154.62
+    },
+    "minecraft:jungle_button": {
+      "friction": 0.583,
+      "restitution": 0.097,
+      "weight": 2.43
+    },
+    "minecraft:jungle_door": {
+      "friction": 0.623,
+      "restitution": 0.104,
+      "weight": 20.75
+    },
+    "minecraft:jungle_fence": {
+      "friction": 0.597,
+      "restitution": 0.1,
+      "weight": 24.89
+    },
+    "minecraft:jungle_fence_gate": {
+      "friction": 0.58,
+      "restitution": 0.097,
+      "weight": 24.16
+    },
+    "minecraft:jungle_hanging_sign": {
+      "friction": 0.588,
+      "restitution": 0.098,
+      "weight": 4.9
+    },
+    "minecraft:jungle_leaves": {
+      "friction": 0.81,
+      "restitution": 0.0,
+      "weight": 5.06
+    },
+    "minecraft:jungle_log": {
+      "friction": 0.573,
+      "restitution": 0.096,
+      "weight": 47.79
+    },
+    "minecraft:jungle_planks": {
+      "friction": 0.585,
+      "restitution": 0.097,
+      "weight": 48.71
+    },
+    "minecraft:jungle_pressure_plate": {
+      "friction": 0.594,
+      "restitution": 0.099,
+      "weight": 2.48
+    },
+    "minecraft:jungle_sapling": {
+      "friction": 0.806,
+      "restitution": 0.0,
+      "weight": 0.25
+    },
+    "minecraft:jungle_sign": {
+      "friction": 0.584,
+      "restitution": 0.097,
+      "weight": 4.87
+    },
+    "minecraft:jungle_slab": {
+      "friction": 0.581,
+      "restitution": 0.097,
+      "weight": 24.22
+    },
+    "minecraft:jungle_stairs": {
+      "friction": 0.581,
+      "restitution": 0.097,
+      "weight": 36.33
+    },
+    "minecraft:jungle_trapdoor": {
+      "friction": 0.615,
+      "restitution": 0.102,
+      "weight": 20.49
+    },
+    "minecraft:jungle_wall_hanging_sign": {
+      "friction": 0.581,
+      "restitution": 0.097,
+      "weight": 38.72
+    },
+    "minecraft:jungle_wall_sign": {
+      "friction": 0.591,
+      "restitution": 0.098,
+      "weight": 39.37
+    },
+    "minecraft:jungle_wood": {
+      "friction": 0.607,
+      "restitution": 0.101,
+      "weight": 50.62
+    },
+    "minecraft:kelp": {
+      "friction": 0.779,
+      "restitution": 0.0,
+      "weight": 4.87
+    },
+    "minecraft:ladder": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 155.31
+    },
+    "minecraft:lantern": {
+      "friction": 0.799,
+      "restitution": 0.05,
+      "weight": 149.87
+    },
+    "minecraft:lapis_block": {
+      "friction": 0.514,
+      "restitution": 0.154,
+      "weight": 359.8
+    },
+    "minecraft:lapis_ore": {
+      "friction": 0.486,
+      "restitution": 0.146,
+      "weight": 340.31
+    },
+    "minecraft:large_amethyst_bud": {
+      "friction": 0.381,
+      "restitution": 0.381,
+      "weight": 85.72
+    },
+    "minecraft:large_fern": {
+      "friction": 0.781,
+      "restitution": 0.0,
+      "weight": 4.88
+    },
+    "minecraft:lava_cauldron": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 146.59
+    },
+    "minecraft:lectern": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 148.84
+    },
+    "minecraft:lever": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 154.54
+    },
+    "minecraft:light": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 149.99
+    },
+    "minecraft:light_blue_banner": {
+      "friction": 0.762,
+      "restitution": 0.048,
+      "weight": 14.28
+    },
+    "minecraft:light_blue_bed": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 93.2
+    },
+    "minecraft:light_blue_candle": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 3.15
+    },
+    "minecraft:light_blue_carpet": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 7.85
+    },
+    "minecraft:light_blue_concrete": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 147.03
+    },
+    "minecraft:light_blue_concrete_powder": {
+      "friction": 0.799,
+      "restitution": 0.0,
+      "weight": 109.92
+    },
+    "minecraft:light_blue_glazed_terracotta": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 154.53
+    },
+    "minecraft:light_blue_shulker_box": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 144.78
+    },
+    "minecraft:light_blue_stained_glass": {
+      "friction": 0.307,
+      "restitution": 0.255,
+      "weight": 25.55
+    },
+    "minecraft:light_blue_stained_glass_pane": {
+      "friction": 0.289,
+      "restitution": 0.241,
+      "weight": 7.23
+    },
+    "minecraft:light_blue_terracotta": {
+      "friction": 0.838,
+      "restitution": 0.052,
+      "weight": 157.11
+    },
+    "minecraft:light_blue_wall_banner": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 115.36
+    },
+    "minecraft:light_blue_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 10.36
+    },
+    "minecraft:light_gray_banner": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 15.22
+    },
+    "minecraft:light_gray_bed": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 93.92
+    },
+    "minecraft:light_gray_candle": {
+      "friction": 0.824,
+      "restitution": 0.051,
+      "weight": 3.09
+    },
+    "minecraft:light_gray_carpet": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 7.56
+    },
+    "minecraft:light_gray_concrete": {
+      "friction": 0.778,
+      "restitution": 0.049,
+      "weight": 145.94
+    },
+    "minecraft:light_gray_concrete_powder": {
+      "friction": 0.805,
+      "restitution": 0.0,
+      "weight": 110.74
+    },
+    "minecraft:light_gray_glazed_terracotta": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 148.37
+    },
+    "minecraft:light_gray_shulker_box": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 150.06
+    },
+    "minecraft:light_gray_stained_glass": {
+      "friction": 0.313,
+      "restitution": 0.261,
+      "weight": 26.05
+    },
+    "minecraft:light_gray_stained_glass_pane": {
+      "friction": 0.29,
+      "restitution": 0.241,
+      "weight": 7.24
+    },
+    "minecraft:light_gray_terracotta": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 153.57
+    },
+    "minecraft:light_gray_wall_banner": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 118.96
+    },
+    "minecraft:light_gray_wool": {
+      "friction": 0.995,
+      "restitution": 0.0,
+      "weight": 9.95
+    },
+    "minecraft:light_weighted_pressure_plate": {
+      "friction": 0.824,
+      "restitution": 0.051,
+      "weight": 7.72
+    },
+    "minecraft:lightning_rod": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 144.84
+    },
+    "minecraft:lilac": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 147.28
+    },
+    "minecraft:lily_of_the_valley": {
+      "friction": 0.806,
+      "restitution": 0.0,
+      "weight": 5.04
+    },
+    "minecraft:lily_pad": {
+      "friction": 0.806,
+      "restitution": 0.0,
+      "weight": 5.04
+    },
+    "minecraft:lime_banner": {
+      "friction": 0.762,
+      "restitution": 0.048,
+      "weight": 14.28
+    },
+    "minecraft:lime_bed": {
+      "friction": 0.829,
+      "restitution": 0.052,
+      "weight": 93.22
+    },
+    "minecraft:lime_candle": {
+      "friction": 0.814,
+      "restitution": 0.051,
+      "weight": 3.05
+    },
+    "minecraft:lime_carpet": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 7.32
+    },
+    "minecraft:lime_concrete": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 147.31
+    },
+    "minecraft:lime_concrete_powder": {
+      "friction": 0.797,
+      "restitution": 0.0,
+      "weight": 109.53
+    },
+    "minecraft:lime_glazed_terracotta": {
+      "friction": 0.82,
+      "restitution": 0.051,
+      "weight": 153.7
+    },
+    "minecraft:lime_shulker_box": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 156.99
+    },
+    "minecraft:lime_stained_glass": {
+      "friction": 0.311,
+      "restitution": 0.259,
+      "weight": 25.92
+    },
+    "minecraft:lime_stained_glass_pane": {
+      "friction": 0.306,
+      "restitution": 0.255,
+      "weight": 7.65
+    },
+    "minecraft:lime_terracotta": {
+      "friction": 0.82,
+      "restitution": 0.051,
+      "weight": 153.79
+    },
+    "minecraft:lime_wall_banner": {
+      "friction": 0.824,
+      "restitution": 0.051,
+      "weight": 123.55
+    },
+    "minecraft:lime_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 10.01
+    },
+    "minecraft:lodestone": {
+      "friction": 0.84,
+      "restitution": 0.052,
+      "weight": 157.44
+    },
+    "minecraft:loom": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 153.25
+    },
+    "minecraft:magenta_banner": {
+      "friction": 0.83,
+      "restitution": 0.052,
+      "weight": 15.55
+    },
+    "minecraft:magenta_bed": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 88.99
+    },
+    "minecraft:magenta_candle": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 2.92
+    },
+    "minecraft:magenta_carpet": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 7.6
+    },
+    "minecraft:magenta_concrete": {
+      "friction": 0.833,
+      "restitution": 0.052,
+      "weight": 156.22
+    },
+    "minecraft:magenta_concrete_powder": {
+      "friction": 0.76,
+      "restitution": 0.0,
+      "weight": 104.55
+    },
+    "minecraft:magenta_glazed_terracotta": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 153.12
+    },
+    "minecraft:magenta_shulker_box": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 149.31
+    },
+    "minecraft:magenta_stained_glass": {
+      "friction": 0.304,
+      "restitution": 0.253,
+      "weight": 25.3
+    },
+    "minecraft:magenta_stained_glass_pane": {
+      "friction": 0.313,
+      "restitution": 0.26,
+      "weight": 7.81
+    },
+    "minecraft:magenta_terracotta": {
+      "friction": 0.765,
+      "restitution": 0.048,
+      "weight": 143.46
+    },
+    "minecraft:magenta_wall_banner": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 116.51
+    },
+    "minecraft:magenta_wool": {
+      "friction": 0.977,
+      "restitution": 0.0,
+      "weight": 9.77
+    },
+    "minecraft:magma_block": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 145.38
+    },
+    "minecraft:mangrove_button": {
+      "friction": 0.587,
+      "restitution": 0.098,
+      "weight": 2.45
+    },
+    "minecraft:mangrove_door": {
+      "friction": 0.571,
+      "restitution": 0.095,
+      "weight": 19.03
+    },
+    "minecraft:mangrove_fence": {
+      "friction": 0.62,
+      "restitution": 0.103,
+      "weight": 25.83
+    },
+    "minecraft:mangrove_fence_gate": {
+      "friction": 0.577,
+      "restitution": 0.096,
+      "weight": 24.05
+    },
+    "minecraft:mangrove_hanging_sign": {
+      "friction": 0.619,
+      "restitution": 0.103,
+      "weight": 5.16
+    },
+    "minecraft:mangrove_leaves": {
+      "friction": 0.835,
+      "restitution": 0.0,
+      "weight": 5.22
+    },
+    "minecraft:mangrove_log": {
+      "friction": 0.607,
+      "restitution": 0.101,
+      "weight": 50.56
+    },
+    "minecraft:mangrove_planks": {
+      "friction": 0.607,
+      "restitution": 0.101,
+      "weight": 50.57
+    },
+    "minecraft:mangrove_pressure_plate": {
+      "friction": 0.625,
+      "restitution": 0.104,
+      "weight": 2.61
+    },
+    "minecraft:mangrove_propagule": {
+      "friction": 0.612,
+      "restitution": 0.102,
+      "weight": 51.02
+    },
+    "minecraft:mangrove_roots": {
+      "friction": 0.57,
+      "restitution": 0.095,
+      "weight": 47.52
+    },
+    "minecraft:mangrove_sign": {
+      "friction": 0.608,
+      "restitution": 0.101,
+      "weight": 5.07
+    },
+    "minecraft:mangrove_slab": {
+      "friction": 0.594,
+      "restitution": 0.099,
+      "weight": 24.77
+    },
+    "minecraft:mangrove_stairs": {
+      "friction": 0.588,
+      "restitution": 0.098,
+      "weight": 36.73
+    },
+    "minecraft:mangrove_trapdoor": {
+      "friction": 0.594,
+      "restitution": 0.099,
+      "weight": 19.81
+    },
+    "minecraft:mangrove_wall_hanging_sign": {
+      "friction": 0.595,
+      "restitution": 0.099,
+      "weight": 39.68
+    },
+    "minecraft:mangrove_wall_sign": {
+      "friction": 0.601,
+      "restitution": 0.1,
+      "weight": 40.06
+    },
+    "minecraft:mangrove_wood": {
+      "friction": 0.618,
+      "restitution": 0.103,
+      "weight": 51.51
+    },
+    "minecraft:medium_amethyst_bud": {
+      "friction": 0.384,
+      "restitution": 0.384,
+      "weight": 86.41
+    },
+    "minecraft:melon": {
+      "friction": 0.805,
+      "restitution": 0.05,
+      "weight": 150.99
+    },
+    "minecraft:melon_stem": {
+      "friction": 0.619,
+      "restitution": 0.103,
+      "weight": 51.55
+    },
+    "minecraft:moss_block": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 147.39
+    },
+    "minecraft:moss_carpet": {
+      "friction": 0.79,
+      "restitution": 0.049,
+      "weight": 7.41
+    },
+    "minecraft:mossy_cobblestone": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 150.48
+    },
+    "minecraft:mossy_cobblestone_slab": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 72.58
+    },
+    "minecraft:mossy_cobblestone_stairs": {
+      "friction": 0.804,
+      "restitution": 0.05,
+      "weight": 113.02
+    },
+    "minecraft:mossy_cobblestone_wall": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 122.26
+    },
+    "minecraft:mossy_stone_brick_slab": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 73.96
+    },
+    "minecraft:mossy_stone_brick_stairs": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 113.74
+    },
+    "minecraft:mossy_stone_brick_wall": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 118.2
+    },
+    "minecraft:mossy_stone_bricks": {
+      "friction": 0.792,
+      "restitution": 0.05,
+      "weight": 148.56
+    },
+    "minecraft:mud": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 151.09
+    },
+    "minecraft:mud_brick_slab": {
+      "friction": 0.801,
+      "restitution": 0.05,
+      "weight": 75.06
+    },
+    "minecraft:mud_brick_stairs": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 116.81
+    },
+    "minecraft:mud_brick_wall": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 119.69
+    },
+    "minecraft:mud_bricks": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 153.94
+    },
+    "minecraft:muddy_mangrove_roots": {
+      "friction": 0.617,
+      "restitution": 0.103,
+      "weight": 51.44
+    },
+    "minecraft:mushroom_stem": {
+      "friction": 0.597,
+      "restitution": 0.1,
+      "weight": 49.79
+    },
+    "minecraft:mycelium": {
+      "friction": 0.924,
+      "restitution": 0.0,
+      "weight": 92.41
+    },
+    "minecraft:nether_brick_fence": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 75.9
+    },
+    "minecraft:nether_brick_slab": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 77.64
+    },
+    "minecraft:nether_brick_stairs": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 115.9
+    },
+    "minecraft:nether_brick_wall": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 124.69
+    },
+    "minecraft:nether_bricks": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 143.02
+    },
+    "minecraft:nether_gold_ore": {
+      "friction": 0.511,
+      "restitution": 0.153,
+      "weight": 357.94
+    },
+    "minecraft:nether_quartz_ore": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 146.69
+    },
+    "minecraft:nether_sprouts": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 148.74
+    },
+    "minecraft:nether_wart": {
+      "friction": 0.776,
+      "restitution": 0.048,
+      "weight": 145.41
+    },
+    "minecraft:nether_wart_block": {
+      "friction": 0.765,
+      "restitution": 0.048,
+      "weight": 143.37
+    },
+    "minecraft:netherite_block": {
+      "friction": 0.489,
+      "restitution": 0.147,
+      "weight": 342.37
+    },
+    "minecraft:netherrack": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 152.73
+    },
+    "minecraft:note_block": {
+      "friction": 0.83,
+      "restitution": 0.052,
+      "weight": 155.66
+    },
+    "minecraft:oak_button": {
+      "friction": 0.591,
+      "restitution": 0.099,
+      "weight": 2.46
+    },
+    "minecraft:oak_door": {
+      "friction": 0.6,
+      "restitution": 0.1,
+      "weight": 20.0
+    },
+    "minecraft:oak_fence": {
+      "friction": 0.594,
+      "restitution": 0.099,
+      "weight": 24.76
+    },
+    "minecraft:oak_fence_gate": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 25.06
+    },
+    "minecraft:oak_hanging_sign": {
+      "friction": 0.613,
+      "restitution": 0.102,
+      "weight": 5.11
+    },
+    "minecraft:oak_leaves": {
+      "friction": 0.818,
+      "restitution": 0.0,
+      "weight": 5.11
+    },
+    "minecraft:oak_log": {
+      "friction": 0.574,
+      "restitution": 0.096,
+      "weight": 47.85
+    },
+    "minecraft:oak_planks": {
+      "friction": 0.615,
+      "restitution": 0.102,
+      "weight": 51.24
+    },
+    "minecraft:oak_pressure_plate": {
+      "friction": 0.597,
+      "restitution": 0.1,
+      "weight": 2.49
+    },
+    "minecraft:oak_sapling": {
+      "friction": 0.763,
+      "restitution": 0.0,
+      "weight": 0.24
+    },
+    "minecraft:oak_sign": {
+      "friction": 0.627,
+      "restitution": 0.104,
+      "weight": 5.22
+    },
+    "minecraft:oak_slab": {
+      "friction": 0.606,
+      "restitution": 0.101,
+      "weight": 25.25
+    },
+    "minecraft:oak_stairs": {
+      "friction": 0.584,
+      "restitution": 0.097,
+      "weight": 36.52
+    },
+    "minecraft:oak_trapdoor": {
+      "friction": 0.622,
+      "restitution": 0.104,
+      "weight": 20.75
+    },
+    "minecraft:oak_wall_hanging_sign": {
+      "friction": 0.628,
+      "restitution": 0.105,
+      "weight": 41.85
+    },
+    "minecraft:oak_wall_sign": {
+      "friction": 0.593,
+      "restitution": 0.099,
+      "weight": 39.5
+    },
+    "minecraft:oak_wood": {
+      "friction": 0.585,
+      "restitution": 0.098,
+      "weight": 48.75
+    },
+    "minecraft:observer": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 146.97
+    },
+    "minecraft:obsidian": {
+      "friction": 0.756,
+      "restitution": 0.05,
+      "weight": 1008.0
+    },
+    "minecraft:ochre_froglight": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 149.32
+    },
+    "minecraft:orange_banner": {
+      "friction": 0.813,
+      "restitution": 0.051,
+      "weight": 15.25
+    },
+    "minecraft:orange_bed": {
+      "friction": 0.816,
+      "restitution": 0.051,
+      "weight": 91.76
+    },
+    "minecraft:orange_candle": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 2.96
+    },
+    "minecraft:orange_carpet": {
+      "friction": 0.765,
+      "restitution": 0.048,
+      "weight": 7.18
+    },
+    "minecraft:orange_concrete": {
+      "friction": 0.82,
+      "restitution": 0.051,
+      "weight": 153.67
+    },
+    "minecraft:orange_concrete_powder": {
+      "friction": 0.802,
+      "restitution": 0.0,
+      "weight": 110.26
+    },
+    "minecraft:orange_glazed_terracotta": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 147.44
+    },
+    "minecraft:orange_shulker_box": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 157.25
+    },
+    "minecraft:orange_stained_glass": {
+      "friction": 0.286,
+      "restitution": 0.239,
+      "weight": 23.85
+    },
+    "minecraft:orange_stained_glass_pane": {
+      "friction": 0.299,
+      "restitution": 0.249,
+      "weight": 7.48
+    },
+    "minecraft:orange_terracotta": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 151.66
+    },
+    "minecraft:orange_tulip": {
+      "friction": 0.83,
+      "restitution": 0.052,
+      "weight": 155.67
+    },
+    "minecraft:orange_wall_banner": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 119.65
+    },
+    "minecraft:orange_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 10.37
+    },
+    "minecraft:oxeye_daisy": {
+      "friction": 0.762,
+      "restitution": 0.048,
+      "weight": 142.83
+    },
+    "minecraft:oxidized_chiseled_copper": {
+      "friction": 0.457,
+      "restitution": 0.203,
+      "weight": 304.44
+    },
+    "minecraft:oxidized_copper": {
+      "friction": 0.438,
+      "restitution": 0.195,
+      "weight": 292.32
+    },
+    "minecraft:oxidized_copper_bulb": {
+      "friction": 0.456,
+      "restitution": 0.203,
+      "weight": 304.32
+    },
+    "minecraft:oxidized_copper_door": {
+      "friction": 0.471,
+      "restitution": 0.209,
+      "weight": 125.63
+    },
+    "minecraft:oxidized_copper_grate": {
+      "friction": 0.455,
+      "restitution": 0.202,
+      "weight": 303.54
+    },
+    "minecraft:oxidized_copper_trapdoor": {
+      "friction": 0.447,
+      "restitution": 0.199,
+      "weight": 119.1
+    },
+    "minecraft:oxidized_cut_copper": {
+      "friction": 0.445,
+      "restitution": 0.198,
+      "weight": 296.52
+    },
+    "minecraft:oxidized_cut_copper_slab": {
+      "friction": 0.431,
+      "restitution": 0.192,
+      "weight": 143.72
+    },
+    "minecraft:oxidized_cut_copper_stairs": {
+      "friction": 0.461,
+      "restitution": 0.205,
+      "weight": 230.49
+    },
+    "minecraft:packed_ice": {
+      "friction": 0.02,
+      "restitution": 0.05,
+      "weight": 79.74
+    },
+    "minecraft:packed_mud": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 151.74
+    },
+    "minecraft:pearlescent_froglight": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 151.98
+    },
+    "minecraft:peony": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 149.24
+    },
+    "minecraft:petrified_oak_slab": {
+      "friction": 0.613,
+      "restitution": 0.102,
+      "weight": 25.56
+    },
+    "minecraft:piglin_head": {
+      "friction": 0.78,
+      "restitution": 0.049,
+      "weight": 146.23
+    },
+    "minecraft:piglin_wall_head": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 124.27
+    },
+    "minecraft:pink_banner": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 14.64
+    },
+    "minecraft:pink_bed": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 92.78
+    },
+    "minecraft:pink_candle": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 3.04
+    },
+    "minecraft:pink_carpet": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 7.73
+    },
+    "minecraft:pink_concrete": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 154.5
+    },
+    "minecraft:pink_concrete_powder": {
+      "friction": 0.819,
+      "restitution": 0.0,
+      "weight": 112.64
+    },
+    "minecraft:pink_glazed_terracotta": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 148.37
+    },
+    "minecraft:pink_petals": {
+      "friction": 0.801,
+      "restitution": 0.05,
+      "weight": 150.13
+    },
+    "minecraft:pink_shulker_box": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 152.31
+    },
+    "minecraft:pink_stained_glass": {
+      "friction": 0.302,
+      "restitution": 0.252,
+      "weight": 25.16
+    },
+    "minecraft:pink_stained_glass_pane": {
+      "friction": 0.307,
+      "restitution": 0.256,
+      "weight": 7.68
+    },
+    "minecraft:pink_terracotta": {
+      "friction": 0.838,
+      "restitution": 0.052,
+      "weight": 157.03
+    },
+    "minecraft:pink_tulip": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 154.91
+    },
+    "minecraft:pink_wall_banner": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 115.78
+    },
+    "minecraft:pink_wool": {
+      "friction": 0.978,
+      "restitution": 0.0,
+      "weight": 9.78
+    },
+    "minecraft:piston": {
+      "friction": 0.771,
+      "restitution": 0.048,
+      "weight": 144.64
+    },
+    "minecraft:pitcher_crop": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 149.02
+    },
+    "minecraft:pitcher_plant": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 7.58
+    },
+    "minecraft:player_head": {
+      "friction": 0.792,
+      "restitution": 0.05,
+      "weight": 148.51
+    },
+    "minecraft:player_wall_head": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 120.95
+    },
+    "minecraft:podzol": {
+      "friction": 0.931,
+      "restitution": 0.0,
+      "weight": 93.09
+    },
+    "minecraft:pointed_dripstone": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 151.81
+    },
+    "minecraft:polished_andesite": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 152.06
+    },
+    "minecraft:polished_andesite_slab": {
+      "friction": 0.814,
+      "restitution": 0.051,
+      "weight": 76.3
+    },
+    "minecraft:polished_andesite_stairs": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 110.84
+    },
+    "minecraft:polished_basalt": {
+      "friction": 0.797,
+      "restitution": 0.05,
+      "weight": 149.37
+    },
+    "minecraft:polished_blackstone": {
+      "friction": 0.801,
+      "restitution": 0.05,
+      "weight": 150.15
+    },
+    "minecraft:polished_blackstone_brick_slab": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 73.97
+    },
+    "minecraft:polished_blackstone_brick_stairs": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 108.19
+    },
+    "minecraft:polished_blackstone_brick_wall": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 125.62
+    },
+    "minecraft:polished_blackstone_bricks": {
+      "friction": 0.761,
+      "restitution": 0.048,
+      "weight": 142.6
+    },
+    "minecraft:polished_blackstone_button": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 7.4
+    },
+    "minecraft:polished_blackstone_pressure_plate": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 7.83
+    },
+    "minecraft:polished_blackstone_slab": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 76.39
+    },
+    "minecraft:polished_blackstone_stairs": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 108.19
+    },
+    "minecraft:polished_blackstone_wall": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 117.86
+    },
+    "minecraft:polished_deepslate": {
+      "friction": 0.808,
+      "restitution": 0.051,
+      "weight": 151.54
+    },
+    "minecraft:polished_deepslate_slab": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 76.03
+    },
+    "minecraft:polished_deepslate_stairs": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 107.45
+    },
+    "minecraft:polished_deepslate_wall": {
+      "friction": 0.84,
+      "restitution": 0.052,
+      "weight": 125.98
+    },
+    "minecraft:polished_diorite": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 154.95
+    },
+    "minecraft:polished_diorite_slab": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 76.09
+    },
+    "minecraft:polished_diorite_stairs": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 114.05
+    },
+    "minecraft:polished_granite": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 147.94
+    },
+    "minecraft:polished_granite_slab": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 74.33
+    },
+    "minecraft:polished_granite_stairs": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 110.87
+    },
+    "minecraft:polished_tuff": {
+      "friction": 0.771,
+      "restitution": 0.048,
+      "weight": 144.64
+    },
+    "minecraft:polished_tuff_slab": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 74.12
+    },
+    "minecraft:polished_tuff_stairs": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 114.88
+    },
+    "minecraft:polished_tuff_wall": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 120.38
+    },
+    "minecraft:poppy": {
+      "friction": 0.799,
+      "restitution": 0.05,
+      "weight": 149.83
+    },
+    "minecraft:potatoes": {
+      "friction": 0.783,
+      "restitution": 0.049,
+      "weight": 146.73
+    },
+    "minecraft:powder_snow": {
+      "friction": 0.83,
+      "restitution": 0.0,
+      "weight": 114.18
+    },
+    "minecraft:powder_snow_cauldron": {
+      "friction": 0.804,
+      "restitution": 0.0,
+      "weight": 110.58
+    },
+    "minecraft:powered_rail": {
+      "friction": 0.77,
+      "restitution": 0.048,
+      "weight": 144.28
+    },
+    "minecraft:prismarine": {
+      "friction": 0.768,
+      "restitution": 0.048,
+      "weight": 143.96
+    },
+    "minecraft:prismarine_brick_slab": {
+      "friction": 0.827,
+      "restitution": 0.052,
+      "weight": 77.57
+    },
+    "minecraft:prismarine_brick_stairs": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 115.9
+    },
+    "minecraft:prismarine_bricks": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 153.57
+    },
+    "minecraft:prismarine_slab": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 73.91
+    },
+    "minecraft:prismarine_stairs": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 108.79
+    },
+    "minecraft:prismarine_wall": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 115.76
+    },
+    "minecraft:pumpkin": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 156.51
+    },
+    "minecraft:pumpkin_stem": {
+      "friction": 0.579,
+      "restitution": 0.097,
+      "weight": 48.26
+    },
+    "minecraft:purple_banner": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 15.23
+    },
+    "minecraft:purple_bed": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 92.32
+    },
+    "minecraft:purple_candle": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 2.98
+    },
+    "minecraft:purple_carpet": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 7.6
+    },
+    "minecraft:purple_concrete": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 151.28
+    },
+    "minecraft:purple_concrete_powder": {
+      "friction": 0.786,
+      "restitution": 0.0,
+      "weight": 108.02
+    },
+    "minecraft:purple_glazed_terracotta": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 156.66
+    },
+    "minecraft:purple_shulker_box": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 153.18
+    },
+    "minecraft:purple_stained_glass": {
+      "friction": 0.308,
+      "restitution": 0.256,
+      "weight": 25.64
+    },
+    "minecraft:purple_stained_glass_pane": {
+      "friction": 0.296,
+      "restitution": 0.247,
+      "weight": 7.4
+    },
+    "minecraft:purple_terracotta": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 149.2
+    },
+    "minecraft:purple_wall_banner": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 115.74
+    },
+    "minecraft:purple_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 10.11
+    },
+    "minecraft:purpur_block": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 146.38
+    },
+    "minecraft:purpur_pillar": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 154.74
+    },
+    "minecraft:purpur_slab": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 75.22
+    },
+    "minecraft:purpur_stairs": {
+      "friction": 0.787,
+      "restitution": 0.049,
+      "weight": 110.69
+    },
+    "minecraft:quartz_block": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 146.62
+    },
+    "minecraft:quartz_bricks": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 149.69
+    },
+    "minecraft:quartz_pillar": {
+      "friction": 0.824,
+      "restitution": 0.051,
+      "weight": 154.44
+    },
+    "minecraft:quartz_slab": {
+      "friction": 0.761,
+      "restitution": 0.048,
+      "weight": 71.3
+    },
+    "minecraft:quartz_stairs": {
+      "friction": 0.767,
+      "restitution": 0.048,
+      "weight": 107.83
+    },
+    "minecraft:rail": {
+      "friction": 0.79,
+      "restitution": 0.049,
+      "weight": 148.19
+    },
+    "minecraft:raw_copper_block": {
+      "friction": 0.47,
+      "restitution": 0.209,
+      "weight": 313.29
+    },
+    "minecraft:raw_gold_block": {
+      "friction": 0.512,
+      "restitution": 0.154,
+      "weight": 358.19
+    },
+    "minecraft:raw_iron_block": {
+      "friction": 0.492,
+      "restitution": 0.148,
+      "weight": 344.29
+    },
+    "minecraft:red_banner": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 15.32
+    },
+    "minecraft:red_bed": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 89.78
+    },
+    "minecraft:red_candle": {
+      "friction": 0.773,
+      "restitution": 0.048,
+      "weight": 2.9
+    },
+    "minecraft:red_carpet": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 7.83
+    },
+    "minecraft:red_concrete": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 147.13
+    },
+    "minecraft:red_concrete_powder": {
+      "friction": 0.837,
+      "restitution": 0.0,
+      "weight": 115.1
+    },
+    "minecraft:red_glazed_terracotta": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 153.62
+    },
+    "minecraft:red_mushroom": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 145.75
+    },
+    "minecraft:red_mushroom_block": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 156.99
+    },
+    "minecraft:red_nether_brick_slab": {
+      "friction": 0.838,
+      "restitution": 0.052,
+      "weight": 78.57
+    },
+    "minecraft:red_nether_brick_stairs": {
+      "friction": 0.832,
+      "restitution": 0.052,
+      "weight": 116.93
+    },
+    "minecraft:red_nether_brick_wall": {
+      "friction": 0.773,
+      "restitution": 0.048,
+      "weight": 115.9
+    },
+    "minecraft:red_nether_bricks": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 145.26
+    },
+    "minecraft:red_sand": {
+      "friction": 0.823,
+      "restitution": 0.0,
+      "weight": 113.18
+    },
+    "minecraft:red_sandstone": {
+      "friction": 0.767,
+      "restitution": 0.0,
+      "weight": 105.41
+    },
+    "minecraft:red_sandstone_slab": {
+      "friction": 0.83,
+      "restitution": 0.0,
+      "weight": 57.08
+    },
+    "minecraft:red_sandstone_stairs": {
+      "friction": 0.823,
+      "restitution": 0.0,
+      "weight": 84.9
+    },
+    "minecraft:red_sandstone_wall": {
+      "friction": 0.823,
+      "restitution": 0.0,
+      "weight": 90.56
+    },
+    "minecraft:red_shulker_box": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 148.3
+    },
+    "minecraft:red_stained_glass": {
+      "friction": 0.3,
+      "restitution": 0.25,
+      "weight": 25.01
+    },
+    "minecraft:red_stained_glass_pane": {
+      "friction": 0.312,
+      "restitution": 0.26,
+      "weight": 7.8
+    },
+    "minecraft:red_terracotta": {
+      "friction": 0.762,
+      "restitution": 0.048,
+      "weight": 142.89
+    },
+    "minecraft:red_tulip": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 143.06
+    },
+    "minecraft:red_wall_banner": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 115.36
+    },
+    "minecraft:red_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 10.1
+    },
+    "minecraft:redstone_block": {
+      "friction": 0.838,
+      "restitution": 0.052,
+      "weight": 157.15
+    },
+    "minecraft:redstone_lamp": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 152.13
+    },
+    "minecraft:redstone_ore": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 143.32
+    },
+    "minecraft:redstone_torch": {
+      "friction": 0.78,
+      "restitution": 0.049,
+      "weight": 2.93
+    },
+    "minecraft:redstone_wall_torch": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 120.95
+    },
+    "minecraft:redstone_wire": {
+      "friction": 0.834,
+      "restitution": 0.052,
+      "weight": 156.42
+    },
+    "minecraft:reinforced_deepslate": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 149.67
+    },
+    "minecraft:repeater": {
+      "friction": 0.792,
+      "restitution": 0.049,
+      "weight": 148.42
+    },
+    "minecraft:repeating_command_block": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 154.75
+    },
+    "minecraft:respawn_anchor": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 146.52
+    },
+    "minecraft:rooted_dirt": {
+      "friction": 0.943,
+      "restitution": 0.0,
+      "weight": 94.29
+    },
+    "minecraft:rose_bush": {
+      "friction": 0.777,
+      "restitution": 0.0,
+      "weight": 4.85
+    },
+    "minecraft:sand": {
+      "friction": 0.828,
+      "restitution": 0.0,
+      "weight": 113.92
+    },
+    "minecraft:sandstone": {
+      "friction": 0.766,
+      "restitution": 0.0,
+      "weight": 105.35
+    },
+    "minecraft:sandstone_slab": {
+      "friction": 0.824,
+      "restitution": 0.0,
+      "weight": 56.62
+    },
+    "minecraft:sandstone_stairs": {
+      "friction": 0.804,
+      "restitution": 0.0,
+      "weight": 82.96
+    },
+    "minecraft:sandstone_wall": {
+      "friction": 0.839,
+      "restitution": 0.0,
+      "weight": 92.24
+    },
+    "minecraft:scaffolding": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 145.72
+    },
+    "minecraft:sculk": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 151.22
+    },
+    "minecraft:sculk_catalyst": {
+      "friction": 0.834,
+      "restitution": 0.052,
+      "weight": 156.45
+    },
+    "minecraft:sculk_sensor": {
+      "friction": 0.771,
+      "restitution": 0.048,
+      "weight": 144.49
+    },
+    "minecraft:sculk_shrieker": {
+      "friction": 0.801,
+      "restitution": 0.05,
+      "weight": 150.15
+    },
+    "minecraft:sculk_vein": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 149.16
+    },
+    "minecraft:sea_lantern": {
+      "friction": 0.776,
+      "restitution": 0.048,
+      "weight": 145.47
+    },
+    "minecraft:sea_pickle": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 146.0
+    },
+    "minecraft:seagrass": {
+      "friction": 0.792,
+      "restitution": 0.0,
+      "weight": 4.95
+    },
+    "minecraft:short_grass": {
+      "friction": 0.816,
+      "restitution": 0.0,
+      "weight": 5.1
+    },
+    "minecraft:shroomlight": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 149.67
+    },
+    "minecraft:shulker_box": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 147.13
+    },
+    "minecraft:skeleton_skull": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 156.73
+    },
+    "minecraft:skeleton_wall_skull": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 118.93
+    },
+    "minecraft:slime_block": {
+      "friction": 0.392,
+      "restitution": 0.7,
+      "weight": 29.39
+    },
+    "minecraft:small_amethyst_bud": {
+      "friction": 0.381,
+      "restitution": 0.381,
+      "weight": 85.64
+    },
+    "minecraft:small_dripleaf": {
+      "friction": 0.768,
+      "restitution": 0.048,
+      "weight": 143.92
+    },
+    "minecraft:smithing_table": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 152.01
+    },
+    "minecraft:smoker": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 156.9
+    },
+    "minecraft:smooth_basalt": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 150.41
+    },
+    "minecraft:smooth_quartz": {
+      "friction": 0.76,
+      "restitution": 0.048,
+      "weight": 142.51
+    },
+    "minecraft:smooth_quartz_slab": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 75.93
+    },
+    "minecraft:smooth_quartz_stairs": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 109.48
+    },
+    "minecraft:smooth_red_sandstone": {
+      "friction": 0.783,
+      "restitution": 0.0,
+      "weight": 107.63
+    },
+    "minecraft:smooth_red_sandstone_slab": {
+      "friction": 0.766,
+      "restitution": 0.0,
+      "weight": 52.63
+    },
+    "minecraft:smooth_red_sandstone_stairs": {
+      "friction": 0.821,
+      "restitution": 0.0,
+      "weight": 84.71
+    },
+    "minecraft:smooth_sandstone": {
+      "friction": 0.767,
+      "restitution": 0.0,
+      "weight": 105.51
+    },
+    "minecraft:smooth_sandstone_slab": {
+      "friction": 0.785,
+      "restitution": 0.0,
+      "weight": 53.99
+    },
+    "minecraft:smooth_sandstone_stairs": {
+      "friction": 0.817,
+      "restitution": 0.0,
+      "weight": 84.29
+    },
+    "minecraft:smooth_stone": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 147.28
+    },
+    "minecraft:smooth_stone_slab": {
+      "friction": 0.797,
+      "restitution": 0.05,
+      "weight": 74.69
+    },
+    "minecraft:sniffer_egg": {
+      "friction": 0.766,
+      "restitution": 0.048,
+      "weight": 143.7
+    },
+    "minecraft:snow": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 147.06
+    },
+    "minecraft:snow_block": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 151.05
+    },
+    "minecraft:soul_campfire": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 154.68
+    },
+    "minecraft:soul_lantern": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 143.04
+    },
+    "minecraft:soul_sand": {
+      "friction": 0.764,
+      "restitution": 0.0,
+      "weight": 105.05
+    },
+    "minecraft:soul_soil": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 151.8
+    },
+    "minecraft:soul_torch": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 3.09
+    },
+    "minecraft:soul_wall_torch": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 115.75
+    },
+    "minecraft:spawner": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 156.65
+    },
+    "minecraft:sponge": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 151.38
+    },
+    "minecraft:spore_blossom": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 154.02
+    },
+    "minecraft:spruce_button": {
+      "friction": 0.589,
+      "restitution": 0.098,
+      "weight": 2.45
+    },
+    "minecraft:spruce_door": {
+      "friction": 0.6,
+      "restitution": 0.1,
+      "weight": 20.01
+    },
+    "minecraft:spruce_fence": {
+      "friction": 0.592,
+      "restitution": 0.099,
+      "weight": 24.68
+    },
+    "minecraft:spruce_fence_gate": {
+      "friction": 0.59,
+      "restitution": 0.098,
+      "weight": 24.59
+    },
+    "minecraft:spruce_hanging_sign": {
+      "friction": 0.614,
+      "restitution": 0.102,
+      "weight": 5.12
+    },
+    "minecraft:spruce_leaves": {
+      "friction": 0.831,
+      "restitution": 0.0,
+      "weight": 5.19
+    },
+    "minecraft:spruce_log": {
+      "friction": 0.613,
+      "restitution": 0.102,
+      "weight": 51.1
+    },
+    "minecraft:spruce_planks": {
+      "friction": 0.612,
+      "restitution": 0.102,
+      "weight": 50.99
+    },
+    "minecraft:spruce_pressure_plate": {
+      "friction": 0.606,
+      "restitution": 0.101,
+      "weight": 2.52
+    },
+    "minecraft:spruce_sapling": {
+      "friction": 0.836,
+      "restitution": 0.0,
+      "weight": 0.26
+    },
+    "minecraft:spruce_sign": {
+      "friction": 0.617,
+      "restitution": 0.103,
+      "weight": 5.14
+    },
+    "minecraft:spruce_slab": {
+      "friction": 0.626,
+      "restitution": 0.104,
+      "weight": 26.07
+    },
+    "minecraft:spruce_stairs": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 36.34
+    },
+    "minecraft:spruce_trapdoor": {
+      "friction": 0.596,
+      "restitution": 0.099,
+      "weight": 19.85
+    },
+    "minecraft:spruce_wall_hanging_sign": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 40.15
+    },
+    "minecraft:spruce_wall_sign": {
+      "friction": 0.619,
+      "restitution": 0.103,
+      "weight": 41.27
+    },
+    "minecraft:spruce_wood": {
+      "friction": 0.579,
+      "restitution": 0.096,
+      "weight": 48.23
+    },
+    "minecraft:sticky_piston": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 147.12
+    },
+    "minecraft:stone": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 145.25
+    },
+    "minecraft:stone_brick_slab": {
+      "friction": 0.808,
+      "restitution": 0.051,
+      "weight": 75.77
+    },
+    "minecraft:stone_brick_stairs": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 107.43
+    },
+    "minecraft:stone_brick_wall": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 125.32
+    },
+    "minecraft:stone_bricks": {
+      "friction": 0.767,
+      "restitution": 0.048,
+      "weight": 143.82
+    },
+    "minecraft:stone_button": {
+      "friction": 0.78,
+      "restitution": 0.049,
+      "weight": 7.32
+    },
+    "minecraft:stone_pressure_plate": {
+      "friction": 0.808,
+      "restitution": 0.05,
+      "weight": 7.57
+    },
+    "minecraft:stone_slab": {
+      "friction": 0.832,
+      "restitution": 0.052,
+      "weight": 78.0
+    },
+    "minecraft:stone_stairs": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 110.48
+    },
+    "minecraft:stonecutter": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 151.29
+    },
+    "minecraft:stripped_acacia_log": {
+      "friction": 0.608,
+      "restitution": 0.101,
+      "weight": 50.68
+    },
+    "minecraft:stripped_acacia_wood": {
+      "friction": 0.574,
+      "restitution": 0.096,
+      "weight": 47.86
+    },
+    "minecraft:stripped_bamboo_block": {
+      "friction": 0.584,
+      "restitution": 0.097,
+      "weight": 48.66
+    },
+    "minecraft:stripped_birch_log": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 50.2
+    },
+    "minecraft:stripped_birch_wood": {
+      "friction": 0.58,
+      "restitution": 0.097,
+      "weight": 48.32
+    },
+    "minecraft:stripped_cherry_log": {
+      "friction": 0.614,
+      "restitution": 0.102,
+      "weight": 51.13
+    },
+    "minecraft:stripped_cherry_wood": {
+      "friction": 0.619,
+      "restitution": 0.103,
+      "weight": 51.6
+    },
+    "minecraft:stripped_crimson_hyphae": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 48.52
+    },
+    "minecraft:stripped_crimson_stem": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 48.51
+    },
+    "minecraft:stripped_dark_oak_log": {
+      "friction": 0.611,
+      "restitution": 0.102,
+      "weight": 50.91
+    },
+    "minecraft:stripped_dark_oak_wood": {
+      "friction": 0.59,
+      "restitution": 0.098,
+      "weight": 49.2
+    },
+    "minecraft:stripped_jungle_log": {
+      "friction": 0.627,
+      "restitution": 0.104,
+      "weight": 52.24
+    },
+    "minecraft:stripped_jungle_wood": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 48.54
+    },
+    "minecraft:stripped_mangrove_log": {
+      "friction": 0.588,
+      "restitution": 0.098,
+      "weight": 48.96
+    },
+    "minecraft:stripped_mangrove_wood": {
+      "friction": 0.622,
+      "restitution": 0.104,
+      "weight": 51.8
+    },
+    "minecraft:stripped_oak_log": {
+      "friction": 0.608,
+      "restitution": 0.101,
+      "weight": 50.7
+    },
+    "minecraft:stripped_oak_wood": {
+      "friction": 0.624,
+      "restitution": 0.104,
+      "weight": 52.0
+    },
+    "minecraft:stripped_spruce_log": {
+      "friction": 0.584,
+      "restitution": 0.097,
+      "weight": 48.66
+    },
+    "minecraft:stripped_spruce_wood": {
+      "friction": 0.624,
+      "restitution": 0.104,
+      "weight": 51.99
+    },
+    "minecraft:stripped_warped_hyphae": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 48.52
+    },
+    "minecraft:stripped_warped_stem": {
+      "friction": 0.593,
+      "restitution": 0.099,
+      "weight": 49.4
+    },
+    "minecraft:structure_block": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 156.94
+    },
+    "minecraft:structure_void": {
+      "friction": 0.827,
+      "restitution": 0.052,
+      "weight": 155.04
+    },
+    "minecraft:sugar_cane": {
+      "friction": 0.832,
+      "restitution": 0.052,
+      "weight": 156.03
+    },
+    "minecraft:sunflower": {
+      "friction": 0.826,
+      "restitution": 0.0,
+      "weight": 0.26
+    },
+    "minecraft:suspicious_gravel": {
+      "friction": 0.802,
+      "restitution": 0.0,
+      "weight": 110.31
+    },
+    "minecraft:suspicious_sand": {
+      "friction": 0.813,
+      "restitution": 0.0,
+      "weight": 111.8
+    },
+    "minecraft:sweet_berry_bush": {
+      "friction": 0.773,
+      "restitution": 0.0,
+      "weight": 4.83
+    },
+    "minecraft:tall_grass": {
+      "friction": 0.77,
+      "restitution": 0.0,
+      "weight": 4.81
+    },
+    "minecraft:target": {
+      "friction": 0.808,
+      "restitution": 0.05,
+      "weight": 151.47
+    },
+    "minecraft:terracotta": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 154.56
+    },
+    "minecraft:tinted_glass": {
+      "friction": 0.314,
+      "restitution": 0.262,
+      "weight": 26.16
+    },
+    "minecraft:tnt": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 145.12
+    },
+    "minecraft:torch": {
+      "friction": 0.778,
+      "restitution": 0.049,
+      "weight": 2.92
+    },
+    "minecraft:torchflower": {
+      "friction": 0.835,
+      "restitution": 0.0,
+      "weight": 0.1
+    },
+    "minecraft:torchflower_crop": {
+      "friction": 0.82,
+      "restitution": 0.0,
+      "weight": 0.1
+    },
+    "minecraft:trapped_chest": {
+      "friction": 0.77,
+      "restitution": 0.048,
+      "weight": 144.41
+    },
+    "minecraft:trial_spawner": {
+      "friction": 0.77,
+      "restitution": 0.048,
+      "weight": 144.36
+    },
+    "minecraft:tripwire": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 154.57
+    },
+    "minecraft:tripwire_hook": {
+      "friction": 0.838,
+      "restitution": 0.052,
+      "weight": 157.12
+    },
+    "minecraft:tube_coral": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 149.0
+    },
+    "minecraft:tube_coral_block": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 146.52
+    },
+    "minecraft:tube_coral_fan": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 152.89
+    },
+    "minecraft:tube_coral_wall_fan": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 119.03
+    },
+    "minecraft:tuff": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 143.19
+    },
+    "minecraft:tuff_brick_slab": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 77.27
+    },
+    "minecraft:tuff_brick_stairs": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 107.39
+    },
+    "minecraft:tuff_brick_wall": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 117.13
+    },
+    "minecraft:tuff_bricks": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 146.98
+    },
+    "minecraft:tuff_slab": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 73.92
+    },
+    "minecraft:tuff_stairs": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 113.44
+    },
+    "minecraft:tuff_wall": {
+      "friction": 0.77,
+      "restitution": 0.048,
+      "weight": 115.44
+    },
+    "minecraft:turtle_egg": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 148.98
+    },
+    "minecraft:twisting_vines": {
+      "friction": 0.778,
+      "restitution": 0.0,
+      "weight": 4.86
+    },
+    "minecraft:vault": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 151.83
+    },
+    "minecraft:verdant_froglight": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 150.04
+    },
+    "minecraft:vine": {
+      "friction": 0.791,
+      "restitution": 0.0,
+      "weight": 4.94
+    },
+    "minecraft:wall_torch": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 121.82
+    },
+    "minecraft:warped_button": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 7.7
+    },
+    "minecraft:warped_door": {
+      "friction": 0.762,
+      "restitution": 0.048,
+      "weight": 57.17
+    },
+    "minecraft:warped_fence": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 72.88
+    },
+    "minecraft:warped_fence_gate": {
+      "friction": 0.827,
+      "restitution": 0.052,
+      "weight": 77.53
+    },
+    "minecraft:warped_fungus": {
+      "friction": 0.804,
+      "restitution": 0.05,
+      "weight": 150.73
+    },
+    "minecraft:warped_hanging_sign": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 14.86
+    },
+    "minecraft:warped_hyphae": {
+      "friction": 0.589,
+      "restitution": 0.098,
+      "weight": 49.11
+    },
+    "minecraft:warped_nylium": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 153.54
+    },
+    "minecraft:warped_planks": {
+      "friction": 0.629,
+      "restitution": 0.105,
+      "weight": 52.38
+    },
+    "minecraft:warped_pressure_plate": {
+      "friction": 0.78,
+      "restitution": 0.049,
+      "weight": 7.32
+    },
+    "minecraft:warped_roots": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 154.0
+    },
+    "minecraft:warped_sign": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 14.77
+    },
+    "minecraft:warped_slab": {
+      "friction": 0.76,
+      "restitution": 0.048,
+      "weight": 71.29
+    },
+    "minecraft:warped_stairs": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 109.33
+    },
+    "minecraft:warped_stem": {
+      "friction": 0.618,
+      "restitution": 0.103,
+      "weight": 51.47
+    },
+    "minecraft:warped_trapdoor": {
+      "friction": 0.792,
+      "restitution": 0.05,
+      "weight": 59.41
+    },
+    "minecraft:warped_wall_hanging_sign": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 121.3
+    },
+    "minecraft:warped_wall_sign": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 123.13
+    },
+    "minecraft:warped_wart_block": {
+      "friction": 0.801,
+      "restitution": 0.05,
+      "weight": 150.25
+    },
+    "minecraft:water_cauldron": {
+      "friction": 0.823,
+      "restitution": 0.051,
+      "weight": 154.35
+    },
+    "minecraft:waxed_chiseled_copper": {
+      "friction": 0.463,
+      "restitution": 0.206,
+      "weight": 308.85
+    },
+    "minecraft:waxed_copper_block": {
+      "friction": 0.434,
+      "restitution": 0.193,
+      "weight": 289.17
+    },
+    "minecraft:waxed_copper_bulb": {
+      "friction": 0.446,
+      "restitution": 0.198,
+      "weight": 297.48
+    },
+    "minecraft:waxed_copper_door": {
+      "friction": 0.458,
+      "restitution": 0.204,
+      "weight": 122.22
+    },
+    "minecraft:waxed_copper_grate": {
+      "friction": 0.428,
+      "restitution": 0.19,
+      "weight": 285.45
+    },
+    "minecraft:waxed_copper_trapdoor": {
+      "friction": 0.443,
+      "restitution": 0.197,
+      "weight": 118.13
+    },
+    "minecraft:waxed_cut_copper": {
+      "friction": 0.443,
+      "restitution": 0.197,
+      "weight": 295.47
+    },
+    "minecraft:waxed_cut_copper_slab": {
+      "friction": 0.462,
+      "restitution": 0.205,
+      "weight": 153.96
+    },
+    "minecraft:waxed_cut_copper_stairs": {
+      "friction": 0.453,
+      "restitution": 0.201,
+      "weight": 226.64
+    },
+    "minecraft:waxed_exposed_chiseled_copper": {
+      "friction": 0.451,
+      "restitution": 0.201,
+      "weight": 300.75
+    },
+    "minecraft:waxed_exposed_copper": {
+      "friction": 0.471,
+      "restitution": 0.209,
+      "weight": 313.98
+    },
+    "minecraft:waxed_exposed_copper_bulb": {
+      "friction": 0.448,
+      "restitution": 0.199,
+      "weight": 298.89
+    },
+    "minecraft:waxed_exposed_copper_door": {
+      "friction": 0.448,
+      "restitution": 0.199,
+      "weight": 119.59
+    },
+    "minecraft:waxed_exposed_copper_grate": {
+      "friction": 0.428,
+      "restitution": 0.19,
+      "weight": 285.42
+    },
+    "minecraft:waxed_exposed_copper_trapdoor": {
+      "friction": 0.433,
+      "restitution": 0.193,
+      "weight": 115.52
+    },
+    "minecraft:waxed_exposed_cut_copper": {
+      "friction": 0.457,
+      "restitution": 0.203,
+      "weight": 304.86
+    },
+    "minecraft:waxed_exposed_cut_copper_slab": {
+      "friction": 0.463,
+      "restitution": 0.206,
+      "weight": 154.22
+    },
+    "minecraft:waxed_exposed_cut_copper_stairs": {
+      "friction": 0.466,
+      "restitution": 0.207,
+      "weight": 232.81
+    },
+    "minecraft:waxed_oxidized_chiseled_copper": {
+      "friction": 0.431,
+      "restitution": 0.192,
+      "weight": 287.49
+    },
+    "minecraft:waxed_oxidized_copper": {
+      "friction": 0.452,
+      "restitution": 0.201,
+      "weight": 301.44
+    },
+    "minecraft:waxed_oxidized_copper_bulb": {
+      "friction": 0.461,
+      "restitution": 0.205,
+      "weight": 307.02
+    },
+    "minecraft:waxed_oxidized_copper_door": {
+      "friction": 0.454,
+      "restitution": 0.202,
+      "weight": 120.95
+    },
+    "minecraft:waxed_oxidized_copper_grate": {
+      "friction": 0.458,
+      "restitution": 0.204,
+      "weight": 305.25
+    },
+    "minecraft:waxed_oxidized_copper_trapdoor": {
+      "friction": 0.467,
+      "restitution": 0.208,
+      "weight": 124.66
+    },
+    "minecraft:waxed_oxidized_cut_copper": {
+      "friction": 0.459,
+      "restitution": 0.204,
+      "weight": 306.15
+    },
+    "minecraft:waxed_oxidized_cut_copper_slab": {
+      "friction": 0.432,
+      "restitution": 0.192,
+      "weight": 143.86
+    },
+    "minecraft:waxed_oxidized_cut_copper_stairs": {
+      "friction": 0.45,
+      "restitution": 0.2,
+      "weight": 225.2
+    },
+    "minecraft:waxed_weathered_chiseled_copper": {
+      "friction": 0.436,
+      "restitution": 0.194,
+      "weight": 290.64
+    },
+    "minecraft:waxed_weathered_copper": {
+      "friction": 0.439,
+      "restitution": 0.195,
+      "weight": 292.74
+    },
+    "minecraft:waxed_weathered_copper_bulb": {
+      "friction": 0.444,
+      "restitution": 0.197,
+      "weight": 295.77
+    },
+    "minecraft:waxed_weathered_copper_door": {
+      "friction": 0.452,
+      "restitution": 0.201,
+      "weight": 120.44
+    },
+    "minecraft:waxed_weathered_copper_grate": {
+      "friction": 0.442,
+      "restitution": 0.196,
+      "weight": 294.72
+    },
+    "minecraft:waxed_weathered_copper_trapdoor": {
+      "friction": 0.449,
+      "restitution": 0.2,
+      "weight": 119.8
+    },
+    "minecraft:waxed_weathered_cut_copper": {
+      "friction": 0.456,
+      "restitution": 0.203,
+      "weight": 304.32
+    },
+    "minecraft:waxed_weathered_cut_copper_slab": {
+      "friction": 0.436,
+      "restitution": 0.194,
+      "weight": 145.41
+    },
+    "minecraft:waxed_weathered_cut_copper_stairs": {
+      "friction": 0.461,
+      "restitution": 0.205,
+      "weight": 230.53
+    },
+    "minecraft:weathered_chiseled_copper": {
+      "friction": 0.472,
+      "restitution": 0.21,
+      "weight": 314.43
+    },
+    "minecraft:weathered_copper": {
+      "friction": 0.428,
+      "restitution": 0.19,
+      "weight": 285.09
+    },
+    "minecraft:weathered_copper_bulb": {
+      "friction": 0.431,
+      "restitution": 0.192,
+      "weight": 287.34
+    },
+    "minecraft:weathered_copper_door": {
+      "friction": 0.429,
+      "restitution": 0.191,
+      "weight": 114.47
+    },
+    "minecraft:weathered_copper_grate": {
+      "friction": 0.464,
+      "restitution": 0.206,
+      "weight": 309.51
+    },
+    "minecraft:weathered_copper_trapdoor": {
+      "friction": 0.456,
+      "restitution": 0.203,
+      "weight": 121.64
+    },
+    "minecraft:weathered_cut_copper": {
+      "friction": 0.454,
+      "restitution": 0.202,
+      "weight": 302.76
+    },
+    "minecraft:weathered_cut_copper_slab": {
+      "friction": 0.469,
+      "restitution": 0.209,
+      "weight": 156.42
+    },
+    "minecraft:weathered_cut_copper_stairs": {
+      "friction": 0.456,
+      "restitution": 0.202,
+      "weight": 227.77
+    },
+    "minecraft:weeping_vines": {
+      "friction": 0.788,
+      "restitution": 0.0,
+      "weight": 4.93
+    },
+    "minecraft:wet_sponge": {
+      "friction": 0.76,
+      "restitution": 0.048,
+      "weight": 142.53
+    },
+    "minecraft:wheat": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 146.72
+    },
+    "minecraft:white_banner": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 14.73
+    },
+    "minecraft:white_bed": {
+      "friction": 0.765,
+      "restitution": 0.048,
+      "weight": 86.07
+    },
+    "minecraft:white_candle": {
+      "friction": 0.768,
+      "restitution": 0.048,
+      "weight": 2.88
+    },
+    "minecraft:white_carpet": {
+      "friction": 0.799,
+      "restitution": 0.05,
+      "weight": 7.49
+    },
+    "minecraft:white_concrete": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 153.49
+    },
+    "minecraft:white_concrete_powder": {
+      "friction": 0.801,
+      "restitution": 0.0,
+      "weight": 110.09
+    },
+    "minecraft:white_glazed_terracotta": {
+      "friction": 0.771,
+      "restitution": 0.048,
+      "weight": 144.52
+    },
+    "minecraft:white_shulker_box": {
+      "friction": 0.787,
+      "restitution": 0.049,
+      "weight": 147.52
+    },
+    "minecraft:white_stained_glass": {
+      "friction": 0.286,
+      "restitution": 0.239,
+      "weight": 23.88
+    },
+    "minecraft:white_stained_glass_pane": {
+      "friction": 0.294,
+      "restitution": 0.245,
+      "weight": 7.34
+    },
+    "minecraft:white_terracotta": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 156.68
+    },
+    "minecraft:white_tulip": {
+      "friction": 0.83,
+      "restitution": 0.052,
+      "weight": 155.59
+    },
+    "minecraft:white_wall_banner": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 115.75
+    },
+    "minecraft:white_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 10.04
+    },
+    "minecraft:wither_rose": {
+      "friction": 0.768,
+      "restitution": 0.0,
+      "weight": 4.8
+    },
+    "minecraft:wither_skeleton_skull": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 144.71
+    },
+    "minecraft:wither_skeleton_wall_skull": {
+      "friction": 0.801,
+      "restitution": 0.05,
+      "weight": 120.14
+    },
+    "minecraft:yellow_banner": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 15.1
+    },
+    "minecraft:yellow_bed": {
+      "friction": 0.787,
+      "restitution": 0.049,
+      "weight": 88.53
+    },
+    "minecraft:yellow_candle": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 3.09
+    },
+    "minecraft:yellow_carpet": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 7.44
+    },
+    "minecraft:yellow_concrete": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 151.65
+    },
+    "minecraft:yellow_concrete_powder": {
+      "friction": 0.804,
+      "restitution": 0.0,
+      "weight": 110.49
+    },
+    "minecraft:yellow_glazed_terracotta": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 147.85
+    },
+    "minecraft:yellow_shulker_box": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 156.97
+    },
+    "minecraft:yellow_stained_glass": {
+      "friction": 0.289,
+      "restitution": 0.241,
+      "weight": 24.1
+    },
+    "minecraft:yellow_stained_glass_pane": {
+      "friction": 0.295,
+      "restitution": 0.246,
+      "weight": 7.37
+    },
+    "minecraft:yellow_terracotta": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 150.46
+    },
+    "minecraft:yellow_wall_banner": {
+      "friction": 0.83,
+      "restitution": 0.052,
+      "weight": 124.5
+    },
+    "minecraft:yellow_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 10.08
+    },
+    "minecraft:zombie_head": {
+      "friction": 0.761,
+      "restitution": 0.048,
+      "weight": 142.71
+    },
+    "minecraft:zombie_wall_head": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 117.64
+    }
+  }
+}

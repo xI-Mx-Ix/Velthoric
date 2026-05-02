@@ -110,6 +110,7 @@ endif()
 add_library(vxnative SHARED
     src/Velthoric/PhysicsSync/BatchPhysicsSync.cpp
     src/Velthoric/Terrain/TerrainMesher.cpp
+    src/Velthoric/Terrain/Contact/TerrainContactListener.cpp
 )
 
 target_include_directories(vxnative PRIVATE 

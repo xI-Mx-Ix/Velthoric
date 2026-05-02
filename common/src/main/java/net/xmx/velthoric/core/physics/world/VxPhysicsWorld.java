@@ -15,6 +15,7 @@ import net.xmx.velthoric.core.physics.VxPhysicsBootstrap;
 import net.xmx.velthoric.core.ragdoll.VxRagdollManager;
 import net.xmx.velthoric.core.terrain.VxTerrainSystem;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.jni.TerrainContactListener;
 import net.xmx.velthoric.util.VxFrameTimer;
 import net.xmx.velthoric.util.VxPauseUtil;
 import org.jetbrains.annotations.NotNull;
@@ -67,6 +68,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private PhysicsSystem physicsSystem;
     private JobSystemThreadPool jobSystem;
     private TempAllocator tempAllocator;
+    private TerrainContactListener terrainContactListener;
 
     private final Queue<Runnable> commandQueue = new ConcurrentLinkedQueue<>();
     private volatile Thread physicsThreadExecutor;
@@ -249,6 +251,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
 
         this.physicsSystem.setGravity(0f, gravityY, 0f);
+        
+        // Attach the native contact listener
+        this.terrainContactListener = new TerrainContactListener(this.physicsSystem.va());
+        
         this.physicsSystem.optimizeBroadPhase();
     }
 
@@ -277,6 +283,11 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             this.tempAllocator.close();
             this.tempAllocator = null;
         }
+        if (this.terrainContactListener != null) {
+            this.terrainContactListener.close();
+            this.terrainContactListener = null;
+        }
+
         this.commandQueue.clear();
     }
 

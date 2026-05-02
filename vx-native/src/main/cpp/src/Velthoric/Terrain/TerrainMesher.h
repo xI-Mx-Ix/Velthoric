@@ -12,8 +12,24 @@
 #include <unordered_map>
 #include <list>
 #include <mutex>
+#include <Jolt/Physics/Collision/PhysicsMaterial.h>
 
 namespace Velthoric {
+
+/**
+ * Custom Jolt Physics Material to store native friction and restitution for terrain.
+ */
+class TerrainMaterial : public JPH::PhysicsMaterial {
+public:
+    float mFriction;
+    float mRestitution;
+
+    TerrainMaterial(float friction, float restitution) : mFriction(friction), mRestitution(restitution) {}
+
+    static const char* sTerrainMaterialName;
+    virtual const char* GetDebugName() const override { return sTerrainMaterialName; }
+    virtual JPH::Color GetDebugColor() const override { return JPH::Color::sGreen; }
+};
 
 /**
  * An LRU (Least Recently Used) cache for natively generated Jolt Shapes.
@@ -75,6 +91,9 @@ class TerrainMesher {
 public:
     // Global static cache instance
     static TerrainShapeCache s_ShapeCache;
+    
+    // Global static materials registry (0 is unused, 1 is default)
+    static JPH::RefConst<TerrainMaterial> s_Materials[65536];
 
     /**
      * Generates a Jolt MeshShape from a 16x16x16 voxel grid.
@@ -82,12 +101,12 @@ public:
      * The algorithm merges adjacent coplanar faces to drastically reduce the 
      * triangle count compared to a naive voxel meshing approach.
      * 
-     * @param voxels Pointer to a 4096-byte array representing a 16x16x16 chunk section.
-     *               A byte value of 0 means empty (air), any non-zero value means solid.
+     * @param voxels Pointer to a 8192-byte array representing a 16x16x16 chunk section of 16-bit material IDs.
+     *               A value of 0 means empty (air), any non-zero value means solid.
      *               Indexing format: x | (z << 4) | (y << 8)
      * @return A RefC pointer to the generated MeshShape, or nullptr if the chunk is empty.
      */
-    static JPH::ShapeRefC GenerateGreedyMesh(const uint8_t* voxels);
+    static JPH::ShapeRefC GenerateGreedyMesh(const uint16_t* voxels);
 };
 
 } // namespace Velthoric

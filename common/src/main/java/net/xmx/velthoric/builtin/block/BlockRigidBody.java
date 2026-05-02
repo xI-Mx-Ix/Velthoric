@@ -25,6 +25,8 @@ import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.util.VxVoxelShapeUtil;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.terrain.material.VxTerrainMaterial;
+import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
 
 import java.util.UUID;
 
@@ -74,12 +76,30 @@ public class BlockRigidBody extends VxBody {
                      BodyCreationSettings bcs = new BodyCreationSettings()) {
                     bcs.setMotionType(EMotionType.Dynamic);
                     bcs.setObjectLayer(VxPhysicsLayers.MOVING);
+
+                    // Apply default Stone properties for fallback
+                    VxTerrainMaterial.MaterialProperties props = VxTerrainMaterial.getProperties(Blocks.STONE);
+                    bcs.setFriction(props.friction);
+                    bcs.setRestitution(props.restitution);
+                    bcs.getMassPropertiesOverride().setMass(props.weight);
+                    bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
+
                     return factory.create(boxSettings, bcs);
                 }
             }
             try (BodyCreationSettings bcs = new BodyCreationSettings()) {
                 bcs.setMotionType(EMotionType.Dynamic);
                 bcs.setObjectLayer(VxPhysicsLayers.MOVING);
+
+                // Apply material properties from the terrain registry
+                VxTerrainMaterial.MaterialProperties props = VxTerrainMaterial.getProperties(stateForShape.getBlock());
+                bcs.setFriction(props.friction);
+                bcs.setRestitution(props.restitution);
+                
+                // Use the weight/mass from the material
+                bcs.getMassPropertiesOverride().setMass(props.weight);
+                bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
+
                 return factory.create(shapeSettings, bcs);
             }
         }

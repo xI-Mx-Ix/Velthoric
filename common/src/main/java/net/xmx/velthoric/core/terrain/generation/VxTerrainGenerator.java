@@ -9,7 +9,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.xmx.velthoric.jni.VxTerrainMesher;
+import net.xmx.velthoric.core.terrain.material.VxTerrainMaterial;
+import net.xmx.velthoric.jni.TerrainMesher;
 
 import java.nio.ByteBuffer;
 
@@ -32,9 +33,10 @@ public final class VxTerrainGenerator implements AutoCloseable {
     /**
      * A thread-local, direct byte buffer used to efficiently pass the 16x16x16 voxel grid to native C++.
      * Using a DirectByteBuffer avoids costly array copying during the JNI transition.
+     * Stores 16-bit material IDs (4096 voxels * 2 bytes = 8192 bytes).
      */
     private static final ThreadLocal<ByteBuffer> voxelBuffer = ThreadLocal.withInitial(() -> 
-        Jolt.newDirectByteBuffer(4096)
+        Jolt.newDirectByteBuffer(8192)
     );
 
     /**
@@ -55,8 +57,8 @@ public final class VxTerrainGenerator implements AutoCloseable {
         }
 
         ByteBuffer voxels = voxelBuffer.get();
-        // Clear buffer efficiently (4096 bytes / 8 = 512 longs)
-        for (int i = 0; i < 512; i++) {
+        // Clear buffer efficiently (8192 bytes / 8 = 1024 longs)
+        for (int i = 0; i < 1024; i++) {
             voxels.putLong(i * 8, 0L);
         }
 
@@ -82,8 +84,9 @@ public final class VxTerrainGenerator implements AutoCloseable {
 
             if (voxelShape.isEmpty()) continue;
 
+            short materialId = VxTerrainMaterial.getMaterialId(snapshot.states()[i].getBlock());
             int index = x | (z << 4) | (y << 8);
-            voxels.put(index, (byte) 1);
+            voxels.putShort(index * 2, materialId);
             hasShapes = true;
         }
 
@@ -91,7 +94,7 @@ public final class VxTerrainGenerator implements AutoCloseable {
             return false;
         }
 
-        return VxTerrainMesher.nGenerateAndCache(contentHash, voxels);
+        return TerrainMesher.nGenerateAndCache(contentHash, voxels);
     }
 
     /**
@@ -99,6 +102,6 @@ public final class VxTerrainGenerator implements AutoCloseable {
      */
     @Override
     public void close() {
-        VxTerrainMesher.nClearCache();
+        TerrainMesher.nClearCache();
     }
 }
