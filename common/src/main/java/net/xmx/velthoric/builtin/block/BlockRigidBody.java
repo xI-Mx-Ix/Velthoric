@@ -67,12 +67,12 @@ public class BlockRigidBody extends VxBody {
         BlockState stateForShape = Block.stateById(body.get(DATA_BLOCK_STATE_ID));
         if (stateForShape.isAir()) stateForShape = Blocks.STONE.defaultBlockState();
 
-        VoxelShape voxelShape = stateForShape.getCollisionShape(body.getPhysicsWorld().getLevel(), BlockPos.ZERO);
+        VoxelShape voxelShape = stateForShape.getShape(body.getPhysicsWorld().getLevel(), BlockPos.ZERO);
 
         try (ShapeSettings shapeSettings = VxVoxelShapeUtil.toMutableCompoundShape(voxelShape)) {
             if (shapeSettings == null) {
                 VxMainClass.LOGGER.warn("VoxelShape conversion for BlockState {} failed. Using default BoxShape.", stateForShape);
-                try (var boxSettings = VxVoxelShapeUtil.toMutableCompoundShape(Blocks.STONE.defaultBlockState().getCollisionShape(body.getPhysicsWorld().getLevel(), BlockPos.ZERO));
+                try (var boxSettings = VxVoxelShapeUtil.toMutableCompoundShape(Blocks.STONE.defaultBlockState().getShape(body.getPhysicsWorld().getLevel(), BlockPos.ZERO));
                      BodyCreationSettings bcs = new BodyCreationSettings()) {
                     bcs.setMotionType(EMotionType.Dynamic);
                     bcs.setObjectLayer(VxPhysicsLayers.MOVING);

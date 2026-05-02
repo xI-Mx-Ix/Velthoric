@@ -69,7 +69,7 @@ public class VxPhysicsCreatorItem extends Item {
 
             // Pre-check to ensure a valid physics shape can be generated from the block.
             try (var ignored = VxVoxelShapeUtil.toMutableCompoundShape(
-                    originalState.getVisualShape(level, pos, CollisionContext.empty()))) {
+                    originalState.getShape(level, pos, CollisionContext.empty()))) {
                 if (ignored == null) {
                     VxMainClass.LOGGER.warn("Could not generate a valid physics shape for the block: {}", originalState);
                     return InteractionResult.FAIL;
