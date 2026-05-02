@@ -8,16 +8,18 @@ import com.github.stephengold.joltjni.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.xmx.velthoric.core.terrain.material.VxTerrainMaterial;
-import net.xmx.velthoric.jni.TerrainMesher;
+import net.xmx.velthoric.jni.TerrainGenerator;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * Generates physics shapes for terrain chunks using a native greedy mesher.
- * This class interfaces directly with the native C++ mesher which generates
- * and caches optimized Jolt shapes natively, significantly improving performance
+ * This class interfaces directly with the native C++ generator which builds
+ * and caches optimized Jolt StaticCompoundShapes natively, significantly improving performance
  * and eliminating JNI overhead. No Shape references are held in Java.
  *
  * @author xI-Mx-Ix
@@ -31,13 +33,15 @@ public final class VxTerrainGenerator implements AutoCloseable {
     }
 
     /**
-     * A thread-local, direct byte buffer used to efficiently pass the 16x16x16 voxel grid to native C++.
+     * A thread-local, direct byte buffer used to efficiently pass the block bounding boxes to native C++.
      * Using a DirectByteBuffer avoids costly array copying during the JNI transition.
-     * Stores 16-bit material IDs (4096 voxels * 2 bytes = 8192 bytes).
+     * Stores up to 32768 BoxShapeData structs (28 bytes each), so size is 32768 * 28 = 917504 bytes.
      */
-    private static final ThreadLocal<ByteBuffer> voxelBuffer = ThreadLocal.withInitial(() -> 
-        Jolt.newDirectByteBuffer(8192)
-    );
+    private static final ThreadLocal<ByteBuffer> shapeBuffer = ThreadLocal.withInitial(() -> {
+        ByteBuffer buf = Jolt.newDirectByteBuffer(917504);
+        buf.order(ByteOrder.nativeOrder());
+        return buf;
+    });
 
     /**
      * Generates a native mesh for the given chunk snapshot and caches it in C++.
@@ -56,13 +60,10 @@ public final class VxTerrainGenerator implements AutoCloseable {
             return false;
         }
 
-        ByteBuffer voxels = voxelBuffer.get();
-        // Clear buffer efficiently (8192 bytes / 8 = 1024 longs)
-        for (int i = 0; i < 1024; i++) {
-            voxels.putLong(i * 8, 0L);
-        }
+        ByteBuffer boxes = shapeBuffer.get();
+        boxes.clear();
 
-        boolean hasShapes = false;
+        int boxCount = 0;
         BlockPos.MutableBlockPos worldPos = new BlockPos.MutableBlockPos();
 
         // Extract the origin of the section from the bit-packed long coordinate.
@@ -84,17 +85,44 @@ public final class VxTerrainGenerator implements AutoCloseable {
 
             if (voxelShape.isEmpty()) continue;
 
-            short materialId = VxTerrainMaterial.getMaterialId(snapshot.states()[i].getBlock());
-            int index = x | (z << 4) | (y << 8);
-            voxels.putShort(index * 2, materialId);
-            hasShapes = true;
+            int materialId = VxTerrainMaterial.getMaterialId(snapshot.states()[i].getBlock());
+
+            for (AABB aabb : voxelShape.toAabbs()) {
+                float hx = (float) (aabb.getXsize() / 2.0);
+                float hy = (float) (aabb.getYsize() / 2.0);
+                float hz = (float) (aabb.getZsize() / 2.0);
+
+                if (hx <= 0.001f || hy <= 0.001f || hz <= 0.001f) {
+                    continue;
+                }
+
+                // Calculate local position relative to section origin for the compound shape
+                float cx = (float) (x + aabb.minX + hx);
+                float cy = (float) (y + aabb.minY + hy);
+                float cz = (float) (z + aabb.minZ + hz);
+
+                // Ensure we do not overflow the buffer limit
+                if (boxCount >= 32768) {
+                    break;
+                }
+
+                boxes.putFloat(cx);
+                boxes.putFloat(cy);
+                boxes.putFloat(cz);
+                boxes.putFloat(hx);
+                boxes.putFloat(hy);
+                boxes.putFloat(hz);
+                boxes.putInt(materialId);
+                
+                boxCount++;
+            }
         }
 
-        if (!hasShapes) {
+        if (boxCount == 0) {
             return false;
         }
 
-        return TerrainMesher.nGenerateAndCache(contentHash, voxels);
+        return TerrainGenerator.nGenerateAndCache(contentHash, boxes, boxCount);
     }
 
     /**
@@ -102,6 +130,6 @@ public final class VxTerrainGenerator implements AutoCloseable {
      */
     @Override
     public void close() {
-        TerrainMesher.nClearCache();
+        TerrainGenerator.nClearCache();
     }
 }

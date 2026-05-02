@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  *
- * Author xI-Mx-Ix
+ * Author: xI-Mx-Ix
  */
 #pragma once
 #include <Jolt/Jolt.h>
@@ -13,6 +13,7 @@
 #include <list>
 #include <mutex>
 #include <Jolt/Physics/Collision/PhysicsMaterial.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
 
 namespace Velthoric {
 
@@ -81,32 +82,42 @@ public:
 };
 
 /**
- * High-performance terrain meshing subsystem.
- * 
- * Responsible for generating greedy meshes from voxel data buffers. This system
- * operates entirely in C++ to avoid Java object allocation and JNI marshaling 
- * costs during chunk shape generation.
+ * Data structure representing a single box shape passed from Java.
+ * It contains the local center position, the half extents, and the material ID.
  */
-class TerrainMesher {
+#pragma pack(push, 1)
+struct BoxShapeData {
+    float cx, cy, cz;
+    float hx, hy, hz;
+    uint32_t matId;
+};
+#pragma pack(pop)
+
+/**
+ * High-performance terrain shape generation subsystem.
+ * 
+ * Responsible for generating StaticCompoundShapes containing BoxShapes from
+ * provided voxel bounds. This system operates entirely in C++ to avoid Java
+ * object allocation and JNI marshaling costs during chunk shape generation.
+ */
+class TerrainGenerator {
 public:
-    // Global static cache instance
+    // Global static cache instance for the final chunk shapes
     static TerrainShapeCache s_ShapeCache;
     
     // Global static materials registry (0 is unused, 1 is default)
     static JPH::RefConst<TerrainMaterial> s_Materials[65536];
 
     /**
-     * Generates a Jolt MeshShape from a 16x16x16 voxel grid.
+     * Generates a Jolt StaticCompoundShape from an array of BoxShapeData.
      * 
-     * The algorithm merges adjacent coplanar faces to drastically reduce the 
-     * triangle count compared to a naive voxel meshing approach.
+     * Uses a local cache for BoxShapeSettings to avoid recreating identical boxes.
      * 
-     * @param voxels Pointer to a 8192-byte array representing a 16x16x16 chunk section of 16-bit material IDs.
-     *               A value of 0 means empty (air), any non-zero value means solid.
-     *               Indexing format: x | (z << 4) | (y << 8)
-     * @return A RefC pointer to the generated MeshShape, or nullptr if the chunk is empty.
+     * @param boxes Pointer to an array of BoxShapeData.
+     * @param boxCount Number of boxes in the array.
+     * @return A RefC pointer to the generated StaticCompoundShape, or nullptr if empty or invalid.
      */
-    static JPH::ShapeRefC GenerateGreedyMesh(const uint16_t* voxels);
+    static JPH::ShapeRefC GenerateCompoundShape(const BoxShapeData* boxes, int boxCount);
 };
 
 } // namespace Velthoric

@@ -7,11 +7,11 @@ package net.xmx.velthoric.jni;
 import java.nio.ByteBuffer;
 
 /**
- * JNI Bridge for the high-performance native Terrain Mesher.
+ * JNI Bridge for the high-performance native Terrain Generator.
  * <p>
  * This class exposes native C++ functions that generate optimized Jolt
- * shapes from raw chunk snapshot data. It utilizes a greedy meshing algorithm
- * on the native side to combine adjacent blocks into larger faces.
+ * shapes from raw chunk bounds data. It creates a StaticCompoundShape
+ * natively to group individual BoxShapes.
  * </p>
  * <p>
  * Shape caching and Body generation is handled entirely in C++ to minimize
@@ -20,21 +20,22 @@ import java.nio.ByteBuffer;
  *
  * @author xI-Mx-Ix
  */
-public final class TerrainMesher {
+public final class TerrainGenerator {
 
-    private TerrainMesher() {
+    private TerrainGenerator() {
         // Utility class, do not instantiate
     }
 
     /**
-     * Generates a greedy-meshed shape for the provided chunk voxel data and caches it.
+     * Generates a StaticCompoundShape for the provided array of BoxShapeData and caches it.
      * If a shape with the same hash already exists, generation is skipped.
      *
      * @param contentHash The unique hash of the chunk's snapshot contents.
-     * @param voxels      A DirectByteBuffer containing the 16x16x16 voxel grid.
-     * @return {@code true} if the chunk contains solid collision geometry, {@code false} if it's air.
+     * @param boxData     A DirectByteBuffer containing the array of BoxShapeData structs.
+     * @param boxCount    The number of BoxShapeData structs in the buffer.
+     * @return {@code true} if the chunk contains solid collision geometry, {@code false} if it's empty.
      */
-    public static native boolean nGenerateAndCache(int contentHash, ByteBuffer voxels);
+    public static native boolean nGenerateAndCache(int contentHash, ByteBuffer boxData, int boxCount);
 
     /**
      * Creates a new Jolt Physics Body for the terrain using the cached shape.

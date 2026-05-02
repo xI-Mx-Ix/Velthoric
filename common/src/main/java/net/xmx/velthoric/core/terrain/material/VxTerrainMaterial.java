@@ -8,7 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Blocks;
-import net.xmx.velthoric.jni.TerrainMesher;
+import net.xmx.velthoric.jni.TerrainGenerator;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -56,7 +56,7 @@ public class VxTerrainMaterial {
         short id = nextId++;
         MaterialProperties props = new MaterialProperties(id, friction, restitution, weight);
         blockMaterials.put(block, props);
-        TerrainMesher.nRegisterMaterial(id, friction, restitution);
+        TerrainGenerator.nRegisterMaterial(id, friction, restitution);
     }
 
     /**

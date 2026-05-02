@@ -5,7 +5,7 @@
  * Author xI-Mx-Ix
  */
 #include "TerrainContactListener.h"
-#include "../../Terrain/TerrainMesher.h"
+#include "../../Terrain/TerrainGenerator.h"
 #include <Jolt/Physics/Collision/PhysicsMaterial.h>
 #include <Jolt/Physics/Body/Body.h>
 #include <cstring>

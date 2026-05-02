@@ -17,7 +17,7 @@ import net.xmx.velthoric.core.terrain.generation.VxTerrainGenerator;
 import net.xmx.velthoric.core.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.core.terrain.storage.VxChunkDataStore;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.jni.TerrainMesher;
+import net.xmx.velthoric.jni.TerrainGenerator;
 
 /**
  * Manages the lifecycle of terrain chunks, including loading, unloading, activation,
@@ -238,7 +238,7 @@ public final class VxTerrainManager {
         int bodyId = chunkDataStore.getBodyId(index);
         if (bodyId != VxChunkDataStore.UNUSED_BODY_ID) {
             if (hasShape) {
-                TerrainMesher.nUpdateBodyShape(bodyInterface.va(), bodyId, contentHash);
+                TerrainGenerator.nUpdateBodyShape(bodyInterface.va(), bodyId, contentHash);
                 chunkDataStore.setState(index, wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
             } else {
                 removeBodyAndShape(index, bodyInterface);
@@ -249,7 +249,7 @@ public final class VxTerrainManager {
             float posY = SectionPos.sectionToBlockCoord(SectionPos.y(packedPos));
             float posZ = SectionPos.sectionToBlockCoord(SectionPos.z(packedPos));
             
-            int newBodyId = TerrainMesher.nCreateTerrainBody(bodyInterface.va(), contentHash, posX, posY, posZ, VxPhysicsLayers.TERRAIN);
+            int newBodyId = TerrainGenerator.nCreateTerrainBody(bodyInterface.va(), contentHash, posX, posY, posZ, VxPhysicsLayers.TERRAIN);
             if (newBodyId != Jolt.cInvalidBodyId) {
                 chunkDataStore.setBodyId(index, newBodyId);
                 chunkDataStore.setState(index, wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
