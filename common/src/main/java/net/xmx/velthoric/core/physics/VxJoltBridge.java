@@ -137,6 +137,7 @@ public enum VxJoltBridge {
                         bcs.setShape(shapeRef);
                         bcs.setPosition(c.posX[index], c.posY[index], c.posZ[index]);
                         bcs.setRotation(new Quat(c.rotX[index], c.rotY[index], c.rotZ[index], c.rotW[index]));
+                        bcs.setEnhancedInternalEdgeRemoval(true);
 
                         if (linearVelocity != null) bcs.setLinearVelocity(linearVelocity);
                         if (angularVelocity != null) bcs.setAngularVelocity(angularVelocity);
