@@ -109,6 +109,7 @@ endif()
 # Define vxnative Library
 add_library(vxnative SHARED
     src/Velthoric/PhysicsSync/BatchPhysicsSync.cpp
+    src/Velthoric/Terrain/TerrainMesher.cpp
 )
 
 target_include_directories(vxnative PRIVATE 

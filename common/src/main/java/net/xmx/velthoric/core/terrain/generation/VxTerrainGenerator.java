@@ -8,159 +8,97 @@ import com.github.stephengold.joltjni.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.xmx.velthoric.core.terrain.cache.VxTerrainShapeCache;
-import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.jni.VxTerrainMesher;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.nio.ByteBuffer;
 
 /**
- * Generates physics shapes for terrain chunks using a StaticCompoundShape.
- * This generator iterates through all blocks in a chunk snapshot and adds their
- * collision bounding boxes as individual box shapes to a single compound shape.
- * This approach is significantly faster than triangle-based mesh generation and uses
- * caching for both final shapes and individual box settings to improve performance.
+ * Generates physics shapes for terrain chunks using a native greedy mesher.
+ * This class interfaces directly with the native C++ mesher which generates
+ * and caches optimized Jolt shapes natively, significantly improving performance
+ * and eliminating JNI overhead. No Shape references are held in Java.
  *
  * @author xI-Mx-Ix
  */
 public final class VxTerrainGenerator implements AutoCloseable {
 
-    private final VxTerrainShapeCache shapeCache;
-    private final Map<Vec3, BoxShapeSettings> boxSettingsCache;
-    private static final int BOX_SETTINGS_CACHE_CAPACITY = 256;
-    private static final ThreadLocal<Vec3> tempVec3Key = ThreadLocal.withInitial(Vec3::new);
-
     /**
-     * Constructs a new terrain generator with caching capabilities.
-     *
-     * @param shapeCache An in-memory cache for storing final, generated terrain shapes.
+     * Constructs a new native terrain generator.
      */
-    public VxTerrainGenerator(VxTerrainShapeCache shapeCache) {
-        this.shapeCache = shapeCache;
-        this.boxSettingsCache = new LinkedHashMap<>(BOX_SETTINGS_CACHE_CAPACITY, 0.75f, true) {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<Vec3, BoxShapeSettings> eldest) {
-                boolean shouldRemove = size() > BOX_SETTINGS_CACHE_CAPACITY;
-                if (shouldRemove && eldest.getValue() != null) {
-                    eldest.getValue().close();
-                }
-                return shouldRemove;
-            }
-        };
+    public VxTerrainGenerator() {
     }
 
     /**
-     * Generates a {@link ShapeRefC} for the given chunk snapshot, utilizing caches for performance.
+     * A thread-local, direct byte buffer used to efficiently pass the 16x16x16 voxel grid to native C++.
+     * Using a DirectByteBuffer avoids costly array copying during the JNI transition.
+     */
+    private static final ThreadLocal<ByteBuffer> voxelBuffer = ThreadLocal.withInitial(() -> 
+        Jolt.newDirectByteBuffer(4096)
+    );
+
+    /**
+     * Generates a native mesh for the given chunk snapshot and caches it in C++.
      * <p>
-     * This method first checks an in-memory cache for a pre-existing shape matching the chunk's content.
-     * If not found, it creates a {@link StaticCompoundShape} composed of multiple {@link BoxShape}s,
-     * where each box represents a block's collision AABB. It also uses a cache for {@link BoxShapeSettings}
-     * to avoid re-creating them for common block dimensions.
-     * </p>
-     * <p>
-     * <b>Note:</b> This implementation iterates over the primitive arrays in the snapshot to avoid object overhead.
+     * This method offloads the shape generation to native C++ code using a greedy meshing algorithm
+     * on a 16x16x16 voxel grid. Data is passed efficiently via a DirectByteBuffer to minimize JNI overhead.
      * </p>
      *
-     * @param level    The server level, used to get context-aware collision shapes.
-     * @param snapshot An immutable snapshot of the chunk section's block data.
-     * @return A new reference to the generated compound shape (ShapeRefC), or {@code null} if the chunk is empty or generation fails.
-     * The caller is responsible for closing the returned shape reference.
+     * @param level       The server level, used to get context-aware collision shapes.
+     * @param snapshot    An immutable snapshot of the chunk section's block data.
+     * @param contentHash The unique hash of the snapshot used for native caching.
+     * @return {@code true} if the chunk has valid shapes (solid), {@code false} if it's completely empty.
      */
-    public ShapeRefC generateShape(ServerLevel level, VxChunkSnapshot snapshot) {
-        int contentHash = snapshot.hashCode();
-        ShapeRefC cachedShape = shapeCache.get(contentHash);
-        if (cachedShape != null) {
-            return cachedShape;
-        }
-
+    public boolean generateShape(ServerLevel level, VxChunkSnapshot snapshot, int contentHash) {
         if (snapshot.count() == 0) {
-            return null;
+            return false;
         }
 
-        try (StaticCompoundShapeSettings compoundSettings = new StaticCompoundShapeSettings()) {
-            boolean hasShapes = false;
-            Vec3 halfExtentsKey = tempVec3Key.get();
-            BlockPos.MutableBlockPos worldPos = new BlockPos.MutableBlockPos();
-
-            // Extract the origin of the section from the bit-packed long coordinate.
-            long packedPos = snapshot.packedSectionPos();
-            int originX = SectionPos.sectionToBlockCoord(SectionPos.x(packedPos));
-            int originY = SectionPos.sectionToBlockCoord(SectionPos.y(packedPos));
-            int originZ = SectionPos.sectionToBlockCoord(SectionPos.z(packedPos));
-
-            // Iterate using the count and primitive arrays.
-            for (int i = 0; i < snapshot.count(); i++) {
-                short packed = snapshot.packedPositions()[i];
-                // Unpack coordinates
-                int x = (packed >> 8) & 0xF;
-                int y = (packed >> 4) & 0xF;
-                int z = packed & 0xF;
-
-                worldPos.set(originX + x, originY + y, originZ + z);
-                VoxelShape voxelShape = snapshot.states()[i].getCollisionShape(level, worldPos);
-
-                if (voxelShape.isEmpty()) continue;
-
-                for (AABB aabb : voxelShape.toAabbs()) {
-                    float hx = (float) (aabb.getXsize() / 2.0);
-                    float hy = (float) (aabb.getYsize() / 2.0);
-                    float hz = (float) (aabb.getZsize() / 2.0);
-
-                    if (hx <= 0.001f || hy <= 0.001f || hz <= 0.001f) {
-                        continue;
-                    }
-
-                    halfExtentsKey.set(hx, hy, hz);
-                    BoxShapeSettings boxSettings;
-                    synchronized (boxSettingsCache) {
-                        boxSettings = boxSettingsCache.get(halfExtentsKey);
-                        if (boxSettings == null) {
-                            Vec3 newKey = new Vec3(hx, hy, hz);
-                            boxSettings = new BoxShapeSettings(newKey, 0.0f);
-                            boxSettingsCache.put(newKey, boxSettings);
-                        }
-                    }
-
-                    // Calculate local position relative to section origin for the compound shape
-                    float cx = (float) (x + aabb.minX + hx);
-                    float cy = (float) (y + aabb.minY + hy);
-                    float cz = (float) (z + aabb.minZ + hz);
-
-                    compoundSettings.addShape(cx, cy, cz, boxSettings);
-                    hasShapes = true;
-                }
-            }
-
-            if (!hasShapes) {
-                return null;
-            }
-
-            try (ShapeResult result = compoundSettings.create()) {
-                if (result.isValid()) {
-                    ShapeRefC newShape = result.get();
-                    shapeCache.put(contentHash, newShape);
-                    return newShape.getPtr().toRefC();
-                } else {
-                    VxMainClass.LOGGER.error("Failed to create StaticCompoundShape for {}:{}:{}: {}",
-                            SectionPos.x(packedPos), SectionPos.y(packedPos), SectionPos.z(packedPos), result.getError());
-                    return null;
-                }
-            }
+        ByteBuffer voxels = voxelBuffer.get();
+        // Clear buffer efficiently (4096 bytes / 8 = 512 longs)
+        for (int i = 0; i < 512; i++) {
+            voxels.putLong(i * 8, 0L);
         }
+
+        boolean hasShapes = false;
+        BlockPos.MutableBlockPos worldPos = new BlockPos.MutableBlockPos();
+
+        // Extract the origin of the section from the bit-packed long coordinate.
+        long packedPos = snapshot.packedSectionPos();
+        int originX = SectionPos.sectionToBlockCoord(SectionPos.x(packedPos));
+        int originY = SectionPos.sectionToBlockCoord(SectionPos.y(packedPos));
+        int originZ = SectionPos.sectionToBlockCoord(SectionPos.z(packedPos));
+
+        // Iterate using the count and primitive arrays.
+        for (int i = 0; i < snapshot.count(); i++) {
+            short packed = snapshot.packedPositions()[i];
+            // Unpack coordinates
+            int x = (packed >> 8) & 0xF;
+            int y = (packed >> 4) & 0xF;
+            int z = packed & 0xF;
+
+            worldPos.set(originX + x, originY + y, originZ + z);
+            VoxelShape voxelShape = snapshot.states()[i].getCollisionShape(level, worldPos);
+
+            if (voxelShape.isEmpty()) continue;
+
+            int index = x | (z << 4) | (y << 8);
+            voxels.put(index, (byte) 1);
+            hasShapes = true;
+        }
+
+        if (!hasShapes) {
+            return false;
+        }
+
+        return VxTerrainMesher.nGenerateAndCache(contentHash, voxels);
     }
 
     /**
-     * Closes the generator and releases resources held by its internal caches.
+     * Closes the generator and releases resources held by its native caches.
      */
     @Override
     public void close() {
-        synchronized (boxSettingsCache) {
-            for (BoxShapeSettings settings : boxSettingsCache.values()) {
-                settings.close();
-            }
-            boxSettingsCache.clear();
-        }
+        VxTerrainMesher.nClearCache();
     }
 }

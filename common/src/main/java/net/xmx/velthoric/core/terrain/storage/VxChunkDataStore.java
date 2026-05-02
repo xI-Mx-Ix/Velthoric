@@ -4,7 +4,6 @@
  */
 package net.xmx.velthoric.core.terrain.storage;
 
-import com.github.stephengold.joltjni.ShapeRefC;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2IntMaps;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
@@ -15,7 +14,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicLongArray;
-import java.util.concurrent.atomic.AtomicReferenceArray;
 
 /**
  * A data-oriented and thread-safe store for the state of all terrain chunk physics bodies.
@@ -51,7 +49,6 @@ public final class VxChunkDataStore extends AbstractDataStore {
     // --- Chunk State Data (SoA) using Atomic Arrays for lock-free access ---
     private AtomicIntegerArray states;
     private AtomicIntegerArray bodyIds;
-    private AtomicReferenceArray<ShapeRefC> shapeRefs;
     private AtomicIntegerArray isPlaceholder; // Using 1 for true, 0 for false
     private AtomicIntegerArray rebuildVersions;
     private AtomicIntegerArray referenceCounts;
@@ -65,7 +62,6 @@ public final class VxChunkDataStore extends AbstractDataStore {
         // This method is only called from within the allocationLock, so it's safe.
         states = growAtomic(states, newCapacity);
         bodyIds = growAtomic(bodyIds, newCapacity);
-        shapeRefs = growAtomic(shapeRefs, newCapacity);
         isPlaceholder = growAtomic(isPlaceholder, newCapacity, 1); // Default to placeholder=true
         rebuildVersions = growAtomic(rebuildVersions, newCapacity);
         referenceCounts = growAtomic(referenceCounts, newCapacity);
@@ -113,7 +109,6 @@ public final class VxChunkDataStore extends AbstractDataStore {
 
     /**
      * Releases the index for a given packed coordinate, making it available for reuse.
-     * This also handles the cleanup of associated resources like {@link ShapeRefC}.
      *
      * @param packedPos The bit-packed coordinate of the chunk to remove.
      * @return The released index, or null if the chunk was not found.
@@ -124,10 +119,6 @@ public final class VxChunkDataStore extends AbstractDataStore {
         synchronized (allocationLock) {
             int index = packedPosToIndex.remove(packedPos);
             if (index != -1) {
-                ShapeRefC shape = shapeRefs.getAndSet(index, null);
-                if (shape != null) {
-                    shape.close();
-                }
                 freeIndices.push(index);
                 indexToPackedPos.set(index, 0L);
                 return index;
@@ -141,12 +132,6 @@ public final class VxChunkDataStore extends AbstractDataStore {
      */
     public void clear() {
         synchronized (allocationLock) {
-            for (int i = 0; i < count; i++) {
-                ShapeRefC shape = shapeRefs.get(i);
-                if (shape != null) {
-                    shape.close();
-                }
-            }
             packedPosToIndex.clear();
             freeIndices.clear();
             count = 0;
@@ -247,25 +232,6 @@ public final class VxChunkDataStore extends AbstractDataStore {
         }
     }
 
-    /**
-     * Safely sets the shape, ensuring the previous shape is closed.
-     *
-     * @param index The data store index.
-     * @param shape The new shape reference.
-     */
-    public void setShape(int index, ShapeRefC shape) {
-        if (index < 0 || index >= capacity) {
-            if (shape != null) {
-                shape.close();
-            }
-            return;
-        }
-        ShapeRefC oldShape = shapeRefs.getAndSet(index, shape);
-        if (oldShape != null && oldShape != shape) {
-            oldShape.close();
-        }
-    }
-
     public int getIndexForPackedPos(long packedPos) {
         return packedPosToIndex.get(packedPos);
     }
@@ -326,7 +292,6 @@ public final class VxChunkDataStore extends AbstractDataStore {
     private void resetIndex(int index) {
         states.set(index, VxTerrainManager.STATE_UNLOADED);
         bodyIds.set(index, UNUSED_BODY_ID);
-        shapeRefs.set(index, null);
         isPlaceholder.set(index, 1); // true
         rebuildVersions.set(index, 0);
         referenceCounts.set(index, 0);
@@ -363,14 +328,4 @@ public final class VxChunkDataStore extends AbstractDataStore {
         return newArray;
     }
 
-    private static <T> AtomicReferenceArray<T> growAtomic(AtomicReferenceArray<T> oldArray, int newCapacity) {
-        AtomicReferenceArray<T> newArray = new AtomicReferenceArray<>(newCapacity);
-        if (oldArray != null) {
-            int copyLength = Math.min(oldArray.length(), newCapacity);
-            for (int i = 0; i < copyLength; i++) {
-                newArray.set(i, oldArray.get(i));
-            }
-        }
-        return newArray;
-    }
 }

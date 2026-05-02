@@ -4,9 +4,9 @@
  */
 package net.xmx.velthoric.core.terrain.management;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.BodyInterface;
+import com.github.stephengold.joltjni.Jolt;
 import com.github.stephengold.joltjni.enumerate.EActivation;
-import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -17,6 +17,7 @@ import net.xmx.velthoric.core.terrain.generation.VxTerrainGenerator;
 import net.xmx.velthoric.core.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.core.terrain.storage.VxChunkDataStore;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.jni.VxTerrainMesher;
 
 /**
  * Manages the lifecycle of terrain chunks, including loading, unloading, activation,
@@ -206,8 +207,9 @@ public final class VxTerrainManager {
         }
 
         try {
-            ShapeRefC generatedShape = terrainGenerator.generateShape(level, snapshot);
-            physicsWorld.execute(() -> applyGeneratedShape(packedPos, index, version, generatedShape, isInitialBuild));
+            int contentHash = snapshot.hashCode();
+            boolean hasShape = terrainGenerator.generateShape(level, snapshot, contentHash);
+            physicsWorld.execute(() -> applyGeneratedShape(packedPos, index, version, contentHash, hasShape, isInitialBuild));
         } catch (Exception e) {
             VxMainClass.LOGGER.error("Exception during terrain shape generation for {}:{}", SectionPos.x(packedPos), SectionPos.z(packedPos), e);
             chunkDataStore.setState(index, STATE_UNLOADED);
@@ -217,9 +219,8 @@ public final class VxTerrainManager {
     /**
      * Applies the newly generated shape to the chunk's physics body on the main physics thread.
      */
-    private void applyGeneratedShape(long packedPos, int index, int version, ShapeRefC shape, boolean isInitialBuild) {
+    private void applyGeneratedShape(long packedPos, int index, int version, int contentHash, boolean hasShape, boolean isInitialBuild) {
         if (chunkDataStore.isVersionStale(index, version) || chunkDataStore.getState(index) == STATE_REMOVING) {
-            if (shape != null) shape.close();
             if (chunkDataStore.getState(index) != STATE_REMOVING) {
                 chunkDataStore.setState(index, STATE_UNLOADED);
             }
@@ -230,35 +231,31 @@ public final class VxTerrainManager {
 
         BodyInterface bodyInterface = physicsWorld.getPhysicsSystem().getBodyInterface();
         if (bodyInterface == null) {
-            if (shape != null) shape.close();
             chunkDataStore.setState(index, STATE_UNLOADED);
             return;
         }
 
         int bodyId = chunkDataStore.getBodyId(index);
         if (bodyId != VxChunkDataStore.UNUSED_BODY_ID) {
-            if (shape != null) {
-                bodyInterface.setShape(bodyId, shape, true, EActivation.DontActivate);
-                chunkDataStore.setShape(index, shape);
+            if (hasShape) {
+                VxTerrainMesher.nUpdateBodyShape(bodyInterface.va(), bodyId, contentHash);
                 chunkDataStore.setState(index, wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
             } else {
                 removeBodyAndShape(index, bodyInterface);
                 chunkDataStore.setState(index, STATE_AIR_CHUNK);
             }
-        } else if (shape != null) {
-            RVec3 position = new RVec3(SectionPos.sectionToBlockCoord(SectionPos.x(packedPos)), SectionPos.sectionToBlockCoord(SectionPos.y(packedPos)), SectionPos.sectionToBlockCoord(SectionPos.z(packedPos)));
-            try (BodyCreationSettings bcs = new BodyCreationSettings(shape, position, Quat.sIdentity(), EMotionType.Static, VxPhysicsLayers.TERRAIN)) {
-                Body body = bodyInterface.createBody(bcs);
-                if (body != null) {
-                    body.setFriction(0.75f);
-                    chunkDataStore.setBodyId(index, body.getId());
-                    chunkDataStore.setShape(index, shape);
-                    chunkDataStore.setState(index, wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
-                } else {
-                    VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}:{}:{}", SectionPos.x(packedPos), SectionPos.y(packedPos), SectionPos.z(packedPos));
-                    shape.close();
-                    chunkDataStore.setState(index, STATE_UNLOADED);
-                }
+        } else if (hasShape) {
+            float posX = SectionPos.sectionToBlockCoord(SectionPos.x(packedPos));
+            float posY = SectionPos.sectionToBlockCoord(SectionPos.y(packedPos));
+            float posZ = SectionPos.sectionToBlockCoord(SectionPos.z(packedPos));
+            
+            int newBodyId = VxTerrainMesher.nCreateTerrainBody(bodyInterface.va(), contentHash, posX, posY, posZ, VxPhysicsLayers.TERRAIN);
+            if (newBodyId != Jolt.cInvalidBodyId) {
+                chunkDataStore.setBodyId(index, newBodyId);
+                chunkDataStore.setState(index, wasActive ? STATE_READY_ACTIVE : STATE_READY_INACTIVE);
+            } else {
+                VxMainClass.LOGGER.error("Failed to create terrain body for chunk {}:{}:{}", SectionPos.x(packedPos), SectionPos.y(packedPos), SectionPos.z(packedPos));
+                chunkDataStore.setState(index, STATE_UNLOADED);
             }
         } else {
             chunkDataStore.setState(index, STATE_AIR_CHUNK);
@@ -297,7 +294,6 @@ public final class VxTerrainManager {
             bodyInterface.destroyBody(bodyId);
         }
         chunkDataStore.setBodyId(index, VxChunkDataStore.UNUSED_BODY_ID);
-        chunkDataStore.setShape(index, null);
     }
 
     /**

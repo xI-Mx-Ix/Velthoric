@@ -1,6 +1,7 @@
 /*
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
+ *
  * Author: xI-Mx-Ix
  */
 #include "net_xmx_velthoric_jni_BatchPhysicsSync.h"
@@ -14,6 +15,8 @@
 #include <algorithm>
 
 using namespace JPH;
+
+namespace Velthoric {
 
 /**
  * Synchronizes the native Jolt simulation results with the Java-side SoA data store.
@@ -68,7 +71,7 @@ using namespace JPH;
  * @param timestampNanos The current simulation timestamp in nanoseconds.
  * @return The number of dirty indices written to dirtyIndicesOutputArr.
  */
-JNIEXPORT jint JNICALL Java_net_xmx_velthoric_jni_BatchPhysicsSync_syncPhysicsNative(
+extern "C" JNIEXPORT jint JNICALL Java_net_xmx_velthoric_jni_BatchPhysicsSync_syncPhysicsNative(
     JNIEnv* env, jclass clazz,
     jlong physicsSystemPtr,
     jint count,
@@ -326,4 +329,6 @@ JNIEXPORT jint JNICALL Java_net_xmx_velthoric_jni_BatchPhysicsSync_syncPhysicsNa
     }
 
     return totalDirtyCount;
+}
+
 }

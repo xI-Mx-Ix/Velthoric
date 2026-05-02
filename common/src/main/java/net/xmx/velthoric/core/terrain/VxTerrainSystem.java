@@ -12,7 +12,6 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
-import net.xmx.velthoric.core.terrain.cache.VxTerrainShapeCache;
 import net.xmx.velthoric.core.terrain.generation.VxTerrainGenerator;
 import net.xmx.velthoric.core.terrain.job.VxTerrainJobSystem;
 import net.xmx.velthoric.core.terrain.management.VxTerrainManager;
@@ -41,7 +40,6 @@ public final class VxTerrainSystem implements Runnable {
     private final AtomicBoolean isInitialized = new AtomicBoolean(false);
 
     private final VxChunkDataStore chunkDataStore;
-    private final VxTerrainShapeCache shapeCache;
     private final VxTerrainGenerator terrainGenerator;
     private final VxTerrainManager terrainManager;
     private final VxTerrainTracker terrainTracker;
@@ -60,9 +58,8 @@ public final class VxTerrainSystem implements Runnable {
         this.server = level.getServer();
 
         this.jobSystem = new VxTerrainJobSystem();
-        this.shapeCache = new VxTerrainShapeCache(2048); // A reasonable capacity
         this.chunkDataStore = new VxChunkDataStore();
-        this.terrainGenerator = new VxTerrainGenerator(shapeCache);
+        this.terrainGenerator = new VxTerrainGenerator();
         this.terrainManager = new VxTerrainManager(physicsWorld, level, terrainGenerator, chunkDataStore, jobSystem);
         this.terrainTracker = new VxTerrainTracker(physicsWorld, terrainManager, chunkDataStore, level);
 
@@ -108,8 +105,7 @@ public final class VxTerrainSystem implements Runnable {
                 VxMainClass.LOGGER.debug("Cleaning up terrain physics bodies for '{}'...", level.dimension().location());
                 terrainManager.cleanupAllBodies();
 
-                // Clean up caches and generator
-                shapeCache.clear();
+                // Clean up generator native caches
                 terrainGenerator.close();
 
                 chunkDataStore.clear();
