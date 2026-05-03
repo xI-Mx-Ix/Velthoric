@@ -18,19 +18,25 @@ allprojects {
 
     repositories {
         mavenCentral()
-        maven { url = 'https://cursemaven.com'}
+        maven { url = 'https://cursemaven.com' }
         maven { url = 'https://maven.parchmentmc.org' }
         maven { url = 'https://jitpack.io' }
-        maven { url = 'https://s01.oss.sonatype.org/content/repositories/snapshots'}
+        maven { url = 'https://s01.oss.sonatype.org/content/repositories/snapshots' }
 
-        ivy {
-            url "https://github.com/xI-Mx-Ix/vx-jolt-jni/releases/download/${jolt_jni_version}/"
-            patternLayout {
-                artifact "[artifact]-[revision](-[classifier]).[ext]"
-            }
-            metadataSources {
-                artifact()
-            }
+        exclusiveContent {
+            forRepositories(
+                    ivy {
+                        url "https://github.com/xI-Mx-Ix/vx-jolt-jni/releases/download/${jolt_jni_version}/"
+                        patternLayout {
+                            artifact "[artifact]-[revision](-[classifier]).[ext]"
+                        }
+                        metadataSources {
+                            artifact()
+                        }
+                    }
+            )
+
+            filter { includeGroup("vx-jolt-jni") }
         }
 
         flatDir {
@@ -48,12 +54,12 @@ subprojects {
     apply plugin: 'net.xmx.velthoric.publishing'
 
     def archiveMap = [
-            "fabric"    : "velthoric-fabric",
-            "forge"     : "velthoric-forge",
-            "neoforge"  : "velthoric-neoforge",
-            "common"    : "velthoric-common",
-            "vx-events" : "vx-events",
-            "vx-native" : "vx-native"
+            "fabric"   : "velthoric-fabric",
+            "forge"    : "velthoric-forge",
+            "neoforge" : "velthoric-neoforge",
+            "common"   : "velthoric-common",
+            "vx-events": "vx-events",
+            "vx-native": "vx-native"
     ]
 
     base {
