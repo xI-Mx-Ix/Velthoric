@@ -9,6 +9,7 @@
 #include <Jolt/Physics/Collision/ContactListener.h>
 #include <mutex>
 #include <unordered_map>
+#include <jni.h>
 
 namespace Velthoric {
 
@@ -21,6 +22,10 @@ namespace Velthoric {
  */
 class ContactListener : public JPH::ContactListener {
 public:
+    ContactListener(jobject inWorldRef);
+
+    virtual ~ContactListener() override;
+
     virtual JPH::ValidateResult OnContactValidate(const JPH::Body &inBody1, const JPH::Body &inBody2, JPH::RVec3Arg inBaseOffset, const JPH::CollideShapeResult &inCollisionResult) override;
 
     virtual void OnContactAdded(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override;
@@ -30,6 +35,8 @@ public:
     virtual void OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) override;
 
 private:
+    jobject m_WorldRef;
+
     /// Cached material properties for a contact pair, avoiding repeated BVH lookups.
     struct CachedContact {
         float friction;

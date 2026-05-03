@@ -6,6 +6,7 @@
  */
 #include "TerrainContactListener.h"
 #include "../../Terrain/TerrainGenerator.h"
+#include "../Interaction/TerrainInteraction.h"
 #include <Jolt/Physics/Collision/PhysicsMaterial.h>
 #include <Jolt/Physics/Body/Body.h>
 #include <cstring>
@@ -22,6 +23,28 @@
  */
 
 namespace Velthoric {
+
+ContactListener::ContactListener(jobject inWorldRef) {
+    JNIEnv* env = nullptr;
+    JavaVM* vm = nullptr;
+    jint res = JNI_GetCreatedJavaVMs(&vm, 1, nullptr);
+    if (res == JNI_OK && vm->GetEnv((void**)&env, JNI_VERSION_1_8) == JNI_OK) {
+        m_WorldRef = env->NewGlobalRef(inWorldRef);
+    } else {
+        m_WorldRef = nullptr;
+    }
+}
+
+ContactListener::~ContactListener() {
+    if (m_WorldRef) {
+        JNIEnv* env = nullptr;
+        JavaVM* vm = nullptr;
+        jint res = JNI_GetCreatedJavaVMs(&vm, 1, nullptr);
+        if (res == JNI_OK && vm->GetEnv((void**)&env, JNI_VERSION_1_8) == JNI_OK) {
+            env->DeleteGlobalRef(m_WorldRef);
+        }
+    }
+}
 
 /**
  * @brief Broadphase validation filter. Accepts all contacts.
@@ -96,6 +119,14 @@ void ContactListener::OnContactAdded(const JPH::Body &inBody1, const JPH::Body &
         std::lock_guard<std::mutex> lock(m_CacheMutex);
         m_ContactCache[key] = { combinedFriction, combinedRestitution };
     }
+
+    // Terrain Interaction Logic
+    bool isBody1Terrain = (inBody1.GetObjectLayer() == static_cast<JPH::ObjectLayer>(2));
+    const JPH::Body& terrainBody = isBody1Terrain ? inBody1 : inBody2;
+    const JPH::Body& otherBody = isBody1Terrain ? inBody2 : inBody1;
+    JPH::SubShapeID terrainSubShapeId = isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2;
+    
+    TerrainInteraction::ProcessInteraction(m_WorldRef, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, false);
 }
 
 /**
@@ -121,6 +152,14 @@ void ContactListener::OnContactPersisted(const JPH::Body &inBody1, const JPH::Bo
         ioSettings.mCombinedFriction = it->second.friction;
         ioSettings.mCombinedRestitution = it->second.restitution;
     }
+
+    // Terrain Interaction Logic
+    bool isBody1Terrain = (inBody1.GetObjectLayer() == static_cast<JPH::ObjectLayer>(2));
+    const JPH::Body& terrainBody = isBody1Terrain ? inBody1 : inBody2;
+    const JPH::Body& otherBody = isBody1Terrain ? inBody2 : inBody1;
+    JPH::SubShapeID terrainSubShapeId = isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2;
+
+    TerrainInteraction::ProcessInteraction(m_WorldRef, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, true);
 }
 
 /**
@@ -150,11 +189,15 @@ void ContactListener::OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair
  * @return The virtual address of the newly allocated ContactListener.
  */
 extern "C" JNIEXPORT jlong JNICALL
-Java_net_xmx_velthoric_jni_TerrainContactListener_nAttachContactListener(JNIEnv *env, jclass clazz, jlong physicsSystemPtr) {
+Java_net_xmx_velthoric_jni_TerrainContactListener_nAttachContactListener(JNIEnv *env, jclass clazz, jlong physicsSystemPtr, jobject world) {
     JPH::PhysicsSystem* ps = reinterpret_cast<JPH::PhysicsSystem*>(physicsSystemPtr);
     if (!ps) return 0;
-    
-    auto* listener = new Velthoric::ContactListener();
+
+    auto* listener = new Velthoric::ContactListener(world);
+
+    // Initialize interaction system with current JVM env
+    Velthoric::TerrainInteraction::InitJNI(env);
+
     ps->SetContactListener(listener);
     return reinterpret_cast<jlong>(listener);
 }

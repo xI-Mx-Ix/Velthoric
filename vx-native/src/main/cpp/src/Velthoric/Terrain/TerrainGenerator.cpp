@@ -117,7 +117,7 @@ ShapeRefC TerrainGenerator::GenerateCompoundShape(const BoxShapeData* boxes, int
     
     // Ensure default material (1) exists
     if (!s_Materials[1]) {
-        s_Materials[1] = new TerrainMaterial(0.75f, 0.0f);
+        s_Materials[1] = new TerrainMaterial(1, 0.75f, 0.0f);
     }
 
     // Cache to reuse BoxShapeSettings for identical dimensions and materials
@@ -263,6 +263,6 @@ Java_net_xmx_velthoric_jni_TerrainGenerator_nClearCache(JNIEnv *env, jclass claz
 extern "C" JNIEXPORT void JNICALL
 Java_net_xmx_velthoric_jni_TerrainGenerator_nRegisterMaterial(JNIEnv *env, jclass clazz, jint id, jfloat friction, jfloat restitution) {
     if (id > 0 && id < 65536) {
-        Velthoric::TerrainGenerator::s_Materials[id] = new Velthoric::TerrainMaterial(friction, restitution);
+        Velthoric::TerrainGenerator::s_Materials[id] = new Velthoric::TerrainMaterial(id, friction, restitution);
     }
 }

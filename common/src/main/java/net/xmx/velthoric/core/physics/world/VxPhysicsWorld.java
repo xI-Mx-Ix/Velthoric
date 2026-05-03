@@ -253,8 +253,8 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.physicsSystem.setGravity(0f, gravityY, 0f);
         
         // Attach the native contact listener
-        this.terrainContactListener = new TerrainContactListener(this.physicsSystem.va());
-        
+        this.terrainContactListener = new TerrainContactListener(this.physicsSystem.va(), this);
+
         this.physicsSystem.optimizeBroadPhase();
     }
 

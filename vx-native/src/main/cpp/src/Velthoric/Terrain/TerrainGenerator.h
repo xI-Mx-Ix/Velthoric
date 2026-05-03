@@ -22,10 +22,12 @@ namespace Velthoric {
  */
 class TerrainMaterial : public JPH::PhysicsMaterial {
 public:
+    uint32_t mMaterialId;
     float mFriction;
     float mRestitution;
 
-    TerrainMaterial(float friction, float restitution) : mFriction(friction), mRestitution(restitution) {}
+    TerrainMaterial(uint32_t matId, float friction, float restitution) 
+        : mMaterialId(matId), mFriction(friction), mRestitution(restitution) {}
 
     static const char* sTerrainMaterialName;
     virtual const char* GetDebugName() const override { return sTerrainMaterialName; }

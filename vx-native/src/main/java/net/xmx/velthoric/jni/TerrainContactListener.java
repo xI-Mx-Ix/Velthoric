@@ -28,9 +28,10 @@ public class TerrainContactListener extends NativeObject {
      *
      * @param physicsSystemPtr The native virtual address of the {@code JPH::PhysicsSystem}.
      *                         Must be a valid, initialized pointer.
+     * @param world            The Java {@code VxPhysicsWorld} instance this listener belongs to.
      */
-    public TerrainContactListener(long physicsSystemPtr) {
-        super(nAttachContactListener(physicsSystemPtr));
+    public TerrainContactListener(long physicsSystemPtr, Object world) {
+        super(nAttachContactListener(physicsSystemPtr, world));
         this.physicsSystemPtr = physicsSystemPtr;
     }
 
@@ -49,9 +50,10 @@ public class TerrainContactListener extends NativeObject {
      * Natively allocates a new C++ {@code ContactListener} and attaches it to the given PhysicsSystem.
      *
      * @param physicsSystemPtr The native virtual address of the Jolt PhysicsSystem.
+     * @param world            The Java VxPhysicsWorld object.
      * @return The native virtual address of the newly allocated ContactListener.
      */
-    private static native long nAttachContactListener(long physicsSystemPtr);
+    private static native long nAttachContactListener(long physicsSystemPtr, Object world);
 
     /**
      * Natively detaches the ContactListener from the PhysicsSystem and securely deletes its memory.

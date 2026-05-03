@@ -1,0 +1,254 @@
+/*
+ * This file is part of Velthoric.
+ * Licensed under LGPL 3.0.
+ *
+ * Author: xI-Mx-Ix
+ */
+#include "TerrainInteraction.h"
+#include "../TerrainGenerator.h"
+#include <Jolt/Physics/Collision/PhysicsMaterial.h>
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <random>
+#include <jni.h>
+
+namespace Velthoric {
+
+/** Static storage for material interaction properties. */
+TerrainInteraction::InternalMaterialProps TerrainInteraction::s_MaterialProps[65536];
+
+/** Internal queue for interaction events (reserved for future batching logic). */
+std::vector<TerrainInteraction::InteractionEvent> TerrainInteraction::s_EventQueue;
+std::mutex TerrainInteraction::s_QueueMutex;
+std::atomic<int> TerrainInteraction::s_EventCount{0};
+
+// JNI Caching
+static JavaVM* s_JavaVM = nullptr;
+static jclass s_HandlerClass = nullptr;
+static jmethodID s_BreakMethod = nullptr;
+static jmethodID s_ParticleMethod = nullptr;
+static jmethodID s_TransformMethod = nullptr;
+
+/**
+ * @brief Bootstraps the interaction system's JNI bridge.
+ * 
+ * Locates the Java handler class and caches method IDs for high-frequency callbacks.
+ * This should be called from a thread that is already attached to the JVM.
+ */
+void TerrainInteraction::InitJNI(JNIEnv* env) {
+    if (s_JavaVM || !env) return;
+
+    env->GetJavaVM(&s_JavaVM);
+    jclass localClass = env->FindClass("net/xmx/velthoric/core/terrain/interaction/VxTerrainInteractionHandler");
+    if (localClass) {
+        s_HandlerClass = (jclass)env->NewGlobalRef(localClass);
+        // Signature: (world, x, y, z, strength)
+        s_BreakMethod = env->GetStaticMethodID(s_HandlerClass, "onBlockBreak", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;IIIF)V");
+        // Signature: (world, x, y, z, intensity)
+        s_ParticleMethod = env->GetStaticMethodID(s_HandlerClass, "onSpawnParticles", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;FFFF)V");
+        // Signature: (world, x, y, z, strength)
+        s_TransformMethod = env->GetStaticMethodID(s_HandlerClass, "onTerrainTransform", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;IIIF)V");
+        
+        // Ensure default material (ID 1) always spawns particles
+        s_MaterialProps[1].spawnsParticles = true;
+    }
+}
+
+/**
+ * @brief Helper to retrieve the current JNI environment.
+ * 
+ * Attaches the current thread to the JVM if it's not already attached.
+ */
+static JNIEnv* GetJNIEnv() {
+    if (!s_JavaVM) return nullptr;
+    JNIEnv* env;
+    jint res = s_JavaVM->GetEnv((void**)&env, JNI_VERSION_1_6);
+    if (res == JNI_EDETACHED) {
+        s_JavaVM->AttachCurrentThread((void**)&env, nullptr);
+    }
+    return env;
+}
+
+/**
+ * @brief Updates the native lookup table for material interaction properties.
+ */
+void TerrainInteraction::RegisterMaterials(const MaterialConfig* configs, int count) {
+    for (int i = 0; i < count; ++i) {
+        uint32_t id = configs[i].matId;
+        if (id < 65536) {
+            s_MaterialProps[id].isFragile = configs[i].isFragile;
+            s_MaterialProps[id].isTransformable = configs[i].isTransformable;
+            s_MaterialProps[id].spawnsParticles = configs[i].spawnsParticles;
+            s_MaterialProps[id].breakThreshold = configs[i].breakThreshold;
+        }
+    }
+}
+
+/**
+ * @brief Performs real-time interaction logic during a physics contact event.
+ * 
+ * Evaluates impact energy and sliding friction to trigger block destruction, 
+ * soil transformation, or visual effects.
+ */
+void TerrainInteraction::ProcessInteraction(jobject world,
+                                          const JPH::Body& terrainBody, const JPH::Body& otherBody, 
+                                          JPH::SubShapeID subShapeId,
+                                          const JPH::ContactManifold& manifold, 
+                                          const JPH::ContactSettings& settings, 
+                                          bool isPersisted) {
+    if (!world || terrainBody.GetShape() == nullptr) return;
+
+    // 1. Resolve material from the Jolt shape
+    const JPH::PhysicsMaterial* mat = terrainBody.GetShape()->GetMaterial(subShapeId);
+    uint32_t matId = 1; // Default fallback to ID 1 (Standard Soil/Particles)
+
+    if (mat && mat->GetDebugName() && strcmp(mat->GetDebugName(), TerrainMaterial::sTerrainMaterialName) == 0) {
+        const TerrainMaterial* tMat = static_cast<const TerrainMaterial*>(mat);
+        matId = tMat->mMaterialId;
+    }
+
+    const auto& props = s_MaterialProps[matId < 65536 ? matId : 1];
+    // Early exit if the material has no interaction triggers, except for ID 1
+    if (!props.isFragile && !props.isTransformable && !props.spawnsParticles && matId != 1) return;
+
+    // 2. Dispatch JNI Callbacks for all contact points
+    JNIEnv* env = GetJNIEnv();
+    if (!env || !s_HandlerClass) return;
+
+    int numPoints = manifold.mRelativeContactPointsOn1.size();
+    for (int i = 0; i < numPoints; ++i) {
+        // Get world space contact point
+        JPH::RVec3 p = manifold.GetWorldSpaceContactPointOn1(i);
+        
+        // 3. Physical interaction calculations at this point
+        JPH::Vec3 relVel = otherBody.GetPointVelocity(p) - terrainBody.GetPointVelocity(p);
+        
+        float impactSpeed = std::abs(relVel.Dot(manifold.mWorldSpaceNormal));
+        // Calculate tangential sliding speed at this point
+        float slidingSpeed = (relVel - relVel.Dot(manifold.mWorldSpaceNormal) * manifold.mWorldSpaceNormal).Length();
+        
+        float invMass = otherBody.GetMotionProperties() ? otherBody.GetMotionProperties()->GetInverseMass() : 0.0f;
+        float otherMass = invMass > 0.0f ? 1.0f / invMass : 100.0f;
+        
+        // Force and Energy estimates
+        float staticPressure = manifold.mPenetrationDepth * otherMass * 9.81f; 
+        float totalForceEstimate = (impactSpeed * otherMass) + staticPressure;
+
+        // Handle Block Destruction (Fragile blocks)
+        if (props.isFragile && totalForceEstimate > props.breakThreshold) {
+            if (s_BreakMethod) {
+                env->CallStaticVoidMethod(s_HandlerClass, s_BreakMethod, world, 
+                                        (int)std::floor(p.GetX()), (int)std::floor(p.GetY()), (int)std::floor(p.GetZ()), 
+                                        totalForceEstimate);
+            }
+        }
+
+        // Handle Terrain Transformation (Soil wear-down)
+        if (props.isTransformable && (slidingSpeed > 0.8f || totalForceEstimate > 500.0f) && settings.mCombinedFriction > 0.1f) {
+            if (s_TransformMethod) {
+                env->CallStaticVoidMethod(s_HandlerClass, s_TransformMethod, world, 
+                                        (int)std::floor(p.GetX()), (int)std::floor(p.GetY()), (int)std::floor(p.GetZ()),
+                                        totalForceEstimate);
+            }
+        }
+
+        // Handle Visual/Audio Effects (Particles & Sounds)
+        if (props.spawnsParticles) {
+            // Thread-local RNG for high-performance random sampling without locks
+            thread_local std::mt19937 tls_rng(std::random_device{}());
+            thread_local std::uniform_real_distribution<float> tls_dist(0.0f, 1.0f);
+
+            // Calculate relative velocity magnitude for general intensity
+            float relVelMag = relVel.Length();
+            
+            // Hard cutoff: absolutely no effects if velocity is microscopic (< 0.01)
+            if (relVelMag < 0.01f) continue;
+            
+            // Shift mass scaling significantly:
+            // 1000kg is the baseline (1.0). 20kg is 0.02. 50,000kg is 50.0.
+            // This massively separates light boxes from thousands of tonnes.
+            float massScale = std::min(50.0f, std::max(0.01f, otherMass / 1000.0f));
+            
+            float totalEnergy = 0.0f;
+            bool shouldTrigger = false;
+
+            if (!isPersisted) {
+                // Impact: Relies heavily on velocity and mass.
+                // Massively reduced the penetration depth multiplier.
+                totalEnergy = ((relVelMag * 1.0f) + (manifold.mPenetrationDepth * 10.0f)) * massScale;
+                // Raised threshold: a 20kg box needs to fall fast to make a sound.
+                shouldTrigger = (totalEnergy > 0.05f); 
+            } else {
+                // Persisted: Trigger for sliding/rolling
+                // Require a higher base speed (0.1 m/s) to even calculate sliding
+                if (relVelMag > 0.1f) {
+                    float frictionEnergy = slidingSpeed * settings.mCombinedFriction * 1.0f;
+                    float pressureEnergy = manifold.mPenetrationDepth * 5.0f; // Much less impact from resting pressure
+                    totalEnergy = (frictionEnergy + pressureEnergy) * massScale;
+                    
+                    // Only trigger if the sliding energy is notable
+                    if (totalEnergy > 0.05f) {
+                        // Throttling: chance scales up very slowly. 
+                        // Even a 500kg slide will only have a ~0.25% chance per tick.
+                        float chance = std::min(0.05f, totalEnergy * 0.005f);
+                        if (tls_dist(tls_rng) < chance) {
+                            shouldTrigger = true;
+                        }
+                    }
+                }
+            }
+
+            if (shouldTrigger && s_ParticleMethod) {
+                env->CallStaticVoidMethod(s_HandlerClass, s_ParticleMethod, world, 
+                                        (float)p.GetX(), (float)p.GetY(), (float)p.GetZ(), 
+                                        totalEnergy);
+            }
+        }
+    }
+}
+
+/**
+ * @brief Transfers asynchronous events back to Java.
+ */
+int TerrainInteraction::FlushEvents(InteractionEvent* outBuffer, int maxCount) {
+    std::lock_guard<std::mutex> lock(s_QueueMutex);
+    int count = std::min((int)s_EventQueue.size(), maxCount);
+    for (int i = 0; i < count; ++i) {
+        outBuffer[i] = s_EventQueue[i];
+    }
+    s_EventQueue.erase(s_EventQueue.begin(), s_EventQueue.begin() + count);
+    s_EventCount -= count;
+    return count;
+}
+
+} // namespace Velthoric
+
+extern "C" {
+
+/**
+ * @brief JNI Endpoint: Registers interaction-specific material data.
+ */
+JNIEXPORT void JNICALL
+Java_net_xmx_velthoric_jni_TerrainInteraction_nRegisterInteractionMaterials(JNIEnv *env, jclass clazz, jobject buffer, jint count) {
+    if (!buffer || count <= 0) return;
+    const Velthoric::TerrainInteraction::MaterialConfig* configs = static_cast<const Velthoric::TerrainInteraction::MaterialConfig*>(env->GetDirectBufferAddress(buffer));
+    if (configs) {
+        Velthoric::TerrainInteraction::RegisterMaterials(configs, count);
+    }
+}
+
+/**
+ * @brief JNI Endpoint: Flushes the interaction event queue into Java memory.
+ */
+JNIEXPORT jint JNICALL
+Java_net_xmx_velthoric_jni_TerrainInteraction_nFlushEvents(JNIEnv *env, jclass clazz, jobject buffer, jint maxCount) {
+    if (!buffer || maxCount <= 0) return 0;
+    Velthoric::TerrainInteraction::InteractionEvent* outBuffer = static_cast<Velthoric::TerrainInteraction::InteractionEvent*>(env->GetDirectBufferAddress(buffer));
+    if (outBuffer) {
+        return Velthoric::TerrainInteraction::FlushEvents(outBuffer, maxCount);
+    }
+    return 0;
+}
+
+}

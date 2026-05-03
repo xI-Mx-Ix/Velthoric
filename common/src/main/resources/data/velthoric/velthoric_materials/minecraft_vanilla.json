@@ -1,5 +1,371 @@
 {
   "values": {
+    "minecraft:acacia_leaves": {
+      "friction": 0.822,
+      "restitution": 0.0,
+      "weight": 5.14,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:azalea_leaves": {
+      "friction": 0.772,
+      "restitution": 0.0,
+      "weight": 4.82,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:birch_leaves": {
+      "friction": 0.802,
+      "restitution": 0.0,
+      "weight": 5.01,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:black_stained_glass": {
+      "friction": 0.305,
+      "restitution": 0.254,
+      "weight": 25.4,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:black_stained_glass_pane": {
+      "friction": 0.31,
+      "restitution": 0.258,
+      "weight": 7.75,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:blue_ice": {
+      "friction": 0.01,
+      "restitution": 0.051,
+      "weight": 82.35,
+      "fragile": true,
+      "break_threshold": 3000.0
+    },
+    "minecraft:blue_stained_glass": {
+      "friction": 0.303,
+      "restitution": 0.252,
+      "weight": 25.23,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:blue_stained_glass_pane": {
+      "friction": 0.312,
+      "restitution": 0.26,
+      "weight": 7.81,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:brown_stained_glass": {
+      "friction": 0.301,
+      "restitution": 0.25,
+      "weight": 25.05,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:brown_stained_glass_pane": {
+      "friction": 0.298,
+      "restitution": 0.249,
+      "weight": 7.46,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:cherry_leaves": {
+      "friction": 0.803,
+      "restitution": 0.0,
+      "weight": 5.02,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:cyan_stained_glass": {
+      "friction": 0.3,
+      "restitution": 0.25,
+      "weight": 25.01,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:cyan_stained_glass_pane": {
+      "friction": 0.297,
+      "restitution": 0.248,
+      "weight": 7.43,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:dark_oak_leaves": {
+      "friction": 0.805,
+      "restitution": 0.0,
+      "weight": 5.03,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:dirt_path": {
+      "friction": 0.941,
+      "restitution": 0.0,
+      "weight": 94.13,
+      "transform_to": "minecraft:dirt"
+    },
+    "minecraft:farmland": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 155.76,
+      "transform_to": "minecraft:dirt"
+    },
+    "minecraft:flowering_azalea_leaves": {
+      "friction": 0.826,
+      "restitution": 0.0,
+      "weight": 0.26,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:glass": {
+      "friction": 0.301,
+      "restitution": 0.251,
+      "weight": 25.06,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:glass_pane": {
+      "friction": 0.31,
+      "restitution": 0.258,
+      "weight": 7.74,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:grass_block": {
+      "friction": 0.774,
+      "restitution": 0.0,
+      "weight": 4.84,
+      "transform_to": "minecraft:dirt"
+    },
+    "minecraft:gray_stained_glass": {
+      "friction": 0.315,
+      "restitution": 0.262,
+      "weight": 26.23,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:gray_stained_glass_pane": {
+      "friction": 0.299,
+      "restitution": 0.249,
+      "weight": 7.48,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:green_stained_glass": {
+      "friction": 0.31,
+      "restitution": 0.258,
+      "weight": 25.82,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:green_stained_glass_pane": {
+      "friction": 0.291,
+      "restitution": 0.242,
+      "weight": 7.27,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:ice": {
+      "friction": 0.019,
+      "restitution": 0.048,
+      "weight": 76.78,
+      "fragile": true,
+      "break_threshold": 2500.0
+    },
+    "minecraft:jungle_leaves": {
+      "friction": 0.81,
+      "restitution": 0.0,
+      "weight": 5.06,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:light_blue_stained_glass": {
+      "friction": 0.307,
+      "restitution": 0.255,
+      "weight": 25.55,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:light_blue_stained_glass_pane": {
+      "friction": 0.289,
+      "restitution": 0.241,
+      "weight": 7.23,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:light_gray_stained_glass": {
+      "friction": 0.313,
+      "restitution": 0.261,
+      "weight": 26.05,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:light_gray_stained_glass_pane": {
+      "friction": 0.29,
+      "restitution": 0.241,
+      "weight": 7.24,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:lime_stained_glass": {
+      "friction": 0.311,
+      "restitution": 0.259,
+      "weight": 25.92,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:lime_stained_glass_pane": {
+      "friction": 0.306,
+      "restitution": 0.255,
+      "weight": 7.65,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:magenta_stained_glass": {
+      "friction": 0.304,
+      "restitution": 0.253,
+      "weight": 25.3,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:magenta_stained_glass_pane": {
+      "friction": 0.313,
+      "restitution": 0.26,
+      "weight": 7.81,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:mangrove_leaves": {
+      "friction": 0.835,
+      "restitution": 0.0,
+      "weight": 5.22,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:mycelium": {
+      "friction": 0.924,
+      "restitution": 0.0,
+      "weight": 92.41,
+      "transform_to": "minecraft:dirt"
+    },
+    "minecraft:oak_leaves": {
+      "friction": 0.818,
+      "restitution": 0.0,
+      "weight": 5.11,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:orange_stained_glass": {
+      "friction": 0.286,
+      "restitution": 0.239,
+      "weight": 23.85,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:orange_stained_glass_pane": {
+      "friction": 0.299,
+      "restitution": 0.249,
+      "weight": 7.48,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:packed_ice": {
+      "friction": 0.02,
+      "restitution": 0.05,
+      "weight": 79.74,
+      "fragile": true,
+      "break_threshold": 4000.0
+    },
+    "minecraft:pink_stained_glass": {
+      "friction": 0.302,
+      "restitution": 0.252,
+      "weight": 25.16,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:pink_stained_glass_pane": {
+      "friction": 0.307,
+      "restitution": 0.256,
+      "weight": 7.68,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:podzol": {
+      "friction": 0.931,
+      "restitution": 0.0,
+      "weight": 93.09,
+      "transform_to": "minecraft:dirt"
+    },
+    "minecraft:purple_stained_glass": {
+      "friction": 0.308,
+      "restitution": 0.256,
+      "weight": 25.64,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:purple_stained_glass_pane": {
+      "friction": 0.296,
+      "restitution": 0.247,
+      "weight": 7.4,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:red_stained_glass": {
+      "friction": 0.3,
+      "restitution": 0.25,
+      "weight": 25.01,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:red_stained_glass_pane": {
+      "friction": 0.312,
+      "restitution": 0.26,
+      "weight": 7.8,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:spruce_leaves": {
+      "friction": 0.831,
+      "restitution": 0.0,
+      "weight": 5.19,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:tinted_glass": {
+      "friction": 0.314,
+      "restitution": 0.262,
+      "weight": 26.16,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:white_stained_glass": {
+      "friction": 0.286,
+      "restitution": 0.239,
+      "weight": 23.88,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:white_stained_glass_pane": {
+      "friction": 0.294,
+      "restitution": 0.245,
+      "weight": 7.34,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:yellow_stained_glass": {
+      "friction": 0.289,
+      "restitution": 0.241,
+      "weight": 24.1,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:yellow_stained_glass_pane": {
+      "friction": 0.295,
+      "restitution": 0.246,
+      "weight": 7.37,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
     "minecraft:acacia_button": {
       "friction": 0.614,
       "restitution": 0.102,
@@ -24,11 +390,6 @@
       "friction": 0.587,
       "restitution": 0.098,
       "weight": 4.89
-    },
-    "minecraft:acacia_leaves": {
-      "friction": 0.822,
-      "restitution": 0.0,
-      "weight": 5.14
     },
     "minecraft:acacia_log": {
       "friction": 0.604,
@@ -139,11 +500,6 @@
       "friction": 0.781,
       "restitution": 0.049,
       "weight": 146.5
-    },
-    "minecraft:azalea_leaves": {
-      "friction": 0.772,
-      "restitution": 0.0,
-      "weight": 4.82
     },
     "minecraft:azure_bluet": {
       "friction": 0.826,
@@ -320,11 +676,6 @@
       "restitution": 0.102,
       "weight": 5.11
     },
-    "minecraft:birch_leaves": {
-      "friction": 0.802,
-      "restitution": 0.0,
-      "weight": 5.01
-    },
     "minecraft:birch_log": {
       "friction": 0.576,
       "restitution": 0.096,
@@ -420,16 +771,6 @@
       "restitution": 0.051,
       "weight": 151.54
     },
-    "minecraft:black_stained_glass": {
-      "friction": 0.305,
-      "restitution": 0.254,
-      "weight": 25.4
-    },
-    "minecraft:black_stained_glass_pane": {
-      "friction": 0.31,
-      "restitution": 0.258,
-      "weight": 7.75
-    },
     "minecraft:black_terracotta": {
       "friction": 0.837,
       "restitution": 0.052,
@@ -505,11 +846,6 @@
       "restitution": 0.049,
       "weight": 147.0
     },
-    "minecraft:blue_ice": {
-      "friction": 0.01,
-      "restitution": 0.051,
-      "weight": 82.35
-    },
     "minecraft:blue_orchid": {
       "friction": 0.777,
       "restitution": 0.049,
@@ -519,16 +855,6 @@
       "friction": 0.807,
       "restitution": 0.05,
       "weight": 151.28
-    },
-    "minecraft:blue_stained_glass": {
-      "friction": 0.303,
-      "restitution": 0.252,
-      "weight": 25.23
-    },
-    "minecraft:blue_stained_glass_pane": {
-      "friction": 0.312,
-      "restitution": 0.26,
-      "weight": 7.81
     },
     "minecraft:blue_terracotta": {
       "friction": 0.8,
@@ -649,16 +975,6 @@
       "friction": 0.835,
       "restitution": 0.052,
       "weight": 156.59
-    },
-    "minecraft:brown_stained_glass": {
-      "friction": 0.301,
-      "restitution": 0.25,
-      "weight": 25.05
-    },
-    "minecraft:brown_stained_glass_pane": {
-      "friction": 0.298,
-      "restitution": 0.249,
-      "weight": 7.46
     },
     "minecraft:brown_terracotta": {
       "friction": 0.839,
@@ -789,11 +1105,6 @@
       "friction": 0.6,
       "restitution": 0.1,
       "weight": 5.0
-    },
-    "minecraft:cherry_leaves": {
-      "friction": 0.803,
-      "restitution": 0.0,
-      "weight": 5.02
     },
     "minecraft:cherry_log": {
       "friction": 0.591,
@@ -1265,16 +1576,6 @@
       "restitution": 0.05,
       "weight": 149.95
     },
-    "minecraft:cyan_stained_glass": {
-      "friction": 0.3,
-      "restitution": 0.25,
-      "weight": 25.01
-    },
-    "minecraft:cyan_stained_glass_pane": {
-      "friction": 0.297,
-      "restitution": 0.248,
-      "weight": 7.43
-    },
     "minecraft:cyan_terracotta": {
       "friction": 0.795,
       "restitution": 0.05,
@@ -1324,11 +1625,6 @@
       "friction": 0.629,
       "restitution": 0.105,
       "weight": 5.24
-    },
-    "minecraft:dark_oak_leaves": {
-      "friction": 0.805,
-      "restitution": 0.0,
-      "weight": 5.03
     },
     "minecraft:dark_oak_log": {
       "friction": 0.616,
@@ -1640,11 +1936,6 @@
       "restitution": 0.0,
       "weight": 89.18
     },
-    "minecraft:dirt_path": {
-      "friction": 0.941,
-      "restitution": 0.0,
-      "weight": 94.13
-    },
     "minecraft:dispenser": {
       "friction": 0.835,
       "restitution": 0.052,
@@ -1780,11 +2071,6 @@
       "restitution": 0.204,
       "weight": 229.39
     },
-    "minecraft:farmland": {
-      "friction": 0.831,
-      "restitution": 0.052,
-      "weight": 155.76
-    },
     "minecraft:fern": {
       "friction": 0.799,
       "restitution": 0.0,
@@ -1825,11 +2111,6 @@
       "restitution": 0.0,
       "weight": 0.25
     },
-    "minecraft:flowering_azalea_leaves": {
-      "friction": 0.826,
-      "restitution": 0.0,
-      "weight": 0.26
-    },
     "minecraft:frogspawn": {
       "friction": 0.819,
       "restitution": 0.051,
@@ -1844,16 +2125,6 @@
       "friction": 0.795,
       "restitution": 0.05,
       "weight": 149.1
-    },
-    "minecraft:glass": {
-      "friction": 0.301,
-      "restitution": 0.251,
-      "weight": 25.06
-    },
-    "minecraft:glass_pane": {
-      "friction": 0.31,
-      "restitution": 0.258,
-      "weight": 7.74
     },
     "minecraft:glow_lichen": {
       "friction": 0.776,
@@ -1894,11 +2165,6 @@
       "friction": 0.815,
       "restitution": 0.051,
       "weight": 122.21
-    },
-    "minecraft:grass_block": {
-      "friction": 0.774,
-      "restitution": 0.0,
-      "weight": 4.84
     },
     "minecraft:gravel": {
       "friction": 0.826,
@@ -1944,16 +2210,6 @@
       "friction": 0.809,
       "restitution": 0.051,
       "weight": 151.68
-    },
-    "minecraft:gray_stained_glass": {
-      "friction": 0.315,
-      "restitution": 0.262,
-      "weight": 26.23
-    },
-    "minecraft:gray_stained_glass_pane": {
-      "friction": 0.299,
-      "restitution": 0.249,
-      "weight": 7.48
     },
     "minecraft:gray_terracotta": {
       "friction": 0.837,
@@ -2009,16 +2265,6 @@
       "friction": 0.828,
       "restitution": 0.052,
       "weight": 155.19
-    },
-    "minecraft:green_stained_glass": {
-      "friction": 0.31,
-      "restitution": 0.258,
-      "weight": 25.82
-    },
-    "minecraft:green_stained_glass_pane": {
-      "friction": 0.291,
-      "restitution": 0.242,
-      "weight": 7.27
     },
     "minecraft:green_terracotta": {
       "friction": 0.777,
@@ -2094,11 +2340,6 @@
       "friction": 0.802,
       "restitution": 0.05,
       "weight": 120.35
-    },
-    "minecraft:ice": {
-      "friction": 0.019,
-      "restitution": 0.048,
-      "weight": 76.78
     },
     "minecraft:infested_chiseled_stone_bricks": {
       "friction": 0.803,
@@ -2199,11 +2440,6 @@
       "friction": 0.588,
       "restitution": 0.098,
       "weight": 4.9
-    },
-    "minecraft:jungle_leaves": {
-      "friction": 0.81,
-      "restitution": 0.0,
-      "weight": 5.06
     },
     "minecraft:jungle_log": {
       "friction": 0.573,
@@ -2355,16 +2591,6 @@
       "restitution": 0.048,
       "weight": 144.78
     },
-    "minecraft:light_blue_stained_glass": {
-      "friction": 0.307,
-      "restitution": 0.255,
-      "weight": 25.55
-    },
-    "minecraft:light_blue_stained_glass_pane": {
-      "friction": 0.289,
-      "restitution": 0.241,
-      "weight": 7.23
-    },
     "minecraft:light_blue_terracotta": {
       "friction": 0.838,
       "restitution": 0.052,
@@ -2419,16 +2645,6 @@
       "friction": 0.8,
       "restitution": 0.05,
       "weight": 150.06
-    },
-    "minecraft:light_gray_stained_glass": {
-      "friction": 0.313,
-      "restitution": 0.261,
-      "weight": 26.05
-    },
-    "minecraft:light_gray_stained_glass_pane": {
-      "friction": 0.29,
-      "restitution": 0.241,
-      "weight": 7.24
     },
     "minecraft:light_gray_terracotta": {
       "friction": 0.819,
@@ -2510,16 +2726,6 @@
       "restitution": 0.052,
       "weight": 156.99
     },
-    "minecraft:lime_stained_glass": {
-      "friction": 0.311,
-      "restitution": 0.259,
-      "weight": 25.92
-    },
-    "minecraft:lime_stained_glass_pane": {
-      "friction": 0.306,
-      "restitution": 0.255,
-      "weight": 7.65
-    },
     "minecraft:lime_terracotta": {
       "friction": 0.82,
       "restitution": 0.051,
@@ -2585,16 +2791,6 @@
       "restitution": 0.05,
       "weight": 149.31
     },
-    "minecraft:magenta_stained_glass": {
-      "friction": 0.304,
-      "restitution": 0.253,
-      "weight": 25.3
-    },
-    "minecraft:magenta_stained_glass_pane": {
-      "friction": 0.313,
-      "restitution": 0.26,
-      "weight": 7.81
-    },
     "minecraft:magenta_terracotta": {
       "friction": 0.765,
       "restitution": 0.048,
@@ -2639,11 +2835,6 @@
       "friction": 0.619,
       "restitution": 0.103,
       "weight": 5.16
-    },
-    "minecraft:mangrove_leaves": {
-      "friction": 0.835,
-      "restitution": 0.0,
-      "weight": 5.22
     },
     "minecraft:mangrove_log": {
       "friction": 0.607,
@@ -2805,11 +2996,6 @@
       "restitution": 0.1,
       "weight": 49.79
     },
-    "minecraft:mycelium": {
-      "friction": 0.924,
-      "restitution": 0.0,
-      "weight": 92.41
-    },
     "minecraft:nether_brick_fence": {
       "friction": 0.81,
       "restitution": 0.051,
@@ -2898,11 +3084,6 @@
     "minecraft:oak_hanging_sign": {
       "friction": 0.613,
       "restitution": 0.102,
-      "weight": 5.11
-    },
-    "minecraft:oak_leaves": {
-      "friction": 0.818,
-      "restitution": 0.0,
       "weight": 5.11
     },
     "minecraft:oak_log": {
@@ -3015,16 +3196,6 @@
       "restitution": 0.052,
       "weight": 157.25
     },
-    "minecraft:orange_stained_glass": {
-      "friction": 0.286,
-      "restitution": 0.239,
-      "weight": 23.85
-    },
-    "minecraft:orange_stained_glass_pane": {
-      "friction": 0.299,
-      "restitution": 0.249,
-      "weight": 7.48
-    },
     "minecraft:orange_terracotta": {
       "friction": 0.809,
       "restitution": 0.051,
@@ -3094,11 +3265,6 @@
       "friction": 0.461,
       "restitution": 0.205,
       "weight": 230.49
-    },
-    "minecraft:packed_ice": {
-      "friction": 0.02,
-      "restitution": 0.05,
-      "weight": 79.74
     },
     "minecraft:packed_mud": {
       "friction": 0.809,
@@ -3175,16 +3341,6 @@
       "restitution": 0.051,
       "weight": 152.31
     },
-    "minecraft:pink_stained_glass": {
-      "friction": 0.302,
-      "restitution": 0.252,
-      "weight": 25.16
-    },
-    "minecraft:pink_stained_glass_pane": {
-      "friction": 0.307,
-      "restitution": 0.256,
-      "weight": 7.68
-    },
     "minecraft:pink_terracotta": {
       "friction": 0.838,
       "restitution": 0.052,
@@ -3229,11 +3385,6 @@
       "friction": 0.806,
       "restitution": 0.05,
       "weight": 120.95
-    },
-    "minecraft:podzol": {
-      "friction": 0.931,
-      "restitution": 0.0,
-      "weight": 93.09
     },
     "minecraft:pointed_dripstone": {
       "friction": 0.81,
@@ -3490,16 +3641,6 @@
       "restitution": 0.051,
       "weight": 153.18
     },
-    "minecraft:purple_stained_glass": {
-      "friction": 0.308,
-      "restitution": 0.256,
-      "weight": 25.64
-    },
-    "minecraft:purple_stained_glass_pane": {
-      "friction": 0.296,
-      "restitution": 0.247,
-      "weight": 7.4
-    },
     "minecraft:purple_terracotta": {
       "friction": 0.796,
       "restitution": 0.05,
@@ -3674,16 +3815,6 @@
       "friction": 0.791,
       "restitution": 0.049,
       "weight": 148.3
-    },
-    "minecraft:red_stained_glass": {
-      "friction": 0.3,
-      "restitution": 0.25,
-      "weight": 25.01
-    },
-    "minecraft:red_stained_glass_pane": {
-      "friction": 0.312,
-      "restitution": 0.26,
-      "weight": 7.8
     },
     "minecraft:red_terracotta": {
       "friction": 0.762,
@@ -4030,11 +4161,6 @@
       "restitution": 0.102,
       "weight": 5.12
     },
-    "minecraft:spruce_leaves": {
-      "friction": 0.831,
-      "restitution": 0.0,
-      "weight": 5.19
-    },
     "minecraft:spruce_log": {
       "friction": 0.613,
       "restitution": 0.102,
@@ -4299,11 +4425,6 @@
       "friction": 0.824,
       "restitution": 0.052,
       "weight": 154.56
-    },
-    "minecraft:tinted_glass": {
-      "friction": 0.314,
-      "restitution": 0.262,
-      "weight": 26.16
     },
     "minecraft:tnt": {
       "friction": 0.774,
@@ -4815,16 +4936,6 @@
       "restitution": 0.049,
       "weight": 147.52
     },
-    "minecraft:white_stained_glass": {
-      "friction": 0.286,
-      "restitution": 0.239,
-      "weight": 23.88
-    },
-    "minecraft:white_stained_glass_pane": {
-      "friction": 0.294,
-      "restitution": 0.245,
-      "weight": 7.34
-    },
     "minecraft:white_terracotta": {
       "friction": 0.836,
       "restitution": 0.052,
@@ -4899,16 +5010,6 @@
       "friction": 0.837,
       "restitution": 0.052,
       "weight": 156.97
-    },
-    "minecraft:yellow_stained_glass": {
-      "friction": 0.289,
-      "restitution": 0.241,
-      "weight": 24.1
-    },
-    "minecraft:yellow_stained_glass_pane": {
-      "friction": 0.295,
-      "restitution": 0.246,
-      "weight": 7.37
     },
     "minecraft:yellow_terracotta": {
       "friction": 0.802,
