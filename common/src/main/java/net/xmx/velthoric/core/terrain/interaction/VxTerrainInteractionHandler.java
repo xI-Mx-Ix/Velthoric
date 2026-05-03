@@ -13,6 +13,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DoorHingeSide;
 import net.minecraft.world.level.block.state.properties.Half;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.core.terrain.material.VxTerrainMaterial;
@@ -47,6 +48,29 @@ public class VxTerrainInteractionHandler {
      * The maximum number of Java-side interaction events to process in a single tick.
      */
     private static final int MAX_INTERACTIONS_PER_TICK = 512;
+
+    // Minecraft Level Event IDs
+
+    /**
+     * Sound and particles for a wooden door opening.
+     */
+    private static final int EVENT_WOODEN_DOOR_OPEN = 1006;
+    /**
+     * Sound for a wooden door closing.
+     */
+    private static final int EVENT_WOODEN_DOOR_CLOSE = 1012;
+    /**
+     * Heavy impact sound (Zombie hitting door).
+     */
+    private static final int EVENT_ZOMBIE_ATTACK_WOODEN_DOOR = 1019;
+    /**
+     * Sound for a fence gate opening.
+     */
+    private static final int EVENT_FENCE_GATE_OPEN = 1008;
+    /**
+     * Particle and sound effect for block destruction.
+     */
+    private static final int EVENT_BLOCK_BREAK = 2001;
 
     /**
      * Internal thread-safe queue for manual interaction events submitted from Java.
@@ -123,6 +147,7 @@ public class VxTerrainInteractionHandler {
                 onTerrainTransform(world, x1, y1, z1, strength);
             }
             case BLOCK_INTERACT -> {
+                if (!touchedPositions.add(pos.immutable())) return;
                 onBlockInteract(world, x1, y1, z1, x2, y2, z2);
             }
             case PARTICLE_SLIDE -> {
@@ -154,7 +179,7 @@ public class VxTerrainInteractionHandler {
 
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2 | 16 | 32);
         if (effects) {
-            level.levelEvent(null, 2001, pos, Block.getId(state));
+            level.levelEvent(null, EVENT_BLOCK_BREAK, pos, Block.getId(state));
         }
     }
 
@@ -208,17 +233,25 @@ public class VxTerrainInteractionHandler {
         if (block instanceof DoorBlock) {
             boolean isOpen = state.getValue(BlockStateProperties.OPEN);
             Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
+            // Normal points from body to door.
             float dotProduct = nX * facing.getStepX() + nZ * facing.getStepZ();
 
             if (!isOpen) {
+                // Open if pushed away from its placement edge into the block
                 if (dotProduct > 0.4f) {
                     level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true), 10);
-                    level.levelEvent(null, 1019, pos, 0);
+                    level.levelEvent(null, EVENT_ZOMBIE_ATTACK_WOODEN_DOOR, pos, 0);
                 }
             } else {
-                if (Math.abs(dotProduct) < 0.1f && (Math.abs(nX) > 0.6f || Math.abs(nZ) > 0.6f)) {
+                // For open doors, we check if the impact is on the open face pushing it towards the frame.
+                // RIGHT hinge rotates 90 deg clockwise, LEFT hinge rotates 90 deg counter-clockwise.
+                DoorHingeSide hinge = state.getValue(BlockStateProperties.DOOR_HINGE);
+                Direction openFacing = (hinge == DoorHingeSide.RIGHT) ? facing.getClockWise() : facing.getCounterClockWise();
+                float closeDot = nX * openFacing.getStepX() + nZ * openFacing.getStepZ();
+
+                if (closeDot < -0.4f) {
                     level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, false), 10);
-                    level.levelEvent(null, 1012, pos, 0);
+                    level.levelEvent(null, EVENT_ZOMBIE_ATTACK_WOODEN_DOOR, pos, 0);
                 }
             }
         } else if (block instanceof TrapDoorBlock) {
@@ -230,13 +263,13 @@ public class VxTerrainInteractionHandler {
                 if (!isOpen) {
                     if (outsideDir > 0.4f) {
                         level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true), 10);
-                        level.levelEvent(null, 1006, pos, 0);
+                        level.levelEvent(null, EVENT_WOODEN_DOOR_OPEN, pos, 0);
                     }
                 } else {
                     // If open, it's standing up/down. Close if hit horizontally.
                     if (Math.abs(nY) < 0.2f && (Math.abs(nX) > 0.4f || Math.abs(nZ) > 0.4f)) {
                         level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, false), 10);
-                        level.levelEvent(null, 1012, pos, 0);
+                        level.levelEvent(null, EVENT_WOODEN_DOOR_CLOSE, pos, 0);
                     }
                 }
             }
@@ -246,7 +279,7 @@ public class VxTerrainInteractionHandler {
                 Direction openDir = Direction.getNearest(-nX, 0, -nZ);
                 level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true)
                         .setValue(BlockStateProperties.HORIZONTAL_FACING, openDir), 10);
-                level.levelEvent(null, 1008, pos, 0);
+                level.levelEvent(null, EVENT_FENCE_GATE_OPEN, pos, 0);
             }
         }
     }
