@@ -17,11 +17,11 @@ import net.minecraft.resources.ResourceLocation;
  * entire packet content as a single opaque blob of bytes.
  * </p>
  *
- * @param data The raw Netty buffer containing the packet ID and payload.
+ * @param data The raw byte array containing the packet ID and payload.
  * @param identifier The specific payload type identifier (C2S or S2C).
  * @author xI-Mx-Ix
  */
-public record VxRawPayload(ByteBuf data, Type<VxRawPayload> identifier) implements CustomPacketPayload {
+public record VxRawPayload(byte[] data, Type<VxRawPayload> identifier) implements CustomPacketPayload {
 
     public static final Type<VxRawPayload> TYPE_C2S = new Type<>(ResourceLocation.fromNamespaceAndPath("velthoric", "c2s"));
     public static final Type<VxRawPayload> TYPE_S2C = new Type<>(ResourceLocation.fromNamespaceAndPath("velthoric", "s2c"));
@@ -47,16 +47,17 @@ public record VxRawPayload(ByteBuf data, Type<VxRawPayload> identifier) implemen
     private static StreamCodec<RegistryFriendlyByteBuf, VxRawPayload> createCodec(Type<VxRawPayload> type) {
         return StreamCodec.of(
                 (buf, payload) -> {
-                    // Write the raw Netty buffer into the output without advancing its own readerIndex.
-                    // This is essential for broadcasting the same payload to multiple players.
-                    int readable = payload.data.readableBytes();
-                    buf.writeBytes(payload.data, payload.data.readerIndex(), readable);
+                    // Write the raw bytes into the output.
+                    // This is thread-safe for broadcasting.
+                    buf.writeBytes(payload.data);
                 },
                 (buf) -> {
                     // Create a copy of the incoming bytes.
                     // This ensures the payload owns its data independently.
                     int readable = buf.readableBytes();
-                    return new VxRawPayload(buf.readBytes(readable), type);
+                    byte[] bytes = new byte[readable];
+                    buf.readBytes(bytes);
+                    return new VxRawPayload(bytes, type);
                 }
         );
     }

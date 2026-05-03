@@ -121,7 +121,7 @@ public class VxNetworking {
      * @param context The execution context (containing player, level, thread executor).
      */
     private static void handlePacket(VxRawPayload payload, NetworkManager.PacketContext context) {
-        ByteBuf rawData = payload.data();
+        ByteBuf rawData = Unpooled.wrappedBuffer(payload.data());
         try {
             // Ensure there is data to read
             if (!rawData.isReadable()) {
@@ -167,7 +167,7 @@ public class VxNetworking {
      * @return A new Netty ByteBuf containing [ID][Data].
      * @throws IllegalStateException if the packet class is not registered.
      */
-    private static ByteBuf createBuffer(IVxNetPacket packet) {
+    private static byte[] createByteArray(IVxNetPacket packet) {
         Byte id = PACKET_TO_ID.get(packet.getClass());
         if (id == null) {
             throw new IllegalStateException("Attempted to send unregistered packet: " + packet.getClass().getName());
@@ -183,7 +183,11 @@ public class VxNetworking {
         VxByteBuf vxBuf = new VxByteBuf(buffer);
         packet.encode(vxBuf);
 
-        return buffer;
+        byte[] bytes = new byte[buffer.readableBytes()];
+        buffer.readBytes(bytes);
+        buffer.release();
+
+        return bytes;
     }
 
     // ============================================================================================
@@ -196,14 +200,9 @@ public class VxNetworking {
      * @param packet The packet to send.
      */
     public static void sendToServer(IVxNetPacket packet) {
-        ByteBuf buf = createBuffer(packet);
-        try {
-            if (NetworkManager.canServerReceive(VxRawPayload.TYPE_C2S)) {
-                NetworkManager.sendToServer(new VxRawPayload(buf, VxRawPayload.TYPE_C2S));
-            }
-        } finally {
-            // Release the buffer as it has been serialized into the outgoing network stream
-            buf.release();
+        byte[] data = createByteArray(packet);
+        if (NetworkManager.canServerReceive(VxRawPayload.TYPE_C2S)) {
+            NetworkManager.sendToServer(new VxRawPayload(data, VxRawPayload.TYPE_C2S));
         }
     }
 
@@ -214,14 +213,9 @@ public class VxNetworking {
      * @param packet The packet to send.
      */
     public static void sendToPlayer(ServerPlayer player, IVxNetPacket packet) {
-        ByteBuf buf = createBuffer(packet);
-        try {
-            if (NetworkManager.canPlayerReceive(player, VxRawPayload.TYPE_S2C)) {
-                NetworkManager.sendToPlayer(player, new VxRawPayload(buf, VxRawPayload.TYPE_S2C));
-            }
-        } finally {
-            // Release the buffer as it has been serialized into the outgoing network stream
-            buf.release();
+        byte[] data = createByteArray(packet);
+        if (NetworkManager.canPlayerReceive(player, VxRawPayload.TYPE_S2C)) {
+            NetworkManager.sendToPlayer(player, new VxRawPayload(data, VxRawPayload.TYPE_S2C));
         }
     }
 
@@ -233,15 +227,11 @@ public class VxNetworking {
     public static void sendToAll(IVxNetPacket packet) {
         if (GameInstance.getServer() == null) return;
 
-        ByteBuf buf = createBuffer(packet);
-        try {
-            NetworkManager.sendToPlayers(
-                    GameInstance.getServer().getPlayerList().getPlayers(),
-                    new VxRawPayload(buf, VxRawPayload.TYPE_S2C)
-            );
-        } finally {
-            buf.release();
-        }
+        byte[] data = createByteArray(packet);
+        NetworkManager.sendToPlayers(
+                GameInstance.getServer().getPlayerList().getPlayers(),
+                new VxRawPayload(data, VxRawPayload.TYPE_S2C)
+        );
     }
 
     /**
@@ -255,12 +245,8 @@ public class VxNetworking {
 
         ServerLevel level = GameInstance.getServer().getLevel(dimension);
         if (level != null) {
-            ByteBuf buf = createBuffer(packet);
-            try {
-                NetworkManager.sendToPlayers(level.players(), new VxRawPayload(buf, VxRawPayload.TYPE_S2C));
-            } finally {
-                buf.release();
-            }
+            byte[] data = createByteArray(packet);
+            NetworkManager.sendToPlayers(level.players(), new VxRawPayload(data, VxRawPayload.TYPE_S2C));
         }
     }
 }
