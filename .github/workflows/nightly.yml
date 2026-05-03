@@ -115,11 +115,25 @@ jobs:
       - name: Grant Execute Permissions
         run: chmod +x gradlew
 
-      # Step 5: Run the main build process, skipping native compilation since we already have the binaries
-      - name: Build with Gradle
-        run: ./gradlew build -x :vx-native:cmakeBuild
+      # Step 5: Add "-SNAPSHOT" to base mod version to meet version conventions
+      - name: Build Mod Version
+        id: version
+        run: |
+          VERSION="$(sed -n 's/^mod_version=//p' gradle.properties)-SNAPSHOT"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using version: $VERSION"
 
-      # Step 6: Upload internal artifacts (stored in the Actions tab for 7 days)
+      # Step 6: Run the main build process, skipping native compilation since we already have the binaries
+      - name: Build with Gradle
+        run: |
+          ./gradlew build -Pmod_version="${{ steps.version.outputs.version }}" -x :vx-native:cmakeBuild
+          ./gradlew publishAllPublicationsToProjectMavenRepository -Pmod_version="${{ steps.version.outputs.version }}" -x :vx-native:cmakeBuild
+        env:
+          MAVEN_REPO: ${{ secrets.MAVEN_SNAPSHOTS_REPO }}
+          MAVEN_USER: ${{ secrets.MAVEN_USER }}
+          MAVEN_TOKEN: ${{ secrets.MAVEN_TOKEN }}
+
+      # Step 7: Upload internal artifacts (stored in the Actions tab for 7 days)
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -129,7 +143,7 @@ jobs:
             neoforge/build/libs/*.jar
           retention-days: 7
 
-      # Step 7: Create or update the public "nightly" pre-release
+      # Step 8: Create or update the public "nightly" pre-release
       # This will overwrite the files under the "nightly" tag on every push
       - name: Update Nightly Pre-Release
         uses: marvinpinto/action-automatic-releases@latest

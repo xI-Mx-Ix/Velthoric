@@ -14,6 +14,9 @@ import java.util.List;
  */
 public final class CredentialService {
 
+    public static final String KEY_MAVEN_REPO = "MAVEN_REPO";
+    public static final String KEY_MAVEN_USER = "MAVEN_USER";
+    public static final String KEY_MAVEN_TOKEN = "MAVEN_TOKEN";
     public static final String KEY_MODRINTH = "MODRINTH_TOKEN";
     public static final String KEY_CURSEFORGE = "CURSEFORGE_TOKEN";
 
@@ -42,6 +45,9 @@ public final class CredentialService {
     public static void validate() {
         List<String> missing = new ArrayList<>();
 
+        checkPresence(KEY_MAVEN_REPO, missing);
+        checkPresence(KEY_MAVEN_USER, missing);
+        checkPresence(KEY_MAVEN_TOKEN, missing);
         checkPresence(KEY_MODRINTH, missing);
         checkPresence(KEY_CURSEFORGE, missing);
 

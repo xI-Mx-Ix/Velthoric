@@ -31,6 +31,7 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
     public static final String EXTENSION_NAME = "velthoricPublishing";
     public static final String LIFECYCLE_TASK_NAME = "publishVelthoric";
     public static final String SUBPROJECT_TASK_NAME = "publishMods";
+    public static final String MAVEN_PUBLISH_TASK_NAME = "publishAllPublicationsToProjectMavenRepository";
 
     /**
      * Applies the plugin logic to the given project.
@@ -147,7 +148,9 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
             // Connect to Root Lifecycle
             p.getRootProject().getTasks().named(LIFECYCLE_TASK_NAME, rootTask -> {
                 TaskProvider<Task> subTask = p.getTasks().named(SUBPROJECT_TASK_NAME);
+                TaskProvider<Task> mavenPublish = p.getTasks().named(MAVEN_PUBLISH_TASK_NAME);
                 rootTask.dependsOn(subTask);
+                rootTask.dependsOn(mavenPublish);
                 project.getLogger().lifecycle("Velthoric: Registered module '{}' for publication.", project.getName());
             });
         });
