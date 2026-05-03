@@ -8,6 +8,7 @@
 #include "../../Terrain/TerrainGenerator.h"
 #include "../Interaction/TerrainInteraction.h"
 #include <Jolt/Physics/Collision/PhysicsMaterial.h>
+#include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/Body/Body.h>
 #include <cstring>
 #include <algorithm>
@@ -24,7 +25,7 @@
 
 namespace Velthoric {
 
-ContactListener::ContactListener(jobject inWorldRef) {
+ContactListener::ContactListener(JPH::PhysicsSystem* inPhysicsSystem, jobject inWorldRef) : m_PhysicsSystem(inPhysicsSystem) {
     JNIEnv* env = nullptr;
     JavaVM* vm = nullptr;
     jint res = JNI_GetCreatedJavaVMs(&vm, 1, nullptr);
@@ -126,7 +127,7 @@ void ContactListener::OnContactAdded(const JPH::Body &inBody1, const JPH::Body &
     const JPH::Body& otherBody = isBody1Terrain ? inBody2 : inBody1;
     JPH::SubShapeID terrainSubShapeId = isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2;
     
-    TerrainInteraction::ProcessInteraction(m_WorldRef, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, false);
+    TerrainInteraction::ProcessInteraction(m_WorldRef, m_PhysicsSystem, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, false);
 }
 
 /**
@@ -159,7 +160,7 @@ void ContactListener::OnContactPersisted(const JPH::Body &inBody1, const JPH::Bo
     const JPH::Body& otherBody = isBody1Terrain ? inBody2 : inBody1;
     JPH::SubShapeID terrainSubShapeId = isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2;
 
-    TerrainInteraction::ProcessInteraction(m_WorldRef, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, true);
+    TerrainInteraction::ProcessInteraction(m_WorldRef, m_PhysicsSystem, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, true);
 }
 
 /**
@@ -193,7 +194,7 @@ Java_net_xmx_velthoric_jni_TerrainContactListener_nAttachContactListener(JNIEnv 
     JPH::PhysicsSystem* ps = reinterpret_cast<JPH::PhysicsSystem*>(physicsSystemPtr);
     if (!ps) return 0;
 
-    auto* listener = new Velthoric::ContactListener(world);
+    auto* listener = new Velthoric::ContactListener(ps, world);
 
     // Initialize interaction system with current JVM env
     Velthoric::TerrainInteraction::InitJNI(env);

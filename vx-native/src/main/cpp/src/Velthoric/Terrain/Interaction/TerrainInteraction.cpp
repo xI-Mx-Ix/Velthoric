@@ -7,6 +7,7 @@
 #include "TerrainInteraction.h"
 #include "../TerrainGenerator.h"
 #include <Jolt/Physics/Collision/PhysicsMaterial.h>
+#include <Jolt/Physics/PhysicsSystem.h>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -98,11 +99,11 @@ void TerrainInteraction::RegisterMaterials(const MaterialConfig* configs, int co
  * Evaluates impact energy and sliding friction to trigger block destruction, 
  * soil transformation, or visual effects.
  */
-void TerrainInteraction::ProcessInteraction(jobject world,
+void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSystem* ps,
                                           const JPH::Body& terrainBody, const JPH::Body& otherBody, 
                                           JPH::SubShapeID subShapeId,
                                           const JPH::ContactManifold& manifold, 
-                                          const JPH::ContactSettings& settings, 
+                                          JPH::ContactSettings& settings, 
                                           bool isPersisted) {
     if (!world || terrainBody.GetShape() == nullptr) return;
 
@@ -139,7 +140,8 @@ void TerrainInteraction::ProcessInteraction(jobject world,
         float otherMass = invMass > 0.0f ? 1.0f / invMass : s_Config.massBaseline;
         
         // Force and Energy estimates
-        float staticPressure = manifold.mPenetrationDepth * otherMass * 9.81f; 
+        float gravity = ps ? std::abs(ps->GetGravity().GetY()) : 9.81f;
+        float staticPressure = manifold.mPenetrationDepth * otherMass * gravity; 
         float totalForceEstimate = (impactSpeed * otherMass) + staticPressure;
 
         // Handle Block Destruction (Fragile blocks)

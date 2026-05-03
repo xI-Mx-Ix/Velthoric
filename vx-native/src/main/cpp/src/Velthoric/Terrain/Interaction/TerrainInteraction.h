@@ -13,6 +13,10 @@
 #include <atomic>
 #include <jni.h>
 
+JPH_NAMESPACE_BEGIN
+class PhysicsSystem;
+JPH_NAMESPACE_END
+
 namespace Velthoric {
 
 /**
@@ -116,11 +120,11 @@ public:
      * @param settings         Contact settings for friction/restitution.
      * @param isPersisted      True if this contact is a continuation of a previous one.
      */
-    static void ProcessInteraction(jobject world,
+    static void ProcessInteraction(jobject world, const JPH::PhysicsSystem* ps,
                                  const JPH::Body& terrainBody, const JPH::Body& otherBody, 
                                  JPH::SubShapeID terrainSubShapeId,
                                  const JPH::ContactManifold& manifold, 
-                                 const JPH::ContactSettings& settings, 
+                                 JPH::ContactSettings& settings, 
                                  bool isPersisted);
 
     /**

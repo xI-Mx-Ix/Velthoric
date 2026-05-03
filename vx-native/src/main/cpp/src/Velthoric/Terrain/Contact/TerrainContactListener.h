@@ -11,6 +11,10 @@
 #include <unordered_map>
 #include <jni.h>
 
+JPH_NAMESPACE_BEGIN
+class PhysicsSystem;
+JPH_NAMESPACE_END
+
 namespace Velthoric {
 
 /**
@@ -22,7 +26,7 @@ namespace Velthoric {
  */
 class ContactListener : public JPH::ContactListener {
 public:
-    ContactListener(jobject inWorldRef);
+    ContactListener(JPH::PhysicsSystem* inPhysicsSystem, jobject inWorldRef);
 
     virtual ~ContactListener() override;
 
@@ -35,6 +39,7 @@ public:
     virtual void OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) override;
 
 private:
+    JPH::PhysicsSystem* m_PhysicsSystem;
     jobject m_WorldRef;
 
     /// Cached material properties for a contact pair, avoiding repeated BVH lookups.
