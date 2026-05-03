@@ -36,7 +36,7 @@ public class VxTerrainMaterial {
     /**
      * Default fallback properties used when a block is not explicitly registered.
      */
-    private static final MaterialProperties DEFAULT = new MaterialProperties((short) 1, 0.75f, 0.0f, 100.0f, false, null, true, 5000.0f);
+    private static final MaterialProperties DEFAULT = new MaterialProperties((short) 1, 0.75f, 0.0f, 100.0f, false, null, true, 5000.0f, false);
 
     /**
      * The next available unique material ID. ID 0 is reserved for air, ID 1 for default.
@@ -79,6 +79,10 @@ public class VxTerrainMaterial {
          * The threshold (impact force or static pressure) required to break this material.
          */
         public final float breakThreshold;
+        /**
+         * If true, the block can be interacted with (e.g. doors, trapdoors opening) when hit.
+         */
+        public final boolean isInteractable;
 
         /**
          * Internal constructor for material properties.
@@ -90,10 +94,10 @@ public class VxTerrainMaterial {
          * @param isFragile       Destructibility.
          * @param transformTo     Transformation target.
          * @param spawnsParticles Visual effects flag.
-         * @param breakThreshold  Break force limit.
+         * @param isInteractable  Interaction flag.
          */
         public MaterialProperties(short id, float friction, float restitution, float weight,
-                                  boolean isFragile, Block transformTo, boolean spawnsParticles, float breakThreshold) {
+                                  boolean isFragile, Block transformTo, boolean spawnsParticles, float breakThreshold, boolean isInteractable) {
             this.id = id;
             this.friction = friction;
             this.restitution = restitution;
@@ -102,6 +106,7 @@ public class VxTerrainMaterial {
             this.transformTo = transformTo;
             this.spawnsParticles = spawnsParticles;
             this.breakThreshold = breakThreshold;
+            this.isInteractable = isInteractable;
         }
 
         /**
@@ -127,10 +132,11 @@ public class VxTerrainMaterial {
      * @param transformTo     The block type this material transforms into under pressure. Use null for none.
      * @param spawnsParticles Whether to spawn friction particles.
      * @param breakThreshold  The force required to trigger block destruction.
+     * @param isInteractable  Whether the block responds to physical nudges (doors opening).
      * @throws IllegalStateException If the maximum number of material IDs (65535) is exceeded.
      */
     public static void register(ResourceLocation blockId, float friction, float restitution, float weight,
-                                boolean isFragile, Block transformTo, boolean spawnsParticles, float breakThreshold) {
+                                boolean isFragile, Block transformTo, boolean spawnsParticles, float breakThreshold, boolean isInteractable) {
         if (nextId == 0) { // wraps around at 65536
             throw new IllegalStateException("Maximum number of terrain materials (65535) reached.");
         }
@@ -140,7 +146,7 @@ public class VxTerrainMaterial {
         }
 
         short id = nextId++;
-        MaterialProperties props = new MaterialProperties(id, friction, restitution, weight, isFragile, transformTo, spawnsParticles, breakThreshold);
+        MaterialProperties props = new MaterialProperties(id, friction, restitution, weight, isFragile, transformTo, spawnsParticles, breakThreshold, isInteractable);
         blockMaterials.put(block, props);
 
         // Register for standard collision properties in the native layer
@@ -153,6 +159,7 @@ public class VxTerrainMaterial {
         config.isTransformable = props.isTransformable();
         config.spawnsParticles = spawnsParticles;
         config.breakThreshold = breakThreshold;
+        config.isInteractable = isInteractable;
         TerrainInteraction.registerMaterials(new TerrainInteraction.MaterialConfig[]{config});
     }
 
@@ -165,7 +172,7 @@ public class VxTerrainMaterial {
      * @param weight      The density of the block.
      */
     public static void register(ResourceLocation blockId, float friction, float restitution, float weight) {
-        register(blockId, friction, restitution, weight, false, null, true, 5000.0f);
+        register(blockId, friction, restitution, weight, false, null, true, 5000.0f, false);
     }
 
     /**

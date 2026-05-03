@@ -374,7 +374,8 @@
     "minecraft:acacia_door": {
       "friction": 0.595,
       "restitution": 0.099,
-      "weight": 19.83
+     "weight": 19.83,
+      "interactable": true
     },
     "minecraft:acacia_fence": {
       "friction": 0.616,
@@ -384,7 +385,8 @@
     "minecraft:acacia_fence_gate": {
       "friction": 0.625,
       "restitution": 0.104,
-      "weight": 26.05
+      "weight": 26.05,
+      "interactable": true
     },
     "minecraft:acacia_hanging_sign": {
       "friction": 0.587,
@@ -429,7 +431,8 @@
     "minecraft:acacia_trapdoor": {
       "friction": 0.629,
       "restitution": 0.105,
-      "weight": 20.96
+      "weight": 20.96,
+      "interactable": true
     },
     "minecraft:acacia_wall_hanging_sign": {
       "friction": 0.622,
@@ -524,7 +527,8 @@
     "minecraft:bamboo_door": {
       "friction": 0.577,
       "restitution": 0.096,
-      "weight": 19.22
+      "weight": 19.22,
+      "interactable": true
     },
     "minecraft:bamboo_fence": {
       "friction": 0.598,
@@ -534,7 +538,8 @@
     "minecraft:bamboo_fence_gate": {
       "friction": 0.62,
       "restitution": 0.103,
-      "weight": 25.85
+      "weight": 25.85,
+      "interactable": true
     },
     "minecraft:bamboo_hanging_sign": {
       "friction": 0.57,
@@ -584,7 +589,8 @@
     "minecraft:bamboo_trapdoor": {
       "friction": 0.572,
       "restitution": 0.095,
-      "weight": 19.06
+      "weight": 19.06,
+      "interactable": true
     },
     "minecraft:bamboo_wall_hanging_sign": {
       "friction": 0.6,
@@ -659,7 +665,8 @@
     "minecraft:birch_door": {
       "friction": 0.618,
       "restitution": 0.103,
-      "weight": 20.59
+      "weight": 20.59,
+      "interactable": true
     },
     "minecraft:birch_fence": {
       "friction": 0.609,
@@ -669,7 +676,8 @@
     "minecraft:birch_fence_gate": {
       "friction": 0.624,
       "restitution": 0.104,
-      "weight": 26.01
+      "weight": 26.01,
+      "interactable": true
     },
     "minecraft:birch_hanging_sign": {
       "friction": 0.613,
@@ -714,7 +722,8 @@
     "minecraft:birch_trapdoor": {
       "friction": 0.626,
       "restitution": 0.104,
-      "weight": 20.88
+      "weight": 20.88,
+      "interactable": true
     },
     "minecraft:birch_wall_hanging_sign": {
       "friction": 0.602,
@@ -1089,7 +1098,8 @@
     "minecraft:cherry_door": {
       "friction": 0.591,
       "restitution": 0.098,
-      "weight": 19.69
+      "weight": 19.69,
+      "interactable": true
     },
     "minecraft:cherry_fence": {
       "friction": 0.612,
@@ -1099,7 +1109,8 @@
     "minecraft:cherry_fence_gate": {
       "friction": 0.622,
       "restitution": 0.104,
-      "weight": 25.93
+      "weight": 25.93,
+      "interactable": true
     },
     "minecraft:cherry_hanging_sign": {
       "friction": 0.6,
@@ -1144,7 +1155,8 @@
     "minecraft:cherry_trapdoor": {
       "friction": 0.598,
       "restitution": 0.1,
-      "weight": 19.92
+      "weight": 19.92,
+      "interactable": true
     },
     "minecraft:cherry_wall_hanging_sign": {
       "friction": 0.615,
@@ -1339,7 +1351,8 @@
     "minecraft:copper_door": {
       "friction": 0.428,
       "restitution": 0.19,
-      "weight": 114.26
+      "weight": 114.26,
+      "interactable": true
     },
     "minecraft:copper_grate": {
       "friction": 0.447,
@@ -1354,7 +1367,8 @@
     "minecraft:copper_trapdoor": {
       "friction": 0.449,
       "restitution": 0.2,
-      "weight": 119.75
+      "weight": 119.75,
+      "interactable": true
     },
     "minecraft:cornflower": {
       "friction": 0.836,
@@ -1414,7 +1428,8 @@
     "minecraft:crimson_door": {
       "friction": 0.779,
       "restitution": 0.049,
-      "weight": 58.42
+      "weight": 58.42,
+      "interactable": true
     },
     "minecraft:crimson_fence": {
       "friction": 0.782,
@@ -1424,7 +1439,8 @@
     "minecraft:crimson_fence_gate": {
       "friction": 0.828,
       "restitution": 0.052,
-      "weight": 77.59
+      "weight": 77.59,
+      "interactable": true
     },
     "minecraft:crimson_fungus": {
       "friction": 0.785,
@@ -1484,7 +1500,8 @@
     "minecraft:crimson_trapdoor": {
       "friction": 0.763,
       "restitution": 0.048,
-      "weight": 57.25
+      "weight": 57.25,
+      "interactable": true
     },
     "minecraft:crimson_wall_hanging_sign": {
       "friction": 0.819,
@@ -1609,7 +1626,8 @@
     "minecraft:dark_oak_door": {
       "friction": 0.582,
       "restitution": 0.097,
-      "weight": 19.39
+      "weight": 19.39,
+      "interactable": true
     },
     "minecraft:dark_oak_fence": {
       "friction": 0.609,
@@ -1619,7 +1637,8 @@
     "minecraft:dark_oak_fence_gate": {
       "friction": 0.579,
       "restitution": 0.096,
-      "weight": 24.11
+      "weight": 24.11,
+      "interactable": true
     },
     "minecraft:dark_oak_hanging_sign": {
       "friction": 0.629,
@@ -1664,7 +1683,8 @@
     "minecraft:dark_oak_trapdoor": {
       "friction": 0.586,
       "restitution": 0.098,
-      "weight": 19.55
+      "weight": 19.55,
+      "interactable": true
     },
     "minecraft:dark_oak_wall_hanging_sign": {
       "friction": 0.582,
@@ -2044,7 +2064,8 @@
     "minecraft:exposed_copper_door": {
       "friction": 0.451,
       "restitution": 0.201,
-      "weight": 120.4
+      "weight": 120.4,
+      "interactable": true
     },
     "minecraft:exposed_copper_grate": {
       "friction": 0.453,
@@ -2054,7 +2075,8 @@
     "minecraft:exposed_copper_trapdoor": {
       "friction": 0.446,
       "restitution": 0.198,
-      "weight": 118.9
+      "weight": 118.9,
+      "interactable": true
     },
     "minecraft:exposed_cut_copper": {
       "friction": 0.469,
@@ -2424,7 +2446,8 @@
     "minecraft:jungle_door": {
       "friction": 0.623,
       "restitution": 0.104,
-      "weight": 20.75
+      "weight": 20.75,
+      "interactable": true
     },
     "minecraft:jungle_fence": {
       "friction": 0.597,
@@ -2434,7 +2457,8 @@
     "minecraft:jungle_fence_gate": {
       "friction": 0.58,
       "restitution": 0.097,
-      "weight": 24.16
+      "weight": 24.16,
+      "interactable": true
     },
     "minecraft:jungle_hanging_sign": {
       "friction": 0.588,
@@ -2479,7 +2503,8 @@
     "minecraft:jungle_trapdoor": {
       "friction": 0.615,
       "restitution": 0.102,
-      "weight": 20.49
+      "weight": 20.49,
+      "interactable": true
     },
     "minecraft:jungle_wall_hanging_sign": {
       "friction": 0.581,
@@ -2819,7 +2844,8 @@
     "minecraft:mangrove_door": {
       "friction": 0.571,
       "restitution": 0.095,
-      "weight": 19.03
+      "weight": 19.03,
+      "interactable": true
     },
     "minecraft:mangrove_fence": {
       "friction": 0.62,
@@ -2829,7 +2855,8 @@
     "minecraft:mangrove_fence_gate": {
       "friction": 0.577,
       "restitution": 0.096,
-      "weight": 24.05
+      "weight": 24.05,
+      "interactable": true
     },
     "minecraft:mangrove_hanging_sign": {
       "friction": 0.619,
@@ -2879,7 +2906,8 @@
     "minecraft:mangrove_trapdoor": {
       "friction": 0.594,
       "restitution": 0.099,
-      "weight": 19.81
+      "weight": 19.81,
+      "interactable": true
     },
     "minecraft:mangrove_wall_hanging_sign": {
       "friction": 0.595,
@@ -3069,7 +3097,8 @@
     "minecraft:oak_door": {
       "friction": 0.6,
       "restitution": 0.1,
-      "weight": 20.0
+      "weight": 20.0,
+      "interactable": true
     },
     "minecraft:oak_fence": {
       "friction": 0.594,
@@ -3079,7 +3108,8 @@
     "minecraft:oak_fence_gate": {
       "friction": 0.602,
       "restitution": 0.1,
-      "weight": 25.06
+      "weight": 25.06,
+      "interactable": true
     },
     "minecraft:oak_hanging_sign": {
       "friction": 0.613,
@@ -3124,7 +3154,8 @@
     "minecraft:oak_trapdoor": {
       "friction": 0.622,
       "restitution": 0.104,
-      "weight": 20.75
+      "weight": 20.75,
+      "interactable": true
     },
     "minecraft:oak_wall_hanging_sign": {
       "friction": 0.628,
@@ -3239,7 +3270,8 @@
     "minecraft:oxidized_copper_door": {
       "friction": 0.471,
       "restitution": 0.209,
-      "weight": 125.63
+      "weight": 125.63,
+      "interactable": true
     },
     "minecraft:oxidized_copper_grate": {
       "friction": 0.455,
@@ -3249,7 +3281,8 @@
     "minecraft:oxidized_copper_trapdoor": {
       "friction": 0.447,
       "restitution": 0.199,
-      "weight": 119.1
+      "weight": 119.1,
+      "interactable": true
     },
     "minecraft:oxidized_cut_copper": {
       "friction": 0.445,
@@ -4144,7 +4177,8 @@
     "minecraft:spruce_door": {
       "friction": 0.6,
       "restitution": 0.1,
-      "weight": 20.01
+      "weight": 20.01,
+      "interactable": true
     },
     "minecraft:spruce_fence": {
       "friction": 0.592,
@@ -4154,7 +4188,8 @@
     "minecraft:spruce_fence_gate": {
       "friction": 0.59,
       "restitution": 0.098,
-      "weight": 24.59
+      "weight": 24.59,
+      "interactable": true
     },
     "minecraft:spruce_hanging_sign": {
       "friction": 0.614,
@@ -4199,7 +4234,8 @@
     "minecraft:spruce_trapdoor": {
       "friction": 0.596,
       "restitution": 0.099,
-      "weight": 19.85
+      "weight": 19.85,
+      "interactable": true
     },
     "minecraft:spruce_wall_hanging_sign": {
       "friction": 0.602,
@@ -4564,7 +4600,8 @@
     "minecraft:warped_door": {
       "friction": 0.762,
       "restitution": 0.048,
-      "weight": 57.17
+      "weight": 57.17,
+      "interactable": true
     },
     "minecraft:warped_fence": {
       "friction": 0.777,
@@ -4574,7 +4611,8 @@
     "minecraft:warped_fence_gate": {
       "friction": 0.827,
       "restitution": 0.052,
-      "weight": 77.53
+      "weight": 77.53,
+      "interactable": true
     },
     "minecraft:warped_fungus": {
       "friction": 0.804,
@@ -4634,7 +4672,8 @@
     "minecraft:warped_trapdoor": {
       "friction": 0.792,
       "restitution": 0.05,
-      "weight": 59.41
+      "weight": 59.41,
+      "interactable": true
     },
     "minecraft:warped_wall_hanging_sign": {
       "friction": 0.809,
@@ -4674,7 +4713,8 @@
     "minecraft:waxed_copper_door": {
       "friction": 0.458,
       "restitution": 0.204,
-      "weight": 122.22
+      "weight": 122.22,
+      "interactable": true
     },
     "minecraft:waxed_copper_grate": {
       "friction": 0.428,
@@ -4684,7 +4724,8 @@
     "minecraft:waxed_copper_trapdoor": {
       "friction": 0.443,
       "restitution": 0.197,
-      "weight": 118.13
+      "weight": 118.13,
+      "interactable": true
     },
     "minecraft:waxed_cut_copper": {
       "friction": 0.443,
@@ -4719,7 +4760,8 @@
     "minecraft:waxed_exposed_copper_door": {
       "friction": 0.448,
       "restitution": 0.199,
-      "weight": 119.59
+      "weight": 119.59,
+      "interactable": true
     },
     "minecraft:waxed_exposed_copper_grate": {
       "friction": 0.428,
@@ -4729,7 +4771,8 @@
     "minecraft:waxed_exposed_copper_trapdoor": {
       "friction": 0.433,
       "restitution": 0.193,
-      "weight": 115.52
+      "weight": 115.52,
+      "interactable": true
     },
     "minecraft:waxed_exposed_cut_copper": {
       "friction": 0.457,
@@ -4764,7 +4807,8 @@
     "minecraft:waxed_oxidized_copper_door": {
       "friction": 0.454,
       "restitution": 0.202,
-      "weight": 120.95
+      "weight": 120.95,
+      "interactable": true
     },
     "minecraft:waxed_oxidized_copper_grate": {
       "friction": 0.458,
@@ -4774,7 +4818,8 @@
     "minecraft:waxed_oxidized_copper_trapdoor": {
       "friction": 0.467,
       "restitution": 0.208,
-      "weight": 124.66
+      "weight": 124.66,
+      "interactable": true
     },
     "minecraft:waxed_oxidized_cut_copper": {
       "friction": 0.459,
@@ -4809,7 +4854,8 @@
     "minecraft:waxed_weathered_copper_door": {
       "friction": 0.452,
       "restitution": 0.201,
-      "weight": 120.44
+      "weight": 120.44,
+      "interactable": true
     },
     "minecraft:waxed_weathered_copper_grate": {
       "friction": 0.442,
@@ -4819,7 +4865,8 @@
     "minecraft:waxed_weathered_copper_trapdoor": {
       "friction": 0.449,
       "restitution": 0.2,
-      "weight": 119.8
+      "weight": 119.8,
+      "interactable": true
     },
     "minecraft:waxed_weathered_cut_copper": {
       "friction": 0.456,
@@ -4854,7 +4901,8 @@
     "minecraft:weathered_copper_door": {
       "friction": 0.429,
       "restitution": 0.191,
-      "weight": 114.47
+      "weight": 114.47,
+      "interactable": true
     },
     "minecraft:weathered_copper_grate": {
       "friction": 0.464,
@@ -4864,7 +4912,8 @@
     "minecraft:weathered_copper_trapdoor": {
       "friction": 0.456,
       "restitution": 0.203,
-      "weight": 121.64
+      "weight": 121.64,
+      "interactable": true
     },
     "minecraft:weathered_cut_copper": {
       "friction": 0.454,

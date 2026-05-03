@@ -61,6 +61,7 @@ public:
         bool isTransformable; ///< Can be worn down into dirt.
         bool spawnsParticles; ///< Produces friction particles.
         float breakThreshold; ///< Force/Pressure threshold required for breaking.
+        bool isInteractable;  ///< Can be physically nudged open.
     };
 
     /**
@@ -120,6 +121,7 @@ private:
         bool isTransformable = false;
         bool spawnsParticles = false;
         float breakThreshold = 5000.0f;
+        bool isInteractable = false;
     };
 
     /** Fixed-size array for fast material property lookup by ID. */
