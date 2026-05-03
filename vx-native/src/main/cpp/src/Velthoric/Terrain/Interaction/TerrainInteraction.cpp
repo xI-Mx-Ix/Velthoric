@@ -16,6 +16,9 @@
 namespace Velthoric {
 
 /** Static storage for material interaction properties. */
+// Initialize global config with defaults
+TerrainInteraction::GlobalConfig TerrainInteraction::s_Config;
+
 TerrainInteraction::InternalMaterialProps TerrainInteraction::s_MaterialProps[65536];
 
 /** Internal queue for interaction events (reserved for future batching logic). */
@@ -133,7 +136,7 @@ void TerrainInteraction::ProcessInteraction(jobject world,
         float slidingSpeed = (relVel - relVel.Dot(manifold.mWorldSpaceNormal) * manifold.mWorldSpaceNormal).Length();
         
         float invMass = otherBody.GetMotionProperties() ? otherBody.GetMotionProperties()->GetInverseMass() : 0.0f;
-        float otherMass = invMass > 0.0f ? 1.0f / invMass : 100.0f;
+        float otherMass = invMass > 0.0f ? 1.0f / invMass : s_Config.massBaseline;
         
         // Force and Energy estimates
         float staticPressure = manifold.mPenetrationDepth * otherMass * 9.81f; 
@@ -149,7 +152,7 @@ void TerrainInteraction::ProcessInteraction(jobject world,
         }
 
         // Handle Terrain Transformation (Soil wear-down)
-        if (props.isTransformable && (slidingSpeed > 0.8f || totalForceEstimate > 500.0f) && settings.mCombinedFriction > 0.1f) {
+        if (props.isTransformable && (slidingSpeed > s_Config.transformMinSlidingSpeed || totalForceEstimate > s_Config.transformMinForce) && settings.mCombinedFriction > s_Config.transformMinFriction) {
             if (s_TransformMethod) {
                 env->CallStaticVoidMethod(s_HandlerClass, s_TransformMethod, world, 
                                         (int)std::floor(p.GetX()), (int)std::floor(p.GetY()), (int)std::floor(p.GetZ()),
@@ -158,7 +161,7 @@ void TerrainInteraction::ProcessInteraction(jobject world,
         }
 
         // Handle Physical Interaction (Doors, Trapdoors, Fence Gates)
-        if (props.isInteractable && !isPersisted && totalForceEstimate > 5.0f) {
+        if (props.isInteractable && !isPersisted && totalForceEstimate > s_Config.interactMinForce) {
             if (s_InteractMethod) {
                 // Nudge inside the block slightly to ensure correct block lookup
                 JPH::RVec3 insideP = p - manifold.mWorldSpaceNormal * 0.05f;
@@ -179,36 +182,26 @@ void TerrainInteraction::ProcessInteraction(jobject world,
             // Calculate relative velocity magnitude for general intensity
             float relVelMag = relVel.Length();
             
-            // Hard cutoff: absolutely no effects if velocity is microscopic (< 0.01)
-            if (relVelMag < 0.01f) continue;
+            // Hard cutoff: absolutely no effects if velocity is microscopic
+            if (relVelMag < s_Config.particleMinVelocity) continue;
             
             // Shift mass scaling significantly:
-            // 1000kg is the baseline (1.0). 20kg is 0.02. 50,000kg is 50.0.
-            // This massively separates light boxes from thousands of tonnes.
-            float massScale = std::min(50.0f, std::max(0.01f, otherMass / 1000.0f));
+            float massScale = std::min(s_Config.massMaxScale, std::max(s_Config.massMinScale, otherMass / s_Config.massBaseline));
             
             float totalEnergy = 0.0f;
             bool shouldTrigger = false;
 
             if (!isPersisted) {
-                // Impact: Relies heavily on velocity and mass.
-                // Massively reduced the penetration depth multiplier.
                 totalEnergy = ((relVelMag * 1.0f) + (manifold.mPenetrationDepth * 10.0f)) * massScale;
-                // Raised threshold: a 20kg box needs to fall fast to make a sound.
-                shouldTrigger = (totalEnergy > 0.05f); 
+                shouldTrigger = (totalEnergy > s_Config.particleImpactEnergyThreshold); 
             } else {
-                // Persisted: Trigger for sliding/rolling
-                // Require a higher base speed (0.1 m/s) to even calculate sliding
-                if (relVelMag > 0.1f) {
+                if (relVelMag > s_Config.particleSlidingVelocityThreshold) {
                     float frictionEnergy = slidingSpeed * settings.mCombinedFriction * 1.0f;
-                    float pressureEnergy = manifold.mPenetrationDepth * 5.0f; // Much less impact from resting pressure
+                    float pressureEnergy = manifold.mPenetrationDepth * 5.0f; 
                     totalEnergy = (frictionEnergy + pressureEnergy) * massScale;
                     
-                    // Only trigger if the sliding energy is notable
-                    if (totalEnergy > 0.05f) {
-                        // Throttling: chance scales up very slowly. 
-                        // Even a 500kg slide will only have a ~0.25% chance per tick.
-                        float chance = std::min(0.05f, totalEnergy * 0.005f);
+                    if (totalEnergy > s_Config.particleSlidingEnergyThreshold) {
+                        float chance = std::min(s_Config.particleSlidingChanceMax, totalEnergy * s_Config.particleSlidingChanceMult);
                         if (tls_dist(tls_rng) < chance) {
                             shouldTrigger = true;
                         }
@@ -268,4 +261,4 @@ Java_net_xmx_velthoric_jni_TerrainInteraction_nFlushEvents(JNIEnv *env, jclass c
     return 0;
 }
 
-}
+} // extern "C"

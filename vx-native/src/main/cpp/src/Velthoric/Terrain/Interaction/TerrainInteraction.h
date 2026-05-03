@@ -65,6 +65,26 @@ public:
     };
 
     /**
+     * @brief Global configuration thresholds for physics interactions.
+     * Prevents hardcoded magic values inside the engine.
+     */
+    struct GlobalConfig {
+        float massBaseline = 1000.0f;
+        float massMinScale = 0.01f;
+        float massMaxScale = 50.0f;
+        float transformMinSlidingSpeed = 0.8f;
+        float transformMinForce = 500.0f;
+        float transformMinFriction = 0.1f;
+        float interactMinForce = 5.0f;
+        float particleMinVelocity = 0.2f;
+        float particleImpactEnergyThreshold = 0.05f;
+        float particleSlidingVelocityThreshold = 0.1f;
+        float particleSlidingEnergyThreshold = 0.05f;
+        float particleSlidingChanceMult = 0.005f;
+        float particleSlidingChanceMax = 0.05f;
+    };
+
+    /**
      * @brief Updates the native material interaction registry.
      * 
      * @param configs Pointer to an array of material configurations.
@@ -126,6 +146,9 @@ private:
 
     /** Fixed-size array for fast material property lookup by ID. */
     static InternalMaterialProps s_MaterialProps[65536];
+    
+    /** Global thresholds for physics logic. */
+    static GlobalConfig s_Config;
     
     /** Queue for asynchronous events (if batching is used). */
     static std::vector<InteractionEvent> s_EventQueue;
