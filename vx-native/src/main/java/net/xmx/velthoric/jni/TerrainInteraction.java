@@ -35,7 +35,11 @@ public class TerrainInteraction {
         /**
          * Transformation of a block into another type (e.g., Grass to Dirt).
          */
-        BLOCK_TRANSFORM(2);
+        BLOCK_TRANSFORM(2),
+        /**
+         * Physical interaction with a block (e.g., Doors, Gates).
+         */
+        BLOCK_INTERACT(3);
 
         /**
          * The native integer identifier for the interaction type.
@@ -60,7 +64,7 @@ public class TerrainInteraction {
 
     /**
      * Configuration structure for a material's interaction properties.
-     * This class maps directly to the native {@code MaterialConfig} C++ struct (12 bytes).
+     * This class maps directly to the native {@code MaterialConfig} C++ struct (16 bytes).
      */
     public static class MaterialConfig {
         /**
@@ -123,67 +127,9 @@ public class TerrainInteraction {
     }
 
     /**
-     * Data structure representing an interaction event triggered in the native physics world.
-     * This class maps directly to the native {@code InteractionEvent} C++ struct (32 bytes).
+     * Total size of the native InteractionEvent struct in bytes (aligned).
      */
-    public static class InteractionEvent {
-        /**
-         * The category of interaction.
-         */
-        public InteractionType type;
-        /**
-         * The material ID involved in the interaction.
-         */
-        public int materialId;
-        /**
-         * World X-coordinate of the interaction point.
-         */
-        public float x;
-        /**
-         * World Y-coordinate of the interaction point.
-         */
-        public float y;
-        /**
-         * World Z-coordinate of the interaction point.
-         */
-        public float z;
-        /**
-         * The physical strength/intensity of the event.
-         */
-        public float strength;
-        /**
-         * The internal Jolt sub-shape identifier.
-         */
-        public int subShapeId;
-        /**
-         * The ID of the terrain rigid body.
-         */
-        public int terrainBodyId;
-
-        /**
-         * Deserializes an event from a native {@link ByteBuffer}.
-         *
-         * @param buffer The source buffer.
-         * @return A newly initialized {@code InteractionEvent}.
-         */
-        public static InteractionEvent read(ByteBuffer buffer) {
-            InteractionEvent e = new InteractionEvent();
-            e.type = InteractionType.fromId(buffer.getInt());
-            e.materialId = buffer.getInt();
-            e.x = buffer.getFloat();
-            e.y = buffer.getFloat();
-            e.z = buffer.getFloat();
-            e.strength = buffer.getFloat();
-            e.subShapeId = buffer.getInt();
-            e.terrainBodyId = buffer.getInt();
-            return e;
-        }
-
-        /**
-         * Total size of the native {@code InteractionEvent} struct in bytes.
-         */
-        public static final int SIZE = 32;
-    }
+    public static final int EVENT_SIZE = 48;
 
     /**
      * Transfers a batch of material configurations to the native physics engine.
@@ -199,35 +145,68 @@ public class TerrainInteraction {
     }
 
     /**
-     * Retrieves and clears the queue of interaction events from the native layer.
-     *
-     * @param maxCount The maximum number of events to retrieve in one call.
-     * @return An array containing all flushed interaction events.
+     * The maximum number of interaction events to retrieve in a single batch.
      */
-    public static InteractionEvent[] flushEvents(int maxCount) {
-        ByteBuffer buffer = ByteBuffer.allocateDirect(maxCount * InteractionEvent.SIZE).order(ByteOrder.nativeOrder());
-        int count = nFlushEvents(buffer, maxCount);
-        InteractionEvent[] events = new InteractionEvent[count];
-        for (int i = 0; i < count; i++) {
-            events[i] = InteractionEvent.read(buffer);
-        }
-        return events;
+    private static final int MAX_BATCH = 4096;
+
+    /**
+     * Pre-allocated direct byte buffer used for high-performance, zero-copy
+     * event flushing from the native layer.
+     */
+    private static final ByteBuffer FLUSH_BUFFER = ByteBuffer.allocateDirect(MAX_BATCH * EVENT_SIZE).order(ByteOrder.nativeOrder());
+
+    /**
+     * Functional interface for zero-allocation event processing.
+     */
+    @FunctionalInterface
+    public interface InteractionCallback {
+        void onEvent(InteractionType type, int materialId, float x1, float y1, float z1, float x2, float y2, float z2, float strength, int subShapeId, int terrainBodyId);
     }
 
     /**
-     * Native call to register interaction properties.
+     * Flushes and processes native interaction events without object allocations.
      *
-     * @param buffer Direct ByteBuffer containing {@code MaterialConfig} structs.
-     * @param count  Number of configurations in the buffer.
+     * @param callback The handler to be called for each event.
+     * @return The number of events processed.
      */
-    private static native void nRegisterInteractionMaterials(ByteBuffer buffer, int count);
+    public static int processEvents(InteractionCallback callback) {
+        FLUSH_BUFFER.clear();
+        int count = nFlushEvents(FLUSH_BUFFER, MAX_BATCH);
+        if (count <= 0) return 0;
+
+        for (int i = 0; i < count; i++) {
+            InteractionType type = InteractionType.values()[FLUSH_BUFFER.getInt()];
+            int matId = FLUSH_BUFFER.getInt();
+            float x1 = FLUSH_BUFFER.getFloat();
+            float y1 = FLUSH_BUFFER.getFloat();
+            float z1 = FLUSH_BUFFER.getFloat();
+            float x2 = FLUSH_BUFFER.getFloat();
+            float y2 = FLUSH_BUFFER.getFloat();
+            float z2 = FLUSH_BUFFER.getFloat();
+            float strength = FLUSH_BUFFER.getFloat();
+            int subShapeId = FLUSH_BUFFER.getInt();
+            int terrainBodyId = FLUSH_BUFFER.getInt();
+            FLUSH_BUFFER.getInt(); // padding
+
+            callback.onEvent(type, matId, x1, y1, z1, x2, y2, z2, strength, subShapeId, terrainBodyId);
+        }
+        return count;
+    }
 
     /**
-     * Native call to drain the interaction event queue.
+     * JNI Endpoint: Registers interaction-specific material data.
      *
-     * @param buffer   Direct ByteBuffer to store {@code InteractionEvent} structs.
-     * @param maxCount Capacity of the buffer.
-     * @return The actual number of events written into the buffer.
+     * @param buffer Direct buffer containing MaterialConfig structs.
+     * @param count  Number of configs in the buffer.
      */
-    private static native int nFlushEvents(ByteBuffer buffer, int maxCount);
+    public static native void nRegisterInteractionMaterials(ByteBuffer buffer, int count);
+
+    /**
+     * JNI Endpoint: Flushes the interaction event queue into Java memory.
+     *
+     * @param buffer   Target direct buffer for event data.
+     * @param maxCount Maximum number of events to retrieve.
+     * @return The number of events actually written.
+     */
+    public static native int nFlushEvents(ByteBuffer buffer, int maxCount);
 }

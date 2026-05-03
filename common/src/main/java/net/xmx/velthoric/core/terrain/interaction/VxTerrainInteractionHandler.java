@@ -5,27 +5,29 @@
 package net.xmx.velthoric.core.terrain.interaction;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.DoorBlock;
-import net.minecraft.world.level.block.FenceGateBlock;
-import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.Half;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.core.terrain.material.VxTerrainMaterial;
+import net.xmx.velthoric.core.terrain.material.VxTerrainMaterial.MaterialProperties;
+import net.xmx.velthoric.jni.TerrainInteraction;
+
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Handles physical interactions triggered by the native Jolt ContactListener.
  * This class provides methods that are called directly from C++ via JNI.
  * <p>
- * All methods in this class are executed on the Minecraft server thread to ensure
- * thread-safe access to world data and block states.
+ * Interactions are queued and processed on the Minecraft server thread to ensure
+ * thread-safe access to world data and prevent deadlocks during shutdown.
  * </p>
  *
  * @author xI-Mx-Ix
@@ -34,113 +36,157 @@ import net.xmx.velthoric.core.terrain.material.VxTerrainMaterial;
 public class VxTerrainInteractionHandler {
 
     /**
-     * Triggered when a fragile block exceeds its defined breaking threshold.
-     * This method removes the block from the world and spawns breaking particles/sounds.
-     *
-     * @param world The physics world where the event occurred.
-     * @param x     The world-space X-coordinate of the contact point.
-     * @param y     The world-space Y-coordinate of the contact point.
-     * @param z     The world-space Z-coordinate of the contact point.
-     * @param force The estimated impact force that caused the break.
+     * The maximum number of visual/audio level events (particles/sounds) to trigger per tick.
+     * Prevents network packet flooding and server-thread stalls.
      */
-    public static void onBlockBreak(VxPhysicsWorld world, double x, double y, double z, float force) {
-        ServerLevel level = world.getLevel();
-        if (level == null) return;
+    private static final int MAX_EFFECTS_PER_TICK = 32;
 
-        level.getServer().execute(() -> {
-            BlockPos pos = BlockPos.containing(x, y, z);
-            if (level.getBlockState(pos).isAir()) return;
+    /**
+     * The maximum number of Java-side interaction events to process in a single tick.
+     */
+    private static final int MAX_INTERACTIONS_PER_TICK = 512;
 
-            // destroyBlock handles sound, particles, and block removal automatically
-            level.destroyBlock(pos, true);
+    /**
+     * Internal thread-safe queue for manual interaction events submitted from Java.
+     */
+    private static final Queue<InteractionEvent> eventQueue = new ConcurrentLinkedQueue<>();
+
+    /**
+     * Processes interaction events from both Java and Native layers.
+     * <p>
+     * This method is called on the Minecraft server thread once per tick. It drains both
+     * the internal Java event queue and the sharded native buffers to ensure all
+     * physical feedback is applied synchronously within the game loop.
+     * </p>
+     *
+     * @param world The Velthoric physics world.
+     */
+    public static void tick(VxPhysicsWorld world) {
+        // 1. Process Java-side manual events (Throttled)
+        for (int i = 0; i < MAX_INTERACTIONS_PER_TICK; i++) {
+            InteractionEvent event = eventQueue.poll();
+            if (event == null) break;
+            event.handle(world);
+        }
+
+        // 2. Process Native-side physics events (Zero-allocation batch)
+        java.util.Set<BlockPos> touchedPositions = new java.util.HashSet<>();
+        int[] effectCount = {0}; // Mutable wrapper for lambda
+
+        TerrainInteraction.processEvents((type, matId, x1, y1, z1, x2, y2, z2, strength, subShapeId, terrainBodyId) -> {
+            handleNativeEvent(world, type, matId, x1, y1, z1, x2, y2, z2, strength, subShapeId, terrainBodyId, touchedPositions, effectCount);
         });
     }
 
     /**
-     * Spawns friction-based particles at a specific contact point.
-     * The particle type is derived from the block state at the given position.
+     * Dispatches a native interaction event to the appropriate handler logic.
+     * <p>
+     * Native events are generated in the C++ physics threads and batched into
+     * sharded queues. This method unpacks those events and executes the
+     * corresponding gameplay effects (destruction, sounds, etc.) on the server thread.
+     * </p>
      *
-     * @param world     The physics world where the particles should spawn.
-     * @param blockX    The world X-coordinate of the exact block center.
-     * @param blockY    The world Y-coordinate of the exact block center.
-     * @param blockZ    The world Z-coordinate of the exact block center.
-     * @param contactX  The world X-coordinate of the exact contact point.
-     * @param contactY  The world Y-coordinate of the exact contact point.
-     * @param contactZ  The world Z-coordinate of the exact contact point.
-     * @param intensity The physical intensity of the sliding motion, used to scale particle count and sound volume.
+     * @param world            The Velthoric physics world.
+     * @param type             The category of interaction.
+     * @param matId            The material ID of the terrain block.
+     * @param x1,              y1, z1       Primary coordinates (usually the block center).
+     * @param x2,              y2, z2       Secondary coordinates (contact point or normal).
+     * @param strength         The physical intensity of the impact.
+     * @param subShapeId       Precise Jolt sub-shape identifier.
+     * @param terrainBodyId    The native ID of the terrain body.
+     * @param touchedPositions A set used for per-tick spatial deduplication.
+     * @param effectCount      A mutable counter to enforce visual/audio budgets.
      */
-    public static void onSpawnParticles(VxPhysicsWorld world, double blockX, double blockY, double blockZ, float contactX, float contactY, float contactZ, float intensity) {
+    private static void handleNativeEvent(VxPhysicsWorld world, TerrainInteraction.InteractionType type,
+                                          int matId, float x1, float y1, float z1, float x2, float y2, float z2,
+                                          float strength, int subShapeId, int terrainBodyId,
+                                          java.util.Set<BlockPos> touchedPositions, int[] effectCount) {
         ServerLevel level = world.getLevel();
         if (level == null) return;
 
-        level.getServer().execute(() -> {
-            BlockPos pos = BlockPos.containing(blockX, blockY, blockZ);
-            BlockState state = level.getBlockState(pos);
-            if (state.isAir()) return;
+        BlockPos pos = BlockPos.containing(x1, y1, z1);
 
-            // Audio Feedback
-            // Volume scaling is now extremely harsh. Only massive energy leads to loud sounds.
-            float volume = Math.min(1.0f, (intensity * intensity * 0.15f) + (intensity * 0.05f));
+        // Check if the chunk is loaded and ready.
+        if (!level.getChunkSource().hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) {
+            return;
+        }
 
-            // To prevent low-volume humming/spam, we drop very quiet sounds probabilistically.
-            // E.g. volume 0.05 -> 50% drop rate. volume 0.01 -> 90% drop rate.
-            boolean playSound = true;
-            if (volume < 0.1f) {
-                if (level.random.nextFloat() > (volume * 10.0f)) {
-                    playSound = false;
+        switch (type) {
+            case BLOCK_BREAK -> {
+                if (!touchedPositions.add(pos.immutable())) return;
+                onTerrainBreak(world, x1, y1, z1, strength, effectCount[0]++ < MAX_EFFECTS_PER_TICK);
+            }
+            case BLOCK_TRANSFORM -> {
+                if (!touchedPositions.add(pos.immutable())) return;
+                onTerrainTransform(world, x1, y1, z1, strength);
+            }
+            case BLOCK_INTERACT -> {
+                onBlockInteract(world, x1, y1, z1, x2, y2, z2);
+            }
+            case PARTICLE_SLIDE -> {
+                if (!touchedPositions.add(pos.immutable())) return;
+                if (effectCount[0]++ < MAX_EFFECTS_PER_TICK) {
+                    onParticleSlide(world, x1, y1, z1, x2, y2, z2, strength);
                 }
             }
+        }
+    }
 
-            if (playSound) {
-                float pitch = 0.8f + level.random.nextFloat() * 0.4f;
-                level.playSound(null, (double)contactX, (double)contactY, (double)contactZ, 
-                        state.getSoundType().getHitSound(), SoundSource.BLOCKS, 
-                        volume, pitch);
-            }
+    /**
+     * Triggers the destruction of a fragile terrain block.
+     *
+     * @param world   The physics world.
+     * @param x       World X-coordinate.
+     * @param y       World Y-coordinate.
+     * @param z       World Z-coordinate.
+     * @param force   The force applied to the block.
+     * @param effects Whether to spawn particles/sounds.
+     */
+    public static void onTerrainBreak(VxPhysicsWorld world, double x, double y, double z, float force, boolean effects) {
+        ServerLevel level = world.getLevel();
+        if (level == null) return;
 
-            // Visual Particles
-            // Scaled way down. Requires very high intensity to generate many particles.
-            int baseParticles = (int) (intensity * 1.0f); 
-            
-            // For low intensity, occasionally spawn 1 particle (30% chance) to show activity.
-            if (baseParticles < 1 && intensity > 0.05f) {
-                if (level.random.nextFloat() < 0.3f) {
-                    baseParticles = 1;
-                }
-            }
+        BlockPos pos = BlockPos.containing(x, y, z);
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) return;
 
-            // Cap to avoid visual clutter even on heavy impacts
-            baseParticles = Math.min(baseParticles, 20);
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2 | 16 | 32);
+        if (effects) {
+            level.levelEvent(null, 2001, pos, Block.getId(state));
+        }
+    }
 
-            if (baseParticles > 0) {
-                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state),
-                        contactX, contactY, contactZ, baseParticles, 0.1, 0.1, 0.1, 0.05);
-            }
-        });
+    /**
+     * Transforms certain terrain blocks into another block type when subject to extreme pressure.
+     *
+     * @param world The physics world.
+     * @param x     World X-coordinate.
+     * @param y     World Y-coordinate.
+     * @param z     World Z-coordinate.
+     * @param force The physical strength/force applied.
+     */
+    public static void onTerrainTransform(VxPhysicsWorld world, double x, double y, double z, float force) {
+        ServerLevel level = world.getLevel();
+        if (level == null) return;
+
+        BlockPos pos = BlockPos.containing(x, y, z);
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) return;
+
+        MaterialProperties props = VxTerrainMaterial.getProperties(state.getBlock());
+        if (props.isTransformable() && force > 500.0f) {
+            level.setBlock(pos, props.transformTo.defaultBlockState(), 2 | 16 | 32);
+        }
     }
 
     /**
      * Handles physical interactions with interactive blocks (Doors, Trapdoors, Fence Gates).
-     * This method is invoked by the native C++ physics engine when a dynamic body collides 
-     * with a block flagged as {@code interactable} in the material registry.
-     * <p>
-     * The logic ensures that blocks only react to physically plausible impacts:
-     * <ul>
-     *     <li><b>Doors:</b> Only open if pushed against their front face. Side-swipes are ignored.</li>
-     *     <li><b>Trapdoors:</b> Bottom-half trapdoors only open if struck from below. Top-half 
-     *         trapdoors only open if struck from above.</li>
-     *     <li><b>Fence Gates:</b> Only swing open if struck perpendicularly (moving through the opening).
-     *         Hitting a gate's side post will not rotate or break its structural axis. If already open,
-     *         striking the gate from the opposite side will snap it closed.</li>
-     *     <li><b>Iron Variants:</b> Explicitly protected from physical nudges, requiring Redstone.</li>
-     * </ul>
-     * </p>
      *
-     * @param world The Velthoric physics world where the event occurred.
-     * @param x     The world-space X-coordinate of the contact point.
-     * @param y     The world-space Y-coordinate of the contact point.
-     * @param z     The world-space Z-coordinate of the contact point.
-     * @param nX    The collision normal X-component (pointing from block to impactor).
+     * @param world The Velthoric physics world.
+     * @param x     The world-space X-coordinate.
+     * @param y     The world-space Y-coordinate.
+     * @param z     The world-space Z-coordinate.
+     * @param nX    The collision normal X-component.
      * @param nY    The collision normal Y-component.
      * @param nZ    The collision normal Z-component.
      */
@@ -148,102 +194,94 @@ public class VxTerrainInteractionHandler {
         ServerLevel level = world.getLevel();
         if (level == null) return;
 
-        level.getServer().execute(() -> {
-            BlockPos pos = BlockPos.containing(x, y, z);
-            BlockState state = level.getBlockState(pos);
-            if (state.isAir()) return;
+        BlockPos pos = BlockPos.containing(x, y, z);
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) return;
 
-            Block block = state.getBlock();
+        Block block = state.getBlock();
 
-            // Protection: Ignore iron variants as they require Redstone
-            if (block == Blocks.IRON_DOOR || block == Blocks.IRON_TRAPDOOR) {
-                return;
+        // Protection: Ignore iron variants as they require Redstone
+        if (block == Blocks.IRON_DOOR || block == Blocks.IRON_TRAPDOOR) return;
+
+        if (block instanceof DoorBlock) {
+            boolean isOpen = state.getValue(BlockStateProperties.OPEN);
+            Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
+            float dotProduct = nX * facing.getStepX() + nZ * facing.getStepZ();
+
+            if (!isOpen) {
+                if (dotProduct > 0.4f) {
+                    level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true), 10);
+                    level.levelEvent(null, 1006, pos, 0);
+                }
+            } else {
+                if (dotProduct < -0.4f) {
+                    level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, false), 10);
+                    level.levelEvent(null, 1012, pos, 0);
+                }
             }
-
-            if (block instanceof DoorBlock) {
-                boolean isOpen = state.getValue(BlockStateProperties.OPEN);
-                Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
-                
-                // Normal points from block to body.
-                // dot > 0 means the body is on the side the door faces (the front/outside).
-                // dot < 0 means the body is on the opposite side (the back/inside).
-                float dotProduct = nX * facing.getStepX() + nZ * facing.getStepZ();
+        } else if (block instanceof TrapDoorBlock) {
+            boolean isOpen = state.getValue(BlockStateProperties.OPEN);
+            if (state.hasProperty(BlockStateProperties.HALF)) {
+                boolean isTop = state.getValue(BlockStateProperties.HALF) == Half.TOP;
+                float outsideDir = isTop ? nY : -nY;
 
                 if (!isOpen) {
-                    // Only open if hit from the front (outside)
-                    if (dotProduct > 0.4f) { 
+                    if (outsideDir > 0.4f) {
                         level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true), 10);
-                        level.levelEvent(null, 1006, pos, 0); 
+                        level.levelEvent(null, 1006, pos, 0);
                     }
                 } else {
-                    // Only close if hit from the back (inside)
-                    if (dotProduct < -0.4f) {
+                    if (outsideDir < -0.4f) {
                         level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, false), 10);
-                        level.levelEvent(null, 1012, pos, 0); 
+                        level.levelEvent(null, 1012, pos, 0);
                     }
-                }
-            } else if (block instanceof TrapDoorBlock) {
-                boolean isOpen = state.getValue(BlockStateProperties.OPEN);
-                if (state.hasProperty(BlockStateProperties.HALF)) {
-                    boolean isTop = state.getValue(BlockStateProperties.HALF) == net.minecraft.world.level.block.state.properties.Half.TOP;
-                    
-                    // For trapdoors, we check if we hit the 'outside' face.
-                    // Top-half: outside is ABOVE (normal.y > 0).
-                    // Bottom-half: outside is BELOW (normal.y < 0).
-                    float outsideDir = isTop ? nY : -nY;
-
-                    if (!isOpen) {
-                        // Open if hit from outside
-                        if (outsideDir > 0.4f) {
-                            level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true), 10);
-                            level.levelEvent(null, 1006, pos, 0); 
-                        }
-                    } else {
-                        // Close if hit from inside
-                        if (outsideDir < -0.4f) {
-                            level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, false), 10);
-                            level.levelEvent(null, 1012, pos, 0); 
-                        }
-                    }
-                }
-            } else if (block instanceof FenceGateBlock) {
-                if (!state.getValue(BlockStateProperties.OPEN)) {
-                    // Open away from the impact (normal points towards impact, so open in opposite direction)
-                    Direction openDir = Direction.getNearest(-nX, 0, -nZ);
-                    level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true)
-                            .setValue(BlockStateProperties.HORIZONTAL_FACING, openDir), 10);
-                    level.levelEvent(null, 1008, pos, 0);
                 }
             }
-        });
+        } else if (block instanceof FenceGateBlock) {
+            if (!state.getValue(BlockStateProperties.OPEN)) {
+                Direction openDir = Direction.getNearest(-nX, 0, -nZ);
+                level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true)
+                        .setValue(BlockStateProperties.HORIZONTAL_FACING, openDir), 10);
+                level.levelEvent(null, 1008, pos, 0);
+            }
+        }
     }
 
     /**
-     * Transforms certain terrain blocks into another block type when subject to extreme sliding friction or pressure.
-     * This simulates the wearing down of topsoil, vegetation, or structural surfaces by physical pressure.
-     * The transformation target is dynamically looked up from the material properties of the block at the position.
+     * Spawns friction-based particles at a specific contact point.
      *
-     * @param world    The physics world where the transformation should occur.
-     * @param x        The world-space X-coordinate of the contact point.
-     * @param y        The world-space Y-coordinate of the contact point.
-     * @param z        The world-space Z-coordinate of the contact point.
-     * @param force    The physical strength/force applied to the block.
+     * @param world     The physics world.
+     * @param blockX    The block X-coordinate.
+     * @param blockY    The block Y-coordinate.
+     * @param blockZ    The block Z-coordinate.
+     * @param contactX  The world X-coordinate of the contact.
+     * @param contactY  The world Y-coordinate of the contact.
+     * @param contactZ  The world Z-coordinate of the contact.
+     * @param intensity The physical intensity of the sliding motion.
      */
-    public static void onTerrainTransform(VxPhysicsWorld world, double x, double y, double z, float force) {
+    public static void onParticleSlide(VxPhysicsWorld world, double blockX, double blockY, double blockZ, float contactX, float contactY, float contactZ, float intensity) {
         ServerLevel level = world.getLevel();
         if (level == null) return;
 
-        level.getServer().execute(() -> {
-            BlockPos pos = BlockPos.containing(x, y, z);
-            BlockState state = level.getBlockState(pos);
-            
-            // Lookup the transformation target for this specific block type
-            VxTerrainMaterial.MaterialProperties props = VxTerrainMaterial.getProperties(state.getBlock());
+        BlockPos pos = BlockPos.containing(blockX, blockY, blockZ);
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) return;
 
-            // Trigger if the material is transformable and physical conditions are met
-            if (props.isTransformable() && force > 500.0f) {
-                level.setBlockAndUpdate(pos, props.transformTo.defaultBlockState());
-            }
-        });
+        // Audio Feedback
+        float volume = Math.min(1.0f, (intensity * intensity * 0.15f) + (intensity * 0.05f));
+        if (volume < 0.1f && level.random.nextFloat() > (volume * 10.0f)) return;
+
+        float pitch = 0.8f + level.random.nextFloat() * 0.4f;
+        level.playSound(null, contactX, contactY, contactZ,
+                state.getSoundType().getHitSound(), SoundSource.BLOCKS, volume, pitch);
+
+        // Visual Particles
+        int baseParticles = Math.min(20, (int) (intensity * 1.0f));
+        if (baseParticles < 1 && intensity > 0.05f && level.random.nextFloat() < 0.3f) baseParticles = 1;
+
+        if (baseParticles > 0) {
+            level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state),
+                    contactX, contactY, contactZ, baseParticles, 0.1, 0.1, 0.1, 0.05);
+        }
     }
 }

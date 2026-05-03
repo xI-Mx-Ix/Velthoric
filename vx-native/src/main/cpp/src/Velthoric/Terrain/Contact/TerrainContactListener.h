@@ -26,16 +26,26 @@ namespace Velthoric {
  */
 class ContactListener : public JPH::ContactListener {
 public:
+    /**
+     * @brief Constructs a new ContactListener.
+     * 
+     * @param inPhysicsSystem The Jolt physics system to listen to.
+     * @param inWorldRef Global reference to the Java VxPhysicsWorld object.
+     */
     ContactListener(JPH::PhysicsSystem* inPhysicsSystem, jobject inWorldRef);
 
     virtual ~ContactListener() override;
 
+    /** @brief Broadphase validation filter. */
     virtual JPH::ValidateResult OnContactValidate(const JPH::Body &inBody1, const JPH::Body &inBody2, JPH::RVec3Arg inBaseOffset, const JPH::CollideShapeResult &inCollisionResult) override;
 
+    /** @brief Handles the creation of a new contact and caches material properties. */
     virtual void OnContactAdded(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override;
 
+    /** @brief Updates existing contacts using cached material properties for performance. */
     virtual void OnContactPersisted(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) override;
 
+    /** @brief Evicts cached material properties when a contact is destroyed. */
     virtual void OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) override;
 
 private:
@@ -49,8 +59,13 @@ private:
     };
 
     /// Thread-safe cache keyed on SubShapeIDPair hash.
-    std::mutex m_CacheMutex;
-    std::unordered_map<uint64_t, CachedContact> m_ContactCache;
+    /// Sharded to eliminate lock contention during massive impacts.
+    static constexpr int NUM_SHARDS = 16;
+    struct CacheShard {
+        std::mutex mutex;
+        std::unordered_map<uint64_t, CachedContact> entries;
+    };
+    CacheShard m_CacheShards[NUM_SHARDS];
 
     /// Computes a unique key for the contact cache from body and sub-shape IDs.
     static uint64_t MakeContactKey(uint32_t bodyId1, uint32_t bodyId2, uint32_t subShape1, uint32_t subShape2);

@@ -50,7 +50,7 @@ ContactListener::~ContactListener() {
 /**
  * @brief Broadphase validation filter. Accepts all contacts.
  */
-JPH::ValidateResult ContactListener::OnContactValidate(const JPH::Body &inBody1, const JPH::Body &inBody2, JPH::RVec3Arg inBaseOffset, const JPH::CollideShapeResult &inCollisionResult) {
+JPH::ValidateResult ContactListener::OnContactValidate(const JPH::Body&, const JPH::Body&, JPH::RVec3Arg, const JPH::CollideShapeResult&) {
     return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
 }
 
@@ -75,50 +75,46 @@ uint64_t ContactListener::MakeContactKey(uint32_t bodyId1, uint32_t bodyId2, uin
  */
 void ContactListener::OnContactAdded(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) {
     // Early-out: skip entirely if neither body is terrain
-    if (inBody1.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2) && inBody2.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2)) {
-        return;
+    if (inBody1.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2) && inBody2.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2)) return;
+
+    uint64_t key = MakeContactKey(inBody1.GetID().GetIndexAndSequenceNumber(), inBody2.GetID().GetIndexAndSequenceNumber(), inManifold.mSubShapeID1.GetValue(), inManifold.mSubShapeID2.GetValue());
+    auto& shard = m_CacheShards[key % NUM_SHARDS];
+    
+    // Check if we already have combined settings in the cache for this specific contact
+    {
+        std::lock_guard<std::mutex> lock(shard.mutex);
+        auto it = shard.entries.find(key);
+        if (it != shard.entries.end()) {
+            ioSettings.mCombinedFriction = it->second.friction;
+            ioSettings.mCombinedRestitution = it->second.restitution;
+        }
     }
 
     // Full material extraction (expensive BVH traversal)
     const JPH::PhysicsMaterial* mat1 = inBody1.GetShape()->GetMaterial(inManifold.mSubShapeID1);
     const JPH::PhysicsMaterial* mat2 = inBody2.GetShape()->GetMaterial(inManifold.mSubShapeID2);
 
-    float friction1 = inBody1.GetFriction();
-    float restitution1 = inBody1.GetRestitution();
-    float friction2 = inBody2.GetFriction();
-    float restitution2 = inBody2.GetRestitution();
+    float f1 = inBody1.GetFriction(), r1 = inBody1.GetRestitution();
+    float f2 = inBody2.GetFriction(), r2 = inBody2.GetRestitution();
+    bool found = false;
 
-    bool foundCustom = false;
-
-    if (mat1 != nullptr && mat1->GetDebugName() == TerrainMaterial::sTerrainMaterialName) {
-        const TerrainMaterial* tMat1 = static_cast<const TerrainMaterial*>(mat1);
-        friction1 = tMat1->mFriction;
-        restitution1 = tMat1->mRestitution;
-        foundCustom = true;
+    if (mat1 && mat1->GetDebugName() == TerrainMaterial::sTerrainMaterialName) {
+        auto* tm = static_cast<const TerrainMaterial*>(mat1);
+        f1 = tm->mFriction; r1 = tm->mRestitution; found = true;
+    }
+    if (mat2 && mat2->GetDebugName() == TerrainMaterial::sTerrainMaterialName) {
+        auto* tm = static_cast<const TerrainMaterial*>(mat2);
+        f2 = tm->mFriction; r2 = tm->mRestitution; found = true;
     }
 
-    if (mat2 != nullptr && mat2->GetDebugName() == TerrainMaterial::sTerrainMaterialName) {
-        const TerrainMaterial* tMat2 = static_cast<const TerrainMaterial*>(mat2);
-        friction2 = tMat2->mFriction;
-        restitution2 = tMat2->mRestitution;
-        foundCustom = true;
-    }
+    if (found) {
+        float cf = std::sqrt(f1 * f2);
+        float cr = std::max(r1, r2);
+        ioSettings.mCombinedFriction = cf;
+        ioSettings.mCombinedRestitution = cr;
 
-    if (foundCustom) {
-        float combinedFriction = std::sqrt(friction1 * friction2);
-        float combinedRestitution = std::max(restitution1, restitution2);
-
-        ioSettings.mCombinedFriction = combinedFriction;
-        ioSettings.mCombinedRestitution = combinedRestitution;
-
-        // Cache the result so OnContactPersisted can skip the BVH lookup
-        uint64_t key = MakeContactKey(
-            inBody1.GetID().GetIndexAndSequenceNumber(),
-            inBody2.GetID().GetIndexAndSequenceNumber(),
-            inManifold.mSubShapeID1.GetValue(),
-            inManifold.mSubShapeID2.GetValue());
-        std::lock_guard<std::mutex> lock(m_CacheMutex);
-        m_ContactCache[key] = { combinedFriction, combinedRestitution };
+        std::lock_guard<std::mutex> lock(shard.mutex);
+        shard.entries[key] = { cf, cr };
     }
 
     // Terrain Interaction Logic
@@ -133,25 +129,21 @@ void ContactListener::OnContactAdded(const JPH::Body &inBody1, const JPH::Body &
 /**
  * @brief Called every tick for existing contacts.
  * 
- * Reads from the cache instead of re-traversing the BVH. This is the hot path
- * and must be as fast as possible. Cost: one hash lookup + two float writes.
+ * Reads from the sharded cache instead of re-traversing the BVH. This is the hot path
+ * and must be as fast as possible.
  */
 void ContactListener::OnContactPersisted(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) {
-    // Early-out: skip entirely if neither body is terrain
-    if (inBody1.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2) && inBody2.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2)) {
-        return;
-    }
+    if (inBody1.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2) && inBody2.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2)) return;
 
-    uint64_t key = MakeContactKey(
-        inBody1.GetID().GetIndexAndSequenceNumber(),
-        inBody2.GetID().GetIndexAndSequenceNumber(),
-        inManifold.mSubShapeID1.GetValue(),
-        inManifold.mSubShapeID2.GetValue());
-    std::lock_guard<std::mutex> lock(m_CacheMutex);
-    auto it = m_ContactCache.find(key);
-    if (it != m_ContactCache.end()) {
-        ioSettings.mCombinedFriction = it->second.friction;
-        ioSettings.mCombinedRestitution = it->second.restitution;
+    uint64_t key = MakeContactKey(inBody1.GetID().GetIndexAndSequenceNumber(), inBody2.GetID().GetIndexAndSequenceNumber(), inManifold.mSubShapeID1.GetValue(), inManifold.mSubShapeID2.GetValue());
+    auto& shard = m_CacheShards[key % NUM_SHARDS];
+    {
+        std::lock_guard<std::mutex> lock(shard.mutex);
+        auto it = shard.entries.find(key);
+        if (it != shard.entries.end()) {
+            ioSettings.mCombinedFriction = it->second.friction;
+            ioSettings.mCombinedRestitution = it->second.restitution;
+        }
     }
 
     // Terrain Interaction Logic
@@ -164,16 +156,13 @@ void ContactListener::OnContactPersisted(const JPH::Body &inBody1, const JPH::Bo
 }
 
 /**
- * @brief Called when a contact is destroyed. Evicts the cached entry.
+ * @brief Called when a contact is destroyed. Evicts the cached entry from its shard.
  */
 void ContactListener::OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) {
-    uint64_t key = MakeContactKey(
-        inSubShapePair.GetBody1ID().GetIndexAndSequenceNumber(),
-        inSubShapePair.GetBody2ID().GetIndexAndSequenceNumber(),
-        inSubShapePair.GetSubShapeID1().GetValue(),
-        inSubShapePair.GetSubShapeID2().GetValue());
-    std::lock_guard<std::mutex> lock(m_CacheMutex);
-    m_ContactCache.erase(key);
+    uint64_t key = MakeContactKey(inSubShapePair.GetBody1ID().GetIndexAndSequenceNumber(), inSubShapePair.GetBody2ID().GetIndexAndSequenceNumber(), inSubShapePair.GetSubShapeID1().GetValue(), inSubShapePair.GetSubShapeID2().GetValue());
+    auto& shard = m_CacheShards[key % NUM_SHARDS];
+    std::lock_guard<std::mutex> lock(shard.mutex);
+    shard.entries.erase(key);
 }
 
 } // namespace Velthoric
@@ -187,10 +176,12 @@ void ContactListener::OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair
  * @param env The JNI Environment pointer.
  * @param clazz The calling Java class.
  * @param physicsSystemPtr The native virtual address of the Jolt PhysicsSystem.
+ * @param world The Velthoric world object reference.
  * @return The virtual address of the newly allocated ContactListener.
  */
 extern "C" JNIEXPORT jlong JNICALL
 Java_net_xmx_velthoric_jni_TerrainContactListener_nAttachContactListener(JNIEnv *env, jclass clazz, jlong physicsSystemPtr, jobject world) {
+    (void)clazz;
     JPH::PhysicsSystem* ps = reinterpret_cast<JPH::PhysicsSystem*>(physicsSystemPtr);
     if (!ps) return 0;
 
@@ -213,6 +204,7 @@ Java_net_xmx_velthoric_jni_TerrainContactListener_nAttachContactListener(JNIEnv 
  */
 extern "C" JNIEXPORT void JNICALL
 Java_net_xmx_velthoric_jni_TerrainContactListener_nDetachContactListener(JNIEnv *env, jclass clazz, jlong physicsSystemPtr, jlong listenerPtr) {
+    (void)env; (void)clazz;
     JPH::PhysicsSystem* ps = reinterpret_cast<JPH::PhysicsSystem*>(physicsSystemPtr);
     if (ps) {
         ps->SetContactListener(nullptr); 

@@ -14,6 +14,7 @@ import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.core.physics.VxPhysicsBootstrap;
 import net.xmx.velthoric.core.ragdoll.VxRagdollManager;
 import net.xmx.velthoric.core.terrain.VxTerrainSystem;
+import net.xmx.velthoric.core.terrain.interaction.VxTerrainInteractionHandler;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.jni.TerrainContactListener;
 import net.xmx.velthoric.util.VxFrameTimer;
@@ -131,19 +132,19 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             return;
         }
         this.isRunning = false;
-        if (this.physicsThreadExecutor != null && this.physicsThreadExecutor.isAlive()) {
+        
+        if (this.physicsThreadExecutor != null) {
             VxMainClass.LOGGER.debug("Stopping physics world for {}...", dimensionKey.location());
-            while (this.physicsThreadExecutor.isAlive()) {
-                level.getServer().pollTask();
-                try {
-                    // Short sleep to prevent CPU pegging while waiting
-                    Thread.sleep(1);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
+            try {
+                // Wait for the physics thread to finish its last loop and shut down internal systems
+                this.physicsThreadExecutor.join(5000); // 5 second timeout safety
+                if (this.physicsThreadExecutor.isAlive()) {
+                    VxMainClass.LOGGER.warn("Physics thread for {} did not stop in time. Forcing continuation.", dimensionKey.location());
                 }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
-            VxMainClass.LOGGER.debug("Physics world for {} stopped.", dimensionKey.location());
+            VxMainClass.LOGGER.debug("Physics world for {} stop sequence completed.", dimensionKey.location());
         }
     }
 
@@ -216,6 +217,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public void onGameTick(ServerLevel level) {
         this.bodyManager.onGameTick(level);
+        VxTerrainInteractionHandler.tick(this);
     }
 
     private void processCommandQueue() {
