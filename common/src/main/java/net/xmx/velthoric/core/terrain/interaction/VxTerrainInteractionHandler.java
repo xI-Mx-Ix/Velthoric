@@ -43,13 +43,12 @@ public class VxTerrainInteractionHandler {
      * @param z     The world-space Z-coordinate of the contact point.
      * @param force The estimated impact force that caused the break.
      */
-    @SuppressWarnings("unused")
     public static void onBlockBreak(VxPhysicsWorld world, double x, double y, double z, float force) {
         ServerLevel level = world.getLevel();
         if (level == null) return;
 
         level.getServer().execute(() -> {
-            BlockPos pos = findSolidBlockPos(level, x, y, z);
+            BlockPos pos = BlockPos.containing(x, y, z);
             if (level.getBlockState(pos).isAir()) return;
 
             // destroyBlock handles sound, particles, and block removal automatically
@@ -58,66 +57,24 @@ public class VxTerrainInteractionHandler {
     }
 
     /**
-     * Helper method to accurately resolve the physical block involved in a physics contact.
-     * <p>
-     * Jolt Physics contact manifolds often report intersection points that lie exactly on the 
-     * mathematical boundary between a solid block and an adjacent air block (e.g., resting on 
-     * a floor at Y=64.0 resolves to the air block at Y=65).
-     * </p>
-     * <p>
-     * This method compensates for floating-point inaccuracies and bounding box edges by 
-     * systematically nudging the lookup coordinates downwards and sidewards until a solid 
-     * block state is found.
-     * </p>
-     *
-     * @param level The server level.
-     * @param x     The raw X contact coordinate from the physics engine.
-     * @param y     The raw Y contact coordinate from the physics engine.
-     * @param z     The raw Z contact coordinate from the physics engine.
-     * @return The exact {@link BlockPos} of the first discovered non-air block, or the original 
-     *         position if no solid block was found within the immediate vicinity.
-     */
-    private static BlockPos findSolidBlockPos(ServerLevel level, double x, double y, double z) {
-        BlockPos pos = BlockPos.containing(x, y, z);
-        if (!level.getBlockState(pos).isAir()) return pos;
-
-        // The contact point is often exactly on the boundary between the block and air.
-        pos = BlockPos.containing(x, y - 0.05, z);
-        if (!level.getBlockState(pos).isAir()) return pos;
-
-        // Nudge sideways for wall impacts
-        BlockPos[] offsets = {
-                BlockPos.containing(x - 0.05, y, z),
-                BlockPos.containing(x + 0.05, y, z),
-                BlockPos.containing(x, y, z - 0.05),
-                BlockPos.containing(x, y, z + 0.05)
-        };
-        
-        for (BlockPos offsetPos : offsets) {
-            if (!level.getBlockState(offsetPos).isAir()) return offsetPos;
-        }
-
-        // Return the original air block pos if all else fails
-        return BlockPos.containing(x, y, z);
-    }
-
-    /**
      * Spawns friction-based particles at a specific contact point.
      * The particle type is derived from the block state at the given position.
      *
      * @param world     The physics world where the particles should spawn.
-     * @param x         The world X-coordinate of the contact point.
-     * @param y         The world Y-coordinate of the contact point.
-     * @param z         The world Z-coordinate of the contact point.
+     * @param blockX    The world X-coordinate of the exact block center.
+     * @param blockY    The world Y-coordinate of the exact block center.
+     * @param blockZ    The world Z-coordinate of the exact block center.
+     * @param contactX  The world X-coordinate of the exact contact point.
+     * @param contactY  The world Y-coordinate of the exact contact point.
+     * @param contactZ  The world Z-coordinate of the exact contact point.
      * @param intensity The physical intensity of the sliding motion, used to scale particle count and sound volume.
      */
-    @SuppressWarnings("unused")
-    public static void onSpawnParticles(VxPhysicsWorld world, float x, float y, float z, float intensity) {
+    public static void onSpawnParticles(VxPhysicsWorld world, double blockX, double blockY, double blockZ, float contactX, float contactY, float contactZ, float intensity) {
         ServerLevel level = world.getLevel();
         if (level == null) return;
 
         level.getServer().execute(() -> {
-            BlockPos pos = findSolidBlockPos(level, x, y, z);
+            BlockPos pos = BlockPos.containing(blockX, blockY, blockZ);
             BlockState state = level.getBlockState(pos);
             if (state.isAir()) return;
 
@@ -136,7 +93,7 @@ public class VxTerrainInteractionHandler {
 
             if (playSound) {
                 float pitch = 0.8f + level.random.nextFloat() * 0.4f;
-                level.playSound(null, (double)x, (double)y, (double)z, 
+                level.playSound(null, (double)contactX, (double)contactY, (double)contactZ, 
                         state.getSoundType().getHitSound(), SoundSource.BLOCKS, 
                         volume, pitch);
             }
@@ -157,7 +114,7 @@ public class VxTerrainInteractionHandler {
 
             if (baseParticles > 0) {
                 level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state),
-                        x, y, z, baseParticles, 0.1, 0.1, 0.1, 0.05);
+                        contactX, contactY, contactZ, baseParticles, 0.1, 0.1, 0.1, 0.05);
             }
         });
     }
@@ -187,13 +144,12 @@ public class VxTerrainInteractionHandler {
      * @param nY    The collision normal Y-component.
      * @param nZ    The collision normal Z-component.
      */
-    @SuppressWarnings("unused")
     public static void onBlockInteract(VxPhysicsWorld world, double x, double y, double z, float nX, float nY, float nZ) {
         ServerLevel level = world.getLevel();
         if (level == null) return;
 
         level.getServer().execute(() -> {
-            BlockPos pos = findSolidBlockPos(level, x, y, z);
+            BlockPos pos = BlockPos.containing(x, y, z);
             BlockState state = level.getBlockState(pos);
             if (state.isAir()) return;
 
@@ -273,13 +229,12 @@ public class VxTerrainInteractionHandler {
      * @param z        The world-space Z-coordinate of the contact point.
      * @param force    The physical strength/force applied to the block.
      */
-    @SuppressWarnings("unused")
     public static void onTerrainTransform(VxPhysicsWorld world, double x, double y, double z, float force) {
         ServerLevel level = world.getLevel();
         if (level == null) return;
 
         level.getServer().execute(() -> {
-            BlockPos pos = findSolidBlockPos(level, x, y, z);
+            BlockPos pos = BlockPos.containing(x, y, z);
             BlockState state = level.getBlockState(pos);
             
             // Lookup the transformation target for this specific block type

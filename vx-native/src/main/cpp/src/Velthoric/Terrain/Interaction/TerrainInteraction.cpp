@@ -8,6 +8,7 @@
 #include "../TerrainGenerator.h"
 #include <Jolt/Physics/Collision/PhysicsMaterial.h>
 #include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -50,8 +51,8 @@ void TerrainInteraction::InitJNI(JNIEnv* env) {
         s_HandlerClass = (jclass)env->NewGlobalRef(localClass);
         // Signature: (world, x, y, z, force)
         s_BreakMethod = env->GetStaticMethodID(s_HandlerClass, "onBlockBreak", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;DDDF)V");
-        // Signature: (world, x, y, z, intensity)
-        s_ParticleMethod = env->GetStaticMethodID(s_HandlerClass, "onSpawnParticles", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;FFFF)V");
+        // Signature: (world, blockX, blockY, blockZ, contactX, contactY, contactZ, intensity)
+        s_ParticleMethod = env->GetStaticMethodID(s_HandlerClass, "onSpawnParticles", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;DDDFFFF)V");
         // Signature: (world, x, y, z, force)
         s_TransformMethod = env->GetStaticMethodID(s_HandlerClass, "onTerrainTransform", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;DDDF)V");
         // Signature: (world, x, y, z, nX, nY, nZ)
@@ -128,6 +129,18 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
     for (int i = 0; i < numPoints; ++i) {
         // Get world space contact point
         JPH::RVec3 p = manifold.GetWorldSpaceContactPointOn1(i);
+
+        JPH::RVec3 blockWorldPos = p; // Fallback
+        const JPH::Shape* baseShape = terrainBody.GetShape();
+        if (baseShape && baseShape->GetSubType() == JPH::EShapeSubType::StaticCompound) {
+            const JPH::StaticCompoundShape* compound = static_cast<const JPH::StaticCompoundShape*>(baseShape);
+            JPH::SubShapeID remainder;
+            JPH::uint32 subShapeIdx = compound->GetSubShapeIndexFromID(subShapeId, remainder);
+            if (subShapeIdx < compound->GetNumSubShapes()) {
+                const JPH::CompoundShape::SubShape& subShape = compound->GetSubShape(subShapeIdx);
+                blockWorldPos = terrainBody.GetCenterOfMassPosition() + terrainBody.GetRotation() * subShape.GetPositionCOM();
+            }
+        }
         
         // 3. Physical interaction calculations at this point
         JPH::Vec3 relVel = otherBody.GetPointVelocity(p) - terrainBody.GetPointVelocity(p);
@@ -147,9 +160,8 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
         // Handle Block Destruction (Fragile blocks)
         if (props.isFragile && totalForceEstimate > props.breakThreshold) {
             if (s_BreakMethod) {
-                JPH::RVec3 insideP = p - manifold.mWorldSpaceNormal * 0.05f;
                 env->CallStaticVoidMethod(s_HandlerClass, s_BreakMethod, world, 
-                                        (double)insideP.GetX(), (double)insideP.GetY(), (double)insideP.GetZ(), 
+                                        (double)blockWorldPos.GetX(), (double)blockWorldPos.GetY(), (double)blockWorldPos.GetZ(), 
                                         totalForceEstimate);
             }
         }
@@ -157,9 +169,8 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
         // Handle Terrain Transformation (Soil wear-down)
         if (props.isTransformable && (slidingSpeed > s_Config.transformMinSlidingSpeed || totalForceEstimate > s_Config.transformMinForce) && settings.mCombinedFriction > s_Config.transformMinFriction) {
             if (s_TransformMethod) {
-                JPH::RVec3 insideP = p - manifold.mWorldSpaceNormal * 0.05f;
                 env->CallStaticVoidMethod(s_HandlerClass, s_TransformMethod, world, 
-                                        (double)insideP.GetX(), (double)insideP.GetY(), (double)insideP.GetZ(),
+                                        (double)blockWorldPos.GetX(), (double)blockWorldPos.GetY(), (double)blockWorldPos.GetZ(),
                                         totalForceEstimate);
             }
         }
@@ -167,12 +178,9 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
         // Handle Physical Interaction (Doors, Trapdoors, Fence Gates)
         if (props.isInteractable && !isPersisted && totalForceEstimate > s_Config.interactMinForce) {
             if (s_InteractMethod) {
-                // Nudge inside the block slightly to ensure correct block lookup
-                JPH::RVec3 insideP = p - manifold.mWorldSpaceNormal * 0.05f;
-
                 JPH::Vec3 normal = manifold.mWorldSpaceNormal;
                 env->CallStaticVoidMethod(s_HandlerClass, s_InteractMethod, world, 
-                                        (double)insideP.GetX(), (double)insideP.GetY(), (double)insideP.GetZ(),
+                                        (double)blockWorldPos.GetX(), (double)blockWorldPos.GetY(), (double)blockWorldPos.GetZ(),
                                         (float)normal.GetX(), (float)normal.GetY(), (float)normal.GetZ());
             }
         }
@@ -215,6 +223,7 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
 
             if (shouldTrigger && s_ParticleMethod) {
                 env->CallStaticVoidMethod(s_HandlerClass, s_ParticleMethod, world, 
+                                        (double)blockWorldPos.GetX(), (double)blockWorldPos.GetY(), (double)blockWorldPos.GetZ(),
                                         (float)p.GetX(), (float)p.GetY(), (float)p.GetZ(), 
                                         totalEnergy);
             }
