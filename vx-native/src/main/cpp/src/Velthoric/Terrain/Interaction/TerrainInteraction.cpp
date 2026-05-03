@@ -47,13 +47,13 @@ void TerrainInteraction::InitJNI(JNIEnv* env) {
     jclass localClass = env->FindClass("net/xmx/velthoric/core/terrain/interaction/VxTerrainInteractionHandler");
     if (localClass) {
         s_HandlerClass = (jclass)env->NewGlobalRef(localClass);
-        // Signature: (world, x, y, z, strength)
-        s_BreakMethod = env->GetStaticMethodID(s_HandlerClass, "onBlockBreak", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;IIIF)V");
+        // Signature: (world, x, y, z, force)
+        s_BreakMethod = env->GetStaticMethodID(s_HandlerClass, "onBlockBreak", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;DDDF)V");
         // Signature: (world, x, y, z, intensity)
         s_ParticleMethod = env->GetStaticMethodID(s_HandlerClass, "onSpawnParticles", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;FFFF)V");
-        // Signature: (world, x, y, z, strength)
-        s_TransformMethod = env->GetStaticMethodID(s_HandlerClass, "onTerrainTransform", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;IIIF)V");
-        // Signature: (world, x, y, z, dirX, dirY, dirZ)
+        // Signature: (world, x, y, z, force)
+        s_TransformMethod = env->GetStaticMethodID(s_HandlerClass, "onTerrainTransform", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;DDDF)V");
+        // Signature: (world, x, y, z, nX, nY, nZ)
         s_InteractMethod = env->GetStaticMethodID(s_HandlerClass, "onBlockInteract", "(Lnet/xmx/velthoric/core/physics/world/VxPhysicsWorld;DDDFFF)V");
         
         // Ensure default material (ID 1) always spawns particles
@@ -117,7 +117,7 @@ void TerrainInteraction::ProcessInteraction(jobject world,
 
     const auto& props = s_MaterialProps[matId < 65536 ? matId : 1];
     // Early exit if the material has no interaction triggers, except for ID 1
-    if (!props.isFragile && !props.isTransformable && !props.spawnsParticles && matId != 1) return;
+    if (!props.isFragile && !props.isTransformable && !props.spawnsParticles && !props.isInteractable && matId != 1) return;
 
     // 2. Dispatch JNI Callbacks for all contact points
     JNIEnv* env = GetJNIEnv();
@@ -145,8 +145,9 @@ void TerrainInteraction::ProcessInteraction(jobject world,
         // Handle Block Destruction (Fragile blocks)
         if (props.isFragile && totalForceEstimate > props.breakThreshold) {
             if (s_BreakMethod) {
+                JPH::RVec3 insideP = p - manifold.mWorldSpaceNormal * 0.05f;
                 env->CallStaticVoidMethod(s_HandlerClass, s_BreakMethod, world, 
-                                        (int)std::floor(p.GetX()), (int)std::floor(p.GetY()), (int)std::floor(p.GetZ()), 
+                                        (double)insideP.GetX(), (double)insideP.GetY(), (double)insideP.GetZ(), 
                                         totalForceEstimate);
             }
         }
@@ -154,8 +155,9 @@ void TerrainInteraction::ProcessInteraction(jobject world,
         // Handle Terrain Transformation (Soil wear-down)
         if (props.isTransformable && (slidingSpeed > s_Config.transformMinSlidingSpeed || totalForceEstimate > s_Config.transformMinForce) && settings.mCombinedFriction > s_Config.transformMinFriction) {
             if (s_TransformMethod) {
+                JPH::RVec3 insideP = p - manifold.mWorldSpaceNormal * 0.05f;
                 env->CallStaticVoidMethod(s_HandlerClass, s_TransformMethod, world, 
-                                        (int)std::floor(p.GetX()), (int)std::floor(p.GetY()), (int)std::floor(p.GetZ()),
+                                        (double)insideP.GetX(), (double)insideP.GetY(), (double)insideP.GetZ(),
                                         totalForceEstimate);
             }
         }
@@ -165,11 +167,11 @@ void TerrainInteraction::ProcessInteraction(jobject world,
             if (s_InteractMethod) {
                 // Nudge inside the block slightly to ensure correct block lookup
                 JPH::RVec3 insideP = p - manifold.mWorldSpaceNormal * 0.05f;
-                // Pass relative velocity direction
-                JPH::Vec3 dir = relVel.NormalizedOr(JPH::Vec3::sAxisY());
+
+                JPH::Vec3 normal = manifold.mWorldSpaceNormal;
                 env->CallStaticVoidMethod(s_HandlerClass, s_InteractMethod, world, 
                                         (double)insideP.GetX(), (double)insideP.GetY(), (double)insideP.GetZ(),
-                                        (float)dir.GetX(), (float)dir.GetY(), (float)dir.GetZ());
+                                        (float)normal.GetX(), (float)normal.GetY(), (float)normal.GetZ());
             }
         }
 

@@ -38,18 +38,18 @@ public class VxTerrainInteractionHandler {
      * This method removes the block from the world and spawns breaking particles/sounds.
      *
      * @param world The physics world where the event occurred.
-     * @param x     The X-coordinate of the block.
-     * @param y     The Y-coordinate of the block.
-     * @param z     The Z-coordinate of the block.
+     * @param x     The world-space X-coordinate of the contact point.
+     * @param y     The world-space Y-coordinate of the contact point.
+     * @param z     The world-space Z-coordinate of the contact point.
      * @param force The estimated impact force that caused the break.
      */
     @SuppressWarnings("unused")
-    public static void onBlockBreak(VxPhysicsWorld world, int x, int y, int z, float force) {
+    public static void onBlockBreak(VxPhysicsWorld world, double x, double y, double z, float force) {
         ServerLevel level = world.getLevel();
         if (level == null) return;
 
-        BlockPos pos = new BlockPos(x, y, z);
         level.getServer().execute(() -> {
+            BlockPos pos = findSolidBlockPos(level, x, y, z);
             if (level.getBlockState(pos).isAir()) return;
 
             // destroyBlock handles sound, particles, and block removal automatically
@@ -180,15 +180,15 @@ public class VxTerrainInteractionHandler {
      * </p>
      *
      * @param world The Velthoric physics world where the event occurred.
-     * @param x     The exact world-space X coordinate of the contact point (nudged inward to guarantee block hit).
-     * @param y     The exact world-space Y coordinate of the contact point.
-     * @param z     The exact world-space Z coordinate of the contact point.
-     * @param dirX  The normalized relative velocity vector X (direction of the physical impact).
-     * @param dirY  The normalized relative velocity vector Y (direction of the physical impact).
-     * @param dirZ  The normalized relative velocity vector Z (direction of the physical impact).
+     * @param x     The world-space X-coordinate of the contact point.
+     * @param y     The world-space Y-coordinate of the contact point.
+     * @param z     The world-space Z-coordinate of the contact point.
+     * @param nX    The collision normal X-component (pointing from block to impactor).
+     * @param nY    The collision normal Y-component.
+     * @param nZ    The collision normal Z-component.
      */
     @SuppressWarnings("unused")
-    public static void onBlockInteract(VxPhysicsWorld world, double x, double y, double z, float dirX, float dirY, float dirZ) {
+    public static void onBlockInteract(VxPhysicsWorld world, double x, double y, double z, float nX, float nY, float nZ) {
         ServerLevel level = world.getLevel();
         if (level == null) return;
 
@@ -205,54 +205,58 @@ public class VxTerrainInteractionHandler {
             }
 
             if (block instanceof DoorBlock) {
-                if (state.hasProperty(BlockStateProperties.OPEN) && !state.getValue(BlockStateProperties.OPEN)) {
-                    Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
-                    // The facing vector points OUT of the door front. 
-                    // To push the door open, your velocity must be opposite to the facing.
-                    float dotProduct = dirX * facing.getStepX() + dirZ * facing.getStepZ();
-                    if (dotProduct < -0.2f) { 
+                boolean isOpen = state.getValue(BlockStateProperties.OPEN);
+                Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
+                
+                // Normal points from block to body.
+                // dot > 0 means the body is on the side the door faces (the front/outside).
+                // dot < 0 means the body is on the opposite side (the back/inside).
+                float dotProduct = nX * facing.getStepX() + nZ * facing.getStepZ();
+
+                if (!isOpen) {
+                    // Only open if hit from the front (outside)
+                    if (dotProduct > 0.4f) { 
                         level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true), 10);
                         level.levelEvent(null, 1006, pos, 0); 
                     }
+                } else {
+                    // Only close if hit from the back (inside)
+                    if (dotProduct < -0.4f) {
+                        level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, false), 10);
+                        level.levelEvent(null, 1012, pos, 0); 
+                    }
                 }
             } else if (block instanceof TrapDoorBlock) {
-                if (state.hasProperty(BlockStateProperties.OPEN) && !state.getValue(BlockStateProperties.OPEN)) {
-                    if (state.hasProperty(BlockStateProperties.HALF)) {
-                        boolean isTop = state.getValue(BlockStateProperties.HALF) == net.minecraft.world.level.block.state.properties.Half.TOP;
-                        boolean validPush = false;
-                        
-                        // Trapdoors on the floor (BOTTOM) must be hit from BELOW (dirY > 0) to pop up.
-                        // Trapdoors on the ceiling (TOP) must be hit from ABOVE (dirY < 0) to swing down.
-                        if (isTop && dirY < -0.2f) { 
-                            validPush = true;
-                        } else if (!isTop && dirY > 0.2f) { 
-                            validPush = true;
-                        }
-                        
-                        if (validPush) {
+                boolean isOpen = state.getValue(BlockStateProperties.OPEN);
+                if (state.hasProperty(BlockStateProperties.HALF)) {
+                    boolean isTop = state.getValue(BlockStateProperties.HALF) == net.minecraft.world.level.block.state.properties.Half.TOP;
+                    
+                    // For trapdoors, we check if we hit the 'outside' face.
+                    // Top-half: outside is ABOVE (normal.y > 0).
+                    // Bottom-half: outside is BELOW (normal.y < 0).
+                    float outsideDir = isTop ? nY : -nY;
+
+                    if (!isOpen) {
+                        // Open if hit from outside
+                        if (outsideDir > 0.4f) {
                             level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true), 10);
                             level.levelEvent(null, 1006, pos, 0); 
+                        }
+                    } else {
+                        // Close if hit from inside
+                        if (outsideDir < -0.4f) {
+                            level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, false), 10);
+                            level.levelEvent(null, 1012, pos, 0); 
                         }
                     }
                 }
             } else if (block instanceof FenceGateBlock) {
-                if (state.hasProperty(BlockStateProperties.OPEN) && state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
-                    boolean isOpen = state.getValue(BlockStateProperties.OPEN);
-                    Direction currentFacing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
-                    Direction hitDir = Direction.getNearest(dirX, 0, dirZ);
-
-                    // Prevent sideways impacts from breaking the gate's structural axis
-                    if (currentFacing.getAxis() == hitDir.getAxis()) {
-                        if (!isOpen) {
-                            level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true).setValue(BlockStateProperties.HORIZONTAL_FACING, hitDir), 10);
-                            level.levelEvent(null, 1008, pos, 0); 
-                        } else {
-                            if (hitDir == currentFacing.getOpposite()) {
-                                level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, false), 10);
-                                level.levelEvent(null, 1014, pos, 0); 
-                            }
-                        }
-                    }
+                if (!state.getValue(BlockStateProperties.OPEN)) {
+                    // Open away from the impact (normal points towards impact, so open in opposite direction)
+                    Direction openDir = Direction.getNearest(-nX, 0, -nZ);
+                    level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true)
+                            .setValue(BlockStateProperties.HORIZONTAL_FACING, openDir), 10);
+                    level.levelEvent(null, 1008, pos, 0);
                 }
             }
         });
@@ -264,25 +268,25 @@ public class VxTerrainInteractionHandler {
      * The transformation target is dynamically looked up from the material properties of the block at the position.
      *
      * @param world    The physics world where the transformation should occur.
-     * @param x        The X-coordinate of the target block.
-     * @param y        The Y-coordinate of the target block.
-     * @param z        The Z-coordinate of the target block.
-     * @param strength The physical strength/force applied to the block.
+     * @param x        The world-space X-coordinate of the contact point.
+     * @param y        The world-space Y-coordinate of the contact point.
+     * @param z        The world-space Z-coordinate of the contact point.
+     * @param force    The physical strength/force applied to the block.
      */
     @SuppressWarnings("unused")
-    public static void onTerrainTransform(VxPhysicsWorld world, int x, int y, int z, float strength) {
+    public static void onTerrainTransform(VxPhysicsWorld world, double x, double y, double z, float force) {
         ServerLevel level = world.getLevel();
         if (level == null) return;
 
-        BlockPos pos = new BlockPos(x, y, z);
         level.getServer().execute(() -> {
+            BlockPos pos = findSolidBlockPos(level, x, y, z);
             BlockState state = level.getBlockState(pos);
             
             // Lookup the transformation target for this specific block type
             VxTerrainMaterial.MaterialProperties props = VxTerrainMaterial.getProperties(state.getBlock());
 
             // Trigger if the material is transformable and physical conditions are met
-            if (props.isTransformable() && strength > 500.0f) {
+            if (props.isTransformable() && force > 500.0f) {
                 level.setBlockAndUpdate(pos, props.transformTo.defaultBlockState());
             }
         });
