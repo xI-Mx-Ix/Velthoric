@@ -132,12 +132,18 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
         this.isRunning = false;
         if (this.physicsThreadExecutor != null && this.physicsThreadExecutor.isAlive()) {
-            try {
-                this.physicsThreadExecutor.join();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                VxMainClass.LOGGER.warn("The server thread was interrupted while waiting for the physics thread {} to stop completely.", this.physicsThreadExecutor.getName());
+            VxMainClass.LOGGER.debug("Stopping physics world for {}...", dimensionKey.location());
+            while (this.physicsThreadExecutor.isAlive()) {
+                level.getServer().pollTask();
+                try {
+                    // Short sleep to prevent CPU pegging while waiting
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
+            VxMainClass.LOGGER.debug("Physics world for {} stopped.", dimensionKey.location());
         }
     }
 
@@ -271,6 +277,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     private void cleanupJolt() {
+        if (this.terrainContactListener != null) {
+            this.terrainContactListener.close();
+            this.terrainContactListener = null;
+        }
         if (this.physicsSystem != null) {
             this.physicsSystem.close();
             this.physicsSystem = null;
@@ -282,10 +292,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         if (this.tempAllocator != null) {
             this.tempAllocator.close();
             this.tempAllocator = null;
-        }
-        if (this.terrainContactListener != null) {
-            this.terrainContactListener.close();
-            this.terrainContactListener = null;
         }
 
         this.commandQueue.clear();

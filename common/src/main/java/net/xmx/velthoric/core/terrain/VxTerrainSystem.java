@@ -81,49 +81,47 @@ public final class VxTerrainSystem implements Runnable {
      */
     public void shutdown() {
         if (isInitialized.compareAndSet(true, false)) {
+            VxMainClass.LOGGER.debug("Initiating shutdown of Terrain System for '{}'...", level.dimension().location());
+            
             jobSystem.shutdown();
             workerThread.interrupt();
 
-            VxMainClass.LOGGER.debug("Shutting down Terrain System for '{}'. Waiting up to 30 seconds for worker thread to exit...", level.dimension().location());
             try {
-                workerThread.join(30000);
+                // Wait briefly for the worker thread to exit.
+                workerThread.join(2000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                VxMainClass.LOGGER.warn("Interrupted while waiting for terrain system thread to stop.");
             }
 
             if (workerThread.isAlive()) {
-                StringBuilder stackTraceBuilder = new StringBuilder();
-                stackTraceBuilder.append("Stack trace of deadlocked thread '").append(workerThread.getName()).append("':\n");
-                for (StackTraceElement ste : workerThread.getStackTrace()) {
-                    stackTraceBuilder.append("\tat ").append(ste).append("\n");
-                }
-                VxMainClass.LOGGER.fatal("Terrain system thread for '{}' did not terminate in 30 seconds. Forcing shutdown.\n{}", level.dimension().location(), stackTraceBuilder.toString());
-                VxMainClass.LOGGER.warn("Skipping resource cleanup for '{}' to prevent data corruption due to the deadlocked thread.", level.dimension().location());
-            } else {
-                VxMainClass.LOGGER.debug("Terrain system for '{}' shut down gracefully.", level.dimension().location());
-                VxMainClass.LOGGER.debug("Cleaning up terrain physics bodies for '{}'...", level.dimension().location());
+                VxMainClass.LOGGER.warn("Terrain system thread for '{}' did not terminate quickly. Proceeding with cleanup anyway.", level.dimension().location());
+            }
+
+            // Always perform cleanup of native resources to prevent leaks and deadlocks
+            try {
                 terrainManager.cleanupAllBodies();
 
                 // Clean up generator native caches
                 terrainGenerator.close();
-
-                chunkDataStore.clear();
-                chunksToRebuild.clear();
-                terrainTracker.clear();
-
-                VxMainClass.LOGGER.debug("Terrain system for '{}' has been fully shut down.", level.dimension().location());
+            } catch (Exception e) {
+                VxMainClass.LOGGER.error("Error during terrain resource cleanup for '{}'", level.dimension().location(), e);
             }
+
+            chunkDataStore.clear();
+            chunksToRebuild.clear();
+            terrainTracker.clear();
+
+            VxMainClass.LOGGER.debug("Terrain system for '{}' has been shut down.", level.dimension().location());
         }
     }
 
     /**
      * The main loop for the terrain system worker thread. Periodically updates body trackers
-     * and processes chunks that need to be rebuilt. It now checks if the server is running.
+     * and processes chunks that need to be rebuilt.
      */
     @Override
     public void run() {
-        while (isInitialized.get() && !Thread.currentThread().isInterrupted() && server.isRunning()) {
+        while (isInitialized.get() && server.isRunning() && !Thread.currentThread().isInterrupted()) {
             try {
                 if (physicsWorld.isRunning()) {
                     terrainTracker.update();
@@ -134,8 +132,8 @@ public final class VxTerrainSystem implements Runnable {
                 Thread.currentThread().interrupt();
                 break;
             } catch (Exception e) {
-                if (server.isRunning() && isInitialized.get()) {
-                    VxMainClass.LOGGER.error("Error in TerrainSystem worker thread", e);
+                if (isInitialized.get() && server.isRunning()) {
+                    VxMainClass.LOGGER.error("Error in TerrainSystem worker thread for {}", level.dimension().location(), e);
                 }
             }
         }
