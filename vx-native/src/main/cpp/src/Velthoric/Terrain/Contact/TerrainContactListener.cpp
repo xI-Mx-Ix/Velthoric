@@ -123,7 +123,7 @@ void ContactListener::OnContactAdded(const JPH::Body &inBody1, const JPH::Body &
     const JPH::Body& otherBody = isBody1Terrain ? inBody2 : inBody1;
     JPH::SubShapeID terrainSubShapeId = isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2;
     
-    TerrainInteraction::ProcessInteraction(m_WorldRef, m_PhysicsSystem, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, false);
+    TerrainInteraction::ProcessInteraction(m_WorldRef, m_PhysicsSystem, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, isBody1Terrain, false);
 }
 
 /**
@@ -152,7 +152,7 @@ void ContactListener::OnContactPersisted(const JPH::Body &inBody1, const JPH::Bo
     const JPH::Body& otherBody = isBody1Terrain ? inBody2 : inBody1;
     JPH::SubShapeID terrainSubShapeId = isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2;
 
-    TerrainInteraction::ProcessInteraction(m_WorldRef, m_PhysicsSystem, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, true);
+    TerrainInteraction::ProcessInteraction(m_WorldRef, m_PhysicsSystem, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, isBody1Terrain, true);
 }
 
 /**

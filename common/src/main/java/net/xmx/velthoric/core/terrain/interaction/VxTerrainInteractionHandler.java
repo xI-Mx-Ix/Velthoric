@@ -19,7 +19,9 @@ import net.xmx.velthoric.core.terrain.material.VxTerrainMaterial;
 import net.xmx.velthoric.core.terrain.material.VxTerrainMaterial.MaterialProperties;
 import net.xmx.velthoric.jni.TerrainInteraction;
 
+import java.util.HashSet;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -70,7 +72,7 @@ public class VxTerrainInteractionHandler {
         }
 
         // 2. Process Native-side physics events (Zero-allocation batch)
-        java.util.Set<BlockPos> touchedPositions = new java.util.HashSet<>();
+        Set<BlockPos> touchedPositions = new HashSet<>();
         int[] effectCount = {0}; // Mutable wrapper for lambda
 
         TerrainInteraction.processEvents((type, matId, x1, y1, z1, x2, y2, z2, strength, subShapeId, terrainBodyId) -> {
@@ -211,10 +213,10 @@ public class VxTerrainInteractionHandler {
             if (!isOpen) {
                 if (dotProduct > 0.4f) {
                     level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true), 10);
-                    level.levelEvent(null, 1006, pos, 0);
+                    level.levelEvent(null, 1019, pos, 0);
                 }
             } else {
-                if (dotProduct < -0.4f) {
+                if (Math.abs(dotProduct) < 0.1f && (Math.abs(nX) > 0.6f || Math.abs(nZ) > 0.6f)) {
                     level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, false), 10);
                     level.levelEvent(null, 1012, pos, 0);
                 }
@@ -231,7 +233,8 @@ public class VxTerrainInteractionHandler {
                         level.levelEvent(null, 1006, pos, 0);
                     }
                 } else {
-                    if (outsideDir < -0.4f) {
+                    // If open, it's standing up/down. Close if hit horizontally.
+                    if (Math.abs(nY) < 0.2f && (Math.abs(nX) > 0.4f || Math.abs(nZ) > 0.4f)) {
                         level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, false), 10);
                         level.levelEvent(null, 1012, pos, 0);
                     }
@@ -239,6 +242,7 @@ public class VxTerrainInteractionHandler {
             }
         } else if (block instanceof FenceGateBlock) {
             if (!state.getValue(BlockStateProperties.OPEN)) {
+                // Fence gates open away from the impact
                 Direction openDir = Direction.getNearest(-nX, 0, -nZ);
                 level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true)
                         .setValue(BlockStateProperties.HORIZONTAL_FACING, openDir), 10);

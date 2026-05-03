@@ -105,6 +105,7 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
                                           JPH::SubShapeID subShapeId,
                                           const JPH::ContactManifold& manifold, 
                                           JPH::ContactSettings& settings, 
+                                          bool terrainIsBody1,
                                           bool isPersisted) {
     (void)world;
     if (terrainBody.GetShape() == nullptr) return;
@@ -196,7 +197,8 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
         // 2. Interaktion (z.B. Türen)
         if (props.isInteractable && !isPersisted && totalForce > s_Config.interactMinForce) {
             InteractionEvent ev; populateEvent(ev, InteractionType::BLOCK_INTERACT, totalForce);
-            JPH::Vec3 normal = manifold.mWorldSpaceNormal;
+            // Ensure normal always points from otherBody to terrainBody
+            JPH::Vec3 normal = terrainIsBody1 ? -manifold.mWorldSpaceNormal : manifold.mWorldSpaceNormal;
             ev.x2 = (float)normal.GetX(); ev.y2 = (float)normal.GetY(); ev.z2 = (float)normal.GetZ();
             QueueEvent(ev);
         }

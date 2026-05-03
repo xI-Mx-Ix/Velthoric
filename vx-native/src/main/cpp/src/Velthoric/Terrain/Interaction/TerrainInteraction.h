@@ -143,9 +143,10 @@ public:
      * @param subShapeId The specific sub-shape ID of the terrain.
      * @param manifold The contact manifold data.
      * @param settings The contact settings (friction/restitution).
+     * @param terrainIsBody1 Whether the terrain body is the first body in the manifold.
      * @param isPersisted Whether this is a new or persisting contact.
      */
-    static void ProcessInteraction(jobject world, const JPH::PhysicsSystem* ps, const JPH::Body& terrainBody, const JPH::Body& otherBody, JPH::SubShapeID subShapeId, const JPH::ContactManifold& manifold, JPH::ContactSettings& settings, bool isPersisted);
+    static void ProcessInteraction(jobject world, const JPH::PhysicsSystem* ps, const JPH::Body& terrainBody, const JPH::Body& otherBody, JPH::SubShapeID subShapeId, const JPH::ContactManifold& manifold, JPH::ContactSettings& settings, bool terrainIsBody1, bool isPersisted);
 
     /**
      * @brief Transfers asynchronous events back to Java.
