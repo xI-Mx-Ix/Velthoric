@@ -26,7 +26,7 @@ set(HEADERS_ZIP "${EXTERNAL_DIR}/jolt-headers.zip")
 if(NOT EXISTS "${INCLUDE_DIR}/Jolt/Jolt.h")
     message(STATUS "Downloading Jolt headers from ${RELEASE_URL}...")
     file(DOWNLOAD "${RELEASE_URL}/jolt-headers-${JOLT_JNI_VERSION}.zip" "${HEADERS_ZIP}" SHOW_PROGRESS)
-    
+
     message(STATUS "Extracting headers to ${INCLUDE_DIR}...")
     execute_process(COMMAND ${CMAKE_COMMAND} -E tar xf "${HEADERS_ZIP}" WORKING_DIRECTORY "${INCLUDE_DIR}")
 endif()
@@ -36,7 +36,7 @@ if(WIN32)
     set(LIB_FILENAME "joltjni-${JOLT_JNI_VERSION}-windows-x64-ReleaseDp")
     set(DLL_NAME "${LIB_FILENAME}.dll")
     set(LIB_NAME "${LIB_FILENAME}.lib")
-    
+
     if(NOT EXISTS "${EXTERNAL_DIR}/${DLL_NAME}")
         message(STATUS "Downloading ${DLL_NAME}...")
         file(DOWNLOAD "${RELEASE_URL}/${DLL_NAME}" "${EXTERNAL_DIR}/${DLL_NAME}" SHOW_PROGRESS)
@@ -116,15 +116,15 @@ add_library(vxnative SHARED
     src/Velthoric/BodyPairIgnore/BodyPairIgnoreHandler.cpp
 )
 
-target_include_directories(vxnative PRIVATE 
+target_include_directories(vxnative PRIVATE
     ${JNI_INCLUDE_DIRS}
     ${INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/generated
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
-target_compile_definitions(vxnative PRIVATE 
-    JPH_DOUBLE_PRECISION 
+target_compile_definitions(vxnative PRIVATE
+    JPH_DOUBLE_PRECISION
     JPH_SHARED_LIBRARY
     JPH_OBJECT_STREAM
     JPH_USE_CPU_COMPUTE
@@ -140,7 +140,7 @@ else()
 endif()
 
 # Output naming and static runtime linking
-set_target_properties(vxnative PROPERTIES 
+set_target_properties(vxnative PROPERTIES
     OUTPUT_NAME "vxnative"
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
 )

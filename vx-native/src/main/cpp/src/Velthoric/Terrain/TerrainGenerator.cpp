@@ -169,6 +169,7 @@ ShapeRefC TerrainGenerator::GenerateCompoundShape(const BoxShapeData* boxes, int
  */
 extern "C" JNIEXPORT jboolean JNICALL
 Java_net_xmx_velthoric_jni_TerrainGenerator_nGenerateAndCache(JNIEnv *env, jclass clazz, jint contentHash, jobject buffer, jint boxCount) {
+    (void)clazz;
     // Check cache first to avoid redundant generation
     JPH::ShapeRefC shape = Velthoric::TerrainGenerator::s_ShapeCache.Get(contentHash);
     if (shape != nullptr) return JNI_TRUE;
@@ -201,6 +202,7 @@ Java_net_xmx_velthoric_jni_TerrainGenerator_nGenerateAndCache(JNIEnv *env, jclas
  */
 extern "C" JNIEXPORT jint JNICALL
 Java_net_xmx_velthoric_jni_TerrainGenerator_nCreateTerrainBody(JNIEnv *env, jclass clazz, jlong bodyInterfaceVa, jint contentHash, jfloat posX, jfloat posY, jfloat posZ, jshort objectLayer) {
+    (void)env; (void)clazz;
     JPH::BodyInterface* bi = reinterpret_cast<JPH::BodyInterface*>(bodyInterfaceVa);
     if (!bi) return JPH::BodyID::cInvalidBodyID;
 
@@ -228,6 +230,7 @@ Java_net_xmx_velthoric_jni_TerrainGenerator_nCreateTerrainBody(JNIEnv *env, jcla
  */
 extern "C" JNIEXPORT void JNICALL
 Java_net_xmx_velthoric_jni_TerrainGenerator_nUpdateBodyShape(JNIEnv *env, jclass clazz, jlong bodyInterfaceVa, jint bodyIdVal, jint contentHash) {
+    (void)env; (void)clazz;
     JPH::BodyInterface* bi = reinterpret_cast<JPH::BodyInterface*>(bodyInterfaceVa);
     if (!bi) return;
 
@@ -248,6 +251,7 @@ Java_net_xmx_velthoric_jni_TerrainGenerator_nUpdateBodyShape(JNIEnv *env, jclass
  */
 extern "C" JNIEXPORT void JNICALL
 Java_net_xmx_velthoric_jni_TerrainGenerator_nClearCache(JNIEnv *env, jclass clazz) {
+    (void)env; (void)clazz;
     Velthoric::TerrainGenerator::s_ShapeCache.Clear();
 }
 
@@ -262,6 +266,7 @@ Java_net_xmx_velthoric_jni_TerrainGenerator_nClearCache(JNIEnv *env, jclass claz
  */
 extern "C" JNIEXPORT void JNICALL
 Java_net_xmx_velthoric_jni_TerrainGenerator_nRegisterMaterial(JNIEnv *env, jclass clazz, jint id, jfloat friction, jfloat restitution) {
+    (void)env; (void)clazz;
     if (id > 0 && id < 65536) {
         Velthoric::TerrainGenerator::s_Materials[id] = new Velthoric::TerrainMaterial(id, friction, restitution);
     }

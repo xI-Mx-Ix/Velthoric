@@ -94,6 +94,7 @@ extern "C" JNIEXPORT jint JNICALL Java_net_xmx_velthoric_jni_BatchPhysicsSync_sy
     jlong softBodyBehaviorMask,
     jlong timestampNanos
 ) {
+    (void)clazz;
     if (physicsSystemPtr == 0) return 0;
 
     PhysicsSystem* physicsSystem = reinterpret_cast<PhysicsSystem*>(physicsSystemPtr);

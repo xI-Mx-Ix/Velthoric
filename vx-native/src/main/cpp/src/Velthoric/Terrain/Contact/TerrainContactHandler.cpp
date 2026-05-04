@@ -149,7 +149,7 @@ extern "C" {
  */
 JNIEXPORT jlong JNICALL
 Java_net_xmx_velthoric_jni_TerrainContactHandler_nCreateHandler(JNIEnv *env, jclass clazz, jlong physicsSystemPtr, jobject world) {
-    (void)clazz;
+    (void)env; (void)clazz;
     JPH::PhysicsSystem* ps = reinterpret_cast<JPH::PhysicsSystem*>(physicsSystemPtr);
     if (!ps) return 0;
 
