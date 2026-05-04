@@ -36,6 +36,14 @@ ContactListener::ContactListener(JPH::PhysicsSystem* inPhysicsSystem, jobject in
     } else {
         m_WorldRef = nullptr;
     }
+
+    // Initialize all shards to empty status (key 0)
+    for (int i = 0; i < NUM_SHARDS; ++i) {
+        m_CacheShards[i].nextInsertIdx = 0;
+        for (int j = 0; j < ENTRIES_PER_SHARD; ++j) {
+            m_CacheShards[i].entries[j].key = 0;
+        }
+    }
 }
 
 ContactListener::~ContactListener() {
@@ -50,32 +58,32 @@ ContactListener::~ContactListener() {
 }
 
 /**
- * @brief Sets the manager for ignored body pairs.
+ * @brief Dependency Injection: Set the BodyPairIgnoreManager.
  * 
- * When a manager is set, the listener will consult it during OnContactValidate
- * to filter out specific collisions.
- * 
- * @param inManager Pointer to the manager (can be null to disable filtering).
+ * @param inManager Pointer to the manager instance managed by VxPhysicsWorld.
  */
 void ContactListener::SetBodyPairIgnoreManager(BodyPairIgnoreManager* inManager) {
     m_BodyPairIgnoreManager = inManager;
 }
 
 /**
- * @brief Retrieves the current body pair ignore manager.
+ * @brief Returns the current ignore manager.
  * 
- * @return Pointer to the manager, or nullptr if none is set.
+ * @return BodyPairIgnoreManager* Current pointer or nullptr.
  */
 BodyPairIgnoreManager* ContactListener::GetBodyPairIgnoreManager() const {
     return m_BodyPairIgnoreManager;
 }
 
 /**
- * @brief Broadphase validation filter. Checks if the pair should be ignored.
+ * @brief Pre-collision filter.
+ * 
+ * Uses an ultra-fast early-out if the ignore manager reports no active filters.
+ * Otherwise, checks if the specific body pair should be rejected (e.g., spawn protection).
  */
 JPH::ValidateResult ContactListener::OnContactValidate(const JPH::Body& inBody1, const JPH::Body& inBody2, JPH::RVec3Arg, const JPH::CollideShapeResult&) {
-    // Optimized single-call check that combines all fast paths
-    if (m_BodyPairIgnoreManager) {
+    // Ultra-fast path: If no pairs are ignored at all globally, skip the logic
+    if (m_BodyPairIgnoreManager && m_BodyPairIgnoreManager->HasIgnoredPairs()) {
         uint32_t bodyId1 = inBody1.GetID().GetIndexAndSequenceNumber();
         uint32_t bodyId2 = inBody2.GetID().GetIndexAndSequenceNumber();
         if (m_BodyPairIgnoreManager->ShouldIgnorePair(bodyId1, bodyId2)) {
@@ -86,114 +94,120 @@ JPH::ValidateResult ContactListener::OnContactValidate(const JPH::Body& inBody1,
 }
 
 /**
- * @brief Computes a 64-bit cache key from a SubShapeIDPair.
+ * @brief Entry point for new contacts.
  * 
- * Combines both BodyIDs and SubShapeIDs into a single hash for O(1) cache lookups.
- */
-uint64_t ContactListener::MakeContactKey(uint32_t bodyId1, uint32_t bodyId2, uint32_t subShape1, uint32_t subShape2) {
-    uint64_t h = static_cast<uint64_t>(bodyId1);
-    h = (h << 32) | static_cast<uint64_t>(bodyId2);
-    h ^= static_cast<uint64_t>(subShape1) * 2654435761ULL;
-    h ^= static_cast<uint64_t>(subShape2) * 40503ULL;
-    return h;
-}
-
-/**
- * @brief Called once when a new contact is created.
- * 
- * Performs the full (expensive) material lookup via GetMaterial() and caches
- * the computed friction/restitution for use in OnContactPersisted.
+ * Performs expensive material data extraction only on cache miss.
+ * Combines friction and restitution and stores the result in the sharded flat cache.
  */
 void ContactListener::OnContactAdded(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) {
-    // Early-out: skip entirely if neither body is terrain
-    if (inBody1.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2) && inBody2.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2)) return;
+    // Optimization: Physical interactions and material overrides only apply if terrain is involved (Layer 2)
+    if (inBody1.GetObjectLayer() != 2 && inBody2.GetObjectLayer() != 2) return;
 
     uint64_t key = MakeContactKey(inBody1.GetID().GetIndexAndSequenceNumber(), inBody2.GetID().GetIndexAndSequenceNumber(), inManifold.mSubShapeID1.GetValue(), inManifold.mSubShapeID2.GetValue());
     auto& shard = m_CacheShards[key % NUM_SHARDS];
     
-    // Check if we already have combined settings in the cache for this specific contact
+    // Quick search in shard before doing expensive material extraction
+    shard.Lock();
+    for (int i = 0; i < ENTRIES_PER_SHARD; ++i) {
+        if (shard.entries[i].key == key) {
+            ioSettings.mCombinedFriction = shard.entries[i].friction;
+            ioSettings.mCombinedRestitution = shard.entries[i].restitution;
+            shard.Unlock();
+            goto interaction; // Found in cache, bypass material logic
+        }
+    }
+    shard.Unlock();
+
     {
-        std::lock_guard<std::mutex> lock(shard.mutex);
-        auto it = shard.entries.find(key);
-        if (it != shard.entries.end()) {
-            ioSettings.mCombinedFriction = it->second.friction;
-            ioSettings.mCombinedRestitution = it->second.restitution;
+        // Cache miss: Traverses Jolt BVH to get sub-shape materials
+        const JPH::PhysicsMaterial* mat1 = inBody1.GetShape()->GetMaterial(inManifold.mSubShapeID1);
+        const JPH::PhysicsMaterial* mat2 = inBody2.GetShape()->GetMaterial(inManifold.mSubShapeID2);
+
+        float f1 = inBody1.GetFriction(), r1 = inBody1.GetRestitution();
+        float f2 = inBody2.GetFriction(), r2 = inBody2.GetRestitution();
+        bool isTerrain = false;
+
+        // Custom TerrainMaterial handling for friction/restitution overrides
+        if (mat1 && mat1->GetDebugName() == TerrainMaterial::sTerrainMaterialName) {
+            auto* tm = static_cast<const TerrainMaterial*>(mat1);
+            f1 = tm->mFriction; r1 = tm->mRestitution; isTerrain = true;
+        }
+        if (mat2 && mat2->GetDebugName() == TerrainMaterial::sTerrainMaterialName) {
+            auto* tm = static_cast<const TerrainMaterial*>(mat2);
+            f2 = tm->mFriction; r2 = tm->mRestitution; isTerrain = true;
+        }
+
+        if (isTerrain) {
+            float cf = std::sqrt(f1 * f2);
+            float cr = std::max(r1, r2);
+            ioSettings.mCombinedFriction = cf;
+            ioSettings.mCombinedRestitution = cr;
+
+            // Store in cache using FIFO replacement strategy
+            shard.Lock();
+            uint32_t idx = shard.nextInsertIdx;
+            shard.entries[idx] = { key, cf, cr };
+            shard.nextInsertIdx = (idx + 1) % ENTRIES_PER_SHARD;
+            shard.Unlock();
         }
     }
 
-    // Full material extraction (expensive BVH traversal)
-    const JPH::PhysicsMaterial* mat1 = inBody1.GetShape()->GetMaterial(inManifold.mSubShapeID1);
-    const JPH::PhysicsMaterial* mat2 = inBody2.GetShape()->GetMaterial(inManifold.mSubShapeID2);
-
-    float f1 = inBody1.GetFriction(), r1 = inBody1.GetRestitution();
-    float f2 = inBody2.GetFriction(), r2 = inBody2.GetRestitution();
-    bool found = false;
-
-    if (mat1 && mat1->GetDebugName() == TerrainMaterial::sTerrainMaterialName) {
-        auto* tm = static_cast<const TerrainMaterial*>(mat1);
-        f1 = tm->mFriction; r1 = tm->mRestitution; found = true;
-    }
-    if (mat2 && mat2->GetDebugName() == TerrainMaterial::sTerrainMaterialName) {
-        auto* tm = static_cast<const TerrainMaterial*>(mat2);
-        f2 = tm->mFriction; r2 = tm->mRestitution; found = true;
-    }
-
-    if (found) {
-        float cf = std::sqrt(f1 * f2);
-        float cr = std::max(r1, r2);
-        ioSettings.mCombinedFriction = cf;
-        ioSettings.mCombinedRestitution = cr;
-
-        std::lock_guard<std::mutex> lock(shard.mutex);
-        shard.entries[key] = { cf, cr };
-    }
-
-    // Terrain Interaction Logic
-    bool isBody1Terrain = (inBody1.GetObjectLayer() == static_cast<JPH::ObjectLayer>(2));
-    const JPH::Body& terrainBody = isBody1Terrain ? inBody1 : inBody2;
-    const JPH::Body& otherBody = isBody1Terrain ? inBody2 : inBody1;
-    JPH::SubShapeID terrainSubShapeId = isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2;
-    
-    TerrainInteraction::ProcessInteraction(m_WorldRef, m_PhysicsSystem, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, isBody1Terrain, false);
+interaction:
+    // Forward to terrain interaction pipeline (destruction, particles, etc.)
+    bool isBody1Terrain = (inBody1.GetObjectLayer() == 2);
+    TerrainInteraction::ProcessInteraction(m_WorldRef, m_PhysicsSystem, 
+        isBody1Terrain ? inBody1 : inBody2, 
+        isBody1Terrain ? inBody2 : inBody1, 
+        isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2, 
+        inManifold, ioSettings, isBody1Terrain, false);
 }
 
 /**
- * @brief Called every tick for existing contacts.
+ * @brief Hot path for existing contacts.
  * 
- * Reads from the sharded cache instead of re-traversing the BVH. This is the hot path
- * and must be as fast as possible.
+ * Uses atomic spinlocks to quickly retrieve material properties from the cache.
+ * Linear search over 64 entries is used for maximum cache locality.
  */
 void ContactListener::OnContactPersisted(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold &inManifold, JPH::ContactSettings &ioSettings) {
-    if (inBody1.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2) && inBody2.GetObjectLayer() != static_cast<JPH::ObjectLayer>(2)) return;
+    if (inBody1.GetObjectLayer() != 2 && inBody2.GetObjectLayer() != 2) return;
 
     uint64_t key = MakeContactKey(inBody1.GetID().GetIndexAndSequenceNumber(), inBody2.GetID().GetIndexAndSequenceNumber(), inManifold.mSubShapeID1.GetValue(), inManifold.mSubShapeID2.GetValue());
     auto& shard = m_CacheShards[key % NUM_SHARDS];
-    {
-        std::lock_guard<std::mutex> lock(shard.mutex);
-        auto it = shard.entries.find(key);
-        if (it != shard.entries.end()) {
-            ioSettings.mCombinedFriction = it->second.friction;
-            ioSettings.mCombinedRestitution = it->second.restitution;
+    
+    // FAST PATH: Linear search in aligned memory block
+    shard.Lock();
+    for (int i = 0; i < ENTRIES_PER_SHARD; ++i) {
+        if (shard.entries[i].key == key) {
+            ioSettings.mCombinedFriction = shard.entries[i].friction;
+            ioSettings.mCombinedRestitution = shard.entries[i].restitution;
+            break;
         }
     }
+    shard.Unlock();
 
-    // Terrain Interaction Logic
-    bool isBody1Terrain = (inBody1.GetObjectLayer() == static_cast<JPH::ObjectLayer>(2));
-    const JPH::Body& terrainBody = isBody1Terrain ? inBody1 : inBody2;
-    const JPH::Body& otherBody = isBody1Terrain ? inBody2 : inBody1;
-    JPH::SubShapeID terrainSubShapeId = isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2;
-
-    TerrainInteraction::ProcessInteraction(m_WorldRef, m_PhysicsSystem, terrainBody, otherBody, terrainSubShapeId, inManifold, ioSettings, isBody1Terrain, true);
+    bool isBody1Terrain = (inBody1.GetObjectLayer() == 2);
+    TerrainInteraction::ProcessInteraction(m_WorldRef, m_PhysicsSystem, 
+        isBody1Terrain ? inBody1 : inBody2, 
+        isBody1Terrain ? inBody2 : inBody1, 
+        isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2, 
+        inManifold, ioSettings, isBody1Terrain, true);
 }
 
 /**
- * @brief Called when a contact is destroyed. Evicts the cached entry from its shard.
+ * @brief Removes contact metadata from the cache.
  */
 void ContactListener::OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) {
     uint64_t key = MakeContactKey(inSubShapePair.GetBody1ID().GetIndexAndSequenceNumber(), inSubShapePair.GetBody2ID().GetIndexAndSequenceNumber(), inSubShapePair.GetSubShapeID1().GetValue(), inSubShapePair.GetSubShapeID2().GetValue());
     auto& shard = m_CacheShards[key % NUM_SHARDS];
-    std::lock_guard<std::mutex> lock(shard.mutex);
-    shard.entries.erase(key);
+    
+    shard.Lock();
+    for (int i = 0; i < ENTRIES_PER_SHARD; ++i) {
+        if (shard.entries[i].key == key) {
+            shard.entries[i].key = 0; // Invalidate cache entry
+            break;
+        }
+    }
+    shard.Unlock();
 }
 
 } // namespace Velthoric
@@ -218,7 +232,7 @@ Java_net_xmx_velthoric_jni_TerrainContactListener_nAttachContactListener(JNIEnv 
 
     auto* listener = new Velthoric::ContactListener(ps, world);
 
-    // Initialize interaction system with current JVM env
+    // Initialize interaction system with current JVM env for later callbacks
     Velthoric::TerrainInteraction::InitJNI(env);
 
     ps->SetContactListener(listener);

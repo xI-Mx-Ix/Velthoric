@@ -17,69 +17,55 @@
 
 namespace Velthoric {
 
-/** Static storage for material interaction properties. */
+/** Static storage and atomic initializations. */
 TerrainInteraction::Config TerrainInteraction::s_Config;
-std::vector<TerrainInteraction::InternalMaterialProps> TerrainInteraction::s_MaterialProps(65536);
-
-/** JNI Caching and Event Queuing. */
+std::array<TerrainInteraction::InternalMaterialProps, 65536> TerrainInteraction::s_MaterialProps;
 jclass TerrainInteraction::s_HandlerClass = nullptr;
-jmethodID TerrainInteraction::s_BreakMethod = nullptr;
-jmethodID TerrainInteraction::s_TransformMethod = nullptr;
-jmethodID TerrainInteraction::s_ParticleMethod = nullptr;
-jmethodID TerrainInteraction::s_InteractMethod = nullptr;
-
-std::vector<TerrainInteraction::InteractionEvent> TerrainInteraction::s_EventQueue;
-std::mutex TerrainInteraction::s_QueueMutex;
 std::atomic<int> TerrainInteraction::s_EventCount{0};
 std::atomic<int> TerrainInteraction::s_TickBreaks{0};
 std::atomic<int> TerrainInteraction::s_TickTransforms{0};
 std::atomic<int> TerrainInteraction::s_TickParticles{0};
-
-/** Sharded storage for events and deduplication. */
 TerrainInteraction::Shard TerrainInteraction::s_Shards[TerrainInteraction::NUM_SHARDS];
 
 /**
- * @brief Bootstraps the interaction system's JNI bridge.
+ * @brief Bootstraps the JNI environment.
  * 
- * Locates the Java handler class and initializes global references to allow 
- * asynchronous callbacks from native code.
+ * Locates the Java interaction handler class for future event processing.
  * 
- * @param env The JNI Environment pointer.
+ * @param env JNI Environment pointer.
  */
 void TerrainInteraction::InitJNI(JNIEnv* env) {
     if (s_HandlerClass || !env) return;
-
     jclass localClass = env->FindClass("net/xmx/velthoric/core/terrain/interaction/VxTerrainInteractionHandler");
     if (localClass) {
         s_HandlerClass = (jclass)env->NewGlobalRef(localClass);
-        s_MaterialProps[1].spawnsParticles = true;
     }
 }
 
 /**
- * @brief Internal helper to push events into the thread-safe sharded queue.
+ * @brief Queues an interaction event for later flushing to Java.
  * 
- * Distributes events across multiple shards based on body and sub-shape IDs 
- * to eliminate lock contention between physics worker threads.
+ * Uses a sharded ringbuffer to minimize lock contention between physics worker threads.
  * 
- * @param event The interaction event to queue.
+ * @param event The event data to queue.
  */
 void TerrainInteraction::QueueEvent(const InteractionEvent& event) {
+    // Distribute by body and subshape to balance shard load
     uint32_t shardIdx = (event.terrainBodyId ^ event.subShapeId) % NUM_SHARDS;
     auto& shard = s_Shards[shardIdx];
 
-    std::lock_guard<std::mutex> lock(shard.queueMutex);
-    if (shard.queue.size() < (32768 / NUM_SHARDS)) {
-        shard.queue.push_back(event);
-        s_EventCount++;
+    shard.Lock();
+    if (shard.Enqueue(event)) {
+        s_EventCount.fetch_add(1, std::memory_order_relaxed);
     }
+    shard.Unlock();
 }
 
 /**
- * @brief Updates the native lookup table for material interaction properties.
+ * @brief Populates the material interaction lookup table.
  * 
- * @param configs Pointer to the material configuration array passed from Java.
- * @param count   The number of material configurations.
+ * @param configs Pointer to material data from Java.
+ * @param count Number of materials.
  */
 void TerrainInteraction::RegisterMaterials(const MaterialConfig* configs, int count) {
     for (int i = 0; i < count; ++i) {
@@ -95,167 +81,164 @@ void TerrainInteraction::RegisterMaterials(const MaterialConfig* configs, int co
 }
 
 /**
- * @brief Performs real-time interaction logic during a physics contact event.
- *
- * Evaluates impact energy and sliding friction to trigger block destruction,
- * soil transformation, or visual effects.
+ * @brief High-performance interaction logic executed during physics ticks.
+ * 
+ * This method calculates impact energy, sliding forces, and triggers events.
+ * It is highly optimized:
+ * - Uses Lazy evaluation for block positions to avoid expensive rotation math.
+ * - Employs sharded spinlocks for event queuing.
+ * - Uses lossy deduplication to filter redundant impacts in O(1).
  */
 void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSystem* ps,
-                                          const JPH::Body& terrainBody, const JPH::Body& otherBody, 
-                                          JPH::SubShapeID subShapeId,
-                                          const JPH::ContactManifold& manifold, 
-                                          JPH::ContactSettings& settings, 
-                                          bool terrainIsBody1,
-                                          bool isPersisted) {
+                                           const JPH::Body& terrainBody, const JPH::Body& otherBody, 
+                                           JPH::SubShapeID subShapeId,
+                                           const JPH::ContactManifold& manifold, 
+                                           JPH::ContactSettings& settings, 
+                                           bool terrainIsBody1,
+                                           bool isPersisted) {
     (void)world;
-    if (terrainBody.GetShape() == nullptr) return;
+    const JPH::Shape* shape = terrainBody.GetShape();
+    if (!shape) return;
 
-    // Fast-path: check material first
-    const JPH::PhysicsMaterial* mat = terrainBody.GetShape()->GetMaterial(subShapeId);
+    // Fast material lookup path
+    const JPH::PhysicsMaterial* mat = shape->GetMaterial(subShapeId);
     uint32_t matId = 1;
-    if (mat && mat->GetDebugName() && strcmp(mat->GetDebugName(), TerrainMaterial::sTerrainMaterialName) == 0) {
-        matId = static_cast<const TerrainMaterial*>(mat)->mMaterialId;
+    if (mat) {
+        const char* name = mat->GetDebugName();
+        // Compare pointers first (for speed), then string content
+        if (name == TerrainMaterial::sTerrainMaterialName || (name && strcmp(name, TerrainMaterial::sTerrainMaterialName) == 0)) {
+            matId = static_cast<const TerrainMaterial*>(mat)->mMaterialId;
+        }
     }
 
     const auto& props = s_MaterialProps[matId < 65536 ? matId : 1];
-    // Early exit if the material has no interaction triggers, except for ID 1
+    // Early exit: Material doesn't support interaction
     if (!props.isFragile && !props.isTransformable && !props.spawnsParticles && !props.isInteractable && matId != 1) return;
 
     uint32_t terrainId = terrainBody.GetID().GetIndex();
     uint32_t subIdVal = subShapeId.GetValue();
     uint64_t blockKey = (static_cast<uint64_t>(terrainId) << 32) | subIdVal;
-    uint32_t shardIdx = blockKey % NUM_SHARDS;
-    auto& shard = s_Shards[shardIdx];
+    auto& shard = s_Shards[blockKey % NUM_SHARDS];
 
-    // Lazy block position calculation
+    // LAZY POSITION CALCULATION: Only computed if an event is actually triggered.
     bool posCalculated = false;
     JPH::RVec3 blockWorldPos;
-
     auto getBlockPos = [&]() -> JPH::RVec3 {
         if (posCalculated) return blockWorldPos;
-        const JPH::Shape* baseShape = terrainBody.GetShape();
-        if (baseShape && baseShape->GetSubType() == JPH::EShapeSubType::StaticCompound) {
-            const JPH::StaticCompoundShape* compound = static_cast<const JPH::StaticCompoundShape*>(baseShape);
+        if (shape->GetSubType() == JPH::EShapeSubType::StaticCompound) {
+            const JPH::StaticCompoundShape* compound = static_cast<const JPH::StaticCompoundShape*>(shape);
             JPH::SubShapeID remainder;
-            JPH::uint32 idx = compound->GetSubShapeIndexFromID(subShapeId, remainder);
+            uint32_t idx = compound->GetSubShapeIndexFromID(subShapeId, remainder);
             if (idx < compound->GetNumSubShapes()) {
                 blockWorldPos = terrainBody.GetCenterOfMassPosition() + terrainBody.GetRotation() * compound->GetSubShape(idx).GetPositionCOM();
                 posCalculated = true;
                 return blockWorldPos;
             }
         }
+        blockWorldPos = manifold.GetWorldSpaceContactPointOn1(0);
         posCalculated = true;
-        blockWorldPos = manifold.GetWorldSpaceContactPointOn1(0); // Fallback
         return blockWorldPos;
     };
 
-    int numPoints = manifold.mRelativeContactPointsOn1.size();
+    // Baseline physics properties
+    float invMass = otherBody.GetMotionProperties() ? otherBody.GetMotionProperties()->GetInverseMass() : 0.0f;
+    float otherMass = invMass > 0.0f ? 1.0f / invMass : s_Config.massBaseline;
+    float massScale = (std::min)(s_Config.massMaxScale, (std::max)(s_Config.massMinScale, otherMass / s_Config.massBaseline));
+    float gravity = ps ? std::abs(ps->GetGravity().GetY()) : 9.81f;
+
+    // Iterate over contact points
+    int numPoints = (int)manifold.mRelativeContactPointsOn1.size();
     for (int i = 0; i < numPoints; ++i) {
         JPH::RVec3 p = manifold.GetWorldSpaceContactPointOn1(i);
         JPH::Vec3 relVel = otherBody.GetPointVelocity(p) - terrainBody.GetPointVelocity(p);
-
         float impactSpeed = std::abs(relVel.Dot(manifold.mWorldSpaceNormal));
-        // Calculate tangential sliding speed at this point
-        float slidingSpeed = (relVel - relVel.Dot(manifold.mWorldSpaceNormal) * manifold.mWorldSpaceNormal).Length();
-
-        float invMass = otherBody.GetMotionProperties() ? otherBody.GetMotionProperties()->GetInverseMass() : 0.0f;
-        float otherMass = invMass > 0.0f ? 1.0f / invMass : s_Config.massBaseline;
-
-        // Force and Energy estimates
-        float gravity = ps ? std::abs(ps->GetGravity().GetY()) : 9.81f;
+        
+        // Estimated normal force based on impact speed and penetration
         float totalForce = (impactSpeed * otherMass) + (manifold.mPenetrationDepth * otherMass * gravity);
 
+        /** Lambda to fill common event fields. */
         auto populateEvent = [&](InteractionEvent& ev, InteractionType type, float strength) {
-            ev.type = type;
-            ev.materialId = matId;
-            ev.subShapeId = subIdVal;
-            ev.terrainBodyId = terrainId;
+            ev.type = type; ev.materialId = matId; ev.subShapeId = subIdVal; ev.terrainBodyId = terrainId;
             JPH::RVec3 bPos = getBlockPos();
             ev.x1 = (float)bPos.GetX(); ev.y1 = (float)bPos.GetY(); ev.z1 = (float)bPos.GetZ();
             ev.strength = strength;
         };
 
-        // 1. Zerstörung / Transformation (Deduped)
+        // 1. BLOCK DESTRUCTION (FRAGILE)
         if (props.isFragile && totalForce > props.breakThreshold) {
-            std::lock_guard<std::mutex> lock(shard.mutex);
-            if (shard.deduplicator.insert(blockKey).second) {
+            shard.Lock();
+            if (shard.TryDeduplicate(blockKey)) {
                 if (s_TickBreaks.fetch_add(1, std::memory_order_relaxed) < s_Config.maxBreaksPerTick) {
                     InteractionEvent ev; populateEvent(ev, InteractionType::BLOCK_BREAK, totalForce);
-                    QueueEvent(ev);
+                    shard.Enqueue(ev); s_EventCount.fetch_add(1, std::memory_order_relaxed);
                 }
             }
-        } else if (props.isTransformable && (slidingSpeed > s_Config.transformMinSlidingSpeed || totalForce > s_Config.transformMinForce) && settings.mCombinedFriction > s_Config.transformMinFriction) {
-            std::lock_guard<std::mutex> lock(shard.mutex);
-            if (shard.deduplicator.insert(blockKey).second) {
+            shard.Unlock();
+        } 
+        // 2. BLOCK TRANSFORMATION (WEAR)
+        else if (props.isTransformable && totalForce > s_Config.transformMinForce) {
+            shard.Lock();
+            if (shard.TryDeduplicate(blockKey ^ 0x12345678)) {
                 if (s_TickTransforms.fetch_add(1, std::memory_order_relaxed) < s_Config.maxTransformsPerTick) {
                     InteractionEvent ev; populateEvent(ev, InteractionType::BLOCK_TRANSFORM, totalForce);
-                    QueueEvent(ev);
+                    shard.Enqueue(ev); s_EventCount.fetch_add(1, std::memory_order_relaxed);
                 }
             }
+            shard.Unlock();
         }
 
-        // 2. Interaktion (z.B. Türen)
+        // 3. GENERIC INTERACTION (DOORS/GATES)
         if (props.isInteractable && !isPersisted && totalForce > s_Config.interactMinForce) {
             InteractionEvent ev; populateEvent(ev, InteractionType::BLOCK_INTERACT, totalForce);
-            // Ensure normal always points from otherBody to terrainBody
             JPH::Vec3 normal = terrainIsBody1 ? -manifold.mWorldSpaceNormal : manifold.mWorldSpaceNormal;
             ev.x2 = (float)normal.GetX(); ev.y2 = (float)normal.GetY(); ev.z2 = (float)normal.GetZ();
             QueueEvent(ev);
         }
 
-        // 3. Partikel/Sound (Deduped)
+        // 4. VISUAL PARTICLES (STOCHASTIC SLIDING)
         if (props.spawnsParticles) {
-            // Thread-local RNG for high-performance random sampling without locks
-            thread_local std::mt19937 tls_rng(std::random_device{}());
-            thread_local std::uniform_real_distribution<float> tls_dist(0.0f, 1.0f);
-
-            // Calculate relative velocity magnitude for general intensity
             float relVelMag = relVel.Length();
-
-            // Hard cutoff: absolutely no effects if velocity is microscopic
             if (relVelMag < s_Config.particleMinVelocity) continue;
 
-            // Shift mass scaling significantly:
-            float massScale = (std::min)(s_Config.massMaxScale, (std::max)(s_Config.massMinScale, otherMass / s_Config.massBaseline));
-
-            float energy = 0.0f;
             bool trigger = false;
-
+            float energy = 0.0f;
             if (!isPersisted) {
+                // Impact particles
                 energy = ((relVelMag * 1.0f) + (manifold.mPenetrationDepth * 10.0f)) * massScale;
                 trigger = (energy > s_Config.particleImpactEnergyThreshold); 
-            } else if (relVelMag > s_Config.particleSlidingVelocityThreshold) {
-                energy = (slidingSpeed * settings.mCombinedFriction + manifold.mPenetrationDepth * 5.0f) * massScale;
-                if (energy > s_Config.particleSlidingEnergyThreshold) {
-                    thread_local std::mt19937 rng(std::random_device{}());
-                    thread_local std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-                    if (dist(rng) < (std::min)(s_Config.particleSlidingChanceMax, energy * s_Config.particleSlidingChanceMult)) trigger = true;
+            } else {
+                // Sliding particles (Friction-based)
+                float slidingSpeed = (relVel - relVel.Dot(manifold.mWorldSpaceNormal) * manifold.mWorldSpaceNormal).Length();
+                if (slidingSpeed > s_Config.particleSlidingVelocityThreshold) {
+                    energy = (slidingSpeed * settings.mCombinedFriction + manifold.mPenetrationDepth * 5.0f) * massScale;
+                    if (energy > s_Config.particleSlidingEnergyThreshold) {
+                        // High-performance RNG without locking
+                        thread_local std::mt19937 rng(std::random_device{}());
+                        thread_local std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+                        if (dist(rng) < (std::min)(s_Config.particleSlidingChanceMax, energy * s_Config.particleSlidingChanceMult)) trigger = true;
+                    }
                 }
             }
 
             if (trigger) {
-                std::lock_guard<std::mutex> lock(shard.mutex);
-                if (shard.deduplicator.insert(blockKey ^ 0xFAFBF000).second) {
+                shard.Lock();
+                if (shard.TryDeduplicate(blockKey ^ 0xFAFBF000)) {
                     if (s_TickParticles.fetch_add(1, std::memory_order_relaxed) < s_Config.maxParticlesPerTick) {
                         InteractionEvent ev; populateEvent(ev, InteractionType::PARTICLE_SLIDE, energy);
                         ev.x2 = (float)p.GetX(); ev.y2 = (float)p.GetY(); ev.z2 = (float)p.GetZ();
-                        QueueEvent(ev);
+                        shard.Enqueue(ev); s_EventCount.fetch_add(1, std::memory_order_relaxed);
                     }
                 }
+                shard.Unlock();
             }
         }
     }
 }
 
 /**
- * @brief Transfers asynchronous events back to Java.
+ * @brief Transfers native interaction events to the Java-side buffer.
  * 
- * This method drains all sharded queues into the provided destination buffer, 
- * resets the per-tick rate limiting budgets, and clears the spatial deduplicators.
- * 
- * @param outBuffer Target buffer for event data.
- * @param maxCount  Maximum number of events to flush.
- * @return The actual number of events written into the buffer.
+ * Clears deduplication tables and resets rate-limiting budgets for the next tick.
  */
 int TerrainInteraction::FlushEvents(InteractionEvent* outBuffer, int maxCount) {
     s_TickBreaks.store(0, std::memory_order_relaxed);
@@ -265,54 +248,45 @@ int TerrainInteraction::FlushEvents(InteractionEvent* outBuffer, int maxCount) {
     int total = 0;
     for (int i = 0; i < NUM_SHARDS; ++i) {
         auto& shard = s_Shards[i];
-        {
-            std::lock_guard<std::mutex> lock(shard.mutex);
-            shard.deduplicator.clear();
+        shard.Lock();
+        // Full clear of lossy deduplication table at tick start
+        std::memset(shard.dedupTable.data(), 0, shard.dedupTable.size() * sizeof(uint64_t));
+        
+        // Drain ringbuffer
+        while (shard.head != shard.tail && total < maxCount) {
+            outBuffer[total++] = shard.queue[shard.head];
+            shard.head = (shard.head + 1) % QUEUE_SIZE_PER_SHARD;
         }
-        {
-            std::lock_guard<std::mutex> lock(shard.queueMutex);
-            int toCopy = (std::min)((int)shard.queue.size(), maxCount - total);
-            if (toCopy > 0) {
-                std::memcpy(outBuffer + total, shard.queue.data(), (size_t)toCopy * sizeof(InteractionEvent));
-                shard.queue.erase(shard.queue.begin(), shard.queue.begin() + toCopy);
-                total += toCopy;
-            }
-        }
+        shard.Unlock();
         if (total >= maxCount) break;
     }
-    s_EventCount -= total;
+    s_EventCount.store(0, std::memory_order_relaxed);
     return total;
 }
 
 } // namespace Velthoric
 
 extern "C" {
-
 /**
- * @brief JNI Endpoint: Registers interaction-specific material data.
+ * @brief JNI Endpoint: Bulk register material configs.
  */
 JNIEXPORT void JNICALL
 Java_net_xmx_velthoric_jni_TerrainInteraction_nRegisterInteractionMaterials(JNIEnv *env, jclass clazz, jobject buffer, jint count) {
     (void)clazz;
     if (!buffer || count <= 0) return;
     const Velthoric::TerrainInteraction::MaterialConfig* configs = static_cast<const Velthoric::TerrainInteraction::MaterialConfig*>(env->GetDirectBufferAddress(buffer));
-    if (configs) {
-        Velthoric::TerrainInteraction::RegisterMaterials(configs, count);
-    }
+    if (configs) Velthoric::TerrainInteraction::RegisterMaterials(configs, count);
 }
 
 /**
- * @brief JNI Endpoint: Flushes the interaction event queue into Java memory.
+ * @brief JNI Endpoint: Flush interaction events to Java memory.
  */
 JNIEXPORT jint JNICALL
 Java_net_xmx_velthoric_jni_TerrainInteraction_nFlushEvents(JNIEnv *env, jclass clazz, jobject buffer, jint maxCount) {
     (void)env; (void)clazz;
     if (!buffer || maxCount <= 0) return 0;
     Velthoric::TerrainInteraction::InteractionEvent* outBuffer = static_cast<Velthoric::TerrainInteraction::InteractionEvent*>(env->GetDirectBufferAddress(buffer));
-    if (outBuffer) {
-        return Velthoric::TerrainInteraction::FlushEvents(outBuffer, maxCount);
-    }
+    if (outBuffer) return Velthoric::TerrainInteraction::FlushEvents(outBuffer, maxCount);
     return 0;
 }
-
-} // extern "C"
+}

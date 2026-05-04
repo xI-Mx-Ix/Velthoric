@@ -8,10 +8,8 @@
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/Body.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
-#include <vector>
-#include <mutex>
+#include <array>
 #include <atomic>
-#include <unordered_set>
 #include <jni.h>
 
 JPH_NAMESPACE_BEGIN
@@ -21,147 +19,126 @@ JPH_NAMESPACE_END
 namespace Velthoric {
 
 /**
- * @brief High-performance handler for physical interactions with voxel terrain.
+ * @brief Zero-allocation handler for physical interactions with voxel terrain.
  * 
- * This class manages the bridge between native Jolt physics events and Java-side 
- * game logic. It handles:
- * - Block destruction based on impact force.
- * - Material-based terrain transformations.
- * - Friction-based particle effects.
+ * Optimized for massive-scale simulations (5000+ bodies). This class manages the 
+ * bridge between high-frequency physics events and Java game logic.
  * 
- * To ensure maximum performance during the physics simulation step, this class operates primarily 
- * on native data structures. Interaction events are queued in a thread-safe native buffer 
- * and flushed to Java once per tick to eliminate JNI overhead and prevent thread contention.
+ * Performance Architecture:
+ * 1. Sharded Ringbuffers: Eliminates std::vector reallocations by using fixed-size buffers.
+ * 2. Lossy Deduplication: Uses a hash-based frame-tag system to filter redundant events in O(1).
+ * 3. Atomic Rate Limiting: Uses lock-free counters to enforce tick budgets for particles/breaks.
  */
 class TerrainInteraction {
 public:
     /**
-     * @brief Configuration parameters for the interaction system.
+     * @brief Global configuration parameters for the interaction system.
      */
     struct Config {
-        float massBaseline = 100.0f;              ///< Reference mass (kg) for scaling impact intensity.
-        float massMinScale = 0.1f;               ///< Minimum multiplier for mass-based force scaling.
-        float massMaxScale = 2.0f;               ///< Maximum multiplier for mass-based force scaling.
+        float massBaseline = 100.0f;              ///< Reference mass for scaling impact intensity.
+        float massMinScale = 0.1f;               ///< Lower bound for mass-based multipliers.
+        float massMaxScale = 2.0f;               ///< Upper bound for mass-based multipliers.
 
-        float transformMinForce = 200.0f;         ///< Minimum force required to trigger block transformation.
-        float transformMinSlidingSpeed = 1.0f;    ///< Minimum speed (m/s) for friction-based transformation.
-        float transformMinFriction = 0.3f;        ///< Minimum friction coefficient required for transformation.
+        float transformMinForce = 200.0f;         ///< Force required to change terrain state.
+        float transformMinSlidingSpeed = 1.0f;    ///< Speed required for friction-based wear.
+        float transformMinFriction = 0.3f;        ///< Friction coefficient threshold for wear.
 
-        float interactMinForce = 50.0f;           ///< Minimum force required to trigger block interaction (doors/gates).
+        float interactMinForce = 50.0f;           ///< Force required to nudge interactive objects (doors).
 
-        float particleMinVelocity = 0.05f;           ///< Minimum relative velocity to consider any particle effects.
-        float particleImpactEnergyThreshold = 1.0f;  ///< Energy threshold for spawning impact particles.
-        float particleSlidingVelocityThreshold = 0.5f; ///< Minimum speed for sustained sliding particles.
-        float particleSlidingEnergyThreshold = 0.05f; ///< Minimum energy density for sliding particles.
-        float particleSlidingChanceMult = 0.005f;    ///< Probability multiplier for sliding particle emission.
-        float particleSlidingChanceMax = 0.05f;      ///< Upper bound for sliding particle emission probability.
+        float particleMinVelocity = 0.05f;           ///< Minimum speed to consider particle emission.
+        float particleImpactEnergyThreshold = 1.0f;  ///< Energy threshold for impact visuals.
+        float particleSlidingVelocityThreshold = 0.5f; ///< Speed threshold for sliding visuals.
+        float particleSlidingEnergyThreshold = 0.05f; ///< Sustained energy threshold for sliding effects.
+        float particleSlidingChanceMult = 0.005f;    ///< Chance multiplier for stochastic emission.
+        float particleSlidingChanceMax = 0.05f;      ///< Probability cap for sliding particles.
 
         // Rate Limiting (Budgets per tick)
-        int maxParticlesPerTick = 128;   ///< Max sliding particle events per tick.
-        int maxTransformsPerTick = 64;   ///< Max terrain transformations per tick.
-        int maxBreaksPerTick = 256;      ///< Max block breaks per tick.
+        int maxParticlesPerTick = 128;   ///< Max particle events allowed per server tick.
+        int maxTransformsPerTick = 64;   ///< Max terrain transformations allowed per server tick.
+        int maxBreaksPerTick = 256;      ///< Max block destruction events allowed per server tick.
     };
 
     /**
      * @brief Material configuration for interaction behavior.
-     * Maps 1:1 to the Java-side MaterialConfig for JNI transfer (16 bytes).
+     * Maps to the Java MaterialConfig for JNI memory layout compatibility.
      */
     struct MaterialConfig {
-        uint32_t materialId;   ///< Unique material ID.
-        bool isFragile;        ///< Can be broken by force.
-        bool isTransformable;  ///< Can be worn down into dirt.
-        bool spawnsParticles;  ///< Produces friction particles.
-        uint8_t padding1;      ///< Alignment padding.
-        float breakThreshold;  ///< Force threshold for breaking.
-        bool isInteractable;   ///< Can be physically nudged.
-        uint8_t padding2[3];   ///< Alignment padding.
+        uint32_t materialId;   ///< Unique ID of the voxel material.
+        bool isFragile;        ///< Whether the block breaks under force.
+        bool isTransformable;  ///< Whether the block turns into dirt/dust.
+        bool spawnsParticles;  ///< Whether friction produces visual effects.
+        uint8_t padding1;      ///< Memory alignment padding.
+        float breakThreshold;  ///< Force required to shatter the block.
+        bool isInteractable;   ///< Whether the block supports generic interaction events.
+        uint8_t padding2[3];   ///< Memory alignment padding.
     };
 
     /**
-     * @brief Types of interactions that can be triggered.
+     * @brief Types of interactions reported back to Java.
      */
     enum class InteractionType : uint32_t {
-        PARTICLE_SLIDE = 0,   ///< Triggers visual particles based on sliding friction.
-        BLOCK_BREAK = 1,      ///< Triggers destruction of fragile blocks (Ice, Glass, Leaves).
-        BLOCK_TRANSFORM = 2,  ///< Triggers terrain state modification (e.g., Grass to Dirt).
-        BLOCK_INTERACT = 3    ///< Triggers physical interaction with blocks (Doors, Gates).
+        PARTICLE_SLIDE = 0,   ///< Visual particles from friction.
+        BLOCK_BREAK = 1,      ///< Structural destruction.
+        BLOCK_TRANSFORM = 2,  ///< State change (e.g., Grass -> Dirt).
+        BLOCK_INTERACT = 3    ///< Logic trigger (e.g., Door Nudge).
     };
- 
+
     /**
-     * @brief Represents a single interaction event queued for processing.
-     * Total size: 48 bytes (aligned).
+     * @brief Represents a single interaction event.
+     * Fixed size of 48 bytes for cache-friendly transfers.
      */
     struct InteractionEvent {
-        InteractionType type; ///< Type of interaction.
-        uint32_t materialId;  ///< Material ID of the terrain block.
-        float x1, y1, z1;     ///< Position 1 (usually block center).
-        float x2, y2, z2;     ///< Position 2 (usually contact point or normal).
-        float strength;       ///< Physical intensity (force/speed) of the event.
-        uint32_t subShapeId;  ///< Jolt sub-shape ID for precise block identification.
-        uint32_t terrainBodyId; ///< ID of the terrain body involved.
-        uint32_t padding;     ///< Alignment padding.
+        InteractionType type;   ///< Interaction category.
+        uint32_t materialId;    ///< Source material ID.
+        float x1, y1, z1;       ///< Event position (World Space).
+        float x2, y2, z2;       ///< Secondary vector (Normal or point).
+        float strength;         ///< Intensity/Force of the impact.
+        uint32_t subShapeId;    ///< Jolt sub-shape index.
+        uint32_t terrainBodyId; ///< Source body ID.
+        uint32_t padding;       ///< Alignment padding.
     };
 
-    /**
-     * @brief Global configuration instance.
-     */
+    /// Global configuration instance.
     static Config s_Config;
 
-    /**
-     * @brief Updates the global interaction configuration.
-     */
+    /** @brief Updates the interaction configuration. */
     static void SetConfig(const Config& config) { s_Config = config; }
 
-    /**
-     * @brief Registers material properties for fast lookup.
-     * 
-     * @param configs Array of material configurations.
-     * @param count Number of configurations in the array.
-     */
+    /** @brief Registers material behavior data. */
     static void RegisterMaterials(const MaterialConfig* configs, int count);
 
-    /**
-     * @brief Initializes JNI class identifiers for the interaction system.
-     * 
-     * Must be called once before any interactions occur, typically when the 
-     * physics world is initialized.
-     * 
-     * @param env The JNI Environment pointer.
-     */
+    /** @brief Bootstraps JNI references. */
     static void InitJNI(JNIEnv* env);
 
     /**
-     * @brief Core processing logic for physical contact.
+     * @brief Processes a physics contact and triggers interaction logic.
      * 
-     * Analyzes a contact manifold between a terrain body and another object, 
-     * calculates forces and velocities, and queues interaction events.
-     * 
-     * @param world Global world object reference.
-     * @param ps The Jolt physics system.
-     * @param terrainBody The body identified as terrain.
-     * @param otherBody The other body in the contact.
-     * @param subShapeId The specific sub-shape ID of the terrain.
-     * @param manifold The contact manifold data.
-     * @param settings The contact settings (friction/restitution).
-     * @param terrainIsBody1 Whether the terrain body is the first body in the manifold.
-     * @param isPersisted Whether this is a new or persisting contact.
+     * @param world Global Java world reference.
+     * @param ps Jolt Physics System.
+     * @param terrainBody The terrain body involved.
+     * @param otherBody The impacting body.
+     * @param subShapeId The specific block sub-shape.
+     * @param manifold Collision manifold data.
+     * @param settings Collision settings.
+     * @param terrainIsBody1 Manifold ordering flag.
+     * @param isPersisted Whether this contact is continuing from last frame.
      */
     static void ProcessInteraction(jobject world, const JPH::PhysicsSystem* ps, const JPH::Body& terrainBody, const JPH::Body& otherBody, JPH::SubShapeID subShapeId, const JPH::ContactManifold& manifold, JPH::ContactSettings& settings, bool terrainIsBody1, bool isPersisted);
 
     /**
-     * @brief Transfers asynchronous events back to Java.
+     * @brief Flushes the native event queue into a Java DirectBuffer.
      * 
-     * @param outBuffer Destination buffer for event data.
-     * @param maxCount Maximum number of events to transfer.
-     * @return The number of events actually transferred.
+     * @param outBuffer Destination buffer.
+     * @param maxCount Max events to transfer.
+     * @return int Number of events written.
      */
     static int FlushEvents(InteractionEvent* outBuffer, int maxCount);
 
 private:
-    /** @brief Internal helper to push events into the thread-safe queue. */
+    /** @brief Internal helper to push events into the sharded buffers. */
     static void QueueEvent(const InteractionEvent& event);
 
-    /** @brief Internal representation of material properties for O(1) lookups. */
+    /** @brief Internal representation of material properties. */
     struct InternalMaterialProps {
         bool isFragile = false;
         bool isTransformable = false;
@@ -170,32 +147,79 @@ private:
         float breakThreshold = 0.0f;
     };
 
-    static std::vector<InternalMaterialProps> s_MaterialProps;
+    /// Fast lookup table for material properties (65536 slots).
+    static std::array<InternalMaterialProps, 65536> s_MaterialProps;
+    
+    /// Cached JNI handler class.
     static jclass s_HandlerClass;
-    static jmethodID s_BreakMethod;
-    static jmethodID s_TransformMethod;
-    static jmethodID s_ParticleMethod;
-    static jmethodID s_InteractMethod;
 
-    static std::vector<InteractionEvent> s_EventQueue;
-    static std::mutex s_QueueMutex;
+    /// Global atomic counters for rate limiting.
     static std::atomic<int> s_EventCount;
-
-    /** Rate limiting counters (reset per tick in FlushEvents). */
     static std::atomic<int> s_TickBreaks;
     static std::atomic<int> s_TickTransforms;
     static std::atomic<int> s_TickParticles;
 
-    /** 
-     * Sharded spatial deduplication to eliminate lock contention.
+    /**
+     * @brief Number of shards to minimize lock contention.
      */
-    static constexpr int NUM_SHARDS = 16;
-    struct Shard {
-        std::mutex mutex;
-        std::unordered_set<uint64_t> deduplicator;
-        std::mutex queueMutex;
-        std::vector<InteractionEvent> queue;
+    static constexpr int NUM_SHARDS = 32;
+
+    /** @brief Size of the fixed-size event ringbuffer per shard. */
+    static constexpr int QUEUE_SIZE_PER_SHARD = 512;
+
+    /** @brief Size of the lossy deduplication table per shard. */
+    static constexpr int DEDUP_SIZE_PER_SHARD = 1024;
+
+    /**
+     * @brief A sharded event buffer.
+     * Aligned to 64 bytes to prevent "False Sharing" between physics worker threads.
+     */
+    struct alignas(64) Shard {
+        std::atomic_flag lock = ATOMIC_FLAG_INIT; ///< Atomic spinlock.
+        
+        /// Lossy Deduplicator: Stores keys to prevent redundant events in the same frame.
+        std::array<uint64_t, DEDUP_SIZE_PER_SHARD> dedupTable = {};
+        
+        /// Fixed-size Ringbuffer for InteractionEvents.
+        std::array<InteractionEvent, QUEUE_SIZE_PER_SHARD> queue = {};
+        uint32_t head = 0; ///< Read pointer.
+        uint32_t tail = 0; ///< Write pointer.
+
+        /// Spin-locks the shard.
+        inline void Lock() { while (lock.test_and_set(std::memory_order_acquire)); }
+        /// Unlocks the shard.
+        inline void Unlock() { lock.clear(std::memory_order_release); }
+        
+        /**
+         * @brief Checks if an event key is already in the table for this tick.
+         * 
+         * @param key Unique event key.
+         * @return true if the event is NEW and should be queued.
+         * @return false if the event is DEDUPLICATED.
+         */
+        bool TryDeduplicate(uint64_t key) {
+            uint32_t idx = key % DEDUP_SIZE_PER_SHARD;
+            if (dedupTable[idx] == key) return false;
+            dedupTable[idx] = key;
+            return true;
+        }
+
+        /**
+         * @brief Pushes an event into the ringbuffer.
+         * 
+         * @param ev The event data.
+         * @return true on success, false if the buffer is FULL.
+         */
+        bool Enqueue(const InteractionEvent& ev) {
+            uint32_t next = (tail + 1) % QUEUE_SIZE_PER_SHARD;
+            if (next == head) return false; // Overflow (Load Shedding)
+            queue[tail] = ev;
+            tail = next;
+            return true;
+        }
     };
+
+    /// Sharded storage instances.
     static Shard s_Shards[NUM_SHARDS];
 };
 
