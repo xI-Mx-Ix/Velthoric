@@ -8,7 +8,7 @@
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Collision/ContactListener.h>
 #include <jni.h>
-#include "../BodyPairIgnoreHandler/BodyPairIgnoreHandler.h"
+#include "../BodyPairIgnore/BodyPairIgnoreHandler.h"
 #include "../Terrain/Contact/TerrainContactHandler.h"
 
 JPH_NAMESPACE_BEGIN
