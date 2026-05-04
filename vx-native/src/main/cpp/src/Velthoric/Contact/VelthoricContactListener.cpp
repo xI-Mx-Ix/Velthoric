@@ -4,8 +4,8 @@
  *
  * Author xI-Mx-Ix
  */
-#include "VelthoricContactListener.h"
-#include "../Terrain/Interaction/TerrainInteraction.h"
+#include "Velthoric/Contact/VelthoricContactListener.h"
+#include "Velthoric/Terrain/Interaction/TerrainInteraction.h"
 #include <Jolt/Physics/PhysicsSystem.h>
 
 namespace Velthoric {

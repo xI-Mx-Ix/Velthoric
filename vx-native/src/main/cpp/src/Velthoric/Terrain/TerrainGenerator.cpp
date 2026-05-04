@@ -4,7 +4,7 @@
  *
  * Author: xI-Mx-Ix
  */
-#include "TerrainGenerator.h"
+#include "Velthoric/Terrain/TerrainGenerator.h"
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/Body.h>

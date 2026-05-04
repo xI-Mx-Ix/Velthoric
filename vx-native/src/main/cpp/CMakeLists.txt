@@ -120,6 +120,7 @@ target_include_directories(vxnative PRIVATE
     ${JNI_INCLUDE_DIRS}
     ${INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/generated
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 target_compile_definitions(vxnative PRIVATE 

@@ -4,8 +4,8 @@
  *
  * Author: xI-Mx-Ix
  */
-#include "TerrainInteraction.h"
-#include "../TerrainGenerator.h"
+#include "Velthoric/Terrain/Interaction/TerrainInteraction.h"
+#include "Velthoric/Terrain/TerrainGenerator.h"
 #include <Jolt/Physics/Collision/PhysicsMaterial.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>

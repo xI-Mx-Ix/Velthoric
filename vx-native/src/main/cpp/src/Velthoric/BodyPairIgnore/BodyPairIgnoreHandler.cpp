@@ -4,7 +4,7 @@
  *
  * Author xI-Mx-Ix
  */
-#include "BodyPairIgnoreHandler.h"
+#include "Velthoric/BodyPairIgnore/BodyPairIgnoreHandler.h"
 #include <algorithm>
 
 namespace Velthoric {
