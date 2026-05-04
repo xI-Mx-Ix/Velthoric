@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  *
- * Author xI-Mx-Ix
+ * Author: xI-Mx-Ix
  */
 #pragma once
 #include <Jolt/Jolt.h>

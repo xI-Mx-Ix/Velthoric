@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  *
- * Author xI-Mx-Ix
+ * Author: xI-Mx-Ix
  */
 #include "Velthoric/Contact/VelthoricContactListener.h"
 #include "Velthoric/Terrain/Interaction/TerrainInteraction.h"

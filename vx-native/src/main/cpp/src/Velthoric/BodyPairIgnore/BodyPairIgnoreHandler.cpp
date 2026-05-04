@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  *
- * Author xI-Mx-Ix
+ * Author: xI-Mx-Ix
  */
 #include "Velthoric/BodyPairIgnore/BodyPairIgnoreHandler.h"
 #include <algorithm>
