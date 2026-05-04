@@ -154,7 +154,7 @@ public class VxSynchronizedData {
      * @param body The body instance.
      */
     public void readEntries(VxByteBuf buf, VxBody body) {
-        while (true) {
+        while (buf.isReadable()) {
             int id = buf.readVarInt();
             if (id == 255) { // End marker
                 break;
@@ -163,6 +163,9 @@ public class VxSynchronizedData {
             if (entry != null) {
                 this.readEntryInternal(buf, entry);
                 this.dispatchUpdate(body, entry.getAccessor());
+            } else {
+                VxMainClass.LOGGER.error("Unknown synchronized data ID {} for body type {}. Protocol corruption likely.", id, body.getType().getTypeId());
+                break; // Cannot skip unknown data length, stop reading to prevent further corruption
             }
         }
     }
@@ -178,7 +181,7 @@ public class VxSynchronizedData {
      */
     @SuppressWarnings("unchecked")
     public void readEntriesC2S(VxByteBuf buf, VxBody body, ServerPlayer player) {
-        while (true) {
+        while (buf.isReadable()) {
             int id = buf.readVarInt();
             if (id == 255) {
                 break;
@@ -202,7 +205,8 @@ public class VxSynchronizedData {
                             player.getName().getString(), id, body.getPhysicsId());
                 }
             } else {
-                throw new IllegalStateException("Unknown data ID received in C2S packet: " + id);
+                VxMainClass.LOGGER.error("Unknown C2S synchronized data ID {} from player {} for body type {}.", id, player.getName().getString(), body.getType().getTypeId());
+                break;
             }
         }
 

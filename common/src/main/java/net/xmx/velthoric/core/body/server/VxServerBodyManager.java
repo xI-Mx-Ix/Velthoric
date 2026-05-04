@@ -272,6 +272,14 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
             c.rotY[index] = transform.getRotation().getY();
             c.rotZ[index] = transform.getRotation().getZ();
             c.rotW[index] = transform.getRotation().getW();
+
+            // Update spatial tracking with the real position
+            long oldKey = c.chunkKey[index];
+            long newKey = VxSpatialManager.calculateChunkKey(c.posX[index], c.posZ[index]);
+            if (oldKey != newKey) {
+                c.chunkKey[index] = newKey;
+                spatialManager.move(body, oldKey, newKey);
+            }
         }
 
         // Retrieve properties from DataStore that were potentially modified by the configurator
@@ -469,6 +477,11 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
                 if (behavior.getId().isSet(c.behaviorBits[index])) {
                     behavior.onAttached(index, body);
                 }
+            }
+
+            // Sync initial dirty state from the body's synchronized data container to the SoA store
+            if (body.getSynchronizedData().isDirty()) {
+                c.isCustomDataDirty[index] = true;
             }
 
             // Initialize spatial tracking

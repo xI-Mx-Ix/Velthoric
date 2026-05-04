@@ -156,6 +156,7 @@ public class VxSyncBehavior implements VxBehavior {
                     byte[] payload = new byte[serializationBuffer.readableBytes()];
                     serializationBuffer.readBytes(payload);
                     batchUpdates.put(netId, payload);
+                    body.getSynchronizedData().clearDirty();
                 }
                 it.remove();
             }
@@ -268,6 +269,7 @@ public class VxSyncBehavior implements VxBehavior {
                     playerUpdateMap.computeIfAbsent(player, p -> new Object2ObjectArrayMap<>())
                             .put(netId, payload)
                 );
+                body.getSynchronizedData().clearDirty();
             }
         }
 
