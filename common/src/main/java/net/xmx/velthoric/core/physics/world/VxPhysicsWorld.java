@@ -16,6 +16,7 @@ import net.xmx.velthoric.core.ragdoll.VxRagdollManager;
 import net.xmx.velthoric.core.terrain.VxTerrainSystem;
 import net.xmx.velthoric.core.terrain.interaction.VxTerrainInteractionHandler;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.jni.BodyPairIgnoreManager;
 import net.xmx.velthoric.jni.TerrainContactListener;
 import net.xmx.velthoric.util.VxFrameTimer;
 import net.xmx.velthoric.util.VxPauseUtil;
@@ -69,6 +70,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private PhysicsSystem physicsSystem;
     private JobSystemThreadPool jobSystem;
     private TempAllocator tempAllocator;
+    private BodyPairIgnoreManager bodyPairIgnoreManager;
     private TerrainContactListener terrainContactListener;
 
     private final Queue<Runnable> commandQueue = new ConcurrentLinkedQueue<>();
@@ -259,9 +261,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         }
 
         this.physicsSystem.setGravity(0f, gravityY, 0f);
-        
+
+        // Initialize the body pair ignore manager
+        this.bodyPairIgnoreManager = new BodyPairIgnoreManager();
+
         // Attach the native contact listener
-        this.terrainContactListener = new TerrainContactListener(this.physicsSystem.va(), this);
+        this.terrainContactListener = new TerrainContactListener(this.physicsSystem.va(), this, this.bodyPairIgnoreManager);
 
         this.physicsSystem.optimizeBroadPhase();
     }
@@ -282,6 +287,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         if (this.terrainContactListener != null) {
             this.terrainContactListener.close();
             this.terrainContactListener = null;
+        }
+        if (this.bodyPairIgnoreManager != null) {
+            this.bodyPairIgnoreManager.close();
+            this.bodyPairIgnoreManager = null;
         }
         if (this.physicsSystem != null) {
             this.physicsSystem.close();
@@ -349,6 +358,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
     public VxFrameTimer getPhysicsFrameTimer() {
         return this.physicsFrameTimer;
+    }
+
+    public BodyPairIgnoreManager getBodyPairIgnoreManager() {
+        return this.bodyPairIgnoreManager;
     }
 
     public long getPhysicsSystemPtr() {

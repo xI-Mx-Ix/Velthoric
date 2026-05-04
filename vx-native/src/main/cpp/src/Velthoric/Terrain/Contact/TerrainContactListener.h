@@ -10,6 +10,7 @@
 #include <mutex>
 #include <unordered_map>
 #include <jni.h>
+#include "../../BodyPairIgnoreManager/BodyPairIgnoreManager.h"
 
 JPH_NAMESPACE_BEGIN
 class PhysicsSystem;
@@ -36,6 +37,20 @@ public:
 
     virtual ~ContactListener() override;
 
+    /**
+     * @brief Sets the body pair ignore manager.
+     * 
+     * @param inManager Pointer to the ignore manager (can be null).
+     */
+    void SetBodyPairIgnoreManager(BodyPairIgnoreManager* inManager);
+
+    /**
+     * @brief Gets the body pair ignore manager.
+     * 
+     * @return Pointer to the ignore manager (may be null).
+     */
+    BodyPairIgnoreManager* GetBodyPairIgnoreManager() const;
+
     /** @brief Broadphase validation filter. */
     virtual JPH::ValidateResult OnContactValidate(const JPH::Body &inBody1, const JPH::Body &inBody2, JPH::RVec3Arg inBaseOffset, const JPH::CollideShapeResult &inCollisionResult) override;
 
@@ -51,6 +66,7 @@ public:
 private:
     JPH::PhysicsSystem* m_PhysicsSystem;
     jobject m_WorldRef;
+    BodyPairIgnoreManager* m_BodyPairIgnoreManager;
 
     /// Cached material properties for a contact pair, avoiding repeated BVH lookups.
     struct CachedContact {

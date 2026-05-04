@@ -420,11 +420,16 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         // 6. Cleanup Constraints
         world.getConstraintManager().removeConstraintsForBody(body.getPhysicsId());
 
-        // 6. Destroy Native Jolt Body
+        // 7. Destroy Native Jolt Body
         // This stops the actual physics simulation for this object.
         VxJoltBridge.INSTANCE.destroyJoltBody(world, body.getBodyId());
 
-        // 7. Cleanup DataStore and ID Pools
+        // 8. Notify body pair ignore manager to clean up any ignored pairs involving this body
+        if (body.getBodyId() != 0) {
+            world.getBodyPairIgnoreManager().onBodyRemoved(body.getBodyId());
+        }
+
+        // 9. Cleanup DataStore and ID Pools
         int netId = body.getNetworkId();
         if (netId != -1) {
             dataStore.unregisterNetworkId(netId);

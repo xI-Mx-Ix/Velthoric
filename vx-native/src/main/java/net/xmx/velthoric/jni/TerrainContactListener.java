@@ -26,13 +26,17 @@ public class TerrainContactListener extends NativeObject {
     /**
      * Constructs a new native ContactListener and attaches it to the specified Jolt PhysicsSystem.
      *
-     * @param physicsSystemPtr The native virtual address of the {@code JPH::PhysicsSystem}.
-     *                         Must be a valid, initialized pointer.
-     * @param world            The Java {@code VxPhysicsWorld} instance this listener belongs to.
+     * @param physicsSystemPtr       The native virtual address of the {@code JPH::PhysicsSystem}.
+     *                               Must be a valid, initialized pointer.
+     * @param world                  The Java {@code VxPhysicsWorld} instance this listener belongs to.
+     * @param bodyPairIgnoreManager  The manager for ignored body pairs.
      */
-    public TerrainContactListener(long physicsSystemPtr, Object world) {
+    public TerrainContactListener(long physicsSystemPtr, Object world, BodyPairIgnoreManager bodyPairIgnoreManager) {
         super(nAttachContactListener(physicsSystemPtr, world));
         this.physicsSystemPtr = physicsSystemPtr;
+
+        // Automatically link the ignore manager to the native listener
+        nSetBodyPairIgnoreManager(va(), bodyPairIgnoreManager.va());
     }
 
     /**
@@ -62,4 +66,12 @@ public class TerrainContactListener extends NativeObject {
      * @param listenerPtr      The native virtual address of the ContactListener to destroy.
      */
     private static native void nDetachContactListener(long physicsSystemPtr, long listenerPtr);
+
+    /**
+     * Natively sets the body pair ignore manager on the ContactListener.
+     *
+     * @param listenerPtr The native virtual address of the ContactListener.
+     * @param managerPtr  The native virtual address of the BodyPairIgnoreManager (0 to clear).
+     */
+    private static native void nSetBodyPairIgnoreManager(long listenerPtr, long managerPtr);
 }

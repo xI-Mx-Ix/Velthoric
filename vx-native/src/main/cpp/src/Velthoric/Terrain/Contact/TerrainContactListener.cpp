@@ -25,7 +25,9 @@
 
 namespace Velthoric {
 
-ContactListener::ContactListener(JPH::PhysicsSystem* inPhysicsSystem, jobject inWorldRef) : m_PhysicsSystem(inPhysicsSystem) {
+ContactListener::ContactListener(JPH::PhysicsSystem* inPhysicsSystem, jobject inWorldRef) 
+    : m_PhysicsSystem(inPhysicsSystem)
+    , m_BodyPairIgnoreManager(nullptr) {
     JNIEnv* env = nullptr;
     JavaVM* vm = nullptr;
     jint res = JNI_GetCreatedJavaVMs(&vm, 1, nullptr);
@@ -48,9 +50,38 @@ ContactListener::~ContactListener() {
 }
 
 /**
- * @brief Broadphase validation filter. Accepts all contacts.
+ * @brief Sets the manager for ignored body pairs.
+ * 
+ * When a manager is set, the listener will consult it during OnContactValidate
+ * to filter out specific collisions.
+ * 
+ * @param inManager Pointer to the manager (can be null to disable filtering).
  */
-JPH::ValidateResult ContactListener::OnContactValidate(const JPH::Body&, const JPH::Body&, JPH::RVec3Arg, const JPH::CollideShapeResult&) {
+void ContactListener::SetBodyPairIgnoreManager(BodyPairIgnoreManager* inManager) {
+    m_BodyPairIgnoreManager = inManager;
+}
+
+/**
+ * @brief Retrieves the current body pair ignore manager.
+ * 
+ * @return Pointer to the manager, or nullptr if none is set.
+ */
+BodyPairIgnoreManager* ContactListener::GetBodyPairIgnoreManager() const {
+    return m_BodyPairIgnoreManager;
+}
+
+/**
+ * @brief Broadphase validation filter. Checks if the pair should be ignored.
+ */
+JPH::ValidateResult ContactListener::OnContactValidate(const JPH::Body& inBody1, const JPH::Body& inBody2, JPH::RVec3Arg, const JPH::CollideShapeResult&) {
+    // Optimized single-call check that combines all fast paths
+    if (m_BodyPairIgnoreManager) {
+        uint32_t bodyId1 = inBody1.GetID().GetIndexAndSequenceNumber();
+        uint32_t bodyId2 = inBody2.GetID().GetIndexAndSequenceNumber();
+        if (m_BodyPairIgnoreManager->ShouldIgnorePair(bodyId1, bodyId2)) {
+            return JPH::ValidateResult::RejectContact;
+        }
+    }
     return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
 }
 
@@ -192,6 +223,25 @@ Java_net_xmx_velthoric_jni_TerrainContactListener_nAttachContactListener(JNIEnv 
 
     ps->SetContactListener(listener);
     return reinterpret_cast<jlong>(listener);
+}
+
+/**
+ * @brief JNI Bridge: Sets the body pair ignore manager on the ContactListener.
+ * 
+ * @param env The JNI Environment pointer.
+ * @param clazz The calling Java class.
+ * @param listenerPtr The native virtual address of the ContactListener.
+ * @param managerPtr The native virtual address of the BodyPairIgnoreManager (0 to clear).
+ */
+extern "C" JNIEXPORT void JNICALL
+Java_net_xmx_velthoric_jni_TerrainContactListener_nSetBodyPairIgnoreManager(JNIEnv *env, jclass clazz, jlong listenerPtr, jlong managerPtr) {
+    (void)env;
+    (void)clazz;
+    Velthoric::ContactListener* listener = reinterpret_cast<Velthoric::ContactListener*>(listenerPtr);
+    Velthoric::BodyPairIgnoreManager* manager = reinterpret_cast<Velthoric::BodyPairIgnoreManager*>(managerPtr);
+    if (listener) {
+        listener->SetBodyPairIgnoreManager(manager);
+    }
 }
 
 /**

@@ -38,6 +38,7 @@ public final class VxTestCommand {
         registerTest(new SpawnRagdollTest());
         registerTest(new SpawnGhostBoxTest());
         registerTest(new SpawnJengaTest());
+        registerTest(new SpawnBodyPairIgnoreTest());
     }
 
     /**
