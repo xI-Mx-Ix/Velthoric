@@ -205,3 +205,10 @@ processResources.dependsOn 'cmakeBuild'
 jar {
     archiveBaseName.set("vxnative")
 }
+
+clean {
+    delete 'src/main/cpp/build'
+    delete 'src/main/cpp/generated'
+    delete 'src/main/cpp/external'
+    delete 'src/main/cpp/include'
+}
