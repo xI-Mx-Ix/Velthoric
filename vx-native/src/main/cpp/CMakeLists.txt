@@ -144,3 +144,7 @@ set_target_properties(vxnative PROPERTIES
     OUTPUT_NAME "vxnative"
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
 )
+
+if(NOT WIN32)
+    set_target_properties(vxnative PROPERTIES PREFIX "lib")
+endif()

@@ -60,7 +60,16 @@ jobs:
       - name: Prepare Artifact
         run: |
           mkdir -p dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}
-          find vx-native/src/main/cpp/build -name "*.${{ matrix.ext }}" -exec cp {} dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}/vxnative.${{ matrix.ext }} \;
+          
+          if [ "${{ matrix.target_os }}" == "win" ]; then
+            LIB_NAME="vxnative.dll"
+          elif [ "${{ matrix.target_os }}" == "osx" ]; then
+            LIB_NAME="libvxnative.dylib"
+          else
+            LIB_NAME="libvxnative.so"
+          fi
+          
+          find vx-native/src/main/cpp/build -name "*.${{ matrix.ext }}" -exec cp {} dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}/$LIB_NAME \;
         shell: bash
 
       - name: Upload Native

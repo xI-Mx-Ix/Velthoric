@@ -131,7 +131,8 @@ processResources {
         eachFile { fcd ->
             // Filter to only include the main library, ignoring build artifacts or Jolt dependencies
             if (fcd.name.startsWith("vxnative") || fcd.name.startsWith("libvxnative")) {
-                fcd.path = "natives/${osName}/${archFolder}/vxnative" + (osName == "win" ? ".dll" : (osName == "osx" ? ".dylib" : ".so"))
+                def libName = (osName == "win" ? "vxnative.dll" : (osName == "osx" ? "libvxnative.dylib" : "libvxnative.so"))
+                fcd.path = "natives/${osName}/${archFolder}/${libName}"
             } else {
                 fcd.exclude()
             }

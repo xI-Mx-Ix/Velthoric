@@ -72,8 +72,17 @@ jobs:
       - name: Prepare Artifact
         run: |
           mkdir -p dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}
+          
+          if [ "${{ matrix.target_os }}" == "win" ]; then
+            LIB_NAME="vxnative.dll"
+          elif [ "${{ matrix.target_os }}" == "osx" ]; then
+            LIB_NAME="libvxnative.dylib"
+          else
+            LIB_NAME="libvxnative.so"
+          fi
+          
           # Find the library (handles Release/ subfolder in MSVC)
-          find vx-native/src/main/cpp/build -name "*.${{ matrix.ext }}" -exec cp {} dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}/vxnative.${{ matrix.ext }} \;
+          find vx-native/src/main/cpp/build -name "*.${{ matrix.ext }}" -exec cp {} dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}/$LIB_NAME \;
         shell: bash
 
       # Step 7: Upload the binary as an Actions artifact (persists for 1 day)
