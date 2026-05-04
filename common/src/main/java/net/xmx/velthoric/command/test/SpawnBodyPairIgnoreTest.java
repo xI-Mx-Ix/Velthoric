@@ -61,8 +61,8 @@ public final class SpawnBodyPairIgnoreTest implements IVxTestCommand {
      * Logic flow:
      * 1. Retrieves the player's position and the dimension's physics world.
      * 2. Spawns two boxes (bottom and middle).
-     * 3. Registers the IDs of these two boxes in the {@link net.xmx.velthoric.jni.BodyPairIgnoreManager}
-     *    via {@link VxPhysicsWorld#getBodyPairIgnoreManager()}.
+     * 3. Registers the IDs of these two boxes in the {@link net.xmx.velthoric.jni.BodyPairIgnoreHandler}
+     *    via {@link VxPhysicsWorld#getBodyPairIgnoreHandler()}.
      * 4. Spawns a third (top) box to show that normal collisions still work.
      *
      * @param context The command execution context.
@@ -122,7 +122,7 @@ public final class SpawnBodyPairIgnoreTest implements IVxTestCommand {
         }
 
         // Ignore collision between box1 and box2
-        physicsWorld.getBodyPairIgnoreManager().ignorePair(box1.getBodyId(), box2.getBodyId());
+        physicsWorld.getBodyPairIgnoreHandler().ignorePair(box1.getBodyId(), box2.getBodyId());
 
         // Spawn top box (normal collision with both boxes)
         VxTransform transform3 = new VxTransform(

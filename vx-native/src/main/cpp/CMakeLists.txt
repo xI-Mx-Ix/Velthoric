@@ -111,8 +111,9 @@ add_library(vxnative SHARED
     src/Velthoric/PhysicsSync/BatchPhysicsSync.cpp
     src/Velthoric/Terrain/TerrainGenerator.cpp
     src/Velthoric/Terrain/Interaction/TerrainInteraction.cpp
-    src/Velthoric/Terrain/Contact/TerrainContactListener.cpp
-    src/Velthoric/BodyPairIgnoreManager/BodyPairIgnoreManager.cpp
+    src/Velthoric/Contact/VelthoricContactListener.cpp
+    src/Velthoric/Terrain/Contact/TerrainContactHandler.cpp
+    src/Velthoric/BodyPairIgnoreHandler/BodyPairIgnoreHandler.cpp
 )
 
 target_include_directories(vxnative PRIVATE 

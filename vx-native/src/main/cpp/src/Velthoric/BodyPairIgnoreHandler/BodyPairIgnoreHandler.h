@@ -15,7 +15,7 @@
 namespace Velthoric {
 
 /**
- * @brief High-performance manager for ignoring collisions between specific body pairs.
+ * @brief High-performance handler for ignoring collisions between specific body pairs.
  * 
  * This class provides a thread-safe mechanism to ignore collisions between individual
  * body pairs in Jolt Physics. Unlike collision groups, this allows fine-grained control
@@ -28,17 +28,17 @@ namespace Velthoric {
  * Thread-safety is ensured via a mutex, making it safe to call from multiple threads
  * (e.g., from the contact listener and from game logic).
  */
-class BodyPairIgnoreManager {
+class BodyPairIgnoreHandler {
 public:
     /**
-     * @brief Constructs a new BodyPairIgnoreManager.
+     * @brief Constructs a new BodyPairIgnoreHandler.
      */
-    BodyPairIgnoreManager();
+    BodyPairIgnoreHandler();
 
     /**
      * @brief Destructor.
      */
-    ~BodyPairIgnoreManager();
+    ~BodyPairIgnoreHandler();
 
     /**
      * @brief Adds a body pair to the ignore list.
@@ -97,7 +97,7 @@ public:
     size_t Size() const;
 
     /**
-     * @brief Returns whether the manager has any ignored pairs.
+     * @brief Returns whether the handler has any ignored pairs.
      *
      * This is a fast check that can be used to skip contact validation
      * when no pairs are being ignored.
@@ -150,7 +150,7 @@ private:
      * @brief Atomic flag indicating whether there are any ignored pairs.
      * 
      * This allows a lock-free fast path in ShouldIgnorePair when no pairs are 
-     * currently being ignored in the entire manager.
+     * currently being ignored in the entire handler.
      */
     std::atomic<bool> m_HasIgnoredPairs;
 

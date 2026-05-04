@@ -16,8 +16,9 @@ import net.xmx.velthoric.core.ragdoll.VxRagdollManager;
 import net.xmx.velthoric.core.terrain.VxTerrainSystem;
 import net.xmx.velthoric.core.terrain.interaction.VxTerrainInteractionHandler;
 import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.jni.BodyPairIgnoreManager;
-import net.xmx.velthoric.jni.TerrainContactListener;
+import net.xmx.velthoric.jni.BodyPairIgnoreHandler;
+import net.xmx.velthoric.jni.TerrainContactHandler;
+import net.xmx.velthoric.jni.VelthoricContactListener;
 import net.xmx.velthoric.util.VxFrameTimer;
 import net.xmx.velthoric.util.VxPauseUtil;
 import org.jetbrains.annotations.NotNull;
@@ -179,12 +180,17 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     /**
      * Manages ignored body pairs for collision filtering across the entire world.
      */
-    private BodyPairIgnoreManager bodyPairIgnoreManager;
+    private BodyPairIgnoreHandler bodyPairIgnoreHandler;
+
+    /**
+     * Specialized handler for terrain-specific collision logic.
+     */
+    private TerrainContactHandler terrainContactHandler;
 
     /**
      * Native listener for contact events, handling terrain interactions and collision filtering.
      */
-    private TerrainContactListener terrainContactListener;
+    private VelthoricContactListener contactListener;
 
     /**
      * A thread-safe queue of commands to be executed on the physics thread.
@@ -452,11 +458,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
         this.physicsSystem.setGravity(0f, gravityY, 0f);
 
-        // Initialize the body pair ignore manager
-        this.bodyPairIgnoreManager = new BodyPairIgnoreManager();
+        // Initialize the contact handlers
+        this.bodyPairIgnoreHandler = new BodyPairIgnoreHandler();
+        this.terrainContactHandler = new TerrainContactHandler(this.physicsSystem.va(), this);
 
-        // Attach the native contact listener
-        this.terrainContactListener = new TerrainContactListener(this.physicsSystem.va(), this, this.bodyPairIgnoreManager);
+        // Attach the native contact listener dispatcher and inject handlers
+        this.contactListener = new VelthoricContactListener(this.physicsSystem.va(), this, this.bodyPairIgnoreHandler, this.terrainContactHandler);
 
         this.physicsSystem.optimizeBroadPhase();
     }
@@ -480,13 +487,17 @@ public final class VxPhysicsWorld implements Runnable, Executor {
      * Releases all native Jolt resources and clears the command queue.
      */
     private void cleanupJolt() {
-        if (this.terrainContactListener != null) {
-            this.terrainContactListener.close();
-            this.terrainContactListener = null;
+        if (this.contactListener != null) {
+            this.contactListener.close();
+            this.contactListener = null;
         }
-        if (this.bodyPairIgnoreManager != null) {
-            this.bodyPairIgnoreManager.close();
-            this.bodyPairIgnoreManager = null;
+        if (this.bodyPairIgnoreHandler != null) {
+            this.bodyPairIgnoreHandler.close();
+            this.bodyPairIgnoreHandler = null;
+        }
+        if (this.terrainContactHandler != null) {
+            this.terrainContactHandler.close();
+            this.terrainContactHandler = null;
         }
         if (this.physicsSystem != null) {
             this.physicsSystem.close();
@@ -598,10 +609,17 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     /**
-     * @return The manager for ignored body pairs in this world.
+     * @return The handler for ignored body pairs in this world.
      */
-    public BodyPairIgnoreManager getBodyPairIgnoreManager() {
-        return this.bodyPairIgnoreManager;
+    public BodyPairIgnoreHandler getBodyPairIgnoreHandler() {
+        return this.bodyPairIgnoreHandler;
+    }
+
+    /**
+     * @return The handler for terrain contact logic in this world.
+     */
+    public TerrainContactHandler getTerrainContactHandler() {
+        return this.terrainContactHandler;
     }
 
     /**

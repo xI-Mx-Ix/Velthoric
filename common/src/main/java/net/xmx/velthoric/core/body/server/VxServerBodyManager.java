@@ -426,7 +426,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
 
         // 8. Notify body pair ignore manager to clean up any ignored pairs involving this body
         if (body.getBodyId() != 0) {
-            world.getBodyPairIgnoreManager().onBodyRemoved(body.getBodyId());
+            world.getBodyPairIgnoreHandler().onBodyRemoved(body.getBodyId());
         }
 
         // 9. Cleanup DataStore and ID Pools
