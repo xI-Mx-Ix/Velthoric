@@ -69,8 +69,9 @@ public class VxTerrainMaterialLoader extends SimpleJsonResourceReloadListener {
                         boolean spawnsParticles = !props.has("particles") || props.get("particles").getAsBoolean();
                         float breakThreshold = props.has("break_threshold") ? props.get("break_threshold").getAsFloat() : 5000.0f;
                         boolean isInteractable = props.has("interactable") && props.get("interactable").getAsBoolean();
+                        float interactThreshold = props.has("interact_threshold") ? props.get("interact_threshold").getAsFloat() : 50.0f;
 
-                        VxTerrainMaterial.register(blockId, friction, restitution, weight, isFragile, transformTo, spawnsParticles, breakThreshold, isInteractable);
+                        VxTerrainMaterial.register(blockId, friction, restitution, weight, isFragile, transformTo, spawnsParticles, breakThreshold, isInteractable, interactThreshold);
                         loaded++;
                     }
                 }

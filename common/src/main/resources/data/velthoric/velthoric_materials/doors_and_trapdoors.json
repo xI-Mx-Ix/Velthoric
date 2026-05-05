@@ -4,97 +4,113 @@
       "friction": 0.595,
       "restitution": 0.099,
       "weight": 39.4,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:acacia_trapdoor": {
       "friction": 0.629,
       "restitution": 0.105,
       "weight": 20.14,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:bamboo_door": {
       "friction": 0.577,
       "restitution": 0.096,
       "weight": 40.31,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:bamboo_trapdoor": {
       "friction": 0.572,
       "restitution": 0.095,
       "weight": 20.26,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:birch_door": {
       "friction": 0.618,
       "restitution": 0.103,
       "weight": 39.49,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:birch_trapdoor": {
       "friction": 0.626,
       "restitution": 0.104,
       "weight": 20.33,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:cherry_door": {
       "friction": 0.591,
       "restitution": 0.098,
       "weight": 39.76,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:cherry_trapdoor": {
       "friction": 0.598,
       "restitution": 0.1,
       "weight": 19.96,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:copper_door": {
       "friction": 0.428,
       "restitution": 0.19,
       "weight": 39.92,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:copper_trapdoor": {
       "friction": 0.449,
       "restitution": 0.2,
       "weight": 19.89,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:crimson_door": {
       "friction": 0.779,
       "restitution": 0.049,
       "weight": 40.39,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:crimson_trapdoor": {
       "friction": 0.763,
       "restitution": 0.048,
       "weight": 19.61,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:dark_oak_door": {
       "friction": 0.582,
       "restitution": 0.097,
       "weight": 40.19,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:dark_oak_trapdoor": {
       "friction": 0.586,
       "restitution": 0.098,
       "weight": 20.22,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:exposed_copper_door": {
       "friction": 0.451,
       "restitution": 0.201,
       "weight": 39.95,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:exposed_copper_trapdoor": {
       "friction": 0.446,
       "restitution": 0.198,
       "weight": 20.01,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:iron_door": {
       "friction": 0.48,
@@ -110,133 +126,155 @@
       "friction": 0.623,
       "restitution": 0.104,
       "weight": 39.82,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:jungle_trapdoor": {
       "friction": 0.615,
       "restitution": 0.102,
       "weight": 19.91,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:mangrove_door": {
       "friction": 0.571,
       "restitution": 0.095,
       "weight": 40.27,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:mangrove_trapdoor": {
       "friction": 0.594,
       "restitution": 0.099,
       "weight": 20.23,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:oak_door": {
       "friction": 0.6,
       "restitution": 0.1,
       "weight": 39.32,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:oak_trapdoor": {
       "friction": 0.622,
       "restitution": 0.104,
       "weight": 20.24,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:oxidized_copper_door": {
       "friction": 0.471,
       "restitution": 0.209,
       "weight": 40.21,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:oxidized_copper_trapdoor": {
       "friction": 0.447,
       "restitution": 0.199,
       "weight": 20.02,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:spruce_door": {
       "friction": 0.6,
       "restitution": 0.1,
       "weight": 39.79,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:spruce_trapdoor": {
       "friction": 0.596,
       "restitution": 0.099,
       "weight": 19.71,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:warped_door": {
       "friction": 0.762,
       "restitution": 0.048,
       "weight": 39.47,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:warped_trapdoor": {
       "friction": 0.792,
       "restitution": 0.05,
       "weight": 19.97,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:waxed_copper_door": {
       "friction": 0.458,
       "restitution": 0.204,
       "weight": 39.51,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:waxed_copper_trapdoor": {
       "friction": 0.443,
       "restitution": 0.197,
       "weight": 20.01,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:waxed_exposed_copper_door": {
       "friction": 0.448,
       "restitution": 0.199,
       "weight": 40.01,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:waxed_exposed_copper_trapdoor": {
       "friction": 0.433,
       "restitution": 0.193,
       "weight": 20.19,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:waxed_oxidized_copper_door": {
       "friction": 0.454,
       "restitution": 0.202,
       "weight": 40.74,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:waxed_oxidized_copper_trapdoor": {
       "friction": 0.467,
       "restitution": 0.208,
       "weight": 19.7,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:waxed_weathered_copper_door": {
       "friction": 0.452,
       "restitution": 0.201,
       "weight": 39.23,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:waxed_weathered_copper_trapdoor": {
       "friction": 0.449,
       "restitution": 0.2,
       "weight": 20.29,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:weathered_copper_door": {
       "friction": 0.429,
       "restitution": 0.191,
       "weight": 39.92,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     },
     "minecraft:weathered_copper_trapdoor": {
       "friction": 0.456,
       "restitution": 0.203,
       "weight": 19.76,
-      "interactable": true
+      "interactable": true,
+      "interact_threshold": 500.0
     }
   }
 }

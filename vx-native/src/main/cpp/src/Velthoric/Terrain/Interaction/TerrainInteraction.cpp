@@ -76,6 +76,7 @@ void TerrainInteraction::RegisterMaterials(const MaterialConfig* configs, int co
             s_MaterialProps[id].spawnsParticles = configs[i].spawnsParticles;
             s_MaterialProps[id].breakThreshold = configs[i].breakThreshold;
             s_MaterialProps[id].isInteractable = configs[i].isInteractable;
+            s_MaterialProps[id].interactThreshold = configs[i].interactThreshold;
         }
     }
 }
@@ -124,7 +125,7 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
     uint64_t blockKey = (static_cast<uint64_t>(terrainId) << 32) | subIdVal;
     auto& shard = s_Shards[blockKey % NUM_SHARDS];
 
-    // LAZY POSITION CALCULATION: Only computed if an event is actually triggered.
+    // Lazy position calculation: Only computed if an event is actually triggered.
     bool posCalculated = false;
     JPH::RVec3 blockWorldPos;
     auto getBlockPos = [&]() -> JPH::RVec3 {
@@ -158,7 +159,9 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
         float impactSpeed = std::abs(relVel.Dot(manifold.mWorldSpaceNormal));
         
         // Estimated normal force based on impact speed and penetration
-        float totalForce = (impactSpeed * otherMass) + (manifold.mPenetrationDepth * otherMass * gravity);
+        float kineticForce = impactSpeed * otherMass;
+        float staticForce = manifold.mPenetrationDepth * otherMass * gravity;
+        float totalForce = kineticForce + staticForce;
 
         /** Lambda to fill common event fields. */
         auto populateEvent = [&](InteractionEvent& ev, InteractionType type, float strength) {
@@ -168,7 +171,8 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
             ev.strength = strength;
         };
 
-        // 1. BLOCK DESTRUCTION (FRAGILE)
+        // 1. Block destruction (fragile)
+        // Uses totalForce (Kinetic + Static) so objects can crush glass just by resting on it
         if (props.isFragile && totalForce > props.breakThreshold) {
             shard.Lock();
             if (shard.TryDeduplicate(blockKey)) {
@@ -179,7 +183,7 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
             }
             shard.Unlock();
         } 
-        // 2. BLOCK TRANSFORMATION (WEAR)
+        // 2. Block transformation (wear)
         else if (props.isTransformable && totalForce > s_Config.transformMinForce) {
             shard.Lock();
             if (shard.TryDeduplicate(blockKey ^ 0x12345678)) {
@@ -191,11 +195,12 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
             shard.Unlock();
         }
 
-        // 3. GENERIC INTERACTION (DOORS/GATES)
-        if (props.isInteractable && totalForce > s_Config.interactMinForce) {
+        // 3. Generic interaction (doors/gates)
+        // Uses strictly kineticForce! Doors should open from impacts (hits/bumps), not from slow pressure/penetration
+        if (props.isInteractable && kineticForce > props.interactThreshold) {
             shard.Lock();
             if (shard.TryDeduplicate(blockKey ^ 0x9ABCDEF0)) {
-                InteractionEvent ev; populateEvent(ev, InteractionType::BLOCK_INTERACT, totalForce);
+                InteractionEvent ev; populateEvent(ev, InteractionType::BLOCK_INTERACT, kineticForce);
                 JPH::Vec3 normal = terrainIsBody1 ? -manifold.mWorldSpaceNormal : manifold.mWorldSpaceNormal;
                 ev.x2 = (float)normal.GetX(); ev.y2 = (float)normal.GetY(); ev.z2 = (float)normal.GetZ();
                 shard.Enqueue(ev); s_EventCount.fetch_add(1, std::memory_order_relaxed);
@@ -203,7 +208,7 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
             shard.Unlock();
         }
 
-        // 4. VISUAL PARTICLES (STOCHASTIC SLIDING)
+        // 4. Visual particles (stochastic sliding)
         if (props.spawnsParticles) {
             float relVelMag = relVel.Length();
             if (relVelMag < s_Config.particleMinVelocity) continue;

@@ -91,6 +91,10 @@ public class TerrainInteraction {
          * Whether the material responds to physical impact (doors, gates).
          */
         public boolean isInteractable;
+        /**
+         * The physical force threshold for interaction.
+         */
+        public float interactThreshold;
 
         /**
          * Serializes this configuration into a direct {@link ByteBuffer} for native transfer.
@@ -102,7 +106,8 @@ public class TerrainInteraction {
          * - Float (4 bytes)
          * - Bool (1 byte)
          * - Padding (3 bytes)
-         * Total: 16 bytes.
+         * - Float (4 bytes)
+         * Total: 20 bytes.
          * </p>
          *
          * @param buffer The target buffer in native byte order.
@@ -117,13 +122,14 @@ public class TerrainInteraction {
             buffer.put((byte) (isInteractable ? 1 : 0));
             buffer.put((byte) 0); // Padding
             buffer.put((byte) 0); // Padding
-            buffer.put((byte) 0); // Padding to align struct size to 16 bytes
+            buffer.put((byte) 0); // Padding to align struct size to 4 bytes
+            buffer.putFloat(interactThreshold);
         }
 
         /**
          * Total size of the native {@code MaterialConfig} struct in bytes.
          */
-        public static final int SIZE = 16;
+        public static final int SIZE = 20;
     }
 
     /**
