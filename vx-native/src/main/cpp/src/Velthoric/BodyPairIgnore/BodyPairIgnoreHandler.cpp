@@ -52,7 +52,7 @@ uint64_t BodyPairIgnoreHandler::MakePairKey(uint32_t bodyId1, uint32_t bodyId2) 
  */
 void BodyPairIgnoreHandler::IgnorePair(uint32_t bodyId1, uint32_t bodyId2) {
     uint64_t key = MakePairKey(bodyId1, bodyId2);
-    std::lock_guard<std::mutex> lock(m_Mutex);
+    std::unique_lock<std::shared_mutex> lock(m_Mutex);
     
     bool wasEmpty = m_IgnoredPairs.empty();
     m_IgnoredPairs.insert(key);
@@ -76,7 +76,7 @@ void BodyPairIgnoreHandler::IgnorePair(uint32_t bodyId1, uint32_t bodyId2) {
  */
 void BodyPairIgnoreHandler::RemoveIgnorePair(uint32_t bodyId1, uint32_t bodyId2) {
     uint64_t key = MakePairKey(bodyId1, bodyId2);
-    std::lock_guard<std::mutex> lock(m_Mutex);
+    std::unique_lock<std::shared_mutex> lock(m_Mutex);
     m_IgnoredPairs.erase(key);
 
     // Recalculate if the bodies are still involved in ANY other ignored pair.
@@ -108,7 +108,7 @@ void BodyPairIgnoreHandler::RemoveIgnorePair(uint32_t bodyId1, uint32_t bodyId2)
  */
 bool BodyPairIgnoreHandler::IsPairIgnored(uint32_t bodyId1, uint32_t bodyId2) const {
     uint64_t key = MakePairKey(bodyId1, bodyId2);
-    std::lock_guard<std::mutex> lock(m_Mutex);
+    std::shared_lock<std::shared_mutex> lock(m_Mutex);
     return m_IgnoredPairs.find(key) != m_IgnoredPairs.end();
 }
 
@@ -120,7 +120,7 @@ bool BodyPairIgnoreHandler::IsPairIgnored(uint32_t bodyId1, uint32_t bodyId2) co
  * @param outPairs Vector to populate with [ID1_a, ID1_b, ID2_a, ID2_b, ...].
  */
 void BodyPairIgnoreHandler::GetIgnoredPairs(std::vector<uint32_t>& outPairs) const {
-    std::lock_guard<std::mutex> lock(m_Mutex);
+    std::shared_lock<std::shared_mutex> lock(m_Mutex);
     outPairs.clear();
     outPairs.reserve(m_IgnoredPairs.size() * 2);
     
@@ -141,7 +141,7 @@ void BodyPairIgnoreHandler::GetIgnoredPairs(std::vector<uint32_t>& outPairs) con
  * @param bodyId The Jolt body ID being destroyed.
  */
 void BodyPairIgnoreHandler::OnBodyRemoved(uint32_t bodyId) {
-    std::lock_guard<std::mutex> lock(m_Mutex);
+    std::unique_lock<std::shared_mutex> lock(m_Mutex);
     auto it = m_IgnoredPairs.begin();
     while (it != m_IgnoredPairs.end()) {
         uint64_t key = *it;
@@ -164,7 +164,7 @@ void BodyPairIgnoreHandler::OnBodyRemoved(uint32_t bodyId) {
  * @brief Purges all collision filters from the handler.
  */
 void BodyPairIgnoreHandler::Clear() {
-    std::lock_guard<std::mutex> lock(m_Mutex);
+    std::unique_lock<std::shared_mutex> lock(m_Mutex);
     m_IgnoredPairs.clear();
     m_InvolvedBodies.clear();
     m_HasIgnoredPairs.store(false, std::memory_order_release);
@@ -175,7 +175,7 @@ void BodyPairIgnoreHandler::Clear() {
  * @return Size of the internal set.
  */
 size_t BodyPairIgnoreHandler::Size() const {
-    std::lock_guard<std::mutex> lock(m_Mutex);
+    std::shared_lock<std::shared_mutex> lock(m_Mutex);
     return m_IgnoredPairs.size();
 }
 
@@ -193,7 +193,7 @@ bool BodyPairIgnoreHandler::HasIgnoredPairs() const {
  * @return True if the body is involved in at least one ignore-pair.
  */
 bool BodyPairIgnoreHandler::IsBodyInvolved(uint32_t bodyId) const {
-    std::lock_guard<std::mutex> lock(m_Mutex);
+    std::shared_lock<std::shared_mutex> lock(m_Mutex);
     return m_InvolvedBodies.find(bodyId) != m_InvolvedBodies.end();
 }
 
@@ -213,7 +213,7 @@ bool BodyPairIgnoreHandler::ShouldIgnorePair(uint32_t bodyId1, uint32_t bodyId2)
         return false;
     }
 
-    std::lock_guard<std::mutex> lock(m_Mutex);
+    std::shared_lock<std::shared_mutex> lock(m_Mutex);
     
     // 2. Double-check after lock (consistency)
     if (m_IgnoredPairs.empty()) return false;

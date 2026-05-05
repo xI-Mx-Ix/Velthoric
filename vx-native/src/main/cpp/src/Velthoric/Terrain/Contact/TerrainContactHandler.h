@@ -68,6 +68,7 @@ private:
         uint64_t key;       ///< Unique key composed of body IDs and sub-shape IDs.
         float friction;    ///< Pre-calculated combined friction coefficient.
         float restitution; ///< Pre-calculated combined restitution (bounciness).
+        uint32_t matId;    ///< Cached material ID to prevent slow sub-shape lookups.
     };
 
     /// Entries per shard. 64 allows for efficient linear search within a cache line.

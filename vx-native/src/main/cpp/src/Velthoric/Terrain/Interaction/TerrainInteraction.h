@@ -122,8 +122,9 @@ public:
      * @param settings Collision settings.
      * @param terrainIsBody1 Manifold ordering flag.
      * @param isPersisted Whether this contact is continuing from last frame.
+     * @param materialId Cached material ID from handler (0 if unknown).
      */
-    static void ProcessInteraction(jobject world, const JPH::PhysicsSystem* ps, const JPH::Body& terrainBody, const JPH::Body& otherBody, JPH::SubShapeID subShapeId, const JPH::ContactManifold& manifold, JPH::ContactSettings& settings, bool terrainIsBody1, bool isPersisted);
+    static void ProcessInteraction(jobject world, const JPH::PhysicsSystem* ps, const JPH::Body& terrainBody, const JPH::Body& otherBody, JPH::SubShapeID subShapeId, const JPH::ContactManifold& manifold, JPH::ContactSettings& settings, bool terrainIsBody1, bool isPersisted, uint32_t materialId = 0);
 
     /**
      * @brief Flushes the native event queue into a Java DirectBuffer.

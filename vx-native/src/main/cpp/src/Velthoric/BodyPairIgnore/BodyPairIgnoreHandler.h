@@ -7,6 +7,7 @@
 #pragma once
 #include <Jolt/Jolt.h>
 #include <mutex>
+#include <shared_mutex>
 #include <unordered_set>
 #include <vector>
 #include <cstdint>
@@ -144,7 +145,7 @@ private:
     static uint64_t MakePairKey(uint32_t bodyId1, uint32_t bodyId2);
 
     /// Mutex for thread-safe access to the ignored pairs sets.
-    mutable std::mutex m_Mutex;
+    mutable std::shared_mutex m_Mutex;
 
     /**
      * @brief Atomic flag indicating whether there are any ignored pairs.

@@ -95,19 +95,23 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
                                            const JPH::ContactManifold& manifold, 
                                            JPH::ContactSettings& settings, 
                                            bool terrainIsBody1,
-                                           bool isPersisted) {
+                                           bool isPersisted,
+                                           uint32_t materialId) {
     (void)world;
     const JPH::Shape* shape = terrainBody.GetShape();
     if (!shape) return;
 
-    // Fast material lookup path
-    const JPH::PhysicsMaterial* mat = shape->GetMaterial(subShapeId);
-    uint32_t matId = 1;
-    if (mat) {
-        const char* name = mat->GetDebugName();
-        // Compare pointers first (for speed), then string content
-        if (name == TerrainMaterial::sTerrainMaterialName || (name && strcmp(name, TerrainMaterial::sTerrainMaterialName) == 0)) {
-            matId = static_cast<const TerrainMaterial*>(mat)->mMaterialId;
+    uint32_t matId = materialId;
+    if (matId == 0) {
+        // Fast material lookup path
+        const JPH::PhysicsMaterial* mat = shape->GetMaterial(subShapeId);
+        matId = 1;
+        if (mat) {
+            const char* name = mat->GetDebugName();
+            // Compare pointers first (for speed), then string content
+            if (name == TerrainMaterial::sTerrainMaterialName || (name && strcmp(name, TerrainMaterial::sTerrainMaterialName) == 0)) {
+                matId = static_cast<const TerrainMaterial*>(mat)->mMaterialId;
+            }
         }
     }
 

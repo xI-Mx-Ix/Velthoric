@@ -35,12 +35,16 @@ void TerrainContactHandler::OnContactAdded(const JPH::Body &inBody1, const JPH::
     uint64_t key = MakeContactKey(inBody1.GetID().GetIndexAndSequenceNumber(), inBody2.GetID().GetIndexAndSequenceNumber(), inManifold.mSubShapeID1.GetValue(), inManifold.mSubShapeID2.GetValue());
     auto& shard = m_CacheShards[key % NUM_SHARDS];
     
+    bool isBody1Terrain = (inBody1.GetObjectLayer() == 2);
+    uint32_t cachedMatId = 0;
+
     // Attempt cache hit (in case of sub-shape re-entry)
     shard.Lock();
     for (int i = 0; i < ENTRIES_PER_SHARD; ++i) {
         if (shard.entries[i].key == key) {
             ioSettings.mCombinedFriction = shard.entries[i].friction;
             ioSettings.mCombinedRestitution = shard.entries[i].restitution;
+            cachedMatId = shard.entries[i].matId;
             shard.Unlock();
             goto interaction;
         }
@@ -60,10 +64,12 @@ void TerrainContactHandler::OnContactAdded(const JPH::Body &inBody1, const JPH::
         if (mat1 && mat1->GetDebugName() == TerrainMaterial::sTerrainMaterialName) {
             auto* tm = static_cast<const TerrainMaterial*>(mat1);
             f1 = tm->mFriction; r1 = tm->mRestitution; isTerrain = true;
+            if (isBody1Terrain) cachedMatId = tm->mMaterialId;
         }
         if (mat2 && mat2->GetDebugName() == TerrainMaterial::sTerrainMaterialName) {
             auto* tm = static_cast<const TerrainMaterial*>(mat2);
             f2 = tm->mFriction; r2 = tm->mRestitution; isTerrain = true;
+            if (!isBody1Terrain) cachedMatId = tm->mMaterialId;
         }
 
         if (isTerrain) {
@@ -72,10 +78,12 @@ void TerrainContactHandler::OnContactAdded(const JPH::Body &inBody1, const JPH::
             ioSettings.mCombinedFriction = cf;
             ioSettings.mCombinedRestitution = cr;
 
+            if (cachedMatId == 0) cachedMatId = 1;
+
             // Store result in the sharded flat cache (FIFO replacement)
             shard.Lock();
             uint32_t idx = shard.nextInsertIdx;
-            shard.entries[idx] = { key, cf, cr };
+            shard.entries[idx] = { key, cf, cr, cachedMatId };
             shard.nextInsertIdx = (idx + 1) % ENTRIES_PER_SHARD;
             shard.Unlock();
         }
@@ -83,12 +91,11 @@ void TerrainContactHandler::OnContactAdded(const JPH::Body &inBody1, const JPH::
 
 interaction:
     // Process destruction/particle logic in the interaction handler
-    bool isBody1Terrain = (inBody1.GetObjectLayer() == 2);
     TerrainInteraction::ProcessInteraction(m_WorldRef, m_PhysicsSystem, 
         isBody1Terrain ? inBody1 : inBody2, 
         isBody1Terrain ? inBody2 : inBody1, 
         isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2, 
-        inManifold, ioSettings, isBody1Terrain, false);
+        inManifold, ioSettings, isBody1Terrain, false, cachedMatId);
 }
 
 /**
@@ -101,12 +108,15 @@ void TerrainContactHandler::OnContactPersisted(const JPH::Body &inBody1, const J
     uint64_t key = MakeContactKey(inBody1.GetID().GetIndexAndSequenceNumber(), inBody2.GetID().GetIndexAndSequenceNumber(), inManifold.mSubShapeID1.GetValue(), inManifold.mSubShapeID2.GetValue());
     auto& shard = m_CacheShards[key % NUM_SHARDS];
     
+    uint32_t cachedMatId = 0;
+
     // Fast Lookup: Linear scan is faster than hashing for small entry counts (SIMD-friendly)
     shard.Lock();
     for (int i = 0; i < ENTRIES_PER_SHARD; ++i) {
         if (shard.entries[i].key == key) {
             ioSettings.mCombinedFriction = shard.entries[i].friction;
             ioSettings.mCombinedRestitution = shard.entries[i].restitution;
+            cachedMatId = shard.entries[i].matId;
             break;
         }
     }
@@ -117,7 +127,7 @@ void TerrainContactHandler::OnContactPersisted(const JPH::Body &inBody1, const J
         isBody1Terrain ? inBody1 : inBody2, 
         isBody1Terrain ? inBody2 : inBody1, 
         isBody1Terrain ? inManifold.mSubShapeID1 : inManifold.mSubShapeID2, 
-        inManifold, ioSettings, isBody1Terrain, true);
+        inManifold, ioSettings, isBody1Terrain, true, cachedMatId);
 }
 
 /**
