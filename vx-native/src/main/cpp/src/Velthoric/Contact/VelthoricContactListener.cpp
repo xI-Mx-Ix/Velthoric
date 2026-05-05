@@ -67,7 +67,7 @@ JPH::ValidateResult ContactListener::OnContactValidate(const JPH::Body& inBody1,
             return JPH::ValidateResult::RejectContact;
         }
     }
-    return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
+    return JPH::ValidateResult::AcceptContact;
 }
 
 /**
