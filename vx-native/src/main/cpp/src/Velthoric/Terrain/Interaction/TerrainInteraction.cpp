@@ -188,11 +188,15 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
         }
 
         // 3. GENERIC INTERACTION (DOORS/GATES)
-        if (props.isInteractable && !isPersisted && totalForce > s_Config.interactMinForce) {
-            InteractionEvent ev; populateEvent(ev, InteractionType::BLOCK_INTERACT, totalForce);
-            JPH::Vec3 normal = terrainIsBody1 ? -manifold.mWorldSpaceNormal : manifold.mWorldSpaceNormal;
-            ev.x2 = (float)normal.GetX(); ev.y2 = (float)normal.GetY(); ev.z2 = (float)normal.GetZ();
-            QueueEvent(ev);
+        if (props.isInteractable && totalForce > s_Config.interactMinForce) {
+            shard.Lock();
+            if (shard.TryDeduplicate(blockKey ^ 0x9ABCDEF0)) {
+                InteractionEvent ev; populateEvent(ev, InteractionType::BLOCK_INTERACT, totalForce);
+                JPH::Vec3 normal = terrainIsBody1 ? -manifold.mWorldSpaceNormal : manifold.mWorldSpaceNormal;
+                ev.x2 = (float)normal.GetX(); ev.y2 = (float)normal.GetY(); ev.z2 = (float)normal.GetZ();
+                shard.Enqueue(ev); s_EventCount.fetch_add(1, std::memory_order_relaxed);
+            }
+            shard.Unlock();
         }
 
         // 4. VISUAL PARTICLES (STOCHASTIC SLIDING)
