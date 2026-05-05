@@ -180,7 +180,7 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
         byte[] motionTypes = motionTypeOutputBuffer.get();
 
         int dirtyCount = BatchPhysicsSync.syncPhysicsNative(
-                world.getPhysicsSystemPtr(),
+                world.getPhysicsSystem().va(),
                 count,
                 indices.elements(),
                 bodyIds,

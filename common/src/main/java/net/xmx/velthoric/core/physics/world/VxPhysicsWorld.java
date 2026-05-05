@@ -65,67 +65,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
      */
     private static final Map<ResourceKey<Level>, VxPhysicsWorld> worlds = new ConcurrentHashMap<>();
 
-    // Jolt Physics Configuration Constants
-
     /**
-     * The maximum number of physics bodies supported in a single world.
+     * The core physics simulation instance containing the native Jolt engine and handlers.
      */
-    private static final int maxBodies = 65536;
-
-    /**
-     * The maximum number of simultaneous overlapping body pairs supported.
-     */
-    private static final int maxBodyPairs = 65536;
-
-    /**
-     * The maximum number of contact constraints (points of collision) supported.
-     */
-    private static final int maxContactConstraints = 65536;
-
-    /**
-     * The number of position correction iterations per step. Higher values increase stability.
-     */
-    private static final int numPositionIterations = 10;
-
-    /**
-     * The number of velocity solver iterations per step. Higher values reduce jitter in stacks.
-     */
-    private static final int numVelocityIterations = 15;
-
-    /**
-     * The distance at which the solver starts considering contacts for continuous collision detection.
-     */
-    private static final float speculativeContactDistance = 0.02f;
-
-    /**
-     * The Baumgarte stabilization factor for resolving position errors.
-     */
-    private static final float baumgarteFactor = 0.2f;
-
-    /**
-     * The allowed amount of penetration between bodies before the solver applies correction.
-     */
-    private static final float penetrationSlop = 0.001f;
-
-    /**
-     * The duration a body must remain nearly stationary before it is put to sleep.
-     */
-    private static final float timeBeforeSleep = 1.0f;
-
-    /**
-     * The linear velocity threshold below which a body is considered stationary for sleeping.
-     */
-    private static final float pointVelocitySleepThreshold = 0.005f;
-
-    /**
-     * The default gravity acceleration applied to all dynamic bodies in the world.
-     */
-    private static final float gravityY = -9.81f;
-
-    /**
-     * The size (in bytes) of the pre-allocated temporary memory pool for the physics solver.
-     */
-    private static final int tempAllocatorSize = 64 * 1024 * 1024; // 64MB
+    private final VxPhysicsSimulation simulation;
 
     /**
      * The Minecraft server level associated with this physics world.
@@ -163,36 +106,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxFrameTimer physicsFrameTimer = new VxFrameTimer();
 
     /**
-     * The native Jolt Physics System instance.
-     */
-    private PhysicsSystem physicsSystem;
-
-    /**
-     * The multi-threaded job system for parallelizing physics calculations.
-     */
-    private JobSystemThreadPool jobSystem;
-
-    /**
-     * Allocator for temporary memory used during the physics update.
-     */
-    private TempAllocator tempAllocator;
-
-    /**
-     * Manages ignored body pairs for collision filtering across the entire world.
-     */
-    private BodyPairIgnoreHandler bodyPairIgnoreHandler;
-
-    /**
-     * Specialized handler for terrain-specific collision logic.
-     */
-    private TerrainContactHandler terrainContactHandler;
-
-    /**
-     * Native listener for contact events, handling terrain interactions and collision filtering.
-     */
-    private VelthoricContactListener contactListener;
-
-    /**
      * A thread-safe queue of commands to be executed on the physics thread.
      */
     private final Queue<Runnable> commandQueue = new ConcurrentLinkedQueue<>();
@@ -218,14 +131,16 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private long lastTimeNanos = 0L;
 
     /**
-     * Constructs a new physics world for the given level.
+     * Constructs a new physics world for the given level with a custom configuration.
      * Subsystems are instantiated but not yet initialized.
      *
      * @param level The server level.
+     * @param config The physics configuration.
      */
-    private VxPhysicsWorld(ServerLevel level) {
+    private VxPhysicsWorld(ServerLevel level, VxPhysicsConfig config) {
         this.level = level;
         this.dimensionKey = level.dimension();
+        this.simulation = new VxPhysicsSimulation(config);
         this.bodyManager = new VxServerBodyManager(this);
         this.constraintManager = new VxConstraintManager(this.bodyManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
@@ -233,14 +148,25 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     /**
-     * Retrieves the physics world for a dimension, creating and starting it if it doesn't exist.
+     * Retrieves the physics world for a dimension, creating and starting it with default config if it doesn't exist.
      *
      * @param level The server level.
      * @return The physics world instance.
      */
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
+        return getOrCreate(level, new VxPhysicsConfig());
+    }
+
+    /**
+     * Retrieves the physics world for a dimension, creating and starting it with a custom config if it doesn't exist.
+     *
+     * @param level The server level.
+     * @param config The custom physics configuration.
+     * @return The physics world instance.
+     */
+    public static VxPhysicsWorld getOrCreate(ServerLevel level, VxPhysicsConfig config) {
         return worlds.computeIfAbsent(level.dimension(), key -> {
-            VxPhysicsWorld newWorld = new VxPhysicsWorld(level);
+            VxPhysicsWorld newWorld = new VxPhysicsWorld(level, config);
             newWorld.initializeAndStart();
             return newWorld;
         });
@@ -327,7 +253,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     @Override
     public void run() {
         try {
-            initializePhysicsSystem();
+            this.simulation.initialize(this);
 
             this.lastTimeNanos = System.nanoTime();
 
@@ -349,7 +275,9 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             this.isRunning = false;
         } finally {
             shutdownInternalSystems();
-            cleanupJolt();
+
+            this.simulation.cleanup();
+            this.commandQueue.clear();
         }
     }
 
@@ -359,7 +287,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
      * @param deltaTime The real-time delta since the last iteration (in seconds).
      */
     private void updatePhysicsLoop(float deltaTime) {
-        if (VxPauseUtil.isPaused() || !this.isRunning || this.physicsSystem == null) {
+        if (VxPauseUtil.isPaused() || !this.isRunning || this.simulation.getPhysicsSystem() == null) {
             return;
         }
 
@@ -373,7 +301,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
 
             this.onPrePhysicsTick();
 
-            int error = this.physicsSystem.update(FIXED_TIME_STEP, 1, this.tempAllocator, this.jobSystem);
+            int error = this.simulation.update(FIXED_TIME_STEP, 1);
             if (error != EPhysicsUpdateError.None) {
                 VxMainClass.LOGGER.error("Jolt physics update failed with error code: {}. Shutting down world.", error);
                 this.isRunning = false;
@@ -430,45 +358,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     }
 
     /**
-     * Initializes the native Jolt Physics System and all required filters/allocators.
-     */
-    public void initializePhysicsSystem() {
-        this.tempAllocator = new TempAllocatorImpl(tempAllocatorSize);
-        int numThreads = Math.max(1, Runtime.getRuntime().availableProcessors() - 2);
-        this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
-
-        this.physicsSystem = new PhysicsSystem();
-        BroadPhaseLayerInterface bpli = VxPhysicsBootstrap.getBroadPhaseLayerInterface();
-        ObjectVsBroadPhaseLayerFilter ovbpf = VxPhysicsBootstrap.getObjectVsBroadPhaseLayerFilter();
-        ObjectLayerPairFilter olpf = VxPhysicsBootstrap.getObjectLayerPairFilter();
-
-        this.physicsSystem.init(maxBodies, 0, maxBodyPairs, maxContactConstraints, bpli, ovbpf, olpf);
-
-        try (PhysicsSettings settings = this.physicsSystem.getPhysicsSettings()) {
-            settings.setNumPositionSteps(numPositionIterations);
-            settings.setNumVelocitySteps(numVelocityIterations);
-            settings.setSpeculativeContactDistance(speculativeContactDistance);
-            settings.setBaumgarte(baumgarteFactor);
-            settings.setPenetrationSlop(penetrationSlop);
-            settings.setTimeBeforeSleep(timeBeforeSleep);
-            settings.setPointVelocitySleepThreshold(pointVelocitySleepThreshold);
-            settings.setDeterministicSimulation(false);
-            this.physicsSystem.setPhysicsSettings(settings);
-        }
-
-        this.physicsSystem.setGravity(0f, gravityY, 0f);
-
-        // Initialize the contact handlers
-        this.bodyPairIgnoreHandler = new BodyPairIgnoreHandler();
-        this.terrainContactHandler = new TerrainContactHandler(this.physicsSystem.va(), this);
-
-        // Attach the native contact listener dispatcher and inject handlers
-        this.contactListener = new VelthoricContactListener(this.physicsSystem.va(), this, this.bodyPairIgnoreHandler, this.terrainContactHandler);
-
-        this.physicsSystem.optimizeBroadPhase();
-    }
-
-    /**
      * Shuts down Java-level subsystems.
      */
     private void shutdownInternalSystems() {
@@ -481,38 +370,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         if (this.bodyManager != null) {
             this.bodyManager.shutdown();
         }
-    }
-
-    /**
-     * Releases all native Jolt resources and clears the command queue.
-     */
-    private void cleanupJolt() {
-        if (this.contactListener != null) {
-            this.contactListener.close();
-            this.contactListener = null;
-        }
-        if (this.bodyPairIgnoreHandler != null) {
-            this.bodyPairIgnoreHandler.close();
-            this.bodyPairIgnoreHandler = null;
-        }
-        if (this.terrainContactHandler != null) {
-            this.terrainContactHandler.close();
-            this.terrainContactHandler = null;
-        }
-        if (this.physicsSystem != null) {
-            this.physicsSystem.close();
-            this.physicsSystem = null;
-        }
-        if (this.jobSystem != null) {
-            this.jobSystem.close();
-            this.jobSystem = null;
-        }
-        if (this.tempAllocator != null) {
-            this.tempAllocator.close();
-            this.tempAllocator = null;
-        }
-
-        this.commandQueue.clear();
     }
 
     /**
@@ -598,7 +455,7 @@ public final class VxPhysicsWorld implements Runnable, Executor {
      */
     @Nullable
     public PhysicsSystem getPhysicsSystem() {
-        return this.physicsSystem;
+        return this.simulation.getPhysicsSystem();
     }
 
     /**
@@ -612,21 +469,14 @@ public final class VxPhysicsWorld implements Runnable, Executor {
      * @return The handler for ignored body pairs in this world.
      */
     public BodyPairIgnoreHandler getBodyPairIgnoreHandler() {
-        return this.bodyPairIgnoreHandler;
+        return this.simulation.getBodyPairIgnoreHandler();
     }
 
     /**
      * @return The handler for terrain contact logic in this world.
      */
     public TerrainContactHandler getTerrainContactHandler() {
-        return this.terrainContactHandler;
-    }
-
-    /**
-     * @return The native virtual address of the Jolt Physics System.
-     */
-    public long getPhysicsSystemPtr() {
-        return this.physicsSystem != null ? this.physicsSystem.va() : 0L;
+        return this.simulation.getTerrainContactHandler();
     }
 
     /**
