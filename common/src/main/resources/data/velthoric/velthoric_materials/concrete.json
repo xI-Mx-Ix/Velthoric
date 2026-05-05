@@ -1,0 +1,164 @@
+{
+  "values": {
+    "minecraft:black_concrete": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 980.5
+    },
+    "minecraft:black_concrete_powder": {
+      "friction": 0.829,
+      "restitution": 0.0,
+      "weight": 1491.15
+    },
+    "minecraft:blue_concrete": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 988.3
+    },
+    "minecraft:blue_concrete_powder": {
+      "friction": 0.788,
+      "restitution": 0.0,
+      "weight": 1499.7
+    },
+    "minecraft:brown_concrete": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 993.5
+    },
+    "minecraft:brown_concrete_powder": {
+      "friction": 0.818,
+      "restitution": 0.0,
+      "weight": 1483.65
+    },
+    "minecraft:cyan_concrete": {
+      "friction": 0.78,
+      "restitution": 0.049,
+      "weight": 1019.6
+    },
+    "minecraft:cyan_concrete_powder": {
+      "friction": 0.761,
+      "restitution": 0.0,
+      "weight": 1506.6
+    },
+    "minecraft:gray_concrete": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 994.9
+    },
+    "minecraft:gray_concrete_powder": {
+      "friction": 0.778,
+      "restitution": 0.0,
+      "weight": 1473.9
+    },
+    "minecraft:green_concrete": {
+      "friction": 0.823,
+      "restitution": 0.051,
+      "weight": 1001.7
+    },
+    "minecraft:green_concrete_powder": {
+      "friction": 0.82,
+      "restitution": 0.0,
+      "weight": 1504.65
+    },
+    "minecraft:light_blue_concrete": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 996.9
+    },
+    "minecraft:light_blue_concrete_powder": {
+      "friction": 0.799,
+      "restitution": 0.0,
+      "weight": 1501.35
+    },
+    "minecraft:light_gray_concrete": {
+      "friction": 0.778,
+      "restitution": 0.049,
+      "weight": 1009.0
+    },
+    "minecraft:light_gray_concrete_powder": {
+      "friction": 0.805,
+      "restitution": 0.0,
+      "weight": 1480.95
+    },
+    "minecraft:lime_concrete": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 985.3
+    },
+    "minecraft:lime_concrete_powder": {
+      "friction": 0.797,
+      "restitution": 0.0,
+      "weight": 1470.6
+    },
+    "minecraft:magenta_concrete": {
+      "friction": 0.833,
+      "restitution": 0.052,
+      "weight": 1002.9
+    },
+    "minecraft:magenta_concrete_powder": {
+      "friction": 0.76,
+      "restitution": 0.0,
+      "weight": 1485.15
+    },
+    "minecraft:orange_concrete": {
+      "friction": 0.82,
+      "restitution": 0.051,
+      "weight": 983.6
+    },
+    "minecraft:orange_concrete_powder": {
+      "friction": 0.802,
+      "restitution": 0.0,
+      "weight": 1505.55
+    },
+    "minecraft:pink_concrete": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 1013.2
+    },
+    "minecraft:pink_concrete_powder": {
+      "friction": 0.819,
+      "restitution": 0.0,
+      "weight": 1501.65
+    },
+    "minecraft:purple_concrete": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 1015.8
+    },
+    "minecraft:purple_concrete_powder": {
+      "friction": 0.786,
+      "restitution": 0.0,
+      "weight": 1503.9
+    },
+    "minecraft:red_concrete": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 999.3
+    },
+    "minecraft:red_concrete_powder": {
+      "friction": 0.837,
+      "restitution": 0.0,
+      "weight": 1505.85
+    },
+    "minecraft:white_concrete": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 991.5
+    },
+    "minecraft:white_concrete_powder": {
+      "friction": 0.801,
+      "restitution": 0.0,
+      "weight": 1517.55
+    },
+    "minecraft:yellow_concrete": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 987.3
+    },
+    "minecraft:yellow_concrete_powder": {
+      "friction": 0.804,
+      "restitution": 0.0,
+      "weight": 1489.8
+    }
+  }
+}

@@ -1,0 +1,249 @@
+{
+  "values": {
+    "minecraft:black_stained_glass": {
+      "friction": 0.305,
+      "restitution": 0.254,
+      "weight": 198.62,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:black_stained_glass_pane": {
+      "friction": 0.31,
+      "restitution": 0.258,
+      "weight": 30.22,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:blue_stained_glass": {
+      "friction": 0.303,
+      "restitution": 0.252,
+      "weight": 196.04,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:blue_stained_glass_pane": {
+      "friction": 0.312,
+      "restitution": 0.26,
+      "weight": 29.81,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:brown_stained_glass": {
+      "friction": 0.301,
+      "restitution": 0.25,
+      "weight": 197.38,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:brown_stained_glass_pane": {
+      "friction": 0.298,
+      "restitution": 0.249,
+      "weight": 29.48,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:cyan_stained_glass": {
+      "friction": 0.3,
+      "restitution": 0.25,
+      "weight": 202.58,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:cyan_stained_glass_pane": {
+      "friction": 0.297,
+      "restitution": 0.248,
+      "weight": 30.54,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:glass": {
+      "friction": 0.301,
+      "restitution": 0.251,
+      "weight": 199.14,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:glass_pane": {
+      "friction": 0.31,
+      "restitution": 0.258,
+      "weight": 30.18,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:gray_stained_glass": {
+      "friction": 0.315,
+      "restitution": 0.262,
+      "weight": 202.84,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:gray_stained_glass_pane": {
+      "friction": 0.299,
+      "restitution": 0.249,
+      "weight": 29.5,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:green_stained_glass": {
+      "friction": 0.31,
+      "restitution": 0.258,
+      "weight": 197.54,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:green_stained_glass_pane": {
+      "friction": 0.291,
+      "restitution": 0.242,
+      "weight": 30.46,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:light_blue_stained_glass": {
+      "friction": 0.307,
+      "restitution": 0.255,
+      "weight": 197.16,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:light_blue_stained_glass_pane": {
+      "friction": 0.289,
+      "restitution": 0.241,
+      "weight": 30.15,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:light_gray_stained_glass": {
+      "friction": 0.313,
+      "restitution": 0.261,
+      "weight": 199.4,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:light_gray_stained_glass_pane": {
+      "friction": 0.29,
+      "restitution": 0.241,
+      "weight": 30.51,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:lime_stained_glass": {
+      "friction": 0.311,
+      "restitution": 0.259,
+      "weight": 202.74,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:lime_stained_glass_pane": {
+      "friction": 0.306,
+      "restitution": 0.255,
+      "weight": 30.29,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:magenta_stained_glass": {
+      "friction": 0.304,
+      "restitution": 0.253,
+      "weight": 196.12,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:magenta_stained_glass_pane": {
+      "friction": 0.313,
+      "restitution": 0.26,
+      "weight": 29.84,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:orange_stained_glass": {
+      "friction": 0.286,
+      "restitution": 0.239,
+      "weight": 198.0,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:orange_stained_glass_pane": {
+      "friction": 0.299,
+      "restitution": 0.249,
+      "weight": 30.39,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:pink_stained_glass": {
+      "friction": 0.302,
+      "restitution": 0.252,
+      "weight": 197.54,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:pink_stained_glass_pane": {
+      "friction": 0.307,
+      "restitution": 0.256,
+      "weight": 30.0,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:purple_stained_glass": {
+      "friction": 0.308,
+      "restitution": 0.256,
+      "weight": 196.76,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:purple_stained_glass_pane": {
+      "friction": 0.296,
+      "restitution": 0.247,
+      "weight": 30.19,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:red_stained_glass": {
+      "friction": 0.3,
+      "restitution": 0.25,
+      "weight": 203.58,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:red_stained_glass_pane": {
+      "friction": 0.312,
+      "restitution": 0.26,
+      "weight": 30.04,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:tinted_glass": {
+      "friction": 0.314,
+      "restitution": 0.262,
+      "weight": 201.68,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:white_stained_glass": {
+      "friction": 0.286,
+      "restitution": 0.239,
+      "weight": 196.3,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:white_stained_glass_pane": {
+      "friction": 0.294,
+      "restitution": 0.245,
+      "weight": 29.62,
+      "fragile": true,
+      "break_threshold": 500.0
+    },
+    "minecraft:yellow_stained_glass": {
+      "friction": 0.289,
+      "restitution": 0.241,
+      "weight": 198.66,
+      "fragile": true,
+      "break_threshold": 1500.0
+    },
+    "minecraft:yellow_stained_glass_pane": {
+      "friction": 0.295,
+      "restitution": 0.246,
+      "weight": 29.78,
+      "fragile": true,
+      "break_threshold": 500.0
+    }
+  }
+}

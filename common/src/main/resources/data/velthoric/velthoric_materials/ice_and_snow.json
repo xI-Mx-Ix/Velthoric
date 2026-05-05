@@ -1,0 +1,45 @@
+{
+  "values": {
+    "minecraft:blue_ice": {
+      "friction": 0.01,
+      "restitution": 0.051,
+      "weight": 914.4,
+      "fragile": true,
+      "break_threshold": 3000.0
+    },
+    "minecraft:ice": {
+      "friction": 0.019,
+      "restitution": 0.048,
+      "weight": 905.58,
+      "fragile": true,
+      "break_threshold": 2500.0
+    },
+    "minecraft:packed_ice": {
+      "friction": 0.02,
+      "restitution": 0.05,
+      "weight": 915.66,
+      "fragile": true,
+      "break_threshold": 4000.0
+    },
+    "minecraft:powder_snow": {
+      "friction": 0.83,
+      "restitution": 0.0,
+      "weight": 1493.25
+    },
+    "minecraft:powder_snow_cauldron": {
+      "friction": 0.804,
+      "restitution": 0.0,
+      "weight": 1508.7
+    },
+    "minecraft:snow": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 1000.5
+    },
+    "minecraft:snow_block": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 906.48
+    }
+  }
+}

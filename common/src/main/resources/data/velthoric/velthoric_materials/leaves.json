@@ -1,0 +1,74 @@
+{
+  "values": {
+    "minecraft:acacia_leaves": {
+      "friction": 0.822,
+      "restitution": 0.0,
+      "weight": 24.79,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:azalea_leaves": {
+      "friction": 0.772,
+      "restitution": 0.0,
+      "weight": 25.39,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:birch_leaves": {
+      "friction": 0.802,
+      "restitution": 0.0,
+      "weight": 24.76,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:cherry_leaves": {
+      "friction": 0.803,
+      "restitution": 0.0,
+      "weight": 25.26,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:dark_oak_leaves": {
+      "friction": 0.805,
+      "restitution": 0.0,
+      "weight": 24.63,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:flowering_azalea_leaves": {
+      "friction": 0.826,
+      "restitution": 0.0,
+      "weight": 0.99,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:jungle_leaves": {
+      "friction": 0.81,
+      "restitution": 0.0,
+      "weight": 25.35,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:mangrove_leaves": {
+      "friction": 0.835,
+      "restitution": 0.0,
+      "weight": 24.88,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:oak_leaves": {
+      "friction": 0.818,
+      "restitution": 0.0,
+      "weight": 25.06,
+      "fragile": true,
+      "break_threshold": 50.0
+    },
+    "minecraft:spruce_leaves": {
+      "friction": 0.831,
+      "restitution": 0.0,
+      "weight": 25.37,
+      "fragile": true,
+      "break_threshold": 50.0
+    }
+  }
+}

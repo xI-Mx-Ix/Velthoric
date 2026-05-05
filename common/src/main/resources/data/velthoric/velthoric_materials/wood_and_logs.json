@@ -1,0 +1,224 @@
+{
+  "values": {
+    "minecraft:acacia_log": {
+      "friction": 0.604,
+      "restitution": 0.101,
+      "weight": 601.68
+    },
+    "minecraft:acacia_wood": {
+      "friction": 0.59,
+      "restitution": 0.098,
+      "weight": 601.5
+    },
+    "minecraft:big_dripleaf_stem": {
+      "friction": 0.579,
+      "restitution": 0.097,
+      "weight": 601.38
+    },
+    "minecraft:birch_log": {
+      "friction": 0.576,
+      "restitution": 0.096,
+      "weight": 593.1
+    },
+    "minecraft:birch_wood": {
+      "friction": 0.608,
+      "restitution": 0.101,
+      "weight": 605.88
+    },
+    "minecraft:cherry_log": {
+      "friction": 0.591,
+      "restitution": 0.099,
+      "weight": 594.42
+    },
+    "minecraft:cherry_wood": {
+      "friction": 0.594,
+      "restitution": 0.099,
+      "weight": 598.8
+    },
+    "minecraft:crimson_hyphae": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 595.14
+    },
+    "minecraft:crimson_stem": {
+      "friction": 0.583,
+      "restitution": 0.097,
+      "weight": 595.14
+    },
+    "minecraft:dark_oak_log": {
+      "friction": 0.616,
+      "restitution": 0.103,
+      "weight": 589.68
+    },
+    "minecraft:dark_oak_wood": {
+      "friction": 0.581,
+      "restitution": 0.097,
+      "weight": 606.78
+    },
+    "minecraft:jungle_log": {
+      "friction": 0.573,
+      "restitution": 0.096,
+      "weight": 603.54
+    },
+    "minecraft:jungle_wood": {
+      "friction": 0.607,
+      "restitution": 0.101,
+      "weight": 607.98
+    },
+    "minecraft:mangrove_log": {
+      "friction": 0.607,
+      "restitution": 0.101,
+      "weight": 601.92
+    },
+    "minecraft:mangrove_wood": {
+      "friction": 0.618,
+      "restitution": 0.103,
+      "weight": 599.52
+    },
+    "minecraft:melon_stem": {
+      "friction": 0.619,
+      "restitution": 0.103,
+      "weight": 595.08
+    },
+    "minecraft:mushroom_stem": {
+      "friction": 0.597,
+      "restitution": 0.1,
+      "weight": 0.98
+    },
+    "minecraft:oak_log": {
+      "friction": 0.574,
+      "restitution": 0.096,
+      "weight": 610.8
+    },
+    "minecraft:oak_wood": {
+      "friction": 0.585,
+      "restitution": 0.098,
+      "weight": 592.56
+    },
+    "minecraft:pumpkin_stem": {
+      "friction": 0.579,
+      "restitution": 0.097,
+      "weight": 594.78
+    },
+    "minecraft:spruce_log": {
+      "friction": 0.613,
+      "restitution": 0.102,
+      "weight": 601.74
+    },
+    "minecraft:spruce_wood": {
+      "friction": 0.579,
+      "restitution": 0.096,
+      "weight": 592.74
+    },
+    "minecraft:stripped_acacia_log": {
+      "friction": 0.608,
+      "restitution": 0.101,
+      "weight": 604.02
+    },
+    "minecraft:stripped_acacia_wood": {
+      "friction": 0.574,
+      "restitution": 0.096,
+      "weight": 596.1
+    },
+    "minecraft:stripped_birch_log": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 606.24
+    },
+    "minecraft:stripped_birch_wood": {
+      "friction": 0.58,
+      "restitution": 0.097,
+      "weight": 609.54
+    },
+    "minecraft:stripped_cherry_log": {
+      "friction": 0.614,
+      "restitution": 0.102,
+      "weight": 593.7
+    },
+    "minecraft:stripped_cherry_wood": {
+      "friction": 0.619,
+      "restitution": 0.103,
+      "weight": 589.74
+    },
+    "minecraft:stripped_crimson_hyphae": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 593.22
+    },
+    "minecraft:stripped_crimson_stem": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 598.02
+    },
+    "minecraft:stripped_dark_oak_log": {
+      "friction": 0.611,
+      "restitution": 0.102,
+      "weight": 593.16
+    },
+    "minecraft:stripped_dark_oak_wood": {
+      "friction": 0.59,
+      "restitution": 0.098,
+      "weight": 595.02
+    },
+    "minecraft:stripped_jungle_log": {
+      "friction": 0.627,
+      "restitution": 0.104,
+      "weight": 591.06
+    },
+    "minecraft:stripped_jungle_wood": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 601.14
+    },
+    "minecraft:stripped_mangrove_log": {
+      "friction": 0.588,
+      "restitution": 0.098,
+      "weight": 596.46
+    },
+    "minecraft:stripped_mangrove_wood": {
+      "friction": 0.622,
+      "restitution": 0.104,
+      "weight": 605.04
+    },
+    "minecraft:stripped_oak_log": {
+      "friction": 0.608,
+      "restitution": 0.101,
+      "weight": 588.84
+    },
+    "minecraft:stripped_oak_wood": {
+      "friction": 0.624,
+      "restitution": 0.104,
+      "weight": 602.34
+    },
+    "minecraft:stripped_spruce_log": {
+      "friction": 0.584,
+      "restitution": 0.097,
+      "weight": 597.3
+    },
+    "minecraft:stripped_spruce_wood": {
+      "friction": 0.624,
+      "restitution": 0.104,
+      "weight": 599.52
+    },
+    "minecraft:stripped_warped_hyphae": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 599.04
+    },
+    "minecraft:stripped_warped_stem": {
+      "friction": 0.593,
+      "restitution": 0.099,
+      "weight": 601.02
+    },
+    "minecraft:warped_hyphae": {
+      "friction": 0.589,
+      "restitution": 0.098,
+      "weight": 611.46
+    },
+    "minecraft:warped_stem": {
+      "friction": 0.618,
+      "restitution": 0.103,
+      "weight": 606.42
+    }
+  }
+}

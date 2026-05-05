@@ -1,0 +1,359 @@
+{
+  "values": {
+    "minecraft:acacia_sapling": {
+      "friction": 0.839,
+      "restitution": 0.0,
+      "weight": 1.02
+    },
+    "minecraft:azalea": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 1004.9
+    },
+    "minecraft:bamboo": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 988.9
+    },
+    "minecraft:bamboo_block": {
+      "friction": 0.587,
+      "restitution": 0.098,
+      "weight": 1018.9
+    },
+    "minecraft:bamboo_mosaic": {
+      "friction": 0.588,
+      "restitution": 0.098,
+      "weight": 1013.6
+    },
+    "minecraft:beetroots": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 1.0
+    },
+    "minecraft:birch_sapling": {
+      "friction": 0.779,
+      "restitution": 0.0,
+      "weight": 0.99
+    },
+    "minecraft:brain_coral": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 0.99
+    },
+    "minecraft:brain_coral_block": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 982.3
+    },
+    "minecraft:brain_coral_fan": {
+      "friction": 0.814,
+      "restitution": 0.051,
+      "weight": 1.01
+    },
+    "minecraft:brown_mushroom": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 0.98
+    },
+    "minecraft:brown_mushroom_block": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 594.18
+    },
+    "minecraft:bubble_coral": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 1.0
+    },
+    "minecraft:bubble_coral_block": {
+      "friction": 0.778,
+      "restitution": 0.049,
+      "weight": 1005.3
+    },
+    "minecraft:bubble_coral_fan": {
+      "friction": 0.77,
+      "restitution": 0.048,
+      "weight": 1.01
+    },
+    "minecraft:carrots": {
+      "friction": 0.761,
+      "restitution": 0.048,
+      "weight": 0.99
+    },
+    "minecraft:cave_vines": {
+      "friction": 0.776,
+      "restitution": 0.0,
+      "weight": 0.99
+    },
+    "minecraft:cherry_sapling": {
+      "friction": 0.81,
+      "restitution": 0.0,
+      "weight": 0.99
+    },
+    "minecraft:chorus_flower": {
+      "friction": 0.808,
+      "restitution": 0.0,
+      "weight": 0.98
+    },
+    "minecraft:cornflower": {
+      "friction": 0.836,
+      "restitution": 0.0,
+      "weight": 1.0
+    },
+    "minecraft:dark_oak_sapling": {
+      "friction": 0.797,
+      "restitution": 0.0,
+      "weight": 1.0
+    },
+    "minecraft:dead_brain_coral": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 1.0
+    },
+    "minecraft:dead_brain_coral_block": {
+      "friction": 0.833,
+      "restitution": 0.052,
+      "weight": 1011.8
+    },
+    "minecraft:dead_brain_coral_fan": {
+      "friction": 0.813,
+      "restitution": 0.051,
+      "weight": 1.02
+    },
+    "minecraft:dead_bubble_coral": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 0.99
+    },
+    "minecraft:dead_bubble_coral_block": {
+      "friction": 0.77,
+      "restitution": 0.048,
+      "weight": 980.4
+    },
+    "minecraft:dead_bubble_coral_fan": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 1.0
+    },
+    "minecraft:dead_fire_coral": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 1.0
+    },
+    "minecraft:dead_fire_coral_block": {
+      "friction": 0.838,
+      "restitution": 0.052,
+      "weight": 1007.7
+    },
+    "minecraft:dead_fire_coral_fan": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 1.01
+    },
+    "minecraft:dead_horn_coral": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 1.01
+    },
+    "minecraft:dead_horn_coral_block": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 986.8
+    },
+    "minecraft:dead_horn_coral_fan": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 1.0
+    },
+    "minecraft:dead_tube_coral": {
+      "friction": 0.761,
+      "restitution": 0.048,
+      "weight": 1.0
+    },
+    "minecraft:dead_tube_coral_block": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 1019.3
+    },
+    "minecraft:dead_tube_coral_fan": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 1.02
+    },
+    "minecraft:dried_kelp_block": {
+      "friction": 0.795,
+      "restitution": 0.0,
+      "weight": 998.8
+    },
+    "minecraft:fern": {
+      "friction": 0.799,
+      "restitution": 0.0,
+      "weight": 0.98
+    },
+    "minecraft:fire_coral": {
+      "friction": 0.78,
+      "restitution": 0.049,
+      "weight": 1.01
+    },
+    "minecraft:fire_coral_block": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 1008.8
+    },
+    "minecraft:fire_coral_fan": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 1.0
+    },
+    "minecraft:flower_pot": {
+      "friction": 0.761,
+      "restitution": 0.0,
+      "weight": 0.99
+    },
+    "minecraft:flowering_azalea": {
+      "friction": 0.792,
+      "restitution": 0.0,
+      "weight": 1.02
+    },
+    "minecraft:horn_coral": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 0.99
+    },
+    "minecraft:horn_coral_block": {
+      "friction": 0.773,
+      "restitution": 0.048,
+      "weight": 1002.6
+    },
+    "minecraft:horn_coral_fan": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 0.98
+    },
+    "minecraft:jungle_sapling": {
+      "friction": 0.806,
+      "restitution": 0.0,
+      "weight": 0.98
+    },
+    "minecraft:kelp": {
+      "friction": 0.779,
+      "restitution": 0.0,
+      "weight": 0.99
+    },
+    "minecraft:large_fern": {
+      "friction": 0.781,
+      "restitution": 0.0,
+      "weight": 1.02
+    },
+    "minecraft:lily_pad": {
+      "friction": 0.806,
+      "restitution": 0.0,
+      "weight": 1.01
+    },
+    "minecraft:oak_sapling": {
+      "friction": 0.763,
+      "restitution": 0.0,
+      "weight": 0.99
+    },
+    "minecraft:pitcher_crop": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 0.98
+    },
+    "minecraft:potatoes": {
+      "friction": 0.783,
+      "restitution": 0.049,
+      "weight": 1.0
+    },
+    "minecraft:red_mushroom": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 0.99
+    },
+    "minecraft:red_mushroom_block": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 591.24
+    },
+    "minecraft:seagrass": {
+      "friction": 0.792,
+      "restitution": 0.0,
+      "weight": 1.01
+    },
+    "minecraft:short_grass": {
+      "friction": 0.816,
+      "restitution": 0.0,
+      "weight": 0.99
+    },
+    "minecraft:spruce_sapling": {
+      "friction": 0.836,
+      "restitution": 0.0,
+      "weight": 0.99
+    },
+    "minecraft:stripped_bamboo_block": {
+      "friction": 0.584,
+      "restitution": 0.097,
+      "weight": 998.6
+    },
+    "minecraft:sugar_cane": {
+      "friction": 0.832,
+      "restitution": 0.052,
+      "weight": 1.0
+    },
+    "minecraft:sunflower": {
+      "friction": 0.826,
+      "restitution": 0.0,
+      "weight": 1.0
+    },
+    "minecraft:tall_grass": {
+      "friction": 0.77,
+      "restitution": 0.0,
+      "weight": 1.0
+    },
+    "minecraft:torchflower": {
+      "friction": 0.835,
+      "restitution": 0.0,
+      "weight": 2.04
+    },
+    "minecraft:torchflower_crop": {
+      "friction": 0.82,
+      "restitution": 0.0,
+      "weight": 1.98
+    },
+    "minecraft:tube_coral": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 0.98
+    },
+    "minecraft:tube_coral_block": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 985.1
+    },
+    "minecraft:tube_coral_fan": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 0.98
+    },
+    "minecraft:twisting_vines": {
+      "friction": 0.778,
+      "restitution": 0.0,
+      "weight": 0.98
+    },
+    "minecraft:vine": {
+      "friction": 0.791,
+      "restitution": 0.0,
+      "weight": 1.01
+    },
+    "minecraft:weeping_vines": {
+      "friction": 0.788,
+      "restitution": 0.0,
+      "weight": 1.01
+    },
+    "minecraft:wheat": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 0.99
+    }
+  }
+}

@@ -1,0 +1,289 @@
+{
+  "values": {
+    "minecraft:amethyst_block": {
+      "friction": 0.408,
+      "restitution": 0.408,
+      "weight": 2238.28
+    },
+    "minecraft:amethyst_cluster": {
+      "friction": 0.393,
+      "restitution": 0.393,
+      "weight": 2185.7
+    },
+    "minecraft:budding_amethyst": {
+      "friction": 0.391,
+      "restitution": 0.391,
+      "weight": 2177.56
+    },
+    "minecraft:chiseled_copper": {
+      "friction": 0.451,
+      "restitution": 0.201,
+      "weight": 997.1
+    },
+    "minecraft:coal_block": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 1307.93
+    },
+    "minecraft:copper_block": {
+      "friction": 0.468,
+      "restitution": 0.208,
+      "weight": 9035.28
+    },
+    "minecraft:copper_bulb": {
+      "friction": 0.43,
+      "restitution": 0.191,
+      "weight": 1018.5
+    },
+    "minecraft:copper_grate": {
+      "friction": 0.447,
+      "restitution": 0.199,
+      "weight": 1015.3
+    },
+    "minecraft:cut_copper": {
+      "friction": 0.443,
+      "restitution": 0.197,
+      "weight": 8727.34
+    },
+    "minecraft:diamond_block": {
+      "friction": 0.511,
+      "restitution": 0.153,
+      "weight": 3521.35
+    },
+    "minecraft:emerald_block": {
+      "friction": 0.495,
+      "restitution": 0.149,
+      "weight": 2794.96
+    },
+    "minecraft:exposed_chiseled_copper": {
+      "friction": 0.47,
+      "restitution": 0.209,
+      "weight": 1000.9
+    },
+    "minecraft:exposed_copper": {
+      "friction": 0.441,
+      "restitution": 0.196,
+      "weight": 1019.9
+    },
+    "minecraft:exposed_copper_bulb": {
+      "friction": 0.449,
+      "restitution": 0.2,
+      "weight": 991.2
+    },
+    "minecraft:exposed_copper_grate": {
+      "friction": 0.453,
+      "restitution": 0.201,
+      "weight": 1003.1
+    },
+    "minecraft:exposed_cut_copper": {
+      "friction": 0.469,
+      "restitution": 0.208,
+      "weight": 8962.3
+    },
+    "minecraft:gold_block": {
+      "friction": 0.481,
+      "restitution": 0.144,
+      "weight": 19662.84
+    },
+    "minecraft:iron_bars": {
+      "friction": 0.491,
+      "restitution": 0.147,
+      "weight": 1011.6
+    },
+    "minecraft:iron_block": {
+      "friction": 0.5,
+      "restitution": 0.15,
+      "weight": 7767.24
+    },
+    "minecraft:lapis_block": {
+      "friction": 0.514,
+      "restitution": 0.154,
+      "weight": 2817.36
+    },
+    "minecraft:large_amethyst_bud": {
+      "friction": 0.381,
+      "restitution": 0.381,
+      "weight": 2206.38
+    },
+    "minecraft:medium_amethyst_bud": {
+      "friction": 0.384,
+      "restitution": 0.384,
+      "weight": 2191.86
+    },
+    "minecraft:netherite_block": {
+      "friction": 0.489,
+      "restitution": 0.147,
+      "weight": 44806.5
+    },
+    "minecraft:oxidized_chiseled_copper": {
+      "friction": 0.457,
+      "restitution": 0.203,
+      "weight": 986.7
+    },
+    "minecraft:oxidized_copper": {
+      "friction": 0.438,
+      "restitution": 0.195,
+      "weight": 1009.9
+    },
+    "minecraft:oxidized_copper_bulb": {
+      "friction": 0.456,
+      "restitution": 0.203,
+      "weight": 992.9
+    },
+    "minecraft:oxidized_copper_grate": {
+      "friction": 0.455,
+      "restitution": 0.202,
+      "weight": 1008.4
+    },
+    "minecraft:oxidized_cut_copper": {
+      "friction": 0.445,
+      "restitution": 0.198,
+      "weight": 8795.87
+    },
+    "minecraft:raw_copper_block": {
+      "friction": 0.47,
+      "restitution": 0.209,
+      "weight": 8810.11
+    },
+    "minecraft:raw_gold_block": {
+      "friction": 0.512,
+      "restitution": 0.154,
+      "weight": 19280.7
+    },
+    "minecraft:raw_iron_block": {
+      "friction": 0.492,
+      "restitution": 0.148,
+      "weight": 7868.64
+    },
+    "minecraft:small_amethyst_bud": {
+      "friction": 0.381,
+      "restitution": 0.381,
+      "weight": 2189.66
+    },
+    "minecraft:waxed_chiseled_copper": {
+      "friction": 0.463,
+      "restitution": 0.206,
+      "weight": 1011.4
+    },
+    "minecraft:waxed_copper_block": {
+      "friction": 0.434,
+      "restitution": 0.193,
+      "weight": 8769.17
+    },
+    "minecraft:waxed_copper_bulb": {
+      "friction": 0.446,
+      "restitution": 0.198,
+      "weight": 1018.4
+    },
+    "minecraft:waxed_copper_grate": {
+      "friction": 0.428,
+      "restitution": 0.19,
+      "weight": 999.6
+    },
+    "minecraft:waxed_cut_copper": {
+      "friction": 0.443,
+      "restitution": 0.197,
+      "weight": 8733.57
+    },
+    "minecraft:waxed_exposed_chiseled_copper": {
+      "friction": 0.451,
+      "restitution": 0.201,
+      "weight": 983.3
+    },
+    "minecraft:waxed_exposed_copper": {
+      "friction": 0.471,
+      "restitution": 0.209,
+      "weight": 993.8
+    },
+    "minecraft:waxed_exposed_copper_bulb": {
+      "friction": 0.448,
+      "restitution": 0.199,
+      "weight": 998.7
+    },
+    "minecraft:waxed_exposed_copper_grate": {
+      "friction": 0.428,
+      "restitution": 0.19,
+      "weight": 990.6
+    },
+    "minecraft:waxed_exposed_cut_copper": {
+      "friction": 0.457,
+      "restitution": 0.203,
+      "weight": 9029.05
+    },
+    "minecraft:waxed_oxidized_chiseled_copper": {
+      "friction": 0.431,
+      "restitution": 0.192,
+      "weight": 998.9
+    },
+    "minecraft:waxed_oxidized_copper": {
+      "friction": 0.452,
+      "restitution": 0.201,
+      "weight": 1018.8
+    },
+    "minecraft:waxed_oxidized_copper_bulb": {
+      "friction": 0.461,
+      "restitution": 0.205,
+      "weight": 1007.3
+    },
+    "minecraft:waxed_oxidized_copper_grate": {
+      "friction": 0.458,
+      "restitution": 0.204,
+      "weight": 1000.3
+    },
+    "minecraft:waxed_oxidized_cut_copper": {
+      "friction": 0.459,
+      "restitution": 0.204,
+      "weight": 8967.64
+    },
+    "minecraft:waxed_weathered_chiseled_copper": {
+      "friction": 0.436,
+      "restitution": 0.194,
+      "weight": 994.5
+    },
+    "minecraft:waxed_weathered_copper": {
+      "friction": 0.439,
+      "restitution": 0.195,
+      "weight": 1013.8
+    },
+    "minecraft:waxed_weathered_copper_bulb": {
+      "friction": 0.444,
+      "restitution": 0.197,
+      "weight": 1008.0
+    },
+    "minecraft:waxed_weathered_copper_grate": {
+      "friction": 0.442,
+      "restitution": 0.196,
+      "weight": 992.2
+    },
+    "minecraft:waxed_weathered_cut_copper": {
+      "friction": 0.456,
+      "restitution": 0.203,
+      "weight": 8928.48
+    },
+    "minecraft:weathered_chiseled_copper": {
+      "friction": 0.472,
+      "restitution": 0.21,
+      "weight": 1015.5
+    },
+    "minecraft:weathered_copper": {
+      "friction": 0.428,
+      "restitution": 0.19,
+      "weight": 1014.8
+    },
+    "minecraft:weathered_copper_bulb": {
+      "friction": 0.431,
+      "restitution": 0.192,
+      "weight": 987.0
+    },
+    "minecraft:weathered_copper_grate": {
+      "friction": 0.464,
+      "restitution": 0.206,
+      "weight": 988.8
+    },
+    "minecraft:weathered_cut_copper": {
+      "friction": 0.454,
+      "restitution": 0.202,
+      "weight": 9050.41
+    }
+  }
+}

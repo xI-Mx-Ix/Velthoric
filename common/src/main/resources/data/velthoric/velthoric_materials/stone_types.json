@@ -1,0 +1,259 @@
+{
+  "values": {
+    "minecraft:andesite": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 2187.24
+    },
+    "minecraft:basalt": {
+      "friction": 0.797,
+      "restitution": 0.05,
+      "weight": 2157.54
+    },
+    "minecraft:bedrock": {
+      "friction": 0.745,
+      "restitution": 0.05,
+      "weight": 4955.5
+    },
+    "minecraft:blackstone": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 2222.44
+    },
+    "minecraft:chiseled_deepslate": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 2171.4
+    },
+    "minecraft:chiseled_polished_blackstone": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 2173.38
+    },
+    "minecraft:chiseled_red_sandstone": {
+      "friction": 0.783,
+      "restitution": 0.0,
+      "weight": 2236.08
+    },
+    "minecraft:chiseled_sandstone": {
+      "friction": 0.776,
+      "restitution": 0.0,
+      "weight": 2215.4
+    },
+    "minecraft:chiseled_tuff": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 2163.7
+    },
+    "minecraft:cobbled_deepslate": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 2232.56
+    },
+    "minecraft:cobblestone": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 2168.98
+    },
+    "minecraft:cracked_deepslate_tiles": {
+      "friction": 0.79,
+      "restitution": 0.049,
+      "weight": 2199.12
+    },
+    "minecraft:crying_obsidian": {
+      "friction": 0.713,
+      "restitution": 0.048,
+      "weight": 3472.7
+    },
+    "minecraft:cut_red_sandstone": {
+      "friction": 0.805,
+      "restitution": 0.0,
+      "weight": 2203.74
+    },
+    "minecraft:cut_sandstone": {
+      "friction": 0.782,
+      "restitution": 0.0,
+      "weight": 2218.48
+    },
+    "minecraft:deepslate": {
+      "friction": 0.804,
+      "restitution": 0.05,
+      "weight": 2212.1
+    },
+    "minecraft:deepslate_tiles": {
+      "friction": 0.833,
+      "restitution": 0.052,
+      "weight": 2187.46
+    },
+    "minecraft:diorite": {
+      "friction": 0.787,
+      "restitution": 0.049,
+      "weight": 2164.14
+    },
+    "minecraft:dripstone_block": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 2216.72
+    },
+    "minecraft:gilded_blackstone": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 2240.04
+    },
+    "minecraft:glowstone": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 2209.24
+    },
+    "minecraft:granite": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 2240.26
+    },
+    "minecraft:grindstone": {
+      "friction": 0.762,
+      "restitution": 0.048,
+      "weight": 2232.78
+    },
+    "minecraft:infested_cobblestone": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 2205.28
+    },
+    "minecraft:infested_deepslate": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 2219.8
+    },
+    "minecraft:infested_stone": {
+      "friction": 0.783,
+      "restitution": 0.049,
+      "weight": 2200.44
+    },
+    "minecraft:lodestone": {
+      "friction": 0.84,
+      "restitution": 0.052,
+      "weight": 2213.64
+    },
+    "minecraft:mossy_cobblestone": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 2220.46
+    },
+    "minecraft:obsidian": {
+      "friction": 0.756,
+      "restitution": 0.05,
+      "weight": 3507.35
+    },
+    "minecraft:pointed_dripstone": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 2168.32
+    },
+    "minecraft:polished_andesite": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 2207.04
+    },
+    "minecraft:polished_basalt": {
+      "friction": 0.797,
+      "restitution": 0.05,
+      "weight": 2181.3
+    },
+    "minecraft:polished_blackstone": {
+      "friction": 0.801,
+      "restitution": 0.05,
+      "weight": 2187.9
+    },
+    "minecraft:polished_deepslate": {
+      "friction": 0.808,
+      "restitution": 0.051,
+      "weight": 2235.2
+    },
+    "minecraft:polished_diorite": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 2158.42
+    },
+    "minecraft:polished_granite": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 2203.96
+    },
+    "minecraft:polished_tuff": {
+      "friction": 0.771,
+      "restitution": 0.048,
+      "weight": 2198.9
+    },
+    "minecraft:red_sandstone": {
+      "friction": 0.767,
+      "restitution": 0.0,
+      "weight": 2234.98
+    },
+    "minecraft:redstone_block": {
+      "friction": 0.838,
+      "restitution": 0.052,
+      "weight": 1323.79
+    },
+    "minecraft:redstone_lamp": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 2157.32
+    },
+    "minecraft:redstone_torch": {
+      "friction": 0.78,
+      "restitution": 0.049,
+      "weight": 1.99
+    },
+    "minecraft:redstone_wire": {
+      "friction": 0.834,
+      "restitution": 0.052,
+      "weight": 2231.24
+    },
+    "minecraft:reinforced_deepslate": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 2176.02
+    },
+    "minecraft:sandstone": {
+      "friction": 0.766,
+      "restitution": 0.0,
+      "weight": 2163.26
+    },
+    "minecraft:smooth_basalt": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 2174.04
+    },
+    "minecraft:smooth_red_sandstone": {
+      "friction": 0.783,
+      "restitution": 0.0,
+      "weight": 2243.12
+    },
+    "minecraft:smooth_sandstone": {
+      "friction": 0.767,
+      "restitution": 0.0,
+      "weight": 2238.94
+    },
+    "minecraft:smooth_stone": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 2165.68
+    },
+    "minecraft:stone": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 2190.98
+    },
+    "minecraft:stonecutter": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 2184.38
+    },
+    "minecraft:tuff": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 2180.42
+    }
+  }
+}

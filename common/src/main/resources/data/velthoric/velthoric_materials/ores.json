@@ -1,0 +1,104 @@
+{
+  "values": {
+    "minecraft:coal_ore": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 992.3
+    },
+    "minecraft:copper_ore": {
+      "friction": 0.451,
+      "restitution": 0.2,
+      "weight": 1014.2
+    },
+    "minecraft:deepslate_coal_ore": {
+      "friction": 0.823,
+      "restitution": 0.051,
+      "weight": 2238.06
+    },
+    "minecraft:deepslate_copper_ore": {
+      "friction": 0.471,
+      "restitution": 0.209,
+      "weight": 2227.5
+    },
+    "minecraft:deepslate_diamond_ore": {
+      "friction": 0.477,
+      "restitution": 0.143,
+      "weight": 2165.9
+    },
+    "minecraft:deepslate_emerald_ore": {
+      "friction": 0.506,
+      "restitution": 0.152,
+      "weight": 2241.58
+    },
+    "minecraft:deepslate_gold_ore": {
+      "friction": 0.481,
+      "restitution": 0.144,
+      "weight": 2227.72
+    },
+    "minecraft:deepslate_iron_ore": {
+      "friction": 0.484,
+      "restitution": 0.145,
+      "weight": 2212.54
+    },
+    "minecraft:deepslate_lapis_ore": {
+      "friction": 0.505,
+      "restitution": 0.151,
+      "weight": 2165.46
+    },
+    "minecraft:deepslate_redstone_ore": {
+      "friction": 0.808,
+      "restitution": 0.05,
+      "weight": 2164.14
+    },
+    "minecraft:diamond_ore": {
+      "friction": 0.495,
+      "restitution": 0.148,
+      "weight": 991.4
+    },
+    "minecraft:emerald_ore": {
+      "friction": 0.508,
+      "restitution": 0.152,
+      "weight": 1008.6
+    },
+    "minecraft:gold_ore": {
+      "friction": 0.48,
+      "restitution": 0.144,
+      "weight": 988.8
+    },
+    "minecraft:heavy_core": {
+      "friction": 0.606,
+      "restitution": 0.02,
+      "weight": 1010.7
+    },
+    "minecraft:iron_ore": {
+      "friction": 0.504,
+      "restitution": 0.151,
+      "weight": 1015.1
+    },
+    "minecraft:lapis_ore": {
+      "friction": 0.486,
+      "restitution": 0.146,
+      "weight": 1005.2
+    },
+    "minecraft:nether_gold_ore": {
+      "friction": 0.511,
+      "restitution": 0.153,
+      "weight": 1003.6
+    },
+    "minecraft:nether_quartz_ore": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 2219.8
+    },
+    "minecraft:redstone_ore": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 2181.52
+    },
+    "minecraft:spore_blossom": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 988.4
+    }
+  }
+}

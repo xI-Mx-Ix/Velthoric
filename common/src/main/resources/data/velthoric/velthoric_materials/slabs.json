@@ -1,0 +1,304 @@
+{
+  "values": {
+    "minecraft:acacia_slab": {
+      "friction": 0.609,
+      "restitution": 0.102,
+      "weight": 502.7
+    },
+    "minecraft:andesite_slab": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 1083.83
+    },
+    "minecraft:bamboo_mosaic_slab": {
+      "friction": 0.617,
+      "restitution": 0.103,
+      "weight": 499.5
+    },
+    "minecraft:bamboo_slab": {
+      "friction": 0.612,
+      "restitution": 0.102,
+      "weight": 499.6
+    },
+    "minecraft:birch_slab": {
+      "friction": 0.612,
+      "restitution": 0.102,
+      "weight": 509.15
+    },
+    "minecraft:blackstone_slab": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 1095.71
+    },
+    "minecraft:brick_slab": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 1096.81
+    },
+    "minecraft:cherry_slab": {
+      "friction": 0.62,
+      "restitution": 0.103,
+      "weight": 500.05
+    },
+    "minecraft:cobbled_deepslate_slab": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 1108.8
+    },
+    "minecraft:cobblestone_slab": {
+      "friction": 0.813,
+      "restitution": 0.051,
+      "weight": 1083.61
+    },
+    "minecraft:crimson_slab": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 501.35
+    },
+    "minecraft:cut_copper_slab": {
+      "friction": 0.448,
+      "restitution": 0.199,
+      "weight": 8900.0
+    },
+    "minecraft:cut_red_sandstone_slab": {
+      "friction": 0.81,
+      "restitution": 0.0,
+      "weight": 1095.16
+    },
+    "minecraft:cut_sandstone_slab": {
+      "friction": 0.789,
+      "restitution": 0.0,
+      "weight": 1090.21
+    },
+    "minecraft:dark_oak_slab": {
+      "friction": 0.597,
+      "restitution": 0.099,
+      "weight": 499.3
+    },
+    "minecraft:dark_prismarine_slab": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 1078.88
+    },
+    "minecraft:deepslate_brick_slab": {
+      "friction": 0.823,
+      "restitution": 0.051,
+      "weight": 1092.3
+    },
+    "minecraft:deepslate_tile_slab": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 1100.99
+    },
+    "minecraft:diorite_slab": {
+      "friction": 0.805,
+      "restitution": 0.05,
+      "weight": 1111.88
+    },
+    "minecraft:end_stone_brick_slab": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 1111.33
+    },
+    "minecraft:exposed_cut_copper_slab": {
+      "friction": 0.458,
+      "restitution": 0.203,
+      "weight": 8926.7
+    },
+    "minecraft:granite_slab": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 1079.76
+    },
+    "minecraft:jungle_slab": {
+      "friction": 0.581,
+      "restitution": 0.097,
+      "weight": 505.7
+    },
+    "minecraft:mangrove_slab": {
+      "friction": 0.594,
+      "restitution": 0.099,
+      "weight": 504.95
+    },
+    "minecraft:mossy_cobblestone_slab": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 1114.74
+    },
+    "minecraft:mossy_stone_brick_slab": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 1086.47
+    },
+    "minecraft:mud_brick_slab": {
+      "friction": 0.801,
+      "restitution": 0.05,
+      "weight": 1088.56
+    },
+    "minecraft:nether_brick_slab": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 1102.42
+    },
+    "minecraft:oak_slab": {
+      "friction": 0.606,
+      "restitution": 0.101,
+      "weight": 496.55
+    },
+    "minecraft:oxidized_cut_copper_slab": {
+      "friction": 0.431,
+      "restitution": 0.192,
+      "weight": 8997.9
+    },
+    "minecraft:petrified_oak_slab": {
+      "friction": 0.613,
+      "restitution": 0.102,
+      "weight": 497.35
+    },
+    "minecraft:polished_andesite_slab": {
+      "friction": 0.814,
+      "restitution": 0.051,
+      "weight": 1098.68
+    },
+    "minecraft:polished_blackstone_brick_slab": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 1120.79
+    },
+    "minecraft:polished_blackstone_slab": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 1119.36
+    },
+    "minecraft:polished_deepslate_slab": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 1099.89
+    },
+    "minecraft:polished_diorite_slab": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 1105.83
+    },
+    "minecraft:polished_granite_slab": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 1107.7
+    },
+    "minecraft:polished_tuff_slab": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 1079.54
+    },
+    "minecraft:prismarine_brick_slab": {
+      "friction": 0.827,
+      "restitution": 0.052,
+      "weight": 1081.08
+    },
+    "minecraft:prismarine_slab": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 1079.87
+    },
+    "minecraft:purpur_slab": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 1118.15
+    },
+    "minecraft:quartz_slab": {
+      "friction": 0.761,
+      "restitution": 0.048,
+      "weight": 1088.45
+    },
+    "minecraft:red_nether_brick_slab": {
+      "friction": 0.838,
+      "restitution": 0.052,
+      "weight": 1111.0
+    },
+    "minecraft:red_sandstone_slab": {
+      "friction": 0.83,
+      "restitution": 0.0,
+      "weight": 1113.97
+    },
+    "minecraft:sandstone_slab": {
+      "friction": 0.824,
+      "restitution": 0.0,
+      "weight": 1093.29
+    },
+    "minecraft:smooth_quartz_slab": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 1093.07
+    },
+    "minecraft:smooth_red_sandstone_slab": {
+      "friction": 0.766,
+      "restitution": 0.0,
+      "weight": 1092.85
+    },
+    "minecraft:smooth_sandstone_slab": {
+      "friction": 0.785,
+      "restitution": 0.0,
+      "weight": 1086.47
+    },
+    "minecraft:smooth_stone_slab": {
+      "friction": 0.797,
+      "restitution": 0.05,
+      "weight": 1106.16
+    },
+    "minecraft:spruce_slab": {
+      "friction": 0.626,
+      "restitution": 0.104,
+      "weight": 504.05
+    },
+    "minecraft:stone_brick_slab": {
+      "friction": 0.808,
+      "restitution": 0.051,
+      "weight": 1081.41
+    },
+    "minecraft:stone_slab": {
+      "friction": 0.832,
+      "restitution": 0.052,
+      "weight": 1118.04
+    },
+    "minecraft:tuff_brick_slab": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 1086.47
+    },
+    "minecraft:tuff_slab": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 1099.12
+    },
+    "minecraft:warped_slab": {
+      "friction": 0.76,
+      "restitution": 0.048,
+      "weight": 499.75
+    },
+    "minecraft:waxed_cut_copper_slab": {
+      "friction": 0.462,
+      "restitution": 0.205,
+      "weight": 8988.11
+    },
+    "minecraft:waxed_exposed_cut_copper_slab": {
+      "friction": 0.463,
+      "restitution": 0.206,
+      "weight": 8919.58
+    },
+    "minecraft:waxed_oxidized_cut_copper_slab": {
+      "friction": 0.432,
+      "restitution": 0.192,
+      "weight": 8863.51
+    },
+    "minecraft:waxed_weathered_cut_copper_slab": {
+      "friction": 0.436,
+      "restitution": 0.194,
+      "weight": 8939.16
+    },
+    "minecraft:weathered_cut_copper_slab": {
+      "friction": 0.469,
+      "restitution": 0.209,
+      "weight": 8893.77
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "values": {
+    "minecraft:acacia_hanging_sign": {
+      "friction": 0.587,
+      "restitution": 0.098,
+      "weight": 993.2
+    },
+    "minecraft:acacia_sign": {
+      "friction": 0.611,
+      "restitution": 0.102,
+      "weight": 1009.3
+    },
+    "minecraft:bamboo_hanging_sign": {
+      "friction": 0.57,
+      "restitution": 0.095,
+      "weight": 992.3
+    },
+    "minecraft:bamboo_sign": {
+      "friction": 0.571,
+      "restitution": 0.095,
+      "weight": 1012.9
+    },
+    "minecraft:birch_hanging_sign": {
+      "friction": 0.613,
+      "restitution": 0.102,
+      "weight": 999.9
+    },
+    "minecraft:birch_sign": {
+      "friction": 0.599,
+      "restitution": 0.1,
+      "weight": 991.2
+    },
+    "minecraft:cherry_hanging_sign": {
+      "friction": 0.6,
+      "restitution": 0.1,
+      "weight": 1019.9
+    },
+    "minecraft:cherry_sign": {
+      "friction": 0.579,
+      "restitution": 0.097,
+      "weight": 1011.5
+    },
+    "minecraft:crimson_hanging_sign": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 1000.1
+    },
+    "minecraft:crimson_sign": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 982.4
+    },
+    "minecraft:dark_oak_hanging_sign": {
+      "friction": 0.629,
+      "restitution": 0.105,
+      "weight": 982.5
+    },
+    "minecraft:dark_oak_sign": {
+      "friction": 0.584,
+      "restitution": 0.097,
+      "weight": 1004.8
+    },
+    "minecraft:jungle_hanging_sign": {
+      "friction": 0.588,
+      "restitution": 0.098,
+      "weight": 983.8
+    },
+    "minecraft:jungle_sign": {
+      "friction": 0.584,
+      "restitution": 0.097,
+      "weight": 985.2
+    },
+    "minecraft:mangrove_hanging_sign": {
+      "friction": 0.619,
+      "restitution": 0.103,
+      "weight": 996.0
+    },
+    "minecraft:mangrove_sign": {
+      "friction": 0.608,
+      "restitution": 0.101,
+      "weight": 1012.2
+    },
+    "minecraft:oak_hanging_sign": {
+      "friction": 0.613,
+      "restitution": 0.102,
+      "weight": 986.3
+    },
+    "minecraft:oak_sign": {
+      "friction": 0.627,
+      "restitution": 0.104,
+      "weight": 994.7
+    },
+    "minecraft:spruce_hanging_sign": {
+      "friction": 0.614,
+      "restitution": 0.102,
+      "weight": 994.2
+    },
+    "minecraft:spruce_sign": {
+      "friction": 0.617,
+      "restitution": 0.103,
+      "weight": 984.7
+    },
+    "minecraft:warped_hanging_sign": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 985.9
+    },
+    "minecraft:warped_sign": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 982.4
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "values": {
+    "minecraft:chiseled_quartz_block": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 2243.56
+    },
+    "minecraft:crimson_nylium": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 1478.1
+    },
+    "minecraft:magma_block": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 1016.9
+    },
+    "minecraft:netherrack": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 1011.7
+    },
+    "minecraft:quartz_block": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 2178.22
+    },
+    "minecraft:quartz_pillar": {
+      "friction": 0.824,
+      "restitution": 0.051,
+      "weight": 2187.02
+    },
+    "minecraft:shroomlight": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 1014.6
+    },
+    "minecraft:smooth_quartz": {
+      "friction": 0.76,
+      "restitution": 0.048,
+      "weight": 2211.0
+    },
+    "minecraft:soul_soil": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 1525.35
+    },
+    "minecraft:warped_nylium": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 1497.45
+    }
+  }
+}

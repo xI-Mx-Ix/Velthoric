@@ -1,0 +1,84 @@
+{
+  "values": {
+    "minecraft:black_bed": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 45.18
+    },
+    "minecraft:blue_bed": {
+      "friction": 0.814,
+      "restitution": 0.051,
+      "weight": 45.34
+    },
+    "minecraft:brown_bed": {
+      "friction": 0.771,
+      "restitution": 0.048,
+      "weight": 45.54
+    },
+    "minecraft:cyan_bed": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 45.85
+    },
+    "minecraft:gray_bed": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 44.34
+    },
+    "minecraft:green_bed": {
+      "friction": 0.778,
+      "restitution": 0.049,
+      "weight": 45.63
+    },
+    "minecraft:light_blue_bed": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 45.31
+    },
+    "minecraft:light_gray_bed": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 45.0
+    },
+    "minecraft:lime_bed": {
+      "friction": 0.829,
+      "restitution": 0.052,
+      "weight": 45.64
+    },
+    "minecraft:magenta_bed": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 44.32
+    },
+    "minecraft:orange_bed": {
+      "friction": 0.816,
+      "restitution": 0.051,
+      "weight": 44.63
+    },
+    "minecraft:pink_bed": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 44.54
+    },
+    "minecraft:purple_bed": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 44.67
+    },
+    "minecraft:red_bed": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 44.14
+    },
+    "minecraft:white_bed": {
+      "friction": 0.765,
+      "restitution": 0.048,
+      "weight": 45.67
+    },
+    "minecraft:yellow_bed": {
+      "friction": 0.787,
+      "restitution": 0.049,
+      "weight": 45.66
+    }
+  }
+}

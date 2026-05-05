@@ -1,0 +1,89 @@
+{
+  "values": {
+    "minecraft:black_candle": {
+      "friction": 0.778,
+      "restitution": 0.049,
+      "weight": 1015.1
+    },
+    "minecraft:blue_candle": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 986.1
+    },
+    "minecraft:brown_candle": {
+      "friction": 0.768,
+      "restitution": 0.048,
+      "weight": 990.4
+    },
+    "minecraft:candle": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 1007.6
+    },
+    "minecraft:cyan_candle": {
+      "friction": 0.805,
+      "restitution": 0.05,
+      "weight": 988.7
+    },
+    "minecraft:gray_candle": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 988.8
+    },
+    "minecraft:green_candle": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 986.0
+    },
+    "minecraft:light_blue_candle": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 1002.8
+    },
+    "minecraft:light_gray_candle": {
+      "friction": 0.824,
+      "restitution": 0.051,
+      "weight": 1010.5
+    },
+    "minecraft:lime_candle": {
+      "friction": 0.814,
+      "restitution": 0.051,
+      "weight": 998.4
+    },
+    "minecraft:magenta_candle": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 1018.6
+    },
+    "minecraft:orange_candle": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 1016.3
+    },
+    "minecraft:pink_candle": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 1009.2
+    },
+    "minecraft:purple_candle": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 1003.2
+    },
+    "minecraft:red_candle": {
+      "friction": 0.773,
+      "restitution": 0.048,
+      "weight": 1010.2
+    },
+    "minecraft:white_candle": {
+      "friction": 0.768,
+      "restitution": 0.048,
+      "weight": 990.0
+    },
+    "minecraft:yellow_candle": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 1018.9
+    }
+  }
+}

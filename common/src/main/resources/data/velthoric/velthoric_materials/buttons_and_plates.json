@@ -1,0 +1,149 @@
+{
+  "values": {
+    "minecraft:acacia_button": {
+      "friction": 0.614,
+      "restitution": 0.102,
+      "weight": 1.97
+    },
+    "minecraft:acacia_pressure_plate": {
+      "friction": 0.581,
+      "restitution": 0.097,
+      "weight": 1008.7
+    },
+    "minecraft:bamboo_button": {
+      "friction": 0.591,
+      "restitution": 0.098,
+      "weight": 1.97
+    },
+    "minecraft:bamboo_pressure_plate": {
+      "friction": 0.573,
+      "restitution": 0.096,
+      "weight": 999.1
+    },
+    "minecraft:birch_button": {
+      "friction": 0.585,
+      "restitution": 0.097,
+      "weight": 2.04
+    },
+    "minecraft:birch_pressure_plate": {
+      "friction": 0.573,
+      "restitution": 0.096,
+      "weight": 1002.2
+    },
+    "minecraft:cherry_button": {
+      "friction": 0.604,
+      "restitution": 0.101,
+      "weight": 2.01
+    },
+    "minecraft:cherry_pressure_plate": {
+      "friction": 0.591,
+      "restitution": 0.098,
+      "weight": 1003.4
+    },
+    "minecraft:crimson_button": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 1.99
+    },
+    "minecraft:crimson_pressure_plate": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 1000.6
+    },
+    "minecraft:dark_oak_button": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 1.97
+    },
+    "minecraft:dark_oak_pressure_plate": {
+      "friction": 0.608,
+      "restitution": 0.101,
+      "weight": 991.5
+    },
+    "minecraft:heavy_weighted_pressure_plate": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 986.0
+    },
+    "minecraft:jungle_button": {
+      "friction": 0.583,
+      "restitution": 0.097,
+      "weight": 1.98
+    },
+    "minecraft:jungle_pressure_plate": {
+      "friction": 0.594,
+      "restitution": 0.099,
+      "weight": 1013.3
+    },
+    "minecraft:lever": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 1.96
+    },
+    "minecraft:light_weighted_pressure_plate": {
+      "friction": 0.824,
+      "restitution": 0.051,
+      "weight": 1016.9
+    },
+    "minecraft:mangrove_button": {
+      "friction": 0.587,
+      "restitution": 0.098,
+      "weight": 1.96
+    },
+    "minecraft:mangrove_pressure_plate": {
+      "friction": 0.625,
+      "restitution": 0.104,
+      "weight": 1010.5
+    },
+    "minecraft:oak_button": {
+      "friction": 0.591,
+      "restitution": 0.099,
+      "weight": 1.98
+    },
+    "minecraft:oak_pressure_plate": {
+      "friction": 0.597,
+      "restitution": 0.1,
+      "weight": 980.0
+    },
+    "minecraft:polished_blackstone_button": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 2.0
+    },
+    "minecraft:polished_blackstone_pressure_plate": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 2238.28
+    },
+    "minecraft:spruce_button": {
+      "friction": 0.589,
+      "restitution": 0.098,
+      "weight": 2.04
+    },
+    "minecraft:spruce_pressure_plate": {
+      "friction": 0.606,
+      "restitution": 0.101,
+      "weight": 1017.7
+    },
+    "minecraft:stone_button": {
+      "friction": 0.78,
+      "restitution": 0.049,
+      "weight": 1.99
+    },
+    "minecraft:stone_pressure_plate": {
+      "friction": 0.808,
+      "restitution": 0.05,
+      "weight": 2203.52
+    },
+    "minecraft:warped_button": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 2.03
+    },
+    "minecraft:warped_pressure_plate": {
+      "friction": 0.78,
+      "restitution": 0.049,
+      "weight": 1017.7
+    }
+  }
+}

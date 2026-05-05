@@ -1,0 +1,109 @@
+{
+  "values": {
+    "minecraft:black_shulker_box": {
+      "friction": 0.808,
+      "restitution": 0.051,
+      "weight": 1013.6
+    },
+    "minecraft:blue_shulker_box": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 1012.2
+    },
+    "minecraft:brown_shulker_box": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 1005.0
+    },
+    "minecraft:chorus_plant": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 999.1
+    },
+    "minecraft:cyan_shulker_box": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 996.8
+    },
+    "minecraft:end_stone": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 2203.3
+    },
+    "minecraft:gray_shulker_box": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 991.7
+    },
+    "minecraft:green_shulker_box": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 984.0
+    },
+    "minecraft:light_blue_shulker_box": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 996.1
+    },
+    "minecraft:light_gray_shulker_box": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 998.0
+    },
+    "minecraft:lime_shulker_box": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 1001.7
+    },
+    "minecraft:magenta_shulker_box": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 1005.7
+    },
+    "minecraft:orange_shulker_box": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 1003.6
+    },
+    "minecraft:pink_shulker_box": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 994.8
+    },
+    "minecraft:purple_shulker_box": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 1015.3
+    },
+    "minecraft:purpur_block": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 2189.0
+    },
+    "minecraft:purpur_pillar": {
+      "friction": 0.825,
+      "restitution": 0.052,
+      "weight": 2195.38
+    },
+    "minecraft:red_shulker_box": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 985.3
+    },
+    "minecraft:shulker_box": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 1004.9
+    },
+    "minecraft:white_shulker_box": {
+      "friction": 0.787,
+      "restitution": 0.049,
+      "weight": 1006.1
+    },
+    "minecraft:yellow_shulker_box": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 1009.8
+    }
+  }
+}

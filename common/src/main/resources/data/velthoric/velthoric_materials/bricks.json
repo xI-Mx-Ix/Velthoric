@@ -1,0 +1,119 @@
+{
+  "values": {
+    "minecraft:bricks": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 2157.1
+    },
+    "minecraft:chiseled_nether_bricks": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 2156.66
+    },
+    "minecraft:chiseled_stone_bricks": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 2207.26
+    },
+    "minecraft:chiseled_tuff_bricks": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 2169.42
+    },
+    "minecraft:cracked_deepslate_bricks": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 2162.82
+    },
+    "minecraft:cracked_nether_bricks": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 2171.18
+    },
+    "minecraft:cracked_polished_blackstone_bricks": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 2182.62
+    },
+    "minecraft:cracked_stone_bricks": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 2169.86
+    },
+    "minecraft:deepslate_bricks": {
+      "friction": 0.822,
+      "restitution": 0.051,
+      "weight": 2165.68
+    },
+    "minecraft:end_stone_bricks": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 2199.78
+    },
+    "minecraft:infested_chiseled_stone_bricks": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 2160.84
+    },
+    "minecraft:infested_cracked_stone_bricks": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 2187.46
+    },
+    "minecraft:infested_mossy_stone_bricks": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 2169.86
+    },
+    "minecraft:infested_stone_bricks": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 2204.62
+    },
+    "minecraft:mossy_stone_bricks": {
+      "friction": 0.792,
+      "restitution": 0.05,
+      "weight": 2190.32
+    },
+    "minecraft:mud_bricks": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 2172.28
+    },
+    "minecraft:nether_bricks": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 2227.06
+    },
+    "minecraft:polished_blackstone_bricks": {
+      "friction": 0.761,
+      "restitution": 0.048,
+      "weight": 2232.12
+    },
+    "minecraft:prismarine_bricks": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 2174.26
+    },
+    "minecraft:quartz_bricks": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 2201.1
+    },
+    "minecraft:red_nether_bricks": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 2181.52
+    },
+    "minecraft:stone_bricks": {
+      "friction": 0.767,
+      "restitution": 0.048,
+      "weight": 2216.06
+    },
+    "minecraft:tuff_bricks": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 2191.2
+    }
+  }
+}

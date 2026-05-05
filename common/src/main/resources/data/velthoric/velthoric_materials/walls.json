@@ -1,0 +1,419 @@
+{
+  "values": {
+    "minecraft:acacia_wall_hanging_sign": {
+      "friction": 0.622,
+      "restitution": 0.104,
+      "weight": 796.0
+    },
+    "minecraft:acacia_wall_sign": {
+      "friction": 0.605,
+      "restitution": 0.101,
+      "weight": 792.08
+    },
+    "minecraft:andesite_wall": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 1759.82
+    },
+    "minecraft:bamboo_wall_hanging_sign": {
+      "friction": 0.6,
+      "restitution": 0.1,
+      "weight": 785.52
+    },
+    "minecraft:bamboo_wall_sign": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 808.16
+    },
+    "minecraft:birch_wall_hanging_sign": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 806.96
+    },
+    "minecraft:birch_wall_sign": {
+      "friction": 0.574,
+      "restitution": 0.096,
+      "weight": 801.84
+    },
+    "minecraft:black_wall_banner": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 797.04
+    },
+    "minecraft:blackstone_wall": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 1754.19
+    },
+    "minecraft:blue_wall_banner": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 800.96
+    },
+    "minecraft:brain_coral_wall_fan": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 786.32
+    },
+    "minecraft:brick_wall": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 1779.01
+    },
+    "minecraft:brown_wall_banner": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 792.64
+    },
+    "minecraft:bubble_coral_wall_fan": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 784.96
+    },
+    "minecraft:cherry_wall_hanging_sign": {
+      "friction": 0.615,
+      "restitution": 0.102,
+      "weight": 797.28
+    },
+    "minecraft:cherry_wall_sign": {
+      "friction": 0.615,
+      "restitution": 0.103,
+      "weight": 804.08
+    },
+    "minecraft:cobbled_deepslate_wall": {
+      "friction": 0.783,
+      "restitution": 0.049,
+      "weight": 1741.52
+    },
+    "minecraft:cobblestone_wall": {
+      "friction": 0.787,
+      "restitution": 0.049,
+      "weight": 1771.09
+    },
+    "minecraft:creeper_wall_head": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 809.44
+    },
+    "minecraft:crimson_wall_hanging_sign": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 795.84
+    },
+    "minecraft:crimson_wall_sign": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 787.2
+    },
+    "minecraft:cyan_wall_banner": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 801.12
+    },
+    "minecraft:dark_oak_wall_hanging_sign": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 802.48
+    },
+    "minecraft:dark_oak_wall_sign": {
+      "friction": 0.591,
+      "restitution": 0.098,
+      "weight": 796.16
+    },
+    "minecraft:dead_brain_coral_wall_fan": {
+      "friction": 0.822,
+      "restitution": 0.051,
+      "weight": 795.44
+    },
+    "minecraft:dead_bubble_coral_wall_fan": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 814.56
+    },
+    "minecraft:dead_fire_coral_wall_fan": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 811.52
+    },
+    "minecraft:dead_horn_coral_wall_fan": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 812.4
+    },
+    "minecraft:dead_tube_coral_wall_fan": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 813.2
+    },
+    "minecraft:deepslate_brick_wall": {
+      "friction": 0.79,
+      "restitution": 0.049,
+      "weight": 1745.04
+    },
+    "minecraft:deepslate_tile_wall": {
+      "friction": 0.822,
+      "restitution": 0.051,
+      "weight": 1726.74
+    },
+    "minecraft:diorite_wall": {
+      "friction": 0.823,
+      "restitution": 0.051,
+      "weight": 1771.44
+    },
+    "minecraft:dragon_wall_head": {
+      "friction": 0.818,
+      "restitution": 0.051,
+      "weight": 800.32
+    },
+    "minecraft:end_stone_brick_wall": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 1744.51
+    },
+    "minecraft:fire_coral_wall_fan": {
+      "friction": 0.818,
+      "restitution": 0.051,
+      "weight": 802.96
+    },
+    "minecraft:granite_wall": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 1790.62
+    },
+    "minecraft:gray_wall_banner": {
+      "friction": 0.818,
+      "restitution": 0.051,
+      "weight": 794.8
+    },
+    "minecraft:green_wall_banner": {
+      "friction": 0.778,
+      "restitution": 0.049,
+      "weight": 812.32
+    },
+    "minecraft:horn_coral_wall_fan": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 804.32
+    },
+    "minecraft:jungle_wall_hanging_sign": {
+      "friction": 0.581,
+      "restitution": 0.097,
+      "weight": 795.28
+    },
+    "minecraft:jungle_wall_sign": {
+      "friction": 0.591,
+      "restitution": 0.098,
+      "weight": 811.12
+    },
+    "minecraft:light_blue_wall_banner": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 797.84
+    },
+    "minecraft:light_gray_wall_banner": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 795.52
+    },
+    "minecraft:lime_wall_banner": {
+      "friction": 0.824,
+      "restitution": 0.051,
+      "weight": 792.8
+    },
+    "minecraft:magenta_wall_banner": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 806.16
+    },
+    "minecraft:mangrove_wall_hanging_sign": {
+      "friction": 0.595,
+      "restitution": 0.099,
+      "weight": 801.76
+    },
+    "minecraft:mangrove_wall_sign": {
+      "friction": 0.601,
+      "restitution": 0.1,
+      "weight": 792.0
+    },
+    "minecraft:mossy_cobblestone_wall": {
+      "friction": 0.815,
+      "restitution": 0.051,
+      "weight": 1782.88
+    },
+    "minecraft:mossy_stone_brick_wall": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 1762.99
+    },
+    "minecraft:mud_brick_wall": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 1772.5
+    },
+    "minecraft:nether_brick_wall": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 1771.62
+    },
+    "minecraft:oak_wall_hanging_sign": {
+      "friction": 0.628,
+      "restitution": 0.105,
+      "weight": 795.36
+    },
+    "minecraft:oak_wall_sign": {
+      "friction": 0.593,
+      "restitution": 0.099,
+      "weight": 811.52
+    },
+    "minecraft:orange_wall_banner": {
+      "friction": 0.798,
+      "restitution": 0.05,
+      "weight": 803.36
+    },
+    "minecraft:piglin_wall_head": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 788.4
+    },
+    "minecraft:pink_wall_banner": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 789.28
+    },
+    "minecraft:player_wall_head": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 802.32
+    },
+    "minecraft:polished_blackstone_brick_wall": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 1750.14
+    },
+    "minecraft:polished_blackstone_wall": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 1729.9
+    },
+    "minecraft:polished_deepslate_wall": {
+      "friction": 0.84,
+      "restitution": 0.052,
+      "weight": 1754.54
+    },
+    "minecraft:polished_tuff_wall": {
+      "friction": 0.803,
+      "restitution": 0.05,
+      "weight": 1782.18
+    },
+    "minecraft:prismarine_wall": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 1753.84
+    },
+    "minecraft:purple_wall_banner": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 790.96
+    },
+    "minecraft:red_nether_brick_wall": {
+      "friction": 0.773,
+      "restitution": 0.048,
+      "weight": 1745.74
+    },
+    "minecraft:red_sandstone_wall": {
+      "friction": 0.823,
+      "restitution": 0.0,
+      "weight": 1751.38
+    },
+    "minecraft:red_wall_banner": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 811.68
+    },
+    "minecraft:redstone_wall_torch": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 1751.2
+    },
+    "minecraft:sandstone_wall": {
+      "friction": 0.839,
+      "restitution": 0.0,
+      "weight": 1780.06
+    },
+    "minecraft:skeleton_wall_skull": {
+      "friction": 0.793,
+      "restitution": 0.05,
+      "weight": 800.96
+    },
+    "minecraft:soul_wall_torch": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 785.12
+    },
+    "minecraft:spruce_wall_hanging_sign": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 802.72
+    },
+    "minecraft:spruce_wall_sign": {
+      "friction": 0.619,
+      "restitution": 0.103,
+      "weight": 800.16
+    },
+    "minecraft:stone_brick_wall": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 1740.29
+    },
+    "minecraft:tube_coral_wall_fan": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 814.48
+    },
+    "minecraft:tuff_brick_wall": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 1773.9
+    },
+    "minecraft:tuff_wall": {
+      "friction": 0.77,
+      "restitution": 0.048,
+      "weight": 1745.74
+    },
+    "minecraft:wall_torch": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 796.48
+    },
+    "minecraft:warped_wall_hanging_sign": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 810.4
+    },
+    "minecraft:warped_wall_sign": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 784.96
+    },
+    "minecraft:white_wall_banner": {
+      "friction": 0.772,
+      "restitution": 0.048,
+      "weight": 799.44
+    },
+    "minecraft:wither_skeleton_wall_skull": {
+      "friction": 0.801,
+      "restitution": 0.05,
+      "weight": 809.28
+    },
+    "minecraft:yellow_wall_banner": {
+      "friction": 0.83,
+      "restitution": 0.052,
+      "weight": 815.12
+    },
+    "minecraft:zombie_wall_head": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 791.44
+    }
+  }
+}

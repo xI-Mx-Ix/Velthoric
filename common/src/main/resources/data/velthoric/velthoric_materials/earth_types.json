@@ -1,0 +1,99 @@
+{
+  "values": {
+    "minecraft:dirt_path": {
+      "friction": 0.941,
+      "restitution": 0.0,
+      "weight": 1474.2,
+      "transform_to": "minecraft:dirt"
+    },
+    "minecraft:farmland": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 1502.25,
+      "transform_to": "minecraft:dirt"
+    },
+    "minecraft:grass_block": {
+      "friction": 0.774,
+      "restitution": 0.0,
+      "weight": 1488.45,
+      "transform_to": "minecraft:dirt"
+    },
+    "minecraft:mycelium": {
+      "friction": 0.924,
+      "restitution": 0.0,
+      "weight": 1504.8,
+      "transform_to": "minecraft:dirt"
+    },
+    "minecraft:podzol": {
+      "friction": 0.931,
+      "restitution": 0.0,
+      "weight": 1482.45,
+      "transform_to": "minecraft:dirt"
+    },
+    "minecraft:clay": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 1527.45
+    },
+    "minecraft:coarse_dirt": {
+      "friction": 0.94,
+      "restitution": 0.0,
+      "weight": 1472.7
+    },
+    "minecraft:dirt": {
+      "friction": 0.892,
+      "restitution": 0.0,
+      "weight": 1477.35
+    },
+    "minecraft:gravel": {
+      "friction": 0.826,
+      "restitution": 0.0,
+      "weight": 1501.2
+    },
+    "minecraft:mud": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 1480.05
+    },
+    "minecraft:muddy_mangrove_roots": {
+      "friction": 0.617,
+      "restitution": 0.103,
+      "weight": 1523.85
+    },
+    "minecraft:packed_mud": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 1484.25
+    },
+    "minecraft:red_sand": {
+      "friction": 0.823,
+      "restitution": 0.0,
+      "weight": 1472.4
+    },
+    "minecraft:rooted_dirt": {
+      "friction": 0.943,
+      "restitution": 0.0,
+      "weight": 1528.35
+    },
+    "minecraft:sand": {
+      "friction": 0.828,
+      "restitution": 0.0,
+      "weight": 1501.95
+    },
+    "minecraft:soul_sand": {
+      "friction": 0.764,
+      "restitution": 0.0,
+      "weight": 1520.55
+    },
+    "minecraft:suspicious_gravel": {
+      "friction": 0.802,
+      "restitution": 0.0,
+      "weight": 1501.2
+    },
+    "minecraft:suspicious_sand": {
+      "friction": 0.813,
+      "restitution": 0.0,
+      "weight": 1500.9
+    }
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "values": {
+    "minecraft:acacia_fence": {
+      "friction": 0.616,
+      "restitution": 0.103,
+      "weight": 100.52
+    },
+    "minecraft:acacia_fence_gate": {
+      "friction": 0.625,
+      "restitution": 0.104,
+      "weight": 121.99,
+      "interactable": true
+    },
+    "minecraft:bamboo_fence": {
+      "friction": 0.598,
+      "restitution": 0.1,
+      "weight": 98.82
+    },
+    "minecraft:bamboo_fence_gate": {
+      "friction": 0.62,
+      "restitution": 0.103,
+      "weight": 119.44,
+      "interactable": true
+    },
+    "minecraft:birch_fence": {
+      "friction": 0.609,
+      "restitution": 0.101,
+      "weight": 98.68
+    },
+    "minecraft:birch_fence_gate": {
+      "friction": 0.624,
+      "restitution": 0.104,
+      "weight": 119.84,
+      "interactable": true
+    },
+    "minecraft:cherry_fence": {
+      "friction": 0.612,
+      "restitution": 0.102,
+      "weight": 100.81
+    },
+    "minecraft:cherry_fence_gate": {
+      "friction": 0.622,
+      "restitution": 0.104,
+      "weight": 119.08,
+      "interactable": true
+    },
+    "minecraft:crimson_fence": {
+      "friction": 0.782,
+      "restitution": 0.049,
+      "weight": 100.67
+    },
+    "minecraft:crimson_fence_gate": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 118.7,
+      "interactable": true
+    },
+    "minecraft:dark_oak_fence": {
+      "friction": 0.609,
+      "restitution": 0.101,
+      "weight": 101.2
+    },
+    "minecraft:dark_oak_fence_gate": {
+      "friction": 0.579,
+      "restitution": 0.096,
+      "weight": 122.05,
+      "interactable": true
+    },
+    "minecraft:jungle_fence": {
+      "friction": 0.597,
+      "restitution": 0.1,
+      "weight": 98.8
+    },
+    "minecraft:jungle_fence_gate": {
+      "friction": 0.58,
+      "restitution": 0.097,
+      "weight": 121.7,
+      "interactable": true
+    },
+    "minecraft:mangrove_fence": {
+      "friction": 0.62,
+      "restitution": 0.103,
+      "weight": 99.58
+    },
+    "minecraft:mangrove_fence_gate": {
+      "friction": 0.577,
+      "restitution": 0.096,
+      "weight": 120.55,
+      "interactable": true
+    },
+    "minecraft:nether_brick_fence": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 100.87
+    },
+    "minecraft:oak_fence": {
+      "friction": 0.594,
+      "restitution": 0.099,
+      "weight": 99.8
+    },
+    "minecraft:oak_fence_gate": {
+      "friction": 0.602,
+      "restitution": 0.1,
+      "weight": 119.34,
+      "interactable": true
+    },
+    "minecraft:spruce_fence": {
+      "friction": 0.592,
+      "restitution": 0.099,
+      "weight": 98.05
+    },
+    "minecraft:spruce_fence_gate": {
+      "friction": 0.59,
+      "restitution": 0.098,
+      "weight": 120.04,
+      "interactable": true
+    },
+    "minecraft:warped_fence": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 100.29
+    },
+    "minecraft:warped_fence_gate": {
+      "friction": 0.827,
+      "restitution": 0.052,
+      "weight": 118.72,
+      "interactable": true
+    }
+  }
+}

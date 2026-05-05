@@ -1,0 +1,169 @@
+{
+  "values": {
+    "minecraft:black_carpet": {
+      "friction": 0.771,
+      "restitution": 0.048,
+      "weight": 100.42
+    },
+    "minecraft:black_wool": {
+      "friction": 0.998,
+      "restitution": 0.0,
+      "weight": 50.24
+    },
+    "minecraft:blue_carpet": {
+      "friction": 0.792,
+      "restitution": 0.049,
+      "weight": 101.92
+    },
+    "minecraft:blue_wool": {
+      "friction": 0.996,
+      "restitution": 0.0,
+      "weight": 50.76
+    },
+    "minecraft:brown_carpet": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 100.64
+    },
+    "minecraft:brown_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 49.34
+    },
+    "minecraft:cyan_carpet": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 100.29
+    },
+    "minecraft:cyan_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 49.9
+    },
+    "minecraft:gray_carpet": {
+      "friction": 0.832,
+      "restitution": 0.052,
+      "weight": 101.51
+    },
+    "minecraft:gray_wool": {
+      "friction": 0.951,
+      "restitution": 0.0,
+      "weight": 50.41
+    },
+    "minecraft:green_carpet": {
+      "friction": 0.83,
+      "restitution": 0.052,
+      "weight": 99.28
+    },
+    "minecraft:green_wool": {
+      "friction": 0.98,
+      "restitution": 0.0,
+      "weight": 50.6
+    },
+    "minecraft:light_blue_carpet": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 99.38
+    },
+    "minecraft:light_blue_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 49.43
+    },
+    "minecraft:light_gray_carpet": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 100.53
+    },
+    "minecraft:light_gray_wool": {
+      "friction": 0.995,
+      "restitution": 0.0,
+      "weight": 50.95
+    },
+    "minecraft:lime_carpet": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 98.45
+    },
+    "minecraft:lime_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 49.89
+    },
+    "minecraft:magenta_carpet": {
+      "friction": 0.81,
+      "restitution": 0.051,
+      "weight": 100.91
+    },
+    "minecraft:magenta_wool": {
+      "friction": 0.977,
+      "restitution": 0.0,
+      "weight": 49.52
+    },
+    "minecraft:moss_carpet": {
+      "friction": 0.79,
+      "restitution": 0.049,
+      "weight": 99.87
+    },
+    "minecraft:orange_carpet": {
+      "friction": 0.765,
+      "restitution": 0.048,
+      "weight": 100.58
+    },
+    "minecraft:orange_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 49.28
+    },
+    "minecraft:pink_carpet": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 98.63
+    },
+    "minecraft:pink_wool": {
+      "friction": 0.978,
+      "restitution": 0.0,
+      "weight": 49.84
+    },
+    "minecraft:purple_carpet": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 99.27
+    },
+    "minecraft:purple_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 50.77
+    },
+    "minecraft:red_carpet": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 99.24
+    },
+    "minecraft:red_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 50.33
+    },
+    "minecraft:white_carpet": {
+      "friction": 0.799,
+      "restitution": 0.05,
+      "weight": 100.71
+    },
+    "minecraft:white_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 49.67
+    },
+    "minecraft:yellow_carpet": {
+      "friction": 0.794,
+      "restitution": 0.05,
+      "weight": 101.47
+    },
+    "minecraft:yellow_wool": {
+      "friction": 1.0,
+      "restitution": 0.0,
+      "weight": 50.26
+    }
+  }
+}

@@ -1,0 +1,169 @@
+{
+  "values": {
+    "minecraft:black_glazed_terracotta": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 2203.52
+    },
+    "minecraft:black_terracotta": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 2157.32
+    },
+    "minecraft:blue_glazed_terracotta": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 2183.94
+    },
+    "minecraft:blue_terracotta": {
+      "friction": 0.8,
+      "restitution": 0.05,
+      "weight": 2225.96
+    },
+    "minecraft:brown_glazed_terracotta": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 2211.88
+    },
+    "minecraft:brown_terracotta": {
+      "friction": 0.839,
+      "restitution": 0.052,
+      "weight": 2176.68
+    },
+    "minecraft:cyan_glazed_terracotta": {
+      "friction": 0.765,
+      "restitution": 0.048,
+      "weight": 2192.96
+    },
+    "minecraft:cyan_terracotta": {
+      "friction": 0.795,
+      "restitution": 0.05,
+      "weight": 2180.86
+    },
+    "minecraft:gray_glazed_terracotta": {
+      "friction": 0.828,
+      "restitution": 0.052,
+      "weight": 2202.86
+    },
+    "minecraft:gray_terracotta": {
+      "friction": 0.837,
+      "restitution": 0.052,
+      "weight": 2167.22
+    },
+    "minecraft:green_glazed_terracotta": {
+      "friction": 0.821,
+      "restitution": 0.051,
+      "weight": 2161.94
+    },
+    "minecraft:green_terracotta": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 2224.42
+    },
+    "minecraft:light_blue_glazed_terracotta": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 2187.9
+    },
+    "minecraft:light_blue_terracotta": {
+      "friction": 0.838,
+      "restitution": 0.052,
+      "weight": 2225.96
+    },
+    "minecraft:light_gray_glazed_terracotta": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 2190.54
+    },
+    "minecraft:light_gray_terracotta": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 2241.58
+    },
+    "minecraft:lime_glazed_terracotta": {
+      "friction": 0.82,
+      "restitution": 0.051,
+      "weight": 2240.04
+    },
+    "minecraft:lime_terracotta": {
+      "friction": 0.82,
+      "restitution": 0.051,
+      "weight": 2229.48
+    },
+    "minecraft:magenta_glazed_terracotta": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 2199.12
+    },
+    "minecraft:magenta_terracotta": {
+      "friction": 0.765,
+      "restitution": 0.048,
+      "weight": 2186.8
+    },
+    "minecraft:orange_glazed_terracotta": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 2217.38
+    },
+    "minecraft:orange_terracotta": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 2241.36
+    },
+    "minecraft:pink_glazed_terracotta": {
+      "friction": 0.791,
+      "restitution": 0.049,
+      "weight": 2178.66
+    },
+    "minecraft:pink_terracotta": {
+      "friction": 0.838,
+      "restitution": 0.052,
+      "weight": 2214.3
+    },
+    "minecraft:purple_glazed_terracotta": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 2228.16
+    },
+    "minecraft:purple_terracotta": {
+      "friction": 0.796,
+      "restitution": 0.05,
+      "weight": 2180.86
+    },
+    "minecraft:red_glazed_terracotta": {
+      "friction": 0.819,
+      "restitution": 0.051,
+      "weight": 2203.74
+    },
+    "minecraft:red_terracotta": {
+      "friction": 0.762,
+      "restitution": 0.048,
+      "weight": 2200.88
+    },
+    "minecraft:terracotta": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 2222.66
+    },
+    "minecraft:white_glazed_terracotta": {
+      "friction": 0.771,
+      "restitution": 0.048,
+      "weight": 2156.88
+    },
+    "minecraft:white_terracotta": {
+      "friction": 0.836,
+      "restitution": 0.052,
+      "weight": 2189.22
+    },
+    "minecraft:yellow_glazed_terracotta": {
+      "friction": 0.789,
+      "restitution": 0.049,
+      "weight": 2180.86
+    },
+    "minecraft:yellow_terracotta": {
+      "friction": 0.802,
+      "restitution": 0.05,
+      "weight": 2207.92
+    }
+  }
+}

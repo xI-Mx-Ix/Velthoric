@@ -1,0 +1,284 @@
+{
+  "values": {
+    "minecraft:acacia_stairs": {
+      "friction": 0.616,
+      "restitution": 0.103,
+      "weight": 755.1
+    },
+    "minecraft:andesite_stairs": {
+      "friction": 0.763,
+      "restitution": 0.048,
+      "weight": 1634.49
+    },
+    "minecraft:bamboo_mosaic_stairs": {
+      "friction": 0.606,
+      "restitution": 0.101,
+      "weight": 761.25
+    },
+    "minecraft:bamboo_stairs": {
+      "friction": 0.601,
+      "restitution": 0.1,
+      "weight": 746.48
+    },
+    "minecraft:birch_stairs": {
+      "friction": 0.587,
+      "restitution": 0.098,
+      "weight": 742.8
+    },
+    "minecraft:blackstone_stairs": {
+      "friction": 0.826,
+      "restitution": 0.052,
+      "weight": 1636.63
+    },
+    "minecraft:brick_stairs": {
+      "friction": 0.767,
+      "restitution": 0.048,
+      "weight": 1679.04
+    },
+    "minecraft:cherry_stairs": {
+      "friction": 0.622,
+      "restitution": 0.104,
+      "weight": 735.75
+    },
+    "minecraft:cobbled_deepslate_stairs": {
+      "friction": 0.835,
+      "restitution": 0.052,
+      "weight": 1655.61
+    },
+    "minecraft:cobblestone_stairs": {
+      "friction": 0.773,
+      "restitution": 0.048,
+      "weight": 1664.52
+    },
+    "minecraft:crimson_stairs": {
+      "friction": 0.775,
+      "restitution": 0.048,
+      "weight": 751.27
+    },
+    "minecraft:cut_copper_stairs": {
+      "friction": 0.447,
+      "restitution": 0.199,
+      "weight": 8894.66
+    },
+    "minecraft:dark_oak_stairs": {
+      "friction": 0.599,
+      "restitution": 0.1,
+      "weight": 761.85
+    },
+    "minecraft:dark_prismarine_stairs": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 1657.42
+    },
+    "minecraft:deepslate_brick_stairs": {
+      "friction": 0.784,
+      "restitution": 0.049,
+      "weight": 1665.84
+    },
+    "minecraft:deepslate_tile_stairs": {
+      "friction": 0.824,
+      "restitution": 0.051,
+      "weight": 1635.81
+    },
+    "minecraft:diorite_stairs": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 1633.34
+    },
+    "minecraft:end_stone_brick_stairs": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 1653.79
+    },
+    "minecraft:exposed_cut_copper_stairs": {
+      "friction": 0.459,
+      "restitution": 0.204,
+      "weight": 8982.77
+    },
+    "minecraft:granite_stairs": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 1679.04
+    },
+    "minecraft:jungle_stairs": {
+      "friction": 0.581,
+      "restitution": 0.097,
+      "weight": 742.88
+    },
+    "minecraft:mangrove_stairs": {
+      "friction": 0.588,
+      "restitution": 0.098,
+      "weight": 738.45
+    },
+    "minecraft:mossy_cobblestone_stairs": {
+      "friction": 0.804,
+      "restitution": 0.05,
+      "weight": 1681.18
+    },
+    "minecraft:mossy_stone_brick_stairs": {
+      "friction": 0.809,
+      "restitution": 0.051,
+      "weight": 1673.92
+    },
+    "minecraft:mud_brick_stairs": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 1632.01
+    },
+    "minecraft:nether_brick_stairs": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 1619.97
+    },
+    "minecraft:oak_stairs": {
+      "friction": 0.584,
+      "restitution": 0.097,
+      "weight": 748.42
+    },
+    "minecraft:oxidized_cut_copper_stairs": {
+      "friction": 0.461,
+      "restitution": 0.205,
+      "weight": 8968.53
+    },
+    "minecraft:polished_andesite_stairs": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 1679.04
+    },
+    "minecraft:polished_blackstone_brick_stairs": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 1632.84
+    },
+    "minecraft:polished_blackstone_stairs": {
+      "friction": 0.769,
+      "restitution": 0.048,
+      "weight": 1627.39
+    },
+    "minecraft:polished_deepslate_stairs": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 1618.65
+    },
+    "minecraft:polished_diorite_stairs": {
+      "friction": 0.811,
+      "restitution": 0.051,
+      "weight": 1655.94
+    },
+    "minecraft:polished_granite_stairs": {
+      "friction": 0.788,
+      "restitution": 0.049,
+      "weight": 1633.17
+    },
+    "minecraft:polished_tuff_stairs": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 1677.06
+    },
+    "minecraft:prismarine_brick_stairs": {
+      "friction": 0.824,
+      "restitution": 0.052,
+      "weight": 1674.91
+    },
+    "minecraft:prismarine_stairs": {
+      "friction": 0.774,
+      "restitution": 0.048,
+      "weight": 1668.31
+    },
+    "minecraft:purpur_stairs": {
+      "friction": 0.787,
+      "restitution": 0.049,
+      "weight": 1624.76
+    },
+    "minecraft:quartz_stairs": {
+      "friction": 0.767,
+      "restitution": 0.048,
+      "weight": 1617.33
+    },
+    "minecraft:red_nether_brick_stairs": {
+      "friction": 0.832,
+      "restitution": 0.052,
+      "weight": 1660.89
+    },
+    "minecraft:red_sandstone_stairs": {
+      "friction": 0.823,
+      "restitution": 0.0,
+      "weight": 1680.36
+    },
+    "minecraft:sandstone_stairs": {
+      "friction": 0.804,
+      "restitution": 0.0,
+      "weight": 1660.72
+    },
+    "minecraft:smooth_quartz_stairs": {
+      "friction": 0.779,
+      "restitution": 0.049,
+      "weight": 1681.68
+    },
+    "minecraft:smooth_red_sandstone_stairs": {
+      "friction": 0.821,
+      "restitution": 0.0,
+      "weight": 1642.58
+    },
+    "minecraft:smooth_sandstone_stairs": {
+      "friction": 0.817,
+      "restitution": 0.0,
+      "weight": 1669.31
+    },
+    "minecraft:spruce_stairs": {
+      "friction": 0.582,
+      "restitution": 0.097,
+      "weight": 761.17
+    },
+    "minecraft:stone_brick_stairs": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 1675.58
+    },
+    "minecraft:stone_stairs": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 1665.35
+    },
+    "minecraft:tuff_brick_stairs": {
+      "friction": 0.764,
+      "restitution": 0.048,
+      "weight": 1629.87
+    },
+    "minecraft:tuff_stairs": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 1654.95
+    },
+    "minecraft:warped_stairs": {
+      "friction": 0.777,
+      "restitution": 0.049,
+      "weight": 739.57
+    },
+    "minecraft:waxed_cut_copper_stairs": {
+      "friction": 0.453,
+      "restitution": 0.201,
+      "weight": 8995.23
+    },
+    "minecraft:waxed_exposed_cut_copper_stairs": {
+      "friction": 0.466,
+      "restitution": 0.207,
+      "weight": 8919.58
+    },
+    "minecraft:waxed_oxidized_cut_copper_stairs": {
+      "friction": 0.45,
+      "restitution": 0.2,
+      "weight": 8964.97
+    },
+    "minecraft:waxed_weathered_cut_copper_stairs": {
+      "friction": 0.461,
+      "restitution": 0.205,
+      "weight": 8952.51
+    },
+    "minecraft:weathered_cut_copper_stairs": {
+      "friction": 0.456,
+      "restitution": 0.202,
+      "weight": 8821.68
+    }
+  }
+}

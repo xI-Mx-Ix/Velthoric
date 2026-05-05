@@ -1,0 +1,84 @@
+{
+  "values": {
+    "minecraft:black_banner": {
+      "friction": 0.785,
+      "restitution": 0.049,
+      "weight": 983.5
+    },
+    "minecraft:blue_banner": {
+      "friction": 0.816,
+      "restitution": 0.051,
+      "weight": 985.7
+    },
+    "minecraft:brown_banner": {
+      "friction": 0.792,
+      "restitution": 0.05,
+      "weight": 1011.9
+    },
+    "minecraft:cyan_banner": {
+      "friction": 0.807,
+      "restitution": 0.05,
+      "weight": 1018.8
+    },
+    "minecraft:gray_banner": {
+      "friction": 0.831,
+      "restitution": 0.052,
+      "weight": 1007.8
+    },
+    "minecraft:green_banner": {
+      "friction": 0.818,
+      "restitution": 0.051,
+      "weight": 1008.8
+    },
+    "minecraft:light_blue_banner": {
+      "friction": 0.762,
+      "restitution": 0.048,
+      "weight": 1001.0
+    },
+    "minecraft:light_gray_banner": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 994.6
+    },
+    "minecraft:lime_banner": {
+      "friction": 0.762,
+      "restitution": 0.048,
+      "weight": 1005.2
+    },
+    "minecraft:magenta_banner": {
+      "friction": 0.83,
+      "restitution": 0.052,
+      "weight": 997.6
+    },
+    "minecraft:orange_banner": {
+      "friction": 0.813,
+      "restitution": 0.051,
+      "weight": 992.8
+    },
+    "minecraft:pink_banner": {
+      "friction": 0.781,
+      "restitution": 0.049,
+      "weight": 983.1
+    },
+    "minecraft:purple_banner": {
+      "friction": 0.812,
+      "restitution": 0.051,
+      "weight": 992.4
+    },
+    "minecraft:red_banner": {
+      "friction": 0.817,
+      "restitution": 0.051,
+      "weight": 1014.9
+    },
+    "minecraft:white_banner": {
+      "friction": 0.786,
+      "restitution": 0.049,
+      "weight": 1016.7
+    },
+    "minecraft:yellow_banner": {
+      "friction": 0.806,
+      "restitution": 0.05,
+      "weight": 1010.2
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "values": {
+    "minecraft:acacia_planks": {
+      "friction": 0.605,
+      "restitution": 0.101,
+      "weight": 297.21
+    },
+    "minecraft:bamboo_planks": {
+      "friction": 0.606,
+      "restitution": 0.101,
+      "weight": 295.29
+    },
+    "minecraft:birch_planks": {
+      "friction": 0.603,
+      "restitution": 0.101,
+      "weight": 297.12
+    },
+    "minecraft:cherry_planks": {
+      "friction": 0.603,
+      "restitution": 0.1,
+      "weight": 304.71
+    },
+    "minecraft:crimson_planks": {
+      "friction": 0.63,
+      "restitution": 0.105,
+      "weight": 300.81
+    },
+    "minecraft:dark_oak_planks": {
+      "friction": 0.6,
+      "restitution": 0.1,
+      "weight": 297.63
+    },
+    "minecraft:jungle_planks": {
+      "friction": 0.585,
+      "restitution": 0.097,
+      "weight": 300.72
+    },
+    "minecraft:mangrove_planks": {
+      "friction": 0.607,
+      "restitution": 0.101,
+      "weight": 298.08
+    },
+    "minecraft:oak_planks": {
+      "friction": 0.615,
+      "restitution": 0.102,
+      "weight": 300.27
+    },
+    "minecraft:spruce_planks": {
+      "friction": 0.612,
+      "restitution": 0.102,
+      "weight": 298.44
+    },
+    "minecraft:warped_planks": {
+      "friction": 0.629,
+      "restitution": 0.105,
+      "weight": 301.11
+    }
+  }
+}
