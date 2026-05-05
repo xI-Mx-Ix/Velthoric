@@ -28,6 +28,7 @@ public class TerrainContactHandler extends NativeObject {
      */
     public TerrainContactHandler(long physicsSystemPtr, Object world) {
         super(nCreateHandler(physicsSystemPtr, world));
+        TerrainInteraction.setConfig(new TerrainInteraction.Config());
     }
 
     /**

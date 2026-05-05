@@ -293,8 +293,20 @@ JNIEXPORT jint JNICALL
 Java_net_xmx_velthoric_jni_TerrainInteraction_nFlushEvents(JNIEnv *env, jclass clazz, jobject buffer, jint maxCount) {
     (void)env; (void)clazz;
     if (!buffer || maxCount <= 0) return 0;
-    Velthoric::TerrainInteraction::InteractionEvent* outBuffer = static_cast<Velthoric::TerrainInteraction::InteractionEvent*>(env->GetDirectBufferAddress(buffer));
-    if (outBuffer) return Velthoric::TerrainInteraction::FlushEvents(outBuffer, maxCount);
+    Velthoric::TerrainInteraction::InteractionEvent* dest = static_cast<Velthoric::TerrainInteraction::InteractionEvent*>(env->GetDirectBufferAddress(buffer));
+    if (dest) return Velthoric::TerrainInteraction::FlushEvents(dest, maxCount);
     return 0;
 }
+
+/**
+ * @brief JNI Endpoint: Update interaction configuration.
+ */
+JNIEXPORT void JNICALL
+Java_net_xmx_velthoric_jni_TerrainInteraction_nSetInteractionConfig(JNIEnv *env, jclass clazz, jobject buffer) {
+    (void)clazz;
+    if (!buffer) return;
+    const Velthoric::TerrainInteraction::Config* config = static_cast<const Velthoric::TerrainInteraction::Config*>(env->GetDirectBufferAddress(buffer));
+    if (config) Velthoric::TerrainInteraction::SetConfig(*config);
+}
+
 }

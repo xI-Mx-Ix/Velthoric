@@ -35,27 +35,27 @@ public:
      * @brief Global configuration parameters for the interaction system.
      */
     struct Config {
-        float massBaseline = 100.0f;              ///< Reference mass for scaling impact intensity.
-        float massMinScale = 0.1f;               ///< Lower bound for mass-based multipliers.
-        float massMaxScale = 2.0f;               ///< Upper bound for mass-based multipliers.
+        float massBaseline;              ///< Reference mass for scaling impact intensity.
+        float massMinScale;               ///< Lower bound for mass-based multipliers.
+        float massMaxScale;               ///< Upper bound for mass-based multipliers.
 
-        float transformMinForce = 200.0f;         ///< Force required to change terrain state.
-        float transformMinSlidingSpeed = 1.0f;    ///< Speed required for friction-based wear.
-        float transformMinFriction = 0.3f;        ///< Friction coefficient threshold for wear.
+        float transformMinForce;         ///< Force required to change terrain state.
+        float transformMinSlidingSpeed;    ///< Speed required for friction-based wear.
+        float transformMinFriction;        ///< Friction coefficient threshold for wear.
 
-        float interactMinForce = 50.0f;           ///< Force required to nudge interactive objects (doors).
+        float interactMinForce;           ///< Force required to nudge interactive objects (doors).
 
-        float particleMinVelocity = 0.05f;           ///< Minimum speed to consider particle emission.
-        float particleImpactEnergyThreshold = 1.0f;  ///< Energy threshold for impact visuals.
-        float particleSlidingVelocityThreshold = 0.5f; ///< Speed threshold for sliding visuals.
-        float particleSlidingEnergyThreshold = 0.05f; ///< Sustained energy threshold for sliding effects.
-        float particleSlidingChanceMult = 0.005f;    ///< Chance multiplier for stochastic emission.
-        float particleSlidingChanceMax = 0.05f;      ///< Probability cap for sliding particles.
+        float particleMinVelocity;           ///< Minimum speed to consider particle emission.
+        float particleImpactEnergyThreshold;  ///< Energy threshold for impact visuals.
+        float particleSlidingVelocityThreshold; ///< Speed threshold for sliding visuals.
+        float particleSlidingEnergyThreshold; ///< Sustained energy threshold for sliding effects.
+        float particleSlidingChanceMult;    ///< Chance multiplier for stochastic emission.
+        float particleSlidingChanceMax;      ///< Probability cap for sliding particles.
 
         // Rate Limiting (Budgets per tick)
-        int maxParticlesPerTick = 128;   ///< Max particle events allowed per server tick.
-        int maxTransformsPerTick = 64;   ///< Max terrain transformations allowed per server tick.
-        int maxBreaksPerTick = 256;      ///< Max block destruction events allowed per server tick.
+        int maxParticlesPerTick;   ///< Max particle events allowed per server tick.
+        int maxTransformsPerTick;   ///< Max terrain transformations allowed per server tick.
+        int maxBreaksPerTick;      ///< Max block destruction events allowed per server tick.
     };
 
     /**

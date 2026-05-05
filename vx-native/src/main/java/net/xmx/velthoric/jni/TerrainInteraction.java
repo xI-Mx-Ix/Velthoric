@@ -127,6 +127,109 @@ public class TerrainInteraction {
     }
 
     /**
+     * Configuration structure for global terrain interaction thresholds.
+     * This class maps directly to the native {@code Config} C++ struct (64 bytes).
+     */
+    public static class Config {
+        /**
+         * Reference mass for scaling impact intensity.
+         */
+        public float massBaseline = 100.0f;
+        /**
+         * Lower bound for mass-based multipliers.
+         */
+        public float massMinScale = 0.1f;
+        /**
+         * Upper bound for mass-based multipliers.
+         */
+        public float massMaxScale = 2.0f;
+        /**
+         * Force required to change terrain state.
+         */
+        public float transformMinForce = 200.0f;
+        /**
+         * Speed required for friction-based wear.
+         */
+        public float transformMinSlidingSpeed = 1.0f;
+        /**
+         * Friction coefficient threshold for wear.
+         */
+        public float transformMinFriction = 0.3f;
+        /**
+         * Force required to nudge interactive objects (doors).
+         */
+        public float interactMinForce = 50.0f;
+        /**
+         * Minimum speed to consider particle emission.
+         */
+        public float particleMinVelocity = 0.05f;
+        /**
+         * Energy threshold for impact visuals.
+         */
+        public float particleImpactEnergyThreshold = 1.0f;
+        /**
+         * Speed threshold for sliding visuals.
+         */
+        public float particleSlidingVelocityThreshold = 0.5f;
+        /**
+         * Sustained energy threshold for sliding effects.
+         */
+        public float particleSlidingEnergyThreshold = 0.05f;
+        /**
+         * Chance multiplier for stochastic emission.
+         */
+        public float particleSlidingChanceMult = 0.005f;
+        /**
+         * Probability cap for sliding particles.
+         */
+        public float particleSlidingChanceMax = 0.05f;
+        /**
+         * Max particle events allowed per server tick.
+         */
+        public int maxParticlesPerTick = 128;
+        /**
+         * Max terrain transformations allowed per server tick.
+         */
+        public int maxTransformsPerTick = 64;
+        /**
+         * Max block destruction events allowed per server tick.
+         */
+        public int maxBreaksPerTick = 256;
+
+        public void write(ByteBuffer buffer) {
+            buffer.putFloat(massBaseline);
+            buffer.putFloat(massMinScale);
+            buffer.putFloat(massMaxScale);
+            buffer.putFloat(transformMinForce);
+            buffer.putFloat(transformMinSlidingSpeed);
+            buffer.putFloat(transformMinFriction);
+            buffer.putFloat(interactMinForce);
+            buffer.putFloat(particleMinVelocity);
+            buffer.putFloat(particleImpactEnergyThreshold);
+            buffer.putFloat(particleSlidingVelocityThreshold);
+            buffer.putFloat(particleSlidingEnergyThreshold);
+            buffer.putFloat(particleSlidingChanceMult);
+            buffer.putFloat(particleSlidingChanceMax);
+            buffer.putInt(maxParticlesPerTick);
+            buffer.putInt(maxTransformsPerTick);
+            buffer.putInt(maxBreaksPerTick);
+        }
+
+        public static final int SIZE = 64; // 13 floats (52 bytes) + 3 ints (12 bytes) = 64 bytes
+    }
+
+    /**
+     * Transfers the global interaction configuration to the native physics engine.
+     *
+     * @param config The configuration to apply.
+     */
+    public static void setConfig(Config config) {
+        ByteBuffer buffer = ByteBuffer.allocateDirect(Config.SIZE).order(ByteOrder.nativeOrder());
+        config.write(buffer);
+        nSetInteractionConfig(buffer);
+    }
+
+    /**
      * Total size of the native InteractionEvent struct in bytes (aligned).
      */
     public static final int EVENT_SIZE = 48;
@@ -209,4 +312,11 @@ public class TerrainInteraction {
      * @return The number of events actually written.
      */
     public static native int nFlushEvents(ByteBuffer buffer, int maxCount);
+
+    /**
+     * JNI Endpoint: Updates global interaction thresholds.
+     *
+     * @param buffer Direct buffer containing a single Config struct.
+     */
+    public static native void nSetInteractionConfig(ByteBuffer buffer);
 }
