@@ -25,9 +25,9 @@ public class TerrainInteraction {
      */
     public enum InteractionType {
         /**
-         * Visual particles triggered by sliding friction.
+         * Sound and particles triggered by sliding friction.
          */
-        PARTICLE_SLIDE(0),
+        TERRAIN_SLIDE(0),
         /**
          * Destruction of a fragile block (e.g., Glass, Ice).
          */
@@ -39,7 +39,11 @@ public class TerrainInteraction {
         /**
          * Physical interaction with a block (e.g., Doors, Gates).
          */
-        BLOCK_INTERACT(3);
+        BLOCK_INTERACT(3),
+        /**
+         * Sound and particles from hard collisions.
+         */
+        TERRAIN_IMPACT(4);
 
         /**
          * The native integer identifier for the interaction type.
@@ -58,7 +62,7 @@ public class TerrainInteraction {
          */
         public static InteractionType fromId(int id) {
             for (InteractionType type : values()) if (type.id == id) return type;
-            return PARTICLE_SLIDE;
+            return TERRAIN_SLIDE;
         }
     }
 
@@ -190,6 +194,10 @@ public class TerrainInteraction {
          */
         public float particleSlidingChanceMax = 0.05f;
         /**
+         * Minimum normal-velocity (m/s) for an impact event to be generated.
+         */
+        public float impactMinNormalSpeed = 2.0f;
+        /**
          * Max particle events allowed per server tick.
          */
         public int maxParticlesPerTick = 128;
@@ -201,6 +209,10 @@ public class TerrainInteraction {
          * Max block destruction events allowed per server tick.
          */
         public int maxBreaksPerTick = 256;
+        /**
+         * Max impact events allowed per server tick.
+         */
+        public int maxImpactsPerTick = 64;
 
         public void write(ByteBuffer buffer) {
             buffer.putFloat(massBaseline);
@@ -216,12 +228,14 @@ public class TerrainInteraction {
             buffer.putFloat(particleSlidingEnergyThreshold);
             buffer.putFloat(particleSlidingChanceMult);
             buffer.putFloat(particleSlidingChanceMax);
+            buffer.putFloat(impactMinNormalSpeed);
             buffer.putInt(maxParticlesPerTick);
             buffer.putInt(maxTransformsPerTick);
             buffer.putInt(maxBreaksPerTick);
+            buffer.putInt(maxImpactsPerTick);
         }
 
-        public static final int SIZE = 64; // 13 floats (52 bytes) + 3 ints (12 bytes) = 64 bytes
+        public static final int SIZE = 72; // 14 floats (56 bytes) + 4 ints (16 bytes) = 72 bytes
     }
 
     /**

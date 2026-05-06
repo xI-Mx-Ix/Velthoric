@@ -51,11 +51,13 @@ public:
         float particleSlidingEnergyThreshold; ///< Sustained energy threshold for sliding effects.
         float particleSlidingChanceMult;    ///< Chance multiplier for stochastic emission.
         float particleSlidingChanceMax;      ///< Probability cap for sliding particles.
+        float impactMinNormalSpeed;          ///< Min normal-velocity for an impact event (m/s).
 
         // Rate Limiting (Budgets per tick)
         int maxParticlesPerTick;   ///< Max particle events allowed per server tick.
         int maxTransformsPerTick;   ///< Max terrain transformations allowed per server tick.
         int maxBreaksPerTick;      ///< Max block destruction events allowed per server tick.
+        int maxImpactsPerTick;     ///< Max impact events allowed per server tick.
     };
 
     /**
@@ -78,10 +80,11 @@ public:
      * @brief Types of interactions reported back to Java.
      */
     enum class InteractionType : uint32_t {
-        PARTICLE_SLIDE = 0,   ///< Visual particles from friction.
+        TERRAIN_SLIDE = 0,    ///< Sound and particles from friction/sliding.
         BLOCK_BREAK = 1,      ///< Structural destruction.
         BLOCK_TRANSFORM = 2,  ///< State change (e.g., Grass -> Dirt).
-        BLOCK_INTERACT = 3    ///< Logic trigger (e.g., Door Nudge).
+        BLOCK_INTERACT = 3,   ///< Logic trigger (e.g., Door Nudge).
+        TERRAIN_IMPACT = 4    ///< Sound and particles from hard collisions.
     };
 
     /**
@@ -161,6 +164,7 @@ private:
     static std::atomic<int> s_TickBreaks;
     static std::atomic<int> s_TickTransforms;
     static std::atomic<int> s_TickParticles;
+    static std::atomic<int> s_TickImpacts;
 
     /**
      * @brief Number of shards to minimize lock contention.

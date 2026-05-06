@@ -150,10 +150,15 @@ public class VxTerrainInteractionHandler {
                 if (!touchedPositions.add(pos.immutable())) return;
                 onBlockInteract(world, x1, y1, z1, x2, y2, z2);
             }
-            case PARTICLE_SLIDE -> {
+            case TERRAIN_SLIDE -> {
                 if (!touchedPositions.add(pos.immutable())) return;
                 if (effectCount[0]++ < MAX_EFFECTS_PER_TICK) {
-                    onParticleSlide(world, x1, y1, z1, x2, y2, z2, strength);
+                    onTerrainSlide(world, x1, y1, z1, x2, y2, z2, strength);
+                }
+            }
+            case TERRAIN_IMPACT -> {
+                if (effectCount[0]++ < MAX_EFFECTS_PER_TICK) {
+                    onTerrainImpact(world, x1, y1, z1, x2, y2, z2, strength);
                 }
             }
         }
@@ -296,7 +301,7 @@ public class VxTerrainInteractionHandler {
      * @param contactZ  The world Z-coordinate of the contact.
      * @param intensity The physical intensity of the sliding motion.
      */
-    public static void onParticleSlide(VxPhysicsWorld world, double blockX, double blockY, double blockZ, float contactX, float contactY, float contactZ, float intensity) {
+    public static void onTerrainSlide(VxPhysicsWorld world, double blockX, double blockY, double blockZ, float contactX, float contactY, float contactZ, float intensity) {
         ServerLevel level = world.getLevel();
         if (level == null) return;
 
@@ -304,9 +309,9 @@ public class VxTerrainInteractionHandler {
         BlockState state = level.getBlockState(pos);
         if (state.isAir()) return;
 
-        // Audio Feedback
-        float volume = Math.min(1.0f, (intensity * intensity * 0.15f) + (intensity * 0.05f));
-        if (volume < 0.1f && level.random.nextFloat() > (volume * 10.0f)) return;
+        // Logarithmic volume scaling
+        float volume = Math.min(0.15f, 0.01f + 0.04f * (float) Math.log1p(intensity));
+        if (volume < 0.03f && level.random.nextFloat() > (volume * 20.0f)) return;
 
         float pitch = 0.8f + level.random.nextFloat() * 0.4f;
         level.playSound(null, contactX, contactY, contactZ,
@@ -320,5 +325,41 @@ public class VxTerrainInteractionHandler {
             level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state),
                     contactX, contactY, contactZ, baseParticles, 0.1, 0.1, 0.1, 0.05);
         }
+    }
+
+    /**
+     * Spawns high-intensity impact particles and a loud sound at the contact point.
+     * <p>
+     * This method is triggered once per contact-point when a body first hits terrain
+     * with significant normal velocity. Volume and particle count scale with impact energy.
+     * </p>
+     *
+     * @param world     The physics world.
+     * @param blockX    The block X-coordinate.
+     * @param blockY    The block Y-coordinate.
+     * @param blockZ    The block Z-coordinate.
+     * @param contactX  The world X-coordinate of the contact.
+     * @param contactY  The world Y-coordinate of the contact.
+     * @param contactZ  The world Z-coordinate of the contact.
+     * @param intensity The physical intensity of the impact.
+     */
+    public static void onTerrainImpact(VxPhysicsWorld world, double blockX, double blockY, double blockZ, float contactX, float contactY, float contactZ, float intensity) {
+        ServerLevel level = world.getLevel();
+        if (level == null) return;
+
+        BlockPos pos = BlockPos.containing(blockX, blockY, blockZ);
+        BlockState state = level.getBlockState(pos);
+        if (state.isAir()) return;
+
+        // Logarithmic volume
+        float volume = Math.min(0.3f, 0.02f + 0.06f * (float) Math.log1p(intensity));
+        float pitch = 0.65f + level.random.nextFloat() * 0.25f;
+        level.playSound(null, contactX, contactY, contactZ,
+                state.getSoundType().getHitSound(), SoundSource.BLOCKS, volume, pitch);
+
+        // Heavy particle burst
+        int particles = Math.min(40, 4 + (int) (intensity * 3.0f));
+        level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state),
+                contactX, contactY, contactZ, particles, 0.2, 0.15, 0.2, 0.1);
     }
 }

@@ -25,6 +25,7 @@ std::atomic<int> TerrainInteraction::s_EventCount{0};
 std::atomic<int> TerrainInteraction::s_TickBreaks{0};
 std::atomic<int> TerrainInteraction::s_TickTransforms{0};
 std::atomic<int> TerrainInteraction::s_TickParticles{0};
+std::atomic<int> TerrainInteraction::s_TickImpacts{0};
 TerrainInteraction::Shard TerrainInteraction::s_Shards[TerrainInteraction::NUM_SHARDS];
 
 /**
@@ -150,16 +151,17 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
     float otherMass = invMass > 0.0f ? 1.0f / invMass : s_Config.massBaseline;
     float massScale = (std::min)(s_Config.massMaxScale, (std::max)(s_Config.massMinScale, otherMass / s_Config.massBaseline));
     float gravity = ps ? std::abs(ps->GetGravity().GetY()) : 9.81f;
+    uint32_t otherBodyIdx = otherBody.GetID().GetIndex();
 
     // Iterate over contact points
     int numPoints = (int)manifold.mRelativeContactPointsOn1.size();
     for (int i = 0; i < numPoints; ++i) {
         JPH::RVec3 p = manifold.GetWorldSpaceContactPointOn1(i);
         JPH::Vec3 relVel = otherBody.GetPointVelocity(p) - terrainBody.GetPointVelocity(p);
-        float impactSpeed = std::abs(relVel.Dot(manifold.mWorldSpaceNormal));
+        float normalSpeed = std::abs(relVel.Dot(manifold.mWorldSpaceNormal));
         
         // Estimated normal force based on impact speed and penetration
-        float kineticForce = impactSpeed * otherMass;
+        float kineticForce = normalSpeed * otherMass;
         float staticForce = manifold.mPenetrationDepth * otherMass * gravity;
         float totalForce = kineticForce + staticForce;
 
@@ -208,41 +210,47 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
             shard.Unlock();
         }
 
-        // 4. Visual particles (stochastic sliding)
-        if (props.spawnsParticles) {
-            float relVelMag = relVel.Length();
-            if (relVelMag < s_Config.particleMinVelocity) continue;
-
-            bool trigger = false;
-            float energy = 0.0f;
-            if (!isPersisted) {
-                // Impact particles
-                energy = ((relVelMag * 1.0f) + (manifold.mPenetrationDepth * 10.0f)) * massScale;
-                trigger = (energy > s_Config.particleImpactEnergyThreshold); 
-            } else {
-                // Sliding particles (Friction-based)
-                float slidingSpeed = (relVel - relVel.Dot(manifold.mWorldSpaceNormal) * manifold.mWorldSpaceNormal).Length();
-                if (slidingSpeed > s_Config.particleSlidingVelocityThreshold) {
-                    energy = (slidingSpeed * settings.mCombinedFriction + manifold.mPenetrationDepth * 5.0f) * massScale;
-                    if (energy > s_Config.particleSlidingEnergyThreshold) {
-                        // High-performance RNG without locking
-                        thread_local std::mt19937 rng(std::random_device{}());
-                        thread_local std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-                        if (dist(rng) < (std::min)(s_Config.particleSlidingChanceMax, energy * s_Config.particleSlidingChanceMult)) trigger = true;
-                    }
-                }
-            }
-
-            if (trigger) {
-                shard.Lock();
-                if (shard.TryDeduplicate(blockKey ^ 0xFAFBF000)) {
-                    if (s_TickParticles.fetch_add(1, std::memory_order_relaxed) < s_Config.maxParticlesPerTick) {
-                        InteractionEvent ev; populateEvent(ev, InteractionType::PARTICLE_SLIDE, energy);
+        // 4. Impact particles
+        // Fires once per unique contact-point when a body initially hits terrain.
+        if (props.spawnsParticles && !isPersisted && normalSpeed >= s_Config.impactMinNormalSpeed) {
+            float energy = (normalSpeed + manifold.mPenetrationDepth * 10.0f) * massScale;
+            if (energy > s_Config.particleImpactEnergyThreshold) {
+                // Per-contact-point dedup: body + subshape + point index
+                uint64_t impactKey = (static_cast<uint64_t>(otherBodyIdx) << 32) | (subIdVal ^ (static_cast<uint32_t>(i) * 0x9E3779B9));
+                auto& impShard = s_Shards[impactKey % NUM_SHARDS];
+                impShard.Lock();
+                if (impShard.TryDeduplicate(impactKey)) {
+                    if (s_TickImpacts.fetch_add(1, std::memory_order_relaxed) < s_Config.maxImpactsPerTick) {
+                        InteractionEvent ev; populateEvent(ev, InteractionType::TERRAIN_IMPACT, energy);
                         ev.x2 = (float)p.GetX(); ev.y2 = (float)p.GetY(); ev.z2 = (float)p.GetZ();
-                        shard.Enqueue(ev); s_EventCount.fetch_add(1, std::memory_order_relaxed);
+                        impShard.Enqueue(ev); s_EventCount.fetch_add(1, std::memory_order_relaxed);
                     }
                 }
-                shard.Unlock();
+                impShard.Unlock();
+            }
+        }
+
+        // 5. Sliding particles
+        if (props.spawnsParticles && isPersisted) {
+            float slidingSpeed = (relVel - relVel.Dot(manifold.mWorldSpaceNormal) * manifold.mWorldSpaceNormal).Length();
+            if (slidingSpeed > s_Config.particleSlidingVelocityThreshold) {
+                float energy = (slidingSpeed * settings.mCombinedFriction + manifold.mPenetrationDepth * 5.0f) * massScale;
+                if (energy > s_Config.particleSlidingEnergyThreshold) {
+                    // High-performance RNG without locking
+                    thread_local std::mt19937 rng(std::random_device{}());
+                    thread_local std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+                    if (dist(rng) < (std::min)(s_Config.particleSlidingChanceMax, energy * s_Config.particleSlidingChanceMult)) {
+                        shard.Lock();
+                        if (shard.TryDeduplicate(blockKey ^ 0xFAFBF000)) {
+                            if (s_TickParticles.fetch_add(1, std::memory_order_relaxed) < s_Config.maxParticlesPerTick) {
+                                InteractionEvent ev; populateEvent(ev, InteractionType::TERRAIN_SLIDE, energy);
+                                ev.x2 = (float)p.GetX(); ev.y2 = (float)p.GetY(); ev.z2 = (float)p.GetZ();
+                                shard.Enqueue(ev); s_EventCount.fetch_add(1, std::memory_order_relaxed);
+                            }
+                        }
+                        shard.Unlock();
+                    }
+                }
             }
         }
     }
@@ -257,6 +265,7 @@ int TerrainInteraction::FlushEvents(InteractionEvent* outBuffer, int maxCount) {
     s_TickBreaks.store(0, std::memory_order_relaxed);
     s_TickTransforms.store(0, std::memory_order_relaxed);
     s_TickParticles.store(0, std::memory_order_relaxed);
+    s_TickImpacts.store(0, std::memory_order_relaxed);
 
     int total = 0;
     for (int i = 0; i < NUM_SHARDS; ++i) {
