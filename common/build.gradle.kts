@@ -4,6 +4,16 @@ plugins {
     id("dev.kikugie.fletching-table.fabric") version "0.1.0-alpha.23"
 }
 
+loom {
+    accessWidenerPath = common.project.file("../../src/main/resources/accesswideners/${commonMod.mc}-${mod.id}.accesswidener")
+
+    if (stonecutter.eval(commonMod.mc, "<=1.21.11")) {
+        mixin {
+            useLegacyMixinAp = false
+        }
+    }
+}
+
 dependencies {
     minecraft("com.mojang:minecraft:${commonMod.mc}")
 
@@ -17,12 +27,4 @@ dependencies {
     }
 
     modCompileOnly("net.fabricmc:fabric-loader:${commonMod.dep("fabric_loader")}")
-
-    val mixinExtras: Dependency = dependencies.create("io.github.llamalad7:mixinextras-fabric:${commonMod.dep("mixinextras")}")
-    annotationProcessor(mixinExtras)
-    implementation(mixinExtras)
-    include(mixinExtras)
 }
-
-group = 'net.xmx.vxevents'
-version = '0.0.1'
