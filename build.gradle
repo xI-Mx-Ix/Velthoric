@@ -1,4 +1,5 @@
 import net.fabricmc.loom.task.RemapJarTask
+import net.xmx.velthoric.gradle.internal.CredentialService
 
 plugins {
     id 'dev.architectury.loom' version '1.13-SNAPSHOT' apply false
@@ -17,19 +18,25 @@ allprojects {
 
     repositories {
         mavenCentral()
-        maven { url = 'https://cursemaven.com'}
+        maven { url = 'https://cursemaven.com' }
         maven { url = 'https://maven.parchmentmc.org' }
         maven { url = 'https://jitpack.io' }
-        maven { url = 'https://s01.oss.sonatype.org/content/repositories/snapshots'}
+        maven { url = 'https://s01.oss.sonatype.org/content/repositories/snapshots' }
 
-        ivy {
-            url "https://github.com/xI-Mx-Ix/vx-jolt-jni/releases/download/${jolt_jni_version}/"
-            patternLayout {
-                artifact "[artifact]-[revision](-[classifier]).[ext]"
-            }
-            metadataSources {
-                artifact()
-            }
+        exclusiveContent {
+            forRepositories(
+                    ivy {
+                        url "https://github.com/xI-Mx-Ix/vx-jolt-jni/releases/download/${jolt_jni_version}/"
+                        patternLayout {
+                            artifact "[artifact]-[revision](-[classifier]).[ext]"
+                        }
+                        metadataSources {
+                            artifact()
+                        }
+                    }
+            )
+
+            filter { includeGroup("vx-jolt-jni") }
         }
 
         flatDir {
@@ -47,12 +54,12 @@ subprojects {
     apply plugin: 'net.xmx.velthoric.publishing'
 
     def archiveMap = [
-            "fabric"    : "velthoric-fabric",
-            "forge"     : "velthoric-forge",
-            "neoforge"  : "velthoric-neoforge",
-            "common"    : "velthoric-common",
-            "vx-events" : "vx-events",
-            "vx-native" : "vx-native"
+            "fabric"   : "velthoric-fabric",
+            "forge"    : "velthoric-forge",
+            "neoforge" : "velthoric-neoforge",
+            "common"   : "velthoric-common",
+            "vx-events": "vx-events",
+            "vx-native": "vx-native"
     ]
 
     base {
@@ -107,6 +114,33 @@ subprojects {
     tasks.withType(GenerateModuleMetadata).configureEach {
         enabled = false
     }
+
+    // Configure Maven publishing.
+    publishing {
+
+        // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+        repositories {
+            // Add repositories to publish to here.
+            // Notice: This block does NOT have the same function as the block in the top level.
+            // The repositories here will be used for publishing your artifact, not for
+            // retrieving dependencies.
+            maven {
+                name = "projectMaven"
+
+                url = CredentialService.get(CredentialService.KEY_MAVEN_REPO)
+
+                credentials {
+                    username = CredentialService.get(CredentialService.KEY_MAVEN_USER)
+                    password = CredentialService.get(CredentialService.KEY_MAVEN_TOKEN)
+                }
+
+                authentication {
+                    basic(BasicAuthentication)
+                }
+            }
+        }
+    }
+
 }
 
 task generateJoltDoc {
