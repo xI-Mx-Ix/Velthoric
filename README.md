@@ -3,15 +3,15 @@
 </p>
 
 <div align="center">
-  <h1>Velthoric Physics Mod</h1>
-  <p><i>Redefining physics in the world of Minecraft.</i></p>
+  <h1>Velthoric</h1>
+  <p>Redefining physics in the world of Minecraft.</p>
 </div>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Environment-Client%20%26%20Server-blue" alt="Environment">
+  <img src="https://img.shields.io/badge/Environment-Client%20%26%20Server-033da8?style=flat-square" alt="Environment">
   &nbsp;
-  <a href="https://cloudsmith.io/~velthoric/repos/velthoric">
-    <img src="https://img.shields.io/badge/Hosted_by-Cloudsmith-238636?logo=cloudsmith&logoColor=white" alt="Hosted by Cloudsmith">
+  <a href="https://cloudsmith.io/~velthoric/repos/velthoric/packages/">
+    <img src="https://img.shields.io/badge/Hosted_by-Cloudsmith-033da8?style=flat-square&logo=cloudsmith&logoColor=white" alt="Hosted by Cloudsmith">
   </a>
 </p>
 
@@ -30,64 +30,80 @@
 
 ---
 
-### 👋 Welcome to Velthoric
+### Overview
 
-Velthoric is a project dedicated to bringing advanced, high-performance physics to Minecraft.
+Velthoric is a modern physics engine integration for Minecraft that brings professional-grade rigid and soft body dynamics to the block world. By utilizing the Jolt Physics engine via native bindings, Velthoric achieves high-fidelity simulations that are physically persistent and synchronized across the network.
 
-**Important Note:** Right now, this mod is a **Proof of Concept**. This means we are currently testing what’s possible and building the foundation. It is a work in progress, but it won't stay this way forever. We have big plans to turn this into a fully-fledged, stable physics engine for the community.
+**Status:** Velthoric is currently in active development. The codebase is functional but should be considered a "Proof of Concept" as we stabilize the core API and simulation features.
 
-### 💥 What makes this mod special?
-We aren't just adding simple animations. Velthoric integrates the professional Jolt Physics engine (via JoltJNI) directly into Minecraft. This allows for interactions that feel heavy, realistic, and incredibly smooth.
+### Key Features
 
-**Current Features:**
-*   **True Rigid and Soft Bodies:** Interact with solid objects, or play with deformable things like cloth and ropes.
-*   **Working Vehicles:** Drive cars and motorcycles that feature actual suspension and wheel physics.
-*   **Realistic Ragdolls:** Watch living entities react to the world with physical skeletal systems.
-*   **Buoyancy:** Objects actually float in water and lava based on their weight and shape.
-*   **World Interaction:** Convert standard blocks into dynamic physics objects that fall and collide.
-*   **Optimized Performance:** Built using a "Structure of Arrays" (SoA) architecture to handle thousands of objects without killing your frame rate.
-*   **Persistence:** Everything stays where it is. Physics bodies are saved with your world and synced perfectly between the server and the client.
+- **Jolt Integration:** Rigid Bodies, Soft Bodies (Cloth/Ropes), Constraints (Joints), and Vehicles.
+- **Terrain Interaction:** Advanced collision handling and interaction with Minecraft's block-based terrain.
+- **Synchronization API:** Robust state synchronization between Server and Client via `VxSynchronizedData`.
+- **Native Performance:** Optimized C++ backend using a "Structure of Arrays" (SoA) architecture for minimal overhead.
+- **Persistence:** Full world-saving support for physics bodies.
 
 ---
 
-### 🎮 How to play with it
-You can test the engine right now using these commands:
+### Building from Source
 
-*   **`/vxsummon`**: Spawn objects like boxes, ropes, or marbles.
-    *   Try this to test a vehicle: `/vxsummon velthoric:car ~ ~ ~` (Use **F3 + B** to see where to sit).
-*   **`/vxtest`**: A quick way to spawn debug setups like chain grids or soft bodies.
-*   **`/vxkill`**: Use this to clean up. You can target specific types of objects or everything nearby.
-    *   Example: `/vxkill @x[type=velthoric:box,limit=5,sort=nearest]`
+Since Velthoric relies on native C++ components (`vx-native`), you need a proper build toolchain for your platform.
 
-### 🔧 Tools included
-We’ve added several tools to help you manipulate the world:
-*   **PhysicsGun:** Grab, move, and throw objects around.
-*   **Magnetizer:** Push or pull things with magnetic force.
-*   **Launchers:** Special tools to shoot boxes or ragdolls into the air.
-*   **ChainCreator:** Link objects together or anchor them to the ground.
+#### Prerequisites
+- **Java 21 JDK**
+- **CMake 3.15+**
+- **C++ Compiler:**
+  - **Windows:** Visual Studio 2022 (with "Desktop development with C++" workload)
+  - **Linux:** GCC or Clang (e.g., `build-essential` on Debian/Ubuntu)
+  - **macOS:** Xcode Command Line Tools
 
-**Hint:** You can press **TAB** while holding any tool to open a menu and tweak settings like strength and range.
-
----
-
-### 💻 Supported Platforms
-Because Velthoric relies on native code for the physics engine, it currently supports:
-*   Windows (x86_64)
-*   Linux (x86_64 and Arm64)
-*   MacOS (x86_64 and Arm64)
-
-**Warning:** Any other platforms, such as 32-bit systems or Android, are not supported and will result in a crash.
-
-### ⚠️ Feedback and Bug Reports
-If you find a bug or a compatibility issue, please let us know on the issue tracker:
-
-<a href="https://github.com/xI-Mx-Ix/Velthoric/issues">
-  <img src="https://raw.githubusercontent.com/xI-Mx-Ix/Velthoric/refs/heads/master/assets/issues_badge.png" alt="GitHub Issues">
-</a>
+#### Compilation
+To build the project and generate the mod JARs for all supported platforms:
+```bash
+# This will compile the native libraries and package the JARs
+./gradlew build
+```
+The resulting JARs can be found in the `fabric/build/libs` and `neoforge/build/libs` directories.
 
 ---
 
-### 🙏 Acknowledgments
-This project wouldn't be possible without these amazing resources:
-*   [JoltJNI](https://github.com/stephengold/jolt-jni): The JNI bindings for Jolt Physics.
-*   [Jolt Physics](https://github.com/jrouwe/JoltPhysics): The powerful engine behind it all.
+### Using as a Dependency
+
+Velthoric artifacts are hosted on Cloudsmith. You can include them in your Architectury or platform-specific projects.
+
+#### 1. Add the Repository
+```gradle
+repositories {
+    maven {
+        url = "https://maven.cloudsmith.io/velthoric/velthoric/"
+    }
+}
+```
+
+#### 2. Add the Dependency
+```gradle
+dependencies {
+    // Replace [loader] with 'fabric' or 'neoforge'
+    // Replace [version] with the desired version (e.g., 0.7.1)
+    modImplementation "net.xmx.velthoric:velthoric-[loader]:[version]"
+}
+```
+
+---
+
+### Development Tools & Commands
+
+Velthoric includes a set of debug tools and commands for testing the physics world:
+
+- `/vxsummon <id>`: Spawn physics entities (e.g., `velthoric:car`, `velthoric:marble`).
+- `/vxkill`: Clean up nearby physics bodies.
+- **PhysicsGun:** Standard tool for grabbing and manipulating rigid bodies.
+- **Magnetizer:** Apply magnetic impulses to objects.
+
+---
+
+### Acknowledgments
+
+- [Jolt Physics](https://github.com/jrouwe/JoltPhysics): The underlying physics engine.
+- [jolt-jni](https://github.com/stephengold/jolt-jni): Native JNI bindings for Jolt.
