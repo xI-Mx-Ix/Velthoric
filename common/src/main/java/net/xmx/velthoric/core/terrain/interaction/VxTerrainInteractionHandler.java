@@ -206,7 +206,7 @@ public class VxTerrainInteractionHandler {
         if (state.isAir()) return;
 
         MaterialProperties props = VxTerrainMaterial.getProperties(state.getBlock());
-        if (props.isTransformable() && force > 500.0f) {
+        if (props.isTransformable() && force > 2000.0f) {
             level.setBlock(pos, props.transformTo.defaultBlockState(), 2 | 16 | 32);
         }
     }
@@ -318,8 +318,8 @@ public class VxTerrainInteractionHandler {
                 state.getSoundType().getHitSound(), SoundSource.BLOCKS, volume, pitch);
 
         // Visual Particles
-        int baseParticles = Math.min(20, (int) (intensity * 1.0f));
-        if (baseParticles < 1 && intensity > 0.05f && level.random.nextFloat() < 0.3f) baseParticles = 1;
+        int baseParticles = Math.min(10, (int) (intensity * 0.4f));
+        if (baseParticles < 1 && intensity > 0.1f && level.random.nextFloat() < 0.2f) baseParticles = 1;
 
         if (baseParticles > 0) {
             level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state),
@@ -358,7 +358,7 @@ public class VxTerrainInteractionHandler {
                 state.getSoundType().getHitSound(), SoundSource.BLOCKS, volume, pitch);
 
         // Heavy particle burst
-        int particles = Math.min(40, 4 + (int) (intensity * 3.0f));
+        int particles = Math.min(15, 2 + (int) (intensity * 1.0f));
         level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state),
                 contactX, contactY, contactZ, particles, 0.2, 0.15, 0.2, 0.1);
     }

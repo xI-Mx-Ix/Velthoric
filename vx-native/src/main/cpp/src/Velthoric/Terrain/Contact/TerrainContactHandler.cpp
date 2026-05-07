@@ -38,6 +38,10 @@ void TerrainContactHandler::OnContactAdded(const JPH::Body &inBody1, const JPH::
     bool isBody1Terrain = (inBody1.GetObjectLayer() == 2);
     uint32_t cachedMatId = 0;
 
+    // Track contact for weight distribution (increment both)
+    TerrainInteraction::IncrementContactCount(inBody1.GetID().GetIndex());
+    TerrainInteraction::IncrementContactCount(inBody2.GetID().GetIndex());
+
     // Attempt cache hit (in case of sub-shape re-entry)
     shard.Lock();
     for (int i = 0; i < ENTRIES_PER_SHARD; ++i) {
@@ -141,6 +145,11 @@ void TerrainContactHandler::OnContactRemoved(const JPH::SubShapeIDPair &inSubSha
     for (int i = 0; i < ENTRIES_PER_SHARD; ++i) {
         if (shard.entries[i].key == key) {
             shard.entries[i].key = 0; // Invalidate entry
+
+            // Update contact counter for both bodies
+            TerrainInteraction::DecrementContactCount(inSubShapePair.GetBody1ID().GetIndex());
+            TerrainInteraction::DecrementContactCount(inSubShapePair.GetBody2ID().GetIndex());
+            
             break;
         }
     }

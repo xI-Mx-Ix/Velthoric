@@ -26,6 +26,7 @@ std::atomic<int> TerrainInteraction::s_TickBreaks{0};
 std::atomic<int> TerrainInteraction::s_TickTransforms{0};
 std::atomic<int> TerrainInteraction::s_TickParticles{0};
 std::atomic<int> TerrainInteraction::s_TickImpacts{0};
+std::array<std::atomic<int>, 65536> TerrainInteraction::s_BodyContactCounts;
 TerrainInteraction::Shard TerrainInteraction::s_Shards[TerrainInteraction::NUM_SHARDS];
 
 /**
@@ -163,7 +164,12 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
         // Estimated normal force based on impact speed and penetration
         float kineticForce = normalSpeed * otherMass;
         float staticForce = manifold.mPenetrationDepth * otherMass * gravity;
-        float totalForce = kineticForce + staticForce;
+        
+        // Weight distribution: Divide force by the total number of terrain contacts the body has.
+        int contactCount = GetContactCount(otherBodyIdx);
+        float distributedMassScale = 1.0f / (float)(std::max)(1, contactCount);
+        
+        float totalForce = (kineticForce + staticForce) * distributedMassScale;
 
         /** Lambda to fill common event fields. */
         auto populateEvent = [&](InteractionEvent& ev, InteractionType type, float strength) {

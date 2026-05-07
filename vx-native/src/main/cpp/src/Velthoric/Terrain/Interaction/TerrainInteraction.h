@@ -139,6 +139,21 @@ public:
      */
     static int FlushEvents(InteractionEvent* outBuffer, int maxCount);
 
+    /** @brief Increments the contact counter for a body. */
+    static void IncrementContactCount(uint32_t bodyId) {
+        if (bodyId < 65536) s_BodyContactCounts[bodyId].fetch_add(1, std::memory_order_relaxed);
+    }
+
+    /** @brief Decrements the contact counter for a body. */
+    static void DecrementContactCount(uint32_t bodyId) {
+        if (bodyId < 65536) s_BodyContactCounts[bodyId].fetch_sub(1, std::memory_order_relaxed);
+    }
+
+    /** @brief Gets the current contact count for a body. */
+    static int GetContactCount(uint32_t bodyId) {
+        return bodyId < 65536 ? s_BodyContactCounts[bodyId].load(std::memory_order_relaxed) : 1;
+    }
+
 private:
     /** @brief Internal helper to push events into the sharded buffers. */
     static void QueueEvent(const InteractionEvent& event);
@@ -165,6 +180,9 @@ private:
     static std::atomic<int> s_TickTransforms;
     static std::atomic<int> s_TickParticles;
     static std::atomic<int> s_TickImpacts;
+
+    /// Tracks how many terrain contacts each body currently has.
+    static std::array<std::atomic<int>, 65536> s_BodyContactCounts;
 
     /**
      * @brief Number of shards to minimize lock contention.

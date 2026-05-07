@@ -156,7 +156,7 @@ public class TerrainInteraction {
         /**
          * Force required to change terrain state.
          */
-        public float transformMinForce = 200.0f;
+        public float transformMinForce = 1000.0f;
         /**
          * Speed required for friction-based wear.
          */
