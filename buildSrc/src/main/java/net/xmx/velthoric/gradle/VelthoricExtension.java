@@ -24,7 +24,6 @@ import javax.inject.Inject;
  *     loader = "fabric"
  *     artifact = tasks.named("remapJar")
  *     dryRun = true
- *     // Optional: enableCloudsmith = true
  * }
  * </pre>
  *

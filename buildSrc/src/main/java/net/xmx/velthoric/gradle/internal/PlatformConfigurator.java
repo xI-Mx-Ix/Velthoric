@@ -9,6 +9,8 @@ import me.modmuss50.mpp.ReleaseType;
 import net.xmx.velthoric.gradle.VelthoricExtension;
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
+import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskProvider;
@@ -66,6 +68,7 @@ public final class PlatformConfigurator {
         // 6. Platform Specifics
         configureCurseForge(project, publishExt, extension, loader, mcVersion);
         configureModrinth(project, publishExt, extension, loader, mcVersion);
+        configureMaven(project, extension, artifactFile);
     }
 
     /**
@@ -109,7 +112,7 @@ public final class PlatformConfigurator {
 
     private static void configureCurseForge(Project project, ModPublishExtension ext, VelthoricExtension velthoric, ModLoader loader, String mcVersion) {
         ext.curseforge(cf -> {
-            cf.getAccessToken().set(CredentialService.get(CredentialService.KEY_CURSEFORGE));
+            cf.getAccessToken().set(CredentialService.get(project, CredentialService.KEY_CURSEFORGE));
             cf.getProjectId().set(velthoric.getCurseProjectId());
             cf.getType().set(ReleaseType.STABLE);
             cf.getMinecraftVersions().add(mcVersion);
@@ -128,7 +131,7 @@ public final class PlatformConfigurator {
 
     private static void configureModrinth(Project project, ModPublishExtension ext, VelthoricExtension velthoric, ModLoader loader, String mcVersion) {
         ext.modrinth(mr -> {
-            mr.getAccessToken().set(CredentialService.get(CredentialService.KEY_MODRINTH));
+            mr.getAccessToken().set(CredentialService.get(project, CredentialService.KEY_MODRINTH));
             mr.getProjectId().set(velthoric.getModrinthProjectId());
             mr.getType().set(ReleaseType.BETA);
             mr.getMinecraftVersions().add(mcVersion);
@@ -139,6 +142,40 @@ public final class PlatformConfigurator {
             if (deps.length > 0) {
                 mr.requires(deps);
             }
+        });
+    }
+
+    private static void configureMaven(Project project, VelthoricExtension extension, Provider<RegularFile> artifactFile) {
+        project.getExtensions().configure(PublishingExtension.class, publishing -> {
+            String repoName = String.valueOf(project.findProperty("maven_repo_name"));
+            String repoUrl = String.valueOf(project.findProperty("maven_url"));
+
+            publishing.getRepositories().maven(repository -> {
+                repository.setName(repoName);
+                repository.setUrl(repoUrl);
+                repository.credentials(credentials -> {
+                    credentials.setUsername(CredentialService.get(project, CredentialService.KEY_MAVEN_USER));
+                    credentials.setPassword(CredentialService.get(project, CredentialService.KEY_MAVEN_TOKEN));
+                });
+            });
+
+            // Use maybeCreate to avoid conflicts if the publication is already defined in the build script
+            MavenPublication publication = publishing.getPublications().maybeCreate("mavenJava", MavenPublication.class);
+            
+            // Clear existing artifacts to ensure only the ones we want are published
+            publication.getArtifacts().clear();
+
+            // Add the primary remapped artifact
+            publication.artifact(artifactFile, artifact -> {
+                artifact.setClassifier("");
+            });
+
+            // Add the sources artifact
+            project.getTasks().named("sourcesJar", task -> {
+                publication.artifact(task, artifact -> {
+                    artifact.setClassifier("sources");
+                });
+            });
         });
     }
 }

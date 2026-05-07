@@ -10,7 +10,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Environment-Client%20%26%20Server-blue" alt="Environment">
   &nbsp;
-  <a href="https://cloudsmith.io/~imx-dev/repos/velthoric">
+  <a href="https://cloudsmith.io/~velthoric/repos/velthoric">
     <img src="https://img.shields.io/badge/Hosted_by-Cloudsmith-238636?logo=cloudsmith&logoColor=white" alt="Hosted by Cloudsmith">
   </a>
 </p>

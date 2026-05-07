@@ -83,7 +83,7 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
                         .anyMatch(ext -> ext.getArtifact().isPresent() && !ext.getDryRun().get());
 
                 if (isRealRelease) {
-                    CredentialService.validate();
+                    CredentialService.validate(project);
                     project.getLogger().lifecycle("Velthoric Release Pipeline: Credentials verified. Completing upload...");
                 } else {
                     project.getLogger().lifecycle("Velthoric Release Pipeline: No active release detected (Dry Run or no artifacts). Skipping credential validation.");
@@ -116,6 +116,7 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
 
         // 2. Apply dependencies (Third-party plugins required for uploading)
         project.getPlugins().apply("me.modmuss50.mod-publish-plugin");
+        project.getPlugins().apply("maven-publish");
 
         // 3. Defer configuration logic until the build script has been evaluated.
         // This is necessary because we need to read the values set by the user in the 'velthoricPublishing' block.
@@ -131,11 +132,13 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
 
             // If Modrinth or CurseForge tokens are invalid/missing, we automatically switch to Dry Run.
             // This prevents build failures due to missing credentials and allows for safe testing.
-            String mrToken = CredentialService.get(CredentialService.KEY_MODRINTH);
-            String cfToken = CredentialService.get(CredentialService.KEY_CURSEFORGE);
+            String mrToken = CredentialService.get(p, CredentialService.KEY_MODRINTH);
+            String cfToken = CredentialService.get(p, CredentialService.KEY_CURSEFORGE);
+            String mavenUser = CredentialService.get(p, CredentialService.KEY_MAVEN_USER);
+            String mavenToken = CredentialService.get(p, CredentialService.KEY_MAVEN_TOKEN);
 
-            if (mrToken == null || cfToken == null) {
-                p.getLogger().lifecycle("Velthoric: Missing Modrinth or CurseForge tokens. Forcing DRY RUN for module '{}'.", p.getName());
+            if (mrToken == null || cfToken == null || mavenUser == null || mavenToken == null) {
+                p.getLogger().lifecycle("Velthoric: Missing release tokens (Modrinth, CurseForge, or Maven). Forcing dry run for module '{}'.", p.getName());
                 extension.getDryRun().set(true);
             }
 
@@ -148,7 +151,14 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
             p.getRootProject().getTasks().named(LIFECYCLE_TASK_NAME, rootTask -> {
                 TaskProvider<Task> subTask = p.getTasks().named(SUBPROJECT_TASK_NAME);
                 rootTask.dependsOn(subTask);
-                project.getLogger().lifecycle("Velthoric: Registered module '{}' for publication.", project.getName());
+
+                // Also depend on Maven publishing to the configured repository
+                String repoName = String.valueOf(p.findProperty("maven_repo_name"));
+                String taskName = "publishMavenJavaPublicationTo" + repoName + "Repository";
+                TaskProvider<Task> mavenTask = p.getTasks().named(taskName);
+                rootTask.dependsOn(p.provider(() -> extension.getDryRun().get() ? java.util.Collections.emptyList() : java.util.Collections.singletonList(mavenTask)));
+
+                project.getLogger().lifecycle("Velthoric: Registered module '{}' for publication (Platforms + Maven).", project.getName());
             });
         });
     }
