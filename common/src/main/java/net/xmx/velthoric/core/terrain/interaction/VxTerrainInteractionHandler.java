@@ -206,7 +206,7 @@ public class VxTerrainInteractionHandler {
         if (state.isAir()) return;
 
         MaterialProperties props = VxTerrainMaterial.getProperties(state.getBlock());
-        if (props.isTransformable() && force > 2000.0f) {
+        if (props.isTransformable() && force > props.transformThreshold) {
             level.setBlock(pos, props.transformTo.defaultBlockState(), 2 | 16 | 32);
         }
     }

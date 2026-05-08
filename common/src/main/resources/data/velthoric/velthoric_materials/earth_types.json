@@ -4,31 +4,36 @@
       "friction": 0.941,
       "restitution": 0.0,
       "weight": 1474.2,
-      "transform_to": "minecraft:dirt"
+      "transform_to": "minecraft:dirt",
+      "transform_threshold": 4500.0
     },
     "minecraft:farmland": {
       "friction": 0.831,
       "restitution": 0.052,
       "weight": 1502.25,
-      "transform_to": "minecraft:dirt"
+      "transform_to": "minecraft:dirt",
+      "transform_threshold": 4000.0
     },
     "minecraft:grass_block": {
       "friction": 0.774,
       "restitution": 0.0,
       "weight": 1488.45,
-      "transform_to": "minecraft:dirt"
+      "transform_to": "minecraft:dirt",
+      "transform_threshold": 4500.0
     },
     "minecraft:mycelium": {
       "friction": 0.924,
       "restitution": 0.0,
       "weight": 1504.8,
-      "transform_to": "minecraft:dirt"
+      "transform_to": "minecraft:dirt",
+      "transform_threshold": 5000.0
     },
     "minecraft:podzol": {
       "friction": 0.931,
       "restitution": 0.0,
       "weight": 1482.45,
-      "transform_to": "minecraft:dirt"
+      "transform_to": "minecraft:dirt",
+      "transform_threshold": 5000.0
     },
     "minecraft:clay": {
       "friction": 0.769,

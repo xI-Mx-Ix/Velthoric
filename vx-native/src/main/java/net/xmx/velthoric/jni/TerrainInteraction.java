@@ -99,6 +99,10 @@ public class TerrainInteraction {
          * The physical force threshold for interaction.
          */
         public float interactThreshold;
+        /**
+         * The physical force threshold for transformation.
+         */
+        public float transformThreshold;
 
         /**
          * Serializes this configuration into a direct {@link ByteBuffer} for native transfer.
@@ -128,12 +132,13 @@ public class TerrainInteraction {
             buffer.put((byte) 0); // Padding
             buffer.put((byte) 0); // Padding to align struct size to 4 bytes
             buffer.putFloat(interactThreshold);
+            buffer.putFloat(transformThreshold);
         }
 
         /**
          * Total size of the native {@code MaterialConfig} struct in bytes.
          */
-        public static final int SIZE = 20;
+        public static final int SIZE = 24;
     }
 
     /**

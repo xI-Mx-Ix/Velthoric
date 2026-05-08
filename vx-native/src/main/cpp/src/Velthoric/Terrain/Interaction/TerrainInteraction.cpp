@@ -79,6 +79,7 @@ void TerrainInteraction::RegisterMaterials(const MaterialConfig* configs, int co
             s_MaterialProps[id].breakThreshold = configs[i].breakThreshold;
             s_MaterialProps[id].isInteractable = configs[i].isInteractable;
             s_MaterialProps[id].interactThreshold = configs[i].interactThreshold;
+            s_MaterialProps[id].transformThreshold = configs[i].transformThreshold;
         }
     }
 }
@@ -192,7 +193,7 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
             shard.Unlock();
         } 
         // 2. Block transformation (wear)
-        else if (props.isTransformable && totalForce > s_Config.transformMinForce) {
+        else if (props.isTransformable && totalForce > props.transformThreshold) {
             shard.Lock();
             if (shard.TryDeduplicate(blockKey ^ 0x12345678)) {
                 if (s_TickTransforms.fetch_add(1, std::memory_order_relaxed) < s_Config.maxTransformsPerTick) {

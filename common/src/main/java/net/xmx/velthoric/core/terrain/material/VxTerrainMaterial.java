@@ -36,7 +36,7 @@ public class VxTerrainMaterial {
     /**
      * Default fallback properties used when a block is not explicitly registered.
      */
-    private static final MaterialProperties DEFAULT = new MaterialProperties((short) 1, 0.75f, 0.0f, 100.0f, false, null, true, 5000.0f, false, 50.0f);
+    private static final MaterialProperties DEFAULT = new MaterialProperties((short) 1, 0.75f, 0.0f, 100.0f, false, null, true, 5000.0f, false, 50.0f, 2000.0f);
 
     /**
      * The next available unique material ID. ID 0 is reserved for air, ID 1 for default.
@@ -87,6 +87,10 @@ public class VxTerrainMaterial {
          * The force required to nudge interactive objects (doors).
          */
         public final float interactThreshold;
+        /**
+         * The threshold required to trigger terrain transformation.
+         */
+        public final float transformThreshold;
 
         /**
          * Internal constructor for material properties.
@@ -102,7 +106,7 @@ public class VxTerrainMaterial {
          * @param interactThreshold Interaction threshold.
          */
         public MaterialProperties(short id, float friction, float restitution, float weight,
-                                  boolean isFragile, Block transformTo, boolean spawnsParticles, float breakThreshold, boolean isInteractable, float interactThreshold) {
+                                  boolean isFragile, Block transformTo, boolean spawnsParticles, float breakThreshold, boolean isInteractable, float interactThreshold, float transformThreshold) {
             this.id = id;
             this.friction = friction;
             this.restitution = restitution;
@@ -113,6 +117,7 @@ public class VxTerrainMaterial {
             this.breakThreshold = breakThreshold;
             this.isInteractable = isInteractable;
             this.interactThreshold = interactThreshold;
+            this.transformThreshold = transformThreshold;
         }
 
         /**
@@ -143,7 +148,7 @@ public class VxTerrainMaterial {
      * @throws IllegalStateException If the maximum number of material IDs (65535) is exceeded.
      */
     public static void register(ResourceLocation blockId, float friction, float restitution, float weight,
-                                boolean isFragile, Block transformTo, boolean spawnsParticles, float breakThreshold, boolean isInteractable, float interactThreshold) {
+                                boolean isFragile, Block transformTo, boolean spawnsParticles, float breakThreshold, boolean isInteractable, float interactThreshold, float transformThreshold) {
         if (nextId == 0) { // wraps around at 65536
             throw new IllegalStateException("Maximum number of terrain materials (65535) reached.");
         }
@@ -153,7 +158,7 @@ public class VxTerrainMaterial {
         }
 
         short id = nextId++;
-        MaterialProperties props = new MaterialProperties(id, friction, restitution, weight, isFragile, transformTo, spawnsParticles, breakThreshold, isInteractable, interactThreshold);
+        MaterialProperties props = new MaterialProperties(id, friction, restitution, weight, isFragile, transformTo, spawnsParticles, breakThreshold, isInteractable, interactThreshold, transformThreshold);
         blockMaterials.put(block, props);
 
         // Register for standard collision properties in the native layer
@@ -168,6 +173,7 @@ public class VxTerrainMaterial {
         config.breakThreshold = breakThreshold;
         config.isInteractable = isInteractable;
         config.interactThreshold = interactThreshold;
+        config.transformThreshold = transformThreshold;
         TerrainInteraction.registerMaterials(new TerrainInteraction.MaterialConfig[]{config});
     }
 
@@ -180,7 +186,7 @@ public class VxTerrainMaterial {
      * @param weight      The density of the block.
      */
     public static void register(ResourceLocation blockId, float friction, float restitution, float weight) {
-        register(blockId, friction, restitution, weight, false, null, true, 5000.0f, false, 50.0f);
+        register(blockId, friction, restitution, weight, false, null, true, 5000.0f, false, 50.0f, 2000.0f);
     }
 
     /**

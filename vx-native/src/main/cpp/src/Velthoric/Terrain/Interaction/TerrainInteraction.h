@@ -74,6 +74,7 @@ public:
         bool isInteractable;   ///< Whether the block supports generic interaction events.
         uint8_t padding2[3];   ///< Memory alignment padding.
         float interactThreshold; ///< Force required to trigger generic interaction events.
+        float transformThreshold; ///< Force required to trigger transformation.
     };
 
     /**
@@ -166,6 +167,7 @@ private:
         bool isInteractable = false;
         float breakThreshold = 0.0f;
         float interactThreshold = 50.0f;
+        float transformThreshold = 500.0f;
     };
 
     /// Fast lookup table for material properties (65536 slots).
