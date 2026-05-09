@@ -5,7 +5,7 @@
 package net.xmx.velthoric.core.physics;
 
 import com.github.stephengold.joltjni.*;
-import net.xmx.velthoric.jni.TerrainVoxelShape;
+import net.xmx.velthoric.jni.TerrainSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +51,7 @@ public class VxPhysicsBootstrap {
 
         // Register types and initialize custom layers
         Jolt.registerTypes();
-        TerrainVoxelShape.nRegisterVoxelShape();
+        TerrainSystem.nRegisterVoxelShape();
         VxPhysicsLayers.initialize();
 
         isInitialized = true;

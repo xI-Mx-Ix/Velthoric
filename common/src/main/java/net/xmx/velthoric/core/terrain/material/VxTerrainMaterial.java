@@ -8,7 +8,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.xmx.velthoric.jni.TerrainGenerator;
+import net.xmx.velthoric.jni.TerrainSystem;
 import net.xmx.velthoric.jni.TerrainInteraction;
 
 import java.util.IdentityHashMap;
@@ -162,7 +162,7 @@ public class VxTerrainMaterial {
         blockMaterials.put(block, props);
 
         // Register for standard collision properties in the native layer
-        TerrainGenerator.nRegisterMaterial(id, friction, restitution);
+        TerrainSystem.nRegisterMaterial(id, friction, restitution);
 
         // Register for advanced interaction properties in the native layer
         TerrainInteraction.MaterialConfig config = new TerrainInteraction.MaterialConfig();

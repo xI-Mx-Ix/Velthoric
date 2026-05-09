@@ -211,10 +211,6 @@ public final class VxPhysicsWorld implements Runnable, Executor {
             return;
         }
 
-        this.bodyManager.initialize();
-        this.constraintManager.initialize();
-        this.terrainSystem.initialize();
-
         this.isRunning = true;
         String threadName = "Velthoric Physics Thread - " + dimensionKey.location().getPath().replace('/', '_');
         this.physicsThreadExecutor = new Thread(this, threadName);
@@ -254,6 +250,9 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     public void run() {
         try {
             this.simulation.initialize(this);
+            this.bodyManager.initialize();
+            this.constraintManager.initialize();
+            this.terrainSystem.initialize();
 
             this.lastTimeNanos = System.nanoTime();
 

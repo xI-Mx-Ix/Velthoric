@@ -15,8 +15,8 @@ import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
-import net.xmx.velthoric.core.terrain.storage.VxChunkDataStore;
 import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.jni.TerrainSystem;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,27 +27,42 @@ import java.util.List;
  * This system groups nearby bodies into clusters to minimize the overhead of terrain
  * calculations. It calculates the union of chunks required for collision based on
  * body positions, bounding boxes, and predicted velocities.
+ * </p>
  * <p>
- * It includes safety mechanisms to prevent excessive chunk loading caused by
- * extreme velocities or floating-point errors.
+ * All chunk state management is delegated to the native C++ TerrainSystem via JNI.
+ * This class only handles the spatial analysis and issues request/release/activate/deactivate
+ * commands to the native layer.
+ * </p>
  *
  * @author xI-Mx-Ix
  */
 public final class VxTerrainTracker {
 
+    /**
+     * The physics world containing the bodies to track.
+     */
     private final VxPhysicsWorld physicsWorld;
-    private final VxTerrainManager terrainManager;
-    private final VxChunkDataStore chunkDataStore;
+
+    /**
+     * The server level in which the tracking occurs.
+     */
     private final ServerLevel level;
+
+    /**
+     * The body data store for accessing body position and velocity data.
+     */
     private final VxServerBodyDataStore bodyDataStore;
+
+    /**
+     * Native object wrapper to the C++ TerrainSystem for all chunk operations.
+     */
+    private volatile TerrainSystem nativeSystem;
 
     /**
      * Stores the set of required chunks from the previous tick to calculate differences.
      * Uses primitive long keys (bit-packed coordinates) to avoid object allocation.
      */
     private LongSet previouslyRequiredChunks = new LongOpenHashSet();
-
-    // --- Configuration Constants ---
 
     /**
      * Defines the size of the coarse grid cells used for clustering, in chunks.
@@ -106,20 +121,24 @@ public final class VxTerrainTracker {
     private final LongSet requiredChunksCache = new LongOpenHashSet();
 
     /**
+     * Reusable list for taking a thread-safe snapshot of bodies per tick.
+     */
+    private final List<VxBody> currentBodiesCache = new ArrayList<>();
+
+    /**
      * Constructs a new VxTerrainTracker.
      *
-     * @param physicsWorld   The physics world containing the bodies to track.
-     * @param terrainManager The manager responsible for loading and unloading terrain.
-     * @param chunkDataStore The data store for chunk state information.
-     * @param level          The server level in which the tracking occurs.
+     * @param physicsWorld The physics world containing the bodies to track.
+     * @param level        The server level in which the tracking occurs.
+     * @param nativeSystem The native C++ TerrainSystem for all chunk operations.
      */
-    public VxTerrainTracker(VxPhysicsWorld physicsWorld, VxTerrainManager terrainManager, VxChunkDataStore chunkDataStore, ServerLevel level) {
+    public VxTerrainTracker(VxPhysicsWorld physicsWorld, ServerLevel level, TerrainSystem nativeSystem) {
         this.physicsWorld = physicsWorld;
-        this.terrainManager = terrainManager;
-        this.chunkDataStore = chunkDataStore;
         this.level = level;
         this.bodyDataStore = physicsWorld.getBodyManager().getDataStore();
+        this.nativeSystem = nativeSystem;
     }
+
 
     /**
      * Performs a single update tick. It dynamically clusters all bodies, calculates the
@@ -127,36 +146,46 @@ public final class VxTerrainTracker {
      * the current and previous state.
      */
     public void update() {
-        List<VxBody> currentBodies = new ArrayList<>(physicsWorld.getBodyManager().getAllBodies());
+        TerrainSystem sys = this.nativeSystem;
+        if (sys == null) return;
 
-        if (currentBodies.isEmpty()) {
-            releaseAllChunks();
-            deactivateAllChunks();
+        currentBodiesCache.clear();
+        currentBodiesCache.addAll(physicsWorld.getBodyManager().getAllBodies());
+
+        if (currentBodiesCache.isEmpty()) {
+            releaseAllChunks(sys);
+            deactivateAllChunks(sys);
             return;
         }
 
         // 1. Calculate the total set of required chunks based on dynamic clustering.
-        LongSet currentlyRequiredChunks = calculateRequiredPreloadSet(currentBodies);
+        LongSet currentlyRequiredChunks = calculateRequiredPreloadSet(currentBodiesCache);
 
         // 2. Request new chunks using packed long coordinates.
+        VxPhysicsWorld pw = this.physicsWorld;
         for (long packedPos : currentlyRequiredChunks) {
             if (!previouslyRequiredChunks.contains(packedPos)) {
-                terrainManager.requestChunk(packedPos);
+                boolean isNew = sys.requestChunk(packedPos);
+                if (isNew) {
+                    // Schedule snapshot and data submission for new chunks
+                    pw.getTerrainSystem().scheduleChunkDataSubmission(packedPos, true);
+                }
             }
         }
 
         // 3. Release old chunks using packed long coordinates.
         for (long packedPos : previouslyRequiredChunks) {
             if (!currentlyRequiredChunks.contains(packedPos)) {
-                terrainManager.releaseChunk(packedPos);
+                sys.releaseChunk(packedPos);
             }
         }
 
         // 4. Update the state for the next tick using a primitive-based copy.
-        this.previouslyRequiredChunks = new LongOpenHashSet(currentlyRequiredChunks);
+        this.previouslyRequiredChunks.clear();
+        this.previouslyRequiredChunks.addAll(currentlyRequiredChunks);
 
         // 5. Handle fine-grained activation for bodies that are actually moving.
-        updateChunkActivation(currentBodies);
+        updateChunkActivation(sys, currentBodiesCache);
     }
 
     /**
@@ -166,6 +195,7 @@ public final class VxTerrainTracker {
      * This implementation reuses the {@code cachedBodyClusters} map and its internal lists to
      * ensure zero allocation during steady-state execution. It clears the collections
      * instead of re-instantiating them.
+     * </p>
      *
      * @param allBodies A list of all physics bodies currently in the world.
      * @return A set of bit-packed long coordinates representing all chunks that should be loaded.
@@ -259,8 +289,6 @@ public final class VxTerrainTracker {
                     float predictedOffsetZ = velZ * PREDICTION_SECONDS;
 
                     // Clamp the prediction vector to the configured maximum distance.
-                    // This prevents extreme velocities (e.g., from physics overlaps) from requesting
-                    // massive amounts of terrain, which would trigger the safety brake.
                     predictedOffsetX = Math.max(-MAX_PREDICTION_DISTANCE, Math.min(MAX_PREDICTION_DISTANCE, predictedOffsetX));
                     predictedOffsetY = Math.max(-MAX_PREDICTION_DISTANCE, Math.min(MAX_PREDICTION_DISTANCE, predictedOffsetY));
                     predictedOffsetZ = Math.max(-MAX_PREDICTION_DISTANCE, Math.min(MAX_PREDICTION_DISTANCE, predictedOffsetZ));
@@ -287,9 +315,10 @@ public final class VxTerrainTracker {
      * Updates the set of active terrain chunks for the current physics tick.
      * This logic activates chunks only around bodies that are currently in motion.
      *
+     * @param sys       The native TerrainSystem wrapper.
      * @param allBodies The list of all physics bodies in the world.
      */
-    private void updateChunkActivation(List<VxBody> allBodies) {
+    private void updateChunkActivation(TerrainSystem sys, List<VxBody> allBodies) {
         LongSet requiredActiveSet = new LongOpenHashSet();
         VxServerBodyDataContainer c = bodyDataStore.serverCurrent();
 
@@ -321,27 +350,36 @@ public final class VxTerrainTracker {
             }
         }
 
-        // Convert packed coordinates back to prioritized building tasks
+        // Prioritize chunks that need data re-submission
         for (long packed : requiredActiveSet) {
-            terrainManager.prioritizeChunk(packed);
-        }
-
-        LongSet currentlyActive = new LongOpenHashSet();
-        for (int index : chunkDataStore.getActiveIndices()) {
-            if (chunkDataStore.getState(index) == VxTerrainManager.STATE_READY_ACTIVE) {
-                currentlyActive.add(chunkDataStore.getPackedPosForIndex(index));
+            if (sys.prioritizeChunk(packed)) {
+                physicsWorld.getTerrainSystem().scheduleChunkDataSubmission(packed, false);
             }
         }
 
+        // Get currently active chunks from native
+        long[] activePositions = sys.getActiveChunkPositions();
+        LongSet currentlyActive = new LongOpenHashSet();
+        if (activePositions != null) {
+            for (long pos : activePositions) {
+                currentlyActive.add(pos);
+            }
+        }
+
+        // Deactivate chunks no longer needed
         for (long packed : currentlyActive) {
             if (!requiredActiveSet.contains(packed)) {
-                terrainManager.deactivateChunk(packed);
+                sys.deactivateChunk(packed);
             }
         }
 
+        // Activate newly needed chunks
         for (long packed : requiredActiveSet) {
             if (!currentlyActive.contains(packed)) {
-                terrainManager.activateChunk(packed);
+                boolean needsData = sys.activateChunk(packed);
+                if (needsData) {
+                    physicsWorld.getTerrainSystem().scheduleChunkDataSubmission(packed, false);
+                }
             }
         }
     }
@@ -401,21 +439,28 @@ public final class VxTerrainTracker {
 
     /**
      * Releases all chunks currently held by the tracker.
+     *
+     * @param sys The native TerrainSystem wrapper.
      */
-    private void releaseAllChunks() {
+    private void releaseAllChunks(TerrainSystem sys) {
         if (previouslyRequiredChunks.isEmpty()) return;
         for (long packed : previouslyRequiredChunks) {
-            terrainManager.releaseChunk(packed);
+            sys.releaseChunk(packed);
         }
         previouslyRequiredChunks.clear();
     }
 
     /**
-     * Deactivates all currently managed terrain chunks.
+     * Deactivates all currently active terrain chunks.
+     *
+     * @param sys The native TerrainSystem wrapper.
      */
-    private void deactivateAllChunks() {
-        for (int index : chunkDataStore.getActiveIndices()) {
-            terrainManager.deactivateChunk(chunkDataStore.getPackedPosForIndex(index));
+    private void deactivateAllChunks(TerrainSystem sys) {
+        long[] activePositions = sys.getActiveChunkPositions();
+        if (activePositions != null) {
+            for (long pos : activePositions) {
+                sys.deactivateChunk(pos);
+            }
         }
     }
 
@@ -423,6 +468,11 @@ public final class VxTerrainTracker {
      * Clears all tracking data and releases all held chunks.
      */
     public void clear() {
-        releaseAllChunks();
+        TerrainSystem sys = this.nativeSystem;
+        if (sys != null) {
+            releaseAllChunks(sys);
+        } else {
+            previouslyRequiredChunks.clear();
+        }
     }
 }

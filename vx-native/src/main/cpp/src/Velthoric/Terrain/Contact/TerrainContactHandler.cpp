@@ -5,7 +5,7 @@
  * Author: xI-Mx-Ix
  */
 #include "Velthoric/Terrain/Contact/TerrainContactHandler.h"
-#include "Velthoric/Terrain/TerrainGenerator.h"
+#include "Velthoric/Terrain/Generation/TerrainGenerator.h"
 #include "Velthoric/Terrain/Interaction/TerrainInteraction.h"
 #include <Jolt/Physics/Collision/PhysicsMaterial.h>
 #include <cmath>

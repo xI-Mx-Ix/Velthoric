@@ -8,7 +8,7 @@
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
-#include "Velthoric/Terrain/TerrainGenerator.h"
+#include "Velthoric/Terrain/Generation/TerrainGenerator.h"
 #include <vector>
 
 namespace Velthoric {

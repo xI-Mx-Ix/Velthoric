@@ -109,7 +109,9 @@ endif()
 # Define vxnative Library
 add_library(vxnative SHARED
     src/Velthoric/PhysicsSync/BatchPhysicsSync.cpp
-    src/Velthoric/Terrain/TerrainGenerator.cpp
+    src/Velthoric/Terrain/Generation/TerrainGenerator.cpp
+    src/Velthoric/Terrain/TerrainSystem.cpp
+    src/Velthoric/Terrain/State/TerrainStateManager.cpp
     src/Velthoric/Terrain/Interaction/TerrainInteraction.cpp
     src/Velthoric/Terrain/Shape/TerrainVoxelShape.cpp
     src/Velthoric/Contact/VelthoricContactListener.cpp

@@ -185,6 +185,7 @@ JPH::ShapeSettings::ShapeResult TerrainVoxelShapeSettings::Create() const {
  */
 TerrainVoxelShape::TerrainVoxelShape(const TerrainVoxelShapeSettings& inSettings, JPH::ShapeRefC inCompoundShape, std::vector<BoxExt>&& inBoxExts)
     : Shape(JPH::EShapeType::User1, JPH::EShapeSubType::User1), mCompoundShape(static_cast<const JPH::StaticCompoundShape*>(inCompoundShape.GetPtr())), mBoxExts(std::move(inBoxExts)) {
+    (void)inSettings;
 }
 
 /**
@@ -406,14 +407,3 @@ void TerrainVoxelShape::sRegister() {
 }
 
 } // namespace Velthoric
-
-/**
- * @brief JNI bridge to register the TerrainVoxelShape at engine startup.
- * 
- * Called by VxPhysicsBootstrap.java during physics engine initialization.
- */
-extern "C" JNIEXPORT void JNICALL
-Java_net_xmx_velthoric_jni_TerrainVoxelShape_nRegisterVoxelShape(JNIEnv* env, jclass clazz) {
-    (void)env; (void)clazz;
-    Velthoric::TerrainVoxelShape::sRegister();
-}

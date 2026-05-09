@@ -71,7 +71,7 @@ public record VxChunkSnapshot(short[] packedPositions, BlockState[] states, int 
         int originZ = sectionZ << 4;
         int blockCount = 0;
 
-        // --- PASS 1: Count collidable blocks ---
+        // Pass 1: Count collidable blocks
         for (int x = 0; x < 16; ++x) {
             for (int y = 0; y < 16; ++y) {
                 for (int z = 0; z < 16; ++z) {
@@ -96,7 +96,7 @@ public record VxChunkSnapshot(short[] packedPositions, BlockState[] states, int 
         BlockState[] states = new BlockState[blockCount];
         int index = 0;
 
-        // --- PASS 2: Fill arrays ---
+        // Pass 2: Fill arrays
         for (int x = 0; x < 16; ++x) {
             for (int y = 0; y < 16; ++y) {
                 for (int z = 0; z < 16; ++z) {
