@@ -531,7 +531,7 @@ Java_net_xmx_velthoric_jni_TerrainSystem_nGetActiveChunkPositions(JNIEnv* env, j
     std::vector<int64_t> positions = system->GetActiveChunkPositions();
     jlongArray result = env->NewLongArray(static_cast<jsize>(positions.size()));
     if (result && !positions.empty()) {
-        env->SetLongArrayRegion(result, 0, static_cast<jsize>(positions.size()), positions.data());
+        env->SetLongArrayRegion(result, 0, static_cast<jsize>(positions.size()), reinterpret_cast<const jlong*>(positions.data()));
     }
     return result;
 }

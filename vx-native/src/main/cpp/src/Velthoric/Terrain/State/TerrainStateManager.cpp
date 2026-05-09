@@ -5,6 +5,7 @@
  * Author: xI-Mx-Ix
  */
 #include "Velthoric/Terrain/State/TerrainStateManager.h"
+#include <mutex>
 
 namespace Velthoric {
 

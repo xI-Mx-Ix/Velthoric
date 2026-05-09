@@ -50,7 +50,7 @@ class TerrainShapeCache {
     
     std::list<CacheEntry> m_LruList;
     std::unordered_map<int, decltype(m_LruList)::iterator> m_CacheMap;
-    int m_Capacity;
+    size_t m_Capacity;
     std::mutex m_Mutex;
 
 public:
@@ -59,7 +59,7 @@ public:
      *
      * @param capacity Maximum number of shapes to retain in memory.
      */
-    TerrainShapeCache(int capacity) : m_Capacity(capacity) {}
+    TerrainShapeCache(size_t capacity) : m_Capacity(capacity) {}
 
     /**
      * Retrieves a shape from the cache and marks it as recently used.
