@@ -60,6 +60,7 @@ JPH::ShapeSettings::ShapeResult TerrainVoxelShapeSettings::Create() const {
     };
 
     std::unordered_map<BoxSettingsKey, JPH::Ref<JPH::BoxShapeSettings>, BoxSettingsHash> boxSettingsCache;
+    boxSettingsCache.reserve(std::min((size_t)1024, mBoxes.size())); // Prevent rehashing allocations
 
     for (size_t i = 0; i < mBoxes.size(); ++i) {
         const auto& b = mBoxes[i];
@@ -78,32 +79,86 @@ JPH::ShapeSettings::ShapeResult TerrainVoxelShapeSettings::Create() const {
         }
         
         compoundSettings.AddShape(JPH::Vec3(b.cx, b.cy, b.cz), JPH::Quat::sIdentity(), boxSettings);
-        
-        uint8_t activeFaces = 63;
-        
-        // Simple overlap test to disable internal faces
-        for (size_t j = 0; j < mBoxes.size(); ++j) {
-            if (i == j) continue;
-            const auto& o = mBoxes[j];
+    }
+    
+    // Sort-and-Sweep along the Y-axis to find touching faces
+    struct Bounds {
+        float minX, maxX;
+        float minY, maxY;
+        float minZ, maxZ;
+    };
+    std::vector<Bounds> bounds(mBoxes.size());
+    
+    struct BoxEntry {
+        size_t index;
+        float minY, maxY;
+    };
+    std::vector<BoxEntry> sortedBoxes(mBoxes.size());
+    
+    for(size_t i = 0; i < mBoxes.size(); ++i) {
+        bounds[i] = {
+            mBoxes[i].cx - mBoxes[i].hx, mBoxes[i].cx + mBoxes[i].hx,
+            mBoxes[i].cy - mBoxes[i].hy, mBoxes[i].cy + mBoxes[i].hy,
+            mBoxes[i].cz - mBoxes[i].hz, mBoxes[i].cz + mBoxes[i].hz
+        };
+        sortedBoxes[i] = {i, bounds[i].minY, bounds[i].maxY};
+    }
+    
+    std::sort(sortedBoxes.begin(), sortedBoxes.end(), [](const BoxEntry& a, const BoxEntry& b){
+        return a.minY < b.minY;
+    });
+
+    std::vector<uint8_t> activeFacesArray(mBoxes.size(), 63);
+
+    for(size_t k = 0; k < sortedBoxes.size(); ++k) {
+        size_t i = sortedBoxes[k].index;
+        const Bounds& b = bounds[i];
+        float bMaxY = sortedBoxes[k].maxY;
+
+        for(size_t l = k + 1; l < sortedBoxes.size(); ++l) {
+            if (sortedBoxes[l].minY > bMaxY + 1e-3f) break; // Sweep prune
             
-            bool coversY = (o.cy - o.hy <= b.cy - b.hy + 1e-3f) && (o.cy + o.hy >= b.cy + b.hy - 1e-3f);
-            bool coversZ = (o.cz - o.hz <= b.cz - b.hz + 1e-3f) && (o.cz + o.hz >= b.cz + b.hz - 1e-3f);
-            bool coversX = (o.cx - o.hx <= b.cx - b.hx + 1e-3f) && (o.cx + o.hx >= b.cx + b.hx - 1e-3f);
+            size_t j = sortedBoxes[l].index;
+            const Bounds& o = bounds[j];
             
-            if (coversY && coversZ) {
-                if (std::abs((b.cx - b.hx) - (o.cx + o.hx)) < 1e-3f) activeFaces &= ~1; // -X
-                if (std::abs((b.cx + b.hx) - (o.cx - o.hx)) < 1e-3f) activeFaces &= ~2; // +X
+            // Fast AABB intersection check on X and Z (Y is loosely checked by sweep)
+            if (o.minX > b.maxX + 1e-3f || o.maxX < b.minX - 1e-3f) continue;
+            if (o.minZ > b.maxZ + 1e-3f || o.maxZ < b.minZ - 1e-3f) continue;
+
+            // Check X faces
+            if (o.minY <= b.minY + 1e-3f && o.maxY >= b.maxY - 1e-3f && o.minZ <= b.minZ + 1e-3f && o.maxZ >= b.maxZ - 1e-3f) {
+                if (std::abs(b.minX - o.maxX) < 1e-3f) activeFacesArray[i] &= ~1; // -X
+                if (std::abs(b.maxX - o.minX) < 1e-3f) activeFacesArray[i] &= ~2; // +X
             }
-            if (coversX && coversZ) {
-                if (std::abs((b.cy - b.hy) - (o.cy + o.hy)) < 1e-3f) activeFaces &= ~4; // -Y
-                if (std::abs((b.cy + b.hy) - (o.cy - o.hy)) < 1e-3f) activeFaces &= ~8; // +Y
+            if (b.minY <= o.minY + 1e-3f && b.maxY >= o.maxY - 1e-3f && b.minZ <= o.minZ + 1e-3f && b.maxZ >= o.maxZ - 1e-3f) {
+                if (std::abs(o.minX - b.maxX) < 1e-3f) activeFacesArray[j] &= ~1; // -X
+                if (std::abs(o.maxX - b.minX) < 1e-3f) activeFacesArray[j] &= ~2; // +X
             }
-            if (coversX && coversY) {
-                if (std::abs((b.cz - b.hz) - (o.cz + o.hz)) < 1e-3f) activeFaces &= ~16; // -Z
-                if (std::abs((b.cz + b.hz) - (o.cz - o.hz)) < 1e-3f) activeFaces &= ~32; // +Z
+
+            // Check Y faces
+            if (o.minX <= b.minX + 1e-3f && o.maxX >= b.maxX - 1e-3f && o.minZ <= b.minZ + 1e-3f && o.maxZ >= b.maxZ - 1e-3f) {
+                if (std::abs(b.minY - o.maxY) < 1e-3f) activeFacesArray[i] &= ~4; // -Y
+                if (std::abs(b.maxY - o.minY) < 1e-3f) activeFacesArray[i] &= ~8; // +Y
+            }
+            if (b.minX <= o.minX + 1e-3f && b.maxX >= o.maxX - 1e-3f && b.minZ <= o.minZ + 1e-3f && b.maxZ >= o.maxZ - 1e-3f) {
+                if (std::abs(o.minY - b.maxY) < 1e-3f) activeFacesArray[j] &= ~4; // -Y
+                if (std::abs(o.maxY - b.minY) < 1e-3f) activeFacesArray[j] &= ~8; // +Y
+            }
+
+            // Check Z faces
+            if (o.minX <= b.minX + 1e-3f && o.maxX >= b.maxX - 1e-3f && o.minY <= b.minY + 1e-3f && o.maxY >= b.maxY - 1e-3f) {
+                if (std::abs(b.minZ - o.maxZ) < 1e-3f) activeFacesArray[i] &= ~16; // -Z
+                if (std::abs(b.maxZ - o.minZ) < 1e-3f) activeFacesArray[i] &= ~32; // +Z
+            }
+            if (b.minX <= o.minX + 1e-3f && b.maxX >= o.maxX - 1e-3f && b.minY <= o.minY + 1e-3f && b.maxY >= o.maxY - 1e-3f) {
+                if (std::abs(o.minZ - b.maxZ) < 1e-3f) activeFacesArray[j] &= ~16; // -Z
+                if (std::abs(o.maxZ - b.minZ) < 1e-3f) activeFacesArray[j] &= ~32; // +Z
             }
         }
-        exts[i].activeFaces = activeFaces;
+    }
+
+    for(size_t i = 0; i < mBoxes.size(); ++i) {
+        exts[i].activeFaces = activeFacesArray[i];
     }
 
     JPH::ShapeSettings::ShapeResult compoundRes = compoundSettings.Create();
