@@ -6,6 +6,7 @@
  */
 #include "Velthoric/Terrain/Interaction/TerrainInteraction.h"
 #include "Velthoric/Terrain/TerrainGenerator.h"
+#include "Velthoric/Terrain/Shape/TerrainVoxelShape.h"
 #include <Jolt/Physics/Collision/PhysicsMaterial.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
@@ -133,8 +134,14 @@ void TerrainInteraction::ProcessInteraction(jobject world, const JPH::PhysicsSys
     JPH::RVec3 blockWorldPos;
     auto getBlockPos = [&]() -> JPH::RVec3 {
         if (posCalculated) return blockWorldPos;
+        const JPH::StaticCompoundShape* compound = nullptr;
         if (shape->GetSubType() == JPH::EShapeSubType::StaticCompound) {
-            const JPH::StaticCompoundShape* compound = static_cast<const JPH::StaticCompoundShape*>(shape);
+            compound = static_cast<const JPH::StaticCompoundShape*>(shape);
+        } else if (shape->GetSubType() == JPH::EShapeSubType::User1) {
+            compound = static_cast<const Velthoric::TerrainVoxelShape*>(shape)->mCompoundShape.GetPtr();
+        }
+        
+        if (compound) {
             JPH::SubShapeID remainder;
             uint32_t idx = compound->GetSubShapeIndexFromID(subShapeId, remainder);
             if (idx < compound->GetNumSubShapes()) {

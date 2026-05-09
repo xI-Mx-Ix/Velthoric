@@ -5,6 +5,7 @@
 package net.xmx.velthoric.core.physics;
 
 import com.github.stephengold.joltjni.*;
+import net.xmx.velthoric.jni.TerrainVoxelShape;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +14,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * This class handles the initialization of Jolt factories, memory allocators,
  * callbacks, and physics layers. It assumes that the native library has already
- * been loaded via {@link net.xmx.velthoric.natives.systems.NativeJolt}.
+ * been loaded via {@link net.xmx.velthoric.natives.impl.NativeJolt}.
  *
  * @author xI-Mx-Ix
  */
@@ -50,6 +51,7 @@ public class VxPhysicsBootstrap {
 
         // Register types and initialize custom layers
         Jolt.registerTypes();
+        TerrainVoxelShape.nRegisterVoxelShape();
         VxPhysicsLayers.initialize();
 
         isInitialized = true;

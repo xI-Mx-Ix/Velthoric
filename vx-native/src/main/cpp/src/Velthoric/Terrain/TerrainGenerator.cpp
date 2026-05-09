@@ -10,6 +10,7 @@
 #include <Jolt/Physics/Body/Body.h>
 #include <vector>
 #include <jni.h>
+#include "Velthoric/Terrain/Shape/TerrainVoxelShape.h"
 
 /**
  * @brief High-performance terrain shape generation and caching subsystem.
@@ -113,37 +114,8 @@ struct BoxSettingsHash {
 ShapeRefC TerrainGenerator::GenerateCompoundShape(const BoxShapeData* boxes, int boxCount) {
     if (boxCount <= 0) return nullptr;
 
-    StaticCompoundShapeSettings compoundSettings;
-    
-    // Ensure default material (1) exists
-    if (!s_Materials[1]) {
-        s_Materials[1] = new TerrainMaterial(1, 0.75f, 0.0f);
-    }
-
-    // Cache to reuse BoxShapeSettings for identical dimensions and materials
-    std::unordered_map<BoxSettingsKey, Ref<BoxShapeSettings>, BoxSettingsHash> boxSettingsCache;
-    
-    for (int i = 0; i < boxCount; ++i) {
-        const BoxShapeData& d = boxes[i];
-        
-        BoxSettingsKey key = { d.hx, d.hy, d.hz, d.matId };
-        Ref<BoxShapeSettings> settings;
-        
-        auto it = boxSettingsCache.find(key);
-        if (it != boxSettingsCache.end()) {
-            settings = it->second;
-        } else {
-            JPH::RefConst<TerrainMaterial> mat = s_Materials[d.matId];
-            if (!mat) mat = s_Materials[1];
-            
-            settings = new BoxShapeSettings(Vec3(d.hx, d.hy, d.hz), 0.0f, mat);
-            boxSettingsCache[key] = settings;
-        }
-
-        compoundSettings.AddShape(Vec3(d.cx, d.cy, d.cz), Quat::sIdentity(), settings);
-    }
-    
-    Shape::ShapeResult result = compoundSettings.Create();
+    TerrainVoxelShapeSettings settings(boxes, boxCount);
+    Shape::ShapeResult result = settings.Create();
     
     if (result.IsValid()) {
         return result.Get();
