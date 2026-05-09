@@ -5,6 +5,7 @@
  * Author: xI-Mx-Ix
  */
 #pragma once
+#include "Velthoric/JNI/ClassLoaderUtil.h"
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/Body.h>
 #include <Jolt/Physics/Collision/ContactListener.h>

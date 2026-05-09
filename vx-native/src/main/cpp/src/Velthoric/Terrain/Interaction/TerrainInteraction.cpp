@@ -34,14 +34,22 @@ TerrainInteraction::Shard TerrainInteraction::s_Shards[TerrainInteraction::NUM_S
  * @brief Bootstraps the JNI environment.
  * 
  * Locates the Java interaction handler class for future event processing.
+ * Uses JNIUtils to handle classloading, ensuring compatibility with 
+ * custom classloaders.
  * 
  * @param env JNI Environment pointer.
  */
 void TerrainInteraction::InitJNI(JNIEnv* env) {
     if (s_HandlerClass || !env) return;
-    jclass localClass = env->FindClass("net/xmx/velthoric/core/terrain/interaction/VxTerrainInteractionHandler");
+
+    jclass localClass = ClassLoaderUtil::FindClass(env, "net/xmx/velthoric/core/terrain/interaction/VxTerrainInteractionHandler");
     if (localClass) {
         s_HandlerClass = (jclass)env->NewGlobalRef(localClass);
+        env->DeleteLocalRef(localClass);
+    }
+
+    if (env->ExceptionCheck()) {
+        env->ExceptionClear();
     }
 }
 

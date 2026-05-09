@@ -54,6 +54,8 @@ public class VxMainClass {
         NativeManager.register(new NativeVelthoric());
 
         NativeManager.initialize(Platform.getGameFolder());
+        NativeManager.nSetClassLoader(VxMainClass.class.getClassLoader());
+
         VxPhysicsBootstrap.initialize();
 
         // Register gametests

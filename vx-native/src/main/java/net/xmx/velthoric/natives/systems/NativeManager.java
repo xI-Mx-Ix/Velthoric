@@ -81,6 +81,12 @@ public class NativeManager {
     }
 
     /**
+     * Passes the mod's classloader to the native layer to enable classloader-independent JNI lookups.
+     * @param classLoader The ClassLoader of the mod.
+     */
+    public static native void nSetClassLoader(Object classLoader);
+
+    /**
      * Checks if all native libraries have been successfully initialized.
      *
      * @return true if natives are loaded, false otherwise.
