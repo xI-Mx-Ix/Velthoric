@@ -263,28 +263,34 @@ public class VxTerrainInteractionHandler {
             boolean isOpen = state.getValue(BlockStateProperties.OPEN);
             if (state.hasProperty(BlockStateProperties.HALF)) {
                 boolean isTop = state.getValue(BlockStateProperties.HALF) == Half.TOP;
-                float outsideDir = isTop ? nY : -nY;
+                float outsideDir = isTop ? -nY : nY;
 
                 if (!isOpen) {
                     if (outsideDir > 0.4f) {
                         level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true), 10);
-                        level.levelEvent(null, EVENT_WOODEN_DOOR_OPEN, pos, 0);
+                        level.levelEvent(null, EVENT_ZOMBIE_ATTACK_WOODEN_DOOR, pos, 0);
                     }
                 } else {
                     // If open, it's standing up/down. Close if hit horizontally.
                     if (Math.abs(nY) < 0.2f && (Math.abs(nX) > 0.4f || Math.abs(nZ) > 0.4f)) {
                         level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, false), 10);
-                        level.levelEvent(null, EVENT_WOODEN_DOOR_CLOSE, pos, 0);
+                        level.levelEvent(null, EVENT_ZOMBIE_ATTACK_WOODEN_DOOR, pos, 0);
                     }
                 }
             }
         } else if (block instanceof FenceGateBlock) {
             if (!state.getValue(BlockStateProperties.OPEN)) {
-                // Fence gates open away from the impact
-                Direction openDir = Direction.getNearest(-nX, 0, -nZ);
-                level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true)
-                        .setValue(BlockStateProperties.HORIZONTAL_FACING, openDir), 10);
-                level.levelEvent(null, EVENT_FENCE_GATE_OPEN, pos, 0);
+                Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
+                Direction impactDir = Direction.getNearest(nX, 0, nZ);
+
+                if (facing.getAxis() == impactDir.getAxis()) {
+                    if (facing == impactDir.getOpposite()) {
+                        state = state.setValue(BlockStateProperties.HORIZONTAL_FACING, impactDir);
+                    }
+
+                    level.setBlock(pos, state.setValue(BlockStateProperties.OPEN, true), 10);
+                    level.levelEvent(null, EVENT_ZOMBIE_ATTACK_WOODEN_DOOR, pos, 0);
+                }
             }
         }
     }
