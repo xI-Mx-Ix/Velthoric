@@ -13,6 +13,9 @@
   "entrypoints": {
     "main": [
       "net.xmx.velthoric.fabric.VxFabric"
+    ],
+    "fabric-gametest": [
+      "net.xmx.velthoric.gametest.VelthoricGameTestUtils"
     ]
   },
   "mixins": [

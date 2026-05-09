@@ -7,7 +7,9 @@ package net.xmx.velthoric.init;
 import dev.architectury.platform.Platform;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.gametest.framework.GameTestRegistry;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
+import net.xmx.velthoric.gametest.*;
 import net.xmx.velthoric.init.registry.KeyMappings;
 import net.xmx.velthoric.init.registry.ModRegistries;
 import net.xmx.velthoric.natives.impl.NativeJolt;
@@ -53,6 +55,12 @@ public class VxMainClass {
 
         NativeManager.initialize(Platform.getGameFolder());
         VxPhysicsBootstrap.initialize();
+
+        // Register gametests
+        // Fabric gametests are registered in fabric.mod.json
+        if (!Platform.isFabric()) {
+            GameTestRegistry.register(VelthoricGameTestUtils.class);
+        }
     }
 
     /**
