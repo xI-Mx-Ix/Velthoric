@@ -7,6 +7,13 @@ loom {
         server {
             runDir "run-server"
         }
+        gameTestServer {
+            server()
+            name "GameTest Server"
+            runDir "run-gametest"
+            property "neoforge.enableGameTest", "true"
+            property "neoforge.gameTestServer", "true"
+        }
         client {
             runDir "run-client"
             programArgs '--username', 'dev'

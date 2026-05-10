@@ -12,6 +12,12 @@ loom {
         server {
             runDir "run-server"
         }
+        gameTest {
+            server()
+            name "GameTest Server"
+            runDir "run-gametest"
+            property "fabric-api.gametest", "true"
+        }
         client {
             runDir "run-client"
             programArgs '--username', 'dev'

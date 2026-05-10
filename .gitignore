@@ -1,44 +1,34 @@
-# Build output folders for all subprojects (generated during compilation, not needed in repo)
-build
-.gradle
-common/build
-common/.gradle
-fabric/build
-fabric/.gradle
-forge/build
-forge/.gradle
-neoforge/build
-neoforge/.gradle
-
-# Run folders (temporary runtime folders created when starting Minecraft)
-forge/run
-fabric/run
-neoforge/run
-
-# Specific runtime folders for client instances
-forge/run-client
-fabric/run-client
-fabric/run-client-2
-neoforge/run-client
-
-# Specific runtime folders for server instances
-forge/run-server
-fabric/run-server
-neoforge/run-server
-
-# Folder for JVM crash logs
-hell nah/
-
-# Temporary Java backup files created by some editors (tilde suffix)
-*.java~
-
-# IntelliJ IDEA project files, to keep the repo clean
-.idea/
-*.iml
+# Gradle and build artifacts
+.gradle/
+**/build/
+**/.gradle/
+bin/
 out/
 
-/vx-native/src/main/cpp/build/
-/vx-native/src/main/cpp/include/
-/vx-native/src/main/cpp/external/
-/vx-native/src/main/cpp/generated/
-/.cmake/
+# Minecraft runtime and run configurations
+**/run/
+**/run-*/
+
+# Native C++ build and generated files
+vx-native/src/main/cpp/build/
+vx-native/src/main/cpp/include/
+vx-native/src/main/cpp/external/
+vx-native/src/main/cpp/generated/
+.cmake/
+
+# IDE specific files
+.idea/
+*.iml
+*.iws
+.vscode/
+
+# Logs and temporary files
+*.java~
+*.swp
+*~
+hs_err_pid*.log
+hell nah/
+
+# OS generated files
+.DS_Store
+Thumbs.db
