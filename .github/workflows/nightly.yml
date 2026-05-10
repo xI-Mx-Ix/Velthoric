@@ -47,8 +47,6 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          # Use x64 for all x86_64 targets and for Linux cross-compilation (where the host is x64).
-          # Use aarch64 only when building for ARM64 on a macOS ARM64 runner.
           architecture: ${{ (matrix.target_arch == 'aarch64' && matrix.os == 'macos-14') && 'aarch64' || 'x64' }}
           cache: 'gradle'
 
@@ -72,7 +70,7 @@ jobs:
       - name: Prepare Artifact
         run: |
           mkdir -p dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}
-          
+
           if [ "${{ matrix.target_os }}" == "win" ]; then
             LIB_NAME="vxnative.dll"
           elif [ "${{ matrix.target_os }}" == "osx" ]; then
@@ -80,7 +78,7 @@ jobs:
           else
             LIB_NAME="libvxnative.so"
           fi
-          
+
           # Find the library (handles Release/ subfolder in MSVC)
           find vx-native/src/main/cpp/build -name "*.${{ matrix.ext }}" -exec cp {} dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}/$LIB_NAME \;
         shell: bash
@@ -95,11 +93,9 @@ jobs:
 
   # Job 2: Assemble the final Mod JARs including all native binaries
   build-mod:
-    name: Compile and Release
+    name: Compile Mod
     needs: build-natives
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Required to update the release tag and upload files
     steps:
       # Step 1: Download the source code
       - name: Checkout Repository
@@ -138,8 +134,67 @@ jobs:
             neoforge/build/libs/*.jar
           retention-days: 7
 
-      # Step 7: Create or update the public "nightly" pre-release
-      # This will overwrite the files under the "nightly" tag on every push
+  # Job 3: Run GameTests for NeoForge and Fabric
+  run-gametests:
+    name: GameTests (${{ matrix.loader }})
+    needs: build-mod
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - loader: fabric
+            task: ':fabric:runGameTest'
+          - loader: neoforge
+            task: ':neoforge:runGameTest'
+    steps:
+      # Step 1: Download the source code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Java 21 with Gradle caching
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      # Step 3: Download native binaries built in the first job
+      - name: Download Native Binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: vx-native/prebuilt-natives
+          merge-multiple: true
+
+      # Step 4: Ensure the Gradle wrapper is executable
+      - name: Grant Execute Permissions
+        run: chmod +x gradlew
+
+      # Step 5: Run GameTest server for the current loader
+      - name: Run GameTests
+        run: ./gradlew ${{ matrix.task }} -x :vx-native:cmakeBuild
+
+  # Job 4: Create or update the public "nightly" pre-release
+  release:
+    name: Publish Nightly Release
+    needs: run-gametests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to update the release tag and upload files
+    steps:
+      # Step 1: Download the source code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Download the previously built mod JARs
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: Velthoric-Build-${{ github.sha }}
+          path: release-artifacts
+
+      # Step 3: Publish the nightly pre-release, overwriting files on every push
       - name: Update Nightly Pre-Release
         uses: marvinpinto/action-automatic-releases@latest
         with:
@@ -148,5 +203,4 @@ jobs:
           prerelease: true
           title: "Development Build (Nightly)"
           files: |
-            fabric/build/libs/*.jar
-            neoforge/build/libs/*.jar
+            release-artifacts/*.jar
