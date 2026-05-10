@@ -124,14 +124,23 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build -x :vx-native:cmakeBuild
 
-      # Step 6: Upload internal artifacts (stored in the Actions tab for 7 days)
+      # Step 6: Collect and flatten JARs, only fabric and neoforge release JARs
+      - name: Collect JARs
+        run: |
+          mkdir -p release-jars
+          find . -path "*/build/libs/*.jar" \
+            \( -name "velthoric-fabric-*.jar" \
+            -o -name "velthoric-neoforge-*.jar" \
+            -o -name "velthoric-fabric-*-sources.jar" \
+            -o -name "velthoric-neoforge-*-sources.jar" \) \
+            -exec cp {} release-jars/ \;
+
+      # Step 7: Upload internal artifacts (stored in the Actions tab for 7 days)
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Velthoric-Build-${{ github.sha }}
-          path: |
-            fabric/build/libs/*.jar
-            neoforge/build/libs/*.jar
+          path: release-jars/*.jar
           retention-days: 7
 
   # Job 3: Run GameTests for NeoForge and Fabric
@@ -202,5 +211,4 @@ jobs:
           automatic_release_tag: "nightly"
           prerelease: true
           title: "Development Build (Nightly)"
-          files: |
-            release-artifacts/*.jar
+          files: release-artifacts/*.jar
