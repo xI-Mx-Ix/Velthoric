@@ -80,7 +80,7 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
                         // 2. Critical filter:
                         // - Ignore projects where 'artifact' is missing (User didn't configure the block).
                         // - Ignore projects where 'dryRun' is true.
-                        .anyMatch(ext -> ext.getArtifact().isPresent() && !ext.getDryRun().get());
+                        .anyMatch(ext -> (ext.getArtifact().isPresent() || ext.getPublishGitHub().get()) && !ext.getDryRun().get());
 
                 if (isRealRelease) {
                     CredentialService.validate(project);
@@ -122,11 +122,13 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
         // This is necessary because we need to read the values set by the user in the 'velthoricPublishing' block.
         project.afterEvaluate(p -> {
 
-            // If the user did not specify an artifact (e.g. no velthoricPublishing block or empty block),
-            // we strictly ignore this module. It will not be configured, and it will NOT be linked
-            // to the root publishing task.
-            if (!extension.getArtifact().isPresent()) {
-                project.getLogger().debug("Velthoric: Skipping module '{}' - No artifact configured.", project.getName());
+            // A module is only active if it has an artifact
+            // Or if it is explicitly designated to handle the GitHub release.
+            boolean hasArtifact = extension.getArtifact().isPresent();
+            boolean isGitHubLead = extension.getPublishGitHub().get();
+
+            if (!hasArtifact && !isGitHubLead) {
+                project.getLogger().debug("Velthoric: Skipping module '{}' - No artifact or GitHub release configured.", project.getName());
                 return;
             }
 
@@ -152,13 +154,16 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
                 TaskProvider<Task> subTask = p.getTasks().named(SUBPROJECT_TASK_NAME);
                 rootTask.dependsOn(subTask);
 
-                // Also depend on Maven publishing to the configured repository
-                String repoName = String.valueOf(p.findProperty("maven_repo_name"));
-                String taskName = "publishMavenJavaPublicationTo" + repoName + "Repository";
-                TaskProvider<Task> mavenTask = p.getTasks().named(taskName);
-                rootTask.dependsOn(p.provider(() -> extension.getDryRun().get() ? java.util.Collections.emptyList() : java.util.Collections.singletonList(mavenTask)));
+                // Also depend on Maven publishing if an artifact is present and we're not in dry run
+                if (hasArtifact) {
+                    String repoName = String.valueOf(p.findProperty("maven_repo_name"));
+                    String taskName = "publishMavenJavaPublicationTo" + repoName + "Repository";
+                    TaskProvider<Task> mavenTask = p.getTasks().named(taskName);
+                    rootTask.dependsOn(p.provider(() -> extension.getDryRun().get() ? java.util.Collections.emptyList() : java.util.Collections.singletonList(mavenTask)));
+                }
 
-                project.getLogger().lifecycle("Velthoric: Registered module '{}' for publication (Platforms + Maven).", project.getName());
+                String details = (hasArtifact ? "Platforms + Maven" : "") + (isGitHubLead ? (hasArtifact ? " + " : "") + "GitHub Only" : "");
+                project.getLogger().lifecycle("Velthoric: Registered module '{}' for publication ({}).", project.getName(), details);
             });
         });
     }

@@ -32,13 +32,8 @@ public final class PlatformConfigurator {
      * @param extension The user configuration.
      */
     public static void configure(Project project, VelthoricExtension extension) {
-        if (!extension.getArtifact().isPresent()) {
-            project.getLogger().info("Velthoric: No artifact configured for {}, skipping publication setup.", project.getName());
-            return;
-        }
-
         // 1. Resolve Strategy
-        ModLoader loader = ModLoader.from(extension.getLoader().get());
+        ModLoader loader = ModLoader.from(extension.getLoader().getOrElse("common"));
 
         // 2. Resolve Metadata
         String modVersion = String.valueOf(project.getRootProject().findProperty("mod_version"));
@@ -61,15 +56,19 @@ public final class PlatformConfigurator {
         publishExt.getDisplayName().set(finalTitle);
 
         // 5. Artifact Resolution
-        // We normalize whatever the user passed (Task, Provider, File) into a single, clean Provider<RegularFile>.
-        Provider<RegularFile> artifactFile = normalizeArtifact(project, extension.getArtifact().get());
-        publishExt.getFile().set(artifactFile);
+        if (extension.getArtifact().isPresent()) {
+            Provider<RegularFile> artifactFile = normalizeArtifact(project, extension.getArtifact().get());
+            publishExt.getFile().set(artifactFile);
 
-        // 6. Platform Specifics
-        configureCurseForge(project, publishExt, extension, loader, mcVersion);
-        configureModrinth(project, publishExt, extension, loader, mcVersion);
-        configureGitHub(project, publishExt, modVersion, changelog);
-        configureMaven(project, extension, artifactFile);
+            configureCurseForge(project, publishExt, extension, loader, mcVersion);
+            configureModrinth(project, publishExt, extension, loader, mcVersion);
+            configureMaven(project, extension, artifactFile);
+        }
+
+        // 6. GitHub
+        if (extension.getPublishGitHub().get()) {
+            configureGitHub(project, publishExt, modVersion, changelog);
+        }
     }
 
     /**

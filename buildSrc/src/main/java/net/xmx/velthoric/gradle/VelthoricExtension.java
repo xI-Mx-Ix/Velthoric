@@ -97,6 +97,16 @@ public abstract class VelthoricExtension {
     public abstract Property<String> getModrinthProjectId();
 
     /**
+     * Whether to publish a GitHub release for this project.
+     * <p>
+     * Since a GitHub release usually represents the entire project version, this should
+     * typically be set to {@code true} in exactly one module (e.g., 'common').
+     * Defaults to {@code false}.
+     */
+    @Input
+    public abstract Property<Boolean> getPublishGitHub();
+
+    /**
      * Injection constructor.
      * Initializes the properties with safe default conventions.
      *
@@ -108,6 +118,7 @@ public abstract class VelthoricExtension {
         getLoader().convention("common");
         getDisplayName().convention("Common"); // Fallback if loader strategy fails or is common
         getDryRun().convention(false);
+        getPublishGitHub().convention(false);
 
         // Default IDs for the Velthoric project
         getCurseProjectId().convention("1367260");

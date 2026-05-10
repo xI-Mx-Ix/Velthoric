@@ -34,6 +34,13 @@ public enum ModLoader {
         List.of("neoforge"),
         List.of("neoforge"),
         List.of("architectury-api")
+    ),
+
+    COMMON(
+        "Common",
+        List.of(),
+        List.of(),
+        List.of()
     );
 
     private final String prettyName;
