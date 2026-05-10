@@ -4,34 +4,24 @@
  */
 package net.xmx.velthoric.core.terrain.management;
 
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
-import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
-import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
-import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
-import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.core.terrain.VxTerrainSystem;
 import net.xmx.velthoric.jni.TerrainSystem;
+import net.xmx.velthoric.jni.TerrainTracker;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
- * Tracks physics bodies using a high-performance, grid-based dynamic clustering approach.
+ * Tracks physics bodies using a high-performance native approach.
  * <p>
- * This system groups nearby bodies into clusters to minimize the overhead of terrain
- * calculations. It calculates the union of chunks required for collision based on
- * body positions, bounding boxes, and predicted velocities.
- * </p>
- * <p>
- * All chunk state management is delegated to the native C++ TerrainSystem via JNI.
- * This class only handles the spatial analysis and issues request/release/activate/deactivate
- * commands to the native layer.
+ * This system serves as the Java-side orchestrator for the native C++ {@link TerrainTracker}.
+ * It initializes the native tracking component, forwards the update loop calls, and processes
+ * the results to schedule voxel data submissions to the physics engine.
+ * By delegating the spatial clustering and bounds intersection to C++, this class ensures
+ * zero garbage collection overhead and significantly reduces the CPU cycle cost of terrain tracking.
  * </p>
  *
  * @author xI-Mx-Ix
@@ -39,440 +29,96 @@ import java.util.List;
 public final class VxTerrainTracker {
 
     /**
-     * The physics world containing the bodies to track.
+     * The physics world containing the bodies to track. 
+     * This world provides access to the underlying Jolt physics system and the {@link VxTerrainSystem}.
      */
     private final VxPhysicsWorld physicsWorld;
 
     /**
-     * The server level in which the tracking occurs.
+     * The native object wrapper to the C++ TerrainTracker.
+     * This instance holds the native pointer (address) to the C++ tracking structure.
      */
-    private final ServerLevel level;
+    private TerrainTracker nativeTracker;
 
     /**
-     * The body data store for accessing body position and velocity data.
+     * Pre-allocated DirectByteBuffer for JNI to share memory natively with C++.
+     * Can hold up to 40,000 chunk positions encoded as packed 64-bit longs (320 KB).
+     * Using direct buffers eliminates JNI array copy overhead completely.
      */
-    private final VxServerBodyDataStore bodyDataStore;
+    private final ByteBuffer initialChunksBuffer;
 
     /**
-     * Native object wrapper to the C++ TerrainSystem for all chunk operations.
+     * Pre-allocated DirectByteBuffer for JNI to share memory natively with C++.
+     * Can hold up to 40,000 chunk positions encoded as packed 64-bit longs (320 KB).
+     * Using direct buffers eliminates JNI array copy overhead completely.
      */
-    private volatile TerrainSystem nativeSystem;
+    private final ByteBuffer updateChunksBuffer;
 
     /**
-     * Stores the set of required chunks from the previous tick to calculate differences.
-     * Uses primitive long keys (bit-packed coordinates) to avoid object allocation.
-     */
-    private LongSet previouslyRequiredChunks = new LongOpenHashSet();
-
-    /**
-     * Defines the size of the coarse grid cells used for clustering, in chunks.
-     */
-    private final int GRID_CELL_SIZE_IN_CHUNKS = 4;
-
-    /**
-     * The radius, in chunks, around a moving body's bounding box to keep active.
-     */
-    private final int ACTIVATION_RADIUS_CHUNKS = 1;
-
-    /**
-     * The radius, in chunks, to preload around a cluster's bounding box.
-     */
-    private final int PRELOAD_RADIUS_CHUNKS = 3;
-
-    /**
-     * The time, in seconds, to predict a body's future position for preloading terrain.
-     */
-    private final float PREDICTION_SECONDS = 0.5f;
-
-    /**
-     * The maximum distance, in blocks, that the system will look ahead based on velocity.
-     * This prevents requesting thousands of chunks if a body glitches and gains excessive speed.
-     */
-    private final float MAX_PREDICTION_DISTANCE = 64.0f;
-
-    /**
-     * The maximum number of chunks a single cluster can request in one update tick.
-     * This acts as a safety brake against physics glitches or infinite bounding boxes.
-     */
-    private final int MAX_CHUNKS_PER_CLUSTER_ITERATION = 20000;
-
-    /**
-     * The maximum Y-level at which terrain generation is tracked.
-     * Bodies above this height will not trigger terrain loading.
-     */
-    private final int MAX_GENERATION_HEIGHT = 500;
-
-    /**
-     * The minimum Y-level at which terrain generation is tracked.
-     * Bodies below this height will not trigger terrain loading.
-     */
-    private final int MIN_GENERATION_HEIGHT = -250;
-
-    /**
-     * Reusable map that groups bodies into grid-based clusters to avoid allocations.
-     * Using fastutil Long2ObjectMap to avoid boxing cell keys.
-     */
-    private final Long2ObjectMap<ObjectArrayList<VxBody>> cachedBodyClusters = new Long2ObjectOpenHashMap<>();
-
-    /**
-     * Reusable cache for chunk sections required during the current update tick.
-     * Uses bit-packed long coordinates to ensure zero allocation during scan loops.
-     */
-    private final LongSet requiredChunksCache = new LongOpenHashSet();
-
-    /**
-     * Reusable list for taking a thread-safe snapshot of bodies per tick.
-     */
-    private final List<VxBody> currentBodiesCache = new ArrayList<>();
-
-    /**
-     * Constructs a new VxTerrainTracker.
+     * Constructs a new VxTerrainTracker and initializes the native counterpart.
      *
-     * @param physicsWorld The physics world containing the bodies to track.
-     * @param level        The server level in which the tracking occurs.
-     * @param nativeSystem The native C++ TerrainSystem for all chunk operations.
+     * @param physicsWorld The physics world containing the bodies to track. Must not be null.
+     * @param level        The server level in which the tracking occurs. Must not be null.
+     * @param nativeSystem The native C++ TerrainSystem for all chunk operations. Must be initialized and valid.
      */
     public VxTerrainTracker(VxPhysicsWorld physicsWorld, ServerLevel level, TerrainSystem nativeSystem) {
         this.physicsWorld = physicsWorld;
-        this.level = level;
-        this.bodyDataStore = physicsWorld.getBodyManager().getDataStore();
-        this.nativeSystem = nativeSystem;
+
+        long psVa = physicsWorld.getPhysicsSystem().va();
+        long tsVa = nativeSystem.va();
+        
+        this.nativeTracker = new TerrainTracker(psVa, tsVa, VxPhysicsLayers.TERRAIN);
+        
+        this.initialChunksBuffer = ByteBuffer.allocateDirect(40000 * 8).order(ByteOrder.nativeOrder());
+        this.updateChunksBuffer = ByteBuffer.allocateDirect(40000 * 8).order(ByteOrder.nativeOrder());
     }
 
-
     /**
-     * Performs a single update tick. It dynamically clusters all bodies, calculates the
-     * required terrain for each cluster, and manages chunk loading and activation based on
-     * the current and previous state.
+     * Performs a single update tick, delegating the complex clustering algorithms to the native C++ tracker.
+     * <p>
+     * This method retrieves two sets of bit-packed long coordinates from the native layer:
+     * 1. Initial chunks: Chunks that were just discovered and require full terrain generation data.
+     * 2. Update chunks: Existing chunks that need priority data transmission or state updates.
+     * It then schedules the data submission asynchronously via the {@link VxTerrainSystem}.
+     * </p>
      */
     public void update() {
-        TerrainSystem sys = this.nativeSystem;
-        if (sys == null) return;
-
-        currentBodiesCache.clear();
-        currentBodiesCache.addAll(physicsWorld.getBodyManager().getAllBodies());
-
-        if (currentBodiesCache.isEmpty()) {
-            releaseAllChunks(sys);
-            deactivateAllChunks(sys);
+        if (this.nativeTracker == null) {
             return;
         }
 
-        // 1. Calculate the total set of required chunks based on dynamic clustering.
-        LongSet currentlyRequiredChunks = calculateRequiredPreloadSet(currentBodiesCache);
+        // The native call packs the counts of both arrays into a single 64-bit long
+        // High 32 bits = initialCount, Low 32 bits = updateCount
+        long counts = this.nativeTracker.update(this.initialChunksBuffer, this.updateChunksBuffer);
+        
+        int initialCount = (int) (counts >>> 32);
+        int updateCount = (int) counts;
 
-        // 2. Request new chunks using packed long coordinates.
-        VxPhysicsWorld pw = this.physicsWorld;
-        for (long packedPos : currentlyRequiredChunks) {
-            if (!previouslyRequiredChunks.contains(packedPos)) {
-                boolean isNew = sys.requestChunk(packedPos);
-                if (isNew) {
-                    // Schedule snapshot and data submission for new chunks
-                    pw.getTerrainSystem().scheduleChunkDataSubmission(packedPos, true);
-                }
-            }
+        VxTerrainSystem terrainSys = this.physicsWorld.getTerrainSystem();
+
+        // Process newly requested chunks that require complete initial build data
+        for (int i = 0; i < initialCount; i++) {
+            long packedPos = this.initialChunksBuffer.getLong(i * 8);
+            terrainSys.scheduleChunkDataSubmission(packedPos, true);
         }
 
-        // 3. Release old chunks using packed long coordinates.
-        for (long packedPos : previouslyRequiredChunks) {
-            if (!currentlyRequiredChunks.contains(packedPos)) {
-                sys.releaseChunk(packedPos);
-            }
-        }
-
-        // 4. Update the state for the next tick using a primitive-based copy.
-        this.previouslyRequiredChunks.clear();
-        this.previouslyRequiredChunks.addAll(currentlyRequiredChunks);
-
-        // 5. Handle fine-grained activation for bodies that are actually moving.
-        updateChunkActivation(sys, currentBodiesCache);
-    }
-
-    /**
-     * Groups all physics bodies into grid-based clusters and calculates the union of
-     * chunks required by each cluster.
-     * <p>
-     * This implementation reuses the {@code cachedBodyClusters} map and its internal lists to
-     * ensure zero allocation during steady-state execution. It clears the collections
-     * instead of re-instantiating them.
-     * </p>
-     *
-     * @param allBodies A list of all physics bodies currently in the world.
-     * @return A set of bit-packed long coordinates representing all chunks that should be loaded.
-     */
-    private LongSet calculateRequiredPreloadSet(List<VxBody> allBodies) {
-        // Clear previous data without discarding the internal arrays/buckets to preserve memory capacity
-        for (ObjectArrayList<VxBody> list : cachedBodyClusters.values()) {
-            list.clear();
-        }
-        cachedBodyClusters.clear();
-        requiredChunksCache.clear();
-
-        // Iterate via index to avoid Iterator allocation
-        VxServerBodyDataContainer c = bodyDataStore.serverCurrent();
-        for (int b = 0, size = allBodies.size(); b < size; b++) {
-            VxBody body = allBodies.get(b);
-            int i = body.getDataStoreIndex();
-            if (i == -1) continue;
-
-            // Access raw primitive arrays from the DataStore
-            float px = (float) c.posX[i];
-            float py = (float) c.posY[i];
-            float pz = (float) c.posZ[i];
-
-            // Safety check for NaN values which could crash the spatial hashing
-            if (!Float.isFinite(px) || !Float.isFinite(py) || !Float.isFinite(pz)) {
-                continue;
-            }
-
-            // Height filtering to avoid processing bodies far outside valid terrain range
-            if (py > MAX_GENERATION_HEIGHT || py < MIN_GENERATION_HEIGHT) {
-                continue;
-            }
-
-            // Inline coordinate calculation to avoid creating SectionPos objects
-            int cellX = SectionPos.blockToSectionCoord(px) / GRID_CELL_SIZE_IN_CHUNKS;
-            int cellY = SectionPos.blockToSectionCoord(py) / GRID_CELL_SIZE_IN_CHUNKS;
-            int cellZ = SectionPos.blockToSectionCoord(pz) / GRID_CELL_SIZE_IN_CHUNKS;
-
-            long cellKey = SectionPos.asLong(cellX, cellY, cellZ);
-
-            // Populate the reusable structure
-            cachedBodyClusters.computeIfAbsent(cellKey, k -> new ObjectArrayList<>()).add(body);
-        }
-
-        // Process the formed clusters
-        for (ObjectArrayList<VxBody> cluster : cachedBodyClusters.values()) {
-            if (cluster.isEmpty()) continue;
-
-            float minX = Float.POSITIVE_INFINITY;
-            float minY = Float.POSITIVE_INFINITY;
-            float minZ = Float.POSITIVE_INFINITY;
-            float maxX = Float.NEGATIVE_INFINITY;
-            float maxY = Float.NEGATIVE_INFINITY;
-            float maxZ = Float.NEGATIVE_INFINITY;
-            boolean clusterHasValidBodies = false;
-
-            for (int k = 0; k < cluster.size(); k++) {
-                VxBody body = cluster.get(k);
-                int i = body.getDataStoreIndex();
-                if (i == -1) continue;
-
-                float bMinX = c.aabbMinX[i];
-                float bMinY = c.aabbMinY[i];
-                float bMinZ = c.aabbMinZ[i];
-                float bMaxX = c.aabbMaxX[i];
-                float bMaxY = c.aabbMaxY[i];
-                float bMaxZ = c.aabbMaxZ[i];
-
-                if (!Float.isFinite(bMinX) || !Float.isFinite(bMaxX)) continue;
-
-                clusterHasValidBodies = true;
-
-                // Expand cluster AABB by body bounds
-                minX = Math.min(minX, bMinX);
-                minY = Math.min(minY, bMinY);
-                minZ = Math.min(minZ, bMinZ);
-                maxX = Math.max(maxX, bMaxX);
-                maxY = Math.max(maxY, bMaxY);
-                maxZ = Math.max(maxZ, bMaxZ);
-
-                // Velocity Prediction: Expand AABB based on where the body is projected to be.
-                // This allows terrain to load ahead of moving objects.
-                float velX = c.velX[i];
-                float velY = c.velY[i];
-                float velZ = c.velZ[i];
-
-                if (Math.abs(velX) > 0.01f || Math.abs(velY) > 0.01f || Math.abs(velZ) > 0.01f) {
-                    float predictedOffsetX = velX * PREDICTION_SECONDS;
-                    float predictedOffsetY = velY * PREDICTION_SECONDS;
-                    float predictedOffsetZ = velZ * PREDICTION_SECONDS;
-
-                    // Clamp the prediction vector to the configured maximum distance.
-                    predictedOffsetX = Math.max(-MAX_PREDICTION_DISTANCE, Math.min(MAX_PREDICTION_DISTANCE, predictedOffsetX));
-                    predictedOffsetY = Math.max(-MAX_PREDICTION_DISTANCE, Math.min(MAX_PREDICTION_DISTANCE, predictedOffsetY));
-                    predictedOffsetZ = Math.max(-MAX_PREDICTION_DISTANCE, Math.min(MAX_PREDICTION_DISTANCE, predictedOffsetZ));
-
-                    minX = Math.min(minX, bMinX + predictedOffsetX);
-                    minY = Math.min(minY, bMinY + predictedOffsetY);
-                    minZ = Math.min(minZ, bMinZ + predictedOffsetZ);
-                    maxX = Math.max(maxX, bMaxX + predictedOffsetX);
-                    maxY = Math.max(maxY, bMaxY + predictedOffsetY);
-                    maxZ = Math.max(maxZ, bMaxZ + predictedOffsetZ);
-                }
-            }
-
-            if (clusterHasValidBodies) {
-                forEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, PRELOAD_RADIUS_CHUNKS, requiredChunksCache);
-            }
-        }
-
-        // Return the primitive set; the caller compares it with previous state.
-        return requiredChunksCache;
-    }
-
-    /**
-     * Updates the set of active terrain chunks for the current physics tick.
-     * This logic activates chunks only around bodies that are currently in motion.
-     *
-     * @param sys       The native TerrainSystem wrapper.
-     * @param allBodies The list of all physics bodies in the world.
-     */
-    private void updateChunkActivation(TerrainSystem sys, List<VxBody> allBodies) {
-        LongSet requiredActiveSet = new LongOpenHashSet();
-        VxServerBodyDataContainer c = bodyDataStore.serverCurrent();
-
-        for (VxBody body : allBodies) {
-            int i = body.getDataStoreIndex();
-
-            // Check active status
-            if (i != -1 && c.isActive[i]) {
-                float py = (float) c.posY[i];
-
-                // Check height limits
-                if (py > MAX_GENERATION_HEIGHT || py < MIN_GENERATION_HEIGHT) {
-                    continue;
-                }
-
-                float minX = c.aabbMinX[i];
-                float minY = c.aabbMinY[i];
-                float minZ = c.aabbMinZ[i];
-                float maxX = c.aabbMaxX[i];
-                float maxY = c.aabbMaxY[i];
-                float maxZ = c.aabbMaxZ[i];
-
-                // Ensure bounds are valid before iterating
-                if (Float.isFinite(minX) && Float.isFinite(maxX) &&
-                        Float.isFinite(minY) && Float.isFinite(maxY) &&
-                        Float.isFinite(minZ) && Float.isFinite(maxZ)) {
-                    forEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, ACTIVATION_RADIUS_CHUNKS, requiredActiveSet);
-                }
-            }
-        }
-
-        // Prioritize chunks that need data re-submission
-        for (long packed : requiredActiveSet) {
-            if (sys.prioritizeChunk(packed)) {
-                physicsWorld.getTerrainSystem().scheduleChunkDataSubmission(packed, false);
-            }
-        }
-
-        // Get currently active chunks from native
-        long[] activePositions = sys.getActiveChunkPositions();
-        LongSet currentlyActive = new LongOpenHashSet();
-        if (activePositions != null) {
-            for (long pos : activePositions) {
-                currentlyActive.add(pos);
-            }
-        }
-
-        // Deactivate chunks no longer needed
-        for (long packed : currentlyActive) {
-            if (!requiredActiveSet.contains(packed)) {
-                sys.deactivateChunk(packed);
-            }
-        }
-
-        // Activate newly needed chunks
-        for (long packed : requiredActiveSet) {
-            if (!currentlyActive.contains(packed)) {
-                boolean needsData = sys.activateChunk(packed);
-                if (needsData) {
-                    physicsWorld.getTerrainSystem().scheduleChunkDataSubmission(packed, false);
-                }
-            }
+        // Process chunks that need to be prioritized or updated
+        for (int i = 0; i < updateCount; i++) {
+            long packedPos = this.updateChunksBuffer.getLong(i * 8);
+            terrainSys.scheduleChunkDataSubmission(packedPos, false);
         }
     }
 
     /**
-     * Helper method to iterate over all chunk sections that overlap a given AABB, expanded by a radius.
-     * Includes a safety brake to prevent processing excessively large areas due to physics glitches.
-     *
-     * @param minX           The minimum X coordinate of the bounding box.
-     * @param minY           The minimum Y coordinate of the bounding box.
-     * @param minZ           The minimum Z coordinate of the bounding box.
-     * @param maxX           The maximum X coordinate of the bounding box.
-     * @param maxY           The maximum Y coordinate of the bounding box.
-     * @param maxZ           The maximum Z coordinate of the bounding box.
-     * @param radiusInChunks The radius in chunks to expand the box by.
-     * @param outChunks      The set to which the overlapping bit-packed chunk positions will be added.
-     */
-    private void forEachSectionInBox(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, int radiusInChunks, LongSet outChunks) {
-        if (Double.isNaN(minX) || Double.isNaN(maxX) || Double.isNaN(minZ) || Double.isNaN(maxZ)) return;
-
-        int minSectionX = SectionPos.blockToSectionCoord(minX) - radiusInChunks;
-        int minSectionY = SectionPos.blockToSectionCoord(minY) - radiusInChunks;
-        int minSectionZ = SectionPos.blockToSectionCoord(minZ) - radiusInChunks;
-        int maxSectionX = SectionPos.blockToSectionCoord(maxX) + radiusInChunks;
-        int maxSectionY = SectionPos.blockToSectionCoord(maxY) + radiusInChunks;
-        int maxSectionZ = SectionPos.blockToSectionCoord(maxZ) + radiusInChunks;
-
-        final int worldMinY = level.getMinBuildHeight() >> 4;
-        final int worldMaxY = level.getMaxBuildHeight() >> 4;
-
-        // Calculate the volume of the requested area
-        long width = (long) maxSectionX - minSectionX + 1;
-        long height = (long) maxSectionY - minSectionY + 1;
-        long depth = (long) maxSectionZ - minSectionZ + 1;
-
-        if (width <= 0 || height <= 0 || depth <= 0) return;
-
-        long totalVolume = width * height * depth;
-
-        // Safety brake: Abort if the requested volume is unreasonably large (likely a glitch)
-        if (totalVolume > MAX_CHUNKS_PER_CLUSTER_ITERATION) {
-            VxMainClass.LOGGER.warn("Terrain Tracker Safety Brake triggered! Ignored request for {} chunks in one cluster. (Bounds: {},{} to {},{})",
-                    totalVolume, minSectionX, minSectionZ, maxSectionX, maxSectionZ);
-            return;
-        }
-
-        for (int y = minSectionY; y <= maxSectionY; ++y) {
-            if (y < worldMinY || y >= worldMaxY) continue;
-            for (int z = minSectionZ; z <= maxSectionZ; ++z) {
-                for (int x = minSectionX; x <= maxSectionX; ++x) {
-                    // Pack x, y, z into a single long coordinate to eliminate Garbage Collection pressure.
-                    outChunks.add(SectionPos.asLong(x, y, z));
-                }
-            }
-        }
-    }
-
-    /**
-     * Releases all chunks currently held by the tracker.
-     *
-     * @param sys The native TerrainSystem wrapper.
-     */
-    private void releaseAllChunks(TerrainSystem sys) {
-        if (previouslyRequiredChunks.isEmpty()) return;
-        for (long packed : previouslyRequiredChunks) {
-            sys.releaseChunk(packed);
-        }
-        previouslyRequiredChunks.clear();
-    }
-
-    /**
-     * Deactivates all currently active terrain chunks.
-     *
-     * @param sys The native TerrainSystem wrapper.
-     */
-    private void deactivateAllChunks(TerrainSystem sys) {
-        long[] activePositions = sys.getActiveChunkPositions();
-        if (activePositions != null) {
-            for (long pos : activePositions) {
-                sys.deactivateChunk(pos);
-            }
-        }
-    }
-
-    /**
-     * Clears all tracking data and releases all held chunks.
+     * Clears all tracking data and releases all held chunks natively.
+     * This method should be called during system shutdown to ensure all native memory
+     * is safely freed and no dangling physics bodies remain.
      */
     public void clear() {
-        TerrainSystem sys = this.nativeSystem;
-        if (sys != null) {
-            releaseAllChunks(sys);
-        } else {
-            previouslyRequiredChunks.clear();
+        if (this.nativeTracker != null) {
+            this.nativeTracker.clear();
+            this.nativeTracker.close();
+            this.nativeTracker = null;
         }
     }
 }
