@@ -6,6 +6,8 @@ package net.xmx.velthoric.core.physics;
 
 import com.github.stephengold.joltjni.*;
 import net.xmx.velthoric.jni.TerrainSystem;
+import net.xmx.velthoric.jni.TerrainInteraction;
+import net.xmx.velthoric.jni.TerrainTracker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +55,39 @@ public class VxPhysicsBootstrap {
         Jolt.registerTypes();
         TerrainSystem.nRegisterVoxelShape();
         VxPhysicsLayers.initialize();
+
+        // Configure global native engine parameters
+        TerrainInteraction.setConfig(new TerrainInteraction.Config(
+                100.0f, // massBaseline
+                0.1f,   // massMinScale
+                2.0f,   // massMaxScale
+                1000.0f,// transformMinForce
+                1.0f,   // transformMinSlidingSpeed
+                0.3f,   // transformMinFriction
+                50.0f,  // interactMinForce
+                0.05f,  // particleMinVelocity
+                1.0f,   // particleImpactEnergyThreshold
+                0.5f,   // particleSlidingVelocityThreshold
+                0.05f,  // particleSlidingEnergyThreshold
+                0.005f, // particleSlidingChanceMult
+                0.05f,  // particleSlidingChanceMax
+                2.0f,   // impactMinNormalSpeed
+                128,    // maxParticlesPerTick
+                64,     // maxTransformsPerTick
+                256,    // maxBreaksPerTick
+                64      // maxImpactsPerTick
+        ));
+
+        TerrainTracker.setConfig(new TerrainTracker.Config(
+                20000,   // maxChunksPerClusterIteration
+                4,       // gridCellSizeInChunks
+                1,       // activationRadiusChunks
+                3,       // preloadRadiusChunks
+                0.5f,    // predictionSeconds
+                64.0f,   // maxPredictionDistance
+                500.0f,  // maxGenerationHeight
+                -250.0f  // minGenerationHeight
+        ));
 
         isInitialized = true;
         LOGGER.debug("Jolt Physics engine initialized successfully.");

@@ -4,21 +4,19 @@
  */
 package net.xmx.velthoric.core.physics.world;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.PhysicsSystem;
 import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
-import net.xmx.velthoric.core.physics.VxPhysicsBootstrap;
 import net.xmx.velthoric.core.ragdoll.VxRagdollManager;
 import net.xmx.velthoric.core.terrain.VxTerrainSystem;
 import net.xmx.velthoric.core.terrain.interaction.VxTerrainInteractionHandler;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.jni.BodyPairIgnoreHandler;
 import net.xmx.velthoric.jni.TerrainContactHandler;
-import net.xmx.velthoric.jni.VelthoricContactListener;
 import net.xmx.velthoric.util.VxFrameTimer;
 import net.xmx.velthoric.util.VxPauseUtil;
 import org.jetbrains.annotations.NotNull;
@@ -39,6 +37,73 @@ import java.util.concurrent.Executor;
  * @author xI-Mx-Ix
  */
 public final class VxPhysicsWorld implements Runnable, Executor {
+
+    /**
+     * Configuration parameters for the physics simulation and subsystems.
+     * Ensures all physical components are uniformly configured from a single central state.
+     */
+    public record Config(
+        /**
+         * Maximum number of physics bodies the simulation can handle.
+         */
+        int maxBodies,
+        
+        /**
+         * Maximum number of body pairs (potential collisions).
+         */
+        int maxBodyPairs,
+        
+        /**
+         * Maximum number of contact constraints in the simulation.
+         */
+        int maxContactConstraints,
+        
+        /**
+         * Number of position solver iterations per step.
+         */
+        int numPositionIterations,
+        
+        /**
+         * Number of velocity solver iterations per step.
+         */
+        int numVelocityIterations,
+        
+        /**
+         * Speculative contact distance to prevent tunneling.
+         */
+        float speculativeContactDistance,
+        
+        /**
+         * Baumgarte stabilization factor.
+         */
+        float baumgarteFactor,
+        
+        /**
+         * Allowable penetration slop before applying restorative forces.
+         */
+        float penetrationSlop,
+        
+        /**
+         * Time in seconds a body must be inactive before sleeping.
+         */
+        float timeBeforeSleep,
+        
+        /**
+         * Velocity threshold below which a body is considered resting.
+         */
+        float pointVelocitySleepThreshold,
+        
+        /**
+         * Y-axis gravity acceleration applied to bodies.
+         */
+        float gravityY,
+        
+        /**
+         * Size of the temporary memory allocator used by the physics job system.
+         */
+        int tempAllocatorSize
+    ) {}
+
     /**
      * The target frequency of the physics simulation in Hertz.
      */
@@ -134,10 +199,10 @@ public final class VxPhysicsWorld implements Runnable, Executor {
      * Constructs a new physics world for the given level with a custom configuration.
      * Subsystems are instantiated but not yet initialized.
      *
-     * @param level The server level.
+     * @param level  The server level.
      * @param config The physics configuration.
      */
-    private VxPhysicsWorld(ServerLevel level, VxPhysicsConfig config) {
+    private VxPhysicsWorld(ServerLevel level, Config config) {
         this.level = level;
         this.dimensionKey = level.dimension();
         this.simulation = new VxPhysicsSimulation(config);
@@ -154,17 +219,30 @@ public final class VxPhysicsWorld implements Runnable, Executor {
      * @return The physics world instance.
      */
     public static VxPhysicsWorld getOrCreate(ServerLevel level) {
-        return getOrCreate(level, new VxPhysicsConfig());
+        return getOrCreate(level, new Config(
+                65536,         // maxBodies
+                65536,         // maxBodyPairs
+                65536,         // maxContactConstraints
+                10,            // numPositionIterations
+                15,            // numVelocityIterations
+                0.02f,         // speculativeContactDistance
+                0.2f,          // baumgarteFactor
+                0.02f,         // penetrationSlop
+                1.0f,          // timeBeforeSleep
+                0.005f,        // pointVelocitySleepThreshold
+                -9.81f,        // gravityY
+                64 * 1024 * 1024 // tempAllocatorSize
+        ));
     }
 
     /**
      * Retrieves the physics world for a dimension, creating and starting it with a custom config if it doesn't exist.
      *
-     * @param level The server level.
+     * @param level  The server level.
      * @param config The custom physics configuration.
      * @return The physics world instance.
      */
-    public static VxPhysicsWorld getOrCreate(ServerLevel level, VxPhysicsConfig config) {
+    public static VxPhysicsWorld getOrCreate(ServerLevel level, Config config) {
         return worlds.computeIfAbsent(level.dimension(), key -> {
             VxPhysicsWorld newWorld = new VxPhysicsWorld(level, config);
             newWorld.initializeAndStart();
@@ -462,6 +540,13 @@ public final class VxPhysicsWorld implements Runnable, Executor {
      */
     public VxFrameTimer getPhysicsFrameTimer() {
         return this.physicsFrameTimer;
+    }
+
+    /**
+     * @return The configuration used by this physics world.
+     */
+    public Config getConfig() {
+        return this.simulation.getConfig();
     }
 
     /**

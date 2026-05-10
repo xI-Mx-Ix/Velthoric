@@ -14,52 +14,9 @@
 namespace Velthoric {
 
 /**
- * @brief The grid size in chunks used to spatially cluster bodies.
- * Groups physics bodies into 4x4x4 chunk grids to optimize AABB bounds calculation.
+ * @brief Global configuration defaults. Initialized to zero, overwritten by Java.
  */
-const int GRID_CELL_SIZE_IN_CHUNKS = 4;
-
-/**
- * @brief The radius, measured in chunks, by which a moving body's bounding box is expanded
- * for keeping terrain chunks actively loaded in the physics simulation.
- */
-const int ACTIVATION_RADIUS_CHUNKS = 1;
-
-/**
- * @brief The radius, measured in chunks, used to proactively generate and preload terrain 
- * around the clustered bodies.
- */
-const int PRELOAD_RADIUS_CHUNKS = 3;
-
-/**
- * @brief The scalar time (in seconds) used to project the future trajectory of bodies.
- * The tracking system extrapolates current velocity forward by this duration to preload chunks.
- */
-const float PREDICTION_SECONDS = 0.5f;
-
-/**
- * @brief The absolute maximum linear distance (in blocks) a trajectory prediction is allowed to reach.
- * This effectively caps the look-ahead to prevent astronomical bounds scaling for fast bodies.
- */
-const float MAX_PREDICTION_DISTANCE = 64.0f;
-
-/**
- * @brief The maximum volume of chunks (width * height * depth) that can be requested 
- * by a single cluster iteration. Acts as a strict safety brake against memory exhaustion.
- */
-const int64_t MAX_CHUNKS_PER_CLUSTER_ITERATION = 20000;
-
-/**
- * @brief The maximum world Y-axis coordinate (height) where terrain generation is tracked.
- * Bodies soaring above this ceiling will safely ignore terrain generation below.
- */
-const float MAX_GENERATION_HEIGHT = 500.0f;
-
-/**
- * @brief The minimum world Y-axis coordinate (depth) where terrain generation is tracked.
- * Bodies plunging below this floor will no longer trigger chunk loading.
- */
-const float MIN_GENERATION_HEIGHT = -250.0f;
+TerrainTracker::Config TerrainTracker::s_Config = {};
 
 /**
  * @brief Helper utility to convert a continuous floating-point world coordinate into a discrete chunk section coordinate.
@@ -132,11 +89,11 @@ TerrainTrackerResult TerrainTracker::Update() {
         if (!std::isfinite(px) || !std::isfinite(py) || !std::isfinite(pz)) continue;
         
         // Exclude bodies orbiting out of structural relevance
-        if (py > MAX_GENERATION_HEIGHT || py < MIN_GENERATION_HEIGHT) continue;
+        if (py > s_Config.maxGenerationHeight || py < s_Config.minGenerationHeight) continue;
 
-        int64_t cellX = BlockToSectionCoord(px) / GRID_CELL_SIZE_IN_CHUNKS;
-        int64_t cellY = BlockToSectionCoord(py) / GRID_CELL_SIZE_IN_CHUNKS;
-        int64_t cellZ = BlockToSectionCoord(pz) / GRID_CELL_SIZE_IN_CHUNKS;
+        int64_t cellX = BlockToSectionCoord(px) / s_Config.gridCellSizeInChunks;
+        int64_t cellY = BlockToSectionCoord(py) / s_Config.gridCellSizeInChunks;
+        int64_t cellZ = BlockToSectionCoord(pz) / s_Config.gridCellSizeInChunks;
         int64_t cellKey = SectionAsLong(cellX, cellY, cellZ);
 
         cachedBodyClusters[cellKey].push_back(id);
@@ -188,14 +145,14 @@ TerrainTrackerResult TerrainTracker::Update() {
 
             // If the body is moving, stretch its footprint towards its destination
             if (std::abs(velX) > 0.01f || std::abs(velY) > 0.01f || std::abs(velZ) > 0.01f) {
-                float predictedOffsetX = velX * PREDICTION_SECONDS;
-                float predictedOffsetY = velY * PREDICTION_SECONDS;
-                float predictedOffsetZ = velZ * PREDICTION_SECONDS;
+                float predictedOffsetX = velX * s_Config.predictionSeconds;
+                float predictedOffsetY = velY * s_Config.predictionSeconds;
+                float predictedOffsetZ = velZ * s_Config.predictionSeconds;
 
                 // Restrict the maximum displacement projection
-                predictedOffsetX = std::max(-MAX_PREDICTION_DISTANCE, std::min(MAX_PREDICTION_DISTANCE, predictedOffsetX));
-                predictedOffsetY = std::max(-MAX_PREDICTION_DISTANCE, std::min(MAX_PREDICTION_DISTANCE, predictedOffsetY));
-                predictedOffsetZ = std::max(-MAX_PREDICTION_DISTANCE, std::min(MAX_PREDICTION_DISTANCE, predictedOffsetZ));
+                predictedOffsetX = std::max(-s_Config.maxPredictionDistance, std::min(s_Config.maxPredictionDistance, predictedOffsetX));
+                predictedOffsetY = std::max(-s_Config.maxPredictionDistance, std::min(s_Config.maxPredictionDistance, predictedOffsetY));
+                predictedOffsetZ = std::max(-s_Config.maxPredictionDistance, std::min(s_Config.maxPredictionDistance, predictedOffsetZ));
 
                 minX = std::min(minX, bMinX + predictedOffsetX);
                 minY = std::min(minY, bMinY + predictedOffsetY);
@@ -207,7 +164,7 @@ TerrainTrackerResult TerrainTracker::Update() {
         }
 
         if (clusterHasValidBodies) {
-            ForEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, PRELOAD_RADIUS_CHUNKS, currentlyRequiredChunks);
+            ForEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, s_Config.preloadRadiusChunks, currentlyRequiredChunks);
         }
     }
 
@@ -237,7 +194,7 @@ TerrainTrackerResult TerrainTracker::Update() {
             if (bodyInterface.IsActive(id)) {
                 JPH::RVec3 pos = bodyInterface.GetPosition(id);
                 float py = pos.GetY();
-                if (py > MAX_GENERATION_HEIGHT || py < MIN_GENERATION_HEIGHT) continue;
+                if (py > s_Config.maxGenerationHeight || py < s_Config.minGenerationHeight) continue;
 
                 JPH::AABox bounds = bodyInterface.GetTransformedShape(id).GetWorldSpaceBounds();
                 float minX = bounds.mMin.GetX();
@@ -250,7 +207,7 @@ TerrainTrackerResult TerrainTracker::Update() {
                 if (std::isfinite(minX) && std::isfinite(maxX) &&
                     std::isfinite(minY) && std::isfinite(maxY) &&
                     std::isfinite(minZ) && std::isfinite(maxZ)) {
-                    ForEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, ACTIVATION_RADIUS_CHUNKS, requiredActiveSet);
+                    ForEachSectionInBox(minX, minY, minZ, maxX, maxY, maxZ, s_Config.activationRadiusChunks, requiredActiveSet);
                 }
             }
         }
@@ -304,8 +261,8 @@ void TerrainTracker::ForEachSectionInBox(float minX, float minY, float minZ, flo
     int64_t maxSectionZ = BlockToSectionCoord(maxZ) + radiusInChunks;
 
     // Constrain chunk allocations within the reasonable generation bounds
-    int64_t wMinY = -250 >> 4;
-    int64_t wMaxY = 500 >> 4;
+    int64_t wMinY = static_cast<int64_t>(std::floor(s_Config.minGenerationHeight / 16.0f));
+    int64_t wMaxY = static_cast<int64_t>(std::ceil(s_Config.maxGenerationHeight / 16.0f));
 
     int64_t width = maxSectionX - minSectionX + 1;
     int64_t height = maxSectionY - minSectionY + 1;
@@ -316,7 +273,7 @@ void TerrainTracker::ForEachSectionInBox(float minX, float minY, float minZ, flo
     int64_t totalVolume = width * height * depth;
 
     // Safety Brake Circuit: The most critical defense against infinite velocity glitches
-    if (totalVolume > MAX_CHUNKS_PER_CLUSTER_ITERATION) {
+    if (totalVolume > s_Config.maxChunksPerClusterIteration) {
         std::cerr << "[Velthoric Native] Terrain Tracker Safety Brake triggered! Ignored request for " 
                   << totalVolume << " chunks in one cluster. (Bounds: " 
                   << minSectionX << "," << minSectionZ << " to " 
@@ -454,6 +411,21 @@ JNIEXPORT void JNICALL Java_net_xmx_velthoric_jni_TerrainTracker_nClear(
     (void)env; (void)clazz;
     auto* tracker = reinterpret_cast<Velthoric::TerrainTracker*>(handle);
     if (tracker) tracker->Clear();
+}
+
+/**
+ * @brief Native JNI bridge to update the global TerrainTracker configuration.
+ * 
+ * @param env The standard JNI environment context.
+ * @param clazz The static Java class reference.
+ * @param buffer DirectByteBuffer holding the serialized Config struct.
+ */
+JNIEXPORT void JNICALL Java_net_xmx_velthoric_jni_TerrainTracker_nSetTrackerConfig(
+    JNIEnv* env, jclass clazz, jobject buffer) {
+    (void)clazz;
+    if (!buffer) return;
+    const Velthoric::TerrainTracker::Config* config = static_cast<const Velthoric::TerrainTracker::Config*>(env->GetDirectBufferAddress(buffer));
+    if (config) Velthoric::TerrainTracker::SetConfig(*config);
 }
 
 } // extern "C"

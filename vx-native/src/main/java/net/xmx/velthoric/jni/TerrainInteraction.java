@@ -21,6 +21,137 @@ import java.nio.ByteOrder;
 public class TerrainInteraction {
 
     /**
+     * Configuration structure for global terrain interaction thresholds.
+     * This class maps directly to the native {@code Config} C++ struct (64 bytes).
+     */
+    public record Config(
+        /**
+         * Reference mass for scaling impact intensity.
+         */
+        float massBaseline,
+        
+        /**
+         * Lower bound for mass-based multipliers.
+         */
+        float massMinScale,
+        
+        /**
+         * Upper bound for mass-based multipliers.
+         */
+        float massMaxScale,
+        
+        /**
+         * Force required to change terrain state.
+         */
+        float transformMinForce,
+        
+        /**
+         * Speed required for friction-based wear.
+         */
+        float transformMinSlidingSpeed,
+        
+        /**
+         * Friction coefficient threshold for wear.
+         */
+        float transformMinFriction,
+        
+        /**
+         * Force required to nudge interactive objects (doors).
+         */
+        float interactMinForce,
+        
+        /**
+         * Minimum speed to consider particle emission.
+         */
+        float particleMinVelocity,
+        
+        /**
+         * Energy threshold for impact visuals.
+         */
+        float particleImpactEnergyThreshold,
+        
+        /**
+         * Speed threshold for sliding visuals.
+         */
+        float particleSlidingVelocityThreshold,
+        
+        /**
+         * Sustained energy threshold for sliding effects.
+         */
+        float particleSlidingEnergyThreshold,
+        
+        /**
+         * Chance multiplier for stochastic emission.
+         */
+        float particleSlidingChanceMult,
+        
+        /**
+         * Probability cap for sliding particles.
+         */
+        float particleSlidingChanceMax,
+        
+        /**
+         * Minimum normal-velocity (m/s) for an impact event to be generated.
+         */
+        float impactMinNormalSpeed,
+        
+        /**
+         * Max particle events allowed per server tick.
+         */
+        int maxParticlesPerTick,
+        
+        /**
+         * Max terrain transformations allowed per server tick.
+         */
+        int maxTransformsPerTick,
+        
+        /**
+         * Max block destruction events allowed per server tick.
+         */
+        int maxBreaksPerTick,
+        
+        /**
+         * Max impact events allowed per server tick.
+         */
+        int maxImpactsPerTick
+    ) {
+
+        public void write(ByteBuffer buffer) {
+            buffer.putFloat(massBaseline);
+            buffer.putFloat(massMinScale);
+            buffer.putFloat(massMaxScale);
+            buffer.putFloat(transformMinForce);
+            buffer.putFloat(transformMinSlidingSpeed);
+            buffer.putFloat(transformMinFriction);
+            buffer.putFloat(interactMinForce);
+            buffer.putFloat(particleMinVelocity);
+            buffer.putFloat(particleImpactEnergyThreshold);
+            buffer.putFloat(particleSlidingVelocityThreshold);
+            buffer.putFloat(particleSlidingEnergyThreshold);
+            buffer.putFloat(particleSlidingChanceMult);
+            buffer.putFloat(particleSlidingChanceMax);
+            buffer.putFloat(impactMinNormalSpeed);
+            buffer.putInt(maxParticlesPerTick);
+            buffer.putInt(maxTransformsPerTick);
+            buffer.putInt(maxBreaksPerTick);
+            buffer.putInt(maxImpactsPerTick);
+        }
+
+        public static final int SIZE = 72; // 14 floats (56 bytes) + 4 ints (16 bytes) = 72 bytes
+    }
+
+    /**
+     * Transfers the global interaction configuration to the native physics engine.
+     *
+     * @param config The configuration to apply.
+     */
+    public static void setConfig(Config config) {
+        ByteBuffer buffer = ByteBuffer.allocateDirect(Config.SIZE).order(ByteOrder.nativeOrder());
+        config.write(buffer);
+        nSetInteractionConfig(buffer);
+    }
+
+    /**
      * Defines the type of physical interaction event that occurred.
      */
     public enum InteractionType {
@@ -139,119 +270,6 @@ public class TerrainInteraction {
          * Total size of the native {@code MaterialConfig} struct in bytes.
          */
         public static final int SIZE = 24;
-    }
-
-    /**
-     * Configuration structure for global terrain interaction thresholds.
-     * This class maps directly to the native {@code Config} C++ struct (64 bytes).
-     */
-    public static class Config {
-        /**
-         * Reference mass for scaling impact intensity.
-         */
-        public float massBaseline = 100.0f;
-        /**
-         * Lower bound for mass-based multipliers.
-         */
-        public float massMinScale = 0.1f;
-        /**
-         * Upper bound for mass-based multipliers.
-         */
-        public float massMaxScale = 2.0f;
-        /**
-         * Force required to change terrain state.
-         */
-        public float transformMinForce = 1000.0f;
-        /**
-         * Speed required for friction-based wear.
-         */
-        public float transformMinSlidingSpeed = 1.0f;
-        /**
-         * Friction coefficient threshold for wear.
-         */
-        public float transformMinFriction = 0.3f;
-        /**
-         * Force required to nudge interactive objects (doors).
-         */
-        public float interactMinForce = 50.0f;
-        /**
-         * Minimum speed to consider particle emission.
-         */
-        public float particleMinVelocity = 0.05f;
-        /**
-         * Energy threshold for impact visuals.
-         */
-        public float particleImpactEnergyThreshold = 1.0f;
-        /**
-         * Speed threshold for sliding visuals.
-         */
-        public float particleSlidingVelocityThreshold = 0.5f;
-        /**
-         * Sustained energy threshold for sliding effects.
-         */
-        public float particleSlidingEnergyThreshold = 0.05f;
-        /**
-         * Chance multiplier for stochastic emission.
-         */
-        public float particleSlidingChanceMult = 0.005f;
-        /**
-         * Probability cap for sliding particles.
-         */
-        public float particleSlidingChanceMax = 0.05f;
-        /**
-         * Minimum normal-velocity (m/s) for an impact event to be generated.
-         */
-        public float impactMinNormalSpeed = 2.0f;
-        /**
-         * Max particle events allowed per server tick.
-         */
-        public int maxParticlesPerTick = 128;
-        /**
-         * Max terrain transformations allowed per server tick.
-         */
-        public int maxTransformsPerTick = 64;
-        /**
-         * Max block destruction events allowed per server tick.
-         */
-        public int maxBreaksPerTick = 256;
-        /**
-         * Max impact events allowed per server tick.
-         */
-        public int maxImpactsPerTick = 64;
-
-        public void write(ByteBuffer buffer) {
-            buffer.putFloat(massBaseline);
-            buffer.putFloat(massMinScale);
-            buffer.putFloat(massMaxScale);
-            buffer.putFloat(transformMinForce);
-            buffer.putFloat(transformMinSlidingSpeed);
-            buffer.putFloat(transformMinFriction);
-            buffer.putFloat(interactMinForce);
-            buffer.putFloat(particleMinVelocity);
-            buffer.putFloat(particleImpactEnergyThreshold);
-            buffer.putFloat(particleSlidingVelocityThreshold);
-            buffer.putFloat(particleSlidingEnergyThreshold);
-            buffer.putFloat(particleSlidingChanceMult);
-            buffer.putFloat(particleSlidingChanceMax);
-            buffer.putFloat(impactMinNormalSpeed);
-            buffer.putInt(maxParticlesPerTick);
-            buffer.putInt(maxTransformsPerTick);
-            buffer.putInt(maxBreaksPerTick);
-            buffer.putInt(maxImpactsPerTick);
-        }
-
-        public static final int SIZE = 72; // 14 floats (56 bytes) + 4 ints (16 bytes) = 72 bytes
-    }
-
-    /**
-     * Transfers the global interaction configuration to the native physics engine.
-     *
-     * @param config The configuration to apply.
-     */
-    public static void setConfig(Config config) {
-        ByteBuffer buffer = ByteBuffer.allocateDirect(Config.SIZE).order(ByteOrder.nativeOrder());
-        config.write(buffer);
-        nSetInteractionConfig(buffer);
     }
 
     /**

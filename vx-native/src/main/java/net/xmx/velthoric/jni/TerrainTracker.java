@@ -5,6 +5,7 @@
 package net.xmx.velthoric.jni;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 /**
  * JNI bridge for the native C++ {@code Velthoric::TerrainTracker}.
@@ -22,6 +23,89 @@ import java.nio.ByteBuffer;
  * @author xI-Mx-Ix
  */
 public final class TerrainTracker extends NativeObject {
+
+    /**
+     * Configuration structure for tracking parameters.
+     * This class maps directly to the native {@code Config} C++ struct (40 bytes).
+     * Managed centrally by the Physics World.
+     */
+    public record Config(
+        /**
+         * The maximum volume of chunks that can be requested by a single cluster iteration.
+         * Acts as a strict safety brake against memory exhaustion.
+         */
+        long maxChunksPerClusterIteration,
+        
+        /**
+         * The grid size in chunks used to spatially cluster bodies.
+         * Groups physics bodies into chunk grids to optimize AABB bounds calculation.
+         */
+        int gridCellSizeInChunks,
+        
+        /**
+         * The radius, measured in chunks, by which a moving body's bounding box is expanded
+         * for keeping terrain chunks actively loaded in the physics simulation.
+         */
+        int activationRadiusChunks,
+        
+        /**
+         * The radius, measured in chunks, used to proactively generate and preload terrain
+         * around the clustered bodies.
+         */
+        int preloadRadiusChunks,
+        
+        /**
+         * The scalar time (in seconds) used to project the future trajectory of bodies.
+         * The tracking system extrapolates current velocity forward by this duration.
+         */
+        float predictionSeconds,
+        
+        /**
+         * The absolute maximum linear distance (in blocks) a trajectory prediction is allowed to reach.
+         */
+        float maxPredictionDistance,
+        
+        /**
+         * The maximum world Y-axis coordinate (height) where terrain generation is tracked.
+         */
+        float maxGenerationHeight,
+        
+        /**
+         * The minimum world Y-axis coordinate (depth) where terrain generation is tracked.
+         */
+        float minGenerationHeight
+    ) {
+
+        /**
+         * Serializes this configuration into a direct {@link ByteBuffer} for native transfer.
+         *
+         * @param buffer The target buffer in native byte order.
+         */
+        public void write(ByteBuffer buffer) {
+            buffer.putLong(maxChunksPerClusterIteration);
+            buffer.putInt(gridCellSizeInChunks);
+            buffer.putInt(activationRadiusChunks);
+            buffer.putInt(preloadRadiusChunks);
+            buffer.putFloat(predictionSeconds);
+            buffer.putFloat(maxPredictionDistance);
+            buffer.putFloat(maxGenerationHeight);
+            buffer.putFloat(minGenerationHeight);
+            buffer.putInt(0); // padding
+        }
+
+        public static final int SIZE = 40;
+    }
+
+    /**
+     * Transfers the tracking configuration to the native physics engine.
+     *
+     * @param config The configuration to apply.
+     */
+    public static void setConfig(Config config) {
+        ByteBuffer buffer = ByteBuffer.allocateDirect(Config.SIZE).order(ByteOrder.nativeOrder());
+        config.write(buffer);
+        nSetTrackerConfig(buffer);
+    }
 
     /**
      * Creates a new native TerrainTracker instance.
@@ -113,4 +197,11 @@ public final class TerrainTracker extends NativeObject {
      * @param handle The 64-bit memory address of the C++ TerrainTracker object.
      */
     private static native void nClear(long handle);
+    
+    /**
+     * Native C++ implementation: Applies tracking configuration.
+     *
+     * @param buffer DirectByteBuffer holding the serialized configuration.
+     */
+    private static native void nSetTrackerConfig(ByteBuffer buffer);
 }

@@ -22,7 +22,7 @@ public class VxPhysicsSimulation {
     /**
      * The configuration for this physics simulation instance.
      */
-    private final VxPhysicsConfig config;
+    private final VxPhysicsWorld.Config config;
 
     /**
      * The native Jolt Physics System instance.
@@ -59,7 +59,7 @@ public class VxPhysicsSimulation {
      *
      * @param config The physics configuration to apply.
      */
-    public VxPhysicsSimulation(VxPhysicsConfig config) {
+    public VxPhysicsSimulation(VxPhysicsWorld.Config config) {
         this.config = config;
     }
 
@@ -69,7 +69,7 @@ public class VxPhysicsSimulation {
      * @param world The parent physics world managing this simulation.
      */
     public void initialize(VxPhysicsWorld world) {
-        this.tempAllocator = new TempAllocatorImpl(this.config.tempAllocatorSize);
+        this.tempAllocator = new TempAllocatorImpl(this.config.tempAllocatorSize());
         int numThreads = Math.max(1, Runtime.getRuntime().availableProcessors() - 2);
         this.jobSystem = new JobSystemThreadPool(Jolt.cMaxPhysicsJobs, Jolt.cMaxPhysicsBarriers, numThreads);
 
@@ -78,21 +78,21 @@ public class VxPhysicsSimulation {
         ObjectVsBroadPhaseLayerFilter ovbpf = VxPhysicsBootstrap.getObjectVsBroadPhaseLayerFilter();
         ObjectLayerPairFilter olpf = VxPhysicsBootstrap.getObjectLayerPairFilter();
 
-        this.physicsSystem.init(this.config.maxBodies, 0, this.config.maxBodyPairs, this.config.maxContactConstraints, bpli, ovbpf, olpf);
+        this.physicsSystem.init(this.config.maxBodies(), 0, this.config.maxBodyPairs(), this.config.maxContactConstraints(), bpli, ovbpf, olpf);
 
         try (PhysicsSettings settings = this.physicsSystem.getPhysicsSettings()) {
-            settings.setNumPositionSteps(this.config.numPositionIterations);
-            settings.setNumVelocitySteps(this.config.numVelocityIterations);
-            settings.setSpeculativeContactDistance(this.config.speculativeContactDistance);
-            settings.setBaumgarte(this.config.baumgarteFactor);
-            settings.setPenetrationSlop(this.config.penetrationSlop);
-            settings.setTimeBeforeSleep(this.config.timeBeforeSleep);
-            settings.setPointVelocitySleepThreshold(this.config.pointVelocitySleepThreshold);
+            settings.setNumPositionSteps(this.config.numPositionIterations());
+            settings.setNumVelocitySteps(this.config.numVelocityIterations());
+            settings.setSpeculativeContactDistance(this.config.speculativeContactDistance());
+            settings.setBaumgarte(this.config.baumgarteFactor());
+            settings.setPenetrationSlop(this.config.penetrationSlop());
+            settings.setTimeBeforeSleep(this.config.timeBeforeSleep());
+            settings.setPointVelocitySleepThreshold(this.config.pointVelocitySleepThreshold());
             settings.setDeterministicSimulation(false);
             this.physicsSystem.setPhysicsSettings(settings);
         }
 
-        this.physicsSystem.setGravity(0f, this.config.gravityY, 0f);
+        this.physicsSystem.setGravity(0f, this.config.gravityY(), 0f);
 
         // Initialize the contact handlers
         this.bodyPairIgnoreHandler = new BodyPairIgnoreHandler();
@@ -168,5 +168,12 @@ public class VxPhysicsSimulation {
      */
     public TerrainContactHandler getTerrainContactHandler() {
         return this.terrainContactHandler;
+    }
+
+    /**
+     * @return The configuration used for this simulation.
+     */
+    public VxPhysicsWorld.Config getConfig() {
+        return this.config;
     }
 }

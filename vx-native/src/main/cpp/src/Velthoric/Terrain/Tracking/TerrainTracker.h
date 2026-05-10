@@ -52,6 +52,28 @@ struct TerrainTrackerResult {
 class TerrainTracker {
 public:
     /**
+     * @brief Global configuration parameters for the terrain tracking system.
+     * Maps perfectly to the Java `TerrainTracker.Config` memory layout.
+     */
+    struct Config {
+        int64_t maxChunksPerClusterIteration; ///< The maximum volume of chunks per iteration.
+        int gridCellSizeInChunks;             ///< Grid size in chunks used for clustering.
+        int activationRadiusChunks;           ///< Padding radius in chunks for activation.
+        int preloadRadiusChunks;              ///< Padding radius in chunks for preload generation.
+        float predictionSeconds;              ///< Time in seconds to extrapolate velocities.
+        float maxPredictionDistance;          ///< Maximum distance for velocity look-ahead.
+        float maxGenerationHeight;            ///< Maximum Y coordinate.
+        float minGenerationHeight;            ///< Minimum Y coordinate.
+        uint32_t padding;                     ///< 4-byte padding to align the struct to 40 bytes.
+    };
+
+    /// Global configuration instance.
+    static Config s_Config;
+
+    /** @brief Updates the tracking configuration. */
+    static void SetConfig(const Config& config) { s_Config = config; }
+
+    /**
      * @brief Instantiates the TerrainTracker with references to the core physics structures.
      * 
      * @param physicsSystem Pointer to the primary Jolt PhysicsSystem, used to traverse all bodies.
