@@ -1,0 +1,107 @@
+# Reusable workflow: Native Library Compilation
+#
+# Compiles the vx-native C++ library for all supported platforms and architectures
+# using a parallel matrix strategy. The resulting binaries are uploaded as a
+# merged GitHub Actions artifact for consumption by downstream jobs.
+#
+# Outputs:
+#   artifact-name: The name of the artifact containing the merged native binaries.
+
+name: "Reusable - Build Natives"
+
+on:
+  workflow_call:
+    outputs:
+      artifact-name:
+        description: "Name of the artifact containing all compiled native libraries."
+        value: ${{ jobs.build-natives.outputs.artifact-name }}
+
+jobs:
+  build-natives:
+    name: "${{ matrix.display_name }}"
+    outputs:
+      artifact-name: "velthoric-natives-${{ github.run_id }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            target_os: win
+            target_arch: x86_64
+            lib_name: vxnative.dll
+            ext: dll
+            display_name: "Windows x86_64"
+
+          - os: ubuntu-22.04
+            target_os: linux
+            target_arch: x86_64
+            lib_name: libvxnative.so
+            ext: so
+            display_name: "Linux x86_64"
+
+          - os: ubuntu-22.04
+            target_os: linux
+            target_arch: aarch64
+            lib_name: libvxnative.so
+            ext: so
+            cross_compile: true
+            display_name: "Linux AArch64 (cross)"
+
+          - os: macos-14
+            target_os: osx
+            target_arch: x86_64
+            lib_name: libvxnative.dylib
+            ext: dylib
+            display_name: "macOS x86_64"
+
+          - os: macos-14
+            target_os: osx
+            target_arch: aarch64
+            lib_name: libvxnative.dylib
+            ext: dylib
+            display_name: "macOS AArch64"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup Java 21 (Temurin)"
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          architecture: ${{ (matrix.target_arch == 'aarch64' && matrix.os == 'macos-14') && 'aarch64' || 'x64' }}
+          cache: 'gradle'
+
+      # Install GNU cross-compilation toolchain for Linux AArch64 targets.
+      - name: "Install AArch64 Cross-Compiler"
+        if: matrix.cross_compile
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: "Grant Gradle Wrapper Execute Permission"
+        run: chmod +x gradlew
+
+      - name: "Compile Native Library"
+        shell: bash
+        run: ./gradlew :vx-native:cmakeBuild -PtargetArch=${{ matrix.target_arch }} -PnativeOnly=true
+
+      # Organise the compiled binary into a structured directory tree that mirrors
+      # the layout expected by the vx-native prebuilt-natives loader.
+      - name: "Stage Native Binary"
+        shell: bash
+        run: |
+          DEST="dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}"
+          mkdir -p "$DEST"
+          find vx-native/src/main/cpp/build -name "*.${{ matrix.ext }}" \
+            -exec cp {} "$DEST/${{ matrix.lib_name }}" \;
+
+      - name: "Upload Native Artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: "velthoric-natives-${{ github.run_id }}-${{ matrix.target_os }}-${{ matrix.target_arch }}"
+          path: dist/
+          retention-days: 1

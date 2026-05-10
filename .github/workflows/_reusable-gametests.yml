@@ -1,0 +1,54 @@
+# Reusable workflow: GameTest Suite
+#
+# Downloads compiled native binaries and executes the automated GameTest server
+# for both supported mod loaders (Fabric and NeoForge) in parallel.
+# This workflow is intended to gate downstream publish or release jobs.
+
+name: "Reusable - GameTests"
+
+on:
+  workflow_call:
+    inputs:
+      natives-artifact-prefix:
+        description: "Prefix of the native library artifacts to download."
+        type: string
+        required: true
+
+jobs:
+  run-gametests:
+    name: "GameTest - ${{ matrix.loader }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - loader: fabric
+            task: ":fabric:runGameTest"
+          - loader: neoforge
+            task: ":neoforge:runGameTestServer"
+
+    steps:
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup Java 21 (Temurin)"
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      # Native binaries must be present before Gradle configures the project,
+      # as the vx-native module resolves them at configuration time.
+      - name: "Download Compiled Natives"
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "${{ inputs.natives-artifact-prefix }}-*"
+          path: vx-native/prebuilt-natives
+          merge-multiple: true
+
+      - name: "Grant Gradle Wrapper Execute Permission"
+        run: chmod +x gradlew
+
+      - name: "Run GameTest Server"
+        run: ./gradlew ${{ matrix.task }} -x :vx-native:cmakeBuild

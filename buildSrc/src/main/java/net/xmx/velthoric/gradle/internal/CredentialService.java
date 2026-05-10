@@ -20,6 +20,7 @@ public final class CredentialService {
     public static final String KEY_CURSEFORGE = "CURSEFORGE_TOKEN";
     public static final String KEY_MAVEN_USER = "MAVEN_USER";
     public static final String KEY_MAVEN_TOKEN = "MAVEN_TOKEN";
+    public static final String KEY_GITHUB = "GITHUB_TOKEN";
 
     private CredentialService() {}
 

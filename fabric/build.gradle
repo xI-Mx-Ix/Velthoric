@@ -139,5 +139,4 @@ velthoricPublishing {
     loader = "fabric"
     displayName = "Fabric"
     artifact = tasks.named("remapJar")
-    dryRun = false
 }

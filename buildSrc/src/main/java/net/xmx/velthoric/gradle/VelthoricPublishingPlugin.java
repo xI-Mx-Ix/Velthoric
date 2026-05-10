@@ -134,11 +134,11 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
             // This prevents build failures due to missing credentials and allows for safe testing.
             String mrToken = CredentialService.get(p, CredentialService.KEY_MODRINTH);
             String cfToken = CredentialService.get(p, CredentialService.KEY_CURSEFORGE);
+            String ghToken = CredentialService.get(p, CredentialService.KEY_GITHUB);
             String mavenUser = CredentialService.get(p, CredentialService.KEY_MAVEN_USER);
             String mavenToken = CredentialService.get(p, CredentialService.KEY_MAVEN_TOKEN);
 
-            if (mrToken == null || cfToken == null || mavenUser == null || mavenToken == null) {
-                p.getLogger().lifecycle("Velthoric: Missing release tokens (Modrinth, CurseForge, or Maven). Forcing dry run for module '{}'.", p.getName());
+            if (mrToken == null || cfToken == null || ghToken == null || mavenUser == null || mavenToken == null) {
                 extension.getDryRun().set(true);
             }
 

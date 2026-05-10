@@ -136,5 +136,4 @@ velthoricPublishing {
     loader = "neoforge"
     displayName = "NeoForge"
     artifact = tasks.named("remapJar")
-    dryRun = false
 }

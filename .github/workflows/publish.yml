@@ -1,113 +1,85 @@
-name: Publish Release
+# Release Publish Pipeline
+#
+# Triggered manually via workflow_dispatch. This pipeline builds native libraries
+# for all supported platforms, assembles the final mod JARs, runs the full GameTest
+# suite, and only if all tests pass publishes the release to CurseForge,
+# Modrinth, GitHub Releases, and the Cloudsmith Maven repository.
+#
+# Pipeline stages:
+#   1. build-natives  - Compile vx-native for all platforms in parallel.
+#   2. build-mod      - Assemble Fabric & NeoForge JARs using the compiled natives.
+#   3. gametests      - Run the automated GameTest server for both loaders.
+#   4. publish        - Publish to all distribution platforms (gated on test success).
+
+name: "Publish Release"
 
 on:
   workflow_dispatch:
 
 jobs:
-  # Job 1: Build native libraries for all supported platforms
+  # Stage 1: Native Libraries
   build-natives:
-    name: Build Native (${{ matrix.target_os }} - ${{ matrix.target_arch }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-2022
-            target_os: win
-            target_arch: x86_64
-            ext: dll
-          - os: ubuntu-22.04
-            target_os: linux
-            target_arch: x86_64
-            ext: so
-          - os: ubuntu-22.04
-            target_os: linux
-            target_arch: aarch64
-            cross_compile: true
-            ext: so
-          - os: macos-14
-            target_os: osx
-            target_arch: x86_64
-            ext: dylib
-          - os: macos-14
-            target_os: osx
-            target_arch: aarch64
-            ext: dylib
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    name: "Stage 1 - Build Natives"
+    uses: ./.github/workflows/_reusable-build-natives.yml
 
-      - name: Setup Java 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Install Cross-Compiler
-        if: matrix.cross_compile
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-
-      - name: Grant Execute Permissions
-        run: chmod +x gradlew
-
-      - name: Build Native
-        run: ./gradlew :vx-native:cmakeBuild -PtargetArch=${{ matrix.target_arch }} -PnativeOnly=true
-        shell: bash
-
-      - name: Prepare Artifact
-        run: |
-          mkdir -p dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}
-          
-          if [ "${{ matrix.target_os }}" == "win" ]; then
-            LIB_NAME="vxnative.dll"
-          elif [ "${{ matrix.target_os }}" == "osx" ]; then
-            LIB_NAME="libvxnative.dylib"
-          else
-            LIB_NAME="libvxnative.so"
-          fi
-          
-          find vx-native/src/main/cpp/build -name "*.${{ matrix.ext }}" -exec cp {} dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}/$LIB_NAME \;
-        shell: bash
-
-      - name: Upload Native
-        uses: actions/upload-artifact@v4
-        with:
-          name: vxnative-${{ matrix.target_os }}-${{ matrix.target_arch }}
-          path: dist/*
-          retention-days: 1
-
-  # Job 2: Assemble the final Mod JARs and publish
-  publish-mod:
-    name: Publish to CurseForge & Modrinth
+  # Stage 2: Mod Assembly
+  build-mod:
+    name: "Stage 2 - Build Mod"
     needs: build-natives
+    uses: ./.github/workflows/_reusable-build-mod.yml
+    with:
+      natives-artifact-prefix: "velthoric-natives-${{ github.run_id }}"
+      retention-days: 7
+
+  # Stage 3: Automated Tests
+  # Publishing is blocked entirely if any GameTest fails.
+  gametests:
+    name: "Stage 3 - GameTests"
+    needs: build-mod
+    uses: ./.github/workflows/_reusable-gametests.yml
+    with:
+      natives-artifact-prefix: "velthoric-natives-${{ github.run_id }}"
+
+  # Stage 4: Multi-Platform Publish
+  # This job only runs after all GameTests have passed successfully.
+  publish:
+    name: "Stage 4 - Publish to All Platforms"
+    needs: gametests
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
-      - name: Checkout Repository
+      - name: "Checkout Repository"
         uses: actions/checkout@v4
 
-      - name: Setup Java 21
+      - name: "Setup Java 21 (Temurin)"
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Download Native Binaries
+      # Download all per-platform natives and place them in the prebuilt-natives
+      # directory so the Gradle build can skip the CMake compilation step.
+      - name: "Download Compiled Natives"
         uses: actions/download-artifact@v4
         with:
+          pattern: "velthoric-natives-${{ github.run_id }}-*"
           path: vx-native/prebuilt-natives
           merge-multiple: true
 
-      - name: Grant Execute Permissions
+      - name: "Grant Gradle Wrapper Execute Permission"
         run: chmod +x gradlew
 
-      - name: Publish
+      # Runs the full Velthoric publishing pipeline via the custom buildSrc plugin.
+      # The plugin automatically configures CurseForge, Modrinth, GitHub Releases,
+      # and the Cloudsmith Maven repository based on the provided credentials.
+      - name: "Publish to All Platforms"
         run: ./gradlew build publishVelthoric -x :vx-native:cmakeBuild
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAVEN_USER: ${{ secrets.MAVEN_USER }}
           MAVEN_TOKEN: ${{ secrets.MAVEN_TOKEN }}

@@ -1,0 +1,82 @@
+# Reusable workflow: Mod JAR Assembly
+#
+# Downloads all previously compiled native binaries, assembles the final Fabric
+# and NeoForge mod JARs via Gradle, and uploads them as a versioned artifact.
+#
+# Inputs:
+#   natives-artifact-prefix: Prefix of the native artifacts to download and merge.
+#   retention-days:          How long to retain the assembled JAR artifact.
+
+name: "Reusable - Build Mod"
+
+on:
+  workflow_call:
+    inputs:
+      natives-artifact-prefix:
+        description: "Prefix of the native library artifacts to download."
+        type: string
+        required: true
+      retention-days:
+        description: "Artifact retention period in days."
+        type: number
+        default: 7
+    outputs:
+      artifact-name:
+        description: "Name of the artifact containing the assembled mod JARs."
+        value: ${{ jobs.build-mod.outputs.artifact-name }}
+
+jobs:
+  build-mod:
+    name: "Assemble Mod JARs"
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: "velthoric-jars-${{ github.run_id }}"
+
+    steps:
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup Java 21 (Temurin)"
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      # Download all per-platform native artifacts and merge them into a single
+      # directory tree, matching the prebuilt-natives layout expected by vx-native.
+      - name: "Download Compiled Natives"
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "${{ inputs.natives-artifact-prefix }}-*"
+          path: vx-native/prebuilt-natives
+          merge-multiple: true
+
+      - name: "Grant Gradle Wrapper Execute Permission"
+        run: chmod +x gradlew
+
+      # Build the mod without re-running CMake; native binaries are already present.
+      - name: "Build Mod JARs"
+        run: ./gradlew build -x :vx-native:cmakeBuild
+
+      # Collect only the final remapped JARs (Fabric & NeoForge), excluding
+      # intermediate dev/shadow artifacts that are not intended for distribution.
+      - name: "Collect Release JARs"
+        run: |
+          mkdir -p release-jars
+          find . -path "*/build/libs/*.jar" \
+            \( -name "velthoric-fabric-[0-9]*.jar" \
+            -o -name "velthoric-neoforge-[0-9]*.jar" \
+            -o -name "velthoric-fabric-*-sources.jar" \
+            -o -name "velthoric-neoforge-*-sources.jar" \) \
+            -not -name "*-dev.jar" \
+            -not -name "*-shadow.jar" \
+            -not -name "*-dev-shadow.jar" \
+            -exec cp {} release-jars/ \;
+
+      - name: "Upload Assembled JARs"
+        uses: actions/upload-artifact@v4
+        with:
+          name: "velthoric-jars-${{ github.run_id }}"
+          path: release-jars/*.jar
+          retention-days: ${{ inputs.retention-days }}

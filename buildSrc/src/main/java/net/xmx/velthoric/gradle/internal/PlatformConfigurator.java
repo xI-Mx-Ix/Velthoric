@@ -68,6 +68,7 @@ public final class PlatformConfigurator {
         // 6. Platform Specifics
         configureCurseForge(project, publishExt, extension, loader, mcVersion);
         configureModrinth(project, publishExt, extension, loader, mcVersion);
+        configureGitHub(project, publishExt, modVersion, changelog);
         configureMaven(project, extension, artifactFile);
     }
 
@@ -142,6 +143,22 @@ public final class PlatformConfigurator {
             if (deps.length > 0) {
                 mr.requires(deps);
             }
+        });
+    }
+
+    private static void configureGitHub(Project project, ModPublishExtension ext, String modVersion, String changelog) {
+        ext.github(gh -> {
+            gh.getAccessToken().set(CredentialService.get(project, CredentialService.KEY_GITHUB));
+            gh.getRepository().set("velthoric/Velthoric");
+            gh.getTagName().set(modVersion);
+            gh.getDisplayName().set(modVersion);
+            gh.getCommitish().set("master");
+            gh.getType().set(ReleaseType.STABLE);
+            gh.getChangelog().set(changelog);
+
+            // Do not upload files to GitHub, only create release/tag
+            gh.getFile().set(project.getLayout().file(project.provider(() -> null)));
+            gh.getAllowEmptyFiles().set(true);
         });
     }
 

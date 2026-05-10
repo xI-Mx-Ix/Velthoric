@@ -1,4 +1,16 @@
-name: Nightly Build
+# Nightly Build Pipeline
+#
+# Triggered automatically on every push to the master branch, and manually via
+# workflow_dispatch. This pipeline compiles natives, assembles the mod, runs the
+# full GameTest suite, and publishes a rolling "nightly" pre-release on GitHub.
+#
+# Pipeline stages:
+#   1. build-natives  - Compile vx-native for all platforms in parallel.
+#   2. build-mod      - Assemble Fabric & NeoForge JARs using the compiled natives.
+#   3. gametests      - Run the automated GameTest server for both loaders.
+#   4. nightly        - Publish or overwrite the rolling "nightly" GitHub pre-release.
+
+name: "Nightly Build"
 
 on:
   push:
@@ -7,204 +19,50 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Job 1: Build native libraries for all supported platforms
+  # Stage 1: Native Libraries
   build-natives:
-    name: Build Native (${{ matrix.target_os }} - ${{ matrix.target_arch }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-2022
-            target_os: win
-            target_arch: x86_64
-            ext: dll
-          - os: ubuntu-22.04
-            target_os: linux
-            target_arch: x86_64
-            ext: so
-          - os: ubuntu-22.04
-            target_os: linux
-            target_arch: aarch64
-            cross_compile: true
-            ext: so
-          - os: macos-14
-            target_os: osx
-            target_arch: x86_64
-            ext: dylib
-          - os: macos-14
-            target_os: osx
-            target_arch: aarch64
-            ext: dylib
-    runs-on: ${{ matrix.os }}
-    steps:
-      # Step 1: Download the source code
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    name: "Stage 1 - Build Natives"
+    uses: ./.github/workflows/_reusable-build-natives.yml
 
-      # Step 2: Set up Java 21 for Gradle
-      - name: Setup Java 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          architecture: ${{ (matrix.target_arch == 'aarch64' && matrix.os == 'macos-14') && 'aarch64' || 'x64' }}
-          cache: 'gradle'
-
-      # Step 3: Install aarch64 cross-compiler (Linux cross-compile only)
-      - name: Install Cross-Compiler
-        if: matrix.cross_compile
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-
-      # Step 4: Ensure the Gradle wrapper is executable
-      - name: Grant Execute Permissions
-        run: chmod +x gradlew
-
-      # Step 5: Build the native C++ library for the current matrix target
-      - name: Build Native
-        run: ./gradlew :vx-native:cmakeBuild -PtargetArch=${{ matrix.target_arch }} -PnativeOnly=true
-        shell: bash
-
-      # Step 6: Move the binary to a structured directory for later assembly
-      - name: Prepare Artifact
-        run: |
-          mkdir -p dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}
-
-          if [ "${{ matrix.target_os }}" == "win" ]; then
-            LIB_NAME="vxnative.dll"
-          elif [ "${{ matrix.target_os }}" == "osx" ]; then
-            LIB_NAME="libvxnative.dylib"
-          else
-            LIB_NAME="libvxnative.so"
-          fi
-
-          # Find the library (handles Release/ subfolder in MSVC)
-          find vx-native/src/main/cpp/build -name "*.${{ matrix.ext }}" -exec cp {} dist/natives/${{ matrix.target_os }}/${{ matrix.target_arch }}/$LIB_NAME \;
-        shell: bash
-
-      # Step 7: Upload the binary as an Actions artifact (persists for 1 day)
-      - name: Upload Native
-        uses: actions/upload-artifact@v4
-        with:
-          name: vxnative-${{ matrix.target_os }}-${{ matrix.target_arch }}
-          path: dist/*
-          retention-days: 1
-
-  # Job 2: Assemble the final Mod JARs including all native binaries
+  # Stage 2: Mod Assembly
   build-mod:
-    name: Compile Mod
+    name: "Stage 2 - Build Mod"
     needs: build-natives
-    runs-on: ubuntu-latest
-    steps:
-      # Step 1: Download the source code
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    uses: ./.github/workflows/_reusable-build-mod.yml
+    with:
+      natives-artifact-prefix: "velthoric-natives-${{ github.run_id }}"
+      retention-days: 3
 
-      # Step 2: Set up Java 21 with Gradle caching for faster builds
-      - name: Setup Java 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      # Step 3: Download all native binaries built in the previous job
-      - name: Download Native Binaries
-        uses: actions/download-artifact@v4
-        with:
-          path: vx-native/prebuilt-natives
-          merge-multiple: true
-
-      # Step 4: Ensure the Gradle wrapper is executable
-      - name: Grant Execute Permissions
-        run: chmod +x gradlew
-
-      # Step 5: Run the main build process, skipping native compilation since we already have the binaries
-      - name: Build with Gradle
-        run: ./gradlew build -x :vx-native:cmakeBuild
-
-      # Step 6: Collect and flatten JARs, only fabric and neoforge release JARs
-      - name: Collect JARs
-        run: |
-          mkdir -p release-jars
-          find . -path "*/build/libs/*.jar" \
-            \( -name "velthoric-fabric-*.jar" \
-            -o -name "velthoric-neoforge-*.jar" \
-            -o -name "velthoric-fabric-*-sources.jar" \
-            -o -name "velthoric-neoforge-*-sources.jar" \) \
-            -exec cp {} release-jars/ \;
-
-      # Step 7: Upload internal artifacts (stored in the Actions tab for 7 days)
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Velthoric-Build-${{ github.sha }}
-          path: release-jars/*.jar
-          retention-days: 7
-
-  # Job 3: Run GameTests for NeoForge and Fabric
-  run-gametests:
-    name: GameTests (${{ matrix.loader }})
+  # Stage 3: Automated Tests
+  gametests:
+    name: "Stage 3 - GameTests"
     needs: build-mod
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - loader: fabric
-            task: ':fabric:runGameTest'
-          - loader: neoforge
-            task: ':neoforge:runGameTest'
-    steps:
-      # Step 1: Download the source code
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    uses: ./.github/workflows/_reusable-gametests.yml
+    with:
+      natives-artifact-prefix: "velthoric-natives-${{ github.run_id }}"
 
-      # Step 2: Set up Java 21 with Gradle caching
-      - name: Setup Java 21
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      # Step 3: Download native binaries built in the first job
-      - name: Download Native Binaries
-        uses: actions/download-artifact@v4
-        with:
-          path: vx-native/prebuilt-natives
-          merge-multiple: true
-
-      # Step 4: Ensure the Gradle wrapper is executable
-      - name: Grant Execute Permissions
-        run: chmod +x gradlew
-
-      # Step 5: Run GameTest server for the current loader
-      - name: Run GameTests
-        run: ./gradlew ${{ matrix.task }} -x :vx-native:cmakeBuild
-
-  # Job 4: Create or update the public "nightly" pre-release
-  release:
-    name: Publish Nightly Release
-    needs: run-gametests
+  # Stage 4: Nightly Release
+  nightly-release:
+    name: "Stage 4 - Publish Nightly Release"
+    needs: gametests
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to update the release tag and upload files
+      contents: write
+
     steps:
-      # Step 1: Download the source code
-      - name: Checkout Repository
+      - name: "Checkout Repository"
         uses: actions/checkout@v4
 
-      # Step 2: Download the previously built mod JARs
-      - name: Download Build Artifacts
+      # Download the assembled mod JARs produced in Stage 2.
+      - name: "Download Assembled JARs"
         uses: actions/download-artifact@v4
         with:
-          name: Velthoric-Build-${{ github.sha }}
+          name: "velthoric-jars-${{ github.run_id }}"
           path: release-artifacts
 
-      # Step 3: Publish the nightly pre-release, overwriting files on every push
-      - name: Update Nightly Pre-Release
+      # Creates or overwrites the rolling "nightly" pre-release tag.
+      # Every successful nightly build replaces the previous release files.
+      - name: "Publish Nightly Pre-Release"
         uses: marvinpinto/action-automatic-releases@latest
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
