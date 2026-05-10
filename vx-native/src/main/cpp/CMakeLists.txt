@@ -13,7 +13,7 @@ if(NOT JOLT_JNI_VERSION)
     message(FATAL_ERROR "JOLT_JNI_VERSION not set! Please pass it via -DJOLT_JNI_VERSION=...")
 endif()
 
-set(RELEASE_URL "https://github.com/xI-Mx-Ix/vx-jolt-jni/releases/download/${JOLT_JNI_VERSION}")
+set(RELEASE_URL "https://github.com/velthoric/vx-jolt-jni/releases/download/${JOLT_JNI_VERSION}")
 
 # Directories for external dependencies
 set(EXTERNAL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external")

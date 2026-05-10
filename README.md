@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/xI-Mx-Ix/Velthoric/refs/heads/master/assets/velthoric_icon_rounded_corners.png" alt="Velthoric Icon" width="128" height="128">
+  <img src="https://raw.githubusercontent.com/velthoric/Velthoric/refs/heads/master/assets/velthoric_icon_rounded_corners.png" alt="Velthoric Icon" width="128" height="128">
 </p>
 
 <div align="center">
@@ -16,15 +16,15 @@
 </p>
 
 <div align="center" style="display: flex; justify-content: center; flex-wrap: wrap; gap: 16px; margin-bottom: 12px;">
-  <a href="https://fabricmc.net/"><img src="https://raw.githubusercontent.com/xI-Mx-Ix/Velthoric/refs/heads/master/assets/fabric_badge.png" alt="Fabric"></a>
-  <a href="https://files.minecraftforge.net/"><img src="https://raw.githubusercontent.com/xI-Mx-Ix/Velthoric/refs/heads/master/assets/forge_badge.png" alt="Forge"></a>
-  <a href="https://neoforged.net/"><img src="https://raw.githubusercontent.com/xI-Mx-Ix/Velthoric/refs/heads/master/assets/neoforge_badge.png" alt="NeoForge"></a>
-  <a href="https://quiltmc.org/"><img src="https://raw.githubusercontent.com/xI-Mx-Ix/Velthoric/refs/heads/master/assets/quilt_badge.png" alt="Quilt"></a>
+  <a href="https://fabricmc.net/"><img src="https://raw.githubusercontent.com/velthoric/Velthoric/refs/heads/master/assets/fabric_badge.png" alt="Fabric"></a>
+  <a href="https://files.minecraftforge.net/"><img src="https://raw.githubusercontent.com/velthoric/Velthoric/refs/heads/master/assets/forge_badge.png" alt="Forge"></a>
+  <a href="https://neoforged.net/"><img src="https://raw.githubusercontent.com/velthoric/Velthoric/refs/heads/master/assets/neoforge_badge.png" alt="NeoForge"></a>
+  <a href="https://quiltmc.org/"><img src="https://raw.githubusercontent.com/velthoric/Velthoric/refs/heads/master/assets/quilt_badge.png" alt="Quilt"></a>
 </div>
 
 <div align="center" style="margin-bottom: 24px;">
   <a href="https://docs.architectury.dev/api/introduction/">
-    <img src="https://raw.githubusercontent.com/xI-Mx-Ix/Velthoric/refs/heads/master/assets/architectury_api_badge.png" alt="Architectury API">
+    <img src="https://raw.githubusercontent.com/velthoric/Velthoric/refs/heads/master/assets/architectury_api_badge.png" alt="Architectury API">
   </a>
 </div>
 

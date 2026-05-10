@@ -23,7 +23,7 @@ allprojects {
         maven { url = 'https://s01.oss.sonatype.org/content/repositories/snapshots'}
 
         ivy {
-            url "https://github.com/xI-Mx-Ix/vx-jolt-jni/releases/download/${jolt_jni_version}/"
+            url "https://github.com/velthoric/vx-jolt-jni/releases/download/${jolt_jni_version}/"
             patternLayout {
                 artifact "[artifact]-[revision](-[classifier]).[ext]"
             }
