@@ -130,6 +130,10 @@ public enum VxJoltBridge {
                 try (ShapeRefC shapeRef = shape.createShapeRef()) {
                     VxServerBodyDataContainer c = dataStore.serverCurrent();
                     int index = body.getDataStoreIndex();
+
+                    // Store the shape in our data store
+                    body.setShape(shape);
+
                     bcs.setShape(shapeRef);
                     bcs.setPosition(c.posX[index], c.posY[index], c.posZ[index]);
                     bcs.setRotation(new Quat(c.rotX[index], c.rotY[index], c.rotZ[index], c.rotW[index]));

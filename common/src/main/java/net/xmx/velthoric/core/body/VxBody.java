@@ -449,15 +449,16 @@ public class VxBody {
      * @param shape The new collision shape.
      */
     public void setShape(VxCollisionShape shape) {
-        if (this.dataStoreIndex == -1 || this.dataStore == null) return;
+        VxBodyDataStore store = this.dataStore;
+        if (this.dataStoreIndex == -1 || store == null) return;
 
-        VxBodyDataContainer c = this.dataStore.current();
+        VxBodyDataContainer c = store.current();
         c.shape[this.dataStoreIndex] = shape;
 
         if (this.physicsWorld != null) { // Server-side specific dirty flagging
             VxServerBodyDataContainer sc = (VxServerBodyDataContainer) c;
             sc.isShapeDirty[this.dataStoreIndex] = true;
-            synchronized (this.dataStore) {
+            synchronized (store) {
                 sc.dirtyIndices.add(this.dataStoreIndex);
             }
         }
