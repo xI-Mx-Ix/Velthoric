@@ -397,7 +397,9 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      */
     private void processBodyRemoval(VxBody body, VxRemovalReason reason) {
         // 1. Remove from primary registry
-        managedBodies.remove(body.getPhysicsId());
+        if (managedBodies.remove(body.getPhysicsId()) == null) {
+            return;
+        }
 
         // 2. Notify subsystems
         networkDispatcher.onBodyRemoved(body);
@@ -440,6 +442,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
 
         if (body.getBodyId() != 0) {
             joltBodyIdToVxBodyMap.remove(body.getBodyId());
+            body.setBodyId(0);
         }
 
         // Invalidate indices in the body object to prevent accidental reuse
@@ -508,6 +511,10 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
      * @param toKey   The long-encoded key of the chunk it moved to.
      */
     public void updateBodyTracking(VxBody body, long fromKey, long toKey) {
+        if (!managedBodies.containsKey(body.getPhysicsId())) {
+            return;
+        }
+
         VxServerBodyDataContainer c = dataStore.serverCurrent();
         int index = body.getDataStoreIndex();
         if (index != -1) {
