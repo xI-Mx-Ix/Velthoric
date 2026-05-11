@@ -12,9 +12,11 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
-import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.VxClientBodyDataContainer;
+import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.VxRenderState;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
+import net.xmx.velthoric.core.body.shape.VxCollisionShape;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxClientAccessor;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxDataAccessor;
@@ -427,5 +429,37 @@ public class VxBody {
      */
     public void setNetworkId(int networkId) {
         this.networkId = networkId;
+    }
+
+    /**
+     * @return The current collision shape, or null if not set.
+     */
+    @Nullable
+    public VxCollisionShape getShape() {
+        if (this.dataStoreIndex == -1 || this.dataStore == null) return null;
+        return this.dataStore.current().shape[this.dataStoreIndex];
+    }
+
+    /**
+     * Sets the collision shape of this body.
+     * <p>
+     * When called on the server, the shape is marked dirty for network synchronization
+     * so that the change is broadcast to all tracking clients.
+     *
+     * @param shape The new collision shape.
+     */
+    public void setShape(VxCollisionShape shape) {
+        if (this.dataStoreIndex == -1 || this.dataStore == null) return;
+
+        VxBodyDataContainer c = this.dataStore.current();
+        c.shape[this.dataStoreIndex] = shape;
+
+        if (this.physicsWorld != null) { // Server-side specific dirty flagging
+            VxServerBodyDataContainer sc = (VxServerBodyDataContainer) c;
+            sc.isShapeDirty[this.dataStoreIndex] = true;
+            synchronized (this.dataStore) {
+                sc.dirtyIndices.add(this.dataStoreIndex);
+            }
+        }
     }
 }

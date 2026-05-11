@@ -131,6 +131,11 @@ public class VxNetworkDispatcher {
     private final Long2ObjectMap<IntArrayList> dirtyVerticesByChunk = new Long2ObjectOpenHashMap<>();
 
     /**
+     * Reusable map for grouping shape updates by chunk, cleared every sync cycle.
+     */
+    private final Long2ObjectMap<IntArrayList> dirtyShapesByChunk = new Long2ObjectOpenHashMap<>();
+
+    /**
      * Internal cache of indices to minimize the time spent inside the dataStore lock.
      */
     private final IntArrayList dirtyIndicesSnapshot = new IntArrayList(4096);
@@ -261,6 +266,11 @@ public class VxNetworkDispatcher {
                 getOrCreateList(dirtyVerticesByChunk, chunkPosLong).add(idx);
                 c.isVertexDataDirty[idx] = false;
             }
+
+            if (c.isShapeDirty[idx]) {
+                getOrCreateList(dirtyShapesByChunk, chunkPosLong).add(idx);
+                c.isShapeDirty[idx] = false;
+            }
         }
     }
 
@@ -291,8 +301,12 @@ public class VxNetworkDispatcher {
         for (IntArrayList list : dirtyVerticesByChunk.values()) {
             listPool.add(list);
         }
+        for (IntArrayList list : dirtyShapesByChunk.values()) {
+            listPool.add(list);
+        }
         dirtyBodiesByChunk.clear();
         dirtyVerticesByChunk.clear();
+        dirtyShapesByChunk.clear();
     }
 
     /**
@@ -310,6 +324,10 @@ public class VxNetworkDispatcher {
 
         for (Long2ObjectMap.Entry<IntArrayList> entry : dirtyVerticesByChunk.long2ObjectEntrySet()) {
             tasks.add(new BroadcastTask(entry.getLongKey(), packetFactory.createVertexPacket(entry.getLongKey(), entry.getValue())));
+        }
+
+        for (Long2ObjectMap.Entry<IntArrayList> entry : dirtyShapesByChunk.long2ObjectEntrySet()) {
+            tasks.add(new BroadcastTask(entry.getLongKey(), packetFactory.createShapePacket(entry.getLongKey(), entry.getValue())));
         }
 
         return tasks;

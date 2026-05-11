@@ -4,7 +4,10 @@
  */
 package net.xmx.velthoric.builtin.drivable.car;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.BodyCreationSettings;
+import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.VehicleCollisionTester;
+import com.github.stephengold.joltjni.VehicleCollisionTesterCastCylinder;
 import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
@@ -14,9 +17,11 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.xmx.velthoric.builtin.drivable.renderer.VxSeatRenderer;
 import net.xmx.velthoric.builtin.drivable.renderer.VxWheelRenderer;
-import net.xmx.velthoric.core.body.VxBodyType;
 import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.body.VxBodyType;
 import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.body.shape.VxBoxShape;
+import net.xmx.velthoric.core.body.shape.VxOffsetCenterOfMassShape;
 import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.core.vehicle.config.VxCarConfig;
@@ -132,25 +137,21 @@ public class CarImpl extends VxCar {
     public static int createJoltBody(VxBody abstractBody, VxRigidBodyFactory factory) {
         CarImpl body = (CarImpl) abstractBody;
         Vector3f extents = body.config.getChassisHalfExtents();
-        try (ShapeSettings chassisShape = new BoxShapeSettings(new Vec3(extents.x, extents.y, extents.z))) {
+        VxBoxShape chassisShape = new VxBoxShape(new Vec3(extents.x, extents.y, extents.z));
 
-            Vector3f com = body.config.getCenterOfMassOffset();
-            Vec3 centerOfMassOffset = new Vec3(com.x, com.y, com.z);
+        Vector3f com = body.config.getCenterOfMassOffset();
+        Vec3 centerOfMassOffset = new Vec3(com.x, com.y, com.z);
+        VxOffsetCenterOfMassShape finalShape = new VxOffsetCenterOfMassShape(centerOfMassOffset, chassisShape);
 
-            try (
-                    ShapeSettings finalShapeSettings = new OffsetCenterOfMassShapeSettings(centerOfMassOffset, chassisShape);
-                    BodyCreationSettings bcs = new BodyCreationSettings()
-            ) {
-                bcs.setShapeSettings(finalShapeSettings);
-                bcs.setMotionType(EMotionType.Dynamic);
-                bcs.setObjectLayer(VxPhysicsLayers.MOVING);
-                bcs.setMotionQuality(EMotionQuality.LinearCast);
-                bcs.setMaxLinearVelocity(500.0f);
-                bcs.setMaxAngularVelocity(100.0f);
-                bcs.getMassPropertiesOverride().setMass(body.config.getMass());
-                bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
-                return factory.create(finalShapeSettings, bcs);
-            }
+        try (BodyCreationSettings bcs = new BodyCreationSettings()) {
+            bcs.setMotionType(EMotionType.Dynamic);
+            bcs.setObjectLayer(VxPhysicsLayers.MOVING);
+            bcs.setMotionQuality(EMotionQuality.LinearCast);
+            bcs.setMaxLinearVelocity(500.0f);
+            bcs.setMaxAngularVelocity(100.0f);
+            bcs.getMassPropertiesOverride().setMass(body.config.getMass());
+            bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
+            return factory.create(finalShape, bcs);
         }
     }
 

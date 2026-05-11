@@ -5,7 +5,6 @@
 package net.xmx.velthoric.builtin.block;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -14,19 +13,18 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.core.physics.VxPhysicsLayers;
-import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.VxBodyType;
+import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.body.shape.VxCollisionShape;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.VxBody;
-import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.util.VxVoxelShapeUtil;
+import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
+import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
-import net.xmx.velthoric.core.terrain.material.VxTerrainMaterial;
-import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
+import net.xmx.velthoric.init.VxMainClass;
+import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.util.VxVoxelShapeUtil;
 
 import java.util.UUID;
 
@@ -67,41 +65,20 @@ public class BlockRigidBody extends VxBody {
         BlockState stateForShape = Block.stateById(body.get(DATA_BLOCK_STATE_ID));
         if (stateForShape.isAir()) stateForShape = Blocks.STONE.defaultBlockState();
 
-        VoxelShape voxelShape = stateForShape.getShape(body.getPhysicsWorld().getLevel(), BlockPos.ZERO);
+        VoxelShape voxelShape = stateForShape.getCollisionShape(body.getPhysicsWorld().getLevel(), BlockPos.ZERO);
+        VxCollisionShape shape = VxVoxelShapeUtil.toVxCompoundShape(voxelShape);
 
-        try (ShapeSettings shapeSettings = VxVoxelShapeUtil.toMutableCompoundShape(voxelShape)) {
-            if (shapeSettings == null) {
-                VxMainClass.LOGGER.warn("VoxelShape conversion for BlockState {} failed. Using default BoxShape.", stateForShape);
-                try (var boxSettings = VxVoxelShapeUtil.toMutableCompoundShape(Blocks.STONE.defaultBlockState().getShape(body.getPhysicsWorld().getLevel(), BlockPos.ZERO));
-                     BodyCreationSettings bcs = new BodyCreationSettings()) {
-                    bcs.setMotionType(EMotionType.Dynamic);
-                    bcs.setObjectLayer(VxPhysicsLayers.MOVING);
+        if (shape == null) {
+            VxMainClass.LOGGER.warn("VoxelShape conversion for BlockState {} failed. Using default BoxShape.", stateForShape);
+            shape = VxVoxelShapeUtil.toVxCompoundShape(
+                    Blocks.STONE.defaultBlockState().getCollisionShape(body.getPhysicsWorld().getLevel(), BlockPos.ZERO)
+            );
+        }
 
-                    // Apply default Stone properties for fallback
-                    VxTerrainMaterial.MaterialProperties props = VxTerrainMaterial.getProperties(Blocks.STONE);
-                    bcs.setFriction(props.friction);
-                    bcs.setRestitution(props.restitution);
-                    bcs.getMassPropertiesOverride().setMass(props.weight);
-                    bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
-
-                    return factory.create(boxSettings, bcs);
-                }
-            }
-            try (BodyCreationSettings bcs = new BodyCreationSettings()) {
-                bcs.setMotionType(EMotionType.Dynamic);
-                bcs.setObjectLayer(VxPhysicsLayers.MOVING);
-
-                // Apply material properties from the terrain registry
-                VxTerrainMaterial.MaterialProperties props = VxTerrainMaterial.getProperties(stateForShape.getBlock());
-                bcs.setFriction(props.friction);
-                bcs.setRestitution(props.restitution);
-                
-                // Use the weight/mass from the material
-                bcs.getMassPropertiesOverride().setMass(props.weight);
-                bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
-
-                return factory.create(shapeSettings, bcs);
-            }
+        try (BodyCreationSettings bcs = new BodyCreationSettings()) {
+            bcs.setMotionType(EMotionType.Dynamic);
+            bcs.setObjectLayer(VxPhysicsLayers.MOVING);
+            return factory.create(shape, bcs);
         }
     }
 

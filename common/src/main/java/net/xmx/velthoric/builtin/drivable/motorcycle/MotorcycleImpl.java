@@ -4,7 +4,10 @@
  */
 package net.xmx.velthoric.builtin.drivable.motorcycle;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.BodyCreationSettings;
+import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.VehicleCollisionTester;
+import com.github.stephengold.joltjni.VehicleCollisionTesterCastCylinder;
 import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.EOverrideMassProperties;
@@ -15,9 +18,12 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.xmx.velthoric.builtin.drivable.renderer.VxSeatRenderer;
 import net.xmx.velthoric.builtin.drivable.renderer.VxWheelRenderer;
 import net.xmx.velthoric.core.body.VxBody;
-import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.core.body.VxBodyType;
 import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.body.shape.VxBoxShape;
+import net.xmx.velthoric.core.body.shape.VxOffsetCenterOfMassShape;
+import net.xmx.velthoric.core.physics.VxPhysicsLayers;
+import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.core.vehicle.config.VxMotorcycleConfig;
 import net.xmx.velthoric.core.vehicle.part.VxPart;
 import net.xmx.velthoric.core.vehicle.part.definition.VxSeatDefinition;
@@ -27,7 +33,6 @@ import net.xmx.velthoric.core.vehicle.part.impl.VxVehicleWheel;
 import net.xmx.velthoric.core.vehicle.part.slot.VehicleSeatSlot;
 import net.xmx.velthoric.core.vehicle.part.slot.VehicleWheelSlot;
 import net.xmx.velthoric.core.vehicle.type.VxMotorcycle;
-import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import org.joml.Vector3f;
 
 import java.util.UUID;
@@ -128,24 +133,19 @@ public class MotorcycleImpl extends VxMotorcycle {
     public static int createJoltBody(VxBody abstractBody, VxRigidBodyFactory factory) {
         MotorcycleImpl body = (MotorcycleImpl) abstractBody;
         Vector3f extents = body.config.getChassisHalfExtents();
-        try (ShapeSettings chassisShape = new BoxShapeSettings(new Vec3(extents.x, extents.y, extents.z))) {
+        VxBoxShape chassisShape = new VxBoxShape(new Vec3(extents.x, extents.y, extents.z));
 
-            Vector3f com = body.config.getCenterOfMassOffset();
-            Vec3 centerOfMassOffset = new Vec3(com.x, com.y, com.z);
+        Vector3f com = body.config.getCenterOfMassOffset();
+        Vec3 centerOfMassOffset = new Vec3(com.x, com.y, com.z);
+        VxOffsetCenterOfMassShape finalShape = new VxOffsetCenterOfMassShape(centerOfMassOffset, chassisShape);
 
-            try (
-                    ShapeSettings finalShapeSettings = new OffsetCenterOfMassShapeSettings(centerOfMassOffset, chassisShape);
-                    BodyCreationSettings bcs = new BodyCreationSettings()
-            ) {
-                bcs.setShapeSettings(finalShapeSettings);
-                bcs.setMotionType(EMotionType.Dynamic);
-                bcs.setObjectLayer(VxPhysicsLayers.MOVING);
-                bcs.setMotionQuality(EMotionQuality.LinearCast);
-                bcs.getMassPropertiesOverride().setMass(body.config.getMass());
-                bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
-
-                return factory.create(finalShapeSettings, bcs);
-            }
+        try (BodyCreationSettings bcs = new BodyCreationSettings()) {
+            bcs.setMotionType(EMotionType.Dynamic);
+            bcs.setObjectLayer(VxPhysicsLayers.MOVING);
+            bcs.setMotionQuality(EMotionQuality.LinearCast);
+            bcs.getMassPropertiesOverride().setMass(body.config.getMass());
+            bcs.setOverrideMassProperties(EOverrideMassProperties.CalculateInertia);
+            return factory.create(finalShape, bcs);
         }
     }
 

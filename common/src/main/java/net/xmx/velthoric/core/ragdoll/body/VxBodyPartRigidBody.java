@@ -5,23 +5,23 @@
 package net.xmx.velthoric.core.ragdoll.body;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.BoxShapeSettings;
-import com.github.stephengold.joltjni.ShapeSettings;
-import com.github.stephengold.joltjni.TaperedCapsuleShapeSettings;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.core.physics.VxPhysicsLayers;
-import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.VxBodyType;
+import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.body.shape.VxBoxShape;
+import net.xmx.velthoric.core.body.shape.VxCollisionShape;
+import net.xmx.velthoric.core.body.shape.VxTaperedCapsuleShape;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.VxBody;
-import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
-import net.xmx.velthoric.core.ragdoll.VxBodyPart;
+import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
+import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.core.ragdoll.VxBodyPart;
+import net.xmx.velthoric.network.VxByteBuf;
 
 import java.util.UUID;
 
@@ -63,7 +63,7 @@ public class VxBodyPartRigidBody extends VxBody {
         VxBodyPart partType = body.get(DATA_BODY_PART);
         Vec3 fullSize = partType.getSize();
 
-        ShapeSettings shapeSettings;
+        VxCollisionShape shape;
 
         // We select the shape based on the body part to reduce stiffness.
         // Capsules and rounded boxes prevent snagging that occurs with sharp edges.
@@ -72,7 +72,7 @@ public class VxBodyPartRigidBody extends VxBody {
                 // The torso remains a box, but with a generous convex radius to strongly round off the edges.
                 Vec3 halfExtents = new Vec3(fullSize.getX() * 0.5f, fullSize.getY() * 0.5f, fullSize.getZ() * 0.5f);
                 float convexRadius = 0.1f;
-                shapeSettings = new BoxShapeSettings(halfExtents, convexRadius);
+                shape = new VxBoxShape(halfExtents, convexRadius);
                 break;
             }
             case HEAD:
@@ -100,7 +100,7 @@ public class VxBodyPartRigidBody extends VxBody {
                 // The capsule shape must have a minimum height. We subtract the largest radius from half the height.
                 float capsuleHalfHeight = Math.max(0.01f, halfHeight - Math.max(topRadius, bottomRadius));
 
-                shapeSettings = new TaperedCapsuleShapeSettings(capsuleHalfHeight, topRadius, bottomRadius);
+                shape = new VxTaperedCapsuleShape(capsuleHalfHeight, topRadius, bottomRadius);
                 break;
             }
         }
@@ -110,9 +110,7 @@ public class VxBodyPartRigidBody extends VxBody {
             bcs.setObjectLayer(VxPhysicsLayers.MOVING);
             bcs.setFriction(0.5f);
             bcs.setRestitution(0.3f);
-            return factory.create(shapeSettings, bcs);
-        } finally {
-            shapeSettings.close();
+            return factory.create(shape, bcs);
         }
     }
 

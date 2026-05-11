@@ -9,17 +9,17 @@ import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.readonly.ConstBody;
 import com.github.stephengold.joltjni.readonly.ConstSoftBodyMotionProperties;
-import net.xmx.velthoric.core.body.provider.VxJoltRigidProvider;
-import net.xmx.velthoric.core.body.provider.VxJoltSoftProvider;
-import net.xmx.velthoric.core.body.server.VxServerBodyManager;
-import net.xmx.velthoric.init.VxMainClass;
-import net.xmx.velthoric.core.body.VxRemovalReason;
-import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
-import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.body.VxRemovalReason;
 import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
 import net.xmx.velthoric.core.body.factory.VxSoftBodyFactory;
+import net.xmx.velthoric.core.body.provider.VxJoltRigidProvider;
+import net.xmx.velthoric.core.body.provider.VxJoltSoftProvider;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.init.VxMainClass;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.FloatBuffer;
@@ -126,31 +126,25 @@ public enum VxJoltBridge {
                 return;
             }
 
-            VxRigidBodyFactory factory = (shapeSettings, bcs) -> {
-                try (ShapeResult shapeResult = shapeSettings.create()) {
-                    if (shapeResult.hasError()) {
-                        throw new IllegalStateException("Shape creation failed: " + shapeResult.getError());
-                    }
-                    try (ShapeRefC shapeRef = shapeResult.get()) {
-                        VxServerBodyDataContainer c = dataStore.serverCurrent();
-                        int index = body.getDataStoreIndex();
-                        bcs.setShape(shapeRef);
-                        bcs.setPosition(c.posX[index], c.posY[index], c.posZ[index]);
-                        bcs.setRotation(new Quat(c.rotX[index], c.rotY[index], c.rotZ[index], c.rotW[index]));
-                        bcs.setEnhancedInternalEdgeRemoval(true);
+            VxRigidBodyFactory factory = (shape, bcs) -> {
+                try (ShapeRefC shapeRef = shape.createShapeRef()) {
+                    VxServerBodyDataContainer c = dataStore.serverCurrent();
+                    int index = body.getDataStoreIndex();
+                    bcs.setShape(shapeRef);
+                    bcs.setPosition(c.posX[index], c.posY[index], c.posZ[index]);
+                    bcs.setRotation(new Quat(c.rotX[index], c.rotY[index], c.rotZ[index], c.rotW[index]));
 
-                        if (linearVelocity != null) bcs.setLinearVelocity(linearVelocity);
-                        if (angularVelocity != null) bcs.setAngularVelocity(angularVelocity);
+                    if (linearVelocity != null) bcs.setLinearVelocity(linearVelocity);
+                    if (angularVelocity != null) bcs.setAngularVelocity(angularVelocity);
 
-                        // Set the exact motion type requested by the body configuration
-                        bcs.setMotionType(motionType);
+                    // Set the exact motion type requested by the body configuration
+                    bcs.setMotionType(motionType);
 
-                        // Ensure MotionProperties are created even for static bodies to allow
-                        // future state transitions and prevent native access violations.
-                        bcs.setAllowDynamicOrKinematic(true);
+                    // Ensure MotionProperties are created even for static bodies to allow
+                    // future state transitions and prevent native access violations.
+                    bcs.setAllowDynamicOrKinematic(true);
 
-                        return world.getPhysicsSystem().getBodyInterface().createAndAddBody(bcs, activation);
-                    }
+                    return world.getPhysicsSystem().getBodyInterface().createAndAddBody(bcs, activation);
                 }
             };
 

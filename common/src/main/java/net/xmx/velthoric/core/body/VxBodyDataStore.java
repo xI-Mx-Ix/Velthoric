@@ -157,6 +157,7 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
         c.rotW[index] = 1f; // Identity Quaternion
         c.velX[index] = c.velY[index] = c.velZ[index] = 0f;
         c.vertexData[index] = null;
+        c.shape[index] = null;
         c.isActive[index] = false;
         c.behaviorBits[index] = 0L;
     }
@@ -196,6 +197,7 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
             System.arraycopy(old.velY, 0, next.velY, 0, copyLength);
             System.arraycopy(old.velZ, 0, next.velZ, 0, copyLength);
             System.arraycopy(old.vertexData, 0, next.vertexData, 0, copyLength);
+            System.arraycopy(old.shape, 0, next.shape, 0, copyLength);
             System.arraycopy(old.isActive, 0, next.isActive, 0, copyLength);
             System.arraycopy(old.behaviorBits, 0, next.behaviorBits, 0, copyLength);
             System.arraycopy(old.bodies, 0, next.bodies, 0, copyLength);

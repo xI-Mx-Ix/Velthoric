@@ -20,8 +20,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.block.BlockRigidBody;
-import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.math.VxTransform;
@@ -29,6 +29,7 @@ import net.xmx.velthoric.util.VxVoxelShapeUtil;
 
 /**
  * An item that converts a standard block into a physics-based rigid body upon use.
+ *
  * @author xI-Mx-Ix
  */
 public class VxPhysicsCreatorItem extends Item {
@@ -68,14 +69,10 @@ public class VxPhysicsCreatorItem extends Item {
             VxServerBodyManager bodyManager = physicsWorld.getBodyManager();
 
             // Pre-check to ensure a valid physics shape can be generated from the block.
-            try (var ignored = VxVoxelShapeUtil.toMutableCompoundShape(
-                    originalState.getShape(level, pos, CollisionContext.empty()))) {
-                if (ignored == null) {
-                    VxMainClass.LOGGER.warn("Could not generate a valid physics shape for the block: {}", originalState);
-                    return InteractionResult.FAIL;
-                }
-            } catch (Exception e) {
-                VxMainClass.LOGGER.error("Error during pre-check of physics shape creation", e);
+            var preCheckShape = VxVoxelShapeUtil.toVxCompoundShape(
+                    originalState.getShape(level, pos, CollisionContext.empty()));
+            if (preCheckShape == null) {
+                VxMainClass.LOGGER.warn("Could not generate a valid physics shape for the block: {}", originalState);
                 return InteractionResult.FAIL;
             }
 

@@ -85,6 +85,10 @@ public class VxServerBodyDataContainer extends VxBodyDataContainer {
      */
     public final boolean[] isCustomDataDirty;
     /**
+     * Whether the collision shape has changed and needs to be broadcast.
+     */
+    public final boolean[] isShapeDirty;
+    /**
      * A set of all indices currently marked as dirty for the next network tick.
      */
     public final IntSet dirtyIndices;
@@ -117,6 +121,7 @@ public class VxServerBodyDataContainer extends VxBodyDataContainer {
         this.isTransformDirty = new boolean[capacity];
         this.isVertexDataDirty = new boolean[capacity];
         this.isCustomDataDirty = new boolean[capacity];
+        this.isShapeDirty = new boolean[capacity];
         this.dirtyIndices = new IntOpenHashSet(2048);
         this.lastUpdateTimestamp = new long[capacity];
 

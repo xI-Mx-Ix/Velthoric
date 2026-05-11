@@ -9,6 +9,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.xmx.velthoric.network.VxByteBuf;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.body.shape.VxCollisionShape;
+import net.xmx.velthoric.core.body.shape.VxShapeCodec;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -51,7 +53,15 @@ public class VxSpawnData {
         VxByteBuf wrapper = new VxByteBuf(buf);
         body.getTransform().toBuffer(wrapper);
         body.writeInitialSyncData(wrapper);
-        // Wrapper can be discarded by GC (it's small/scalar), data is in buf.
+
+        // Write collision shape (nullable)
+        VxCollisionShape shape = body.getShape();
+        if (shape != null) {
+            buf.writeBoolean(true);
+            VxShapeCodec.write(wrapper, shape);
+        } else {
+            buf.writeBoolean(false);
+        }
     }
 
     /**
@@ -66,6 +76,15 @@ public class VxSpawnData {
         ResourceLocation type = buf.readResourceLocation();
         long timestamp = buf.readLong();
         manager.spawnBody(id, netId, type, buf, timestamp);
+
+        // Read and apply shape after spawn (body is now registered in manager)
+        if (buf.readBoolean()) {
+            VxCollisionShape shape = VxShapeCodec.read(buf);
+            VxBody body = manager.getVxBody(id);
+            if (body != null) {
+                body.setShape(shape);
+            }
+        }
     }
 
     // --- Primitives Helpers for Raw ByteBuf (Netty doesn't have native VarInt write) ---

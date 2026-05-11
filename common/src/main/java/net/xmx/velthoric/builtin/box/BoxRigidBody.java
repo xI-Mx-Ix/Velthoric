@@ -5,15 +5,14 @@
 package net.xmx.velthoric.builtin.box;
 
 import com.github.stephengold.joltjni.BodyCreationSettings;
-import com.github.stephengold.joltjni.BoxShapeSettings;
-import com.github.stephengold.joltjni.ShapeSettings;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.xmx.velthoric.core.body.VxBodyType;
 import net.xmx.velthoric.core.body.VxBody;
+import net.xmx.velthoric.core.body.VxBodyType;
 import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.body.shape.VxBoxShape;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
@@ -75,14 +74,12 @@ public class BoxRigidBody extends VxBody {
      * Creates the Jolt rigid body. Used as the {@code VxJoltRigidProvider} for this type.
      */
     public static int createJoltBody(VxBody body, VxRigidBodyFactory factory) {
-        try (
-                ShapeSettings shapeSettings = new BoxShapeSettings(body.get(DATA_HALF_EXTENTS));
-                BodyCreationSettings bcs = new BodyCreationSettings()
-        ) {
+        VxBoxShape shape = new VxBoxShape(body.get(DATA_HALF_EXTENTS));
+        try (BodyCreationSettings bcs = new BodyCreationSettings()) {
             bcs.setMotionType(EMotionType.Dynamic);
             bcs.setObjectLayer(VxPhysicsLayers.MOVING);
             bcs.setRestitution(0.01f);
-            return factory.create(shapeSettings, bcs);
+            return factory.create(shape, bcs);
         }
     }
 

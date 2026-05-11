@@ -4,20 +4,21 @@
  */
 package net.xmx.velthoric.item.chaincreator.body;
 
-import com.github.stephengold.joltjni.*;
+import com.github.stephengold.joltjni.BodyCreationSettings;
 import com.github.stephengold.joltjni.enumerate.EMotionQuality;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
-import net.xmx.velthoric.core.physics.VxPhysicsLayers;
-import net.xmx.velthoric.network.VxByteBuf;
+import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.VxBodyType;
+import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.body.shape.VxTaperedCapsuleShape;
 import net.xmx.velthoric.core.network.synchronization.VxDataSerializers;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.body.VxBody;
-import net.xmx.velthoric.core.body.factory.VxRigidBodyFactory;
+import net.xmx.velthoric.core.network.synchronization.accessor.VxServerAccessor;
+import net.xmx.velthoric.core.physics.VxPhysicsLayers;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
+import net.xmx.velthoric.network.VxByteBuf;
 
 import java.util.UUID;
 
@@ -35,9 +36,10 @@ public class VxChainPartRigidBody extends VxBody {
 
     /**
      * Server-side constructor.
-     * @param type The body type definition.
+     *
+     * @param type  The body type definition.
      * @param world The physics world this body belongs to.
-     * @param id The unique UUID for this body.
+     * @param id    The unique UUID for this body.
      */
     public VxChainPartRigidBody(VxBodyType type, VxPhysicsWorld world, UUID id) {
         super(type, world, id);
@@ -45,8 +47,9 @@ public class VxChainPartRigidBody extends VxBody {
 
     /**
      * Client-side constructor.
+     *
      * @param type The body type definition.
-     * @param id The unique UUID for this body.
+     * @param id   The unique UUID for this body.
      */
     @Environment(EnvType.CLIENT)
     public VxChainPartRigidBody(VxBodyType type, UUID id) {
@@ -65,6 +68,7 @@ public class VxChainPartRigidBody extends VxBody {
 
     /**
      * Writes the body's dynamic dimensions to a buffer for saving.
+     *
      * @param buf The buffer to write to.
      */
     public static void writePersistence(VxBody body, VxByteBuf buf) {
@@ -74,6 +78,7 @@ public class VxChainPartRigidBody extends VxBody {
 
     /**
      * Reads the body's dynamic dimensions from a buffer for loading.
+     *
      * @param buf The buffer to read from.
      */
     public static void readPersistence(VxBody body, VxByteBuf buf) {
@@ -104,16 +109,14 @@ public class VxChainPartRigidBody extends VxBody {
             halfCylinderHeight = 0.001f;
         }
 
-        try (
-                ShapeSettings shapeSettings = new TaperedCapsuleShapeSettings(halfCylinderHeight, currentRadius, currentRadius);
-                BodyCreationSettings bcs = new BodyCreationSettings()
-        ) {
+        VxTaperedCapsuleShape shape = new VxTaperedCapsuleShape(halfCylinderHeight, currentRadius, currentRadius);
+        try (BodyCreationSettings bcs = new BodyCreationSettings()) {
             bcs.setMotionType(EMotionType.Dynamic);
             bcs.setObjectLayer(VxPhysicsLayers.MOVING);
             bcs.setFriction(0.5f);
             bcs.setMotionQuality(EMotionQuality.LinearCast);
             bcs.setRestitution(0.1f);
-            return factory.create(shapeSettings, bcs);
+            return factory.create(shape, bcs);
         }
     }
 

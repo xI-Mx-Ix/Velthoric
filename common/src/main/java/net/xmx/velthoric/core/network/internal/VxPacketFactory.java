@@ -13,8 +13,12 @@ import net.minecraft.world.level.ChunkPos;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.shape.VxCollisionShape;
+import net.xmx.velthoric.core.body.shape.VxShapeCodec;
 import net.xmx.velthoric.core.network.internal.packet.S2CUpdateBodyStateBatchPacket;
+import net.xmx.velthoric.core.network.internal.packet.S2CUpdateShapeBatchPacket;
 import net.xmx.velthoric.core.network.internal.packet.S2CUpdateVerticesBatchPacket;
+import net.xmx.velthoric.network.VxByteBuf;
 
 import java.nio.ByteBuffer;
 
@@ -224,5 +228,46 @@ public class VxPacketFactory {
         // Set the writer index to the actual compressed size so Netty knows how much data is in there
         dest.writerIndex((int) compressedSize);
         return dest;
+    }
+
+    /**
+     * Creates a compressed shape update packet for a specific chunk.
+     * <p>
+     * Serializes each body's current {@link VxCollisionShape} using {@link VxShapeCodec}
+     * and compresses the result via Zstd.
+     *
+     * @param chunkPosLong The chunk position key.
+     * @param indices      The indices of the bodies whose shapes need updating.
+     * @return The constructed packet containing the compressed shape data.
+     */
+    public S2CUpdateShapeBatchPacket createShapePacket(long chunkPosLong, IntArrayList indices) {
+        // Estimate size: header + approx 64 bytes per shape (variable)
+        ByteBuf rawBuf = ALLOCATOR.directBuffer(16 + indices.size() * 64);
+
+        try {
+            // Use VxByteBuf wrapper for VarInt and shape codec compatibility
+            VxByteBuf wrapped = new VxByteBuf(rawBuf);
+            wrapped.writeVarInt(indices.size());
+            rawBuf.writeLong(chunkPosLong);
+
+            VxServerBodyDataContainer c = dataStore.serverCurrent();
+            for (int i = 0; i < indices.size(); i++) {
+                int idx = indices.getInt(i);
+                wrapped.writeVarInt(c.networkId[idx]);
+
+                VxCollisionShape shape = c.shape[idx];
+                if (shape != null) {
+                    rawBuf.writeBoolean(true);
+                    VxShapeCodec.write(wrapped, shape);
+                } else {
+                    rawBuf.writeBoolean(false);
+                }
+            }
+
+            return new S2CUpdateShapeBatchPacket(compressDirect(rawBuf));
+
+        } finally {
+            rawBuf.release();
+        }
     }
 }

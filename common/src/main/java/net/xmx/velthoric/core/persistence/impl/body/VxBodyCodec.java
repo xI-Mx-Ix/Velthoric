@@ -12,6 +12,8 @@ import net.xmx.velthoric.core.behavior.impl.VxSoftPhysicsBehavior;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
+import net.xmx.velthoric.core.body.shape.VxCollisionShape;
+import net.xmx.velthoric.core.body.shape.VxShapeCodec;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.network.VxByteBuf;
 import org.jetbrains.annotations.Nullable;
@@ -147,6 +149,15 @@ public final class VxBodyCodec {
         }
 
         body.getType().getPersistenceHandler().write(body, buf);
+
+        // Write collision shape (nullable)
+        VxCollisionShape shape = body.getShape();
+        if (shape != null) {
+            buf.writeBoolean(true);
+            VxShapeCodec.write(buf, shape);
+        } else {
+            buf.writeBoolean(false);
+        }
     }
 
     /**
@@ -205,5 +216,15 @@ public final class VxBodyCodec {
         }
 
         body.getType().getPersistenceHandler().read(body, buf);
+
+        // Read collision shape if present
+        if (buf.isReadable() && buf.readBoolean()) {
+            try {
+                VxCollisionShape shape = VxShapeCodec.read(buf);
+                body.setShape(shape);
+            } catch (Exception e) {
+                VxMainClass.LOGGER.warn("Failed to read shape for body {}: {}", body.getPhysicsId(), e.getMessage());
+            }
+        }
     }
 }
