@@ -138,6 +138,9 @@ public final class VxBodyCodec {
         EMotionType motionType = c.motionType[idx];
         buf.writeByte(motionType != null ? motionType.ordinal() : EMotionType.Static.ordinal());
 
+        // Write behavior bits
+        buf.writeLong(c.behaviorBits[idx]);
+
         if (VxSoftPhysicsBehavior.ID.isSet(c.behaviorBits[idx])) {
             float[] vertices = body.getPhysicsWorld().getBodyManager().retrieveSoftBodyVertices(body);
             if (vertices != null) {
@@ -184,6 +187,8 @@ public final class VxBodyCodec {
         float avx = buf.readFloat(), avy = buf.readFloat(), avz = buf.readFloat();
         int motionOrdinal = buf.readByte();
 
+        long behaviorBits = buf.readLong();
+
         if (body.getPhysicsWorld() != null && body.getDataStoreIndex() != -1) {
             VxServerBodyDataStore store = body.getPhysicsWorld().getBodyManager().getDataStore();
             VxServerBodyDataContainer c = store.serverCurrent();
@@ -202,9 +207,12 @@ public final class VxBodyCodec {
             c.angVelY[idx] = avy;
             c.angVelZ[idx] = avz;
             c.motionType[idx] = EMotionType.values()[Math.max(0, Math.min(motionOrdinal, EMotionType.values().length - 1))];
+
+            // Restore behaviors
+            c.behaviorBits[idx] = behaviorBits;
         }
 
-        if (body.getType().isSoft()) {
+        if (VxSoftPhysicsBehavior.ID.isSet(behaviorBits)) {
             int vertexCount = buf.readInt();
             if (vertexCount > 0) {
                 float[] vertices = new float[vertexCount];
