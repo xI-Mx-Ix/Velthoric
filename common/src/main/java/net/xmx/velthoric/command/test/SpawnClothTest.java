@@ -6,6 +6,8 @@ package net.xmx.velthoric.command.test;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -65,9 +67,11 @@ public class SpawnClothTest implements IVxTestCommand {
         VxServerBodyManager manager = physicsWorld.getBodyManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
-        ClothSoftBody spawnedCloth = manager.createSoftBody(
+        ClothSoftBody spawnedCloth = manager.createBody(
                 VxRegisteredBodies.CLOTH,
                 transform,
+                EMotionType.Dynamic,
+                EActivation.DontActivate,
                 cloth -> cloth.setConfiguration(segmentsWidth, segmentsHeight, width, height, mass, 0.001f)
         );
 

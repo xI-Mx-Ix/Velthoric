@@ -4,6 +4,7 @@
  */
 package net.xmx.velthoric.core.body.server;
 
+import com.github.stephengold.joltjni.Jolt;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
@@ -187,63 +188,28 @@ public class VxServerBodyManager extends VxAbstractBodyManager implements VxChun
     //================================================================================
 
     /**
-     * Creates and registers a new physics body in the world.
+     * Creates and registers a new physics body with specific motion and activation states.
      * <p>
-     * Unified creation method that handles both rigid and soft simulation.
-     * The body's type determines which Jolt provider is used.
+     * This is the primary entry point for spawning new physics objects. It instantiates the
+     * specific {@link VxBody} subclass, applies configuration via the consumer, and then
+     * triggers the native Jolt creation.
      *
-     * @param type         The registry type of the body.
-     * @param transform    The initial position and rotation.
-     * @param configurator A consumer to apply custom settings before the body is added.
-     * @return The created body instance, or null if creation failed.
+     * @param <T>          The specific body implementation type (e.g., BoxRigidBody).
+     * @param type         The registry type of the body (describes shape and simulation provider).
+     * @param transform    The initial world-space position and orientation.
+     * @param motionType   The mobility of the body (Static, Kinematic, or Dynamic).
+     * @param activation   Whether the body should start active or sleeping.
+     * @param configurator A consumer to apply custom settings to the body instance (e.g., block state) before it is added.
+     * @return The created body instance of type T, or null if creation failed.
      */
     @Nullable
-    public VxBody createBody(VxBodyType type, VxTransform transform, Consumer<VxBody> configurator) {
-        return createBody(type, transform, EActivation.DontActivate, configurator);
-    }
-
-    /**
-     * Creates and registers a new physics body with a specific activation state.
-     *
-     * @param type         The registry type of the body.
-     * @param transform    The initial position and rotation.
-     * @param activation   Whether the body should be active or sleeping upon creation.
-     * @param configurator A consumer to apply custom settings before the body is added.
-     * @return The created body instance, or null if creation failed.
-     */
-    @Nullable
-    public VxBody createBody(VxBodyType type, VxTransform transform, EActivation activation, Consumer<VxBody> configurator) {
-        VxBody body = type.create(world, UUID.randomUUID());
+    public <T extends VxBody> T createBody(VxBodyType<T> type, VxTransform transform, EMotionType motionType, EActivation activation, Consumer<T> configurator) {
+        T body = type.create(this.world, UUID.randomUUID());
         if (body == null) return null;
+
         configurator.accept(body);
-        addConstructedBody(body, activation, transform);
+        addConstructedBody(body, motionType, activation, transform);
         return body;
-    }
-
-    /**
-     * Convenience method for creating rigid bodies with typed configurator.
-     */
-    @Nullable
-    @SuppressWarnings("unchecked")
-    public <T extends VxBody> T createRigidBody(VxBodyType type, VxTransform transform, Consumer<T> configurator) {
-        VxBody body = type.create(world, UUID.randomUUID());
-        if (body == null) return null;
-        configurator.accept((T) body);
-        addConstructedBody(body, EActivation.DontActivate, transform);
-        return (T) body;
-    }
-
-    /**
-     * Convenience method for creating soft bodies with typed configurator.
-     */
-    @Nullable
-    @SuppressWarnings("unchecked")
-    public <T extends VxBody> T createSoftBody(VxBodyType type, VxTransform transform, Consumer<T> configurator) {
-        VxBody body = type.create(world, UUID.randomUUID());
-        if (body == null) return null;
-        configurator.accept((T) body);
-        addConstructedBody(body, EActivation.DontActivate, transform);
-        return (T) body;
     }
 
     //================================================================================
@@ -253,15 +219,18 @@ public class VxServerBodyManager extends VxAbstractBodyManager implements VxChun
     /**
      * Finalizes the creation of a body by adding it to the internal systems and the Jolt engine.
      * <p>
-     * This method syncs the {@link VxServerBodyDataStore} with the initial transform and velocity,
-     * retrieves the desired motion type from the data store, and triggers the native Jolt creation.
+     * This method syncs the {@link VxServerBodyDataStore} with the initial transform, assigns the
+     * persistent motion and activation states, and triggers the native Jolt creation.
      *
      * @param body       The body instance to add.
+     * @param motionType The mobility of the body (Static, Kinematic, Dynamic).
      * @param activation The initial activation state for the Jolt simulation.
      * @param transform  The world-space transform for the body.
      */
-    public void addConstructedBody(VxBody body, EActivation activation, VxTransform transform) {
+    public void addConstructedBody(VxBody body, EMotionType motionType, EActivation activation, VxTransform transform) {
         addInternal(body);
+        body.setMotionType(motionType);
+        body.setActivation(activation);
         VxServerBodyDataContainer c = dataStore.serverCurrent();
         int index = body.getDataStoreIndex();
 
@@ -283,32 +252,18 @@ public class VxServerBodyManager extends VxAbstractBodyManager implements VxChun
             }
         }
 
-        // Retrieve properties from DataStore that were potentially modified by the configurator
-        Vec3 linearVelocity = new Vec3(c.velX[index], c.velY[index], c.velZ[index]);
-        Vec3 angularVelocity = new Vec3(c.angVelX[index], c.angVelY[index], c.angVelZ[index]);
-        EMotionType motionType = c.motionType[index];
-
-        networkDispatcher.onBodyAdded(body);
-
-        // Dispatch Jolt creation based on body type's provider (no instanceof needed)
-        if (body.getType().isRigid()) {
-            VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(body, this, linearVelocity, angularVelocity, activation, motionType);
-        } else if (body.getType().isSoft()) {
-            VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(body, this, linearVelocity, angularVelocity, activation);
-        }
-
-        // Notify subsystems that the body is fully initialized and has a valid Jolt ID
-        world.getBodyPairIgnoreManager().onBodyAdded(body);
+        finalizeBodyAddition(body, activation, motionType);
     }
 
     /**
      * Reconstitutes a body from serialized storage data.
      * <p>
-     * Unlike {@link #createRigidBody}, this uses stored byte data to restore the exact state
-     * (velocities, custom properties, vertices) of the body.
+     * Unlike fresh creation via {@link #createBody}, this uses stored byte data to restore the exact state
+     * (velocities, custom properties, vertices) of the body. The persistent {@link EMotionType} and
+     * {@link EActivation} states are restored directly from the serialized payload.
      *
      * @param data The serialized data wrapper containing ID, type, and payload.
-     * @return The restored body, or null if creation failed.
+     * @return The restored body instance, or null if creation failed.
      */
     @Nullable
     public VxBody addSerializedBody(VxSerializedBodyData data) {
@@ -335,17 +290,37 @@ public class VxServerBodyManager extends VxAbstractBodyManager implements VxChun
             return null; // Should technically be unreachable if addInternal succeeded
         }
 
-        // Extract restored kinematics from DataStore
+        // Restore specific motion and activation states from the persistent data
+        EMotionType motionType = body.getMotionType();
+        EActivation activation = body.getActivation();
+
+        finalizeBodyAddition(body, activation, motionType);
+
+        return body;
+    }
+
+    /**
+     * Finalizes the addition of a body by synchronizing velocities and triggering Jolt creation.
+     * <p>
+     * This internal method handles the low-level dispatch to the {@link VxJoltBridge} and
+     * notifies subsystems (like networking and collision ignore managers) about the new body.
+     *
+     * @param body       The body being added.
+     * @param activation The final activation state to apply in Jolt.
+     * @param motionType The final motion type to apply in Jolt.
+     */
+    private void finalizeBodyAddition(VxBody body, EActivation activation, EMotionType motionType) {
+        VxServerBodyDataContainer c = dataStore.serverCurrent();
+        int index = body.getDataStoreIndex();
+        if (index == -1) return;
+
+        // Retrieve properties from the body/DataStore that were potentially modified or restored
         Vec3 linearVelocity = new Vec3(c.velX[index], c.velY[index], c.velZ[index]);
         Vec3 angularVelocity = new Vec3(c.angVelX[index], c.angVelY[index], c.angVelZ[index]);
-        EMotionType motionType = c.motionType[index];
-
-        // Determine if the body should be awake based on its velocity
-        boolean shouldActivate = linearVelocity.lengthSq() > 0.0001f || angularVelocity.lengthSq() > 0.0001f;
-        EActivation activation = shouldActivate ? EActivation.Activate : EActivation.DontActivate;
 
         networkDispatcher.onBodyAdded(body);
 
+        // Dispatch Jolt creation based on body type's provider
         if (body.getType().isRigid()) {
             VxJoltBridge.INSTANCE.createAndAddJoltRigidBody(body, this, linearVelocity, angularVelocity, activation, motionType);
         } else if (body.getType().isSoft()) {
@@ -354,8 +329,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager implements VxChun
 
         // Notify subsystems that the body is fully initialized and has a valid Jolt ID
         world.getBodyPairIgnoreManager().onBodyAdded(body);
-
-        return body;
     }
 
     /**

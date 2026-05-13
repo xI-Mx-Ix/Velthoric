@@ -6,6 +6,8 @@ package net.xmx.velthoric.command.test;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -167,9 +169,11 @@ public final class SpawnJengaTest implements IVxTestCommand {
                 com.github.stephengold.joltjni.Vec3 halfExtents =
                         new com.github.stephengold.joltjni.Vec3(halfLength, halfHeight, halfWidth);
 
-                BoxRigidBody body = manager.createRigidBody(
+                BoxRigidBody body = manager.createBody(
                         VxRegisteredBodies.BOX,
                         transform,
+                        EMotionType.Dynamic,
+                        EActivation.DontActivate,
                         box -> {
                             box.setHalfExtents(halfExtents);
                             box.setColor(BoxColor.getRandom());

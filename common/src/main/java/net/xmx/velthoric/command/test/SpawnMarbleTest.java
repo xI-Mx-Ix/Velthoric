@@ -6,6 +6,8 @@ package net.xmx.velthoric.command.test;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -62,9 +64,11 @@ public class SpawnMarbleTest implements IVxTestCommand {
         VxServerBodyManager manager = physicsWorld.getBodyManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
-        MarbleRigidBody spawnedMarble = manager.createRigidBody(
+        MarbleRigidBody spawnedMarble = manager.createBody(
                 VxRegisteredBodies.MARBLE,
                 transform,
+                EMotionType.Dynamic,
+                EActivation.DontActivate,
                 marble -> marble.setRadius(radius)
         );
 

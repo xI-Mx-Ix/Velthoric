@@ -144,11 +144,11 @@ public enum VxJoltBridge {
                     // Set the exact motion type requested by the body configuration
                     bcs.setMotionType(motionType);
 
-                    // Ensure MotionProperties are created even for static bodies to allow
-                    // future state transitions and prevent native access violations.
+                    // Ensure MotionProperties are created even for static bodies to allow future state transitions
                     bcs.setAllowDynamicOrKinematic(true);
+                    int bodyId = world.getPhysicsSystem().getBodyInterface().createAndAddBody(bcs, activation);
 
-                    return world.getPhysicsSystem().getBodyInterface().createAndAddBody(bcs, activation);
+                    return bodyId;
                 }
             };
 

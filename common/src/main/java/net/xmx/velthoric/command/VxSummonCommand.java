@@ -7,6 +7,7 @@ package net.xmx.velthoric.command;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
@@ -103,7 +104,7 @@ public final class VxSummonCommand {
             }
 
             // Add the constructed body to the world with activation
-            world.getBodyManager().addConstructedBody(body, EActivation.Activate, transform);
+            world.getBodyManager().addConstructedBody(body, EMotionType.Dynamic, EActivation.Activate, transform);
 
             // Notify the command sender of success
             source.sendSuccess(() -> Component.literal(

@@ -4,6 +4,7 @@
  */
 package net.xmx.velthoric.core.persistence.impl.body;
 
+import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -135,8 +136,11 @@ public final class VxBodyCodec {
         buf.writeFloat(c.angVelY[idx]);
         buf.writeFloat(c.angVelZ[idx]);
 
-        EMotionType motionType = c.motionType[idx];
-        buf.writeByte(motionType != null ? motionType.ordinal() : EMotionType.Static.ordinal());
+        EMotionType motionType = body.getMotionType();
+        buf.writeByte(motionType != null ? motionType.ordinal() : EMotionType.Dynamic.ordinal());
+
+        EActivation activation = body.getActivation();
+        buf.writeByte(activation != null ? activation.ordinal() : EActivation.DontActivate.ordinal());
 
         // Write behavior bits
         buf.writeLong(c.behaviorBits[idx]);
@@ -178,7 +182,7 @@ public final class VxBodyCodec {
         double px = buf.readDouble(), py = buf.readDouble(), pz = buf.readDouble();
         float rx = buf.readFloat(), ry = buf.readFloat(), rz = buf.readFloat(), rw = buf.readFloat();
 
-        if (buf.readableBytes() < 25) { // Check before reading velocities and motion
+        if (buf.readableBytes() < 26) { // Check before reading velocities, motion and activation
             VxMainClass.LOGGER.warn("Partially read body state for ID {}: buffer truncated.", body.getPhysicsId());
             return;
         }
@@ -186,6 +190,7 @@ public final class VxBodyCodec {
         float vx = buf.readFloat(), vy = buf.readFloat(), vz = buf.readFloat();
         float avx = buf.readFloat(), avy = buf.readFloat(), avz = buf.readFloat();
         int motionOrdinal = buf.readByte();
+        int activationOrdinal = buf.readByte();
 
         long behaviorBits = buf.readLong();
 
@@ -206,7 +211,8 @@ public final class VxBodyCodec {
             c.angVelX[idx] = avx;
             c.angVelY[idx] = avy;
             c.angVelZ[idx] = avz;
-            c.motionType[idx] = EMotionType.values()[Math.max(0, Math.min(motionOrdinal, EMotionType.values().length - 1))];
+            body.setMotionType(EMotionType.values()[Math.max(0, Math.min(motionOrdinal, EMotionType.values().length - 1))]);
+            body.setActivation(EActivation.values()[Math.max(0, Math.min(activationOrdinal, EActivation.values().length - 1))]);
 
             // Restore behaviors
             c.behaviorBits[idx] = behaviorBits;

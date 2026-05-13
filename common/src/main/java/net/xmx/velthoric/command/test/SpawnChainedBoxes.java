@@ -65,9 +65,11 @@ public final class SpawnChainedBoxes implements IVxTestCommand {
 
             RVec3 anchorPosition = new RVec3(startPos.x, startPos.y, startPos.z);
 
-            BoxRigidBody anchorBody = bodyManager.createRigidBody(
+            BoxRigidBody anchorBody = bodyManager.createBody(
                     VxRegisteredBodies.BOX,
                     new VxTransform(anchorPosition, Quat.sIdentity()),
+                    EMotionType.Kinematic,
+                    EActivation.DontActivate,
                     body -> body.setHalfExtents(segmentHalfExtents)
             );
 
@@ -75,9 +77,6 @@ public final class SpawnChainedBoxes implements IVxTestCommand {
                 source.sendFailure(Component.literal("Failed to create rope anchor."));
                 return;
             }
-
-            // Set the anchor body to be kinematic so it doesn't move
-            physicsWorld.getPhysicsSystem().getBodyInterface().setMotionType(anchorBody.getBodyId(), EMotionType.Kinematic, EActivation.DontActivate);
 
             BoxRigidBody previousBody = anchorBody;
 
@@ -88,9 +87,11 @@ public final class SpawnChainedBoxes implements IVxTestCommand {
                         startPos.z
                 );
 
-                BoxRigidBody currentBody = bodyManager.createRigidBody(
+                BoxRigidBody currentBody = bodyManager.createBody(
                         VxRegisteredBodies.BOX,
                         new VxTransform(currentPosition, Quat.sIdentity()),
+                        EMotionType.Dynamic,
+                        EActivation.DontActivate,
                         body -> body.setHalfExtents(segmentHalfExtents)
                 );
 

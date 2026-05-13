@@ -7,6 +7,7 @@ package net.xmx.velthoric.gametest;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
@@ -50,6 +51,7 @@ public class WaterBuoyancyTest {
         VxBody body = manager.createBody(
                 VxRegisteredBodies.BOX, 
                 transform, 
+                EMotionType.Dynamic,
                 EActivation.Activate,
                 b -> {
                     if (b instanceof BoxRigidBody box) {

@@ -7,6 +7,8 @@ package net.xmx.velthoric.command.test;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -99,9 +101,11 @@ public final class SpawnGhostBoxTest implements IVxTestCommand {
                 float halfExtent = boxSize / 2.0f;
 
                 // Create the body with rigid simulation parameters.
-                BoxRigidBody ghostBody = manager.createRigidBody(
+                BoxRigidBody ghostBody = manager.createBody(
                         VxRegisteredBodies.BOX,
                         transform,
+                        EMotionType.Dynamic,
+                        EActivation.DontActivate,
                         body -> body.setHalfExtents(new Vec3(halfExtent, halfExtent, halfExtent))
                 );
 

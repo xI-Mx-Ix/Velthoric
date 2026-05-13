@@ -7,6 +7,7 @@ package net.xmx.velthoric.gametest;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.phys.Vec3;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
@@ -48,7 +49,7 @@ public class EmptyStructureTest {
         Vec3 boxAbsPos = helper.absoluteVec(new Vec3(9.5, 2.0, 9.5));
         VxTransform boxXform = new VxTransform(new RVec3(boxAbsPos.x, boxAbsPos.y, boxAbsPos.z), Quat.sIdentity());
         
-        VxBody box = manager.createBody(VxRegisteredBodies.BOX, boxXform, EActivation.Activate, b -> {
+        VxBody box = manager.createBody(VxRegisteredBodies.BOX, boxXform, EMotionType.Dynamic, EActivation.Activate, b -> {
             if (b instanceof BoxRigidBody rigid) {
                 rigid.setHalfExtents(new com.github.stephengold.joltjni.Vec3(1f, 1f, 1f));
                 rigid.setColor(BoxColor.RED);
@@ -59,7 +60,7 @@ public class EmptyStructureTest {
         Vec3 clothAbsPos = helper.absoluteVec(new Vec3(9.5, 5.0, 9.5));
         VxTransform clothXform = new VxTransform(new RVec3(clothAbsPos.x, clothAbsPos.y, clothAbsPos.z), Quat.sIdentity());
         
-        VxBody cloth = manager.createBody(VxRegisteredBodies.CLOTH, clothXform, EActivation.Activate, c -> {
+        VxBody cloth = manager.createBody(VxRegisteredBodies.CLOTH, clothXform, EMotionType.Dynamic, EActivation.Activate, c -> {
             if (c instanceof ClothSoftBody soft) {
                 soft.setConfiguration(25, 25, 5.0f, 5.0f, 2.0f, 0.001f);
             }

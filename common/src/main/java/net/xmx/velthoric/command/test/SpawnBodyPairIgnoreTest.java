@@ -6,6 +6,8 @@ package net.xmx.velthoric.command.test;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -94,9 +96,11 @@ public final class SpawnBodyPairIgnoreTest implements IVxTestCommand {
                 new RVec3(spawnPos.x, spawnPos.y, spawnPos.z),
                 Quat.sIdentity()
         );
-        BoxRigidBody box1 = manager.createRigidBody(
+        BoxRigidBody box1 = manager.createBody(
                 VxRegisteredBodies.BOX,
                 transform1,
+                EMotionType.Dynamic,
+                EActivation.DontActivate,
                 box -> box.setHalfExtents(halfExtents)
         );
 
@@ -110,9 +114,11 @@ public final class SpawnBodyPairIgnoreTest implements IVxTestCommand {
                 new RVec3(spawnPos.x, spawnPos.y + boxSize, spawnPos.z),
                 Quat.sIdentity()
         );
-        BoxRigidBody box2 = manager.createRigidBody(
+        BoxRigidBody box2 = manager.createBody(
                 VxRegisteredBodies.BOX,
                 transform2,
+                EMotionType.Dynamic,
+                EActivation.DontActivate,
                 box -> box.setHalfExtents(halfExtents)
         );
 
@@ -130,9 +136,11 @@ public final class SpawnBodyPairIgnoreTest implements IVxTestCommand {
                 new RVec3(spawnPos.x, spawnPos.y + boxSize * 2, spawnPos.z),
                 Quat.sIdentity()
         );
-        BoxRigidBody box3 = manager.createRigidBody(
+        BoxRigidBody box3 = manager.createBody(
                 VxRegisteredBodies.BOX,
                 transform3,
+                EMotionType.Dynamic,
+                EActivation.DontActivate,
                 box -> {
                     box.setHalfExtents(halfExtents);
                     box.setColor(BoxColor.BLUE);

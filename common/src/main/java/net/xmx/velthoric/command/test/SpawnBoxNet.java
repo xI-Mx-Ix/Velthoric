@@ -8,7 +8,9 @@ import com.github.stephengold.joltjni.PointConstraintSettings;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -93,9 +95,11 @@ public final class SpawnBoxNet implements IVxTestCommand {
                                 startPos.z + (z * step)
                         );
 
-                        BoxRigidBody currentBody = bodyManager.createRigidBody(
+                        BoxRigidBody currentBody = bodyManager.createBody(
                                 VxRegisteredBodies.BOX,
                                 new VxTransform(currentPosition, Quat.sIdentity()),
+                                EMotionType.Dynamic,
+                                EActivation.DontActivate,
                                 body -> body.setHalfExtents(boxHalfExtents)
                         );
 

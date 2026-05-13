@@ -4,6 +4,7 @@
  */
 package net.xmx.velthoric.core.body.server;
 
+import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -60,9 +61,13 @@ public class VxServerBodyDataContainer extends VxBodyDataContainer {
      */
     public final EBodyType[] bodyType;
     /**
-     * The Jolt motion type defining mobility (e.g. Static, Kinematic, Dynamic).
+     * The Jolt motion type (Static, Kinematic, Dynamic).
      */
     public final EMotionType[] motionType;
+    /**
+     * The Jolt activation state (Activate, DontActivate).
+     */
+    public final EActivation[] activation;
     /**
      * A long representation of the {@link net.minecraft.world.level.ChunkPos} the body resides in.
      */
@@ -116,6 +121,7 @@ public class VxServerBodyDataContainer extends VxBodyDataContainer {
         this.aabbMaxZ = new float[capacity];
         this.bodyType = new EBodyType[capacity];
         this.motionType = new EMotionType[capacity];
+        this.activation = new EActivation[capacity];
         this.chunkKey = new long[capacity];
         this.networkId = new int[capacity];
         this.isTransformDirty = new boolean[capacity];
@@ -128,6 +134,8 @@ public class VxServerBodyDataContainer extends VxBodyDataContainer {
         for (int i = 0; i < capacity; i++) {
             this.networkId[i] = -1;
             this.chunkKey[i] = Long.MAX_VALUE;
+            this.motionType[i] = EMotionType.Dynamic;
+            this.activation[i] = EActivation.DontActivate;
         }
     }
 }

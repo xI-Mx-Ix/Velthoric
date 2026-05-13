@@ -7,6 +7,8 @@ package net.xmx.velthoric.item.chaincreator;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
 import com.github.stephengold.joltjni.operator.Op;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -210,9 +212,11 @@ public class VxChainCreatorMode extends VxToolMode {
             RVec3 segmentCenterPos = Op.plus(segmentStartPos, Op.star(0.5, segmentVector));
 
             // Instantiate the physical representation of the chain link.
-            VxChainPartRigidBody currentBody = bodyManager.createRigidBody(
+            VxChainPartRigidBody currentBody = bodyManager.createBody(
                     VxRegisteredBodies.CHAIN_PART,
                     new VxTransform(segmentCenterPos, orientation),
+                    EMotionType.Dynamic,
+                    EActivation.DontActivate,
                     body -> {
                         body.setServerData(VxChainPartRigidBody.getLengthAccessor(), (float) actualSegmentLength);
                         body.setServerData(VxChainPartRigidBody.getRadiusAccessor(), radius);

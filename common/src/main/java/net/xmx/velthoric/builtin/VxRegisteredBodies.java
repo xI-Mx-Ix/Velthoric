@@ -49,8 +49,8 @@ public class VxRegisteredBodies {
 
     // --- Rigid Bodies ---
 
-    public static final VxBodyType BLOCK = VxBodyType.Builder
-            .create(BlockRigidBody::new)
+    public static final VxBodyType<BlockRigidBody> BLOCK = VxBodyType.Builder
+            .<BlockRigidBody>create(BlockRigidBody::new)
             .noSummon()
             .rigidProvider(BlockRigidBody::createJoltBody)
             .behavior(VxBuoyancyBehavior.ID)
@@ -59,8 +59,8 @@ public class VxRegisteredBodies {
             .persistence(BlockRigidBody::writePersistence, BlockRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "block"));
 
-    public static final VxBodyType SPHERE = VxBodyType.Builder
-            .create(SphereRigidBody::new)
+    public static final VxBodyType<SphereRigidBody> SPHERE = VxBodyType.Builder
+            .<SphereRigidBody>create(SphereRigidBody::new)
             .rigidProvider(SphereRigidBody::createJoltBody)
             .behavior(VxBuoyancyBehavior.ID)
             .behavior(VxNetSyncBehavior.ID)
@@ -68,8 +68,8 @@ public class VxRegisteredBodies {
             .persistence(SphereRigidBody::writePersistence, SphereRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "sphere"));
 
-    public static final VxBodyType BOX = VxBodyType.Builder
-            .create(BoxRigidBody::new)
+    public static final VxBodyType<BoxRigidBody> BOX = VxBodyType.Builder
+            .<BoxRigidBody>create(BoxRigidBody::new)
             .rigidProvider(BoxRigidBody::createJoltBody)
             .behavior(VxBuoyancyBehavior.ID)
             .behavior(VxNetSyncBehavior.ID)
@@ -77,8 +77,8 @@ public class VxRegisteredBodies {
             .persistence(BoxRigidBody::writePersistence, BoxRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "box"));
 
-    public static final VxBodyType MARBLE = VxBodyType.Builder
-            .create(MarbleRigidBody::new)
+    public static final VxBodyType<MarbleRigidBody> MARBLE = VxBodyType.Builder
+            .<MarbleRigidBody>create(MarbleRigidBody::new)
             .rigidProvider(MarbleRigidBody::createJoltBody)
             .behavior(VxBuoyancyBehavior.ID)
             .behavior(VxNetSyncBehavior.ID)
@@ -88,16 +88,16 @@ public class VxRegisteredBodies {
 
     // --- Soft Bodies ---
 
-    public static final VxBodyType CLOTH = VxBodyType.Builder
-            .create(ClothSoftBody::new)
+    public static final VxBodyType<ClothSoftBody> CLOTH = VxBodyType.Builder
+            .<ClothSoftBody>create(ClothSoftBody::new)
             .softProvider(ClothSoftBody::createJoltBody)
             .behavior(VxNetSyncBehavior.ID)
             .behavior(VxSyncBehavior.ID)
             .persistence(ClothSoftBody::writePersistence, ClothSoftBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "cloth"));
 
-    public static final VxBodyType ROPE = VxBodyType.Builder
-            .create(RopeSoftBody::new)
+    public static final VxBodyType<RopeSoftBody> ROPE = VxBodyType.Builder
+            .<RopeSoftBody>create(RopeSoftBody::new)
             .softProvider(RopeSoftBody::createJoltBody)
             .behavior(VxNetSyncBehavior.ID)
             .behavior(VxSyncBehavior.ID)
@@ -106,8 +106,8 @@ public class VxRegisteredBodies {
 
     // --- Vehicles ---
 
-    public static final VxBodyType CAR = VxBodyType.Builder
-            .create(CarImpl::new)
+    public static final VxBodyType<CarImpl> CAR = VxBodyType.Builder
+            .<CarImpl>create(CarImpl::new)
             .rigidProvider(CarImpl::createJoltBody)
             .behavior(VxBuoyancyBehavior.ID)
             .behavior(VxNetSyncBehavior.ID)
@@ -117,8 +117,8 @@ public class VxRegisteredBodies {
             .persistence(VxWheeledVehicle::writePersistence, VxWheeledVehicle::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "car"));
 
-    public static final VxBodyType MOTORCYCLE = VxBodyType.Builder
-            .create(MotorcycleImpl::new)
+    public static final VxBodyType<MotorcycleImpl> MOTORCYCLE = VxBodyType.Builder
+            .<MotorcycleImpl>create(MotorcycleImpl::new)
             .rigidProvider(MotorcycleImpl::createJoltBody)
             .behavior(VxBuoyancyBehavior.ID)
             .behavior(VxNetSyncBehavior.ID)
@@ -130,8 +130,8 @@ public class VxRegisteredBodies {
 
     // --- Internal Bodies ---
 
-    public static final VxBodyType CHAIN_PART = VxBodyType.Builder
-            .create(VxChainPartRigidBody::new)
+    public static final VxBodyType<VxChainPartRigidBody> CHAIN_PART = VxBodyType.Builder
+            .<VxChainPartRigidBody>create(VxChainPartRigidBody::new)
             .noSummon()
             .rigidProvider(VxChainPartRigidBody::createJoltBody)
             .behavior(VxBuoyancyBehavior.ID)
@@ -140,8 +140,8 @@ public class VxRegisteredBodies {
             .persistence(VxChainPartRigidBody::writePersistence, VxChainPartRigidBody::readPersistence)
             .build(ResourceLocation.tryBuild("velthoric", "chain_part"));
 
-    public static final VxBodyType BODY_PART = VxBodyType.Builder
-            .create(VxBodyPartRigidBody::new)
+    public static final VxBodyType<VxBodyPartRigidBody> BODY_PART = VxBodyType.Builder
+            .<VxBodyPartRigidBody>create(VxBodyPartRigidBody::new)
             .noSummon()
             .rigidProvider(VxBodyPartRigidBody::createJoltBody)
             .behavior(VxBuoyancyBehavior.ID)

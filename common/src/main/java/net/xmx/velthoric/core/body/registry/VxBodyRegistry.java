@@ -39,7 +39,7 @@ public class VxBodyRegistry {
     /**
      * Stores the core definition of each body type, used on both server and client.
      */
-    private final Map<ResourceLocation, VxBodyType> registeredTypes = new ConcurrentHashMap<>();
+    private final Map<ResourceLocation, VxBodyType<?>> registeredTypes = new ConcurrentHashMap<>();
 
     private VxBodyRegistry() {
     }
@@ -67,7 +67,7 @@ public class VxBodyRegistry {
      *
      * @param type The {@link VxBodyType} to register.
      */
-    public void register(VxBodyType type) {
+    public void register(VxBodyType<?> type) {
         if (registeredTypes.containsKey(type.getTypeId())) {
             VxMainClass.LOGGER.warn("VxBodyType '{}' is already registered. Overwriting.", type.getTypeId());
         }
@@ -84,7 +84,7 @@ public class VxBodyRegistry {
      */
     @Nullable
     public VxBody create(ResourceLocation typeId, VxPhysicsWorld world, UUID id) {
-        VxBodyType type = registeredTypes.get(typeId);
+        VxBodyType<?> type = registeredTypes.get(typeId);
         if (type == null) {
             VxMainClass.LOGGER.error("No VxBodyType registered for ID: {}", typeId);
             return null;
@@ -104,7 +104,7 @@ public class VxBodyRegistry {
      * @return The {@link VxBodyType}, or {@code null} if not found.
      */
     @Nullable
-    public VxBodyType getRegistrationData(ResourceLocation typeId) {
+    public VxBodyType<?> getRegistrationData(ResourceLocation typeId) {
         return registeredTypes.get(typeId);
     }
 
@@ -113,7 +113,7 @@ public class VxBodyRegistry {
      *
      * @return An immutable map of all registered types.
      */
-    public Map<ResourceLocation, VxBodyType> getRegisteredTypes() {
+    public Map<ResourceLocation, VxBodyType<?>> getRegisteredTypes() {
         return Map.copyOf(registeredTypes);
     }
 
@@ -124,7 +124,7 @@ public class VxBodyRegistry {
      */
     @FunctionalInterface
     @Environment(EnvType.CLIENT)
-    public interface ClientFactory {
+    public interface ClientFactory<T extends VxBody> {
         /**
          * Creates a new client-side body instance.
          *
@@ -132,7 +132,7 @@ public class VxBodyRegistry {
          * @param id   The unique ID of the body instance.
          * @return A new instance of a {@link VxBody} subclass, configured for the client.
          */
-        VxBody create(VxBodyType type, UUID id);
+        T create(VxBodyType<T> type, UUID id);
     }
 
     /**
@@ -144,7 +144,7 @@ public class VxBodyRegistry {
         /**
          * Stores factories for creating client-side body instances.
          */
-        private static final Map<ResourceLocation, ClientFactory> clientFactories = new ConcurrentHashMap<>();
+        private static final Map<ResourceLocation, ClientFactory<?>> clientFactories = new ConcurrentHashMap<>();
 
         /**
          * Stores renderers for client-side bodies.
@@ -159,7 +159,7 @@ public class VxBodyRegistry {
      * @param factory A factory that creates a new client body instance.
      */
     @Environment(EnvType.CLIENT)
-    public void registerClientFactory(ResourceLocation typeId, ClientFactory factory) {
+    public void registerClientFactory(ResourceLocation typeId, ClientFactory<?> factory) {
         Client.clientFactories.put(typeId, factory);
     }
 
@@ -183,13 +183,14 @@ public class VxBodyRegistry {
      */
     @Nullable
     @Environment(EnvType.CLIENT)
-    public VxBody createClientBody(VxBodyType type, UUID id) {
+    public <T extends VxBody> T createClientBody(VxBodyType<T> type, UUID id) {
         if (type == null) {
             VxMainClass.LOGGER.error("Attempted to create client body with null type for ID: {}", id);
             return null;
         }
         ResourceLocation typeId = type.getTypeId();
-        ClientFactory factory = Client.clientFactories.get(typeId);
+        @SuppressWarnings("unchecked")
+        ClientFactory<T> factory = (ClientFactory<T>) Client.clientFactories.get(typeId);
         if (factory != null) {
             try {
                 return factory.create(type, id);

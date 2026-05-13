@@ -7,6 +7,7 @@ package net.xmx.velthoric.item;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
@@ -19,7 +20,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
-import net.xmx.velthoric.builtin.block.BlockRigidBody;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
@@ -88,8 +88,9 @@ public class VxPhysicsCreatorItem extends Item {
                 VxBody body = bodyManager.createBody(
                         VxRegisteredBodies.BLOCK,
                         transform,
+                        EMotionType.Dynamic,
                         EActivation.Activate,
-                        b -> ((BlockRigidBody) b).setRepresentedBlockState(originalState)
+                        b -> b.setRepresentedBlockState(originalState)
                 );
 
                 if (body == null) {

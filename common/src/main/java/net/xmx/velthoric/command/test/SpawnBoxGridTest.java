@@ -6,6 +6,8 @@ package net.xmx.velthoric.command.test;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -89,9 +91,11 @@ public final class SpawnBoxGridTest implements IVxTestCommand {
         VxServerBodyManager manager = physicsWorld.getBodyManager();
         VxTransform transform = new VxTransform(new RVec3(spawnPosMc.x, spawnPosMc.y, spawnPosMc.z), Quat.sIdentity());
 
-        BoxRigidBody spawnedBody = manager.createRigidBody(
+        BoxRigidBody spawnedBody = manager.createBody(
                 VxRegisteredBodies.BOX,
                 transform,
+                EMotionType.Dynamic,
+                EActivation.DontActivate,
                 box -> box.setHalfExtents(halfExtents)
         );
         return spawnedBody != null ? 1 : 0;

@@ -6,6 +6,8 @@ package net.xmx.velthoric.command.test;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -62,9 +64,11 @@ public final class SpawnRopeTest implements IVxTestCommand {
         VxServerBodyManager manager = physicsWorld.getBodyManager();
         VxTransform transform = new VxTransform(new RVec3(pos.x(), pos.y(), pos.z()), Quat.sIdentity());
 
-        RopeSoftBody spawnedRope = manager.createSoftBody(
+        RopeSoftBody spawnedRope = manager.createBody(
                 VxRegisteredBodies.ROPE,
                 transform,
+                EMotionType.Dynamic,
+                EActivation.DontActivate,
                 rope -> rope.setConfiguration(length, segments, radius, mass, 0.001f)
         );
 

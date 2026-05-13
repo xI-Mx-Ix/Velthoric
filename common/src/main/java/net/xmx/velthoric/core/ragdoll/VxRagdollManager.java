@@ -7,6 +7,7 @@ package net.xmx.velthoric.core.ragdoll;
 import com.github.stephengold.joltjni.*;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EConstraintSpace;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.enumerate.ESwingType;
 import com.github.stephengold.joltjni.operator.Op;
 import net.minecraft.world.entity.LivingEntity;
@@ -155,12 +156,13 @@ public class VxRagdollManager {
         // The individual part inherits the global rotation (including pitch if launched)
         VxTransform partTransform = new VxTransform(partPosition, initialTransform.getRotation());
 
-        return (VxBodyPartRigidBody) bodyManager.createBody(
+        return bodyManager.createBody(
                 VxRegisteredBodies.BODY_PART,
                 partTransform,
+                EMotionType.Dynamic,
                 EActivation.Activate,
                 abstractBody -> {
-                    VxBodyPartRigidBody body = (VxBodyPartRigidBody) abstractBody;
+                    VxBodyPartRigidBody body = abstractBody;
                     body.setServerData(VxBodyPartRigidBody.DATA_HALF_EXTENTS, halfExtents);
                     body.setServerData(VxBodyPartRigidBody.DATA_BODY_PART, partType);
                     body.setServerData(VxBodyPartRigidBody.DATA_SKIN_ID, skinId);

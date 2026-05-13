@@ -7,6 +7,8 @@ package net.xmx.velthoric.item.boxlauncher;
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
 import com.github.stephengold.joltjni.Vec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.minecraft.server.level.ServerPlayer;
 import net.xmx.velthoric.builtin.VxRegisteredBodies;
 import net.xmx.velthoric.builtin.box.BoxColor;
@@ -100,9 +102,11 @@ public class VxBoxLauncherMode extends VxToolMode {
         VxServerBodyManager manager = physicsWorld.getBodyManager();
 
         // Create the rigid body
-        BoxRigidBody spawnedBody = manager.createRigidBody(
+        BoxRigidBody spawnedBody = manager.createBody(
                 VxRegisteredBodies.BOX,
                 transform,
+                EMotionType.Dynamic,
+                EActivation.DontActivate,
                 box -> {
                     box.setHalfExtents(halfExtents);
                     box.setColor(BoxColor.getRandom());

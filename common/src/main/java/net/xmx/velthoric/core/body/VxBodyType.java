@@ -26,9 +26,10 @@ import java.util.function.Consumer;
  * This class describes how a body should be constructed, which behaviors it possesses by default,
  * and how its physical shape is provided to the Jolt engine.
  *
+ * @param <T> The specific class implementation of the body (e.g. BoxRigidBody).
  * @author xI-Mx-Ix
  */
-public final class VxBodyType {
+public final class VxBodyType<T extends VxBody> {
 
     /**
      * Unique identifier for this body type.
@@ -38,7 +39,7 @@ public final class VxBodyType {
     /**
      * Factory used to instantiate new body objects.
      */
-    private final Factory factory;
+    private final Factory<T> factory;
 
     /**
      * Determines if this type can be summoned via commands.
@@ -78,7 +79,7 @@ public final class VxBodyType {
     @Nullable
     private final Consumer<VxSynchronizedData.Builder> syncDataDefiner;
 
-    private VxBodyType(ResourceLocation typeId, Factory factory, boolean summonable, boolean persistent,
+    private VxBodyType(ResourceLocation typeId, Factory<T> factory, boolean summonable, boolean persistent,
                        long defaultBehaviors, @Nullable VxJoltRigidProvider rigidProvider,
                        @Nullable VxJoltSoftProvider softProvider, VxPersistenceHandler persistenceHandler,
                        @Nullable Consumer<VxSynchronizedData.Builder> syncDataDefiner) {
@@ -100,7 +101,7 @@ public final class VxBodyType {
      * @param id    The unique identifier.
      * @return A new body instance.
      */
-    public VxBody create(VxPhysicsWorld world, UUID id) {
+    public T create(VxPhysicsWorld world, UUID id) {
         return this.factory.create(this, world, id);
     }
 
@@ -157,15 +158,15 @@ public final class VxBodyType {
      * Functional interface for instantiating body handles.
      */
     @FunctionalInterface
-    public interface Factory {
-        VxBody create(VxBodyType type, VxPhysicsWorld world, UUID id);
+    public interface Factory<T extends VxBody> {
+        T create(VxBodyType<T> type, VxPhysicsWorld world, UUID id);
     }
 
     /**
      * Fluent builder for creating type definitions.
      */
-    public static class Builder {
-        private final Factory factory;
+    public static class Builder<T extends VxBody> {
+        private final Factory<T> factory;
         private boolean summonable = true;
         private boolean persistent = true;
         private long defaultBehaviors = 0;
@@ -178,16 +179,16 @@ public final class VxBodyType {
             this.factory = factory;
         }
 
-        public static Builder create(Factory factory) {
-            return new Builder(factory);
+        public static <T extends VxBody> Builder<T> create(Factory<T> factory) {
+            return new Builder<>(factory);
         }
 
-        public Builder noSummon() {
+        public Builder<T> noSummon() {
             this.summonable = false;
             return this;
         }
 
-        public Builder setPersistent(boolean persistent) {
+        public Builder<T> setPersistent(boolean persistent) {
             this.persistent = persistent;
             return this;
         }
@@ -195,7 +196,7 @@ public final class VxBodyType {
         /**
          * Registers a rigid body shape provider and attaches physics synchronization behaviors.
          */
-        public Builder rigidProvider(VxJoltRigidProvider provider) {
+        public Builder<T> rigidProvider(VxJoltRigidProvider provider) {
             this.rigidProvider = provider;
             this.defaultBehaviors |= VxRigidPhysicsBehavior.ID.getMask();
             this.defaultBehaviors |= VxPhysicsSyncBehavior.ID.getMask();
@@ -205,29 +206,29 @@ public final class VxBodyType {
         /**
          * Registers a soft body mesh provider and attaches physics synchronization behaviors.
          */
-        public Builder softProvider(VxJoltSoftProvider provider) {
+        public Builder<T> softProvider(VxJoltSoftProvider provider) {
             this.softProvider = provider;
             this.defaultBehaviors |= VxSoftPhysicsBehavior.ID.getMask();
             this.defaultBehaviors |= VxPhysicsSyncBehavior.ID.getMask();
             return this;
         }
 
-        public Builder persistence(VxPersistenceHandler handler) {
+        public Builder<T> persistence(VxPersistenceHandler handler) {
             this.persistenceHandler = handler;
             return this;
         }
 
-        public Builder persistence(VxPersistenceHandler.Writer writer, VxPersistenceHandler.Reader reader) {
+        public Builder<T> persistence(VxPersistenceHandler.Writer writer, VxPersistenceHandler.Reader reader) {
             this.persistenceHandler = VxPersistenceHandler.of(writer, reader);
             return this;
         }
 
-        public Builder syncData(Consumer<VxSynchronizedData.Builder> definer) {
+        public Builder<T> syncData(Consumer<VxSynchronizedData.Builder> definer) {
             this.syncDataDefiner = definer;
             return this;
         }
 
-        public Builder behavior(VxBehaviorId behaviorId) {
+        public Builder<T> behavior(VxBehaviorId behaviorId) {
             this.defaultBehaviors |= behaviorId.getMask();
             return this;
         }
@@ -235,11 +236,11 @@ public final class VxBodyType {
         /**
          * Builds the final immutable type.
          */
-        public VxBodyType build(ResourceLocation typeId) {
+        public VxBodyType<T> build(ResourceLocation typeId) {
             if (persistent) {
                 defaultBehaviors |= VxPersistenceBehavior.ID.getMask();
             }
-            return new VxBodyType(typeId, factory, summonable, persistent,
+            return new VxBodyType<>(typeId, factory, summonable, persistent,
                     defaultBehaviors, rigidProvider, softProvider, persistenceHandler, syncDataDefiner);
         }
     }

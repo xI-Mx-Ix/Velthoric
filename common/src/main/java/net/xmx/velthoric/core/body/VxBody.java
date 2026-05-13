@@ -6,6 +6,8 @@ package net.xmx.velthoric.core.body;
 
 import com.github.stephengold.joltjni.Quat;
 import com.github.stephengold.joltjni.RVec3;
+import com.github.stephengold.joltjni.enumerate.EActivation;
+import com.github.stephengold.joltjni.enumerate.EMotionType;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -16,6 +18,7 @@ import net.xmx.velthoric.core.body.client.VxClientBodyDataContainer;
 import net.xmx.velthoric.core.body.client.VxClientBodyManager;
 import net.xmx.velthoric.core.body.client.VxRenderState;
 import net.xmx.velthoric.core.body.server.VxServerBodyDataContainer;
+import net.xmx.velthoric.core.body.server.VxServerBodyDataStore;
 import net.xmx.velthoric.core.body.shape.VxCollisionShape;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
 import net.xmx.velthoric.core.network.synchronization.accessor.VxClientAccessor;
@@ -461,6 +464,48 @@ public class VxBody {
             synchronized (store) {
                 sc.dirtyIndices.add(this.dataStoreIndex);
             }
+        }
+    }
+
+    /**
+     * @return The current Jolt motion type of this body.
+     */
+    public EMotionType getMotionType() {
+        if (this.dataStoreIndex != -1 && this.dataStore instanceof VxServerBodyDataStore serverStore) {
+            return serverStore.serverCurrent().motionType[this.dataStoreIndex];
+        }
+        return EMotionType.Dynamic;
+    }
+
+    /**
+     * Sets the Jolt motion type of this body.
+     *
+     * @param motionType The new motion type.
+     */
+    public void setMotionType(EMotionType motionType) {
+        if (this.dataStoreIndex != -1 && this.dataStore instanceof VxServerBodyDataStore serverStore) {
+            serverStore.serverCurrent().motionType[this.dataStoreIndex] = motionType;
+        }
+    }
+
+    /**
+     * @return The current Jolt activation state of this body.
+     */
+    public EActivation getActivation() {
+        if (this.dataStoreIndex != -1 && this.dataStore instanceof VxServerBodyDataStore serverStore) {
+            return serverStore.serverCurrent().activation[this.dataStoreIndex];
+        }
+        return EActivation.DontActivate;
+    }
+
+    /**
+     * Sets the Jolt activation state of this body.
+     *
+     * @param activation The new activation state.
+     */
+    public void setActivation(EActivation activation) {
+        if (this.dataStoreIndex != -1 && this.dataStore instanceof VxServerBodyDataStore serverStore) {
+            serverStore.serverCurrent().activation[this.dataStoreIndex] = activation;
         }
     }
 }

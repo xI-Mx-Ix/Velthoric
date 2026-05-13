@@ -69,7 +69,6 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
 
         // Initialize server-specific data
         VxServerBodyDataContainer c = serverCurrentContainer;
-        c.motionType[index] = EMotionType.Dynamic;
         c.bodyType[index] = type;
         c.chunkKey[index] = Long.MAX_VALUE; // Sentinel for "no chunk"
         return index;
@@ -106,7 +105,6 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
         c.aabbMaxX[index] = c.aabbMaxY[index] = c.aabbMaxZ[index] = 0f;
 
         c.bodyType[index] = null;
-        c.motionType[index] = null;
         c.chunkKey[index] = Long.MAX_VALUE;
 
         // Handle Network ID cleanup
@@ -148,7 +146,6 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
             System.arraycopy(old.aabbMaxY, 0, next.aabbMaxY, 0, copyLength);
             System.arraycopy(old.aabbMaxZ, 0, next.aabbMaxZ, 0, copyLength);
             System.arraycopy(old.bodyType, 0, next.bodyType, 0, copyLength);
-            System.arraycopy(old.motionType, 0, next.motionType, 0, copyLength);
             System.arraycopy(old.chunkKey, 0, next.chunkKey, 0, copyLength);
             System.arraycopy(old.networkId, 0, next.networkId, 0, copyLength);
             System.arraycopy(old.isTransformDirty, 0, next.isTransformDirty, 0, copyLength);
