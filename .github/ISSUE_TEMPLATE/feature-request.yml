@@ -1,0 +1,18 @@
+name: "💡 Feature Request"
+description: "Suggest a new idea or tool for the mod."
+labels: ["feature request"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: "Your Suggestion"
+      placeholder: "Describe the tool or feature you'd like to see."
+    validations:
+      required: true
+  - type: checkboxes
+    id: commitment
+    attributes:
+      label: "Follow-up Commitment"
+      options:
+        - label: "I will keep an eye on this issue and respond to follow-up questions."
+          required: true

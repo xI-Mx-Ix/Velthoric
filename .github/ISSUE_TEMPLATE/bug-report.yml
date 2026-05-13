@@ -1,0 +1,31 @@
+name: "🐛 Bug Report"
+description: "Something isn't working? Report it here."
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### ⚠️ ATTENTION
+        **Issues without logs or a response will be closed immediately, as they are not reproducible without technical information.**
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      placeholder: "What happened? Please describe the bug as detailed as possible."
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs / Crash Report"
+      description: "Please paste your 'latest.log' or crash report here."
+      placeholder: "Paste your logs here..."
+    validations:
+      required: true
+  - type: checkboxes
+    id: commitment
+    attributes:
+      label: "Follow-up Commitment"
+      options:
+        - label: "I will keep an eye on this issue and respond to follow-up questions."
+          required: true

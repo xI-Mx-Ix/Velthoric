@@ -1,0 +1,28 @@
+name: "🚫 Incompatibility"
+description: "Is this mod clashing with another mod?"
+labels: ["incompatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: "Please tell us which mods are causing trouble together."
+  - type: textarea
+    id: mods
+    attributes:
+      label: "Which mods are involved?"
+      placeholder: "Example: Velthoric and [Other Mod Name]"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs / Crash Report"
+      description: "Logs are mandatory for compatibility issues."
+    validations:
+      required: true
+  - type: checkboxes
+    id: commitment
+    attributes:
+      label: "Follow-up Commitment"
+      options:
+        - label: "I will keep an eye on this issue and respond to follow-up questions."
+          required: true
