@@ -31,7 +31,7 @@ public enum BoxColor {
     BLACK(Blocks.BLACK_CONCRETE);
 
     private final Block block;
-    private static final BoxColor[] VALUES = values();
+    public static final BoxColor[] VALUES = values();
     private static final Random RANDOM = new Random();
 
     BoxColor(Block block) {
@@ -40,6 +40,13 @@ public enum BoxColor {
 
     public Block getBlock() {
         return block;
+    }
+
+    public static BoxColor fromOrdinal(int ordinal) {
+        if (ordinal < 0 || ordinal >= VALUES.length) {
+            return RED;
+        }
+        return VALUES[ordinal];
     }
 
     public static BoxColor getRandom() {

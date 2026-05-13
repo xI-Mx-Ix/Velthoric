@@ -67,7 +67,7 @@ public class BoxRigidBody extends VxBody {
 
     public BoxColor getColor() {
         int ordinal = get(DATA_COLOR_ORDINAL);
-        return (ordinal >= 0 && ordinal < BoxColor.values().length) ? BoxColor.values()[ordinal] : BoxColor.RED;
+        return BoxColor.fromOrdinal(ordinal);
     }
 
     /**
