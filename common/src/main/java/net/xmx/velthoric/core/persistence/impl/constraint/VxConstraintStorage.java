@@ -18,17 +18,40 @@ import java.util.UUID;
  */
 public class VxConstraintStorage extends VxChunkBasedStorage<VxConstraint, VxConstraint> {
 
+    /**
+     * Initializes the storage handler for physics constraints.
+     * <p>
+     * Constraints are stored in a dedicated sub-directory within the world folder,
+     * using the ".vxc" file extension.
+     *
+     * @param level The server-side Minecraft level to bind storage to.
+     */
     public VxConstraintStorage(ServerLevel level) {
         super(level, "constraints", "vxc");
     }
 
+    /**
+     * Internal: Serializes a single physics constraint to the byte buffer.
+     * <p>
+     * This method manually handles the persistence of the unique identifier
+     * before delegating settings serialization to the codec.
+     *
+     * @param constraint The constraint instance to save.
+     * @param buffer     The buffer to write into.
+     */
     @Override
     protected void writeSingle(VxConstraint constraint, VxByteBuf buffer) {
-        // Need to write ID manually as the Codec might expect it known or separate
+        // Write the unique identifier as the header for each entry
         buffer.writeUUID(constraint.getConstraintId());
         VxConstraintCodec.serialize(constraint, buffer);
     }
 
+    /**
+     * Internal: Reconstitutes a physics constraint from the byte buffer.
+     *
+     * @param buffer The buffer to read from.
+     * @return A fully initialized {@link VxConstraint} instance.
+     */
     @Override
     protected VxConstraint readSingle(VxByteBuf buffer) {
         UUID id = buffer.readUUID();

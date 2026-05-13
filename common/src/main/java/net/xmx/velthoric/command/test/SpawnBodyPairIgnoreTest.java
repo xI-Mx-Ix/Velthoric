@@ -121,8 +121,9 @@ public final class SpawnBodyPairIgnoreTest implements IVxTestCommand {
             return 0;
         }
 
-        // Ignore collision between box1 and box2
-        physicsWorld.getBodyPairIgnoreHandler().ignorePair(box1.getBodyId(), box2.getBodyId());
+        // Register a persistent collision ignore between box1 and box2 via the manager.
+        // This ensures the filter persists across server restarts and chunk unloads.
+        physicsWorld.getBodyPairIgnoreManager().ignorePair(box1.getPhysicsId(), box2.getPhysicsId(), true);
 
         // Spawn top box (normal collision with both boxes)
         VxTransform transform3 = new VxTransform(

@@ -57,52 +57,31 @@ public class MixinChunkMap_Persistence {
         VxPhysicsWorld world = VxPhysicsWorld.get(level.dimension());
 
         if (world != null) {
-            // Iterate over all currently loaded chunks to catch those with only physics changes
             for (ChunkHolder holder : this.visibleChunkMap.values()) {
                 ChunkAccess chunk = holder.getLatestChunk();
 
-                // Only manually save if Vanilla WON'T save it (i.e. isUnsaved is false).
-                // If isUnsaved is true, our hook in onSaveChunk will handle it efficiently.
                 if (chunk != null && !chunk.isUnsaved()) {
-                    ChunkPos pos = holder.getPos();
-                    world.getBodyManager().saveBodiesInChunk(pos);
-                    world.getConstraintManager().saveConstraintsInChunk(pos);
+                    world.saveChunkData(holder.getPos());
                 }
             }
 
-            // If this is a blocking save (e.g. Save & Quit), we flush our persistence immediately.
-            // For auto-save (flush=false), the data is just queued to the I/O thread.
-            if (flush) {
-                world.getBodyManager().flushPersistence(true);
-                world.getConstraintManager().flushPersistence(true);
-            } else {
-                // For auto-save, trigger non-blocking flush to keep queue size low
-                world.getBodyManager().flushPersistence(false);
-                world.getConstraintManager().flushPersistence(false);
-            }
+            world.flushAllPersistence(flush);
         }
     }
 
     /**
      * Injects into the specific chunk save method.
-     * This handles:
-     * 1. Standard dirty chunks during auto-save (skipped by logic in onSaveAllChunks above).
-     * 2. Chunks saved explicitly by other game mechanics.
      */
     @Inject(method = "save", at = @At("HEAD"))
     private void onSaveChunk(ChunkAccess chunk, CallbackInfoReturnable<Boolean> cir) {
         VxPhysicsWorld world = VxPhysicsWorld.get(level.dimension());
-
         if (world != null) {
-            // Serialize and queue storage for bodies/constraints in this chunk.
-            world.getBodyManager().saveBodiesInChunk(chunk.getPos());
-            world.getConstraintManager().saveConstraintsInChunk(chunk.getPos());
+            world.saveChunkData(chunk.getPos());
         }
     }
 
     /**
      * Injects into the chunk unload scheduling.
-     * This is called when a player leaves a chunk or the server frees memory.
      */
     @Inject(method = "scheduleUnload", at = @At("HEAD"))
     private void onUnloadChunk(long chunkPos, ChunkHolder chunkHolder, CallbackInfo ci) {
@@ -110,13 +89,8 @@ public class MixinChunkMap_Persistence {
         ChunkPos pos = chunkHolder.getPos();
 
         if (world != null) {
-            // 1. Safety Save: Ensure data is serialized before removal.
-            world.getBodyManager().saveBodiesInChunk(pos);
-            world.getConstraintManager().saveConstraintsInChunk(pos);
-
-            // 2. Memory Cleanup: Remove bodies from the active simulation.
-            world.getBodyManager().onChunkUnload(pos);
-            world.getConstraintManager().onChunkUnload(pos);
+            world.saveChunkData(pos);
+            world.unloadChunkData(pos);
         }
     }
 }

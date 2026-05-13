@@ -8,11 +8,14 @@ import com.github.stephengold.joltjni.PhysicsSystem;
 import com.github.stephengold.joltjni.enumerate.EPhysicsUpdateError;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.constraint.manager.VxConstraintManager;
 import net.xmx.velthoric.core.ragdoll.VxRagdollManager;
 import net.xmx.velthoric.core.terrain.VxTerrainSystem;
+import net.xmx.velthoric.core.persistence.VxChunkPersistenceHandler;
+import net.xmx.velthoric.core.physics.ignore.VxBodyPairIgnoreManager;
 import net.xmx.velthoric.core.terrain.interaction.VxTerrainInteractionHandler;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.jni.BodyPairIgnoreHandler;
@@ -171,6 +174,16 @@ public final class VxPhysicsWorld implements Runnable, Executor {
     private final VxFrameTimer physicsFrameTimer = new VxFrameTimer();
 
     /**
+     * High-level manager for body collision ignores.
+     */
+    private final VxBodyPairIgnoreManager bodyPairIgnoreManager;
+
+    /**
+     * Registry of handlers that manage chunk-based data persistence (e.g., bodies, constraints, ignores).
+     */
+    private final List<VxChunkPersistenceHandler> persistenceHandlers = new ArrayList<>();
+
+    /**
      * A thread-safe queue of commands to be executed on the physics thread.
      */
     private final Queue<Runnable> commandQueue = new ConcurrentLinkedQueue<>();
@@ -210,6 +223,12 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         this.constraintManager = new VxConstraintManager(this.bodyManager);
         this.terrainSystem = new VxTerrainSystem(this, this.level);
         this.ragdollManager = new VxRagdollManager(this);
+        this.bodyPairIgnoreManager = new VxBodyPairIgnoreManager(this);
+
+        // Register default persistence handlers
+        registerPersistenceHandler(this.bodyManager);
+        registerPersistenceHandler(this.constraintManager);
+        registerPersistenceHandler(this.bodyPairIgnoreManager);
     }
 
     /**
@@ -233,6 +252,70 @@ public final class VxPhysicsWorld implements Runnable, Executor {
                 -9.81f,        // gravityY
                 64 * 1024 * 1024 // tempAllocatorSize
         ));
+    }
+
+    /**
+     * Registers a new persistence handler to be included in the chunk lifecycle events.
+     *
+     * @param handler The handler to register.
+     */
+    public void registerPersistenceHandler(VxChunkPersistenceHandler handler) {
+        if (handler != null && !persistenceHandlers.contains(handler)) {
+            persistenceHandlers.add(handler);
+        }
+    }
+
+    /**
+     * Unregisters a persistence handler, removing it from future chunk lifecycle events.
+     *
+     * @param handler The handler to unregister.
+     */
+    public void unregisterPersistenceHandler(VxChunkPersistenceHandler handler) {
+        persistenceHandlers.remove(handler);
+    }
+
+    /**
+     * Triggers a load for all registered persistence systems for the given chunk.
+     *
+     * @param pos The position of the chunk to load.
+     */
+    public void loadChunkData(ChunkPos pos) {
+        for (VxChunkPersistenceHandler handler : persistenceHandlers) {
+            handler.onChunkLoad(pos);
+        }
+    }
+
+    /**
+     * Triggers a save for all registered persistence systems for the given chunk.
+     *
+     * @param pos The position of the chunk to save.
+     */
+    public void saveChunkData(ChunkPos pos) {
+        for (VxChunkPersistenceHandler handler : persistenceHandlers) {
+            handler.onChunkSave(pos);
+        }
+    }
+
+    /**
+     * Triggers an unload for all registered persistence systems for the given chunk.
+     *
+     * @param pos The position of the chunk being unloaded.
+     */
+    public void unloadChunkData(ChunkPos pos) {
+        for (VxChunkPersistenceHandler handler : persistenceHandlers) {
+            handler.onChunkUnload(pos);
+        }
+    }
+
+    /**
+     * Flushes all pending data for all registered persistence systems.
+     *
+     * @param block Whether to block the current thread until flushing is complete.
+     */
+    public void flushAllPersistence(boolean block) {
+        for (VxChunkPersistenceHandler handler : persistenceHandlers) {
+            handler.flush(block);
+        }
     }
 
     /**
@@ -444,6 +527,9 @@ public final class VxPhysicsWorld implements Runnable, Executor {
         if (this.constraintManager != null) {
             this.constraintManager.shutdown();
         }
+        if (this.bodyPairIgnoreManager != null) {
+            this.bodyPairIgnoreManager.shutdown();
+        }
         if (this.bodyManager != null) {
             this.bodyManager.shutdown();
         }
@@ -547,6 +633,13 @@ public final class VxPhysicsWorld implements Runnable, Executor {
      */
     public Config getConfig() {
         return this.simulation.getConfig();
+    }
+
+    /**
+     * @return The high-level manager for ignored body pairs.
+     */
+    public VxBodyPairIgnoreManager getBodyPairIgnoreManager() {
+        return this.bodyPairIgnoreManager;
     }
 
     /**

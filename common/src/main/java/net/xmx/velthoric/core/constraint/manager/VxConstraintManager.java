@@ -12,6 +12,7 @@ import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.constraint.VxConstraint;
+import net.xmx.velthoric.core.persistence.VxChunkPersistenceHandler;
 import net.xmx.velthoric.core.persistence.impl.constraint.VxConstraintStorage;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
@@ -29,7 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author xI-Mx-Ix
  */
-public class VxConstraintManager {
+public class VxConstraintManager implements VxChunkPersistenceHandler {
 
     /**
      * A special, constant UUID used to represent a constraint to the static world itself,
@@ -60,40 +61,20 @@ public class VxConstraintManager {
      */
     public void shutdown() {
         VxMainClass.LOGGER.debug("Flushing physics constraint persistence for world {}...", world.getDimensionKey().location());
-        flushPersistence(true);
-        VxMainClass.LOGGER.debug("Physics constraint persistence flushed for world {}.", world.getDimensionKey().location());
-
+        flush(true);
         activeConstraints.clear();
         dataSystem.clear();
         constraintStorage.shutdown();
     }
 
     /**
-     * Handles the unloading of all constraints anchored within a specific chunk.
-     * <p>
-     * This method removes the constraints from the active Jolt simulation to free memory.
-     * It assumes that any necessary data persistence has already been performed.
+     * Forces pending persistence tasks to write to disk.
      *
-     * @param pos The position of the chunk being unloaded.
+     * @param block If true, blocks until the I/O processor completes all pending writes.
      */
-    public void onChunkUnload(ChunkPos pos) {
-        List<VxConstraint> constraintsToUnload = new ArrayList<>();
-
-        // Identify active constraints belonging to this chunk
-        for (VxConstraint constraint : activeConstraints.values()) {
-            if (isConstraintInChunk(constraint, pos)) {
-                constraintsToUnload.add(constraint);
-            }
-        }
-
-        if (constraintsToUnload.isEmpty()) {
-            return;
-        }
-
-        // Remove constraints from the simulation.
-        for (VxConstraint constraint : constraintsToUnload) {
-            removeConstraint(constraint.getConstraintId());
-        }
+    @Override
+    public void flush(boolean block) {
+        constraintStorage.flush(block);
     }
 
     /**
@@ -319,6 +300,50 @@ public class VxConstraintManager {
     }
 
     /**
+     * Loads all constraints associated with a given chunk from storage.
+     *
+     * @param pos The position of the chunk to load.
+     */
+    @Override
+    public void onChunkLoad(ChunkPos pos) {
+        constraintStorage.loadChunk(pos).thenAccept(constraints -> {
+            world.execute(() -> {
+                for (var c : constraints) {
+                    addConstraintFromStorage(c);
+                }
+            });
+        });
+    }
+
+    /**
+     * Handles the unloading of all constraints anchored within a specific chunk.
+     * <p>
+     * This method removes the constraints from the active Jolt simulation to free memory.
+     *
+     * @param pos The position of the chunk being unloaded.
+     */
+    @Override
+    public void onChunkUnload(ChunkPos pos) {
+        List<VxConstraint> constraintsToUnload = new ArrayList<>();
+
+        // Identify active constraints belonging to this chunk
+        for (VxConstraint constraint : activeConstraints.values()) {
+            if (isConstraintInChunk(constraint, pos)) {
+                constraintsToUnload.add(constraint);
+            }
+        }
+
+        if (constraintsToUnload.isEmpty()) {
+            return;
+        }
+
+        // Remove constraints from the simulation.
+        for (VxConstraint constraint : constraintsToUnload) {
+            removeConstraint(constraint.getConstraintId());
+        }
+    }
+
+    /**
      * Saves all constraints associated with a given chunk.
      * <p>
      * The determination of which constraints belong to which chunk is based on the logic
@@ -327,7 +352,8 @@ public class VxConstraintManager {
      *
      * @param pos The position of the chunk.
      */
-    public void saveConstraintsInChunk(ChunkPos pos) {
+    @Override
+    public void onChunkSave(ChunkPos pos) {
         List<VxConstraint> constraintsToSave = new ArrayList<>();
         for (VxConstraint constraint : activeConstraints.values()) {
             // Check both spatial location and the persistence flag before adding to the save list.
@@ -336,9 +362,5 @@ public class VxConstraintManager {
             }
         }
         constraintStorage.saveChunk(pos, constraintsToSave);
-    }
-
-    public void flushPersistence(boolean block) {
-        constraintStorage.flush(block);
     }
 }

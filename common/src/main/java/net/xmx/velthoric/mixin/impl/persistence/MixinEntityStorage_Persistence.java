@@ -42,18 +42,7 @@ public class MixinEntityStorage_Persistence {
     private void onLoadEntities(ChunkPos pos, CallbackInfoReturnable<CompletableFuture<ChunkEntities<Entity>>> cir) {
         VxPhysicsWorld world = VxPhysicsWorld.get(this.level.dimension());
         if (world != null) {
-            world.getBodyManager().getBodyStorage().loadChunk(pos).thenAccept(dataList -> {
-                // Schedule instantiation on main thread/physics thread
-                world.execute(() -> {
-                    for (var data : dataList) world.getBodyManager().addSerializedBody(data);
-                });
-            });
-
-            world.getConstraintManager().getConstraintStorage().loadChunk(pos).thenAccept(constraints -> {
-                world.execute(() -> {
-                    for (var c : constraints) world.getConstraintManager().addConstraintFromStorage(c);
-                });
-            });
+            world.loadChunkData(pos);
         }
     }
 
@@ -69,8 +58,7 @@ public class MixinEntityStorage_Persistence {
             ChunkPos pos = entities.getPos();
             
             // Serialize and save physics data matching this chunk
-            world.getBodyManager().saveBodiesInChunk(pos);
-            world.getConstraintManager().saveConstraintsInChunk(pos);
+            world.saveChunkData(pos);
         }
     }
 }

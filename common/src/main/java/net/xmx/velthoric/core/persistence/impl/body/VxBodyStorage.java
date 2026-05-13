@@ -16,15 +16,35 @@ import net.xmx.velthoric.core.persistence.VxChunkBasedStorage;
  */
 public class VxBodyStorage extends VxChunkBasedStorage<VxBody, VxSerializedBodyData> {
 
+    /**
+     * Initializes the storage handler for physics bodies.
+     * <p>
+     * Bodies are stored in a dedicated sub-directory within the world folder,
+     * using the ".vxb" file extension.
+     *
+     * @param level The server-side Minecraft level to bind storage to.
+     */
     public VxBodyStorage(ServerLevel level) {
         super(level, "bodies", "vxb");
     }
 
+    /**
+     * Internal: Serializes a physics body to the byte buffer.
+     *
+     * @param body   The body instance to save.
+     * @param buffer The buffer to write into.
+     */
     @Override
     protected void writeSingle(VxBody body, VxByteBuf buffer) {
         VxBodyCodec.serialize(body, buffer);
     }
 
+    /**
+     * Internal: Reads serialized body data from the byte buffer.
+     *
+     * @param buffer The buffer to read from.
+     * @return A data object containing the deserialized body state.
+     */
     @Override
     protected VxSerializedBodyData readSingle(VxByteBuf buffer) {
         return VxBodyCodec.deserialize(buffer);

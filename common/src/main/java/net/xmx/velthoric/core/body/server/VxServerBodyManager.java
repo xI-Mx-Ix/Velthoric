@@ -22,6 +22,7 @@ import net.xmx.velthoric.core.body.VxBodyType;
 import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.network.internal.VxNetworkDispatcher;
+import net.xmx.velthoric.core.persistence.VxChunkPersistenceHandler;
 import net.xmx.velthoric.core.persistence.impl.body.VxBodyCodec;
 import net.xmx.velthoric.core.persistence.impl.body.VxBodyStorage;
 import net.xmx.velthoric.core.persistence.impl.body.VxSerializedBodyData;
@@ -49,7 +50,7 @@ import java.util.function.Consumer;
  *
  * @author xI-Mx-Ix
  */
-public class VxServerBodyManager extends VxAbstractBodyManager {
+public class VxServerBodyManager extends VxAbstractBodyManager implements VxChunkPersistenceHandler {
 
     /**
      * The physics world instance this manager belongs to.
@@ -134,7 +135,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         networkDispatcher.stop();
         VxMainClass.LOGGER.debug("Flushing physics body persistence for world {}...", world.getDimensionKey().location());
         // Force a blocking flush to ensure data integrity on shutdown
-        flushPersistence(true);
+        flush(true);
         VxMainClass.LOGGER.debug("Physics body persistence flushed for world {}.", world.getDimensionKey().location());
         clear();
         bodyStorage.shutdown();
@@ -295,6 +296,9 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         } else if (body.getType().isSoft()) {
             VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(body, this, linearVelocity, angularVelocity, activation);
         }
+
+        // Notify subsystems that the body is fully initialized and has a valid Jolt ID
+        world.getBodyPairIgnoreManager().onBodyAdded(body);
     }
 
     /**
@@ -347,6 +351,10 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         } else if (body.getType().isSoft()) {
             VxJoltBridge.INSTANCE.createAndAddJoltSoftBody(body, this, linearVelocity, angularVelocity, activation);
         }
+
+        // Notify subsystems that the body is fully initialized and has a valid Jolt ID
+        world.getBodyPairIgnoreManager().onBodyAdded(body);
+
         return body;
     }
 
@@ -427,9 +435,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
         VxJoltBridge.INSTANCE.destroyJoltBody(world, body.getBodyId());
 
         // 8. Notify body pair ignore manager to clean up any ignored pairs involving this body
-        if (body.getBodyId() != 0) {
-            world.getBodyPairIgnoreHandler().onBodyRemoved(body.getBodyId());
-        }
+        world.getBodyPairIgnoreManager().onBodyRemoved(body, reason);
 
         // 9. Cleanup DataStore and ID Pools
         int netId = body.getNetworkId();
@@ -451,10 +457,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
     }
 
     /**
-     * Registers a body with the internal maps and allocates a slot in the {@link VxServerBodyDataStore}.
-     * <p>
-     * This method populates the direct reference array in the data store via the add method
-     * to enable O(1) lookups during the physics simulation loop.
+     * Internal logic for registering a body in all management structures.
      *
      * @param body The body to register.
      */
@@ -497,6 +500,9 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
             c.chunkKey[index] = chunkKey;
             spatialManager.add(chunkKey, body);
 
+            // Restore body collision ignores
+            world.getBodyPairIgnoreManager().onBodyAdded(body);
+
             return body;
         });
     }
@@ -526,23 +532,6 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
 
         // Notify the network dispatcher about the movement for client-side tracking updates.
         networkDispatcher.onBodyMoved(body, new ChunkPos(fromKey), new ChunkPos(toKey));
-    }
-
-    /**
-     * Efficiently unloads all physics bodies located in a specific chunk from memory.
-     * <p>
-     * This method removes the bodies from the active simulation. It assumes persistence
-     * has been handled by a prior call to {@link #saveBodiesInChunk(ChunkPos)}.
-     *
-     * @param chunkPos The position of the chunk to unload.
-     */
-    public void onChunkUnload(ChunkPos chunkPos) {
-        List<VxBody> bodiesToUnload = spatialManager.removeAllInChunk(chunkPos.toLong());
-        if (bodiesToUnload.isEmpty()) return;
-
-        for (VxBody body : bodiesToUnload) {
-            processBodyRemoval(body, VxRemovalReason.UNLOAD);
-        }
     }
 
     //================================================================================
@@ -644,13 +633,34 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
     }
 
     /**
+     * Loads and reconstitutes all physics bodies associated with a given chunk from storage.
+     * <p>
+     * This method triggers an asynchronous I/O operation and schedules the body instantiation
+     * on the physics thread to ensure thread-safe integration into the active simulation.
+     *
+     * @param pos The position of the chunk to load.
+     */
+    @Override
+    public void onChunkLoad(ChunkPos pos) {
+        bodyStorage.loadChunk(pos).thenAccept(dataList -> {
+            // Schedule instantiation on the physics thread to ensure thread safety
+            world.execute(() -> {
+                for (var data : dataList) {
+                    addSerializedBody(data);
+                }
+            });
+        });
+    }
+
+    /**
      * Serializes all physics bodies within a given chunk and queues them for storage.
+     * <p>
      * Only bodies that have the {@link VxPersistenceBehavior#ID} behavior attached are included.
-     * Uses the optimized chunk-based batching system.
      *
      * @param pos The position of the chunk to save.
      */
-    public void saveBodiesInChunk(ChunkPos pos) {
+    @Override
+    public void onChunkSave(ChunkPos pos) {
         List<VxBody> bodiesInChunk = new ArrayList<>();
 
         VxServerBodyDataContainer c = dataStore.serverCurrent();
@@ -671,11 +681,27 @@ public class VxServerBodyManager extends VxAbstractBodyManager {
     }
 
     /**
+     * Unloads all bodies belonging to a specific chunk from the physics simulation.
+     *
+     * @param pos The position of the chunk to unload.
+     */
+    @Override
+    public void onChunkUnload(ChunkPos pos) {
+        List<VxBody> bodiesToUnload = spatialManager.removeAllInChunk(pos.toLong());
+        if (bodiesToUnload.isEmpty()) return;
+
+        for (VxBody body : bodiesToUnload) {
+            processBodyRemoval(body, VxRemovalReason.UNLOAD);
+        }
+    }
+
+    /**
      * Forces pending persistence tasks to write to disk.
      *
      * @param block If true, blocks until the I/O processor completes all pending writes.
      */
-    public void flushPersistence(boolean block) {
+    @Override
+    public void flush(boolean block) {
         bodyStorage.flush(block);
     }
 
