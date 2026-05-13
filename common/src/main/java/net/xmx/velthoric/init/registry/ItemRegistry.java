@@ -17,6 +17,8 @@ import net.xmx.velthoric.item.physicsgun.VxPhysicsGunItem;
 import net.xmx.velthoric.item.ragdolllauncher.VxRagdollLauncherItem;
 import net.xmx.velthoric.item.ragdolllauncher.VxRagdollLauncherMode;
 import net.xmx.velthoric.item.tool.registry.VxToolRegistry;
+import net.xmx.velthoric.item.weldtool.VxWeldToolItem;
+import net.xmx.velthoric.item.weldtool.VxWeldToolMode;
 
 /**
  * This class handles the registration of items.
@@ -30,6 +32,7 @@ public class ItemRegistry {
     public static final RegistrySupplier<Item> BOX_LAUNCHER = ModRegistries.ITEMS.register("box_launcher", VxBoxLauncherItem::new);
     public static final RegistrySupplier<Item> CHAIN_CREATOR = ModRegistries.ITEMS.register("chain_creator", VxChainCreatorItem::new);
     public static final RegistrySupplier<Item> RAGDOLL_LAUNCHER = ModRegistries.ITEMS.register("ragdoll_launcher", VxRagdollLauncherItem::new);
+    public static final RegistrySupplier<Item> WELD_TOOL = ModRegistries.ITEMS.register("weld_tool", VxWeldToolItem::new);
 
     public static void register() {
         ModRegistries.ITEMS.register();
@@ -38,5 +41,6 @@ public class ItemRegistry {
         ItemRegistry.MAGNETIZER.listen(item -> VxToolRegistry.register(item, new VxMagnetizerMode()));
         ItemRegistry.RAGDOLL_LAUNCHER.listen(item -> VxToolRegistry.register(item, new VxRagdollLauncherMode()));
         ItemRegistry.CHAIN_CREATOR.listen(item -> VxToolRegistry.register(item, new VxChainCreatorMode()));
+        ItemRegistry.WELD_TOOL.listen(item -> VxToolRegistry.register(item, new VxWeldToolMode()));
     }
 }

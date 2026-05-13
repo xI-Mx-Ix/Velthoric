@@ -29,6 +29,7 @@ public class TabRegistry {
 								output.accept(ItemRegistry.BOX_LAUNCHER.get());
 								output.accept(ItemRegistry.RAGDOLL_LAUNCHER.get());
 								output.accept(ItemRegistry.CHAIN_CREATOR.get());
+								output.accept(ItemRegistry.WELD_TOOL.get());
 							})
 					));
 

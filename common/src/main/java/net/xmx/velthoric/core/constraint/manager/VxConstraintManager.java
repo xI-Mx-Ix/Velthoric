@@ -18,10 +18,7 @@ import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -255,11 +252,48 @@ public class VxConstraintManager implements VxChunkPersistenceHandler {
         }
     }
 
+    /**
+     * Removes all constraints associated with a specific body.
+     *
+     * @param bodyId The UUID of the body.
+     * @return The number of constraints that were actually removed.
+     */
     public void removeConstraintsForBody(UUID bodyId) {
         activeConstraints.values().stream()
                 .filter(c -> c.getBody1Id().equals(bodyId) || c.getBody2Id().equals(bodyId))
                 .forEach(c -> removeConstraint(c.getConstraintId()));
         dataSystem.removeForBody(bodyId);
+    }
+
+    /**
+     * Purges all constraints associated with a specific body.
+     * Uses a functional callback to process partner IDs during iteration to avoid collection allocations.
+     *
+     * @param bodyId          The unique identifier of the body to purge.
+     * @param partnerConsumer A callback triggered for every discovered partner ID.
+     * @return The number of constraints removed.
+     */
+    public int purgeConstraintsForBody(UUID bodyId, java.util.function.Consumer<UUID> partnerConsumer) {
+        int count = 0;
+
+        for (VxConstraint constraint : activeConstraints.values()) {
+            UUID b1 = constraint.getBody1Id();
+            UUID b2 = constraint.getBody2Id();
+
+            if (b1.equals(bodyId) || b2.equals(bodyId)) {
+                if (partnerConsumer != null) {
+                    partnerConsumer.accept(b1.equals(bodyId) ? b2 : b1);
+                }
+                removeConstraint(constraint.getConstraintId());
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            dataSystem.removeForBody(bodyId);
+        }
+
+        return count;
     }
 
     /**
