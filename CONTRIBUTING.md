@@ -1,37 +1,44 @@
 # Contributing to Velthoric
 
-Hi there! Thanks for checking out **Velthoric**.
+Hi! Thanks for checking out Velthoric.
 
-Velthoric is a physics-focused Minecraft project born out of a passion for experimenting with game mechanics and engine-like features. We build this primarily to learn and explore new ideas, but we are always happy to see others use the code, learn from it, or contribute their own improvements.
+Velthoric is a project where I experiment with physics-focused mechanics in Minecraft. I have a very clear vision for the code and the project, so I am very particular about how changes are made. Please follow these guidelines to make sure your work can be accepted.
 
-Since this is a passion project, we develop it at our own pace. We value your contributions highly, but please keep in mind that our own roadmap and vision for the mod will guide what gets merged.
+## Talk to me first
 
-## How to Contribute
+I am very particular about code changes. For anything bigger than a simple typo or a tiny fix, please open an issue first.
 
-### Reporting Issues
-Found a bug, a crash, or something that just feels "off"?
-- **Open a GitHub Issue:** The more details, the better.
-- **Be Specific:** Please include steps to reproduce the issue, your environment (Minecraft version + NeoForge/Fabric version), and any logs or screenshots.
+I want to discuss your idea and how you plan to code it before you spend a lot of time on it. This ensures that the work fits the project and saves everyone time.
 
-Feature suggestions are welcome, too! Just let us know what you have in mind.
+**Stay active:** If you open an issue, please don't forget about it. I expect you to answer questions and stay involved in the conversation until the issue is finished.
 
-### Pull Requests (PRs)
-We love seeing PRs that help improve Velthoric. Here is how to make the process smooth for everyone:
+## Pull Request Rules
 
-1.  **Chat with us first (optional):** For big changes or new features, it’s often a good idea to open an Issue first to discuss your idea. This ensures your work aligns with the project's goals before you start coding.
-2.  **Target the correct branch:** Please submit your Pull Request to the branch that corresponds to the Minecraft version you are working on. For example, if you are fixing something for the latest version, target that specific version branch.
-3.  **Keep it clean:** Try to keep your code style consistent with the rest of the project.
-4.  **Write clear commits:** A short explanation of *what* you changed and *why* helps us review your code much faster.
-5.  **Test your changes:** Please make sure your changes work in-game and don't break existing mechanics.
+I only merge Pull Requests that follow these specific rules:
 
-### Code Reviews
-We review all contributions before merging. We might ask for small changes or clarifications, so please treat this as a collaboration to make the code the best it can be.
+### 1. No Merge Commits
+I want the commit history to be clean and linear.
+* I will **never** accept a PR that has merge commits.
+* You must use **rebase** to keep your branch updated.
+* If I see merge commits, I will ask you to clean up your history with an interactive rebase before I look at the code.
 
-## What to Expect
-- **Priorities:** We try to review PRs as fast as we can, but since we do this in our free time, it might take a moment.
-- **Selection:** We want Velthoric to stay focused. While we appreciate every effort, we might not merge a PR if it doesn't fit the current direction of the mod.
+### 2. Documentation
+* Please document as many methods and fields as possible in **English**.
+* It is not a problem if a few obvious things are missing documentation, but most of your code should be explained.
 
-## Thank You!
-Whether you’re fixing a typo, squashing a bug, or adding a cool new physics mechanic, thank you for your time and effort. You help make Velthoric better!
+### 3. Generative AI
+You can use tools like ChatGPT or Gemini, but only if:
+* The code is well tested.
+* You actually understand what the code does.
+* You are responsible for the quality. If the AI code is buggy or messy, I will not merge it.
 
-Happy coding!
+### 4. License and Legal
+* Your code must fit under the **LGPL 3.0 (only)** license. You can find it in the LICENSE file.
+* Do not contribute code that was copied without permission.
+* By sending a PR, you confirm that you have the right to share this code.
+
+## What to expect
+
+I review every PR myself. I do this in my free time, so it might take some time for me to reply. The process is much faster if you follow the rebase rule, document your code, and discuss everything in an issue first.
+
+Thank you for helping make Velthoric better!
