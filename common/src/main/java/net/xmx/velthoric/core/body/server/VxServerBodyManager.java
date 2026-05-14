@@ -4,7 +4,6 @@
  */
 package net.xmx.velthoric.core.body.server;
 
-import com.github.stephengold.joltjni.Jolt;
 import com.github.stephengold.joltjni.Vec3;
 import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EBodyType;
@@ -452,6 +451,7 @@ public class VxServerBodyManager extends VxAbstractBodyManager implements VxChun
             dataStore.registerNetworkId(networkId, id);
 
             c.isActive[index] = true;
+            c.activation[index] = EActivation.DontActivate;
 
             // --- Behavior Attachment ---
             // Apply all default behaviors from the body type's bitmask

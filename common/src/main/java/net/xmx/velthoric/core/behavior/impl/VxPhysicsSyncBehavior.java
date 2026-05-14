@@ -6,6 +6,7 @@ package net.xmx.velthoric.core.behavior.impl;
 
 import com.github.stephengold.joltjni.BatchBodyInterface;
 import com.github.stephengold.joltjni.BodyIdArray;
+import com.github.stephengold.joltjni.enumerate.EActivation;
 import com.github.stephengold.joltjni.enumerate.EMotionType;
 import com.github.stephengold.joltjni.readonly.ConstBodyIdArray;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -221,6 +222,9 @@ public class VxPhysicsSyncBehavior implements VxBehavior {
 
                 // Sync motion type ordinal from native to Java enum.
                 c.motionType[i] = EMotionType.values()[motionTypes[b]];
+
+                // Sync activation state based on the live activity flag from Jolt.
+                c.activation[i] = c.isActive[i] ? EActivation.Activate : EActivation.DontActivate;
 
                 // Update spatial tracking if the body crossed a chunk boundary.
                 final long lastKey = c.chunkKey[i];
