@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.persistence.impl.constraint;
+package net.xmx.velthoric.core.constraint.persistence;
 
 import com.github.stephengold.joltjni.enumerate.EConstraintSubType;
 import io.netty.buffer.ByteBuf;

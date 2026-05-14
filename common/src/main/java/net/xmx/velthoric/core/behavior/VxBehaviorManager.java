@@ -16,7 +16,7 @@ import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.mounting.behavior.VxMountBehavior;
 import net.xmx.velthoric.core.network.internal.behavior.VxNetSyncBehavior;
 import net.xmx.velthoric.core.network.synchronization.behavior.VxSyncBehavior;
-import net.xmx.velthoric.core.persistence.behavior.VxPersistenceBehavior;
+import net.xmx.velthoric.core.body.persistence.behavior.VxPersistenceBehavior;
 import net.xmx.velthoric.core.physics.buoyancy.behavior.VxBuoyancyBehavior;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.init.VxMainClass;

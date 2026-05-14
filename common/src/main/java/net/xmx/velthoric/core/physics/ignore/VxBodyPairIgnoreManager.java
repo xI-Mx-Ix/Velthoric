@@ -10,6 +10,7 @@ import net.xmx.velthoric.core.body.VxRemovalReason;
 import net.xmx.velthoric.core.body.server.VxServerBodyManager;
 import net.xmx.velthoric.core.body.tracking.VxSpatialManager;
 import net.xmx.velthoric.core.persistence.VxChunkPersistenceHandler;
+import net.xmx.velthoric.core.physics.ignore.persistence.VxIgnoreStorage;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import net.xmx.velthoric.jni.BodyPairIgnoreHandler;
 

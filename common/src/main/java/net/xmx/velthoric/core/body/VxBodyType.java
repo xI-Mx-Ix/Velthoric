@@ -9,11 +9,11 @@ import net.xmx.velthoric.core.behavior.VxBehaviorId;
 import net.xmx.velthoric.core.behavior.impl.VxPhysicsSyncBehavior;
 import net.xmx.velthoric.core.behavior.impl.VxRigidPhysicsBehavior;
 import net.xmx.velthoric.core.behavior.impl.VxSoftPhysicsBehavior;
-import net.xmx.velthoric.core.persistence.behavior.VxPersistenceBehavior;
+import net.xmx.velthoric.core.body.persistence.behavior.VxPersistenceBehavior;
 import net.xmx.velthoric.core.body.provider.VxJoltRigidProvider;
 import net.xmx.velthoric.core.body.provider.VxJoltSoftProvider;
 import net.xmx.velthoric.core.network.synchronization.VxSynchronizedData;
-import net.xmx.velthoric.core.persistence.impl.body.VxPersistenceHandler;
+import net.xmx.velthoric.core.body.persistence.VxPersistenceHandler;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 

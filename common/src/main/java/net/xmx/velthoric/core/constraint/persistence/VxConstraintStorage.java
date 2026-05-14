@@ -2,7 +2,7 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.persistence.impl.constraint;
+package net.xmx.velthoric.core.constraint.persistence;
 
 import net.minecraft.server.level.ServerLevel;
 import net.xmx.velthoric.network.VxByteBuf;

@@ -2,10 +2,11 @@
  * This file is part of Velthoric.
  * Licensed under LGPL 3.0.
  */
-package net.xmx.velthoric.core.physics.ignore;
+package net.xmx.velthoric.core.physics.ignore.persistence;
 
 import net.xmx.velthoric.core.persistence.schema.VxFieldType;
 import net.xmx.velthoric.core.persistence.schema.VxSchema;
+import net.xmx.velthoric.core.physics.ignore.VxBodyPairIgnore;
 import net.xmx.velthoric.network.VxByteBuf;
 
 import java.util.UUID;

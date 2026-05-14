@@ -13,9 +13,9 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.constraint.VxConstraint;
 import net.xmx.velthoric.core.persistence.VxChunkPersistenceHandler;
-import net.xmx.velthoric.core.persistence.impl.constraint.VxConstraintCodec;
-import net.xmx.velthoric.core.persistence.impl.constraint.VxConstraintStorage;
-import net.xmx.velthoric.core.persistence.impl.constraint.VxSerializedConstraintData;
+import net.xmx.velthoric.core.constraint.persistence.VxConstraintCodec;
+import net.xmx.velthoric.core.constraint.persistence.VxConstraintStorage;
+import net.xmx.velthoric.core.constraint.persistence.VxSerializedConstraintData;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
