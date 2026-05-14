@@ -13,7 +13,9 @@ import net.xmx.velthoric.init.VxMainClass;
 import net.xmx.velthoric.core.body.VxBody;
 import net.xmx.velthoric.core.constraint.VxConstraint;
 import net.xmx.velthoric.core.persistence.VxChunkPersistenceHandler;
+import net.xmx.velthoric.core.persistence.impl.constraint.VxConstraintCodec;
 import net.xmx.velthoric.core.persistence.impl.constraint.VxConstraintStorage;
+import net.xmx.velthoric.core.persistence.impl.constraint.VxSerializedConstraintData;
 import net.xmx.velthoric.core.physics.world.VxPhysicsWorld;
 import org.jetbrains.annotations.Nullable;
 
@@ -340,10 +342,13 @@ public class VxConstraintManager implements VxChunkPersistenceHandler {
      */
     @Override
     public void onChunkLoad(ChunkPos pos) {
-        constraintStorage.loadChunk(pos).thenAccept(constraints -> {
+        constraintStorage.loadChunk(pos).thenAccept(serializedConstraints -> {
             world.execute(() -> {
-                for (var c : constraints) {
-                    addConstraintFromStorage(c);
+                for (VxSerializedConstraintData data : serializedConstraints) {
+                    VxConstraint constraint = new VxConstraint(data.constraintId());
+                    VxConstraintCodec.readInternalPersistenceData(constraint, data.constraintData());
+                    data.constraintData().release();
+                    addConstraintFromStorage(constraint);
                 }
             });
         });

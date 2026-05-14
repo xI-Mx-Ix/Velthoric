@@ -16,7 +16,7 @@ import java.util.UUID;
  *
  * @author xI-Mx-Ix
  */
-public class VxConstraintStorage extends VxChunkBasedStorage<VxConstraint, VxConstraint> {
+public class VxConstraintStorage extends VxChunkBasedStorage<VxConstraint, VxSerializedConstraintData> {
 
     /**
      * Initializes the storage handler for physics constraints.
@@ -47,13 +47,13 @@ public class VxConstraintStorage extends VxChunkBasedStorage<VxConstraint, VxCon
     }
 
     /**
-     * Internal: Reconstitutes a physics constraint from the byte buffer.
+     * Internal: Reconstitutes a physics constraint payload from the byte buffer.
      *
      * @param buffer The buffer to read from.
-     * @return A fully initialized {@link VxConstraint} instance.
+     * @return A {@link VxSerializedConstraintData} record for deferred loading.
      */
     @Override
-    protected VxConstraint readSingle(VxByteBuf buffer) {
+    protected VxSerializedConstraintData readSingle(VxByteBuf buffer) {
         UUID id = buffer.readUUID();
         return VxConstraintCodec.deserialize(id, buffer);
     }

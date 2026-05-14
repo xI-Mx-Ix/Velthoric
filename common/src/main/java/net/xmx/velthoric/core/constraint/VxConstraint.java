@@ -33,7 +33,7 @@ public class VxConstraint {
      * The UUID of the first physics body involved in this constraint.
      * This acts as the primary anchor for the constraint connection.
      */
-    private final UUID body1Id;
+    private UUID body1Id;
 
     /**
      * The UUID of the second physics body involved in this constraint.
@@ -41,7 +41,7 @@ public class VxConstraint {
      * Can be set to {@link VxConstraintManager#WORLD_BODY_ID}
      * to indicate a connection to the static world geometry (e.g., pinning an object to the ground).
      */
-    private final UUID body2Id;
+    private UUID body2Id;
 
     /**
      * The serialized configuration data for this constraint.
@@ -56,7 +56,7 @@ public class VxConstraint {
      * The specific type classification of this constraint (e.g., Hinge, Slider, Fixed).
      * Used to determine the correct settings class during deserialization.
      */
-    private final EConstraintSubType subType;
+    private EConstraintSubType subType;
 
     /**
      * A reference to the active, native Jolt physics constraint object.
@@ -77,6 +77,15 @@ public class VxConstraint {
      * Defaults to {@code true}.
      */
     private boolean persistent = true;
+
+    /**
+     * Constructs an empty constraint instance for deferred loading.
+     *
+     * @param constraintId The unique ID for this constraint.
+     */
+    public VxConstraint(UUID constraintId) {
+        this.constraintId = constraintId;
+    }
 
     /**
      * Constructs a new constraint instance from provided settings.
@@ -150,6 +159,42 @@ public class VxConstraint {
      */
     public EConstraintSubType getSubType() {
         return subType;
+    }
+
+    /**
+     * Sets the unique identifier of the first body.
+     *
+     * @param body1Id The new UUID of the first body.
+     */
+    public void setBody1Id(UUID body1Id) {
+        this.body1Id = body1Id;
+    }
+
+    /**
+     * Sets the unique identifier of the second body.
+     *
+     * @param body2Id The new UUID of the second body.
+     */
+    public void setBody2Id(UUID body2Id) {
+        this.body2Id = body2Id;
+    }
+
+    /**
+     * Updates the raw serialized data for the constraint's settings.
+     *
+     * @param settingsData The new byte array of the settings data.
+     */
+    public void setSettingsData(byte[] settingsData) {
+        this.settingsData = settingsData;
+    }
+
+    /**
+     * Sets the specific subtype of the constraint.
+     *
+     * @param subType The new EConstraintSubType enum value.
+     */
+    public void setSubType(EConstraintSubType subType) {
+        this.subType = subType;
     }
 
     /**
