@@ -76,7 +76,7 @@ Velthoric artifacts are hosted on Cloudsmith. You can include them in your Archi
 ```gradle
 repositories {
     maven {
-        url = "https://maven.cloudsmith.io/velthoric/velthoric/"
+        url = "https://dl.cloudsmith.io/public/velthoric/velthoric/maven/"
     }
 }
 ```
