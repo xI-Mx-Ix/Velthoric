@@ -138,4 +138,66 @@ public class VxServerBodyDataContainer extends VxBodyDataContainer {
             this.activation[i] = EActivation.DontActivate;
         }
     }
+
+    /**
+     * Copies all server-specific physics data to another container.
+     * <p>
+     * Extends the base {@link VxBodyDataContainer#copyTo(VxBodyDataContainer)} by
+     * migrating angular velocity, AABBs, network state, and dirty flags.
+     *
+     * @param other The destination container (must be an instance of {@link VxServerBodyDataContainer}).
+     */
+    @Override
+    public void copyTo(VxBodyDataContainer other) {
+        super.copyTo(other);
+        if (other instanceof VxServerBodyDataContainer next) {
+            int len = Math.min(this.capacity, next.capacity);
+            System.arraycopy(this.angVelX, 0, next.angVelX, 0, len);
+            System.arraycopy(this.angVelY, 0, next.angVelY, 0, len);
+            System.arraycopy(this.angVelZ, 0, next.angVelZ, 0, len);
+            System.arraycopy(this.aabbMinX, 0, next.aabbMinX, 0, len);
+            System.arraycopy(this.aabbMinY, 0, next.aabbMinY, 0, len);
+            System.arraycopy(this.aabbMinZ, 0, next.aabbMinZ, 0, len);
+            System.arraycopy(this.aabbMaxX, 0, next.aabbMaxX, 0, len);
+            System.arraycopy(this.aabbMaxY, 0, next.aabbMaxY, 0, len);
+            System.arraycopy(this.aabbMaxZ, 0, next.aabbMaxZ, 0, len);
+            System.arraycopy(this.bodyType, 0, next.bodyType, 0, len);
+            System.arraycopy(this.motionType, 0, next.motionType, 0, len);
+            System.arraycopy(this.activation, 0, next.activation, 0, len);
+            System.arraycopy(this.chunkKey, 0, next.chunkKey, 0, len);
+            System.arraycopy(this.networkId, 0, next.networkId, 0, len);
+            System.arraycopy(this.isTransformDirty, 0, next.isTransformDirty, 0, len);
+            System.arraycopy(this.isVertexDataDirty, 0, next.isVertexDataDirty, 0, len);
+            System.arraycopy(this.isCustomDataDirty, 0, next.isCustomDataDirty, 0, len);
+            System.arraycopy(this.isShapeDirty, 0, next.isShapeDirty, 0, len);
+            System.arraycopy(this.lastUpdateTimestamp, 0, next.lastUpdateTimestamp, 0, len);
+            next.dirtyIndices.addAll(this.dirtyIndices);
+        }
+    }
+
+    /**
+     * Resets all server-specific physics data at the specified index to default values.
+     * <p>
+     * Clears physical bounds, network mapping, and dirty tracking state for the slot.
+     *
+     * @param index The slot index to clear.
+     */
+    @Override
+    public void reset(int index) {
+        super.reset(index);
+        this.angVelX[index] = this.angVelY[index] = this.angVelZ[index] = 0f;
+        this.aabbMinX[index] = this.aabbMinY[index] = this.aabbMinZ[index] = 0f;
+        this.aabbMaxX[index] = this.aabbMaxY[index] = this.aabbMaxZ[index] = 0f;
+        this.bodyType[index] = null;
+        this.chunkKey[index] = Long.MAX_VALUE;
+        this.networkId[index] = -1;
+        this.motionType[index] = EMotionType.Dynamic;
+        this.activation[index] = EActivation.DontActivate;
+        this.isTransformDirty[index] = false;
+        this.isVertexDataDirty[index] = false;
+        this.isCustomDataDirty[index] = false;
+        this.isShapeDirty[index] = false;
+        this.lastUpdateTimestamp[index] = 0L;
+        this.dirtyIndices.remove(index);
+    }
 }

@@ -41,12 +41,7 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
     private final Int2ObjectMap<UUID> networkIdToUuid = new Int2ObjectOpenHashMap<>();
 
     /**
-     * Structural double-buffered container for thread-safe resizing.
-     */
-    protected volatile VxServerBodyDataContainer serverCurrentContainer;
-
-    /**
-     * Constructs the server data store.
+     * Initializes the server data store and pre-allocates the initial container.
      */
     public VxServerBodyDataStore() {
         super();
@@ -68,7 +63,7 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
         int index = super.reserveIndex(body);
 
         // Initialize server-specific data
-        VxServerBodyDataContainer c = serverCurrentContainer;
+        VxServerBodyDataContainer c = serverCurrent();
         c.bodyType[index] = type;
         c.chunkKey[index] = Long.MAX_VALUE; // Sentinel for "no chunk"
         return index;
@@ -85,82 +80,53 @@ public class VxServerBodyDataStore extends VxBodyDataStore {
     public synchronized Integer removeBody(UUID id) {
         Integer index = super.removeBody(id);
         if (index != null) {
-            serverCurrentContainer.dirtyIndices.remove((int) index);
+            serverCurrent().dirtyIndices.remove((int) index);
         }
         return index;
     }
 
     /**
      * Resets all data at a specific index to default values.
+     * <p>
+     * Delegates to {@link VxServerBodyDataContainer#reset(int)} and handles
+     * Network ID registry cleanup.
      *
      * @param index The index to reset.
      */
     @Override
     protected void resetIndex(int index) {
-        super.resetIndex(index);
-        VxServerBodyDataContainer c = serverCurrentContainer;
+        VxServerBodyDataContainer c = serverCurrent();
 
-        c.angVelX[index] = c.angVelY[index] = c.angVelZ[index] = 0f;
-        c.aabbMinX[index] = c.aabbMinY[index] = c.aabbMinZ[index] = 0f;
-        c.aabbMaxX[index] = c.aabbMaxY[index] = c.aabbMaxZ[index] = 0f;
-
-        c.bodyType[index] = null;
-        c.chunkKey[index] = Long.MAX_VALUE;
-
-        // Handle Network ID cleanup
+        // Handle Network ID cleanup before resetting the array slot
         int netId = c.networkId[index];
         if (netId != -1) {
             unregisterNetworkId(netId);
         }
-        c.networkId[index] = -1;
 
-        c.isTransformDirty[index] = false;
-        c.isVertexDataDirty[index] = false;
-        c.isCustomDataDirty[index] = false;
-        c.isShapeDirty[index] = false;
-        c.lastUpdateTimestamp[index] = 0L;
-        c.dirtyIndices.remove(index);
+        // Delegate full reset to container
+        super.resetIndex(index);
     }
 
     /**
      * Reallocates all data arrays to a new capacity.
+     * <p>
+     * Triggers base reallocation logic which handles the atomical swap
+     * of the underlying {@link VxServerBodyDataContainer}.
      *
      * @param newCapacity The new size for the arrays.
      */
     @Override
     protected void allocate(int newCapacity) {
         super.growBaseArrays(newCapacity);
-
-        VxServerBodyDataContainer old = serverCurrentContainer;
-        VxServerBodyDataContainer next = (VxServerBodyDataContainer) currentContainer;
-
-        if (old != null) {
-            int copyLength = Math.min(old.capacity, newCapacity);
-            System.arraycopy(old.angVelX, 0, next.angVelX, 0, copyLength);
-            System.arraycopy(old.angVelY, 0, next.angVelY, 0, copyLength);
-            System.arraycopy(old.angVelZ, 0, next.angVelZ, 0, copyLength);
-            System.arraycopy(old.aabbMinX, 0, next.aabbMinX, 0, copyLength);
-            System.arraycopy(old.aabbMinY, 0, next.aabbMinY, 0, copyLength);
-            System.arraycopy(old.aabbMinZ, 0, next.aabbMinZ, 0, copyLength);
-            System.arraycopy(old.aabbMaxX, 0, next.aabbMaxX, 0, copyLength);
-            System.arraycopy(old.aabbMaxY, 0, next.aabbMaxY, 0, copyLength);
-            System.arraycopy(old.aabbMaxZ, 0, next.aabbMaxZ, 0, copyLength);
-            System.arraycopy(old.bodyType, 0, next.bodyType, 0, copyLength);
-            System.arraycopy(old.chunkKey, 0, next.chunkKey, 0, copyLength);
-            System.arraycopy(old.networkId, 0, next.networkId, 0, copyLength);
-            System.arraycopy(old.isTransformDirty, 0, next.isTransformDirty, 0, copyLength);
-            System.arraycopy(old.isVertexDataDirty, 0, next.isVertexDataDirty, 0, copyLength);
-            System.arraycopy(old.isCustomDataDirty, 0, next.isCustomDataDirty, 0, copyLength);
-            System.arraycopy(old.isShapeDirty, 0, next.isShapeDirty, 0, copyLength);
-            System.arraycopy(old.lastUpdateTimestamp, 0, next.lastUpdateTimestamp, 0, copyLength);
-            next.dirtyIndices.addAll(old.dirtyIndices);
-        }
-
-        this.serverCurrentContainer = next;
     }
 
+    /**
+     * Returns the currently active server-side data container.
+     *
+     * @return The typed container instance.
+     */
     public VxServerBodyDataContainer serverCurrent() {
-        return serverCurrentContainer;
+        return (VxServerBodyDataContainer) currentContainer;
     }
 
     @Override

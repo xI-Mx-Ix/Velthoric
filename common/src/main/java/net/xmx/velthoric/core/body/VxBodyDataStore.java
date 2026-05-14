@@ -145,21 +145,13 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
     /**
      * Resets all data fields at the specified index to their default values.
      * <p>
-     * Clears the body reference to prevent memory leaks and resets physical properties.
+     * Delegates the clearing of physical state and object references to the
+     * active {@link VxBodyDataContainer}.
      *
      * @param index The index to reset.
      */
     protected void resetIndex(int index) {
-        VxBodyDataContainer c = currentContainer;
-        c.bodies[index] = null;
-        c.posX[index] = c.posY[index] = c.posZ[index] = 0.0;
-        c.rotX[index] = c.rotY[index] = c.rotZ[index] = 0f;
-        c.rotW[index] = 1f; // Identity Quaternion
-        c.velX[index] = c.velY[index] = c.velZ[index] = 0f;
-        c.vertexData[index] = null;
-        c.shape[index] = null;
-        c.isActive[index] = false;
-        c.behaviorBits[index] = 0L;
+        currentContainer.reset(index);
     }
 
     /**
@@ -185,22 +177,7 @@ public abstract class VxBodyDataStore extends AbstractDataStore {
         VxBodyDataContainer next = createContainer(newCapacity);
 
         if (old != null) {
-            int copyLength = Math.min(old.capacity, newCapacity);
-            System.arraycopy(old.posX, 0, next.posX, 0, copyLength);
-            System.arraycopy(old.posY, 0, next.posY, 0, copyLength);
-            System.arraycopy(old.posZ, 0, next.posZ, 0, copyLength);
-            System.arraycopy(old.rotX, 0, next.rotX, 0, copyLength);
-            System.arraycopy(old.rotY, 0, next.rotY, 0, copyLength);
-            System.arraycopy(old.rotZ, 0, next.rotZ, 0, copyLength);
-            System.arraycopy(old.rotW, 0, next.rotW, 0, copyLength);
-            System.arraycopy(old.velX, 0, next.velX, 0, copyLength);
-            System.arraycopy(old.velY, 0, next.velY, 0, copyLength);
-            System.arraycopy(old.velZ, 0, next.velZ, 0, copyLength);
-            System.arraycopy(old.vertexData, 0, next.vertexData, 0, copyLength);
-            System.arraycopy(old.shape, 0, next.shape, 0, copyLength);
-            System.arraycopy(old.isActive, 0, next.isActive, 0, copyLength);
-            System.arraycopy(old.behaviorBits, 0, next.behaviorBits, 0, copyLength);
-            System.arraycopy(old.bodies, 0, next.bodies, 0, copyLength);
+            old.copyTo(next);
         }
 
         this.currentContainer = next;

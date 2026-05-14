@@ -38,11 +38,6 @@ public class VxClientBodyDataStore extends VxBodyDataStore {
     private final Int2IntMap networkIdToIndex = new Int2IntOpenHashMap();
 
     /**
-     * Structural double-buffered container for thread-safe resizing.
-     */
-    protected volatile VxClientBodyDataContainer clientCurrentContainer;
-
-    /**
      * Constructs the client data store.
      */
     public VxClientBodyDataStore() {
@@ -82,100 +77,27 @@ public class VxClientBodyDataStore extends VxBodyDataStore {
 
     /**
      * Resets all data at a specific index to default values.
+     * <p>
+     * Delegates to {@link VxClientBodyDataContainer#reset(int)}.
      *
      * @param index The index to reset.
      */
     @Override
     protected void resetIndex(int index) {
         super.resetIndex(index);
-        VxClientBodyDataContainer c = clientCurrentContainer;
-
-        c.state0_timestamp[index] = 0;
-        c.state1_timestamp[index] = 0;
-
-        c.state0_isActive[index] = false;
-        c.state1_isActive[index] = false;
-
-        c.state0_vertexData[index] = null;
-        c.state1_vertexData[index] = null;
-
-        c.render_isInitialized[index] = false;
-        c.prev_vertexData[index] = null;
-
-        c.customData[index] = null;
-        if (c.lastKnownPosition != null && c.lastKnownPosition[index] != null) {
-            c.lastKnownPosition[index].loadZero();
-        }
-
-        // Reset buffer vectors
-        c.state0_velX[index] = c.state0_velY[index] = c.state0_velZ[index] = 0;
-        c.state1_velX[index] = c.state1_velY[index] = c.state1_velZ[index] = 0;
-
-        c.state0_posX[index] = c.state0_posY[index] = c.state0_posZ[index] = 0.0;
-        c.state1_posX[index] = c.state1_posY[index] = c.state1_posZ[index] = 0.0;
-        c.prev_posX[index] = c.prev_posY[index] = c.prev_posZ[index] = 0.0;
     }
 
     /**
      * Reallocates all data arrays to a new capacity.
+     * <p>
+     * Triggers base reallocation logic which handles the atomical swap
+     * of the underlying {@link VxClientBodyDataContainer}.
      *
      * @param newCapacity The new size for the arrays.
      */
     @Override
     protected void allocate(int newCapacity) {
         super.growBaseArrays(newCapacity);
-
-        VxClientBodyDataContainer old = clientCurrentContainer;
-        VxClientBodyDataContainer next = (VxClientBodyDataContainer) currentContainer;
-
-        if (old != null) {
-            int copyLength = Math.min(old.capacity, newCapacity);
-            System.arraycopy(old.state0_timestamp, 0, next.state0_timestamp, 0, copyLength);
-            System.arraycopy(old.state0_posX, 0, next.state0_posX, 0, copyLength);
-            System.arraycopy(old.state0_posY, 0, next.state0_posY, 0, copyLength);
-            System.arraycopy(old.state0_posZ, 0, next.state0_posZ, 0, copyLength);
-            System.arraycopy(old.state0_rotX, 0, next.state0_rotX, 0, copyLength);
-            System.arraycopy(old.state0_rotY, 0, next.state0_rotY, 0, copyLength);
-            System.arraycopy(old.state0_rotZ, 0, next.state0_rotZ, 0, copyLength);
-            System.arraycopy(old.state0_rotW, 0, next.state0_rotW, 0, copyLength);
-            System.arraycopy(old.state0_velX, 0, next.state0_velX, 0, copyLength);
-            System.arraycopy(old.state0_velY, 0, next.state0_velY, 0, copyLength);
-            System.arraycopy(old.state0_velZ, 0, next.state0_velZ, 0, copyLength);
-            System.arraycopy(old.state0_isActive, 0, next.state0_isActive, 0, copyLength);
-            System.arraycopy(old.state0_vertexData, 0, next.state0_vertexData, 0, copyLength);
-
-            System.arraycopy(old.state1_timestamp, 0, next.state1_timestamp, 0, copyLength);
-            System.arraycopy(old.state1_posX, 0, next.state1_posX, 0, copyLength);
-            System.arraycopy(old.state1_posY, 0, next.state1_posY, 0, copyLength);
-            System.arraycopy(old.state1_posZ, 0, next.state1_posZ, 0, copyLength);
-            System.arraycopy(old.state1_rotX, 0, next.state1_rotX, 0, copyLength);
-            System.arraycopy(old.state1_rotY, 0, next.state1_rotY, 0, copyLength);
-            System.arraycopy(old.state1_rotZ, 0, next.state1_rotZ, 0, copyLength);
-            System.arraycopy(old.state1_rotW, 0, next.state1_rotW, 0, copyLength);
-            System.arraycopy(old.state1_velX, 0, next.state1_velX, 0, copyLength);
-            System.arraycopy(old.state1_velY, 0, next.state1_velY, 0, copyLength);
-            System.arraycopy(old.state1_velZ, 0, next.state1_velZ, 0, copyLength);
-            System.arraycopy(old.state1_isActive, 0, next.state1_isActive, 0, copyLength);
-            System.arraycopy(old.state1_vertexData, 0, next.state1_vertexData, 0, copyLength);
-
-            System.arraycopy(old.prev_posX, 0, next.prev_posX, 0, copyLength);
-            System.arraycopy(old.prev_posY, 0, next.prev_posY, 0, copyLength);
-            System.arraycopy(old.prev_posZ, 0, next.prev_posZ, 0, copyLength);
-            System.arraycopy(old.prev_rotX, 0, next.prev_rotX, 0, copyLength);
-            System.arraycopy(old.prev_rotY, 0, next.prev_rotY, 0, copyLength);
-            System.arraycopy(old.prev_rotZ, 0, next.prev_rotZ, 0, copyLength);
-            System.arraycopy(old.prev_rotW, 0, next.prev_rotW, 0, copyLength);
-            System.arraycopy(old.prev_vertexData, 0, next.prev_vertexData, 0, copyLength);
-
-            System.arraycopy(old.render_isInitialized, 0, next.render_isInitialized, 0, copyLength);
-            System.arraycopy(old.customData, 0, next.customData, 0, copyLength);
-            // lastKnownPosition is already initialized in new container constructor
-            for (int i = 0; i < copyLength; i++) {
-                next.lastKnownPosition[i].set(old.lastKnownPosition[i]);
-            }
-        }
-
-        this.clientCurrentContainer = next;
     }
 
     @Override
@@ -183,8 +105,13 @@ public class VxClientBodyDataStore extends VxBodyDataStore {
         return new VxClientBodyDataContainer(newCapacity);
     }
 
+    /**
+     * Returns the currently active client-side data container.
+     *
+     * @return The typed container instance.
+     */
     public VxClientBodyDataContainer clientCurrent() {
-        return clientCurrentContainer;
+        return (VxClientBodyDataContainer) currentContainer;
     }
 
     /**
@@ -200,6 +127,8 @@ public class VxClientBodyDataStore extends VxBodyDataStore {
 
     /**
      * Calculates the approximate memory usage of all data arrays in the store.
+     * <p>
+     * Sums the sizes of all base arrays and client-specific interpolation buffers.
      *
      * @return The estimated memory usage in bytes.
      */
