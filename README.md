@@ -85,7 +85,7 @@ repositories {
 ```gradle
 dependencies {
     // Replace [loader] with 'fabric' or 'neoforge'
-    // Replace [version] with the desired version (e.g., 0.7.1)
+    // Replace [version] with the desired version (e.g., 0.8.0)
     modImplementation "net.xmx.velthoric:velthoric-[loader]:[version]"
 }
 ```
