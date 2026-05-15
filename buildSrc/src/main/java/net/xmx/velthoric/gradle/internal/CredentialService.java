@@ -54,14 +54,18 @@ public final class CredentialService {
     /**
      * Performs a strict validation of required release credentials.
      *
-     * @param project The project context.
+     * @param project    The project context.
+     * @param isSnapshot Whether this is a snapshot build (only requires Maven).
      * @throws IllegalStateException If any required token is missing.
      */
-    public static void validate(Project project) {
+    public static void validate(Project project, boolean isSnapshot) {
         List<String> missing = new ArrayList<>();
-
-        checkPresence(project, KEY_MODRINTH, missing);
-        checkPresence(project, KEY_CURSEFORGE, missing);
+        
+        if (!isSnapshot) {
+            checkPresence(project, KEY_MODRINTH, missing);
+            checkPresence(project, KEY_CURSEFORGE, missing);
+        }
+        
         checkPresence(project, KEY_MAVEN_USER, missing);
         checkPresence(project, KEY_MAVEN_TOKEN, missing);
 

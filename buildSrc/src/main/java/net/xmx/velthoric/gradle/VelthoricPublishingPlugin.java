@@ -91,7 +91,14 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
                         });
 
                 if (isRealRelease) {
-                    CredentialService.validate(project);
+                    String modVersion = String.valueOf(project.findProperty("mod_version"));
+                    boolean anySnapshot = project.getSubprojects().stream()
+                            .map(sub -> sub.getExtensions().findByName(EXTENSION_NAME))
+                            .filter(VelthoricExtension.class::isInstance)
+                            .map(VelthoricExtension.class::cast)
+                            .anyMatch(ext -> ext.getSnapshot().get() || modVersion.endsWith("-SNAPSHOT"));
+
+                    CredentialService.validate(project, anySnapshot);
                     project.getLogger().lifecycle("Velthoric Release Pipeline: Credentials verified. Completing upload...");
                 } else {
                     project.getLogger().lifecycle("Velthoric Release Pipeline: No active release detected (Dry Run or no artifacts). Skipping credential validation.");
