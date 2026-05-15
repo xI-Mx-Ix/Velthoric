@@ -47,7 +47,10 @@ public final class PlatformConfigurator {
 
         String finalTitle = String.format("Velthoric %s for %s %s", modVersion, platformName, mcVersion);
 
-        // 4. Configure Third-Party Extension
+        // 4. Determine Snapshot State
+        boolean isSnapshot = extension.getSnapshot().get() || modVersion.endsWith("-SNAPSHOT");
+
+        // 5. Configure Third-Party Extension
         ModPublishExtension publishExt = project.getExtensions().getByType(ModPublishExtension.class);
 
         publishExt.getDryRun().set(extension.getDryRun());
@@ -55,18 +58,20 @@ public final class PlatformConfigurator {
         publishExt.getVersion().set(modVersion);
         publishExt.getDisplayName().set(finalTitle);
 
-        // 5. Artifact Resolution
+        // 6. Artifact Resolution
         if (extension.getArtifact().isPresent()) {
             Provider<RegularFile> artifactFile = normalizeArtifact(project, extension.getArtifact().get());
             publishExt.getFile().set(artifactFile);
 
-            configureCurseForge(project, publishExt, extension, loader, mcVersion);
-            configureModrinth(project, publishExt, extension, loader, mcVersion);
+            if (!isSnapshot) {
+                configureCurseForge(project, publishExt, extension, loader, mcVersion);
+                configureModrinth(project, publishExt, extension, loader, mcVersion);
+            }
             configureMaven(project, extension, artifactFile);
         }
 
-        // 6. GitHub
-        if (extension.getPublishGitHub().get()) {
+        // 7. GitHub (Skip if snapshot)
+        if (extension.getPublishGitHub().get() && !isSnapshot) {
             configureGitHub(project, publishExt, modVersion, changelog);
         }
     }

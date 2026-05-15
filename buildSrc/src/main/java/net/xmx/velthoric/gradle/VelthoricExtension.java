@@ -4,6 +4,7 @@
  */
 package net.xmx.velthoric.gradle;
 
+import org.gradle.api.Project;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
@@ -107,18 +108,32 @@ public abstract class VelthoricExtension {
     public abstract Property<Boolean> getPublishGitHub();
 
     /**
+     * Whether this is a snapshot build.
+     * <p>
+     * Snapshot builds only publish to Maven and skip Modrinth, CurseForge, and GitHub.
+     * Defaults to {@code false}.
+     */
+    @Input
+    public abstract Property<Boolean> getSnapshot();
+
+    /**
      * Injection constructor.
      * Initializes the properties with safe default conventions.
      *
+     * @param project The Gradle project instance.
      * @param objects The Gradle ObjectFactory used to create properties.
      */
     @Inject
-    public VelthoricExtension(ObjectFactory objects) {
+    public VelthoricExtension(Project project, ObjectFactory objects) {
         // Set conventions (default values)
         getLoader().convention("common");
         getDisplayName().convention("Common"); // Fallback if loader strategy fails or is common
         getDryRun().convention(false);
         getPublishGitHub().convention(false);
+        getSnapshot().convention(project.provider(() -> {
+            Object prop = project.findProperty("velthoric.snapshot");
+            return prop != null && Boolean.parseBoolean(prop.toString());
+        }));
 
         // Default IDs for the Velthoric project
         getCurseProjectId().convention("1367260");

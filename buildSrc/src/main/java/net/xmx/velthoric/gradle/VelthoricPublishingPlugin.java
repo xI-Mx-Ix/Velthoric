@@ -80,7 +80,15 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
                         // 2. Critical filter:
                         // - Ignore projects where 'artifact' is missing (User didn't configure the block).
                         // - Ignore projects where 'dryRun' is true.
-                        .anyMatch(ext -> (ext.getArtifact().isPresent() || ext.getPublishGitHub().get()) && !ext.getDryRun().get());
+                        // - If it's a snapshot, we only care about Maven (artifact).
+                        .anyMatch(ext -> {
+                            String modVersion = String.valueOf(project.findProperty("mod_version"));
+                            boolean isSnapshot = ext.getSnapshot().get() || modVersion.endsWith("-SNAPSHOT");
+                            boolean hasArtifact = ext.getArtifact().isPresent();
+                            boolean isGitHubLead = ext.getPublishGitHub().get() && !isSnapshot;
+
+                            return (hasArtifact || isGitHubLead) && !ext.getDryRun().get();
+                        });
 
                 if (isRealRelease) {
                     CredentialService.validate(project);
@@ -140,7 +148,10 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
             String mavenUser = CredentialService.get(p, CredentialService.KEY_MAVEN_USER);
             String mavenToken = CredentialService.get(p, CredentialService.KEY_MAVEN_TOKEN);
 
-            if (mrToken == null || cfToken == null || ghToken == null || mavenUser == null || mavenToken == null) {
+            String modVersion = String.valueOf(p.getRootProject().findProperty("mod_version"));
+            boolean isSnapshot = extension.getSnapshot().get() || modVersion.endsWith("-SNAPSHOT");
+
+            if (mavenUser == null || mavenToken == null || (!isSnapshot && (mrToken == null || cfToken == null || ghToken == null))) {
                 extension.getDryRun().set(true);
             }
 
@@ -151,8 +162,11 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
 
             // Connect to Root Lifecycle
             p.getRootProject().getTasks().named(LIFECYCLE_TASK_NAME, rootTask -> {
-                TaskProvider<Task> subTask = p.getTasks().named(SUBPROJECT_TASK_NAME);
-                rootTask.dependsOn(subTask);
+                // Platforms (Modrinth/CurseForge/GitHub) - Skip if snapshot
+                if (!isSnapshot) {
+                    TaskProvider<Task> subTask = p.getTasks().named(SUBPROJECT_TASK_NAME);
+                    rootTask.dependsOn(subTask);
+                }
 
                 // Also depend on Maven publishing if an artifact is present and we're not in dry run
                 if (hasArtifact) {
@@ -162,7 +176,7 @@ public class VelthoricPublishingPlugin implements Plugin<Project> {
                     rootTask.dependsOn(p.provider(() -> extension.getDryRun().get() ? java.util.Collections.emptyList() : java.util.Collections.singletonList(mavenTask)));
                 }
 
-                String details = (hasArtifact ? "Platforms + Maven" : "") + (isGitHubLead ? (hasArtifact ? " + " : "") + "GitHub Only" : "");
+                String details = (hasArtifact ? (isSnapshot ? "Maven Snapshot" : "Platforms + Maven") : "") + (!isSnapshot && isGitHubLead ? (hasArtifact ? " + " : "") + "GitHub Only" : "");
                 project.getLogger().lifecycle("Velthoric: Registered module '{}' for publication ({}).", project.getName(), details);
             });
         });

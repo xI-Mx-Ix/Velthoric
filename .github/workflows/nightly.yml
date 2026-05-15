@@ -60,6 +60,31 @@ jobs:
           name: "velthoric-jars-${{ github.run_id }}"
           path: release-artifacts
 
+      - name: "Setup Java 21 (Temurin)"
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: "Download Compiled Natives"
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "velthoric-natives-${{ github.run_id }}-*"
+          path: vx-native/prebuilt-natives
+          merge-multiple: true
+
+      - name: "Grant Gradle Wrapper Execute Permission"
+        run: chmod +x gradlew
+
+      - name: "Publish Snapshot to Maven"
+        run: |
+          VERSION=$(grep "mod_version" gradle.properties | cut -d'=' -f2)
+          ./gradlew publishVelthoric -Pvelthoric.snapshot=true -Pmod_version="${VERSION}-SNAPSHOT" -x :vx-native:cmakeBuild
+        env:
+          MAVEN_USER: ${{ secrets.MAVEN_USER }}
+          MAVEN_TOKEN: ${{ secrets.MAVEN_TOKEN }}
+
       # Creates or overwrites the rolling "nightly" pre-release tag.
       # Every successful nightly build replaces the previous release files.
       - name: "Publish Nightly Pre-Release"
